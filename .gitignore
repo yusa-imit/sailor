@@ -1,0 +1,15 @@
+.vscode
+
+# zig
+.zig-cache
+zig-out
+
+# Claude Code
+.claude/settings.local.json
+.claude/teams/
+.claude/tasks/
+.claude/projects/
+
+# OS
+.DS_Store
+Thumbs.db

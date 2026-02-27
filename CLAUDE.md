@@ -1,0 +1,367 @@
+# sailor — Claude Code Orchestrator
+
+> **sailor**: Zig TUI framework & CLI toolkit
+> Current Phase: **Phase 1 — Terminal + CLI Foundation**
+
+---
+
+## Project Overview
+
+- **Language**: Zig 0.15.x
+- **Type**: Library (consumed via `build.zig.zon`)
+- **Build**: `zig build` / `zig build test`
+- **PRD**: `docs/PRD.md` (전체 요구사항 참조)
+- **Branch Strategy**: `main` (development)
+
+## Repository Structure
+
+```
+sailor/
+├── CLAUDE.md                    # THIS FILE — orchestrator
+├── docs/PRD.md                  # Product Requirements Document
+├── .gitignore                   # Git ignore rules
+├── .claude/
+│   ├── agents/                  # Custom subagent definitions
+│   │   ├── zig-developer.md     #   model: sonnet — Zig 구현
+│   │   ├── code-reviewer.md     #   model: sonnet — 코드 리뷰
+│   │   ├── test-writer.md       #   model: sonnet — 테스트 작성
+│   │   ├── architect.md         #   model: opus   — 아키텍처 설계
+│   │   ├── git-manager.md       #   model: haiku  — Git 운영
+│   │   └── ci-cd.md             #   model: haiku  — CI/CD 관리
+│   ├── commands/                # Slash commands
+│   ├── memory/                  # Persistent agent memory
+│   └── settings.json            # Claude Code permissions
+├── .github/workflows/           # CI/CD pipelines
+│   └── ci.yml                   #   Build, test, cross-compile
+├── src/                         # Library source
+│   ├── sailor.zig               #   Root module — pub exports
+│   ├── term.zig                 #   Terminal backend
+│   ├── color.zig                #   Styled output
+│   ├── arg.zig                  #   Argument parser
+│   ├── repl.zig                 #   Interactive REPL
+│   ├── progress.zig             #   Progress indicators
+│   ├── fmt.zig                  #   Result formatting
+│   └── tui/                     #   TUI framework
+│       ├── tui.zig              #     Terminal, Frame, event loop
+│       ├── buffer.zig           #     Cell buffer, diff engine
+│       ├── layout.zig           #     Constraint solver
+│       ├── style.zig            #     Style, Color, Span, Line
+│       ├── symbols.zig          #     Box-drawing character sets
+│       └── widgets/             #     Built-in widgets
+│           ├── block.zig
+│           ├── paragraph.zig
+│           ├── list.zig
+│           ├── table.zig
+│           ├── tree.zig
+│           ├── input.zig
+│           ├── textarea.zig
+│           ├── tabs.zig
+│           ├── gauge.zig
+│           ├── sparkline.zig
+│           ├── barchart.zig
+│           ├── linechart.zig
+│           ├── canvas.zig
+│           ├── dialog.zig
+│           ├── notification.zig
+│           ├── popup.zig
+│           └── statusbar.zig
+├── tests/                       # Tests
+│   ├── term_test.zig
+│   ├── color_test.zig
+│   ├── arg_test.zig
+│   ├── repl_test.zig
+│   ├── progress_test.zig
+│   ├── fmt_test.zig
+│   ├── buffer_test.zig
+│   ├── layout_test.zig
+│   └── widget_test.zig
+└── examples/                    # Example applications
+    ├── hello.zig                #   Minimal TUI app
+    ├── counter.zig              #   Interactive counter
+    └── dashboard.zig            #   Multi-widget dashboard
+```
+
+---
+
+## Development Workflow
+
+### Autonomous Development Protocol
+
+Claude Code는 이 프로젝트에서 **완전 자율 개발**을 수행한다. 다음 프로토콜을 따른다:
+
+1. **작업 수신** → PRD 또는 사용자 지시를 분석
+2. **계획 수립** → 대화형 세션: `EnterPlanMode`로 사용자 승인; 자율 세션(`claude -p`): 내부적으로 계획 후 즉시 구현 진행 (plan mode 도구 사용 금지)
+3. **팀 구성** → 작업 복잡도에 따라 동적으로 팀/서브에이전트 생성
+4. **구현** → 코딩, 테스트, 리뷰를 병렬 수행
+5. **검증** → `zig build test`로 전체 테스트 통과 확인
+6. **커밋** → 변경사항 커밋 (사용자 요청 시)
+7. **메모리 갱신** → `.claude/memory/`에 기록
+
+### Team Orchestration
+
+복잡한 작업 시 다음 패턴으로 팀을 구성한다:
+
+```
+Leader (orchestrator)
+├── zig-developer   — 구현 담당
+├── code-reviewer   — 코드 리뷰 & 품질 보증
+├── test-writer     — 테스트 작성
+└── architect       — 설계 검토 (필요 시)
+```
+
+**팀 생성 기준**:
+- 3개 이상 파일 수정이 필요한 작업 → 팀 구성
+- 단일 파일 수정 → 직접 수행
+- 아키텍처 변경 → architect 포함
+
+**팀 해산**: 작업 완료 후 반드시 `shutdown_request` → `TeamDelete`로 정리
+
+### Automated Session Execution
+
+자동화 세션(cron job 등)에서는 다음 프로토콜을 순서대로 실행한다.
+
+**컨텍스트 복원** — 세션 시작 시 다음 파일을 읽어 프로젝트 상태 파악:
+1. `.claude/memory/project-context.md` — 현재 phase, 체크리스트, 진행 상황
+2. `.claude/memory/architecture.md` — 아키텍처 결정사항
+3. `.claude/memory/decisions.md` — 기술 결정 로그
+4. `.claude/memory/debugging.md` — 알려진 이슈와 해결법
+5. `.claude/memory/patterns.md` — 검증된 코드 패턴
+
+**8단계 실행 사이클**:
+
+| Phase | 내용 | 비고 |
+|-------|------|------|
+| 1. 상태 파악 | `/status` 실행, git log·빌드·테스트 상태 점검 | 체크리스트에서 다음 미완료 항목 식별 |
+| 2. 계획 | 구현 전략을 내부적으로 수립 (텍스트 출력) | `EnterPlanMode`/`ExitPlanMode` 사용 금지 — 비대화형 세션에서 블로킹됨 |
+| 3. 구현 → 검증 → 커밋 (반복) | 아래 **구현 루프** 참조 | 단위별로 즉시 커밋+푸시 |
+| 4. 코드 리뷰 | `/review` — PRD 준수·메모리 안전성·테스트 커버리지 확인 | 이슈 발견 시 수정 후 재커밋 |
+| 5. 메모리 갱신 | `.claude/memory/` 파일 업데이트 | 별도 커밋: `chore: update session memory` → push |
+| 6. 세션 요약 | 구조화된 요약 출력 | 아래 템플릿 참조 |
+
+**구현 루프** (Phase 3 상세):
+
+작업을 작은 단위로 분할하고, 각 단위마다 다음을 반복한다:
+1. 코드 작성 (하나의 모듈/파일 단위)
+2. 테스트 작성 및 `zig build test` 통과 확인
+3. 즉시 커밋 + `git push` — 다음 단위로 넘어가기 전에 반드시 수행
+- 미커밋 변경사항을 여러 파일에 걸쳐 누적하지 않는다
+- 한 사이클 내에 완료할 수 없는 작업은 동작하는 중간 상태로 커밋+푸시한다
+- `git add -A` 금지 — 변경된 파일을 명시적으로 지정
+
+**작업 선택 규칙**:
+- `build.zig`가 없으면 프로젝트 부트스트랩부터 시작
+- 이전 세션의 미커밋 변경사항이 있으면: 테스트 통과 시 커밋+푸시, 실패 시 폐기
+- 테스트 실패 중이면 새 기능 추가 전에 수정
+- 의존성 순서 준수: term → color → arg → repl → progress → fmt → tui
+- 사이클당 하나의 집중 작업만 수행
+- 이전 세션의 미완료 작업이 있으면 먼저 완료
+
+**세션 요약 템플릿**:
+
+    ## Session Summary
+    ### Completed
+    - [이번 사이클에서 완료한 내용]
+    ### Files Changed
+    - [생성/수정된 파일 목록]
+    ### Tests
+    - [테스트 수, 통과/실패 상태]
+    ### Next Priority
+    - [다음 사이클에서 작업할 내용]
+    ### Issues / Blockers
+    - [발생한 문제 또는 미해결 이슈]
+
+### Consumer Projects
+
+sailor는 세 프로젝트의 공유 라이브러리다:
+
+| Project | Path | Uses |
+|---------|------|------|
+| **zr** | `../zr` | arg, color, progress → 후에 tui 마이그레이션 |
+| **zoltraak** | `../zoltraak` | arg, color, repl → 후에 tui (redis-cli) |
+| **silica** | `../silica` | arg, color, repl, fmt → 후에 tui (SQL shell) |
+
+API 변경 시 소비자 프로젝트 호환성을 반드시 고려한다.
+
+### Available Custom Agents
+
+| Agent | Model | File | Purpose |
+|-------|-------|------|---------|
+| zig-developer | sonnet | `.claude/agents/zig-developer.md` | Zig 코드 구현, 빌드 오류 해결 |
+| code-reviewer | sonnet | `.claude/agents/code-reviewer.md` | 코드 리뷰, 품질/보안 검사 |
+| test-writer | sonnet | `.claude/agents/test-writer.md` | 유닛 테스트 작성 |
+| architect | opus | `.claude/agents/architect.md` | 아키텍처 설계, 모듈 구조 결정 |
+| git-manager | haiku | `.claude/agents/git-manager.md` | Git 운영, 브랜치/커밋 관리 |
+| ci-cd | haiku | `.claude/agents/ci-cd.md` | GitHub Actions, CI/CD 파이프라인 |
+
+### Available Slash Commands
+
+| Command | File | Purpose |
+|---------|------|---------|
+| /build | `.claude/commands/build.md` | 라이브러리 빌드 |
+| /test | `.claude/commands/test.md` | 테스트 실행 |
+| /review | `.claude/commands/review.md` | 현재 변경사항 코드 리뷰 |
+| /implement | `.claude/commands/implement.md` | 기능 구현 워크플로우 |
+| /fix | `.claude/commands/fix.md` | 버그 수정 워크플로우 |
+| /status | `.claude/commands/status.md` | 프로젝트 상태 확인 |
+| /release | `.claude/commands/release.md` | 릴리스 워크플로우 |
+| /example | `.claude/commands/example.md` | 예제 앱 빌드 및 실행 |
+
+---
+
+## Coding Standards
+
+### Zig Conventions
+
+- **Naming**: camelCase for functions/variables, PascalCase for types, SCREAMING_SNAKE for constants
+- **Error handling**: Always use explicit error unions, never `catch unreachable` in library code
+- **Memory**: Prefer arena allocators for request-scoped work, GPA for long-lived allocations. Library functions accept `std.mem.Allocator` — never hardcode allocator.
+- **Testing**: Every public function must have corresponding tests in the same file
+- **Comments**: Only where logic is non-obvious. No doc comments on self-explanatory functions
+- **Imports**: Group stdlib, then project imports, then test imports
+
+### Library-Specific Rules
+
+- **No global state** — All state in structs, caller owns lifetime
+- **No stdout/stderr** — Write to user-provided `std.io.Writer` only
+- **No `@panic` in library code** — Return errors, let caller decide
+- **No `std.debug.print`** — Use proper writer-based output
+- **Comptime validation** — Validate API misuse at compile time where possible
+- **Backward compatibility** — API changes require deprecation cycle across consumer projects
+
+### File Organization
+
+- One module per file
+- Keep files under 500 lines; split into submodules if exceeded
+- Public API at top of file, private helpers at bottom
+- Tests at the bottom of each file within `test` block
+- Widget files follow pattern: struct definition → render fn → helper fns → tests
+
+### Error Messages
+
+Library errors should be descriptive:
+```zig
+error.InvalidConstraint  // not error.Invalid
+error.TerminalNotATty    // not error.NotTty
+error.UnknownFlag        // not error.Unknown
+```
+
+---
+
+## Git Workflow
+
+### Branch Strategy
+
+- `main` — primary development branch
+- Feature branches: `feat/<name>`, `fix/<name>`, `refactor/<name>`
+
+### Commit Convention
+
+```
+<type>: <subject>
+
+<body>
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
+
+---
+
+## Memory System
+
+### Long-Term Memory Preservation
+
+에이전트와 오케스트레이터는 `.claude/memory/` 디렉토리에 장기 기억을 보존한다.
+
+**메모리 파일 구조**:
+```
+.claude/memory/
+├── project-context.md    # 프로젝트 개요, 현재 phase, 체크리스트
+├── architecture.md       # 아키텍처 결정사항
+├── decisions.md          # 주요 기술 결정 로그
+├── debugging.md          # 디버깅 인사이트, 해결된 문제
+└── patterns.md           # 검증된 코드 패턴
+```
+
+**메모리 프로토콜**:
+1. 세션 시작 시 `.claude/memory/` 파일들을 읽어 컨텍스트 복원
+2. 중요한 결정/발견 시 즉시 해당 메모리 파일에 기록
+3. 메모리 파일이 200줄을 초과하면 핵심만 남기고 압축
+
+---
+
+## Phase Implementation Roadmap
+
+### Phase 1 — Terminal + CLI Foundation (v0.1.0)
+- [ ] `src/term.zig` — Raw mode, key reading, TTY detection, terminal size
+- [ ] `src/color.zig` — ANSI codes, styles, 256/truecolor, NO_COLOR
+- [ ] `src/arg.zig` — Flag parsing, subcommands, help generation
+- [ ] Tests for all Phase 1 modules
+- [ ] CI pipeline passing
+
+### Phase 2 — Interactive (v0.2.0)
+- [ ] `src/repl.zig` — Line editing, history, completion, highlighting
+- [ ] `src/progress.zig` — Bar, spinner, multi-progress
+- [ ] `src/fmt.zig` — Table, JSON, CSV, plain output
+- [ ] Tests for all Phase 2 modules
+
+### Phase 3 — TUI Core (v0.3.0)
+- [ ] `src/tui/buffer.zig` — Cell grid, double buffering, diff
+- [ ] `src/tui/layout.zig` — Constraint solver
+- [ ] `src/tui/style.zig` — Style, Color, Span, Line
+- [ ] `src/tui/symbols.zig` — Box-drawing sets
+- [ ] `src/tui/tui.zig` — Terminal wrapper, Frame, event loop
+- [ ] Tests for TUI core
+
+### Phase 4 — Core Widgets (v0.4.0)
+- [ ] Block, Paragraph, List, Table, Input, Tabs, StatusBar, Gauge
+- [ ] Consumer migration: zr, zoltraak-cli, silica shell prototypes
+
+### Phase 5 — Advanced Widgets (v0.5.0)
+- [ ] Tree, TextArea, Sparkline, BarChart, LineChart, Canvas, Dialog, Popup, Notification
+- [ ] Example applications
+
+### Phase 6 — Polish (v1.0.0)
+- [ ] Theming system
+- [ ] Animation support
+- [ ] Performance benchmarks
+- [ ] Comprehensive documentation
+
+---
+
+## Quick Reference
+
+```bash
+# Build library
+zig build
+
+# Test
+zig build test
+
+# Build and run example
+zig build example -- hello
+
+# Cross-compile check
+zig build -Dtarget=x86_64-linux-gnu
+
+# Clean
+rm -rf zig-out .zig-cache
+```
+
+---
+
+## Rules for Claude Code
+
+1. **Always read before writing** — 파일 수정 전 반드시 Read로 현재 내용 확인
+2. **Test after every change** — 코드 변경 후 `zig build test` 실행
+3. **Incremental commits** — 기능 단위로 작은 커밋
+4. **Memory updates** — 중요한 발견/결정은 즉시 메모리에 기록
+5. **No over-engineering** — 현재 phase에 필요한 것만 구현
+6. **PRD is source of truth** — 기능 요구사항은 `docs/PRD.md` 참조
+7. **Team cleanup** — 팀 작업 완료 후 반드시 해산
+8. **Library mindset** — stdout 직접 사용 금지, Writer 기반 API만 제공
+9. **Consumer awareness** — API 변경 시 zr, zoltraak, silica 호환성 고려
+10. **Stop if stuck** — 동일 에러 3회 시도 후 지속되면 `.claude/memory/debugging.md`에 기록
+11. **Respect CI** — CI 파이프라인 호환성 유지
+12. **Never force push** — 파괴적 git 명령어 금지

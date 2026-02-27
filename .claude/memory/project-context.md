@@ -1,0 +1,28 @@
+# Sailor Project Context
+
+## Overview
+- Zig TUI framework & CLI toolkit
+- Library consumed via `build.zig.zon`
+- Zero dependencies (Zig stdlib only)
+- Cross-platform: Linux, macOS, Windows
+
+## Current Phase
+- **Phase 1 — Terminal + CLI Foundation (v0.1.0)**: NOT STARTED
+- Modules: term.zig, color.zig, arg.zig
+
+## Consumer Projects
+| Project | Path | Status |
+|---------|------|--------|
+| zr | ../zr | 43K LOC, will migrate arg/color/progress |
+| zoltraak | ../zoltraak | 39K LOC, will replace parseArgs(), build redis-cli |
+| silica | ../silica | 5K LOC, will build SQL shell |
+
+## Checklist — Phase 1
+- [ ] build.zig + build.zig.zon bootstrap
+- [ ] src/sailor.zig root module
+- [ ] src/term.zig — raw mode, key reading, TTY detection, terminal size
+- [ ] src/color.zig — ANSI codes, styles, 256/truecolor, NO_COLOR
+- [ ] src/arg.zig — flag parsing, subcommands, help generation
+- [ ] Tests for all modules
+- [ ] CI pipeline green
+- [ ] First consumer integration test (zoltraak parseArgs replacement)
