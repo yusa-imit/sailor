@@ -116,8 +116,8 @@ test "buffer overflow protection via bounds" {
 test "alignment requirements" {
     const allocator = testing.allocator;
 
-    // Aligned allocations
-    const aligned_buf = try allocator.alignedAlloc(u8, 16, 64);
+    // Aligned allocations - alignment is now std.mem.Alignment enum
+    const aligned_buf = try allocator.alignedAlloc(u8, @enumFromInt(4), 64); // 2^4 = 16 bytes
     defer allocator.free(aligned_buf);
 
     const addr = @intFromPtr(aligned_buf.ptr);
@@ -160,13 +160,13 @@ test "fixed buffer stream prevents overrun" {
 }
 
 test "arraylist automatic resizing" {
-    var list = std.ArrayList(u32).init(testing.allocator);
-    defer list.deinit();
+    var list: std.ArrayList(u32) = .{};
+    defer list.deinit(testing.allocator);
 
     // Grow dynamically without overflow
     var i: u32 = 0;
     while (i < 1000) : (i += 1) {
-        try list.append(i);
+        try list.append(testing.allocator, i);
     }
 
     try testing.expectEqual(1000, list.items.len);
@@ -175,10 +175,10 @@ test "arraylist automatic resizing" {
 }
 
 test "string builder memory management" {
-    var list = std.ArrayList(u8).init(testing.allocator);
-    defer list.deinit();
+    var list: std.ArrayList(u8) = .{};
+    defer list.deinit(testing.allocator);
 
-    const writer = list.writer();
+    const writer = list.writer(testing.allocator);
 
     try writer.writeAll("Hello, ");
     try writer.writeAll("sailor!");
@@ -207,10 +207,10 @@ test "manual memory management pattern" {
     const buffer = try allocator.create(std.ArrayList(u8));
     defer allocator.destroy(buffer);
 
-    buffer.* = std.ArrayList(u8).init(allocator);
-    defer buffer.deinit();
+    buffer.* = .{};
+    defer buffer.deinit(allocator);
 
-    try buffer.append('x');
+    try buffer.append(allocator, 'x');
     try testing.expectEqual(1, buffer.items.len);
 }
 

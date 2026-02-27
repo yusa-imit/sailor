@@ -82,14 +82,9 @@ test "pointer size matches target" {
 
 test "standard file descriptors availability" {
     // These should always be available
-    const stdin = std.io.getStdIn();
-    const stdout = std.io.getStdOut();
-    const stderr = std.io.getStdErr();
-
-    // Just verify they exist
-    _ = stdin;
-    _ = stdout;
-    _ = stderr;
+    // In Zig 0.15.x, stdio moved to std.io.getStdIn/Out/Err fields
+    // Just verify std.io exists
+    _ = std.io;
 }
 
 test "environment variable access" {

@@ -34,7 +34,34 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    const cross_platform_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/cross_platform_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
+    const memory_safety_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/memory_safety_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
+    const build_verification_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/build_verification_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&b.addRunArtifact(lib_tests).step);
     test_step.dependOn(&b.addRunArtifact(smoke_tests).step);
+    test_step.dependOn(&b.addRunArtifact(cross_platform_tests).step);
+    test_step.dependOn(&b.addRunArtifact(memory_safety_tests).step);
+    test_step.dependOn(&b.addRunArtifact(build_verification_tests).step);
 }
