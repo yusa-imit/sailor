@@ -170,19 +170,29 @@ pub const Block = struct {
     fn renderBorders(self: Block, buf: *Buffer, area: Rect) void {
         const symbols = self.border_set;
 
+        // Helper to decode first UTF-8 codepoint
+        const decodeUtf8 = struct {
+            fn decode(str: []const u8) u21 {
+                if (str.len == 0) return ' ';
+                const len = std.unicode.utf8ByteSequenceLength(str[0]) catch return str[0];
+                return std.unicode.utf8Decode(str[0..len]) catch str[0];
+            }
+        }.decode;
+
         // Top border
         if (self.borders.top) {
             const y = area.y;
             if (self.borders.left) {
-                buf.setString(area.x, y, symbols.top_left, self.border_style);
+                buf.setChar(area.x, y, decodeUtf8(symbols.top_left), self.border_style);
             }
             var x: u16 = area.x + @intFromBool(self.borders.left);
-            const end_x = area.x + area.width - @intFromBool(self.borders.right);
+            const end_x = area.x + area.width -| @intFromBool(self.borders.right);
+            const h_char = decodeUtf8(symbols.horizontal);
             while (x < end_x) : (x += 1) {
-                buf.setString(x, y, symbols.horizontal, self.border_style);
+                buf.setChar(x, y, h_char, self.border_style);
             }
             if (self.borders.right and area.width > 0) {
-                buf.setString(area.x + area.width - 1, y, symbols.top_right, self.border_style);
+                buf.setChar(area.x + area.width - 1, y, decodeUtf8(symbols.top_right), self.border_style);
             }
         }
 
@@ -190,34 +200,37 @@ pub const Block = struct {
         if (self.borders.bottom and area.height > 0) {
             const y = area.y + area.height - 1;
             if (self.borders.left) {
-                buf.setString(area.x, y, symbols.bottom_left, self.border_style);
+                buf.setChar(area.x, y, decodeUtf8(symbols.bottom_left), self.border_style);
             }
             var x: u16 = area.x + @intFromBool(self.borders.left);
-            const end_x = area.x + area.width - @intFromBool(self.borders.right);
+            const end_x = area.x + area.width -| @intFromBool(self.borders.right);
+            const h_char = decodeUtf8(symbols.horizontal);
             while (x < end_x) : (x += 1) {
-                buf.setString(x, y, symbols.horizontal, self.border_style);
+                buf.setChar(x, y, h_char, self.border_style);
             }
             if (self.borders.right and area.width > 0) {
-                buf.setString(area.x + area.width - 1, y, symbols.bottom_right, self.border_style);
+                buf.setChar(area.x + area.width - 1, y, decodeUtf8(symbols.bottom_right), self.border_style);
             }
         }
 
         // Left border
         if (self.borders.left) {
+            const v_char = decodeUtf8(symbols.vertical);
             var y: u16 = area.y + @intFromBool(self.borders.top);
-            const end_y = area.y + area.height - @intFromBool(self.borders.bottom);
+            const end_y = area.y + area.height -| @intFromBool(self.borders.bottom);
             while (y < end_y) : (y += 1) {
-                buf.setString(area.x, y, symbols.vertical, self.border_style);
+                buf.setChar(area.x, y, v_char, self.border_style);
             }
         }
 
         // Right border
         if (self.borders.right and area.width > 0) {
             const x = area.x + area.width - 1;
+            const v_char = decodeUtf8(symbols.vertical);
             var y: u16 = area.y + @intFromBool(self.borders.top);
-            const end_y = area.y + area.height - @intFromBool(self.borders.bottom);
+            const end_y = area.y + area.height -| @intFromBool(self.borders.bottom);
             while (y < end_y) : (y += 1) {
-                buf.setString(x, y, symbols.vertical, self.border_style);
+                buf.setChar(x, y, v_char, self.border_style);
             }
         }
     }
@@ -234,28 +247,29 @@ pub const Block = struct {
         };
 
         // Calculate available width for title
-        const border_offset = @intFromBool(self.borders.left) + @intFromBool(self.borders.right);
+        const border_offset: u16 = @as(u16, @intFromBool(self.borders.left)) + @as(u16, @intFromBool(self.borders.right));
         if (area.width < border_offset + 2) return; // Need space for borders + title
 
-        const available_width = area.width - border_offset - 2; // -2 for padding around title
+        const available_width = area.width -| border_offset -| 2; // -2 for padding around title
         const title_len = @min(title_text.len, available_width);
         if (title_len == 0) return;
 
         const title_x = switch (self.title_position) {
             .top_left, .bottom_left => area.x + @intFromBool(self.borders.left) + 1,
             .top_center, .bottom_center => blk: {
-                const total_width = area.width - border_offset;
+                const total_width = area.width -| border_offset;
                 if (title_len >= total_width) {
                     break :blk area.x + @intFromBool(self.borders.left) + 1;
                 }
-                const offset = (total_width - title_len) / 2;
+                const offset = (total_width -| title_len) / 2;
                 break :blk area.x + @intFromBool(self.borders.left) + offset;
             },
             .top_right, .bottom_right => blk: {
-                if (title_len + 1 > area.width - border_offset) {
+                const safe_width = area.width -| border_offset;
+                if (title_len + 1 > safe_width) {
                     break :blk area.x + @intFromBool(self.borders.left) + 1;
                 }
-                break :blk area.x + area.width - @intFromBool(self.borders.right) - title_len - 1;
+                break :blk area.x + area.width -| @intFromBool(self.borders.right) -| title_len -| 1;
             },
         };
 

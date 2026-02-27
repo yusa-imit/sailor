@@ -21,6 +21,9 @@ pub const widgets = struct {
     pub const Block = @import("widgets/block.zig").Block;
     pub const Borders = @import("widgets/block.zig").Borders;
     pub const TitlePosition = @import("widgets/block.zig").TitlePosition;
+    pub const Paragraph = @import("widgets/paragraph.zig").Paragraph;
+    pub const Alignment = @import("widgets/paragraph.zig").Alignment;
+    pub const Wrap = @import("widgets/paragraph.zig").Wrap;
 };
 
 // Export commonly used types
@@ -223,4 +226,7 @@ test "Event union" {
 
 test {
     std.testing.refAllDecls(@This());
+    // Pull in widget tests
+    _ = @import("widgets/block.zig");
+    _ = @import("widgets/paragraph.zig");
 }
