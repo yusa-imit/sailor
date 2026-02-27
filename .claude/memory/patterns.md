@@ -52,17 +52,52 @@ defer obj.deinit();
 
 ## Test Infrastructure Pattern
 ```zig
-// Smoke tests in tests/smoke_test.zig validate:
-// - Test framework operational
-// - Platform detection (Windows/Linux/macOS)
-// - Allocator basics (GPA, arena)
-// - Writer-based testing with fixedBufferStream
-// - Error handling patterns
-// - Unicode support
-// - No global state pattern
-// - Cross-platform path handling
+// Test organization (73 tests total):
+// - tests/smoke_test.zig (12 tests): basic patterns, allocators, writers
+// - tests/cross_platform_test.zig (17 tests): OS/arch detection, Unicode, platform-specific behavior
+// - tests/memory_safety_test.zig (20 tests): GPA leak detection, bounds checking, alignment
+// - tests/build_verification_test.zig (24 tests): compiler settings, target verification, dependency validation
 
 // Build system runs both:
 // 1. lib_tests (src/sailor.zig and all module tests)
 // 2. smoke_tests (tests/*.zig standalone tests)
 ```
+
+## Memory Safety Patterns
+
+### GPA Leak Detection
+```zig
+test "no leaks" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer {
+        const leaked = gpa.deinit();
+        testing.expect(leaked == .ok) catch @panic("memory leak detected");
+    }
+    const allocator = gpa.allocator();
+    // allocations here
+}
+```
+
+### Arena for Request-Scoped Work
+```zig
+var arena = std.heap.ArenaAllocator.init(gpa.allocator());
+defer arena.deinit();
+const allocator = arena.allocator();
+// Multiple allocations without individual frees
+```
+
+### Error Cleanup
+```zig
+const buf = try allocator.alloc(u8, 100);
+errdefer allocator.free(buf);
+// If error occurs after this, buf is freed
+```
+
+## Cross-Platform Verification
+
+Verified targets (all passing):
+- x86_64-linux-gnu
+- x86_64-windows-msvc
+- aarch64-linux-gnu
+- x86_64-macos (native)
+- aarch64-macos (native)

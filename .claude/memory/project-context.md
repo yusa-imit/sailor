@@ -23,6 +23,7 @@
 - [x] src/sailor.zig root module
 - [x] Test infrastructure (tests/smoke_test.zig, 12 tests passing)
 - [x] Cross-platform build verification (Linux, Windows, macOS ARM)
+- [x] Comprehensive test suites (73 total tests: smoke, cross-platform, memory safety, build verification)
 - [ ] src/term.zig — raw mode, key reading, TTY detection, terminal size
 - [ ] src/color.zig — ANSI codes, styles, 256/truecolor, NO_COLOR
 - [ ] src/arg.zig — flag parsing, subcommands, help generation
