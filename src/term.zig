@@ -67,7 +67,8 @@ fn getSizeUnix() Error!Size {
         return Error.TerminalSizeUnavailable;
     }
 
-    if (ws.col == 0 or ws.row == 0) {
+    // Validate dimensions are non-zero and reasonable (< 10000)
+    if (ws.col == 0 or ws.row == 0 or ws.col >= 10000 or ws.row >= 10000) {
         return Error.TerminalSizeUnavailable;
     }
 
