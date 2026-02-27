@@ -357,13 +357,13 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
 - [x] `src/fmt.zig` — Table, JSON, CSV, plain output
 - [x] Tests for all Phase 2 modules
 
-### Phase 3 — TUI Core (v0.3.0)
-- [ ] `src/tui/buffer.zig` — Cell grid, double buffering, diff
-- [ ] `src/tui/layout.zig` — Constraint solver
-- [ ] `src/tui/style.zig` — Style, Color, Span, Line
-- [ ] `src/tui/symbols.zig` — Box-drawing sets
-- [ ] `src/tui/tui.zig` — Terminal wrapper, Frame, event loop
-- [ ] Tests for TUI core
+### Phase 3 — TUI Core (v0.3.0) ✅ COMPLETE
+- [x] `src/tui/style.zig` — Style, Color, Span, Line
+- [x] `src/tui/symbols.zig` — Box-drawing sets
+- [x] `src/tui/layout.zig` — Constraint solver
+- [x] `src/tui/buffer.zig` — Cell grid, double buffering, diff
+- [x] `src/tui/tui.zig` — Terminal wrapper, Frame, event loop
+- [x] Tests for TUI core (96 tests passing)
 
 ### Phase 4 — Core Widgets (v0.4.0)
 - [ ] Block, Paragraph, List, Table, Input, Tabs, StatusBar, Gauge
