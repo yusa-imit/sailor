@@ -16,8 +16,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    // Unit tests
-    const tests = b.addTest(.{
+    // Unit tests — src module tests
+    const lib_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/sailor.zig"),
             .target = target,
@@ -25,7 +25,16 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
-    const run_tests = b.addRunArtifact(tests);
+    // Standalone tests in tests/ directory
+    const smoke_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/smoke_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
     const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_tests.step);
+    test_step.dependOn(&b.addRunArtifact(lib_tests).step);
+    test_step.dependOn(&b.addRunArtifact(smoke_tests).step);
 }
