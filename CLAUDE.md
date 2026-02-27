@@ -365,3 +365,42 @@ rm -rf zig-out .zig-cache
 10. **Stop if stuck** — 동일 에러 3회 시도 후 지속되면 `.claude/memory/debugging.md`에 기록
 11. **Respect CI** — CI 파이프라인 호환성 유지
 12. **Never force push** — 파괴적 git 명령어 금지
+
+---
+
+## Release & Consumer Migration Protocol
+
+sailor는 세 프로젝트(zr, zoltraak, silica)의 공유 라이브러리다. 버전 릴리즈 시 소비자 프로젝트에 마이그레이션을 알려야 한다.
+
+### 릴리즈 시 필수 절차
+
+새 버전 태그 후, 각 소비자 프로젝트의 CLAUDE.md에서 `## Sailor Migration` 섹션의 해당 버전 체크리스트를 `READY`로 업데이트한다:
+
+```bash
+# 1. sailor 릴리즈 완료 후
+cd ../zr
+# CLAUDE.md의 sailor migration 섹션에서 해당 버전의 status를 READY로 변경
+
+cd ../zoltraak
+# 동일하게 CLAUDE.md 업데이트
+
+cd ../silica
+# 동일하게 CLAUDE.md 업데이트
+```
+
+### 업데이트 규칙
+
+1. 각 소비자 프로젝트의 `CLAUDE.md` → `## Sailor Migration` 섹션을 찾는다
+2. 릴리즈된 버전의 `status: PENDING` → `status: READY`로 변경한다
+3. 변경사항을 커밋한다: `chore: mark sailor <version> migration as ready`
+4. **코드 마이그레이션은 하지 않는다** — 소비자 프로젝트의 에이전트가 자체적으로 수행
+
+### 버전별 소비자 마이그레이션 매핑
+
+| sailor 버전 | zr | zoltraak | silica |
+|------------|-----|----------|--------|
+| v0.1.0 | arg, color 마이그레이션 | `parseArgs()` → `sailor.arg`, 서버 로그 color | CLI 플래그 추가 |
+| v0.2.0 | progress 마이그레이션 | REPL 빌드 (`zoltraak-cli`) | SQL 셸 스켈레톤 |
+| v0.3.0 | JSON output → sailor.fmt | 결과 포매팅 | `.mode table/csv/json` |
+| v0.4.0 | TUI 마이그레이션 (태스크 피커, 라이브 러너) | 키 브라우저, 데이터 뷰어 | 스키마 브라우저, 결과 테이블 |
+| v0.5.0 | 의존성 트리, 차트 | 모니터링 대시보드 | 쿼리 플랜 시각화 |
