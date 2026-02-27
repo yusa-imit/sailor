@@ -351,11 +351,11 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
 - [x] Tests for all Phase 1 modules (102/102 passing)
 - [x] CI pipeline passing
 
-### Phase 2 — Interactive (v0.2.0)
-- [ ] `src/repl.zig` — Line editing, history, completion, highlighting
-- [ ] `src/progress.zig` — Bar, spinner, multi-progress
-- [ ] `src/fmt.zig` — Table, JSON, CSV, plain output
-- [ ] Tests for all Phase 2 modules
+### Phase 2 — Interactive (v0.2.0) ✅ RELEASED
+- [x] `src/repl.zig` — Line editing, history, completion, highlighting
+- [x] `src/progress.zig` — Bar, spinner, multi-progress
+- [x] `src/fmt.zig` — Table, JSON, CSV, plain output
+- [x] Tests for all Phase 2 modules
 
 ### Phase 3 — TUI Core (v0.3.0)
 - [ ] `src/tui/buffer.zig` — Cell grid, double buffering, diff
