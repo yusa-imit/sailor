@@ -29,7 +29,7 @@ pub const Size = struct {
 /// Check if a file descriptor is a TTY
 pub fn isatty(fd: posix.fd_t) bool {
     return switch (builtin.os.tag) {
-        .linux, .macos => posix.system.isatty(fd) != 0,
+        .linux, .macos => posix.isatty(fd),
         .windows => blk: {
             const handle = std.os.windows.GetStdHandle(switch (fd) {
                 0 => std.os.windows.STD_INPUT_HANDLE,
