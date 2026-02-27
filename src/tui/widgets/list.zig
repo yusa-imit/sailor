@@ -265,7 +265,7 @@ test "List.render empty area does nothing" {
 
 test "List.render single item" {
     const items = &[_][]const u8{"Hello"};
-    const list = List.init(items);
+    const list = List.init(items).withSelected(0); // Select first item to show highlight
 
     var buf = try Buffer.init(std.testing.allocator, 10, 5);
     defer buf.deinit();
@@ -273,10 +273,10 @@ test "List.render single item" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     list.render(&buf, area);
 
-    // Check first item is rendered (after highlight symbol)
-    try std.testing.expectEqual(@as(u21, '>'), buf.getCell(0, 0).?.char);
-    try std.testing.expectEqual(@as(u21, ' '), buf.getCell(1, 0).?.char);
-    try std.testing.expectEqual(@as(u21, 'H'), buf.getCell(2, 0).?.char);
+    // Check first item is rendered with highlight symbol
+    try std.testing.expectEqual(@as(u21, '>'), buf.get(0, 0).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.get(1, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'H'), buf.get(2, 0).?.char);
 }
 
 test "List.render multiple items" {
@@ -290,9 +290,9 @@ test "List.render multiple items" {
     list.render(&buf, area);
 
     // Check all items are rendered
-    try std.testing.expectEqual(@as(u21, 'O'), buf.getCell(2, 0).?.char); // "One"
-    try std.testing.expectEqual(@as(u21, 'T'), buf.getCell(2, 1).?.char); // "Two"
-    try std.testing.expectEqual(@as(u21, 'T'), buf.getCell(2, 2).?.char); // "Three"
+    try std.testing.expectEqual(@as(u21, 'O'), buf.get(2, 0).?.char); // "One"
+    try std.testing.expectEqual(@as(u21, 'T'), buf.get(2, 1).?.char); // "Two"
+    try std.testing.expectEqual(@as(u21, 'T'), buf.get(2, 2).?.char); // "Three"
 }
 
 test "List.render with selection highlights item" {
@@ -307,16 +307,16 @@ test "List.render with selection highlights item" {
     list.render(&buf, area);
 
     // Selected item should have highlight symbol
-    try std.testing.expectEqual(@as(u21, '>'), buf.getCell(0, 1).?.char);
-    try std.testing.expectEqual(@as(u21, ' '), buf.getCell(1, 1).?.char);
-    try std.testing.expectEqual(@as(u21, 'B'), buf.getCell(2, 1).?.char);
+    try std.testing.expectEqual(@as(u21, '>'), buf.get(0, 1).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.get(1, 1).?.char);
+    try std.testing.expectEqual(@as(u21, 'B'), buf.get(2, 1).?.char);
 
     // Selected item should have bold style
-    try std.testing.expectEqual(true, buf.getCell(2, 1).?.style.bold);
+    try std.testing.expectEqual(true, buf.get(2, 1).?.style.bold);
 
     // Non-selected items should not have highlight symbol at position 0
-    try std.testing.expectEqual(@as(u21, ' '), buf.getCell(0, 0).?.char);
-    try std.testing.expectEqual(@as(u21, ' '), buf.getCell(0, 2).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.get(0, 0).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.get(0, 2).?.char);
 }
 
 test "List.render with custom highlight symbol" {
@@ -330,8 +330,8 @@ test "List.render with custom highlight symbol" {
     list.render(&buf, area);
 
     // Should use custom symbol
-    try std.testing.expectEqual(@as(u21, '*'), buf.getCell(0, 0).?.char);
-    try std.testing.expectEqual(@as(u21, ' '), buf.getCell(1, 0).?.char);
+    try std.testing.expectEqual(@as(u21, '*'), buf.get(0, 0).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.get(1, 0).?.char);
 }
 
 test "List.render with block border" {
@@ -346,10 +346,10 @@ test "List.render with block border" {
     list.render(&buf, area);
 
     // Check border is rendered
-    try std.testing.expectEqual(@as(u21, '┌'), buf.getCell(0, 0).?.char);
+    try std.testing.expectEqual(@as(u21, '┌'), buf.get(0, 0).?.char);
 
     // Check item is inside border
-    try std.testing.expectEqual(@as(u21, 'I'), buf.getCell(3, 1).?.char);
+    try std.testing.expectEqual(@as(u21, 'I'), buf.get(3, 1).?.char);
 }
 
 test "List.render with scrolling" {
@@ -363,9 +363,9 @@ test "List.render with scrolling" {
     list.render(&buf, area);
 
     // Should show items C, D, E (offset 2)
-    try std.testing.expectEqual(@as(u21, 'C'), buf.getCell(2, 0).?.char);
-    try std.testing.expectEqual(@as(u21, 'D'), buf.getCell(2, 1).?.char);
-    try std.testing.expectEqual(@as(u21, 'E'), buf.getCell(2, 2).?.char);
+    try std.testing.expectEqual(@as(u21, 'C'), buf.get(2, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'D'), buf.get(2, 1).?.char);
+    try std.testing.expectEqual(@as(u21, 'E'), buf.get(2, 2).?.char);
 }
 
 test "List.render clips text at width boundary" {
@@ -379,14 +379,14 @@ test "List.render clips text at width boundary" {
     list.render(&buf, area);
 
     // Should clip at width boundary
-    try std.testing.expectEqual(@as(u21, 'V'), buf.getCell(2, 0).?.char); // After "> "
-    try std.testing.expectEqual(@as(u21, 'e'), buf.getCell(3, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'V'), buf.get(2, 0).?.char); // After "> "
+    try std.testing.expectEqual(@as(u21, 'e'), buf.get(3, 0).?.char);
     // Width is 8, so only "> Very " should fit
 }
 
 test "List.render with offset area" {
     const items = &[_][]const u8{ "A", "B" };
-    const list = List.init(items);
+    const list = List.init(items).withSelected(0); // Select first item to show highlight
 
     var buf = try Buffer.init(std.testing.allocator, 20, 10);
     defer buf.deinit();
@@ -394,9 +394,9 @@ test "List.render with offset area" {
     const area = Rect{ .x = 5, .y = 3, .width = 10, .height = 5 };
     list.render(&buf, area);
 
-    // Should render at offset position
-    try std.testing.expectEqual(@as(u21, '>'), buf.getCell(5, 3).?.char);
-    try std.testing.expectEqual(@as(u21, 'A'), buf.getCell(7, 3).?.char);
+    // Should render at offset position with highlight symbol
+    try std.testing.expectEqual(@as(u21, '>'), buf.get(5, 3).?.char);
+    try std.testing.expectEqual(@as(u21, 'A'), buf.get(7, 3).?.char);
 }
 
 test "List.render selection full-width highlight" {
@@ -412,7 +412,7 @@ test "List.render selection full-width highlight" {
 
     // Selected row should have background all the way across
     for (0..10) |x| {
-        const cell = buf.getCell(@intCast(x), 0).?;
+        const cell = buf.get(@intCast(x), 0).?;
         try std.testing.expect(cell.style.bg != null);
     }
 }

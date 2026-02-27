@@ -24,6 +24,11 @@ pub const widgets = struct {
     pub const Paragraph = @import("widgets/paragraph.zig").Paragraph;
     pub const Alignment = @import("widgets/paragraph.zig").Alignment;
     pub const Wrap = @import("widgets/paragraph.zig").Wrap;
+    pub const List = @import("widgets/list.zig").List;
+    pub const Table = @import("widgets/table.zig").Table;
+    pub const Column = @import("widgets/table.zig").Column;
+    pub const ColumnWidth = @import("widgets/table.zig").ColumnWidth;
+    pub const Row = @import("widgets/table.zig").Row;
 };
 
 // Export commonly used types
@@ -229,4 +234,6 @@ test {
     // Pull in widget tests
     _ = @import("widgets/block.zig");
     _ = @import("widgets/paragraph.zig");
+    _ = @import("widgets/list.zig");
+    _ = @import("widgets/table.zig");
 }
