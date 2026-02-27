@@ -16,7 +16,7 @@
 const std = @import("std");
 
 // Phase 1 modules (v0.1.0)
-// pub const term = @import("term.zig");
+pub const term = @import("term.zig");
 // pub const color = @import("color.zig");
 // pub const arg = @import("arg.zig");
 
@@ -30,5 +30,5 @@ const std = @import("std");
 
 test {
     // Pull in all module tests
-    // std.testing.refAllDecls(@This());
+    std.testing.refAllDecls(@This());
 }
