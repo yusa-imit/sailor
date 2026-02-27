@@ -26,7 +26,7 @@ pub const progress = @import("progress.zig");
 pub const fmt = @import("fmt.zig");
 
 // Phase 3+ modules (v0.3.0+)
-// pub const tui = @import("tui/tui.zig");
+pub const tui = @import("tui/tui.zig");
 
 test {
     // Pull in all module tests
