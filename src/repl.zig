@@ -118,7 +118,7 @@ pub const Repl = struct {
         if (self.is_tty or self.use_color) return; // Already initialized
 
         self.is_tty = term.isatty(std.posix.STDIN_FILENO);
-        self.use_color = self.config.color orelse (self.is_tty and color.shouldUseColor());
+        self.use_color = self.config.color orelse (self.is_tty and color.ColorLevel.detect() != .none);
     }
 
     /// Cleanup resources
@@ -325,9 +325,10 @@ pub const Repl = struct {
     /// Print prompt
     fn printPrompt(self: *Self, writer: anytype) !void {
         if (self.use_color) {
-            try color.style(writer, .{ .fg = .cyan, .bold = true });
+            const style = color.Style{ .fg = .{ .basic = .cyan }, .attrs = .{ .bold = true } };
+            try style.write(writer);
             try writer.writeAll(self.config.prompt);
-            try color.reset(writer);
+            try color.Style.reset(writer);
         } else {
             try writer.writeAll(self.config.prompt);
         }
@@ -403,11 +404,9 @@ pub const Repl = struct {
         const file = try std.fs.cwd().createFile(path, .{});
         defer file.close();
 
-        var buf: [4096]u8 = undefined;
-        var fw = file.writer(&buf);
         for (self.history.items) |line| {
-            try fw.interface.writeAll(line);
-            try fw.interface.writeByte('\n');
+            try file.writeAll(line);
+            try file.writeAll("\n");
         }
     }
 
