@@ -23,7 +23,7 @@ pub const arg = @import("arg.zig");
 // Phase 2 modules (v0.2.0)
 pub const repl = @import("repl.zig");
 pub const progress = @import("progress.zig");
-// pub const fmt = @import("fmt.zig");
+pub const fmt = @import("fmt.zig");
 
 // Phase 3+ modules (v0.3.0+)
 // pub const tui = @import("tui/tui.zig");
