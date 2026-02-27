@@ -17,7 +17,7 @@ const std = @import("std");
 
 // Phase 1 modules (v0.1.0)
 pub const term = @import("term.zig");
-// pub const color = @import("color.zig");
+pub const color = @import("color.zig");
 // pub const arg = @import("arg.zig");
 
 // Phase 2 modules (v0.2.0)
