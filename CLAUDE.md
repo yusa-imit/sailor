@@ -127,16 +127,18 @@ Leader (orchestrator)
 4. `.claude/memory/debugging.md` — 알려진 이슈와 해결법
 5. `.claude/memory/patterns.md` — 검증된 코드 패턴
 
-**8단계 실행 사이클**:
+**9단계 실행 사이클**:
 
 | Phase | 내용 | 비고 |
 |-------|------|------|
 | 1. 상태 파악 | `/status` 실행, git log·빌드·테스트 상태 점검 | 체크리스트에서 다음 미완료 항목 식별 |
+| 1.5. 이슈 확인 | `gh issue list --state open --limit 10` | 아래 **이슈 우선순위 프로토콜** 참조 |
 | 2. 계획 | 구현 전략을 내부적으로 수립 (텍스트 출력) | `EnterPlanMode`/`ExitPlanMode` 사용 금지 — 비대화형 세션에서 블로킹됨 |
 | 3. 구현 → 검증 → 커밋 (반복) | 아래 **구현 루프** 참조 | 단위별로 즉시 커밋+푸시 |
 | 4. 코드 리뷰 | `/review` — PRD 준수·메모리 안전성·테스트 커버리지 확인 | 이슈 발견 시 수정 후 재커밋 |
-| 5. 메모리 갱신 | `.claude/memory/` 파일 업데이트 | 별도 커밋: `chore: update session memory` → push |
-| 6. 세션 요약 | 구조화된 요약 출력 | 아래 템플릿 참조 |
+| 5. 릴리즈 판단 | 현재 phase의 모든 모듈 완료 시 **자동 릴리즈** | 아래 **자동 릴리즈 프로토콜** 참조 |
+| 6. 메모리 갱신 | `.claude/memory/` 파일 업데이트 | 별도 커밋: `chore: update session memory` → push |
+| 7. 세션 요약 | 구조화된 요약 출력 | 아래 템플릿 참조 |
 
 **구현 루프** (Phase 3 상세):
 
@@ -148,6 +150,54 @@ Leader (orchestrator)
 - 한 사이클 내에 완료할 수 없는 작업은 동작하는 중간 상태로 커밋+푸시한다
 - `git add -A` 금지 — 변경된 파일을 명시적으로 지정
 
+**이슈 우선순위 프로토콜** (Phase 1.5):
+
+세션 시작 시 GitHub Issues를 확인하고, PRD 기능과 비교하여 우선순위를 결정한다:
+
+```bash
+gh issue list --state open --limit 10 --json number,title,labels,createdAt
+```
+
+**우선순위 판단 기준**:
+
+| 우선순위 | 조건 | 예시 |
+|---------|------|------|
+| 1 (최우선) | `bug` 라벨 + consumer 프로젝트에서 발행 | sailor 사용 중 크래시, API 오동작 |
+| 2 (높음) | `bug` 라벨 (일반) | 테스트 실패, 빌드 오류 |
+| 3 (보통) | `feature-request` 라벨 + 현재 phase 범위 내 | 현재 구현 중인 모듈의 추가 기능 |
+| 4 (낮음) | `feature-request` 라벨 + 미래 phase | 아직 구현 안 된 모듈의 기능 요청 |
+
+**판단 규칙**:
+- 우선순위 1-2 (버그): PRD 기능보다 **항상 우선** 처리
+- 우선순위 3 (현재 phase 기능 요청): PRD 작업과 **병행** — 같은 모듈 작업 시 함께 구현
+- 우선순위 4 (미래 phase 기능 요청): **적어두고 넘어감** — 해당 phase 도달 시 처리
+- 이슈를 처리한 후: `gh issue close <number> --comment "Fixed in <commit-hash>"`
+- 이슈에 코멘트로 진행 상황 공유: `gh issue comment <number> --body "Working on this in current session"`
+
+**자동 릴리즈 프로토콜** (Phase 5):
+
+phase의 모든 모듈이 완성되었을 때 에이전트가 자율적으로 릴리즈를 수행한다.
+
+**릴리즈 조건 (ALL must be true)**:
+1. 현재 phase의 체크리스트 항목이 **모두 완료** (`[x]`)
+2. `zig build test` — 전체 통과, 0 failures
+3. 6개 크로스 컴파일 타겟 빌드 성공
+4. 해당 phase 관련 `bug` 라벨 이슈가 **0개** (open)
+
+**릴리즈 절차**:
+1. `build.zig.zon`의 version 업데이트 (예: `"0.0.0"` → `"0.1.0"`)
+2. CLAUDE.md phase 체크리스트에 완료 표시
+3. 커밋: `chore: bump version to v0.X.0`
+4. 태그: `git tag -a v0.X.0 -m "Release v0.X.0: <phase 요약>"`
+5. 푸시: `git push && git push origin v0.X.0`
+6. 소비자 프로젝트 알림 — 각 프로젝트의 CLAUDE.md에서 해당 버전 `status: PENDING` → `status: READY`:
+   - `../zr/CLAUDE.md`
+   - `../zoltraak/CLAUDE.md`
+   - `../silica/CLAUDE.md`
+   - 각각 커밋: `chore: mark sailor v0.X.0 migration as ready`
+7. 관련 이슈 닫기: `gh issue close <number> --comment "Resolved in v0.X.0"`
+8. Discord 알림: `openclaw message send --channel discord --target user:264745080709971968 --message "[sailor] Released v0.X.0 — <요약>"`
+
 **작업 선택 규칙**:
 - `build.zig`가 없으면 프로젝트 부트스트랩부터 시작
 - 이전 세션의 미커밋 변경사항이 있으면: 테스트 통과 시 커밋+푸시, 실패 시 폐기
@@ -155,6 +205,7 @@ Leader (orchestrator)
 - 의존성 순서 준수: term → color → arg → repl → progress → fmt → tui
 - 사이클당 하나의 집중 작업만 수행
 - 이전 세션의 미완료 작업이 있으면 먼저 완료
+- **GitHub 이슈 bug 라벨은 PRD 작업보다 항상 우선**
 
 **세션 요약 템플릿**:
 
