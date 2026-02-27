@@ -16,6 +16,13 @@ pub const buffer = @import("buffer.zig");
 pub const layout = @import("layout.zig");
 pub const symbols = @import("symbols.zig");
 
+// Phase 4+ widgets
+pub const widgets = struct {
+    pub const Block = @import("widgets/block.zig").Block;
+    pub const Borders = @import("widgets/block.zig").Borders;
+    pub const TitlePosition = @import("widgets/block.zig").TitlePosition;
+};
+
 // Export commonly used types
 pub const Color = style.Color;
 pub const Style = style.Style;
