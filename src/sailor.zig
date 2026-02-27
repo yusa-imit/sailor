@@ -21,7 +21,7 @@ pub const color = @import("color.zig");
 pub const arg = @import("arg.zig");
 
 // Phase 2 modules (v0.2.0)
-// pub const repl = @import("repl.zig");
+pub const repl = @import("repl.zig");
 // pub const progress = @import("progress.zig");
 // pub const fmt = @import("fmt.zig");
 
