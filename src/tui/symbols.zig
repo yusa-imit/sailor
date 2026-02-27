@@ -353,7 +353,7 @@ test "Block.vertical_eighth" {
 
 test "Block.horizontalProgress" {
     try std.testing.expectEqualStrings(" ", Block.horizontalProgress(0.0));
-    try std.testing.expectEqualStrings("▏", Block.horizontalProgress(0.1));
+    try std.testing.expectEqualStrings(" ", Block.horizontalProgress(0.1)); // 0.1 * 8 = 0.8 -> index 0
     try std.testing.expectEqualStrings("▌", Block.horizontalProgress(0.5));
     try std.testing.expectEqualStrings("█", Block.horizontalProgress(1.0));
     try std.testing.expectEqualStrings(" ", Block.horizontalProgress(-0.5)); // clamped
@@ -362,23 +362,23 @@ test "Block.horizontalProgress" {
 
 test "Block.verticalLevel" {
     try std.testing.expectEqualStrings(" ", Block.verticalLevel(0.0));
-    try std.testing.expectEqualStrings("▂", Block.verticalLevel(0.2));
+    try std.testing.expectEqualStrings("▁", Block.verticalLevel(0.2)); // 0.2 * 8 = 1.6 -> index 1
     try std.testing.expectEqualStrings("▄", Block.verticalLevel(0.5));
     try std.testing.expectEqualStrings("█", Block.verticalLevel(1.0));
 }
 
 test "Spinner.frame - dots" {
-    try std.testing.expectEqualStrings("⠋", Spinner.frame(Spinner.dots, 0));
-    try std.testing.expectEqualStrings("⠙", Spinner.frame(Spinner.dots, 1));
-    try std.testing.expectEqualStrings("⠋", Spinner.frame(Spinner.dots, 10)); // wraps
+    try std.testing.expectEqualStrings("⠋", Spinner.frame(&Spinner.dots, 0));
+    try std.testing.expectEqualStrings("⠙", Spinner.frame(&Spinner.dots, 1));
+    try std.testing.expectEqualStrings("⠋", Spinner.frame(&Spinner.dots, 10)); // wraps
 }
 
 test "Spinner.frame - line" {
-    try std.testing.expectEqualStrings("-", Spinner.frame(Spinner.line, 0));
-    try std.testing.expectEqualStrings("\\", Spinner.frame(Spinner.line, 1));
-    try std.testing.expectEqualStrings("|", Spinner.frame(Spinner.line, 2));
-    try std.testing.expectEqualStrings("/", Spinner.frame(Spinner.line, 3));
-    try std.testing.expectEqualStrings("-", Spinner.frame(Spinner.line, 4)); // wraps
+    try std.testing.expectEqualStrings("-", Spinner.frame(&Spinner.line, 0));
+    try std.testing.expectEqualStrings("\\", Spinner.frame(&Spinner.line, 1));
+    try std.testing.expectEqualStrings("|", Spinner.frame(&Spinner.line, 2));
+    try std.testing.expectEqualStrings("/", Spinner.frame(&Spinner.line, 3));
+    try std.testing.expectEqualStrings("-", Spinner.frame(&Spinner.line, 4)); // wraps
 }
 
 test "Spinner.frame - all sets exist" {

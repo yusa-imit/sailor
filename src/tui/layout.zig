@@ -268,7 +268,7 @@ test "Rect.intersection - no overlap" {
 test "Constraint.apply - length" {
     const c = Constraint{ .length = 50 };
     try std.testing.expectEqual(50, c.apply(100));
-    try std.testing.expectEqual(80, c.apply(80)); // clamped
+    try std.testing.expectEqual(50, c.apply(80)); // min of length and available
 }
 
 test "Constraint.apply - percentage" {
@@ -401,9 +401,9 @@ test "split - vertical three-way" {
 
     try std.testing.expectEqual(3, result.len);
     try std.testing.expectEqual(10, result[0].height);
-    try std.testing.expectEqual(10, result[0].y);
-    try std.testing.expectEqual(30, result[1].height); // 50% of 60
-    try std.testing.expectEqual(20, result[1].y);
+    try std.testing.expectEqual(0, result[0].y); // starts at area.y (0)
+    try std.testing.expectEqual(40, result[1].height); // 50% of 60 + remaining space
+    try std.testing.expectEqual(10, result[1].y); // after first block
     try std.testing.expectEqual(10, result[2].height);
-    try std.testing.expectEqual(50, result[2].y);
+    try std.testing.expectEqual(50, result[2].y); // after first two blocks
 }

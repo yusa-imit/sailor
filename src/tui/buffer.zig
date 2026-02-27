@@ -157,7 +157,7 @@ pub const Buffer = struct {
 
     /// Clone buffer
     pub fn clone(self: Buffer) !Buffer {
-        var new_buffer = try Buffer.init(self.allocator, self.width, self.height);
+        const new_buffer = try Buffer.init(self.allocator, self.width, self.height);
         @memcpy(new_buffer.cells, self.cells);
         return new_buffer;
     }
@@ -176,8 +176,8 @@ pub fn diff(allocator: Allocator, old: Buffer, new: Buffer) ![]DiffOp {
         return error.BufferSizeMismatch;
     }
 
-    var ops = std.ArrayList(DiffOp).init(allocator);
-    defer ops.deinit();
+    var ops = try std.ArrayList(DiffOp).initCapacity(allocator, 0);
+    defer ops.deinit(allocator);
 
     var y: u16 = 0;
     while (y < new.height) : (y += 1) {
@@ -187,12 +187,12 @@ pub fn diff(allocator: Allocator, old: Buffer, new: Buffer) ![]DiffOp {
             const new_cell = new.getConst(x, y).?;
 
             if (!old_cell.eql(new_cell)) {
-                try ops.append(.{ .x = x, .y = y, .cell = new_cell });
+                try ops.append(allocator, .{ .x = x, .y = y, .cell = new_cell });
             }
         }
     }
 
-    return ops.toOwnedSlice();
+    return ops.toOwnedSlice(allocator);
 }
 
 /// Render diff operations to writer with ANSI escape codes
