@@ -344,12 +344,12 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
 
 ## Phase Implementation Roadmap
 
-### Phase 1 — Terminal + CLI Foundation (v0.1.0)
-- [ ] `src/term.zig` — Raw mode, key reading, TTY detection, terminal size
-- [ ] `src/color.zig` — ANSI codes, styles, 256/truecolor, NO_COLOR
-- [ ] `src/arg.zig` — Flag parsing, subcommands, help generation
-- [ ] Tests for all Phase 1 modules
-- [ ] CI pipeline passing
+### Phase 1 — Terminal + CLI Foundation (v0.1.0) ✅ RELEASED
+- [x] `src/term.zig` — Raw mode, key reading, TTY detection, terminal size
+- [x] `src/color.zig` — ANSI codes, styles, 256/truecolor, NO_COLOR
+- [x] `src/arg.zig` — Flag parsing, subcommands, help generation
+- [x] Tests for all Phase 1 modules (102/102 passing)
+- [x] CI pipeline passing
 
 ### Phase 2 — Interactive (v0.2.0)
 - [ ] `src/repl.zig` — Line editing, history, completion, highlighting
