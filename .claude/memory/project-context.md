@@ -7,8 +7,9 @@
 - Cross-platform: Linux, macOS, Windows
 
 ## Current Phase
-- **Phase 1 — Terminal + CLI Foundation (v0.1.0)**: NOT STARTED
+- **Phase 1 — Terminal + CLI Foundation (v0.1.0)**: IN PROGRESS
 - Modules: term.zig, color.zig, arg.zig
+- Next: Implement term.zig (no dependencies)
 
 ## Consumer Projects
 | Project | Path | Status |
@@ -18,11 +19,13 @@
 | silica | ../silica | 5K LOC, will build SQL shell |
 
 ## Checklist — Phase 1
-- [ ] build.zig + build.zig.zon bootstrap
-- [ ] src/sailor.zig root module
+- [x] build.zig + build.zig.zon bootstrap
+- [x] src/sailor.zig root module
+- [x] Test infrastructure (tests/smoke_test.zig, 12 tests passing)
+- [x] Cross-platform build verification (Linux, Windows, macOS ARM)
 - [ ] src/term.zig — raw mode, key reading, TTY detection, terminal size
 - [ ] src/color.zig — ANSI codes, styles, 256/truecolor, NO_COLOR
 - [ ] src/arg.zig — flag parsing, subcommands, help generation
-- [ ] Tests for all modules
+- [ ] Tests for all Phase 1 modules
 - [ ] CI pipeline green
 - [ ] First consumer integration test (zoltraak parseArgs replacement)

@@ -49,3 +49,20 @@ pub fn deinit(self: *Self) void {
 var obj = try Thing.init(allocator);
 defer obj.deinit();
 ```
+
+## Test Infrastructure Pattern
+```zig
+// Smoke tests in tests/smoke_test.zig validate:
+// - Test framework operational
+// - Platform detection (Windows/Linux/macOS)
+// - Allocator basics (GPA, arena)
+// - Writer-based testing with fixedBufferStream
+// - Error handling patterns
+// - Unicode support
+// - No global state pattern
+// - Cross-platform path handling
+
+// Build system runs both:
+// 1. lib_tests (src/sailor.zig and all module tests)
+// 2. smoke_tests (tests/*.zig standalone tests)
+```
