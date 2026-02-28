@@ -39,6 +39,8 @@ pub const widgets = struct {
     pub const TreeNode = @import("widgets/tree.zig").TreeNode;
     pub const TextArea = @import("widgets/textarea.zig").TextArea;
     pub const Sparkline = @import("widgets/sparkline.zig").Sparkline;
+    pub const BarChart = @import("widgets/barchart.zig").BarChart;
+    pub const Bar = @import("widgets/barchart.zig").BarChart.Bar;
 };
 
 // Export commonly used types
