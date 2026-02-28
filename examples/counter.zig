@@ -115,9 +115,10 @@ pub fn main() !void {
     instr_para.render(&buffer, content_chunks[2]);
 
     // Status bar
+    const status_spans = [_]Span{Span.raw(" Counter Demo | Step: 1 | Progress: 42% ")};
     const status_bar = StatusBar{
-        .left = " Counter Demo | Step: 1 | Progress: 42% ",
-        .normal_style = Style{
+        .left = &status_spans,
+        .style = Style{
             .fg = Color{ .indexed = 0 },
             .bg = Color{ .indexed = 12 },
         },

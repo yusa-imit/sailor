@@ -19,7 +19,7 @@ pub const Tabs = struct {
     selected: usize = 0,
 
     /// Style for selected tab
-    selected_style: Style = .{ .fg = .cyan, . bold = true },
+    selected_style: Style = .{ .fg = .cyan, .bold = true },
 
     /// Style for normal tabs
     normal_style: Style = .{},
@@ -76,7 +76,7 @@ pub const Tabs = struct {
         var inner_area = area;
         if (self.block) |blk| {
             blk.render(buf, area);
-            inner_area = blk.innerArea(area);
+            inner_area = blk.inner(area);
         }
 
         // Nothing to render if area too small
@@ -98,20 +98,16 @@ pub const Tabs = struct {
             var remaining_width = max_x - x;
             const title_width = @min(title.len, remaining_width);
 
-            for (title[0..title_width], 0..) |c, offset| {
-                buf.setCell(x + offset, y, c, tab_style);
-            }
-            x += title_width;
+            buf.setString(x, y, title[0..title_width], tab_style);
+            x += @as(u16, @intCast(title_width));
 
             // Render divider if not last tab and we have space
             if (i < self.titles.len - 1 and x < max_x) {
                 remaining_width = max_x - x;
                 const divider_width = @min(self.divider.len, remaining_width);
 
-                for (self.divider[0..divider_width], 0..) |c, offset| {
-                    buf.setCell(x + offset, y, c, self.normal_style);
-                }
-                x += divider_width;
+                buf.setString(x, y, self.divider[0..divider_width], self.normal_style);
+                x += @as(u16, @intCast(divider_width));
             }
         }
     }

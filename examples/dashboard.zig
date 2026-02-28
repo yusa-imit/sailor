@@ -10,6 +10,7 @@ const Tabs = sailor.tui.widgets.Tabs;
 const Rect = sailor.tui.Rect;
 const Style = sailor.tui.Style;
 const Color = sailor.tui.Color;
+const Span = sailor.tui.Span;
 const Constraint = sailor.tui.Constraint;
 const layout = sailor.tui.layout;
 
@@ -58,7 +59,7 @@ pub fn main() !void {
             .borders = .all,
         },
         .normal_style = Style{ .fg = Color{ .indexed = 7 } },
-        .selected.normal_style = Style{
+        .selected_style = Style{
             .fg = Color{ .indexed = 0 },
             .bg = Color{ .indexed = 11 },
             .bold = true,
@@ -114,21 +115,22 @@ pub fn main() !void {
     disk_gauge.render(&buffer, content_chunks[2]);
 
     // CPU Sparkline
-    const cpu_data = [_]u8{ 30, 35, 40, 38, 42, 45, 48, 50, 47, 45, 43, 45, 48, 52, 50, 48, 45, 43, 42, 40 };
+    const cpu_data = [_]u64{ 30, 35, 40, 38, 42, 45, 48, 50, 47, 45, 43, 45, 48, 52, 50, 48, 45, 43, 42, 40 };
     const cpu_sparkline = Sparkline{
         .block = Block{
             .title = "CPU History",
             .borders = .all,
         },
         .data = &cpu_data,
-        .normal_style = Style{ .fg = Color{ .indexed = 10 } },
+        .style = Style{ .fg = Color{ .indexed = 10 } },
     };
     cpu_sparkline.render(&buffer, content_chunks[3]);
 
     // Status bar
+    const status_spans = [_]Span{Span.raw(" Sailor Dashboard | Tab 1/3: Overview | Demonstrating multiple widgets ")};
     const status_bar = StatusBar{
-        .left = " Sailor Dashboard | Tab 1/3: Overview | Demonstrating multiple widgets ",
-        .normal_style = Style{
+        .left = &status_spans,
+        .style = Style{
             .fg = Color{ .indexed = 15 },
             .bg = Color{ .indexed = 8 },
         },

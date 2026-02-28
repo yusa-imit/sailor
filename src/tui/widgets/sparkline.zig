@@ -124,7 +124,8 @@ pub const Sparkline = struct {
         for (self.data[0..available_width], 0..) |value, i| {
             const x = x_start + @as(u16, @intCast(i));
             const bar_char = self.getBarChar(value, max);
-            buf.set(x, y, bar_char, self.style);
+            const cell = buffer_mod.Cell.init(bar_char, self.style);
+            buf.set(x, y, cell);
         }
     }
 };
