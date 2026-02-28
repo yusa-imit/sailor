@@ -5,8 +5,8 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.0.0 (PRODUCTION READY)** 🎉
-- Previous versions: v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.0.1 (PRODUCTION READY)** 🎉
+- Previous versions: v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
 - **Phase 6 — Polish (v1.0.0)**: ✅ COMPLETE & RELEASED
@@ -114,6 +114,29 @@ All consumer projects can now upgrade to production-ready v1.0.0.
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-01 00:00 (Hour 0 - Stabilization Cycle)** 🔧 v1.0.1 PATCH RELEASE:
+  - **MODE**: STABILIZATION (hour % 3 == 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 1 open bug → FIXED (issue #7 from:silica)
+  - 🐛 **CRITICAL BUG FIX**: Fixed renderDiff cross-compilation issue
+    - Issue #7 (from:silica): renderDiff uses std.fmt.format → adaptToNewApi error on Zig 0.15.2
+    - Root cause: Same class of bug as #5 (Style.apply), but renderDiff was not included in v0.5.1 fix
+    - Fix: src/tui/buffer.zig:212 — std.fmt.format → writer.print
+    - Verified: All cross-platform builds passing (Linux, macOS, Windows x86_64/aarch64)
+  - 🚀 **PATCH RELEASE EXECUTED (v1.0.1)**:
+    - Tagged a72f575 as v1.0.1
+    - GitHub Release created with notes
+    - Consumer projects notified:
+      - silica/CLAUDE.md updated with v1.0.1 patch note
+      - zr/CLAUDE.md updated with v1.0.1 patch note
+      - zoltraak/CLAUDE.md updated with v1.0.1 patch note
+    - Discord notification sent
+    - Issue #7 closed with fix commit reference
+  - Commits:
+    - fix: replace std.fmt.format with writer.print in renderDiff (a72f575)
+    - chore: note sailor v1.0.1 patch release (silica: 72a788e, zr: 3e017d1, zoltraak: 46f1b1d)
+  - **PATCH POLICY APPLIED**: Consumer project bug → immediate patch release, no version bump in build.zig.zon, tag-only release
+
 - **2026-02-28 20:00 (Hour 20 - Feature Cycle)** 🎉 v1.0.0 RELEASE:
   - **MODE**: FEATURE (hour % 3 != 0)
   - ✅ Quick CI/Issues Check: GREEN, 0 open bugs
