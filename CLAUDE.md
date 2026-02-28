@@ -365,9 +365,10 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
 - [x] `src/tui/tui.zig` — Terminal wrapper, Frame, event loop
 - [x] Tests for TUI core (96 tests passing)
 
-### Phase 4 — Core Widgets (v0.4.0)
-- [ ] Block, Paragraph, List, Table, Input, Tabs, StatusBar, Gauge
-- [ ] Consumer migration: zr, zoltraak-cli, silica shell prototypes
+### Phase 4 — Core Widgets (v0.4.0) ✅ COMPLETE
+- [x] Block, Paragraph, List, Table, Input, Tabs, StatusBar, Gauge
+- [x] All 8 core widgets implemented with comprehensive tests
+- [ ] Consumer migration: zr, zoltraak-cli, silica shell prototypes (next phase)
 
 ### Phase 5 — Advanced Widgets (v0.5.0)
 - [ ] Tree, TextArea, Sparkline, BarChart, LineChart, Canvas, Dialog, Popup, Notification
