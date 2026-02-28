@@ -8,6 +8,44 @@ const Borders = @import("block.zig").Borders;
 
 /// Popup widget for overlay content (help text, detail views, tooltips)
 /// Renders floating content over the main interface at a specified position
+///
+/// Example: Help popup in top-right
+/// ```zig
+/// const help_text =
+///     \\Keyboard Shortcuts:
+///     \\  q - Quit
+///     \\  ? - Toggle help
+///     \\  ↑↓ - Navigate
+/// ;
+/// var popup = Popup.init(help_text);
+/// popup.title = "Help";
+/// popup.setPosition(100, 0); // Top-right corner
+/// popup.setSize(30, 8);
+///
+/// try popup.render(&buf, area);
+/// ```
+///
+/// Example: Centered tooltip
+/// ```zig
+/// var tooltip = Popup.init("Press Enter to confirm");
+/// tooltip.setPosition(50, 50); // Center (50% x, 50% y)
+/// tooltip.setSize(0, 0);       // Auto-size from content
+/// tooltip.borders = Borders.none();
+/// tooltip.style = Style{ .fg = .{ .indexed = 11 } }; // Yellow
+///
+/// try tooltip.render(&buf, area);
+/// ```
+///
+/// Example: Detail view as percentage of screen
+/// ```zig
+/// const details = "Full item details...";
+/// var popup = Popup.init(details);
+/// popup.title = "Details";
+/// popup.setSize(80, 60); // 80% width, 60% height
+/// popup.setPosition(50, 50);
+///
+/// try popup.render(&buf, area);
+/// ```
 pub const Popup = struct {
     /// Content to display in the popup
     content: []const u8,

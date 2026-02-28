@@ -12,6 +12,41 @@ const Alignment = @import("paragraph.zig").Alignment;
 
 /// Dialog widget for modal confirmation prompts and user interaction
 /// Renders a centered modal dialog with title, message, and button options
+///
+/// Example: Simple confirmation dialog
+/// ```zig
+/// const buttons = [_][]const u8{ "Yes", "No" };
+/// var dialog = Dialog.init("Delete File", "Are you sure?", &buttons);
+///
+/// // Handle keyboard input
+/// switch (key) {
+///     Key.left => dialog.prevButton(),
+///     Key.right => dialog.nextButton(),
+///     Key.enter => {
+///         if (dialog.selected == 0) {
+///             // User confirmed
+///         }
+///     },
+///     else => {},
+/// }
+///
+/// try dialog.render(&buf, area);
+/// ```
+///
+/// Example: Custom styled dialog
+/// ```zig
+/// const options = [_][]const u8{ "Save", "Don't Save", "Cancel" };
+/// var dialog = Dialog.init("Unsaved Changes", "Save before closing?", &options);
+/// dialog.width = 50;
+/// dialog.height = 12;
+/// dialog.style = Style{ .fg = .{ .indexed = 15 } };
+/// dialog.selected_style = Style{
+///     .fg = .{ .indexed = 0 },
+///     .bg = .{ .indexed = 12 },
+/// };
+///
+/// try dialog.render(&buf, area);
+/// ```
 pub const Dialog = struct {
     /// Dialog title
     title: []const u8,

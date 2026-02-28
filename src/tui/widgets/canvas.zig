@@ -6,6 +6,48 @@ const symbols = @import("../symbols.zig");
 
 /// Canvas widget for freeform drawing using Braille dots (2x4 per cell)
 /// Provides pixel-like precision for custom visualizations
+///
+/// Example: Drawing a simple plot
+/// ```zig
+/// var canvas = try Canvas.init(allocator, area);
+/// defer canvas.deinit();
+///
+/// // Draw axes
+/// canvas.drawLine(0, 20, 40, 20); // X-axis
+/// canvas.drawLine(5, 0, 5, 40);   // Y-axis
+///
+/// // Plot data points
+/// const data = [_]struct{ x: u16, y: u16 }{
+///     .{ .x = 10, .y = 15 },
+///     .{ .x = 20, .y = 10 },
+///     .{ .x = 30, .y = 25 },
+/// };
+/// for (data) |pt| canvas.setDot(pt.x, pt.y);
+///
+/// try canvas.render(&buf, area);
+/// ```
+///
+/// Example: Drawing shapes with Block integration
+/// ```zig
+/// // Create canvas with border
+/// var block = Block{
+///     .title = "Canvas Demo",
+///     .borders = Borders.all,
+/// };
+/// block.render(&buf, area);
+///
+/// const inner = block.inner(area);
+/// var canvas = try Canvas.init(allocator, inner);
+/// defer canvas.deinit();
+///
+/// // Draw a smiley face
+/// canvas.drawCircle(20, 20, 15);           // Face outline
+/// canvas.fillRect(12, 14, 3, 3);           // Left eye
+/// canvas.fillRect(24, 14, 3, 3);           // Right eye
+/// canvas.drawLine(14, 26, 26, 26);         // Smile
+///
+/// try canvas.render(&buf, inner);
+/// ```
 pub const Canvas = struct {
     /// Braille dot buffer (width * height in dots, not cells)
     dots: []bool,

@@ -44,6 +44,45 @@ pub const Position = enum {
 
 /// Notification widget for toast messages and alerts
 /// Typically displayed at screen edges with auto-dismiss or manual close
+///
+/// Example: Success notification
+/// ```zig
+/// var notif = Notification.success("File saved successfully!");
+/// notif.setPosition(.bottom_right);
+///
+/// try notif.render(&buf, area);
+/// ```
+///
+/// Example: Error with custom positioning and title
+/// ```zig
+/// var notif = Notification.err("Connection failed");
+/// notif.title = "Error";
+/// notif.setPosition(.top_center);
+/// notif.width = 40;
+///
+/// try notif.render(&buf, area);
+/// ```
+///
+/// Example: Info notification without border
+/// ```zig
+/// var notif = Notification.info("Processing...");
+/// notif.show_border = false;
+/// notif.setPosition(.bottom_left);
+///
+/// try notif.render(&buf, area);
+/// ```
+///
+/// Example: Warning with custom style
+/// ```zig
+/// var notif = Notification.warning("Low disk space");
+/// notif.custom_style = Style{
+///     .fg = .{ .indexed = 0 },
+///     .bg = .{ .indexed = 11 },
+///     .bold = true,
+/// };
+///
+/// try notif.render(&buf, area);
+/// ```
 pub const Notification = struct {
     /// Notification message
     message: []const u8,
