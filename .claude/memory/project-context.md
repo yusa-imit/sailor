@@ -62,9 +62,9 @@
 | silica | ../silica | v0.2.0 arg, color, repl, fmt | v0.4.0 TUI (SQL shell) |
 
 ## Test Status
-- **Total Tests**: 179 passing (updated 2026-02-28)
+- **Total Tests**: 190 passing (updated 2026-02-28)
   - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
-  - Phase 3 TUI core: 96 (style: 19, symbols: 19, layout: 21, buffer: 19, tui: 6, widget integration: 12)
+  - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 76 (block: 14, paragraph: 14, list: 21, table: 27)
 - **Cross-platform**: All 6 targets build successfully
   - x86_64-linux-gnu ✓
@@ -78,18 +78,18 @@
 - **Known Issues**: 0 open bugs
 
 ## Recent Stabilization Work
-- **2026-02-28 09:00 (Hour 9 - Stabilization Cycle)**:
+- **2026-02-28 09:00 (Hour 9 - Stabilization Cycle #2)**:
   - STABILIZATION MODE: CI green, no open issues
-  - Added 6 edge case tests to fmt.zig (7 → 13 tests):
-    - CSV semicolon delimiter test
-    - CSV newlines in fields test
-    - Table empty cells test
-    - JsonArray nested objects test
-    - JSON control character escaping test
-  - Updated .gitignore to exclude test artifacts (test_*, *.a)
-  - All 179 tests passing
+  - **CRITICAL BUG FIX**: Corrected UTF-8 decoding in Buffer.setString()
+    - Was treating multi-byte chars as individual bytes
+    - Now properly decodes Unicode codepoints (emoji, CJK support)
+    - Added std.unicode.utf8Decode() for proper character extraction
+  - Added 11 edge case tests (179 → 190 tests):
+    - buffer.zig: +6 tests (Unicode, CJK, boundaries)
+    - layout.zig: +5 tests (constraints, intersection)
+  - All 190 tests passing
   - Cross-platform builds verified (6/6 targets)
-  - Test coverage improved across modules
+  - UTF-8 handling now production-ready
 
 ## Architecture Notes
 - All modules are independently usable
