@@ -5,11 +5,17 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- Current version: v0.5.0
+- Current version: v0.5.1 (patch)
+- Latest minor: v0.5.0
 
 ## Current Phase
-- **Phase 5 — Advanced Widgets (v0.5.0)**: ✅ COMPLETE & RELEASED
-- **Phase 6 — Polish (v1.0.0)**: 🚧 NEXT
+- **Phase 5 — Advanced Widgets (v0.5.0)**: ✅ COMPLETE & RELEASED (v0.5.1 patch issued)
+- **Phase 6 — Polish (v1.0.0)**: 🚧 IN PROGRESS
+  - [x] Theming system (c3c9b13)
+  - [x] Animation system (e7102e8)
+  - [x] Performance benchmarks (febf26c)
+  - [x] Example applications (c62205b)
+  - [ ] Comprehensive documentation
 
 ## Completed Phases
 
