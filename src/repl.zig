@@ -196,7 +196,7 @@ pub const Repl = struct {
 
     /// Read line in pipe mode (non-TTY)
     fn readLinePipe(self: *Self, _: anytype) Error!?[]const u8 {
-        const stdin = std.io.getStdIn().reader();
+        const stdin = std.fs.File.stdin().reader();
 
         self.buffer.clearRetainingCapacity();
 
