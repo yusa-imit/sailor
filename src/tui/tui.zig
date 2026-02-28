@@ -16,6 +16,7 @@ pub const buffer = @import("buffer.zig");
 pub const layout = @import("layout.zig");
 pub const symbols = @import("symbols.zig");
 pub const theme = @import("theme.zig");
+pub const animation = @import("animation.zig");
 
 // Phase 4+ widgets
 pub const widgets = struct {
