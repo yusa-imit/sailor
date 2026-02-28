@@ -9,7 +9,7 @@
 
 ## Current Phase
 - **Phase 4 — Core Widgets (v0.4.0)**: ✅ COMPLETE & RELEASED
-- **Phase 5 — Advanced Widgets (v0.5.0)**: 🚧 IN PROGRESS (3/9 widgets complete)
+- **Phase 5 — Advanced Widgets (v0.5.0)**: 🚧 IN PROGRESS (4/9 widgets complete)
 
 ## Completed Phases
 
@@ -59,10 +59,11 @@
 | silica | ../silica | v0.2.0 arg, color, repl, fmt | v0.4.0 TUI (SQL shell) |
 
 ## Test Status
-- **Total Tests**: 264 passing (updated 2026-02-28)
+- **Total Tests**: 298 passing (updated 2026-02-28)
   - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)
+  - Phase 5 widgets: 114 (tree: 32, textarea: 30, sparkline: 27, barchart: 25)
 - **Cross-platform**: All 6 targets build successfully
   - x86_64-linux-gnu ✓
   - aarch64-linux-gnu ✓
@@ -80,7 +81,7 @@
 - [x] widgets/tree.zig — Hierarchical tree view (32 tests)
 - [x] widgets/textarea.zig — Multi-line editor (30 tests)
 - [x] widgets/sparkline.zig — Inline mini-chart (27 tests)
-- [ ] widgets/barchart.zig — Vertical bar chart
+- [x] widgets/barchart.zig — Vertical bar chart (25 tests)
 - [ ] widgets/linechart.zig — Line chart with axes
 - [ ] widgets/canvas.zig — Freeform drawing
 - [ ] widgets/dialog.zig — Modal dialog
@@ -90,23 +91,22 @@
 ## Recent Work
 - **2026-02-28 11:00 (Hour 11 - Feature Cycle)** 🚧 PHASE 5 IN PROGRESS:
   - FEATURE MODE: Advanced widgets implementation
-  - Implemented 3/9 Phase 5 widgets in single session:
-    1. Tree widget (widgets/tree.zig) — 32 tests
-       - Hierarchical tree view with expand/collapse
-       - Recursive rendering with indentation
-       - Selection and scrolling support
-    2. TextArea widget (widgets/textarea.zig) — 30 tests
-       - Multi-line text editor with cursor
-       - Vertical and horizontal scrolling
-       - Optional line numbers with gutter
-    3. Sparkline widget (widgets/sparkline.zig) — 27 tests
-       - Inline mini-chart with Unicode blocks
-       - Auto-scaling to data max
-       - Compact visualization
-  - Progress: 3/9 Phase 5 widgets (33%)
-  - All 296 tests passing (stable)
+  - Implemented BarChart widget (widgets/barchart.zig) — 25 tests:
+    - Vertical bar chart with configurable bar width and gap
+    - Value labels above bars, text labels below
+    - Per-bar styling support with fallback to default style
+    - Auto-scaling to max value or custom max
+    - Block border integration
+  - Progress: 4/9 Phase 5 widgets (44%)
+  - All 298 tests passing (296 passed, 2 skipped)
   - Cross-platform builds verified
   - 0 open bugs
+
+- **2026-02-28 10:00 (Hour 10 - Previous Session)** 🚧 PHASE 5 INITIAL:
+  - Implemented 3/9 Phase 5 widgets:
+    1. Tree widget (32 tests)
+    2. TextArea widget (30 tests)
+    3. Sparkline widget (27 tests)
 
 - **2026-02-28 10:00 (Hour 10 - Feature Cycle)** ✅ PHASE 4 COMPLETE & RELEASED:
   - FEATURE MODE: Phase 4 widget implementation
