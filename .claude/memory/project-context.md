@@ -5,11 +5,11 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- Current version: v0.4.0
+- Current version: v0.5.0
 
 ## Current Phase
-- **Phase 4 — Core Widgets (v0.4.0)**: ✅ COMPLETE & RELEASED
-- **Phase 5 — Advanced Widgets (v0.5.0)**: 🚧 IN PROGRESS (5/9 widgets complete - 56%)
+- **Phase 5 — Advanced Widgets (v0.5.0)**: ✅ COMPLETE & RELEASED
+- **Phase 6 — Polish (v1.0.0)**: 🚧 NEXT
 
 ## Completed Phases
 
@@ -59,11 +59,11 @@
 | silica | ../silica | v0.2.0 arg, color, repl, fmt | v0.4.0 TUI (SQL shell) |
 
 ## Test Status
-- **Total Tests**: 296/298 passing, 2 skipped (updated 2026-02-28 Hour 14)
+- **Total Tests**: 308/310 passing, 2 skipped (updated 2026-02-28 Hour 15)
   - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)
-  - Phase 5 widgets: 146 (tree: 32, textarea: 30, sparkline: 27, barchart: 25, linechart: 32)
+  - Phase 5 widgets: 185 (tree: 25, textarea: 28, sparkline: 25, barchart: 25, linechart: 32, canvas: 11, dialog: 10, popup: 12, notification: 17)
 - **Cross-platform**: All 6 targets build successfully
   - x86_64-linux-gnu ✓
   - aarch64-linux-gnu ✓
@@ -77,18 +77,41 @@
 
 ## Phase 5 Implementation Plan
 
-### Phase 5 — Advanced Widgets (v0.5.0) 🚧
-- [x] widgets/tree.zig — Hierarchical tree view (32 tests)
-- [x] widgets/textarea.zig — Multi-line editor (30 tests)
-- [x] widgets/sparkline.zig — Inline mini-chart (27 tests)
+### Phase 5 — Advanced Widgets (v0.5.0) ✅ COMPLETE & RELEASED
+- [x] widgets/tree.zig — Hierarchical tree view (25 tests)
+- [x] widgets/textarea.zig — Multi-line editor (28 tests)
+- [x] widgets/sparkline.zig — Inline mini-chart (25 tests)
 - [x] widgets/barchart.zig — Vertical bar chart (25 tests)
 - [x] widgets/linechart.zig — Line chart with axes (32 tests)
-- [ ] widgets/canvas.zig — Freeform drawing
-- [ ] widgets/dialog.zig — Modal dialog
-- [ ] widgets/popup.zig — Centered overlay
-- [ ] widgets/notification.zig — Toast message
+- [x] widgets/canvas.zig — Freeform drawing (11 tests)
+- [x] widgets/dialog.zig — Modal dialog (10 tests)
+- [x] widgets/popup.zig — Centered overlay (12 tests)
+- [x] widgets/notification.zig — Toast message (17 tests)
+- [x] All 9 widgets complete with 185 tests
+- [x] Released v0.5.0
 
 ## Recent Work
+- **2026-02-28 15:00 (Hour 15 - Stabilization Cycle)** 📚 DOCUMENTATION ENHANCEMENT:
+  - **MODE**: STABILIZATION (hour % 3 == 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 308/310 passing (2 intentionally skipped - TTY-dependent)
+  - ✅ Cross-platform: All 6 targets verified (x86_64/aarch64 for Linux/Windows/macOS)
+  - ✅ Code Quality Verification:
+    - No stdout/stderr in library code ✓
+    - No @panic in library code ✓
+    - No catch unreachable outside tests ✓
+    - Memory safety verified ✓
+    - Only 1 benign TODO (repl.zig completion popup - future enhancement)
+  - ✅ Documentation Improvements:
+    - Added comprehensive usage examples to Canvas widget (plotting, shapes, Block integration)
+    - Added comprehensive usage examples to Dialog widget (keyboard handling, custom styling)
+    - Added comprehensive usage examples to Popup widget (help text, tooltips, positioning)
+    - Added comprehensive usage examples to Notification widget (all levels, positioning, styling)
+  - All Phase 5 widgets now have practical code examples showing real-world usage
+  - Commit: docs: add comprehensive usage examples to Phase 5 widgets
+  - Phase 5 (v0.5.0) confirmed COMPLETE & RELEASED
+
 - **2026-02-28 14:00 (Hour 14 - Feature Cycle)** 🐛 CRITICAL BUG FIXES:
   - **MODE**: FEATURE → BUG TRIAGE (4 consumer project bugs detected)
   - ✅ Fixed issue #6 (from:silica): Phase 5 widgets API mismatches
