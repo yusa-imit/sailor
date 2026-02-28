@@ -3,6 +3,7 @@ const std = @import("std");
 // Build steps:
 //   zig build                           # Build library
 //   zig build test                      # Run all tests
+//   zig build benchmark                 # Run performance benchmarks
 //   zig build -Dtarget=x86_64-linux     # Cross-compile check
 
 pub fn build(b: *std.Build) void {
@@ -64,4 +65,30 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(cross_platform_tests).step);
     test_step.dependOn(&b.addRunArtifact(memory_safety_tests).step);
     test_step.dependOn(&b.addRunArtifact(build_verification_tests).step);
+
+    // Benchmark executable
+    const bench_exe = b.addExecutable(.{
+        .name = "benchmark",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("examples/benchmark.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
+    // Add sailor module to benchmark executable
+    const sailor_module = b.createModule(.{
+        .root_source_file = b.path("src/sailor.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    bench_exe.root_module.addImport("sailor", sailor_module);
+
+    const bench_install = b.addInstallArtifact(bench_exe, .{});
+    const bench_step = b.step("benchmark", "Build and run performance benchmarks");
+    bench_step.dependOn(&bench_install.step);
+
+    const bench_run = b.addRunArtifact(bench_exe);
+    bench_run.step.dependOn(&bench_install.step);
+    bench_step.dependOn(&bench_run.step);
 }

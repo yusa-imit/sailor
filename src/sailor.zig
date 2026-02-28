@@ -28,6 +28,9 @@ pub const fmt = @import("fmt.zig");
 // Phase 3+ modules (v0.3.0+)
 pub const tui = @import("tui/tui.zig");
 
+// Phase 6 modules (v1.0.0)
+pub const bench = @import("bench.zig");
+
 test {
     // Pull in all module tests
     std.testing.refAllDecls(@This());
