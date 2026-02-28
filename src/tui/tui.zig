@@ -30,6 +30,7 @@ pub const widgets = struct {
     pub const ColumnWidth = @import("widgets/table.zig").ColumnWidth;
     pub const Input = @import("widgets/input.zig").Input;
     pub const Tabs = @import("widgets/tabs.zig").Tabs;
+    pub const StatusBar = @import("widgets/statusbar.zig").StatusBar;
     pub const Row = @import("widgets/table.zig").Row;
 };
 
