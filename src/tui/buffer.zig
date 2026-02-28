@@ -106,16 +106,18 @@ pub const Buffer = struct {
         var col = x;
         var i: usize = 0;
         while (i < str.len and col < self.width) {
-            const char = str[i];
-            if (char >= 0x80) {
-                // UTF-8 multi-byte character - for now, treat as single char
-                // In a full implementation, would decode UTF-8 properly
-                self.setChar(col, y, char, cell_style);
-                i += 1;
-            } else {
-                self.setChar(col, y, char, cell_style);
-                i += 1;
-            }
+            const byte = str[i];
+            const char_len = std.unicode.utf8ByteSequenceLength(byte) catch 1;
+
+            if (i + char_len > str.len) break;
+
+            const codepoint = if (char_len == 1)
+                @as(u21, byte)
+            else
+                std.unicode.utf8Decode(str[i .. i + char_len]) catch @as(u21, byte);
+
+            self.setChar(col, y, codepoint, cell_style);
+            i += char_len;
             col += 1;
         }
     }
@@ -482,4 +484,77 @@ test "renderDiff - simple" {
     // Should contain cursor positioning and characters
     try std.testing.expect(std.mem.indexOf(u8, output, "\x1b[1;1H") != null); // cursor to 1,1
     try std.testing.expect(std.mem.indexOf(u8, output, "A") != null);
+}
+
+test "Buffer.setString - unicode characters" {
+    const allocator = std.testing.allocator;
+    var buffer = try Buffer.init(allocator, 20, 5);
+    defer buffer.deinit();
+
+    // Test emoji (multi-byte UTF-8)
+    buffer.setString(0, 0, "Hello 👋 World", .{});
+    try std.testing.expectEqual(@as(u21, 'H'), buffer.get(0, 0).?.char);
+    try std.testing.expectEqual(@as(u21, '👋'), buffer.get(6, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'W'), buffer.get(8, 0).?.char);
+}
+
+test "Buffer.setString - CJK characters" {
+    const allocator = std.testing.allocator;
+    var buffer = try Buffer.init(allocator, 20, 5);
+    defer buffer.deinit();
+
+    // Test Chinese characters
+    buffer.setString(0, 0, "你好世界", .{});
+    try std.testing.expectEqual(@as(u21, '你'), buffer.get(0, 0).?.char);
+    try std.testing.expectEqual(@as(u21, '好'), buffer.get(1, 0).?.char);
+    try std.testing.expectEqual(@as(u21, '世'), buffer.get(2, 0).?.char);
+    try std.testing.expectEqual(@as(u21, '界'), buffer.get(3, 0).?.char);
+}
+
+test "Buffer.setChar - zero-width characters" {
+    const allocator = std.testing.allocator;
+    var buffer = try Buffer.init(allocator, 10, 5);
+    defer buffer.deinit();
+
+    // Test null character
+    buffer.setChar(0, 0, 0, .{});
+    try std.testing.expectEqual(@as(u21, 0), buffer.get(0, 0).?.char);
+}
+
+test "Cell.eql - unicode comparison" {
+    const c1 = Cell.init('你', .{ .fg = .red });
+    const c2 = Cell.init('你', .{ .fg = .red });
+    const c3 = Cell.init('好', .{ .fg = .red });
+
+    try std.testing.expect(c1.eql(c2));
+    try std.testing.expect(!c1.eql(c3));
+}
+
+test "Buffer.fill - boundary validation" {
+    const allocator = std.testing.allocator;
+    var buffer = try Buffer.init(allocator, 10, 5);
+    defer buffer.deinit();
+
+    // Fill area that extends beyond buffer
+    const area = Rect.new(8, 3, 5, 3);
+    buffer.fill(area, 'X', .{});
+
+    // Should only fill within buffer bounds
+    try std.testing.expectEqual(@as(u21, 'X'), buffer.get(8, 3).?.char);
+    try std.testing.expectEqual(@as(u21, 'X'), buffer.get(9, 3).?.char);
+    try std.testing.expectEqual(@as(u21, 'X'), buffer.get(8, 4).?.char);
+}
+
+test "Buffer.clearArea - zero-size area" {
+    const allocator = std.testing.allocator;
+    var buffer = try Buffer.init(allocator, 10, 5);
+    defer buffer.deinit();
+
+    buffer.setString(0, 0, "test", .{});
+
+    // Clear zero-size area should do nothing
+    const area = Rect.new(0, 0, 0, 0);
+    buffer.clearArea(area);
+
+    try std.testing.expectEqual(@as(u21, 't'), buffer.get(0, 0).?.char);
 }

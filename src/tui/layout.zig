@@ -407,3 +407,78 @@ test "split - vertical three-way" {
     try std.testing.expectEqual(10, result[2].height);
     try std.testing.expectEqual(50, result[2].y); // after first two blocks
 }
+
+test "split - min constraint enforcement" {
+    const allocator = std.testing.allocator;
+    const area = Rect.new(0, 0, 100, 50);
+    const constraints = [_]Constraint{
+        .{ .min = 30 },
+        .{ .min = 40 },
+        .{ .min = 20 },
+    };
+
+    const result = try split(allocator, .horizontal, area, &constraints);
+    defer allocator.free(result);
+
+    try std.testing.expectEqual(3, result.len);
+    // Each should get at least its minimum
+    try std.testing.expect(result[0].width >= 30);
+    try std.testing.expect(result[1].width >= 40);
+    try std.testing.expect(result[2].width >= 20);
+}
+
+test "split - max constraint with tight space" {
+    const allocator = std.testing.allocator;
+    const area = Rect.new(0, 0, 40, 50);
+    const constraints = [_]Constraint{
+        .{ .max = 20 },
+        .{ .max = 30 },
+    };
+
+    const result = try split(allocator, .horizontal, area, &constraints);
+    defer allocator.free(result);
+
+    try std.testing.expectEqual(2, result.len);
+    // With 40 pixels available, max constraints should limit allocation
+    // Each max is applied but space is distributed proportionally
+    const total = result[0].width + result[1].width;
+    try std.testing.expectEqual(40, total);
+}
+
+test "split - ratio with small denominators" {
+    const allocator = std.testing.allocator;
+    const area = Rect.new(0, 0, 100, 50);
+    const constraints = [_]Constraint{
+        .{ .ratio = .{ .num = 1, .denom = 2 } }, // 50%
+        .{ .ratio = .{ .num = 1, .denom = 2 } }, // 50%
+    };
+
+    const result = try split(allocator, .horizontal, area, &constraints);
+    defer allocator.free(result);
+
+    try std.testing.expectEqual(2, result.len);
+    // Should split evenly
+    try std.testing.expectEqual(50, result[0].width);
+    try std.testing.expectEqual(50, result[1].width);
+}
+
+test "Rect.intersection with partial overlap" {
+    const r1 = Rect.new(0, 0, 10, 10);
+    const r2 = Rect.new(5, 5, 10, 10);
+
+    const result = r1.intersection(r2);
+    try std.testing.expect(result != null);
+    const inter = result.?;
+    try std.testing.expectEqual(@as(u16, 5), inter.x);
+    try std.testing.expectEqual(@as(u16, 5), inter.y);
+    try std.testing.expectEqual(@as(u16, 5), inter.width);
+    try std.testing.expectEqual(@as(u16, 5), inter.height);
+}
+
+test "Rect.intersection with no overlap" {
+    const r1 = Rect.new(0, 0, 10, 10);
+    const r2 = Rect.new(20, 20, 10, 10);
+
+    const result = r1.intersection(r2);
+    try std.testing.expectEqual(@as(?Rect, null), result);
+}
