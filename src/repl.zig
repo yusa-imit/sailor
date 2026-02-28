@@ -118,7 +118,7 @@ pub const Repl = struct {
         if (self.is_tty or self.use_color) return; // Already initialized
 
         self.is_tty = term.isatty(std.posix.STDIN_FILENO);
-        self.use_color = self.config.color orelse (self.is_tty and color.ColorLevel.detect() != .none);
+        self.use_color = if (self.config.color) |explicit| explicit else (self.is_tty and color.ColorLevel.detect() != .none);
     }
 
     /// Cleanup resources
