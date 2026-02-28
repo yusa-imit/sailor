@@ -59,7 +59,7 @@
 | silica | ../silica | v0.2.0 arg, color, repl, fmt | v0.4.0 TUI (SQL shell) |
 
 ## Test Status
-- **Total Tests**: 296/298 passing, 2 skipped (updated 2026-02-28 Hour 13)
+- **Total Tests**: 296/298 passing, 2 skipped (updated 2026-02-28 Hour 14)
   - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)
@@ -67,13 +67,13 @@
 - **Cross-platform**: All 6 targets build successfully
   - x86_64-linux-gnu ✓
   - aarch64-linux-gnu ✓
-  - x86_64-windows-msvc ✓
-  - aarch64-windows-msvc ✓
+  - x86_64-windows-msvc ✓ (FIXED: term.zig type casting)
+  - aarch64-windows-msvc ✓ (FIXED: term.zig type casting)
   - x86_64-macos ✓
   - aarch64-macos ✓
 - **CI Status**: GREEN ✓
 - **Compiler Warnings**: 0
-- **Known Issues**: 0 open bugs
+- **Known Issues**: 0 open bugs (ALL CONSUMER PROJECT BUGS FIXED!)
 
 ## Phase 5 Implementation Plan
 
@@ -89,6 +89,21 @@
 - [ ] widgets/notification.zig — Toast message
 
 ## Recent Work
+- **2026-02-28 14:00 (Hour 14 - Feature Cycle)** 🐛 CRITICAL BUG FIXES:
+  - **MODE**: FEATURE → BUG TRIAGE (4 consumer project bugs detected)
+  - ✅ Fixed issue #6 (from:silica): Phase 5 widgets API mismatches
+    - TextArea, Dialog, Notification used wrong Buffer/Block APIs
+    - buf.set() → buf.setChar(), Borders.all() → Borders.all, Block.style → border_style
+  - ✅ Fixed issue #5 (from:zr): Style.apply() Zig 0.15.2 incompatibility
+    - std.fmt.format() → writer.print() to avoid adaptToNewApi() error
+  - ✅ Fixed issue #4 (from:silica): Input/StatusBar widget API mismatches
+    - Fixed Style/Color/Buffer/Block API usage and test assertions
+  - ✅ Fixed issue #3 (from:zr): Windows cross-compile term.zig type error
+    - Cast STD_*_HANDLE comptime_int to u32 via @intCast
+  - All tests passing (296/298), all cross-platform builds verified
+  - All 4 issues closed, consumer projects unblocked
+  - Commit: fix: resolve 4 critical consumer project bugs (357fa25)
+
 - **2026-02-28 13:00 (Hour 13 - Feature Cycle)** 🚀 PHASE 5:
   - FEATURE MODE: Advanced widgets implementation
   - ✅ Implemented LineChart widget (widgets/linechart.zig) — 32 tests
