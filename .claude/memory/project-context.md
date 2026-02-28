@@ -44,13 +44,13 @@
 - [x] widgets/paragraph.zig — Text rendering, wrapping (14 tests)
 - [x] widgets/list.zig — Item lists, selection (21 tests)
 - [x] widgets/table.zig — Tabular data (27 tests)
-- [ ] widgets/input.zig — Single-line text input
+- [x] widgets/input.zig — Single-line text input (16 tests)
 - [ ] widgets/tabs.zig — Tab navigation
 - [ ] widgets/statusbar.zig — Bottom status bar
 - [ ] widgets/gauge.zig — Progress gauge
 
 **Next Steps**:
-1. Implement remaining 4 widgets (input, tabs, statusbar, gauge)
+1. Implement remaining 3 widgets (tabs, statusbar, gauge)
 2. Ensure each widget has comprehensive tests
 3. Release v0.4.0
 
@@ -62,10 +62,10 @@
 | silica | ../silica | v0.2.0 arg, color, repl, fmt | v0.4.0 TUI (SQL shell) |
 
 ## Test Status
-- **Total Tests**: 190 passing (updated 2026-02-28)
+- **Total Tests**: 206 passing (updated 2026-02-28)
   - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
-  - Phase 4 widgets: 76 (block: 14, paragraph: 14, list: 21, table: 27)
+  - Phase 4 widgets: 92 (block: 14, paragraph: 14, list: 21, table: 27, input: 16)
 - **Cross-platform**: All 6 targets build successfully
   - x86_64-linux-gnu ✓
   - aarch64-linux-gnu ✓
@@ -77,19 +77,21 @@
 - **Compiler Warnings**: 0
 - **Known Issues**: 0 open bugs
 
-## Recent Stabilization Work
-- **2026-02-28 09:00 (Hour 9 - Stabilization Cycle #2)**:
-  - STABILIZATION MODE: CI green, no open issues
-  - **CRITICAL BUG FIX**: Corrected UTF-8 decoding in Buffer.setString()
-    - Was treating multi-byte chars as individual bytes
-    - Now properly decodes Unicode codepoints (emoji, CJK support)
-    - Added std.unicode.utf8Decode() for proper character extraction
-  - Added 11 edge case tests (179 → 190 tests):
-    - buffer.zig: +6 tests (Unicode, CJK, boundaries)
-    - layout.zig: +5 tests (constraints, intersection)
-  - All 190 tests passing
+## Recent Work
+- **2026-02-28 10:00 (Hour 10 - Feature Cycle)**:
+  - FEATURE MODE: Phase 4 widget implementation
+  - **CRITICAL BUG FIX #1**: Fixed repl.zig Zig 0.15.x compatibility (issue #1 from silica)
+    - Replaced std.io.getStdIn() with std.fs.File.stdin()
+    - Issue closed, consumer projects unblocked
+  - **FEATURE**: Implemented Input widget (widgets/input.zig)
+    - Single-line text input with cursor positioning
+    - Horizontal scroll for long text
+    - Placeholder support
+    - Unicode/UTF-8 handling (CJK, emoji)
+    - 16 comprehensive tests
+  - Progress: 5/8 Phase 4 widgets complete
+  - All 206 tests passing
   - Cross-platform builds verified (6/6 targets)
-  - UTF-8 handling now production-ready
 
 ## Architecture Notes
 - All modules are independently usable
