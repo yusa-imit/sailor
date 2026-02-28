@@ -3,6 +3,8 @@
 # zig
 .zig-cache
 zig-out
+test_*
+*.a
 
 # Claude Code
 .claude/settings.local.json

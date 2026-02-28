@@ -522,3 +522,98 @@ test "JSON string escaping" {
     const expected = "hello\\n\\\"world\\\"";
     try std.testing.expectEqualStrings(expected, buf.items);
 }
+
+test "CSV with semicolon delimiter" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    const config = CsvConfig{ .delimiter = ';', .quote = '"', .always_quote = false };
+    var csv = Csv(@TypeOf(buf.writer())).init(buf.writer(), config);
+
+    try csv.writeField("Name");
+    try csv.writeField("Value");
+    try csv.endRow();
+
+    try csv.writeField("Item;1");
+    try csv.writeField("100");
+    try csv.endRow();
+
+    const expected = "Name;Value\n\"Item;1\";100\n";
+    try std.testing.expectEqualStrings(expected, buf.items);
+}
+
+test "CSV with newlines in fields" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    const config = CsvConfig{ .delimiter = ',', .quote = '"', .always_quote = false };
+    var csv = Csv(@TypeOf(buf.writer())).init(buf.writer(), config);
+
+    try csv.writeField("First\nLine");
+    try csv.writeField("Second");
+    try csv.endRow();
+
+    const expected = "\"First\nLine\",Second\n";
+    try std.testing.expectEqualStrings(expected, buf.items);
+}
+
+test "Table with empty cells" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{"A", "B", "C"}, .{ .borders = false });
+    defer table.deinit();
+
+    try table.addRow(&.{"", "value", ""});
+    try table.addRow(&.{"data", "", "item"});
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const result = buf.items;
+    try std.testing.expect(std.mem.indexOf(u8, result, "value") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "data") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "item") != null);
+}
+
+test "JsonArray nested objects" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    var arr = try JsonArray(@TypeOf(buf.writer())).init(buf.writer());
+    {
+        var obj = try arr.beginObject();
+        try obj.addString("name", "Alice");
+        try obj.addNumber("age", 30);
+        try obj.end();
+    }
+    {
+        var obj = try arr.beginObject();
+        try obj.addString("name", "Bob");
+        try obj.addNumber("age", 25);
+        try obj.end();
+    }
+    try arr.end();
+
+    const expected = "[{\"name\":\"Alice\",\"age\":30},{\"name\":\"Bob\",\"age\":25}]";
+    try std.testing.expectEqualStrings(expected, buf.items);
+}
+
+test "JSON escaping control characters" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try writeJsonString(buf.writer(), "tab\there\r\nbackslash\\");
+
+    const expected = "tab\\there\\r\\nbackslash\\\\";
+    try std.testing.expectEqualStrings(expected, buf.items);
+}
