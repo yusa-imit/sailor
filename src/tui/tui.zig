@@ -33,6 +33,10 @@ pub const widgets = struct {
     pub const StatusBar = @import("widgets/statusbar.zig").StatusBar;
     pub const Gauge = @import("widgets/gauge.zig").Gauge;
     pub const Row = @import("widgets/table.zig").Row;
+
+    // Phase 5 widgets
+    pub const Tree = @import("widgets/tree.zig").Tree;
+    pub const TreeNode = @import("widgets/tree.zig").TreeNode;
 };
 
 // Export commonly used types
