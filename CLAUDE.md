@@ -372,8 +372,8 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
 - [ ] Consumer migration: zr, zoltraak-cli, silica shell prototypes (next phase)
 
 ### Phase 5 — Advanced Widgets (v0.5.0)
-- [x] Tree, TextArea, Sparkline, BarChart
-- [ ] LineChart, Canvas, Dialog, Popup, Notification
+- [x] Tree, TextArea, Sparkline, BarChart, LineChart
+- [ ] Canvas, Dialog, Popup, Notification
 - [ ] Example applications
 
 ### Phase 6 — Polish (v1.0.0)
