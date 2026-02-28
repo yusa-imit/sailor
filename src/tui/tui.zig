@@ -37,6 +37,7 @@ pub const widgets = struct {
     // Phase 5 widgets
     pub const Tree = @import("widgets/tree.zig").Tree;
     pub const TreeNode = @import("widgets/tree.zig").TreeNode;
+    pub const TextArea = @import("widgets/textarea.zig").TextArea;
 };
 
 // Export commonly used types
