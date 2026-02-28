@@ -41,6 +41,8 @@ pub const widgets = struct {
     pub const Sparkline = @import("widgets/sparkline.zig").Sparkline;
     pub const BarChart = @import("widgets/barchart.zig").BarChart;
     pub const Bar = @import("widgets/barchart.zig").BarChart.Bar;
+    pub const LineChart = @import("widgets/linechart.zig").LineChart;
+    pub const Series = @import("widgets/linechart.zig").LineChart.Series;
 };
 
 // Export commonly used types
