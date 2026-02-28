@@ -18,7 +18,9 @@ Each module is independently usable — pick only what you need.
 
 ### Widgets
 
-Block, Paragraph, List, Table, Input, Tabs, StatusBar, Gauge — with more coming in v0.5.0.
+**Phase 4 (v0.4.0)**: Block, Paragraph, List, Table, Input, Tabs, StatusBar, Gauge
+
+**Phase 5 (v0.5.0 WIP)**: Tree, TextArea, Sparkline, BarChart — LineChart, Canvas, Dialog, Popup, Notification coming soon
 
 ## Requirements
 
