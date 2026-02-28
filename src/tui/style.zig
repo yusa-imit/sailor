@@ -43,8 +43,8 @@ pub const Color = union(enum) {
             .bright_magenta => try writer.writeAll("\x1b[95m"),
             .bright_cyan => try writer.writeAll("\x1b[96m"),
             .bright_white => try writer.writeAll("\x1b[97m"),
-            .indexed => |idx| try std.fmt.format(writer, "\x1b[38;5;{d}m", .{idx}),
-            .rgb => |c| try std.fmt.format(writer, "\x1b[38;2;{d};{d};{d}m", .{ c.r, c.g, c.b }),
+            .indexed => |idx| try writer.print("\x1b[38;5;{d}m", .{idx}),
+            .rgb => |c| try writer.print("\x1b[38;2;{d};{d};{d}m", .{ c.r, c.g, c.b }),
         }
     }
 
@@ -68,8 +68,8 @@ pub const Color = union(enum) {
             .bright_magenta => try writer.writeAll("\x1b[105m"),
             .bright_cyan => try writer.writeAll("\x1b[106m"),
             .bright_white => try writer.writeAll("\x1b[107m"),
-            .indexed => |idx| try std.fmt.format(writer, "\x1b[48;5;{d}m", .{idx}),
-            .rgb => |c| try std.fmt.format(writer, "\x1b[48;2;{d};{d};{d}m", .{ c.r, c.g, c.b }),
+            .indexed => |idx| try writer.print("\x1b[48;5;{d}m", .{idx}),
+            .rgb => |c| try writer.print("\x1b[48;2;{d};{d};{d}m", .{ c.r, c.g, c.b }),
         }
     }
 };

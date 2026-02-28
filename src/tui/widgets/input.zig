@@ -24,10 +24,10 @@ pub const Input = struct {
     style: Style = .{},
 
     /// Cursor style
-    cursor_style: Style = .{ .attrs = .{ .reverse = true } },
+    cursor_style: Style = .{ .reverse = true },
 
     /// Placeholder style
-    placeholder_style: Style = .{ .fg = .{ .basic = .dark_gray } },
+    placeholder_style: Style = .{ .fg = .bright_black },
 
     /// Optional block for borders/title
     block: ?Block = null,
@@ -85,7 +85,7 @@ pub const Input = struct {
         var inner_area = area;
         if (self.block) |blk| {
             blk.render(buf, area);
-            inner_area = blk.innerArea(area);
+            inner_area = blk.inner(area);
         }
 
         // Nothing to render if area too small
@@ -164,7 +164,7 @@ pub const Input = struct {
             else
                 display_style;
 
-            buf.setCell(x, y, codepoint, char_style);
+            buf.setChar(x, y, codepoint, char_style);
             x += 1;
             text_byte_idx += char_len;
             char_count += 1;
@@ -172,13 +172,13 @@ pub const Input = struct {
 
         // If cursor is at end or input is empty, show cursor after last character
         if (self.cursor == char_count and x < x_start + width) {
-            buf.setCell(x, y, ' ', self.cursor_style);
+            buf.setChar(x, y, ' ', self.cursor_style);
             x += 1;
         }
 
         // Fill remaining space
         while (x < x_start + width) {
-            buf.setCell(x, y, ' ', self.style);
+            buf.setChar(x, y, ' ', self.style);
             x += 1;
         }
     }
@@ -246,7 +246,7 @@ test "Input.render empty with placeholder" {
     input.render(&buf, area);
 
     // Should show placeholder
-    const cell = buf.getCell(0, 0);
+    const cell = buf.getConst(0, 0).?;
     try std.testing.expectEqual('T', cell.char);
 }
 
@@ -262,11 +262,11 @@ test "Input.render with text" {
     input.render(&buf, area);
 
     // Should show text
-    try std.testing.expectEqual('h', buf.getCell(0, 0).char);
-    try std.testing.expectEqual('e', buf.getCell(1, 0).char);
-    try std.testing.expectEqual('l', buf.getCell(2, 0).char);
-    try std.testing.expectEqual('l', buf.getCell(3, 0).char);
-    try std.testing.expectEqual('o', buf.getCell(4, 0).char);
+    try std.testing.expectEqual('h', buf.getConst(0, 0).char);
+    try std.testing.expectEqual('e', buf.getConst(1, 0).char);
+    try std.testing.expectEqual('l', buf.getConst(2, 0).char);
+    try std.testing.expectEqual('l', buf.getConst(3, 0).char);
+    try std.testing.expectEqual('o', buf.getConst(4, 0).char);
 }
 
 test "Input.render with cursor at start" {
@@ -281,8 +281,8 @@ test "Input.render with cursor at start" {
     input.render(&buf, area);
 
     // Cursor should be on first character
-    const cell = buf.getCell(0, 0);
-    try std.testing.expect(cell.style.attrs.reverse);
+    const cell = buf.getConst(0, 0).?;
+    try std.testing.expect(cell.style.reverse);
 }
 
 test "Input.render with cursor in middle" {
@@ -297,8 +297,8 @@ test "Input.render with cursor in middle" {
     input.render(&buf, area);
 
     // Cursor should be on third character
-    const cell = buf.getCell(2, 0);
-    try std.testing.expect(cell.style.attrs.reverse);
+    const cell = buf.getConst(2, 0).?;
+    try std.testing.expect(cell.style.reverse);
 }
 
 test "Input.render with cursor at end" {
@@ -313,8 +313,8 @@ test "Input.render with cursor at end" {
     input.render(&buf, area);
 
     // Cursor should be after last character
-    const cell = buf.getCell(5, 0);
-    try std.testing.expect(cell.style.attrs.reverse);
+    const cell = buf.getConst(5, 0).?;
+    try std.testing.expect(cell.style.reverse);
 }
 
 test "Input.render with block" {
@@ -330,11 +330,11 @@ test "Input.render with block" {
     input.render(&buf, area);
 
     // Should have border
-    const corner = buf.getCell(0, 0);
+    const corner = buf.getConst(0, 0).?;
     try std.testing.expectEqual('┌', corner.char);
 
     // Text should be inside block
-    const text_cell = buf.getCell(1, 1);
+    const text_cell = buf.getConst(1, 1).?;
     try std.testing.expectEqual('h', text_cell.char);
 }
 
@@ -350,11 +350,11 @@ test "Input.render with narrow width" {
     input.render(&buf, area);
 
     // Should only show first 5 characters
-    try std.testing.expectEqual('h', buf.getCell(0, 0).char);
-    try std.testing.expectEqual('e', buf.getCell(1, 0).char);
-    try std.testing.expectEqual('l', buf.getCell(2, 0).char);
-    try std.testing.expectEqual('l', buf.getCell(3, 0).char);
-    try std.testing.expectEqual('o', buf.getCell(4, 0).char);
+    try std.testing.expectEqual('h', buf.getConst(0, 0).char);
+    try std.testing.expectEqual('e', buf.getConst(1, 0).char);
+    try std.testing.expectEqual('l', buf.getConst(2, 0).char);
+    try std.testing.expectEqual('l', buf.getConst(3, 0).char);
+    try std.testing.expectEqual('o', buf.getConst(4, 0).char);
 }
 
 test "Input.render with scroll (cursor beyond visible)" {
@@ -370,11 +370,11 @@ test "Input.render with scroll (cursor beyond visible)" {
 
     // Should scroll to show cursor
     // With cursor at position 10 and width 5, should show characters 6-10
-    try std.testing.expectEqual('w', buf.getCell(0, 0).char);
-    try std.testing.expectEqual('o', buf.getCell(1, 0).char);
-    try std.testing.expectEqual('r', buf.getCell(2, 0).char);
-    try std.testing.expectEqual('l', buf.getCell(3, 0).char);
-    try std.testing.expectEqual('d', buf.getCell(4, 0).char);
+    try std.testing.expectEqual('w', buf.getConst(0, 0).char);
+    try std.testing.expectEqual('o', buf.getConst(1, 0).char);
+    try std.testing.expectEqual('r', buf.getConst(2, 0).char);
+    try std.testing.expectEqual('l', buf.getConst(3, 0).char);
+    try std.testing.expectEqual('d', buf.getConst(4, 0).char);
 }
 
 test "Input.render with Unicode characters" {
@@ -389,10 +389,10 @@ test "Input.render with Unicode characters" {
     input.render(&buf, area);
 
     // Should render CJK characters
-    try std.testing.expectEqual('你', buf.getCell(0, 0).char);
-    try std.testing.expectEqual('好', buf.getCell(1, 0).char);
-    try std.testing.expectEqual('世', buf.getCell(2, 0).char);
-    try std.testing.expectEqual('界', buf.getCell(3, 0).char);
+    try std.testing.expectEqual('你', buf.getConst(0, 0).char);
+    try std.testing.expectEqual('好', buf.getConst(1, 0).char);
+    try std.testing.expectEqual('世', buf.getConst(2, 0).char);
+    try std.testing.expectEqual('界', buf.getConst(3, 0).char);
 }
 
 test "Input.render empty with cursor" {
@@ -407,7 +407,7 @@ test "Input.render empty with cursor" {
     input.render(&buf, area);
 
     // Should show cursor at start
-    const cell = buf.getCell(0, 0);
-    try std.testing.expect(cell.style.attrs.reverse);
+    const cell = buf.getConst(0, 0).?;
+    try std.testing.expect(cell.style.reverse);
     try std.testing.expectEqual(' ', cell.char);
 }

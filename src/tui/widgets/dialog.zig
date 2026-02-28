@@ -96,7 +96,7 @@ pub const Dialog = struct {
     }
 
     /// Render the dialog centered in the given area
-    pub fn render(self: Dialog, buf: *Buffer, area: Rect) !void {
+    pub fn render(self: Dialog, buf: *Buffer, area: Rect) void {
         if (area.width == 0 or area.height == 0) return;
 
         const size = self.calculateSize();
@@ -117,10 +117,10 @@ pub const Dialog = struct {
         // Draw outer block with title
         var block = Block{
             .title = self.title,
-            .borders = Borders.all(),
-            .style = self.style,
+            .borders = Borders.all,
+            .border_style = self.style,
         };
-        try block.render(buf, dialog_area);
+        block.render(buf, dialog_area);
 
         // Calculate inner area for content
         const inner = block.inner(dialog_area);
@@ -140,12 +140,12 @@ pub const Dialog = struct {
             .style = self.style,
             .alignment = .center,
         };
-        try para.render(buf, msg_area);
+        para.render(buf, msg_area);
 
         // Render buttons
         if (inner.height > msg_height + 1) {
             const btn_y = inner.y + msg_height + 1;
-            try self.renderButtons(buf, Rect{
+            self.renderButtons(buf, Rect{
                 .x = inner.x,
                 .y = btn_y,
                 .width = inner.width,
@@ -154,7 +154,7 @@ pub const Dialog = struct {
         }
     }
 
-    fn renderButtons(self: Dialog, buf: *Buffer, area: Rect) !void {
+    fn renderButtons(self: Dialog, buf: *Buffer, area: Rect) void {
         if (self.buttons.len == 0 or area.width == 0) return;
 
         // Calculate total buttons width
@@ -176,18 +176,18 @@ pub const Dialog = struct {
 
             // Draw button: [ Label ]
             if (x < area.x + area.width) {
-                try buf.setCell(x, area.y, '[', btn_style);
+                buf.setChar(x, area.y, '[', btn_style);
                 x += 1;
 
                 // Button text
                 for (btn) |ch| {
                     if (x >= area.x + area.width) break;
-                    try buf.setCell(x, area.y, ch, btn_style);
+                    buf.setChar(x, area.y, ch, btn_style);
                     x += 1;
                 }
 
                 if (x < area.x + area.width) {
-                    try buf.setCell(x, area.y, ']', btn_style);
+                    buf.setChar(x, area.y, ']', btn_style);
                     x += 1;
                 }
 

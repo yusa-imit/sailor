@@ -147,11 +147,11 @@ pub const Notification = struct {
         var inner_area = area;
         if (self.show_border) {
             var block = Block{
-                .borders = Borders.all(),
-                .style = notif_style,
+                .borders = Borders.all,
+                .border_style = notif_style,
                 .title = self.title orelse "",
             };
-            try block.render(buf, area);
+            block.render(buf, area);
             inner_area = block.inner(area);
             if (inner_area.width == 0 or inner_area.height == 0) return;
         }
@@ -161,12 +161,12 @@ pub const Notification = struct {
         const y = inner_area.y;
 
         if (x < inner_area.x + inner_area.width) {
-            try buf.setCell(x, y, self.level.icon(), notif_style);
+            buf.setChar(x, y, self.level.icon(), notif_style);
             x += 1;
 
             // Space after icon
             if (x < inner_area.x + inner_area.width) {
-                try buf.setCell(x, y, ' ', notif_style);
+                buf.setChar(x, y, ' ', notif_style);
                 x += 1;
             }
         }
@@ -174,7 +174,7 @@ pub const Notification = struct {
         // Draw message
         for (self.message) |ch| {
             if (x >= inner_area.x + inner_area.width) break;
-            try buf.setCell(x, y, ch, notif_style);
+            buf.setChar(x, y, ch, notif_style);
             x += 1;
         }
     }

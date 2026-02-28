@@ -21,7 +21,7 @@ pub const StatusBar = struct {
     right: []const Span = &.{},
 
     /// Background style for entire bar
-    style: Style = .{ .bg = .{ .basic = .bright_black } },
+    style: Style = .{ .bg = .bright_black },
 
     /// Create a new status bar
     pub fn init() StatusBar {

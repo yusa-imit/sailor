@@ -31,12 +31,12 @@ pub fn isatty(fd: posix.fd_t) bool {
     return switch (builtin.os.tag) {
         .linux, .macos => posix.isatty(fd),
         .windows => blk: {
-            const handle = std.os.windows.GetStdHandle(switch (fd) {
+            const handle = std.os.windows.GetStdHandle(@intCast(switch (fd) {
                 0 => std.os.windows.STD_INPUT_HANDLE,
                 1 => std.os.windows.STD_OUTPUT_HANDLE,
                 2 => std.os.windows.STD_ERROR_HANDLE,
                 else => return false,
-            }) catch return false;
+            })) catch return false;
 
             var mode: std.os.windows.DWORD = undefined;
             break :blk std.os.windows.kernel32.GetConsoleMode(handle, &mode) != 0;
