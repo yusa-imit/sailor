@@ -142,7 +142,11 @@ pub const TextArea = struct {
             if (self.show_line_numbers) {
                 const line_num = line_idx + 1;
                 var num_buf: [16]u8 = undefined;
-                const num_str = std.fmt.bufPrint(&num_buf, "{d}", .{line_num}) catch unreachable;
+                const num_str = std.fmt.bufPrint(&num_buf, "{d}", .{line_num}) catch |err| {
+                    // Fallback if line number is impossibly large (> 16 digits)
+                    _ = err;
+                    continue;
+                };
 
                 // Right-align line numbers
                 const num_x = inner_area.x + gutter_w - num_str.len - 2;
