@@ -1,3 +1,17 @@
+//! Sparkline widget — inline mini-chart for compact data visualization
+//!
+//! Example usage:
+//!
+//! ```zig
+//! const data = [_]u64{ 10, 20, 15, 30, 25, 40, 35 };
+//!
+//! const chart = Sparkline.init(&data)
+//!     .withBlock(Block.init().withBorders(.all).withTitle("Trend"))
+//!     .withStyle(.{ .fg = .{ .indexed = 3 } });
+//!
+//! chart.render(&buffer, area);
+//! ```
+
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;

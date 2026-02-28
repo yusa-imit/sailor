@@ -1,3 +1,23 @@
+//! BarChart widget — vertical bar chart with customizable styling
+//!
+//! Example usage:
+//!
+//! ```zig
+//! const bars = [_]BarChart.Bar{
+//!     .{ .label = "Jan", .value = 100 },
+//!     .{ .label = "Feb", .value = 150 },
+//!     .{ .label = "Mar", .value = 120 },
+//! };
+//!
+//! const chart = BarChart.init(&bars)
+//!     .withBlock(Block.init().withBorders(.all).withTitle("Sales"))
+//!     .withBarStyle(.{ .fg = .{ .indexed = 2 } })
+//!     .withBarWidth(5)
+//!     .withBarGap(2);
+//!
+//! chart.render(&buffer, area);
+//! ```
+
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;
