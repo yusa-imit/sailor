@@ -114,6 +114,30 @@ All consumer projects can now upgrade to production-ready v1.0.0.
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-01 04:00 (Hour 4 - Feature Cycle)** 🐛 CRITICAL BUG FIXES:
+  - **MODE**: FEATURE (hour % 3 != 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - 🐛 **CRITICAL BUG FIXES** in gauge and statusbar widgets:
+    - gauge.zig bugs (discovered when creating task_list example):
+      - Line 112: innerArea() → inner() (method doesn't exist)
+      - Lines 128/133/156: setCell() → setChar() with proper u16 casts
+      - Lines 147/152: .default color comparison → null check for optional Color
+    - statusbar.zig bugs (render failures):
+      - Lines 84/102: setCell() → setChar() with proper u16 casts
+      - Line 79: .default color comparison → null check for optional Color
+      - renderSpans() signature: changed from usize to u16 params for setChar compatibility
+    - Root cause: API refactoring to setChar wasn't applied consistently
+    - **Severity**: HIGH — these bugs prevented using gauge with blocks and statusbar with spans
+  - 📝 **NEW EXAMPLE**: examples/task_list.zig
+    - Demonstrates Gauge (progress tracking), List (task items), StatusBar widgets
+    - Shows practical multi-widget layout with real-world use case
+    - Added to build.zig as 4th example
+  - ✅ All tests passing (308/310, 2 TTY-dependent skipped)
+  - ✅ All cross-platform builds verified (6/6 targets)
+  - Commit: fix: critical bugs in gauge and statusbar widgets (f5c2f2b)
+  - **Quality Impact**: Discovered through example creation — demonstrates value of practical examples for finding edge cases not covered by unit tests
+
 - **2026-03-01 00:00 (Hour 0 - Stabilization Cycle)** 🔧 v1.0.1 PATCH RELEASE:
   - **MODE**: STABILIZATION (hour % 3 == 0)
   - ✅ CI Status: GREEN (all builds passing)
