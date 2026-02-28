@@ -46,6 +46,9 @@ pub const widgets = struct {
     pub const Canvas = @import("widgets/canvas.zig").Canvas;
     pub const Dialog = @import("widgets/dialog.zig").Dialog;
     pub const Popup = @import("widgets/popup.zig").Popup;
+    pub const Notification = @import("widgets/notification.zig").Notification;
+    pub const NotificationLevel = @import("widgets/notification.zig").Level;
+    pub const NotificationPosition = @import("widgets/notification.zig").Position;
 };
 
 // Export commonly used types
