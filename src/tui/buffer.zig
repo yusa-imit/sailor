@@ -209,7 +209,7 @@ pub fn renderDiff(diff_ops: []const DiffOp, writer: anytype) !void {
             current_x.? != op.x or current_y.? != op.y)
         {
             // ANSI cursor position (1-indexed)
-            try std.fmt.format(writer, "\x1b[{d};{d}H", .{ op.y + 1, op.x + 1 });
+            try writer.print("\x1b[{d};{d}H", .{ op.y + 1, op.x + 1 });
             current_x = op.x;
             current_y = op.y;
         }
