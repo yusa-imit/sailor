@@ -371,10 +371,10 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
 - [x] All 8 core widgets implemented with comprehensive tests
 - [ ] Consumer migration: zr, zoltraak-cli, silica shell prototypes (next phase)
 
-### Phase 5 — Advanced Widgets (v0.5.0)
+### Phase 5 — Advanced Widgets (v0.5.0) ✅ COMPLETE
 - [x] Tree, TextArea, Sparkline, BarChart, LineChart
-- [ ] Canvas, Dialog, Popup, Notification
-- [ ] Example applications
+- [x] Canvas, Dialog, Popup, Notification
+- [ ] Example applications (deferred to Phase 6)
 
 ### Phase 6 — Polish (v1.0.0)
 - [ ] Theming system
