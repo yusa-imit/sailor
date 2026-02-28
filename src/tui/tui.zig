@@ -43,6 +43,7 @@ pub const widgets = struct {
     pub const Bar = @import("widgets/barchart.zig").BarChart.Bar;
     pub const LineChart = @import("widgets/linechart.zig").LineChart;
     pub const Series = @import("widgets/linechart.zig").LineChart.Series;
+    pub const Canvas = @import("widgets/canvas.zig").Canvas;
 };
 
 // Export commonly used types
