@@ -378,7 +378,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
 
 ### Phase 6 — Polish (v1.0.0)
 - [x] Theming system
-- [ ] Animation support
+- [x] Animation support
 - [ ] Performance benchmarks
 - [ ] Comprehensive documentation
 
