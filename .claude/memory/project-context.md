@@ -5,11 +5,11 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- Current version: v0.2.0
+- Current version: v0.3.0
 
 ## Current Phase
-- **Phase 2 — Interactive (v0.2.0)**: ✅ COMPLETE & RELEASED
-- **Phase 3 — TUI Core (v0.3.0)**: 🚀 NEXT TARGET
+- **Phase 3 — TUI Core (v0.3.0)**: ✅ COMPLETE & RELEASED
+- **Phase 4 — Core Widgets (v0.4.0)**: 🚀 IN PROGRESS (4/8 widgets complete)
 
 ## Completed Phases
 
@@ -28,27 +28,31 @@
 - [x] All tests passing
 - [x] Released v0.2.0
 
-## Phase 3 Implementation Plan
+### Phase 3 — TUI Core (v0.3.0) ✅
+- [x] src/tui/style.zig — Style, Color, Span, Line (19 tests)
+- [x] src/tui/symbols.zig — Box-drawing character sets (19 tests)
+- [x] src/tui/layout.zig — Constraint solver, Rect (21 tests)
+- [x] src/tui/buffer.zig — Cell grid, double buffering, diff (19 tests)
+- [x] src/tui/tui.zig — Terminal, Frame, event loop (6 tests)
+- [x] All 96 TUI core tests passing
+- [x] Released v0.3.0
 
-**Dependency Graph** (must implement in this order):
-```
-tui/style.zig   → standalone (Color, Style, Span, Line types)
-tui/symbols.zig → standalone (box-drawing character sets)
-tui/buffer.zig  → depends on style.zig (Cell grid, diff)
-tui/layout.zig  → standalone (Rect, constraint solver)
-tui/tui.zig     → depends on all above (Terminal, Frame, event loop)
-```
+## Phase 4 Implementation Plan
 
-**Next Implementation Steps**:
-1. Create `src/tui/` directory
-2. Implement `tui/style.zig` first (no dependencies)
-3. Implement `tui/symbols.zig` (no dependencies)
-4. Implement `tui/layout.zig` (standalone)
-5. Implement `tui/buffer.zig` (depends on style.zig)
-6. Implement `tui/tui.zig` (depends on all above)
-7. Uncomment `pub const tui = @import("tui/tui.zig");` in `src/sailor.zig`
-8. Write comprehensive tests for each module
-9. Release v0.3.0
+**Widgets Status**:
+- [x] widgets/block.zig — Borders, title, padding (14 tests)
+- [x] widgets/paragraph.zig — Text rendering, wrapping (14 tests)
+- [x] widgets/list.zig — Item lists, selection (21 tests)
+- [x] widgets/table.zig — Tabular data (27 tests)
+- [ ] widgets/input.zig — Single-line text input
+- [ ] widgets/tabs.zig — Tab navigation
+- [ ] widgets/statusbar.zig — Bottom status bar
+- [ ] widgets/gauge.zig — Progress gauge
+
+**Next Steps**:
+1. Implement remaining 4 widgets (input, tabs, statusbar, gauge)
+2. Ensure each widget has comprehensive tests
+3. Release v0.4.0
 
 ## Consumer Projects
 | Project | Path | Current sailor Usage | Next Migration |
@@ -58,13 +62,15 @@ tui/tui.zig     → depends on all above (Terminal, Frame, event loop)
 | silica | ../silica | v0.2.0 arg, color, repl, fmt | v0.4.0 TUI (SQL shell) |
 
 ## Test Status
-- **Total Tests**: 121 passing
-  - Module tests: 53 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 7)
-  - Infrastructure tests: 68 (smoke, cross-platform, memory safety, build verification)
-- **Cross-platform**: All 5 targets build successfully
+- **Total Tests**: 179 passing (updated 2026-02-28)
+  - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
+  - Phase 3 TUI core: 96 (style: 19, symbols: 19, layout: 21, buffer: 19, tui: 6, widget integration: 12)
+  - Phase 4 widgets: 76 (block: 14, paragraph: 14, list: 21, table: 27)
+- **Cross-platform**: All 6 targets build successfully
   - x86_64-linux-gnu ✓
   - aarch64-linux-gnu ✓
   - x86_64-windows-msvc ✓
+  - aarch64-windows-msvc ✓
   - x86_64-macos ✓
   - aarch64-macos ✓
 - **CI Status**: GREEN ✓
@@ -72,15 +78,18 @@ tui/tui.zig     → depends on all above (Terminal, Frame, event loop)
 - **Known Issues**: 0 open bugs
 
 ## Recent Stabilization Work
-- **2026-02-28 06:xx (Hour 6 - Stabilization Cycle)**:
-  - Fixed 3 critical bugs in repl.zig discovered during code review:
-    - Incorrect color.shouldUseColor() → ColorLevel.detect() != .none
-    - Incorrect color.style() → Style{ ... } API
-    - Incorrect file.writer() API usage (Zig 0.15 compatibility)
-  - All 121 tests passing after fixes
-  - Zero compiler warnings
-  - CI pipeline: GREEN ✓
-  - Cross-platform builds verified (5/5 targets)
+- **2026-02-28 09:00 (Hour 9 - Stabilization Cycle)**:
+  - STABILIZATION MODE: CI green, no open issues
+  - Added 6 edge case tests to fmt.zig (7 → 13 tests):
+    - CSV semicolon delimiter test
+    - CSV newlines in fields test
+    - Table empty cells test
+    - JsonArray nested objects test
+    - JSON control character escaping test
+  - Updated .gitignore to exclude test artifacts (test_*, *.a)
+  - All 179 tests passing
+  - Cross-platform builds verified (6/6 targets)
+  - Test coverage improved across modules
 
 ## Architecture Notes
 - All modules are independently usable
