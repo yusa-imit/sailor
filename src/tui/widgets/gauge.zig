@@ -109,7 +109,7 @@ pub const Gauge = struct {
         var inner_area = area;
         if (self.block) |blk| {
             blk.render(buf, area);
-            inner_area = blk.innerArea(area);
+            inner_area = blk.inner(area);
         }
 
         // Nothing to render if area too small
@@ -125,12 +125,12 @@ pub const Gauge = struct {
 
         // Render filled portion
         for (0..filled_width) |offset| {
-            buf.setCell(x_start + offset, y, self.filled_char, self.filled_style);
+            buf.setChar(@intCast(x_start + offset), y, self.filled_char, self.filled_style);
         }
 
         // Render empty portion
         for (filled_width..width) |offset| {
-            buf.setCell(x_start + offset, y, self.empty_char, self.empty_style);
+            buf.setChar(@intCast(x_start + offset), y, self.empty_char, self.empty_style);
         }
 
         // Render label if present (centered)
@@ -144,16 +144,16 @@ pub const Gauge = struct {
                     var label_style = self.label_style;
                     if (x - x_start < filled_width) {
                         // Over filled portion
-                        if (label_style.bg == .default) {
+                        if (label_style.bg == null) {
                             label_style.bg = self.filled_style.bg;
                         }
                     } else {
                         // Over empty portion
-                        if (label_style.bg == .default) {
+                        if (label_style.bg == null) {
                             label_style.bg = self.empty_style.bg;
                         }
                     }
-                    buf.setCell(x, y, c, label_style);
+                    buf.setChar(@intCast(x), y, c, label_style);
                 }
             }
         }

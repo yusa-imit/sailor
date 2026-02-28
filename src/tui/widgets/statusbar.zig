@@ -66,22 +66,22 @@ pub const StatusBar = struct {
     }
 
     /// Render spans starting at x position
-    fn renderSpans(buf: *Buffer, spans: []const Span, x_start: usize, y: usize, max_x: usize, bg_style: Style) usize {
+    fn renderSpans(buf: *Buffer, spans: []const Span, x_start: u16, y: u16, max_x: u16, bg_style: Style) u16 {
         var x = x_start;
         for (spans) |span| {
             if (x >= max_x) break;
 
             const remaining = max_x - x;
-            const width = @min(span.content.len, remaining);
+            const width: u16 = @intCast(@min(span.content.len, remaining));
 
             // Merge span style with background
             var merged_style = span.style;
-            if (merged_style.bg == .default) {
+            if (merged_style.bg == null) {
                 merged_style.bg = bg_style.bg;
             }
 
             for (span.content[0..width], 0..) |c, offset| {
-                buf.setCell(x + offset, y, c, merged_style);
+                buf.setChar(x + @as(u16, @intCast(offset)), y, c, merged_style);
             }
             x += width;
         }
@@ -99,7 +99,7 @@ pub const StatusBar = struct {
 
         // Fill background
         for (0..area.width) |offset| {
-            buf.setCell(x_start + offset, y, ' ', self.style);
+            buf.setChar(@intCast(x_start + offset), y, ' ', self.style);
         }
 
         // Calculate widths
@@ -115,7 +115,7 @@ pub const StatusBar = struct {
 
         // Render right items (from right edge)
         if (right_width > 0 and right_width < area.width) {
-            const right_x = x_start + area.width - right_width;
+            const right_x: u16 = @intCast(x_start + area.width - right_width);
             _ = renderSpans(buf, self.right, right_x, y, max_x, self.style);
         }
 
@@ -124,7 +124,7 @@ pub const StatusBar = struct {
             const available = area.width -| (left_width + right_width);
             if (center_width <= available) {
                 const padding = (available - center_width) / 2;
-                const center_x = x_start + left_width + padding;
+                const center_x: u16 = @intCast(x_start + left_width + padding);
                 _ = renderSpans(buf, self.center, center_x, y, max_x, self.style);
             }
         }
