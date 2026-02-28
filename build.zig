@@ -4,6 +4,9 @@ const std = @import("std");
 //   zig build                           # Build library
 //   zig build test                      # Run all tests
 //   zig build benchmark                 # Run performance benchmarks
+//   zig build example-hello             # Build hello example
+//   zig build example-counter           # Build counter example
+//   zig build example-dashboard         # Build dashboard example
 //   zig build -Dtarget=x86_64-linux     # Cross-compile check
 
 pub fn build(b: *std.Build) void {
@@ -91,4 +94,33 @@ pub fn build(b: *std.Build) void {
     const bench_run = b.addRunArtifact(bench_exe);
     bench_run.step.dependOn(&bench_install.step);
     bench_step.dependOn(&bench_run.step);
+
+    // Example applications
+    const examples = [_]struct {
+        name: []const u8,
+        source: []const u8,
+        description: []const u8,
+    }{
+        .{ .name = "hello", .source = "examples/hello.zig", .description = "Build and run hello example" },
+        .{ .name = "counter", .source = "examples/counter.zig", .description = "Build and run counter example" },
+        .{ .name = "dashboard", .source = "examples/dashboard.zig", .description = "Build and run dashboard example" },
+    };
+
+    inline for (examples) |example| {
+        const exe = b.addExecutable(.{
+            .name = example.name,
+            .root_module = b.createModule(.{
+                .root_source_file = b.path(example.source),
+                .target = target,
+                .optimize = optimize,
+            }),
+        });
+
+        exe.root_module.addImport("sailor", sailor_module);
+
+        const install = b.addInstallArtifact(exe, .{});
+        const step_name = b.fmt("example-{s}", .{example.name});
+        const step = b.step(step_name, example.description);
+        step.dependOn(&install.step);
+    }
 }

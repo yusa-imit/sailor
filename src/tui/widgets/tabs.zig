@@ -19,7 +19,7 @@ pub const Tabs = struct {
     selected: usize = 0,
 
     /// Style for selected tab
-    selected_style: Style = .{ .fg = .{ .basic = .cyan }, .attrs = .{ .bold = true } },
+    selected_style: Style = .{ .fg = .cyan, . bold = true },
 
     /// Style for normal tabs
     normal_style: Style = .{},
@@ -158,18 +158,18 @@ test "Tabs.withDivider" {
 
 test "Tabs.withSelectedStyle" {
     const titles = [_][]const u8{ "Tab1", "Tab2" };
-    const custom_style = Style{ .fg = .{ .basic = .red } };
+    const custom_style = Style{ .fg = .red };
     const tabs = Tabs.init(&titles).withSelectedStyle(custom_style);
 
-    try std.testing.expectEqual(Color{ .basic = .red }, tabs.selected_style.fg);
+    try std.testing.expectEqual(Color.red, tabs.selected_style.fg);
 }
 
 test "Tabs.withNormalStyle" {
     const titles = [_][]const u8{ "Tab1", "Tab2" };
-    const custom_style = Style{ .fg = .{ .basic = .green } };
+    const custom_style = Style{ .fg = .green };
     const tabs = Tabs.init(&titles).withNormalStyle(custom_style);
 
-    try std.testing.expectEqual(Color{ .basic = .green }, tabs.normal_style.fg);
+    try std.testing.expectEqual(Color.green, tabs.normal_style.fg);
 }
 
 test "Tabs.render basic" {
@@ -290,8 +290,8 @@ test "Tabs.render selected style applied" {
     defer buf.deinit();
 
     const titles = [_][]const u8{ "Tab1", "Tab2" };
-    const selected_style = Style{ .fg = .{ .basic = .red }, .attrs = .{ .bold = true } };
-    const normal_style = Style{ .fg = .{ .basic = .white } };
+    const selected_style = Style{ .fg = .red, . bold = true };
+    const normal_style = Style{ .fg = .white };
     const tabs = Tabs.init(&titles)
         .withSelected(1)
         .withSelectedStyle(selected_style)
@@ -302,11 +302,11 @@ test "Tabs.render selected style applied" {
 
     // First tab should have normal style
     const first_char_style = buf.get(0, 0).style;
-    try std.testing.expectEqual(Color{ .basic = .white }, first_char_style.fg);
+    try std.testing.expectEqual(Color.white, first_char_style.fg);
 
     // Second tab (selected) should have selected style
     // Position after "Tab1 │ " = 7 chars
     const selected_char_style = buf.get(7, 0).style;
-    try std.testing.expectEqual(Color{ .basic = .red }, selected_char_style.fg);
+    try std.testing.expectEqual(Color.red, selected_char_style.fg);
     try std.testing.expect(selected_char_style.attrs.bold);
 }

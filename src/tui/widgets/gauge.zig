@@ -18,19 +18,19 @@ pub const Gauge = struct {
     label: ?[]const u8 = null,
 
     /// Character to use for filled portion
-    filled_char: u8 = '█',
+    filled_char: u21 = '█',
 
     /// Character to use for empty portion
-    empty_char: u8 = ' ',
+    empty_char: u21 = ' ',
 
     /// Style for filled portion
-    filled_style: Style = .{ .fg = .{ .basic = .green } },
+    filled_style: Style = .{ .fg = .green },
 
     /// Style for empty portion
     empty_style: Style = .{},
 
     /// Style for label text
-    label_style: Style = .{ .attrs = .{ .bold = true } },
+    label_style: Style = .{ . bold = true },
 
     /// Optional block for borders/title
     block: ?Block = null,
@@ -62,14 +62,14 @@ pub const Gauge = struct {
     }
 
     /// Set filled character
-    pub fn withFilledChar(self: Gauge, char: u8) Gauge {
+    pub fn withFilledChar(self: Gauge, char: u21) Gauge {
         var result = self;
         result.filled_char = char;
         return result;
     }
 
     /// Set empty character
-    pub fn withEmptyChar(self: Gauge, char: u8) Gauge {
+    pub fn withEmptyChar(self: Gauge, char: u21) Gauge {
         var result = self;
         result.empty_char = char;
         return result;
@@ -217,24 +217,24 @@ test "Gauge.withEmptyChar" {
 }
 
 test "Gauge.withFilledStyle" {
-    const style = Style{ .fg = .{ .basic = .blue } };
+    const style = Style{ .fg = .blue };
     const gauge = Gauge.init().withFilledStyle(style);
 
-    try std.testing.expectEqual(Color{ .basic = .blue }, gauge.filled_style.fg);
+    try std.testing.expectEqual(Color.blue, gauge.filled_style.fg);
 }
 
 test "Gauge.withEmptyStyle" {
-    const style = Style{ .fg = .{ .basic = .red } };
+    const style = Style{ .fg = .red };
     const gauge = Gauge.init().withEmptyStyle(style);
 
-    try std.testing.expectEqual(Color{ .basic = .red }, gauge.empty_style.fg);
+    try std.testing.expectEqual(Color.red, gauge.empty_style.fg);
 }
 
 test "Gauge.withLabelStyle" {
-    const style = Style{ .fg = .{ .basic = .yellow } };
+    const style = Style{ .fg = .yellow };
     const gauge = Gauge.init().withLabelStyle(style);
 
-    try std.testing.expectEqual(Color{ .basic = .yellow }, gauge.label_style.fg);
+    try std.testing.expectEqual(Color.yellow, gauge.label_style.fg);
 }
 
 test "Gauge.render basic" {
@@ -337,8 +337,8 @@ test "Gauge.render with styles" {
     var buf = try Buffer.init(allocator, 10, 1);
     defer buf.deinit();
 
-    const filled_style = Style{ .fg = .{ .basic = .blue } };
-    const empty_style = Style{ .fg = .{ .basic = .red } };
+    const filled_style = Style{ .fg = .blue };
+    const empty_style = Style{ .fg = .red };
 
     const gauge = Gauge.init()
         .withRatio(0.5)
@@ -349,10 +349,10 @@ test "Gauge.render with styles" {
     gauge.render(&buf, area);
 
     // Check filled portion style
-    try std.testing.expectEqual(Color{ .basic = .blue }, buf.get(0, 0).style.fg);
+    try std.testing.expectEqual(Color.blue, buf.get(0, 0).style.fg);
 
     // Check empty portion style
-    try std.testing.expectEqual(Color{ .basic = .red }, buf.get(5, 0).style.fg);
+    try std.testing.expectEqual(Color.red, buf.get(5, 0).style.fg);
 }
 
 test "Gauge.render with block" {
