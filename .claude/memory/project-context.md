@@ -5,19 +5,19 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.0.1 (PRODUCTION READY)** 🎉
-- Previous versions: v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.1.0 (PRODUCTION READY)** 🌍
+- Previous versions: v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Phase 6 — Polish (v1.0.0)**: ✅ COMPLETE & RELEASED
-  - [x] Theming system (c3c9b13)
-  - [x] Animation system (e7102e8)
-  - [x] Performance benchmarks (febf26c)
-  - [x] Example applications (c62205b)
-  - [x] Comprehensive documentation (708b27a)
+- **Post-v1.0 Milestones**: v1.1.0 ✅ COMPLETE & RELEASED (2026-03-02)
+  - [x] Screen reader hints (accessibility.zig) — 30 tests
+  - [x] Focus management system (focus.zig) — 28 tests
+  - [x] Keyboard navigation protocol (keybindings.zig) — 32 tests
+  - [x] Unicode width calculation (unicode.zig) — 28 tests
+  - [x] Bidirectional text support (bidi.zig) — 15 tests
 
 ## Project Status
-🚢 **PRODUCTION READY** — All 6 phases complete, v1.0.0 released
+🌍 **PRODUCTION READY + ACCESSIBILITY** — All 6 phases complete, v1.1.0 milestone released
 
 ## Completed Phases
 
@@ -115,6 +115,38 @@ All consumer projects can now upgrade to production-ready v1.0.0.
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-02 04:00 (Hour 4 - Feature Cycle)** 🌍 v1.1.0 MILESTONE RELEASE:
+  - **MODE**: FEATURE (hour % 3 != 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 469/471 passing (2 TTY-dependent skipped)
+  - ✅ Cross-platform: All 6 targets verified
+  - 🎉 **v1.1.0 MILESTONE COMPLETE** — Accessibility & Internationalization
+    - **New Modules** (5 total):
+      1. src/accessibility.zig — Screen reader hints, ARIA-like annotations (30 tests)
+      2. src/focus.zig — Focus management, tab order, focus ring (28 tests)
+      3. src/keybindings.zig — Custom key bindings, chord sequences (32 tests)
+      4. src/unicode.zig — Unicode width calculation, CJK/emoji sizing (28 tests) — THIS SESSION
+      5. src/bidi.zig — Bidirectional text, RTL rendering (15 tests) — THIS SESSION
+    - **Core Improvements**:
+      - Buffer.setString() respects character display width (CJK = 2 cells, emoji = 2 cells)
+      - Zero-width characters (combining marks) handled correctly
+      - Paragraph widget supports .direction field (.ltr, .rtl, .auto)
+    - **Quality Metrics**:
+      - 133 new tests added (all passing)
+      - 6/6 cross-platform builds verified
+      - No breaking changes — fully backward compatible
+  - 🚀 **RELEASE EXECUTED**:
+    - Version bumped: build.zig.zon 1.0.0 → 1.1.0
+    - Tagged 7463805 as v1.1.0
+    - GitHub Release created with comprehensive notes
+    - Consumer projects notified (zr: 204273c, zoltraak: 1ff77f9, silica: 16ae3b1)
+    - Discord notification sent
+  - Commits:
+    - feat: add unicode width and bidirectional text support (v1.1.0) — 63540f3
+    - chore: bump version to v1.1.0 — 7463805
+  - **Milestone Impact**: sailor now supports international and accessible TUI development!
+
 - **2026-03-01 16:00 (Hour 16 - Feature Cycle)** 🐛 CRITICAL BUG FIX:
   - **MODE**: FEATURE (hour % 3 != 0)
   - ✅ CI Status: GREEN (all builds passing)
