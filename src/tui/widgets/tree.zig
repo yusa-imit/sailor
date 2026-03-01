@@ -142,11 +142,11 @@ pub const Tree = struct {
         depth: u16,
     };
 
-    fn flattenNodes(nodes: []const TreeNode, depth: u16, out: *std.ArrayList(FlatNode)) !void {
+    fn flattenNodes(nodes: []const TreeNode, depth: u16, out: *std.ArrayList(FlatNode), allocator: std.mem.Allocator) !void {
         for (nodes) |*node| {
-            try out.append(.{ .node = node, .depth = depth });
+            try out.append(allocator, .{ .node = node, .depth = depth });
             if (!node.isLeaf() and node.expanded) {
-                try flattenNodes(node.children, depth + 1, out);
+                try flattenNodes(node.children, depth + 1, out, allocator);
             }
         }
     }
@@ -165,9 +165,9 @@ pub const Tree = struct {
         if (inner_area.width == 0 or inner_area.height == 0) return;
 
         // Flatten visible nodes
-        var flat_list = std.ArrayList(FlatNode).init(std.heap.page_allocator);
-        defer flat_list.deinit();
-        flattenNodes(self.nodes, 0, &flat_list) catch return;
+        var flat_list: std.ArrayList(FlatNode) = .{};
+        defer flat_list.deinit(std.heap.page_allocator);
+        flattenNodes(self.nodes, 0, &flat_list, std.heap.page_allocator) catch return;
 
         const flat_nodes = flat_list.items;
         if (flat_nodes.len == 0) return;
