@@ -5,19 +5,19 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.1.0 (PRODUCTION READY)** 🌍
-- Previous versions: v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.2.0 (PRODUCTION READY)** 🎯
+- Previous versions: v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.1.0 ✅ COMPLETE & RELEASED (2026-03-02)
-  - [x] Screen reader hints (accessibility.zig) — 30 tests
-  - [x] Focus management system (focus.zig) — 28 tests
-  - [x] Keyboard navigation protocol (keybindings.zig) — 32 tests
-  - [x] Unicode width calculation (unicode.zig) — 28 tests
-  - [x] Bidirectional text support (bidi.zig) — 15 tests
+- **Post-v1.0 Milestones**: v1.2.0 ✅ COMPLETE & RELEASED (2026-03-02 Hour 8)
+  - [x] Grid layout (CSS Grid-inspired 2D constraint solver) — grid.zig, 21 tests
+  - [x] Scrollable viewport widget (virtual scrolling) — widgets/scrollview.zig, 15 tests
+  - [x] Overlay/z-index system (non-modal popups, tooltips) — overlay.zig, 18 tests
+  - [x] Widget composition helpers (split panes, resizable borders) — composition.zig, 19 tests
+  - [x] Responsive breakpoints (adaptive layouts) — responsive.zig, 21 tests
 
 ## Project Status
-🌍 **PRODUCTION READY + ACCESSIBILITY** — All 6 phases complete, v1.1.0 milestone released
+🎯 **PRODUCTION READY + LAYOUT & COMPOSITION** — All 6 phases complete, v1.2.0 milestone released
 
 ## Completed Phases
 
@@ -115,6 +115,44 @@ All consumer projects can now upgrade to production-ready v1.0.0.
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-02 08:00 (Hour 8 - Feature Cycle)** 🎯 v1.2.0 MILESTONE RELEASE:
+  - **MODE**: FEATURE (hour % 3 != 0, hour 8)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: All passing (94 new tests added)
+  - ✅ Cross-platform: All 6 targets verified
+  - 🎉 **v1.2.0 MILESTONE COMPLETE** — Layout & Composition
+    - **New Modules** (5 total):
+      1. src/tui/grid.zig — CSS Grid-inspired 2D layout system (21 tests)
+      2. src/tui/widgets/scrollview.zig — Virtual scrolling viewport (15 tests)
+      3. src/tui/overlay.zig — Z-index based overlay management (18 tests)
+      4. src/tui/composition.zig — Split panes and resizable borders (19 tests)
+      5. src/tui/responsive.zig — Responsive breakpoints and adaptive values (21 tests)
+    - **Features Implemented**:
+      - Grid layout: Track sizing (fixed, fr, auto), gaps, spanning, alignment
+      - ScrollView: Vertical/horizontal scrolling, scrollbar rendering, scroll-to-position
+      - Overlay: 256 z-index levels, hit testing, bring to front/send to back
+      - Composition: Split panes with ratio, minimum constraints, resizable borders
+      - Responsive: ScreenSize categories, Breakpoint system, AdaptiveValue generic type
+    - **Quality Metrics**:
+      - 94 new tests added (all passing)
+      - 6/6 cross-platform builds verified
+      - No breaking changes — fully backward compatible
+  - 🚀 **RELEASE EXECUTED**:
+    - Version bumped: build.zig.zon 1.1.0 → 1.2.0
+    - Tagged 0f1f5ab as v1.2.0
+    - GitHub Release created: https://github.com/yusa-imit/sailor/releases/tag/v1.2.0
+    - Consumer projects notified (zr: 7178f71, zoltraak: b30fa99, silica: bb6ce1e)
+    - Discord notification sent
+  - Commits:
+    - feat: add CSS Grid-inspired layout system (v1.2.0) — 5a653e1
+    - feat: add ScrollView widget for virtual scrolling (v1.2.0) — 613969f
+    - feat: add overlay/z-index system for layered rendering (v1.2.0) — a08f6c1
+    - feat: add widget composition helpers (v1.2.0) — 53da402
+    - feat: add responsive breakpoint system (v1.2.0) — 9b5f0fd
+    - chore: bump version to v1.2.0 — 0f1f5ab
+  - **Milestone Impact**: sailor now supports advanced layout composition for rich TUI interfaces!
+
 - **2026-03-02 04:00 (Hour 4 - Feature Cycle)** 🌍 v1.1.0 MILESTONE RELEASE:
   - **MODE**: FEATURE (hour % 3 != 0)
   - ✅ CI Status: GREEN (all builds passing)
