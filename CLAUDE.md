@@ -136,7 +136,7 @@ Leader (orchestrator)
 | 2. 계획 | 구현 전략을 내부적으로 수립 (텍스트 출력) | `EnterPlanMode`/`ExitPlanMode` 사용 금지 — 비대화형 세션에서 블로킹됨 |
 | 3. 구현 → 검증 → 커밋 (반복) | 아래 **구현 루프** 참조 | 단위별로 즉시 커밋+푸시 |
 | 4. 코드 리뷰 | `/review` — PRD 준수·메모리 안전성·테스트 커버리지 확인 | 이슈 발견 시 수정 후 재커밋 |
-| 5. 릴리즈 판단 | 현재 phase의 모든 모듈 완료 시 **자동 릴리즈** | 아래 **자동 릴리즈 프로토콜** 참조 |
+| 5. 릴리즈 판단 | 마일스톤 완료 또는 버그 수정 시 **자동 릴리즈** | 아래 **릴리즈 판단 프로토콜** 참조 |
 | 6. 메모리 갱신 | `.claude/memory/` 파일 업데이트 | 별도 커밋: `chore: update session memory` → push |
 | 7. 세션 요약 | 구조화된 요약 출력 | 아래 템플릿 참조 |
 
@@ -164,68 +164,89 @@ gh issue list --state open --limit 10 --json number,title,labels,createdAt
 |---------|------|------|
 | 1 (최우선) | `bug` 라벨 + consumer 프로젝트에서 발행 | sailor 사용 중 크래시, API 오동작 |
 | 2 (높음) | `bug` 라벨 (일반) | 테스트 실패, 빌드 오류 |
-| 3 (보통) | `feature-request` 라벨 + 현재 phase 범위 내 | 현재 구현 중인 모듈의 추가 기능 |
-| 4 (낮음) | `feature-request` 라벨 + 미래 phase | 아직 구현 안 된 모듈의 기능 요청 |
+| 3 (보통) | `feature-request` 라벨 + 현재 마일스톤 범위 내 | 현재 구현 중인 마일스톤의 추가 기능 |
+| 4 (낮음) | `feature-request` 라벨 + 미래 마일스톤 | 아직 시작하지 않은 마일스톤의 기능 요청 |
 
 **판단 규칙**:
-- 우선순위 1-2 (버그): PRD 기능보다 **항상 우선** 처리
-- 우선순위 3 (현재 phase 기능 요청): PRD 작업과 **병행** — 같은 모듈 작업 시 함께 구현
-- 우선순위 4 (미래 phase 기능 요청): **적어두고 넘어감** — 해당 phase 도달 시 처리
+- 우선순위 1-2 (버그): 마일스톤 작업보다 **항상 우선** 처리
+- 우선순위 3 (현재 마일스톤 기능 요청): 마일스톤 작업과 **병행** — 같은 모듈 작업 시 함께 구현
+- 우선순위 4 (미래 마일스톤 기능 요청): **적어두고 넘어감** — 해당 마일스톤 도달 시 처리
 - 이슈를 처리한 후: `gh issue close <number> --comment "Fixed in <commit-hash>"`
 - 이슈에 코멘트로 진행 상황 공유: `gh issue comment <number> --body "Working on this in current session"`
 
-**자동 릴리즈 프로토콜** (Phase 5):
+**릴리즈 판단 프로토콜** (Step 5):
 
-phase의 모든 모듈이 완성되었을 때 에이전트가 자율적으로 릴리즈를 수행한다.
+세션 사이클의 **Step 5 (릴리즈 판단)** 에서 아래 조건을 확인하고, 충족 시 자율적으로 릴리즈를 수행한다.
 
-**릴리즈 조건 (ALL must be true)**:
-1. 현재 phase의 체크리스트 항목이 **모두 완료** (`[x]`)
-2. `zig build test` — 전체 통과, 0 failures
-3. 6개 크로스 컴파일 타겟 빌드 성공
-4. 해당 phase 관련 `bug` 라벨 이슈가 **0개** (open)
+```bash
+# 릴리즈 판단 체크
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+git log ${LAST_TAG}..HEAD --oneline
+gh issue list --state open --label bug --limit 5
+```
 
-**릴리즈 절차**:
-1. `build.zig.zon`의 version 업데이트 (예: `"0.0.0"` → `"0.1.0"`)
-2. CLAUDE.md phase 체크리스트에 완료 표시
-3. 커밋: `chore: bump version to v0.X.0`
-4. 태그: `git tag -a v0.X.0 -m "Release v0.X.0: <phase 요약>"`
-5. 푸시: `git push && git push origin v0.X.0`
-6. GitHub Release 생성: `gh release create v0.X.0 --title "v0.X.0: <phase 요약>" --notes "<릴리즈 노트>"`
-7. 소비자 프로젝트 알림 — 각 프로젝트의 CLAUDE.md에서 해당 버전 `status: PENDING` → `status: READY`:
-   - `../zr/CLAUDE.md`
-   - `../zoltraak/CLAUDE.md`
-   - `../silica/CLAUDE.md`
-   - 각각 커밋: `chore: mark sailor v0.X.0 migration as ready`
-8. 관련 이슈 닫기: `gh issue close <number> --comment "Resolved in v0.X.0"`
-9. Discord 알림: `openclaw message send --channel discord --target user:264745080709971968 --message "[sailor] Released v0.X.0 — <요약>"`
+**판단 로직**:
+- 태그 이후 커밋 없음 → **SKIP** (릴리즈 불필요)
+- `fix:` 커밋만 존재 → **PATCH** (v1.0.X)
+- 마일스톤 완료 (`[x]` 모두 체크) → **MINOR** (v1.X.0)
+- **MAJOR** (v2.0.0) → 사용자 지시 시에만 수행
 
-**패치 릴리즈 정책** (v0.X.Y):
+**공통 릴리즈 조건 (ALL must be true)**:
+1. `zig build test` — 전체 통과, 0 failures
+2. 6개 크로스 컴파일 타겟 빌드 성공
+3. `bug` 라벨 이슈가 **0개** (open)
 
-소비자 프로젝트(`from:*` 라벨) 버그 수정 시 패치 릴리즈를 즉시 발행한다.
+---
+
+**패치 릴리즈 (v1.0.X)**:
+
+버그 수정 커밋이 존재하지만 릴리즈 태그가 없을 때 즉시 발행한다.
 
 **트리거 조건**:
 - `from:*` 라벨 버그가 수정된 커밋이 존재하지만 릴리즈 태그가 없을 때
 - 빌드/테스트 실패를 수정한 커밋
 - 크로스 컴파일 깨짐을 수정한 커밋
 
-**패치 vs 마이너 판단**:
-- 버그 수정만 포함 → PATCH (v0.X.Y)
-- 새 기능 포함 → MINOR (v0.X+1.0)
-
 **버전 규칙**:
-- PATCH 번호만 증가 (예: v0.5.0 → v0.5.1)
+- PATCH 번호만 증가 (예: v1.0.0 → v1.0.1)
 - `build.zig.zon` version 수정 불필요 — 태그만으로 충분
 - 기능 커밋을 패치에 포함하지 않음
 
 **패치 릴리즈 절차**:
 1. 버그 수정 커밋 식별 (예: `357fa25`)
 2. `zig build test` 통과 확인
-3. 태그: `git tag -a v0.X.Y <commit-hash> -m "Release v0.X.Y: <수정 요약>"`
-4. 푸시: `git push origin v0.X.Y`
-5. GitHub Release: `gh release create v0.X.Y --title "v0.X.Y: <요약>" --notes "<릴리즈 노트>"`
+3. 태그: `git tag -a v1.0.X <commit-hash> -m "Release v1.0.X: <수정 요약>"`
+4. 푸시: `git push origin v1.0.X`
+5. GitHub Release: `gh release create v1.0.X --title "v1.0.X: <요약>" --notes "<릴리즈 노트>"`
 6. 관련 이슈에 릴리즈 코멘트 추가
 7. 소비자 프로젝트 CLAUDE.md에 패치 안내 추가
-8. Discord 알림
+8. Discord 알림: `openclaw message send --channel discord --target user:264745080709971968 --message "[sailor] Released v1.0.X — <요약>"`
+
+---
+
+**마이너 릴리즈 (v1.X.0)**:
+
+**Post-v1.0 Milestones** 섹션의 마일스톤이 완료되었을 때 발행한다. 단순 feat 커밋만으로는 마이너 릴리즈하지 않는다.
+
+**릴리즈 조건 (패치 조건 + 추가)**:
+- 해당 마일스톤의 체크리스트 항목이 **모두 완료** (`[x]`)
+
+**마이너 릴리즈 절차**:
+1. `build.zig.zon`의 version 업데이트 (예: `"1.0.0"` → `"1.1.0"`)
+2. CLAUDE.md 마일스톤 체크리스트에 완료 표시
+3. 커밋: `chore: bump version to v1.X.0`
+4. 태그: `git tag -a v1.X.0 -m "Release v1.X.0: <마일스톤 요약>"`
+5. 푸시: `git push && git push origin v1.X.0`
+6. GitHub Release 생성: `gh release create v1.X.0 --title "v1.X.0: <마일스톤 요약>" --notes "<릴리즈 노트>"`
+7. 소비자 프로젝트 알림 — 각 프로젝트의 CLAUDE.md에서 해당 버전 `status: PENDING` → `status: READY`:
+   - `../zr/CLAUDE.md`
+   - `../zoltraak/CLAUDE.md`
+   - `../silica/CLAUDE.md`
+   - 각각 커밋: `chore: mark sailor v1.X.0 migration as ready`
+8. 관련 이슈 닫기: `gh issue close <number> --comment "Resolved in v1.X.0"`
+9. Discord 알림: `openclaw message send --channel discord --target user:264745080709971968 --message "[sailor] Released v1.X.0 — <요약>"`
+10. 관련 이슈에 릴리즈 코멘트 추가
+11. **마일스톤 보충**: 미완료 마일스톤이 2개 이하이면 마일스톤 수립 프로세스 실행
 
 **작업 선택 규칙**:
 - `build.zig`가 없으면 프로젝트 부트스트랩부터 시작
@@ -410,6 +431,50 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
 - [x] Performance benchmarks
 - [x] Example applications (hello, counter, dashboard)
 - [x] Comprehensive documentation
+
+---
+
+## Post-v1.0 Milestones
+
+모든 Phase가 완료된 이후, 기능 개선은 마일스톤 단위로 관리한다.
+
+- [ ] **v1.1.0 — Accessibility & Internationalization**
+  - [ ] Screen reader hints (ARIA-like terminal annotations)
+  - [ ] Focus management system (tab order, focus ring visualization)
+  - [ ] Keyboard navigation protocol (widget-level key binding registration)
+  - [ ] Unicode width calculation improvements (CJK wide characters, emoji)
+  - [ ] Bidirectional text support (RTL rendering in Paragraph/Input)
+
+- [ ] **v1.2.0 — Layout & Composition**
+  - [ ] Grid layout (CSS Grid-inspired 2D constraint solver)
+  - [ ] Scrollable viewport widget (virtual scrolling for large content)
+  - [ ] Overlay/z-index system (non-modal popups, tooltips)
+  - [ ] Widget composition helpers (split panes, resizable borders)
+  - [ ] Responsive breakpoints (adapt layout to terminal size thresholds)
+
+- [ ] **v1.3.0 — Performance & Developer Experience**
+  - [ ] Render budget tracking (frame time budget, skip frames if overdue)
+  - [ ] Lazy rendering (only compute visible cells for large buffers)
+  - [ ] Event batching (coalesce rapid resize/key events)
+  - [ ] Debug overlay (show layout rects, render stats, event log)
+  - [ ] Hot-reload support for themes (watch theme file, apply without restart)
+
+### 마일스톤 수립 프로세스
+
+미완료 마일스톤이 **2개 이하**가 되면, 에이전트가 자율적으로 새 마일스톤을 수립한다.
+
+**입력 소스** (우선순위 순):
+1. `gh issue list --state open --label feature-request` — 사용자/소비자 요청 기능
+2. `docs/PRD.md` — 미구현 PRD 항목
+3. 소비자 프로젝트 피드백 — zr, silica, zoltraak에서 발행한 `from:*` 이슈
+4. 기술 부채 — Known Limitations, TODO, 성능 병목
+5. Zig 버전 업데이트 대응
+
+**수립 규칙**:
+- 마일스톤 하나는 단일 테마로 구성
+- 1-2주 내 완료 가능한 범위로 스코프 설정
+- 버전 번호는 마지막 마일스톤의 다음 번호로 자동 부여
+- 수립 후 체크리스트에 추가하고 커밋: `chore: add milestone v1.X.0`
 
 ---
 
