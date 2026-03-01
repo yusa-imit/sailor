@@ -62,12 +62,29 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    const widget_integration_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/widget_integration_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
+    // Add sailor module to widget integration tests
+    const sailor_module_for_widget_tests = b.createModule(.{
+        .root_source_file = b.path("src/sailor.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    widget_integration_tests.root_module.addImport("sailor", sailor_module_for_widget_tests);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&b.addRunArtifact(lib_tests).step);
     test_step.dependOn(&b.addRunArtifact(smoke_tests).step);
     test_step.dependOn(&b.addRunArtifact(cross_platform_tests).step);
     test_step.dependOn(&b.addRunArtifact(memory_safety_tests).step);
     test_step.dependOn(&b.addRunArtifact(build_verification_tests).step);
+    test_step.dependOn(&b.addRunArtifact(widget_integration_tests).step);
 
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
