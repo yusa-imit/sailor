@@ -31,6 +31,9 @@ pub const tui = @import("tui/tui.zig");
 // Phase 6 modules (v1.0.0)
 pub const bench = @import("bench.zig");
 
+// Post-v1.0 modules
+pub const accessibility = @import("accessibility.zig");
+
 test {
     // Pull in all module tests
     std.testing.refAllDecls(@This());
