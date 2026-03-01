@@ -115,6 +115,25 @@ All consumer projects can now upgrade to production-ready v1.0.0.
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-01 16:00 (Hour 16 - Feature Cycle)** 🐛 CRITICAL BUG FIX:
+  - **MODE**: FEATURE (hour % 3 != 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 336/338 passing (2 TTY-dependent skipped)
+  - 🐛 **CRITICAL BUG DISCOVERED**: Tree widget using ArrayList.init() which doesn't exist in Zig 0.15.2
+    - Root cause: ArrayList API changed in Zig 0.15.x — no `.init()` method on Aligned type
+    - Fixed tree.zig:168 — `ArrayList(T).init(allocator)` → `.{}` initialization
+    - Fixed tree.zig:169 — `list.deinit()` → `list.deinit(allocator)`
+    - Fixed flattenNodes() to accept and pass allocator parameter
+    - **Severity**: HIGH — Tree widget would crash on first use due to compilation error
+    - **Impact**: This bug was latent but would have affected any consumer trying to use Tree widget
+  - 📦 Attempted to create file_browser.zig example but API complexity exceeded session time
+    - Discovered significant API differences between widget types during implementation
+    - Example abandoned to prioritize critical bug fix
+  - ✅ All tests passing, all cross-platform builds verified
+  - Commit: fix: critical ArrayList API bug in tree widget (ac4cbaf)
+  - **Quality Impact**: Prevented potential runtime crashes in consumer projects using Tree widget
+
 - **2026-03-01 12:00 (Hour 12 - Stabilization Cycle)** 🧪 TEST COVERAGE ENHANCEMENT:
   - **MODE**: STABILIZATION (hour % 3 == 0)
   - ✅ CI Status: GREEN (all builds passing)
