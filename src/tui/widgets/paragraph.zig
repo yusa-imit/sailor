@@ -9,6 +9,8 @@ const Line = style_mod.Line;
 const Span = style_mod.Span;
 const block_mod = @import("block.zig");
 const Block = block_mod.Block;
+const bidi_mod = @import("../../bidi.zig");
+const Bidi = bidi_mod.Bidi;
 
 /// Text alignment options
 pub const Alignment = enum {
@@ -39,6 +41,8 @@ pub const Paragraph = struct {
     wrap: Wrap = .word,
     /// Scroll offset (number of lines scrolled down)
     scroll: u16 = 0,
+    /// Text direction (.auto auto-detects from content)
+    direction: Bidi.Direction = .auto,
 
     /// Create a paragraph with no lines (empty)
     pub fn init() Paragraph {
@@ -75,6 +79,13 @@ pub const Paragraph = struct {
     pub fn withScroll(self: Paragraph, new_scroll: u16) Paragraph {
         var result = self;
         result.scroll = new_scroll;
+        return result;
+    }
+
+    /// Set text direction (.ltr, .rtl, or .auto for auto-detection)
+    pub fn withDirection(self: Paragraph, new_direction: Bidi.Direction) Paragraph {
+        var result = self;
+        result.direction = new_direction;
         return result;
     }
 

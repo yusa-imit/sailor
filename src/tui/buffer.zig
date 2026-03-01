@@ -5,6 +5,8 @@ const Style = style_mod.Style;
 const Color = style_mod.Color;
 const layout_mod = @import("layout.zig");
 const Rect = layout_mod.Rect;
+const unicode_mod = @import("../unicode.zig");
+const UnicodeWidth = unicode_mod.UnicodeWidth;
 
 /// Single cell in the terminal grid
 pub const Cell = struct {
@@ -116,9 +118,21 @@ pub const Buffer = struct {
             else
                 std.unicode.utf8Decode(str[i .. i + char_len]) catch @as(u21, byte);
 
+            // Get character display width (0, 1, or 2 cells)
+            const char_width = UnicodeWidth.charWidth(codepoint);
+
+            // Skip zero-width characters (combining marks, etc.)
+            if (char_width == 0) {
+                i += char_len;
+                continue;
+            }
+
+            // Check if wide character would overflow
+            if (char_width == 2 and col + 1 >= self.width) break;
+
             self.setChar(col, y, codepoint, cell_style);
             i += char_len;
-            col += 1;
+            col += char_width;
         }
     }
 
@@ -491,11 +505,16 @@ test "Buffer.setString - unicode characters" {
     var buffer = try Buffer.init(allocator, 20, 5);
     defer buffer.deinit();
 
-    // Test emoji (multi-byte UTF-8)
+    // Test emoji (multi-byte UTF-8, width 2)
+    // "Hello 👋 World" = "Hello " (6 cells) + "👋" (2 cells) + " World" (6 cells)
     buffer.setString(0, 0, "Hello 👋 World", .{});
     try std.testing.expectEqual(@as(u21, 'H'), buffer.get(0, 0).?.char);
+    // 👋 emoji takes 2 cells, starts at position 6
     try std.testing.expectEqual(@as(u21, '👋'), buffer.get(6, 0).?.char);
-    try std.testing.expectEqual(@as(u21, 'W'), buffer.get(8, 0).?.char);
+    // Space after emoji is at position 8 (6 + 2)
+    try std.testing.expectEqual(@as(u21, ' '), buffer.get(8, 0).?.char);
+    // 'W' is at position 9
+    try std.testing.expectEqual(@as(u21, 'W'), buffer.get(9, 0).?.char);
 }
 
 test "Buffer.setString - CJK characters" {
@@ -503,12 +522,13 @@ test "Buffer.setString - CJK characters" {
     var buffer = try Buffer.init(allocator, 20, 5);
     defer buffer.deinit();
 
-    // Test Chinese characters
+    // Test Chinese characters (each CJK char takes 2 cells width)
+    // "你好世界" = 你 (2 cells) + 好 (2 cells) + 世 (2 cells) + 界 (2 cells) = 8 cells
     buffer.setString(0, 0, "你好世界", .{});
     try std.testing.expectEqual(@as(u21, '你'), buffer.get(0, 0).?.char);
-    try std.testing.expectEqual(@as(u21, '好'), buffer.get(1, 0).?.char);
-    try std.testing.expectEqual(@as(u21, '世'), buffer.get(2, 0).?.char);
-    try std.testing.expectEqual(@as(u21, '界'), buffer.get(3, 0).?.char);
+    try std.testing.expectEqual(@as(u21, '好'), buffer.get(2, 0).?.char);
+    try std.testing.expectEqual(@as(u21, '世'), buffer.get(4, 0).?.char);
+    try std.testing.expectEqual(@as(u21, '界'), buffer.get(6, 0).?.char);
 }
 
 test "Buffer.setChar - zero-width characters" {

@@ -31,10 +31,12 @@ pub const tui = @import("tui/tui.zig");
 // Phase 6 modules (v1.0.0)
 pub const bench = @import("bench.zig");
 
-// Post-v1.0 modules
+// Post-v1.0 modules (v1.1.0 — Accessibility & Internationalization)
 pub const accessibility = @import("accessibility.zig");
 pub const focus = @import("focus.zig");
 pub const keybindings = @import("keybindings.zig");
+pub const unicode = @import("unicode.zig");
+pub const bidi = @import("bidi.zig");
 
 test {
     // Pull in all module tests
