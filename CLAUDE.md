@@ -445,12 +445,12 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] Unicode width calculation improvements (CJK wide characters, emoji)
   - [x] Bidirectional text support (RTL rendering in Paragraph/Input)
 
-- [ ] **v1.2.0 — Layout & Composition**
-  - [ ] Grid layout (CSS Grid-inspired 2D constraint solver)
-  - [ ] Scrollable viewport widget (virtual scrolling for large content)
-  - [ ] Overlay/z-index system (non-modal popups, tooltips)
-  - [ ] Widget composition helpers (split panes, resizable borders)
-  - [ ] Responsive breakpoints (adapt layout to terminal size thresholds)
+- [x] **v1.2.0 — Layout & Composition** ✅ COMPLETE
+  - [x] Grid layout (CSS Grid-inspired 2D constraint solver)
+  - [x] Scrollable viewport widget (virtual scrolling for large content)
+  - [x] Overlay/z-index system (non-modal popups, tooltips)
+  - [x] Widget composition helpers (split panes, resizable borders)
+  - [x] Responsive breakpoints (adapt layout to terminal size thresholds)
 
 - [ ] **v1.3.0 — Performance & Developer Experience**
   - [ ] Render budget tracking (frame time budget, skip frames if overdue)
