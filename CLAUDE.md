@@ -438,12 +438,12 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
 
 모든 Phase가 완료된 이후, 기능 개선은 마일스톤 단위로 관리한다.
 
-- [ ] **v1.1.0 — Accessibility & Internationalization**
-  - [ ] Screen reader hints (ARIA-like terminal annotations)
-  - [ ] Focus management system (tab order, focus ring visualization)
-  - [ ] Keyboard navigation protocol (widget-level key binding registration)
-  - [ ] Unicode width calculation improvements (CJK wide characters, emoji)
-  - [ ] Bidirectional text support (RTL rendering in Paragraph/Input)
+- [x] **v1.1.0 — Accessibility & Internationalization** ✅ COMPLETE
+  - [x] Screen reader hints (ARIA-like terminal annotations)
+  - [x] Focus management system (tab order, focus ring visualization)
+  - [x] Keyboard navigation protocol (widget-level key binding registration)
+  - [x] Unicode width calculation improvements (CJK wide characters, emoji)
+  - [x] Bidirectional text support (RTL rendering in Paragraph/Input)
 
 - [ ] **v1.2.0 — Layout & Composition**
   - [ ] Grid layout (CSS Grid-inspired 2D constraint solver)
