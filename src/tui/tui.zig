@@ -52,6 +52,9 @@ pub const widgets = struct {
     pub const Notification = @import("widgets/notification.zig").Notification;
     pub const NotificationLevel = @import("widgets/notification.zig").Level;
     pub const NotificationPosition = @import("widgets/notification.zig").Position;
+
+    // Phase 6+ widgets (v1.2.0+)
+    pub const ScrollView = @import("widgets/scrollview.zig").ScrollView;
 };
 
 // Export commonly used types
