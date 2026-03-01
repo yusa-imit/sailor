@@ -34,6 +34,7 @@ pub const bench = @import("bench.zig");
 // Post-v1.0 modules
 pub const accessibility = @import("accessibility.zig");
 pub const focus = @import("focus.zig");
+pub const keybindings = @import("keybindings.zig");
 
 test {
     // Pull in all module tests
