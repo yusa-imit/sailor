@@ -452,12 +452,12 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] Widget composition helpers (split panes, resizable borders)
   - [x] Responsive breakpoints (adapt layout to terminal size thresholds)
 
-- [ ] **v1.3.0 — Performance & Developer Experience**
-  - [ ] Render budget tracking (frame time budget, skip frames if overdue)
-  - [ ] Lazy rendering (only compute visible cells for large buffers)
-  - [ ] Event batching (coalesce rapid resize/key events)
-  - [ ] Debug overlay (show layout rects, render stats, event log)
-  - [ ] Hot-reload support for themes (watch theme file, apply without restart)
+- [x] **v1.3.0 — Performance & Developer Experience** ✅ COMPLETE
+  - [x] Render budget tracking (frame time budget, skip frames if overdue)
+  - [x] Lazy rendering (only compute visible cells for large buffers)
+  - [x] Event batching (coalesce rapid resize/key events)
+  - [x] Debug overlay (show layout rects, render stats, event log)
+  - [x] Hot-reload support for themes (watch theme file, apply without restart)
 
 - [ ] **v1.4.0 — Advanced Input & Forms**
   - [ ] Form widget (field validation, submit/cancel handlers)
