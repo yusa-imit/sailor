@@ -5,19 +5,19 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.3.0 (PRODUCTION READY)** 🎯
-- Previous versions: v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.4.0 (PRODUCTION READY)** 🎯
+- Previous versions: v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.3.0 ✅ COMPLETE & RELEASED (2026-03-02 Hour 20)
-  - [x] Render budget tracking (frame time budget, skip frames) — budget.zig, 7 tests
-  - [x] Lazy rendering (dirty region tracking) — lazy.zig, 10 tests
-  - [x] Event batching (coalesce rapid events) — batch.zig, 8 tests
-  - [x] Debug overlay (layout rects, FPS, event log) — widgets/debug.zig
-  - [x] Hot-reload support (watch theme file) — hotreload.zig, 9 tests
+- **Post-v1.0 Milestones**: v1.4.0 ✅ COMPLETE & RELEASED (2026-03-03 Hour 8)
+  - [x] Form widget (field validation, submit/cancel handlers) — widgets/form.zig
+  - [x] Select/Dropdown widget (single/multi-select, keyboard nav) — widgets/select.zig
+  - [x] Checkbox widget (single and grouped checkboxes) — widgets/checkbox.zig
+  - [x] RadioGroup widget (mutually exclusive selection) — widgets/radiogroup.zig
+  - [x] Input validators and masks (email, URL, IPv4, patterns) — tui/validators.zig, 21 tests
 
 ## Project Status
-🎯 **PRODUCTION READY + PERFORMANCE & DEV EXPERIENCE** — All 6 phases complete, v1.3.0 milestone released
+🎯 **PRODUCTION READY + ADVANCED INPUT & FORMS** — All 6 phases complete, v1.4.0 milestone released
 
 ## Completed Phases
 
@@ -69,7 +69,7 @@
 All consumer projects can now upgrade to production-ready v1.0.0.
 
 ## Test Status
-- **Total Tests**: 517/519 passing, 2 skipped (updated 2026-03-03 Hour 0)
+- **Total Tests**: 537/539 passing, 2 skipped (updated 2026-03-03 Hour 8)
   - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)
@@ -116,6 +116,44 @@ All consumer projects can now upgrade to production-ready v1.0.0.
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-03 08:00 (Hour 8 - Feature Cycle)** 🚀 v1.4.0 MILESTONE RELEASE:
+  - **MODE**: FEATURE (hour % 3 != 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 537/539 passing (+20 from v1.3.0)
+  - ✅ Cross-platform: All 6 targets verified
+  - 🎉 **v1.4.0 MILESTONE COMPLETE** — Advanced Input & Forms
+    - **New Widgets** (5 total):
+      1. widgets/form.zig — Field validation, submit/cancel handlers, error display
+      2. widgets/select.zig — Single/multi-select dropdown with keyboard nav
+      3. widgets/checkbox.zig — Single and grouped checkboxes with state management
+      4. widgets/radiogroup.zig — Mutually exclusive selection with keyboard nav
+      5. tui/validators.zig — Comprehensive validation library (21 tests)
+    - **Validators Module Features**:
+      - Basic validators: notEmpty, minLength, maxLength, exactLength
+      - Numeric validators: numeric, integer, decimal, minValue, maxValue
+      - Pattern validators: email, url, ipv4, hexadecimal, alphanumeric, alphabetic
+      - Input masks: SSN, phone, dates (US/ISO), time, credit card, ZIP codes
+    - **Quality Metrics**:
+      - 20 new tests added (all passing)
+      - 6/6 cross-platform builds verified
+      - No breaking changes — fully backward compatible
+      - Fixed ArrayList API for Zig 0.15.x compatibility
+  - 🚀 **RELEASE EXECUTED**:
+    - Version bumped: build.zig.zon 1.3.0 → 1.4.0
+    - Tagged f45ba09 as v1.4.0
+    - GitHub Release created: https://github.com/yusa-imit/sailor/releases/tag/v1.4.0
+    - Consumer projects notified (zr: 3f90d77, zoltraak: 8f39d01, silica: 32067ca)
+    - Discord notification sent
+  - Commits:
+    - 1affb3e feat: add Form widget with validation (v1.4.0 1/5)
+    - 60c2cfb feat: add Select/Dropdown widget (v1.4.0 2/5)
+    - 0620278 feat: add Checkbox widget (v1.4.0 3/5)
+    - 6ea53fb feat: add RadioGroup widget (v1.4.0 4/5)
+    - 36e32cd feat: add input validators and masks (v1.4.0 5/5)
+    - f45ba09 chore: bump version to v1.4.0
+  - **Milestone Impact**: sailor now provides a complete form and validation system for interactive TUI applications!
+
 - **2026-03-03 00:00 (Hour 0 - Stabilization Cycle)** 🧪 TEST ENHANCEMENT:
   - **MODE**: STABILIZATION (hour % 3 == 0)
   - ✅ CI Status: GREEN (all builds passing)

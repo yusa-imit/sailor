@@ -459,12 +459,12 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] Debug overlay (show layout rects, render stats, event log)
   - [x] Hot-reload support for themes (watch theme file, apply without restart)
 
-- [ ] **v1.4.0 — Advanced Input & Forms**
-  - [ ] Form widget (field validation, submit/cancel handlers)
-  - [ ] Select/Dropdown widget (single/multi-select with keyboard nav)
-  - [ ] Checkbox widget (single and grouped checkboxes)
-  - [ ] RadioGroup widget (mutually exclusive selection)
-  - [ ] Input validators and masks (email, URL, number, custom patterns)
+- [x] **v1.4.0 — Advanced Input & Forms** ✅ COMPLETE & RELEASED
+  - [x] Form widget (field validation, submit/cancel handlers)
+  - [x] Select/Dropdown widget (single/multi-select with keyboard nav)
+  - [x] Checkbox widget (single and grouped checkboxes)
+  - [x] RadioGroup widget (mutually exclusive selection)
+  - [x] Input validators and masks (email, URL, number, custom patterns)
 
 - [ ] **v1.5.0 — State Management & Testing**
   - [ ] Event bus system (pub/sub for cross-widget communication)
