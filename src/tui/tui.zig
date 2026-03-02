@@ -66,6 +66,12 @@ pub const widgets = struct {
     // v1.3.0+ widgets (Performance & Dev Experience)
     pub const DebugOverlay = @import("widgets/debug.zig").DebugOverlay;
     pub const DebugMode = @import("widgets/debug.zig").DebugMode;
+
+    // v1.4.0+ widgets (Advanced Input & Forms)
+    pub const Form = @import("widgets/form.zig").Form;
+    pub const Field = @import("widgets/form.zig").Field;
+    pub const ValidationResult = @import("widgets/form.zig").ValidationResult;
+    pub const Validator = @import("widgets/form.zig").Validator;
 };
 
 // Export commonly used types
