@@ -61,6 +61,10 @@ pub const widgets = struct {
 
     // Phase 6+ widgets (v1.2.0+)
     pub const ScrollView = @import("widgets/scrollview.zig").ScrollView;
+
+    // v1.3.0+ widgets (Performance & Dev Experience)
+    pub const DebugOverlay = @import("widgets/debug.zig").DebugOverlay;
+    pub const DebugMode = @import("widgets/debug.zig").DebugMode;
 };
 
 // Export commonly used types
