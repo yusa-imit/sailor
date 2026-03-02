@@ -473,6 +473,13 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [ ] Widget snapshot testing (assert rendered output matches expected)
   - [ ] Example test suite (comprehensive integration test patterns)
 
+- [ ] **v1.6.0 — Data Visualization & Advanced Charts**
+  - [ ] Heatmap widget (2D data visualization with color gradients)
+  - [ ] PieChart widget (circular percentage display with legend)
+  - [ ] ScatterPlot widget (X-Y coordinate plotting with markers)
+  - [ ] Histogram widget (frequency distribution bars)
+  - [ ] TimeSeriesChart widget (time-based line chart with axis labels)
+
 ### 마일스톤 수립 프로세스
 
 미완료 마일스톤이 **2개 이하**가 되면, 에이전트가 자율적으로 새 마일스톤을 수립한다.
