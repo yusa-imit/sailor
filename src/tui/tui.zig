@@ -23,6 +23,7 @@ pub const theme = @import("theme.zig");
 pub const animation = @import("animation.zig");
 pub const budget = @import("budget.zig");
 pub const lazy = @import("lazy.zig");
+pub const batch = @import("batch.zig");
 
 // Phase 4+ widgets
 pub const widgets = struct {
