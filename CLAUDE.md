@@ -459,6 +459,20 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [ ] Debug overlay (show layout rects, render stats, event log)
   - [ ] Hot-reload support for themes (watch theme file, apply without restart)
 
+- [ ] **v1.4.0 — Advanced Input & Forms**
+  - [ ] Form widget (field validation, submit/cancel handlers)
+  - [ ] Select/Dropdown widget (single/multi-select with keyboard nav)
+  - [ ] Checkbox widget (single and grouped checkboxes)
+  - [ ] RadioGroup widget (mutually exclusive selection)
+  - [ ] Input validators and masks (email, URL, number, custom patterns)
+
+- [ ] **v1.5.0 — State Management & Testing**
+  - [ ] Event bus system (pub/sub for cross-widget communication)
+  - [ ] Command pattern (undo/redo support for stateful widgets)
+  - [ ] Test utilities (MockTerminal, EventSimulator for integration tests)
+  - [ ] Widget snapshot testing (assert rendered output matches expected)
+  - [ ] Example test suite (comprehensive integration test patterns)
+
 ### 마일스톤 수립 프로세스
 
 미완료 마일스톤이 **2개 이하**가 되면, 에이전트가 자율적으로 새 마일스톤을 수립한다.
