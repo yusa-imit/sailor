@@ -75,6 +75,7 @@ pub const widgets = struct {
     pub const Select = @import("widgets/select.zig").Select;
     pub const Checkbox = @import("widgets/checkbox.zig").Checkbox;
     pub const CheckboxGroup = @import("widgets/checkbox.zig").CheckboxGroup;
+    pub const RadioGroup = @import("widgets/radio.zig").RadioGroup;
 };
 
 // Export commonly used types
