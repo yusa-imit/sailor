@@ -72,6 +72,7 @@ pub const widgets = struct {
     pub const Field = @import("widgets/form.zig").Field;
     pub const ValidationResult = @import("widgets/form.zig").ValidationResult;
     pub const Validator = @import("widgets/form.zig").Validator;
+    pub const Select = @import("widgets/select.zig").Select;
 };
 
 // Export commonly used types

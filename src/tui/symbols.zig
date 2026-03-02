@@ -367,6 +367,18 @@ test "Block.verticalLevel" {
     try std.testing.expectEqualStrings("█", Block.verticalLevel(1.0));
 }
 
+/// Radio button symbols
+pub const radio = struct {
+    pub const selected: u21 = '●';
+    pub const unselected: u21 = '○';
+};
+
+/// Checkbox symbols
+pub const checkbox = struct {
+    pub const checked: u21 = '✓';
+    pub const unchecked: u21 = ' ';
+};
+
 test "Spinner.frame - dots" {
     try std.testing.expectEqualStrings("⠋", Spinner.frame(&Spinner.dots, 0));
     try std.testing.expectEqualStrings("⠙", Spinner.frame(&Spinner.dots, 1));
