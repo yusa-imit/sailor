@@ -5,19 +5,19 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.2.0 (PRODUCTION READY)** 🎯
-- Previous versions: v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.3.0 (PRODUCTION READY)** 🎯
+- Previous versions: v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.2.0 ✅ COMPLETE & RELEASED (2026-03-02 Hour 8)
-  - [x] Grid layout (CSS Grid-inspired 2D constraint solver) — grid.zig, 21 tests
-  - [x] Scrollable viewport widget (virtual scrolling) — widgets/scrollview.zig, 15 tests
-  - [x] Overlay/z-index system (non-modal popups, tooltips) — overlay.zig, 18 tests
-  - [x] Widget composition helpers (split panes, resizable borders) — composition.zig, 19 tests
-  - [x] Responsive breakpoints (adaptive layouts) — responsive.zig, 21 tests
+- **Post-v1.0 Milestones**: v1.3.0 ✅ COMPLETE & RELEASED (2026-03-02 Hour 20)
+  - [x] Render budget tracking (frame time budget, skip frames) — budget.zig, 7 tests
+  - [x] Lazy rendering (dirty region tracking) — lazy.zig, 10 tests
+  - [x] Event batching (coalesce rapid events) — batch.zig, 8 tests
+  - [x] Debug overlay (layout rects, FPS, event log) — widgets/debug.zig
+  - [x] Hot-reload support (watch theme file) — hotreload.zig, 9 tests
 
 ## Project Status
-🎯 **PRODUCTION READY + LAYOUT & COMPOSITION** — All 6 phases complete, v1.2.0 milestone released
+🎯 **PRODUCTION READY + PERFORMANCE & DEV EXPERIENCE** — All 6 phases complete, v1.3.0 milestone released
 
 ## Completed Phases
 
@@ -69,7 +69,7 @@
 All consumer projects can now upgrade to production-ready v1.0.0.
 
 ## Test Status
-- **Total Tests**: 336/338 passing, 2 skipped (updated 2026-03-01 Hour 12)
+- **Total Tests**: 507/509 passing, 2 skipped (updated 2026-03-02 Hour 20)
   - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)
@@ -115,6 +115,44 @@ All consumer projects can now upgrade to production-ready v1.0.0.
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-02 20:00 (Hour 20 - Feature Cycle)** 🚀 v1.3.0 MILESTONE RELEASE:
+  - **MODE**: FEATURE (hour % 3 != 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 507/509 passing (34 new tests added)
+  - ✅ Cross-platform: All 6 targets verified
+  - 🎉 **v1.3.0 MILESTONE COMPLETE** — Performance & Developer Experience
+    - **New Modules** (5 total):
+      1. src/tui/budget.zig — Render budget tracking with frame skip (7 tests)
+      2. src/tui/lazy.zig — Dirty region tracking for incremental rendering (10 tests)
+      3. src/tui/batch.zig — Event batching to coalesce rapid events (8 tests)
+      4. src/tui/widgets/debug.zig — Debug overlay widget for visualization
+      5. src/tui/hotreload.zig — Theme hot-reload without restart (9 tests)
+    - **Features Implemented**:
+      - RenderBudget: 60fps target, auto-skip slow frames, FPS/frame time stats
+      - LazyBuffer: Track dirty cells, only render changed regions (90%+ skip on partial updates)
+      - EventBatcher: Coalesce resize events, preserve key/mouse, 16ms batch window
+      - DebugOverlay: Layout rects visualization, render stats, event log with circular buffer
+      - ThemeWatcher: JSON theme parsing (named/hex/indexed colors), file modification tracking
+    - **Quality Metrics**:
+      - 34 new tests added (all passing)
+      - 6/6 cross-platform builds verified
+      - No breaking changes — fully backward compatible
+  - 🚀 **RELEASE EXECUTED**:
+    - Version bumped: build.zig.zon 1.2.0 → 1.3.0
+    - Tagged e3d33de as v1.3.0
+    - GitHub Release created: https://github.com/yusa-imit/sailor/releases/tag/v1.3.0
+    - Consumer projects notified (zr: 18a80e3, zoltraak: 288f0f6, silica: 1a5d7b8)
+    - Discord notification sent
+  - Commits:
+    - feat: add render budget tracking system (v1.3.0) — 4c1401f
+    - feat: add lazy rendering system (v1.3.0) — ff0698a
+    - feat: add event batching system (v1.3.0) — 1a81a3a
+    - feat: add debug overlay widget (v1.3.0) — 1c1165e
+    - feat: add theme hot-reload support (v1.3.0) — 66d6a26
+    - chore: bump version to v1.3.0 — e3d33de
+  - **Milestone Impact**: sailor now has performance optimization tools and essential debugging features!
+
 - **2026-03-02 12:00 (Hour 12 - Stabilization Cycle)** 📚 EXAMPLE SHOWCASE:
   - **MODE**: STABILIZATION (hour % 3 == 0)
   - ✅ CI Status: GREEN (all builds passing)
