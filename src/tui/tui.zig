@@ -80,6 +80,12 @@ pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;
 pub const BoxSet = symbols.BoxSet;
 
+// Export performance types (v1.3.0)
+pub const RenderBudget = budget.RenderBudget;
+pub const LazyBuffer = lazy.LazyBuffer;
+pub const EventBatcher = batch.EventBatcher;
+pub const ThemeWatcher = hotreload.ThemeWatcher;
+
 /// Terminal wrapper for TUI applications (stub for Phase 3)
 pub const Terminal = struct {
     width: u16,
