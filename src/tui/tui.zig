@@ -25,6 +25,7 @@ pub const budget = @import("budget.zig");
 pub const lazy = @import("lazy.zig");
 pub const batch = @import("batch.zig");
 pub const hotreload = @import("hotreload.zig");
+pub const validators = @import("validators.zig");
 
 // Phase 4+ widgets
 pub const widgets = struct {
