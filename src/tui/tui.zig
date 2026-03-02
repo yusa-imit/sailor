@@ -21,6 +21,7 @@ pub const responsive = @import("responsive.zig");
 pub const symbols = @import("symbols.zig");
 pub const theme = @import("theme.zig");
 pub const animation = @import("animation.zig");
+pub const budget = @import("budget.zig");
 
 // Phase 4+ widgets
 pub const widgets = struct {
