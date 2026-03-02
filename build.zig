@@ -122,6 +122,7 @@ pub fn build(b: *std.Build) void {
         .{ .name = "counter", .source = "examples/counter.zig", .description = "Build and run counter example" },
         .{ .name = "dashboard", .source = "examples/dashboard.zig", .description = "Build and run dashboard example" },
         .{ .name = "task_list", .source = "examples/task_list.zig", .description = "Build and run task list example" },
+        .{ .name = "layout_showcase", .source = "examples/layout_showcase.zig", .description = "Build and run layout showcase (v1.2.0 features)" },
     };
 
     inline for (examples) |example| {
