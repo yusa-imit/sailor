@@ -2,7 +2,7 @@
 name: test-writer
 description: 테스트 작성 전문 에이전트. 유닛 테스트 작성, 테스트 커버리지 향상이 필요할 때 사용한다.
 tools: Read, Grep, Glob, Bash, Edit, Write
-model: sonnet
+model: haiku
 ---
 
 You are a testing specialist for **sailor** — a Zig TUI framework & CLI toolkit.

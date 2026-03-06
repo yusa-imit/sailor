@@ -2,7 +2,7 @@
 name: architect
 description: 아키텍처 설계 에이전트. 모듈 구조 결정, 인터페이스 설계, 기술적 의사결정이 필요할 때 사용한다.
 tools: Read, Grep, Glob, Bash
-model: opus
+model: sonnet
 ---
 
 You are the architecture specialist for **sailor** — a Zig TUI framework & CLI toolkit.
