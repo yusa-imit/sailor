@@ -4,13 +4,45 @@
 // undo/redo functionality in stateful widgets.
 //
 // Example usage:
-//   var history = CommandHistory(MyState).init(allocator);
+//   // Define your state type
+//   const TextState = struct { text: []const u8, allocator: Allocator };
+//
+//   // Define a command that modifies the state
+//   const InsertTextCommand = struct {
+//       position: usize,
+//       text: []const u8,
+//       old_text: ?[]const u8 = null,
+//
+//       pub fn toCommand() Command(TextState) {
+//           return .{
+//               .executeFn = execute,
+//               .undoFn = undo,
+//               .cloneFn = clone,
+//               .destroyFn = destroy,
+//           };
+//       }
+//
+//       fn execute(cmd_ptr: *const anyopaque, state: *TextState) !void {
+//           const cmd: *const InsertTextCommand = @ptrCast(@alignCast(cmd_ptr));
+//           // Insert text at position...
+//       }
+//
+//       fn undo(cmd_ptr: *const anyopaque, state: *TextState) !void {
+//           const cmd: *const InsertTextCommand = @ptrCast(@alignCast(cmd_ptr));
+//           // Restore old_text...
+//       }
+//
+//       // ... clone and destroy implementations
+//   };
+//
+//   // Use the command history
+//   var history = CommandHistory(TextState).init(allocator);
 //   defer history.deinit();
 //
-//   const cmd = MyCommand{ .data = 42 };
+//   const cmd = InsertTextCommand{ .position = 0, .text = "Hello" };
 //   try history.execute(&cmd, &state);
-//   try history.undo(&state);
-//   try history.redo(&state);
+//   try history.undo(&state);    // Undo the insert
+//   try history.redo(&state);    // Redo the insert
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
