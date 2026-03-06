@@ -40,6 +40,7 @@ pub const bidi = @import("bidi.zig");
 
 // v1.5.0 — State Management & Testing
 pub const eventbus = @import("eventbus.zig");
+pub const command = @import("command.zig");
 
 test {
     // Pull in all module tests
