@@ -1,3 +1,22 @@
+// eventbus.zig — Event bus for pub/sub cross-widget communication
+//
+// Provides a type-safe publish-subscribe system for decoupled widget communication.
+// Supports priority-based dispatch, multiple subscribers per event type, and custom data payloads.
+//
+// Example usage:
+//   var bus = EventBus.init(allocator);
+//   defer bus.deinit();
+//
+//   // Subscribe to an event
+//   const id = try bus.subscribe("button.clicked", handleButtonClick, &context, 0);
+//
+//   // Publish an event with data
+//   var data = ButtonData{ .label = "OK" };
+//   try bus.publish(Event.init("button.clicked", &data));
+//
+//   // Unsubscribe when done
+//   bus.unsubscribe("button.clicked", id);
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
