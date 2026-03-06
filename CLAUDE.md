@@ -467,7 +467,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] Input validators and masks (email, URL, number, custom patterns)
 
 - [ ] **v1.5.0 — State Management & Testing**
-  - [ ] Event bus system (pub/sub for cross-widget communication)
+  - [x] Event bus system (pub/sub for cross-widget communication)
   - [ ] Command pattern (undo/redo support for stateful widgets)
   - [ ] Test utilities (MockTerminal, EventSimulator for integration tests)
   - [ ] Widget snapshot testing (assert rendered output matches expected)
