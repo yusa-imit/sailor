@@ -38,6 +38,9 @@ pub const keybindings = @import("keybindings.zig");
 pub const unicode = @import("unicode.zig");
 pub const bidi = @import("bidi.zig");
 
+// v1.5.0 — State Management & Testing
+pub const eventbus = @import("eventbus.zig");
+
 test {
     // Pull in all module tests
     std.testing.refAllDecls(@This());
