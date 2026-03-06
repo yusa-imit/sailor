@@ -469,7 +469,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
 - [ ] **v1.5.0 — State Management & Testing**
   - [x] Event bus system (pub/sub for cross-widget communication)
   - [x] Command pattern (undo/redo support for stateful widgets)
-  - [ ] Test utilities (MockTerminal, EventSimulator for integration tests)
+  - [x] Test utilities (MockTerminal, EventSimulator for integration tests)
   - [ ] Widget snapshot testing (assert rendered output matches expected)
   - [ ] Example test suite (comprehensive integration test patterns)
 

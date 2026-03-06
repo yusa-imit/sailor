@@ -27,6 +27,11 @@ pub const batch = @import("batch.zig");
 pub const hotreload = @import("hotreload.zig");
 pub const validators = @import("validators.zig");
 
+// v1.5.0+ — State Management & Testing
+pub const eventbus = @import("../eventbus.zig");
+pub const command = @import("../command.zig");
+pub const test_utils = @import("test_utils.zig");
+
 // Phase 4+ widgets
 pub const widgets = struct {
     pub const Block = @import("widgets/block.zig").Block;
