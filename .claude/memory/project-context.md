@@ -5,19 +5,19 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.4.0 (PRODUCTION READY)** 🎯
-- Previous versions: v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.5.0 (PRODUCTION READY)** 🎯
+- Previous versions: v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.4.0 ✅ COMPLETE & RELEASED (2026-03-03 Hour 8)
-  - [x] Form widget (field validation, submit/cancel handlers) — widgets/form.zig
-  - [x] Select/Dropdown widget (single/multi-select, keyboard nav) — widgets/select.zig
-  - [x] Checkbox widget (single and grouped checkboxes) — widgets/checkbox.zig
-  - [x] RadioGroup widget (mutually exclusive selection) — widgets/radiogroup.zig
-  - [x] Input validators and masks (email, URL, IPv4, patterns) — tui/validators.zig, 21 tests
+- **Post-v1.0 Milestones**: v1.5.0 ✅ COMPLETE & RELEASED (2026-03-07 Hour 12)
+  - [x] Event bus system (pub/sub for cross-widget communication)
+  - [x] Command pattern (undo/redo support for stateful widgets)
+  - [x] Test utilities (MockTerminal, EventSimulator for integration tests)
+  - [x] Widget snapshot testing (assertSnapshot() method) — tests/snapshot_assertions_test.zig, 13 tests
+  - [x] Example test suite (comprehensive integration test patterns) — tests/example_test_patterns.zig, 10 tests
 
 ## Project Status
-🎯 **PRODUCTION READY + ADVANCED INPUT & FORMS** — All 6 phases complete, v1.4.0 milestone released
+🎯 **PRODUCTION READY + STATE MANAGEMENT & TESTING** — All 6 phases complete, v1.5.0 milestone released
 
 ## Completed Phases
 
@@ -69,7 +69,7 @@
 All consumer projects can now upgrade to production-ready v1.0.0.
 
 ## Test Status
-- **Total Tests**: 560/562 passing, 2 skipped (updated 2026-03-07 Hour 0)
+- **Total Tests**: 623/625 passing, 2 skipped (updated 2026-03-07 Hour 12)
   - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)
@@ -116,6 +116,37 @@ All consumer projects can now upgrade to production-ready v1.0.0.
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-07 12:00 (Hour 12 - Stabilization Cycle)** 🚀 v1.5.0 MILESTONE RELEASE:
+  - **MODE**: STABILIZATION (hour % 3 == 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 623/625 passing (+23 from v1.4.0)
+  - ✅ Cross-platform: All 6 targets verified
+  - 🎉 **v1.5.0 MILESTONE COMPLETE** — State Management & Testing
+    - **New Test Suites** (2 total):
+      1. tests/snapshot_assertions_test.zig — Widget snapshot testing with assertSnapshot() (13 tests)
+      2. tests/example_test_patterns.zig — Comprehensive integration test patterns (10 tests)
+    - **Features Implemented**:
+      - assertSnapshot() method for pixel-perfect buffer verification
+      - Visual structure verification tests (blocks, paragraphs, lists, gauges)
+      - Layout integration tests (multi-widget composition, no overlap)
+      - 8 example patterns: rendering, layouts, state, errors, tables, progressive updates, styles, composition
+    - **Quality Metrics**:
+      - 23 new tests added (all passing)
+      - 6/6 cross-platform builds verified
+      - No breaking changes — fully backward compatible
+  - 🚀 **RELEASE EXECUTED**:
+    - Version bumped: build.zig.zon 1.4.0 → 1.5.0
+    - Tagged 9271b1b as v1.5.0
+    - GitHub Release created: https://github.com/yusa-imit/sailor/releases/tag/v1.5.0
+    - Consumer projects notified (zr: c51d517, zoltraak: c407893, silica: f3e070a)
+    - Discord notification sent
+  - Commits:
+    - d3a7336 feat: add widget snapshot testing (v1.5.0 4/5)
+    - 4a1a37f feat: add example test suite (v1.5.0 5/5)
+    - 9271b1b chore: bump version to v1.5.0
+  - **Milestone Impact**: sailor now provides comprehensive testing utilities for developers building TUI applications!
+
 - **2026-03-07 00:00 (Hour 0 - Stabilization Cycle)** 📚 DOCUMENTATION ENHANCEMENT:
   - **MODE**: STABILIZATION (hour % 3 == 0)
   - ✅ CI Status: GREEN (all builds passing)
