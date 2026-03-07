@@ -594,3 +594,45 @@ cd ../silica
 | v0.3.0 | JSON output → sailor.fmt | 결과 포매팅 | `.mode table/csv/json` |
 | v0.4.0 | TUI 마이그레이션 (태스크 피커, 라이브 러너) | 키 브라우저, 데이터 뷰어 | 스키마 브라우저, 결과 테이블 |
 | v0.5.0 | 의존성 트리, 차트 | 모니터링 대시보드 | 쿼리 플랜 시각화 |
+
+---
+
+## zuda Migration
+
+sailor는 TUI 프레임워크로서 자료구조/알고리즘의 직접적인 마이그레이션 대상은 적다.
+단, zuda 라이브러리가 릴리스되면 소비자 프로젝트(zr, zoltraak, silica)가 zuda 의존성을 추가하므로,
+sailor와 zuda 간 **의존성 충돌이 없는지** 확인이 필요하다.
+
+### 마이그레이션 대상: 없음
+
+sailor의 모든 자료구조(Cell Buffer, Layout Solver, Grid, Unicode Width 등)는 TUI에 특화되어 있어 zuda로 대체하지 않는다.
+대신 zuda 개발 시 다음 패턴을 참고 자료로 제공한다:
+
+- `src/tui/buffer.zig` — diff 엔진 알고리즘 패턴
+- `src/tui/layout.zig` — constraint solver 알고리즘 패턴
+- `src/unicode.zig` — Unicode width calculation 알고리즘 패턴
+
+### 호환성 검증 프로토콜
+
+소비자 프로젝트가 zuda를 도입할 때 sailor와의 호환성을 확인한다:
+
+1. `build.zig.zon`에서 sailor + zuda 동시 의존성이 빌드 충돌 없이 동작하는지 검증
+2. 모듈 이름 충돌이 없는지 확인 (sailor = "sailor", zuda = "zuda")
+3. 소비자가 zuda 도입 후에도 sailor 테스트가 전체 통과하는지 확인
+
+### zuda 이슈 발행 프로토콜
+
+zuda와의 호환성 문제가 발견될 때:
+
+```bash
+gh issue create --repo yusa-imit/zuda \
+  --title "bug: compatibility issue with sailor" \
+  --label "bug,from:sailor" \
+  --body "## 증상
+<sailor와 zuda를 동시에 의존성으로 사용할 때 발생하는 문제>
+
+## 환경
+- sailor: <version>
+- zuda: <version>
+- zig: $(zig version)"
+```
