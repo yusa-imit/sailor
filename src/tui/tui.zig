@@ -87,6 +87,9 @@ pub const widgets = struct {
     pub const Heatmap = @import("widgets/heatmap.zig").Heatmap;
     pub const Gradient = @import("widgets/heatmap.zig").Heatmap.Gradient;
     pub const CellMode = @import("widgets/heatmap.zig").Heatmap.CellMode;
+    pub const PieChart = @import("widgets/piechart.zig").PieChart;
+    pub const Slice = @import("widgets/piechart.zig").PieChart.Slice;
+    pub const LegendPosition = @import("widgets/piechart.zig").PieChart.LegendPosition;
 };
 
 // Export commonly used types
