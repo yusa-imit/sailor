@@ -90,6 +90,13 @@ pub const widgets = struct {
     pub const PieChart = @import("widgets/piechart.zig").PieChart;
     pub const Slice = @import("widgets/piechart.zig").PieChart.Slice;
     pub const LegendPosition = @import("widgets/piechart.zig").PieChart.LegendPosition;
+    pub const ScatterPlot = @import("widgets/scatterplot.zig").ScatterPlot;
+    pub const Point = @import("widgets/scatterplot.zig").ScatterPlot.Point;
+    pub const Histogram = @import("widgets/histogram.zig").Histogram;
+    pub const Bin = @import("widgets/histogram.zig").Histogram.Bin;
+    pub const Orientation = @import("widgets/histogram.zig").Histogram.Orientation;
+    pub const TimeSeriesChart = @import("widgets/timeseries.zig").TimeSeriesChart;
+    pub const TimeFormat = @import("widgets/timeseries.zig").TimeSeriesChart.TimeFormat;
 };
 
 // Export commonly used types
