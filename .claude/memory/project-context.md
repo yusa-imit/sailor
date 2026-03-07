@@ -9,15 +9,15 @@
 - Previous versions: v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.5.0 ✅ COMPLETE & RELEASED (2026-03-07 Hour 12)
-  - [x] Event bus system (pub/sub for cross-widget communication)
-  - [x] Command pattern (undo/redo support for stateful widgets)
-  - [x] Test utilities (MockTerminal, EventSimulator for integration tests)
-  - [x] Widget snapshot testing (assertSnapshot() method) — tests/snapshot_assertions_test.zig, 13 tests
-  - [x] Example test suite (comprehensive integration test patterns) — tests/example_test_patterns.zig, 10 tests
+- **Post-v1.0 Milestones**: v1.6.0 🚧 IN PROGRESS (started 2026-03-07 Hour 16)
+  - [x] Heatmap widget (2D data visualization with color gradients) — 19 tests ✓
+  - [ ] PieChart widget (circular percentage display with legend)
+  - [ ] ScatterPlot widget (X-Y coordinate plotting with markers)
+  - [ ] Histogram widget (frequency distribution bars)
+  - [ ] TimeSeriesChart widget (time-based line chart with axis labels)
 
 ## Project Status
-🎯 **PRODUCTION READY + STATE MANAGEMENT & TESTING** — All 6 phases complete, v1.5.0 milestone released
+🚧 **v1.6.0 IN PROGRESS** — Data Visualization & Advanced Charts (1/5 widgets complete)
 
 ## Completed Phases
 
@@ -69,7 +69,7 @@
 All consumer projects can now upgrade to production-ready v1.0.0.
 
 ## Test Status
-- **Total Tests**: 623/625 passing, 2 skipped (updated 2026-03-07 Hour 12)
+- **Total Tests**: 642/644 passing, 2 skipped (updated 2026-03-07 Hour 16)
   - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)
@@ -116,6 +116,29 @@ All consumer projects can now upgrade to production-ready v1.0.0.
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-07 16:00 (Hour 16 - Feature Cycle)** 🚀 NEW MILESTONES + v1.6.0 STARTED:
+  - **MODE**: FEATURE (hour % 3 != 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 642/644 passing (+19 new tests)
+  - ✅ Cross-platform: All 6 targets verified
+  - 📋 **MILESTONE PLANNING**: Added 3 new post-v1.0 milestones to roadmap:
+    - v1.7.0 — Advanced Layout & Rendering (FlexBox, viewport clipping, shadows, custom traits, layout caching)
+    - v1.8.0 — Network & Async Integration (HTTP/WebSocket widgets, async event loop, background tasks, log viewer)
+    - v1.9.0 — Developer Tools & Ecosystem (widget debugger, performance profiler, REPL completion popup, theme editor, widget gallery)
+    - **Rationale**: Only 1 incomplete milestone (v1.6.0) remained, triggering milestone replenishment protocol
+  - 🎨 **v1.6.0 IMPLEMENTATION STARTED** (Data Visualization & Advanced Charts):
+    - **Heatmap widget** (1/5) — src/tui/widgets/heatmap.zig (19 tests)
+      - 2D data visualization with 5 color gradients (rainbow, heat, cool, grayscale, monochrome)
+      - Row/column label support
+      - 3 cell display modes (unicode blocks, ASCII chars, numeric)
+      - Auto-detect or custom value range
+      - Block border integration
+      - Comprehensive test coverage: basic render, labels, gradients, edge cases, large data clipping
+  - 📊 **Progress**: v1.6.0 milestone 1/5 complete (20%)
+  - Commit: f6b4f8f feat: add v1.6.0-v1.9.0 milestones and Heatmap widget (v1.6.0 1/5)
+  - **Impact**: Expanded roadmap ensures continuous development momentum; Heatmap widget enables data-intensive TUI applications!
+
 - **2026-03-07 12:00 (Hour 12 - Stabilization Cycle)** 🚀 v1.5.0 MILESTONE RELEASE:
   - **MODE**: STABILIZATION (hour % 3 == 0)
   - ✅ CI Status: GREEN (all builds passing)
