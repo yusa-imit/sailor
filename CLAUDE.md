@@ -475,7 +475,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] Widget snapshot testing (assert rendered output matches expected)
   - [x] Example test suite (comprehensive integration test patterns)
 
-- [ ] **v1.6.0 — Data Visualization & Advanced Charts**
+- [x] **v1.6.0 — Data Visualization & Advanced Charts** ✅ COMPLETE
   - [x] Heatmap widget (2D data visualization with color gradients)
   - [x] PieChart widget (circular percentage display with legend)
   - [x] ScatterPlot widget (X-Y coordinate plotting with markers)
