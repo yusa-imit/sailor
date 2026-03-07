@@ -82,6 +82,11 @@ pub const widgets = struct {
     pub const Checkbox = @import("widgets/checkbox.zig").Checkbox;
     pub const CheckboxGroup = @import("widgets/checkbox.zig").CheckboxGroup;
     pub const RadioGroup = @import("widgets/radio.zig").RadioGroup;
+
+    // v1.6.0+ widgets (Data Visualization & Advanced Charts)
+    pub const Heatmap = @import("widgets/heatmap.zig").Heatmap;
+    pub const Gradient = @import("widgets/heatmap.zig").Heatmap.Gradient;
+    pub const CellMode = @import("widgets/heatmap.zig").Heatmap.CellMode;
 };
 
 // Export commonly used types

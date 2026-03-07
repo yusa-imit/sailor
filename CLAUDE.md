@@ -480,6 +480,27 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [ ] Histogram widget (frequency distribution bars)
   - [ ] TimeSeriesChart widget (time-based line chart with axis labels)
 
+- [ ] **v1.7.0 — Advanced Layout & Rendering**
+  - [ ] FlexBox layout (CSS flexbox-inspired with justify-content/align-items)
+  - [ ] Viewport clipping (render only visible region for huge buffers)
+  - [ ] Shadow/border effects (3D appearance for widgets)
+  - [ ] Custom widget traits (extensible widget protocol with render/measure)
+  - [ ] Layout caching (reuse constraint computation between frames)
+
+- [ ] **v1.8.0 — Network & Async Integration**
+  - [ ] HTTP client widget (download progress bar, streaming display)
+  - [ ] WebSocket widget (live data feed with auto-scroll)
+  - [ ] Async event loop integration (non-blocking I/O for network ops)
+  - [ ] Background task widget (parallel operation status indicator)
+  - [ ] Log viewer widget (tail -f style with filtering and search)
+
+- [ ] **v1.9.0 — Developer Tools & Ecosystem**
+  - [ ] Widget debugger (inspect widget tree, layout bounds visualization)
+  - [ ] Performance profiler widget (frame times, allocation stats, hot paths)
+  - [ ] REPL completion popup (implement TODO from repl.zig)
+  - [ ] Theme editor TUI (live theme customization with preview)
+  - [ ] Widget gallery app (interactive showcase of all widgets)
+
 ### 마일스톤 수립 프로세스
 
 미완료 마일스톤이 **2개 이하**가 되면, 에이전트가 자율적으로 새 마일스톤을 수립한다.
