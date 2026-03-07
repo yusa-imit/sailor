@@ -37,7 +37,8 @@ test "assertSnapshot: detects mismatch" {
     term.current.setString(0, 0, "Hello", Style{});
 
     // This should fail because actual has "Hello" but expected is "World"
-    const result = term.assertSnapshot("World");
+    // Use quiet mode to suppress debug output in this negative test
+    const result = term.assertSnapshotQuiet("World", true);
     try testing.expectError(error.SnapshotMismatch, result);
 }
 

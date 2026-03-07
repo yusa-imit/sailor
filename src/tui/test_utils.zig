@@ -100,14 +100,22 @@ pub const MockTerminal = struct {
     }
 
     /// Assert buffer matches expected snapshot
+    /// Set quiet=true to suppress debug output (useful for negative tests)
     pub fn assertSnapshot(self: *MockTerminal, expected: []const u8) !void {
+        return self.assertSnapshotQuiet(expected, false);
+    }
+
+    /// Assert buffer matches expected snapshot with optional quiet mode
+    pub fn assertSnapshotQuiet(self: *MockTerminal, expected: []const u8, quiet: bool) !void {
         const actual = try self.getSnapshot(self.allocator);
         defer self.allocator.free(actual);
 
         if (!std.mem.eql(u8, actual, expected)) {
-            std.debug.print("\n=== SNAPSHOT MISMATCH ===\n", .{});
-            std.debug.print("Expected:\n{s}\n", .{expected});
-            std.debug.print("Actual:\n{s}\n", .{actual});
+            if (!quiet) {
+                std.debug.print("\n=== SNAPSHOT MISMATCH ===\n", .{});
+                std.debug.print("Expected:\n{s}\n", .{expected});
+                std.debug.print("Actual:\n{s}\n", .{actual});
+            }
             return error.SnapshotMismatch;
         }
     }
@@ -346,7 +354,7 @@ test "MockTerminal assertSnapshot failure" {
 
     term.current.setString(0, 0, "Fail", .{});
 
-    const result = term.assertSnapshot("Pass");
+    const result = term.assertSnapshotQuiet("Pass", true); // quiet mode for negative test
     try std.testing.expectError(error.SnapshotMismatch, result);
 }
 
