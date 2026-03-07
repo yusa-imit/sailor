@@ -11,13 +11,13 @@
 ## Current Phase
 - **Post-v1.0 Milestones**: v1.6.0 🚧 IN PROGRESS (started 2026-03-07 Hour 16)
   - [x] Heatmap widget (2D data visualization with color gradients) — 19 tests ✓
-  - [ ] PieChart widget (circular percentage display with legend)
+  - [x] PieChart widget (circular percentage display with legend) — 20 tests ✓
   - [ ] ScatterPlot widget (X-Y coordinate plotting with markers)
   - [ ] Histogram widget (frequency distribution bars)
   - [ ] TimeSeriesChart widget (time-based line chart with axis labels)
 
 ## Project Status
-🚧 **v1.6.0 IN PROGRESS** — Data Visualization & Advanced Charts (1/5 widgets complete)
+🚧 **v1.6.0 IN PROGRESS** — Data Visualization & Advanced Charts (2/5 widgets complete)
 
 ## Completed Phases
 
@@ -69,7 +69,7 @@
 All consumer projects can now upgrade to production-ready v1.0.0.
 
 ## Test Status
-- **Total Tests**: 642/644 passing, 2 skipped (updated 2026-03-07 Hour 16)
+- **Total Tests**: 662/664 passing, 2 skipped (updated 2026-03-07 Hour 20)
   - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)
@@ -116,6 +116,26 @@ All consumer projects can now upgrade to production-ready v1.0.0.
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-07 20:00 (Hour 20 - Feature Cycle)** 🎨 PIECHART WIDGET COMPLETE (v1.6.0 2/5):
+  - **MODE**: FEATURE (hour % 3 != 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 662/664 passing (+20 new tests)
+  - ✅ Cross-platform: All 6 targets verified
+  - 🎯 **PIECHART WIDGET IMPLEMENTED** (src/tui/widgets/piechart.zig):
+    - Circular percentage display with legend support
+    - Three legend positions: right (default), bottom, none
+    - Slice data with labels, values, and custom styles
+    - Percentage display toggle
+    - Block border integration for titles/borders
+    - Automatic area splitting for chart and legend
+    - Circle rendering using radial character drawing
+    - Legend formatting with slice labels, values, and percentages
+    - Comprehensive test coverage: init, builder methods, legend positioning, edge cases, rendering
+  - 📊 **Progress**: v1.6.0 milestone 2/5 complete (40%)
+  - Commit: df805e2 feat: add PieChart widget (v1.6.0 2/5)
+  - **Impact**: PieChart widget enables circular percentage visualization for resource usage, poll results, and category distribution!
+
 - **2026-03-07 16:00 (Hour 16 - Feature Cycle)** 🚀 NEW MILESTONES + v1.6.0 STARTED:
   - **MODE**: FEATURE (hour % 3 != 0)
   - ✅ CI Status: GREEN (all builds passing)
