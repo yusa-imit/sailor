@@ -466,12 +466,12 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] RadioGroup widget (mutually exclusive selection)
   - [x] Input validators and masks (email, URL, number, custom patterns)
 
-- [ ] **v1.5.0 — State Management & Testing**
+- [x] **v1.5.0 — State Management & Testing** ✅ COMPLETE
   - [x] Event bus system (pub/sub for cross-widget communication)
   - [x] Command pattern (undo/redo support for stateful widgets)
   - [x] Test utilities (MockTerminal, EventSimulator for integration tests)
-  - [ ] Widget snapshot testing (assert rendered output matches expected)
-  - [ ] Example test suite (comprehensive integration test patterns)
+  - [x] Widget snapshot testing (assert rendered output matches expected)
+  - [x] Example test suite (comprehensive integration test patterns)
 
 - [ ] **v1.6.0 — Data Visualization & Advanced Charts**
   - [ ] Heatmap widget (2D data visualization with color gradients)
