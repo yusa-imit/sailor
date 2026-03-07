@@ -476,11 +476,11 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] Example test suite (comprehensive integration test patterns)
 
 - [ ] **v1.6.0 — Data Visualization & Advanced Charts**
-  - [ ] Heatmap widget (2D data visualization with color gradients)
-  - [ ] PieChart widget (circular percentage display with legend)
-  - [ ] ScatterPlot widget (X-Y coordinate plotting with markers)
-  - [ ] Histogram widget (frequency distribution bars)
-  - [ ] TimeSeriesChart widget (time-based line chart with axis labels)
+  - [x] Heatmap widget (2D data visualization with color gradients)
+  - [x] PieChart widget (circular percentage display with legend)
+  - [x] ScatterPlot widget (X-Y coordinate plotting with markers)
+  - [x] Histogram widget (frequency distribution bars)
+  - [x] TimeSeriesChart widget (time-based line chart with axis labels)
 
 - [ ] **v1.7.0 — Advanced Layout & Rendering**
   - [ ] FlexBox layout (CSS flexbox-inspired with justify-content/align-items)
