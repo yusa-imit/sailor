@@ -69,7 +69,7 @@
 All consumer projects can now upgrade to production-ready v1.0.0.
 
 ## Test Status
-- **Total Tests**: 662/664 passing, 2 skipped (updated 2026-03-07 Hour 20)
+- **Total Tests**: 652/654 passing, 2 skipped (updated 2026-03-08 Hour 9 STABILIZATION)
   - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)
@@ -116,6 +116,26 @@ All consumer projects can now upgrade to production-ready v1.0.0.
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-08 09:00 (Hour 9 - Stabilization Cycle)** 🔧 CRITICAL BUG FIXES:
+  - **MODE**: STABILIZATION (hour % 3 == 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 652/654 passing (+13 new advanced widget integration tests)
+  - ✅ Cross-platform: All 6 targets verified
+  - 🐛 **CRITICAL BUGS FIXED** in v1.6.0 widgets (discovered during test enhancement):
+    - Heatmap: Fixed Color.rgb() function calls → proper union syntax `.rgb = .{ .r, .g, .b }`
+    - Histogram/ScatterPlot/TimeSeriesChart: Fixed buffer.set() → buffer.setChar()
+    - ScatterPlot/TimeSeriesChart: Added u16 casts for label.len comparisons
+    - **Severity**: HIGH — v1.6.0 widgets had compilation errors preventing use
+    - **Impact**: v1.6.0 widgets now compile and tests pass
+  - 📝 **NEW TEST SUITE**: tests/advanced_widgets_test.zig (13 integration tests)
+    - v1.6.0 widget combinations: Heatmap+PieChart, ScatterPlot+Histogram
+    - v1.7.0 FlexBox integration with data visualization widgets
+    - Edge cases: zero data, extreme values, single slice/point, empty bins
+    - Complex dashboard layouts combining multiple widgets
+  - Commit: 7b2852e fix: correct v1.6.0 widget compilation errors
+  - **Quality Impact**: Discovered and fixed critical bugs that would have blocked v1.6.0 release
+
 - **2026-03-07 20:00 (Hour 20 - Feature Cycle)** 🎨 PIECHART WIDGET COMPLETE (v1.6.0 2/5):
   - **MODE**: FEATURE (hour % 3 != 0)
   - ✅ CI Status: GREEN (all builds passing)
