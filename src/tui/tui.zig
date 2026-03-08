@@ -28,6 +28,7 @@ pub const hotreload = @import("hotreload.zig");
 pub const validators = @import("validators.zig");
 pub const flexbox = @import("flexbox.zig");
 pub const viewport = @import("viewport.zig");
+pub const effects = @import("effects.zig");
 
 // v1.5.0+ — State Management & Testing
 pub const eventbus = @import("../eventbus.zig");
