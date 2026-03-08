@@ -30,6 +30,7 @@ pub const flexbox = @import("flexbox.zig");
 pub const viewport = @import("viewport.zig");
 pub const effects = @import("effects.zig");
 pub const widget_trait = @import("widget_trait.zig");
+pub const layout_cache = @import("layout_cache.zig");
 
 // v1.5.0+ — State Management & Testing
 pub const eventbus = @import("../eventbus.zig");
