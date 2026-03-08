@@ -483,9 +483,9 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] TimeSeriesChart widget (time-based line chart with axis labels)
 
 - [ ] **v1.7.0 — Advanced Layout & Rendering**
-  - [ ] FlexBox layout (CSS flexbox-inspired with justify-content/align-items)
-  - [ ] Viewport clipping (render only visible region for huge buffers)
-  - [ ] Shadow/border effects (3D appearance for widgets)
+  - [x] FlexBox layout (CSS flexbox-inspired with justify-content/align-items)
+  - [x] Viewport clipping (render only visible region for huge buffers)
+  - [x] Shadow/border effects (3D appearance for widgets)
   - [ ] Custom widget traits (extensible widget protocol with render/measure)
   - [ ] Layout caching (reuse constraint computation between frames)
 
