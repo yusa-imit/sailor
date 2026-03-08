@@ -145,43 +145,43 @@ pub const Heatmap = struct {
             .rainbow => blk: {
                 // Blue → Cyan → Green → Yellow → Red
                 if (clamped < 0.25) {
-                    break :blk Color.rgb(0, 0, @intFromFloat(255 * (1 - clamped * 4)));
+                    break :blk Color{ .rgb = .{ .r = 0, .g = 0, .b = @intFromFloat(255 * (1 - clamped * 4)) } };
                 } else if (clamped < 0.5) {
-                    break :blk Color.rgb(0, @intFromFloat(255 * ((clamped - 0.25) * 4)), 255);
+                    break :blk Color{ .rgb = .{ .r = 0, .g = @intFromFloat(255 * ((clamped - 0.25) * 4)), .b = 255 } };
                 } else if (clamped < 0.75) {
-                    break :blk Color.rgb(@intFromFloat(255 * ((clamped - 0.5) * 4)), 255, 0);
+                    break :blk Color{ .rgb = .{ .r = @intFromFloat(255 * ((clamped - 0.5) * 4)), .g = 255, .b = 0 } };
                 } else {
-                    break :blk Color.rgb(255, @intFromFloat(255 * (1 - (clamped - 0.75) * 4)), 0);
+                    break :blk Color{ .rgb = .{ .r = 255, .g = @intFromFloat(255 * (1 - (clamped - 0.75) * 4)), .b = 0 } };
                 }
             },
             .monochrome => blk: {
                 const intensity: u8 = @intFromFloat(255 * (1 - clamped));
-                break :blk Color.rgb(intensity, intensity, intensity);
+                break :blk Color{ .rgb = .{ .r = intensity, .g = intensity, .b = intensity } };
             },
             .heat => blk: {
                 // Black → Red → Orange → Yellow → White
                 if (clamped < 0.25) {
-                    break :blk Color.rgb(@intFromFloat(255 * clamped * 4), 0, 0);
+                    break :blk Color{ .rgb = .{ .r = @intFromFloat(255 * clamped * 4), .g = 0, .b = 0 } };
                 } else if (clamped < 0.5) {
-                    break :blk Color.rgb(255, @intFromFloat(128 * ((clamped - 0.25) * 4)), 0);
+                    break :blk Color{ .rgb = .{ .r = 255, .g = @intFromFloat(128 * ((clamped - 0.25) * 4)), .b = 0 } };
                 } else if (clamped < 0.75) {
-                    break :blk Color.rgb(255, @intFromFloat(128 + 127 * ((clamped - 0.5) * 4)), 0);
+                    break :blk Color{ .rgb = .{ .r = 255, .g = @intFromFloat(128 + 127 * ((clamped - 0.5) * 4)), .b = 0 } };
                 } else {
                     const white: u8 = @intFromFloat(255 * ((clamped - 0.75) * 4));
-                    break :blk Color.rgb(255, 255, white);
+                    break :blk Color{ .rgb = .{ .r = 255, .g = 255, .b = white } };
                 }
             },
             .cool => blk: {
                 // Blue → Cyan → Green
                 if (clamped < 0.5) {
-                    break :blk Color.rgb(0, @intFromFloat(255 * clamped * 2), 255);
+                    break :blk Color{ .rgb = .{ .r = 0, .g = @intFromFloat(255 * clamped * 2), .b = 255 } };
                 } else {
-                    break :blk Color.rgb(@intFromFloat(255 * ((clamped - 0.5) * 2)), 255, @intFromFloat(255 * (1 - (clamped - 0.5) * 2)));
+                    break :blk Color{ .rgb = .{ .r = @intFromFloat(255 * ((clamped - 0.5) * 2)), .g = 255, .b = @intFromFloat(255 * (1 - (clamped - 0.5) * 2)) } };
                 }
             },
             .grayscale => blk: {
                 const intensity: u8 = @intFromFloat(255 * clamped);
-                break :blk Color.rgb(intensity, intensity, intensity);
+                break :blk Color{ .rgb = .{ .r = intensity, .g = intensity, .b = intensity } };
             },
         };
     }

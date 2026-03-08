@@ -181,7 +181,7 @@ pub const Histogram = struct {
                 const bar_y = bar_bottom - y;
                 var x: u16 = 0;
                 while (x < bar_width and x_start + x < area.x + area.width) : (x += 1) {
-                    buf.set(x_start + x, bar_y, self.bar_char, bin_style);
+                    buf.setChar(x_start + x, bar_y, self.bar_char, bin_style);
                 }
             }
 
@@ -250,7 +250,7 @@ pub const Histogram = struct {
             const bar_x_start = area.x + label_width;
             var x: u16 = 0;
             while (x < bar_width and bar_x_start + x < area.x + area.width) : (x += 1) {
-                buf.set(bar_x_start + x, y, self.bar_char, bin_style);
+                buf.setChar(bar_x_start + x, y, self.bar_char, bin_style);
             }
 
             // Draw value at end of bar

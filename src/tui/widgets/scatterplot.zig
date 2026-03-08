@@ -211,7 +211,7 @@ pub const ScatterPlot = struct {
             // Draw Y-axis line
             var y: u16 = plot_area.y;
             while (y < plot_area.y + plot_area.height) : (y += 1) {
-                buf.set(render_area.x + y_axis_width - 1, y, '│', self.axis_style);
+                buf.setChar(render_area.x + y_axis_width - 1, y, '│', self.axis_style);
             }
 
             // Y-axis labels (min, mid, max)
@@ -220,8 +220,8 @@ pub const ScatterPlot = struct {
 
             // Max label (top)
             const max_label = std.fmt.bufPrint(&label_buf, "{d:.1}", .{max_y}) catch "---";
-            const max_x_pos = if (render_area.x + y_axis_width > max_label.len)
-                render_area.x + y_axis_width - max_label.len - 1
+            const max_x_pos: u16 = if (render_area.x + y_axis_width > @as(u16, @intCast(max_label.len)))
+                render_area.x + y_axis_width - @as(u16, @intCast(max_label.len)) - 1
             else render_area.x;
             buf.setString(max_x_pos, plot_area.y, max_label, self.axis_style);
 
@@ -229,16 +229,16 @@ pub const ScatterPlot = struct {
             const mid_y = (max_y + min_y) / 2.0;
             const mid_label = std.fmt.bufPrint(&label_buf, "{d:.1}", .{mid_y}) catch "---";
             const mid_y_pos = plot_area.y + plot_area.height / 2;
-            const mid_x_pos = if (render_area.x + y_axis_width > mid_label.len)
-                render_area.x + y_axis_width - mid_label.len - 1
+            const mid_x_pos = if (render_area.x + y_axis_width > @as(u16, @intCast(mid_label.len)))
+                render_area.x + y_axis_width - @as(u16, @intCast(mid_label.len)) - 1
             else render_area.x;
             buf.setString(mid_x_pos, mid_y_pos, mid_label, self.axis_style);
 
             // Min label (bottom)
             const min_label = std.fmt.bufPrint(&label_buf, "{d:.1}", .{min_y}) catch "---";
             const min_y_pos = plot_area.y + plot_area.height - 1;
-            const min_x_pos = if (render_area.x + y_axis_width > min_label.len)
-                render_area.x + y_axis_width - min_label.len - 1
+            const min_x_pos = if (render_area.x + y_axis_width > @as(u16, @intCast(min_label.len)))
+                render_area.x + y_axis_width - @as(u16, @intCast(min_label.len)) - 1
             else render_area.x;
             buf.setString(min_x_pos, min_y_pos, min_label, self.axis_style);
 
@@ -255,7 +255,7 @@ pub const ScatterPlot = struct {
             const x_axis_y = plot_area.y + plot_area.height;
             var x: u16 = plot_area.x;
             while (x < plot_area.x + plot_area.width) : (x += 1) {
-                buf.set(x, x_axis_y, '─', self.axis_style);
+                buf.setChar(x, x_axis_y, '─', self.axis_style);
             }
 
             // X-axis labels (min, mid, max)
@@ -275,8 +275,8 @@ pub const ScatterPlot = struct {
 
             // Max label (right)
             const max_x_label = std.fmt.bufPrint(&label_buf, "{d:.1}", .{max_x}) catch "---";
-            const max_x_pos = if (plot_area.x + plot_area.width > max_x_label.len)
-                plot_area.x + plot_area.width - max_x_label.len
+            const max_x_pos = if (plot_area.x + plot_area.width > @as(u16, @intCast(max_x_label.len)))
+                plot_area.x + plot_area.width - @as(u16, @intCast(max_x_label.len))
             else plot_area.x;
             buf.setString(max_x_pos, x_axis_y + 1, max_x_label, self.axis_style);
 
@@ -308,7 +308,7 @@ pub const ScatterPlot = struct {
                     const marker_char = if (s.marker.len > 0)
                         std.unicode.utf8Decode(s.marker) catch '•'
                     else '•';
-                    buf.set(screen_x, screen_y, marker_char, s.style);
+                    buf.setChar(screen_x, screen_y, marker_char, s.style);
                 }
             }
         }
@@ -325,7 +325,7 @@ pub const ScatterPlot = struct {
                 const marker_char = if (s.marker.len > 0)
                     std.unicode.utf8Decode(s.marker) catch '•'
                 else '•';
-                buf.set(render_area.x + offset, legend_y, marker_char, s.style);
+                buf.setChar(render_area.x + offset, legend_y, marker_char, s.style);
                 offset += 2;
 
                 // Draw name

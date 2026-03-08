@@ -213,7 +213,7 @@ pub const TimeSeriesChart = struct {
         // Draw Y-axis
         var y: u16 = plot_area.y;
         while (y < plot_area.y + plot_area.height) : (y += 1) {
-            buf.set(render_area.x + y_axis_width - 1, y, '│', self.axis_style);
+            buf.setChar(render_area.x + y_axis_width - 1, y, '│', self.axis_style);
         }
 
         // Y-axis labels
@@ -221,8 +221,8 @@ pub const TimeSeriesChart = struct {
 
         // Max label (top)
         const max_label = std.fmt.bufPrint(&label_buf, "{d:.1}", .{max_y}) catch "---";
-        const max_x_pos = if (render_area.x + y_axis_width > max_label.len)
-            render_area.x + y_axis_width - max_label.len - 1
+        const max_x_pos = if (render_area.x + y_axis_width > @as(u16, @intCast(max_label.len)))
+            render_area.x + y_axis_width - @as(u16, @intCast(max_label.len)) - 1
         else render_area.x;
         buf.setString(max_x_pos, plot_area.y, max_label, self.axis_style);
 
@@ -230,16 +230,16 @@ pub const TimeSeriesChart = struct {
         const mid_y = (max_y + min_y) / 2.0;
         const mid_label = std.fmt.bufPrint(&label_buf, "{d:.1}", .{mid_y}) catch "---";
         const mid_y_pos = plot_area.y + plot_area.height / 2;
-        const mid_x_pos = if (render_area.x + y_axis_width > mid_label.len)
-            render_area.x + y_axis_width - mid_label.len - 1
+        const mid_x_pos = if (render_area.x + y_axis_width > @as(u16, @intCast(mid_label.len)))
+            render_area.x + y_axis_width - @as(u16, @intCast(mid_label.len)) - 1
         else render_area.x;
         buf.setString(mid_x_pos, mid_y_pos, mid_label, self.axis_style);
 
         // Min label (bottom)
         const min_label = std.fmt.bufPrint(&label_buf, "{d:.1}", .{min_y}) catch "---";
         const min_y_pos = plot_area.y + plot_area.height - 1;
-        const min_x_pos = if (render_area.x + y_axis_width > min_label.len)
-            render_area.x + y_axis_width - min_label.len - 1
+        const min_x_pos = if (render_area.x + y_axis_width > @as(u16, @intCast(min_label.len)))
+            render_area.x + y_axis_width - @as(u16, @intCast(min_label.len)) - 1
         else render_area.x;
         buf.setString(min_x_pos, min_y_pos, min_label, self.axis_style);
 
@@ -253,7 +253,7 @@ pub const TimeSeriesChart = struct {
         const x_axis_y = plot_area.y + plot_area.height;
         var x: u16 = plot_area.x;
         while (x < plot_area.x + plot_area.width) : (x += 1) {
-            buf.set(x, x_axis_y, '─', self.axis_style);
+            buf.setChar(x, x_axis_y, '─', self.axis_style);
         }
 
         // X-axis time labels (start, mid, end)
@@ -275,8 +275,8 @@ pub const TimeSeriesChart = struct {
 
         // End time
         const end_time = formatTimestamp(self.timestamps[self.timestamps.len - 1], self.time_format, &time_buf) catch "---";
-        const end_x_pos = if (plot_area.x + plot_area.width > end_time.len)
-            plot_area.x + plot_area.width - end_time.len
+        const end_x_pos = if (plot_area.x + plot_area.width > @as(u16, @intCast(end_time.len)))
+            plot_area.x + plot_area.width - @as(u16, @intCast(end_time.len))
         else plot_area.x;
         buf.setString(end_x_pos, x_axis_y + 1, end_time, self.axis_style);
 
@@ -321,7 +321,7 @@ pub const TimeSeriesChart = struct {
                         const end_y = @max(py, screen_y);
                         var line_y = start_y;
                         while (line_y <= end_y) : (line_y += 1) {
-                            buf.set(px, line_y, '│', self.line_style);
+                            buf.setChar(px, line_y, '│', self.line_style);
                         }
                     } else if (dy == 0) {
                         // Horizontal line
@@ -329,7 +329,7 @@ pub const TimeSeriesChart = struct {
                         const end_x = @max(px, screen_x);
                         var line_x = start_x;
                         while (line_x <= end_x) : (line_x += 1) {
-                            buf.set(line_x, py, '─', self.line_style);
+                            buf.setChar(line_x, py, '─', self.line_style);
                         }
                     } else {
                         // Diagonal line (simple bresenham approximation)
@@ -343,7 +343,7 @@ pub const TimeSeriesChart = struct {
                             if (interp_x >= plot_area.x and interp_x < plot_area.x + plot_area.width and
                                 interp_y >= plot_area.y and interp_y < plot_area.y + plot_area.height)
                             {
-                                buf.set(interp_x, interp_y, '●', self.line_style);
+                                buf.setChar(interp_x, interp_y, '─', self.line_style);
                             }
                         }
                     }
@@ -351,7 +351,7 @@ pub const TimeSeriesChart = struct {
 
                 // Draw point marker
                 if (self.show_points) {
-                    buf.set(screen_x, screen_y, self.point_char, self.line_style);
+                    buf.setChar(screen_x, screen_y, self.point_char, self.line_style);
                 }
 
                 prev_screen_x = screen_x;
