@@ -5,19 +5,19 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.5.0 (PRODUCTION READY)** 🎯
-- Previous versions: v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.6.1 (PRODUCTION READY)** 🎯
+- Previous versions: v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.6.0 🚧 IN PROGRESS (started 2026-03-07 Hour 16)
-  - [x] Heatmap widget (2D data visualization with color gradients) — 19 tests ✓
-  - [x] PieChart widget (circular percentage display with legend) — 20 tests ✓
-  - [ ] ScatterPlot widget (X-Y coordinate plotting with markers)
-  - [ ] Histogram widget (frequency distribution bars)
-  - [ ] TimeSeriesChart widget (time-based line chart with axis labels)
+- **Post-v1.0 Milestones**: v1.7.0 🚧 IN PROGRESS (started 2026-03-08 Hour 13)
+  - [x] FlexBox layout (CSS flexbox-inspired) — 16 tests ✓
+  - [x] Viewport clipping (render only visible region) — 16 tests ✓
+  - [ ] Shadow/border effects (3D appearance for widgets)
+  - [ ] Custom widget traits (extensible widget protocol)
+  - [ ] Layout caching (reuse constraint computation)
 
 ## Project Status
-🚧 **v1.6.0 IN PROGRESS** — Data Visualization & Advanced Charts (2/5 widgets complete)
+🚧 **v1.7.0 IN PROGRESS** — Advanced Layout & Rendering (2/5 features complete)
 
 ## Completed Phases
 
@@ -116,6 +116,27 @@ All consumer projects can now upgrade to production-ready v1.0.0.
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-08 13:00 (Hour 13 - Feature Cycle)** 🚀 v1.6.1 PATCH + v1.7.0 STARTED:
+  - **MODE**: FEATURE (hour % 3 != 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 681/683 passing (+16 viewport tests)
+  - ✅ Cross-platform: All 6 targets verified
+  - 🐛 **v1.6.1 PATCH RELEASE**: Fixed PieChart integer overflow bug
+    - Issue: Pie slice coordinate calculation could overflow u16 when cy - dy < 0
+    - Fix: Proper bounds checking before casting (7c1a00b)
+    - Impact: Prevents panics when rendering pie charts
+    - Tagged v1.6.1, created GitHub release, notified consumer projects
+  - 🎯 **v1.7.0 IMPLEMENTATION STARTED** (Advanced Layout & Rendering):
+    - **Viewport clipping** (2/5) — src/tui/viewport.zig (16 tests)
+      - Viewport struct with clipRect, isVisible, intersects methods
+      - renderClipped() for optimized partial buffer rendering
+      - scroll(), scrollToPoint(), scrollToRect() navigation methods
+      - Enables efficient rendering of huge virtual buffers
+  - 📊 **Progress**: v1.7.0 milestone 2/5 complete (40%)
+  - Commits: 7c1a00b fix PieChart, 19b3cc4 test integration, 0631a6b viewport
+  - **Impact**: v1.6.1 stabilizes data viz widgets; v1.7.0 adds advanced layout features!
+
 - **2026-03-08 09:00 (Hour 9 - Stabilization Cycle)** 🔧 CRITICAL BUG FIXES:
   - **MODE**: STABILIZATION (hour % 3 == 0)
   - ✅ CI Status: GREEN (all builds passing)
