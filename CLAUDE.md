@@ -482,12 +482,12 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] Histogram widget (frequency distribution bars)
   - [x] TimeSeriesChart widget (time-based line chart with axis labels)
 
-- [ ] **v1.7.0 — Advanced Layout & Rendering**
+- [x] **v1.7.0 — Advanced Layout & Rendering** ✅ COMPLETE & RELEASED
   - [x] FlexBox layout (CSS flexbox-inspired with justify-content/align-items)
   - [x] Viewport clipping (render only visible region for huge buffers)
   - [x] Shadow/border effects (3D appearance for widgets)
-  - [ ] Custom widget traits (extensible widget protocol with render/measure)
-  - [ ] Layout caching (reuse constraint computation between frames)
+  - [x] Custom widget traits (extensible widget protocol with render/measure)
+  - [x] Layout caching (reuse constraint computation between frames)
 
 - [ ] **v1.8.0 — Network & Async Integration**
   - [ ] HTTP client widget (download progress bar, streaming display)
