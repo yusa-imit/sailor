@@ -32,8 +32,6 @@ test "Heatmap with PieChart side-by-side layout" {
     var buffer = try Buffer.init(allocator, 80, 30);
     defer buffer.deinit();
 
-    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 30 };
-
     // Split screen: left = heatmap, right = piechart
     const left = Rect{ .x = 0, .y = 0, .width = 40, .height = 30 };
     const right = Rect{ .x = 40, .y = 0, .width = 40, .height = 30 };
@@ -313,7 +311,7 @@ test "FlexBox vertical layout with charts" {
 
     const timestamps = [_]i64{1700000000};
     const values = [_]f64{10.0};
-    const ts = try TimeSeriesChart.init(allocator, &timestamps, &values);
+    var ts = try TimeSeriesChart.init(allocator, &timestamps, &values);
     defer ts.deinit();
     ts.render(&buffer, rects[2]);
 
