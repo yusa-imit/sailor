@@ -183,8 +183,18 @@ pub const PieChart = struct {
             const rad = a * std.math.pi / 180.0;
             var r: u16 = 0;
             while (r < radius) : (r += 1) {
-                const x = cx + @as(u16, @intCast(@as(i32, @intFromFloat(@as(f64, @floatFromInt(r)) * @sin(rad)))));
-                const y = cy - @as(u16, @intCast(@as(i32, @intFromFloat(@as(f64, @floatFromInt(r)) * @cos(rad)))));
+                const dx = @as(i32, @intFromFloat(@as(f64, @floatFromInt(r)) * @sin(rad)));
+                const dy = @as(i32, @intFromFloat(@as(f64, @floatFromInt(r)) * @cos(rad)));
+
+                // Calculate absolute coordinates, checking bounds
+                const abs_x = @as(i32, cx) + dx;
+                const abs_y = @as(i32, cy) - dy;
+
+                // Skip if out of bounds
+                if (abs_x < 0 or abs_y < 0) continue;
+
+                const x = @as(u16, @intCast(abs_x));
+                const y = @as(u16, @intCast(abs_y));
                 buf.setChar(x, y, '█', slice_style);
             }
         }
