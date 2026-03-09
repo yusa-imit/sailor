@@ -113,6 +113,10 @@ pub const widgets = struct {
     pub const WebSocket = @import("widgets/websocket.zig").WebSocket;
     pub const ConnectionState = @import("widgets/websocket.zig").ConnectionState;
     pub const Message = @import("widgets/websocket.zig").Message;
+    pub const TaskRunner = @import("widgets/taskrunner.zig").TaskRunner;
+    pub const TaskInfo = @import("widgets/taskrunner.zig").TaskInfo;
+    pub const TaskDisplayFormat = @import("widgets/taskrunner.zig").TaskDisplayFormat;
+    pub const StatusSymbols = @import("widgets/taskrunner.zig").StatusSymbols;
 };
 
 // Export commonly used types
