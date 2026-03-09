@@ -107,6 +107,9 @@ pub const widgets = struct {
     pub const HttpClient = @import("widgets/httpclient.zig").HttpClient;
     pub const RequestState = @import("widgets/httpclient.zig").RequestState;
     pub const DownloadProgress = @import("widgets/httpclient.zig").DownloadProgress;
+    pub const WebSocket = @import("widgets/websocket.zig").WebSocket;
+    pub const ConnectionState = @import("widgets/websocket.zig").ConnectionState;
+    pub const Message = @import("widgets/websocket.zig").Message;
 };
 
 // Export commonly used types
