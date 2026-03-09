@@ -490,8 +490,8 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] Layout caching (reuse constraint computation between frames)
 
 - [ ] **v1.8.0 — Network & Async Integration**
-  - [ ] HTTP client widget (download progress bar, streaming display)
-  - [ ] WebSocket widget (live data feed with auto-scroll)
+  - [x] HTTP client widget (download progress bar, streaming display)
+  - [x] WebSocket widget (live data feed with auto-scroll)
   - [ ] Async event loop integration (non-blocking I/O for network ops)
   - [ ] Background task widget (parallel operation status indicator)
   - [ ] Log viewer widget (tail -f style with filtering and search)
