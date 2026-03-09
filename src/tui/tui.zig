@@ -102,6 +102,11 @@ pub const widgets = struct {
     pub const Orientation = @import("widgets/histogram.zig").Histogram.Orientation;
     pub const TimeSeriesChart = @import("widgets/timeseries.zig").TimeSeriesChart;
     pub const TimeFormat = @import("widgets/timeseries.zig").TimeSeriesChart.TimeFormat;
+
+    // v1.8.0+ widgets (Network & Async Integration)
+    pub const HttpClient = @import("widgets/httpclient.zig").HttpClient;
+    pub const RequestState = @import("widgets/httpclient.zig").RequestState;
+    pub const DownloadProgress = @import("widgets/httpclient.zig").DownloadProgress;
 };
 
 // Export commonly used types
