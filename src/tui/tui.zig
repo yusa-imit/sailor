@@ -117,6 +117,9 @@ pub const widgets = struct {
     pub const TaskInfo = @import("widgets/taskrunner.zig").TaskInfo;
     pub const TaskDisplayFormat = @import("widgets/taskrunner.zig").TaskDisplayFormat;
     pub const StatusSymbols = @import("widgets/taskrunner.zig").StatusSymbols;
+    pub const LogViewer = @import("widgets/logviewer.zig").LogViewer;
+    pub const LogLevel = @import("widgets/logviewer.zig").LogLevel;
+    pub const LogEntry = @import("widgets/logviewer.zig").LogEntry;
 };
 
 // Export commonly used types
