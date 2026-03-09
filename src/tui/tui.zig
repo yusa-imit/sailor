@@ -37,6 +37,9 @@ pub const eventbus = @import("../eventbus.zig");
 pub const command = @import("../command.zig");
 pub const test_utils = @import("test_utils.zig");
 
+// v1.8.0+ — Network & Async Integration
+pub const async_loop = @import("async_loop.zig");
+
 // Phase 4+ widgets
 pub const widgets = struct {
     pub const Block = @import("widgets/block.zig").Block;
@@ -129,6 +132,12 @@ pub const RenderBudget = budget.RenderBudget;
 pub const LazyBuffer = lazy.LazyBuffer;
 pub const EventBatcher = batch.EventBatcher;
 pub const ThemeWatcher = hotreload.ThemeWatcher;
+
+// Export async types (v1.8.0)
+pub const AsyncEventLoop = async_loop.AsyncEventLoop;
+pub const TaskHandle = async_loop.TaskHandle;
+pub const TaskState = async_loop.TaskState;
+pub const PollMode = async_loop.PollMode;
 
 /// Terminal wrapper for TUI applications (stub for Phase 3)
 pub const Terminal = struct {
