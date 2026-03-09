@@ -181,12 +181,17 @@ pub const HttpClient = struct {
 
         // Line 4: Download stats (if show_details)
         if (self.show_details and (self.state == .receiving or self.state == .completed) and y < render_area.y + render_area.height) {
-            const bytes_str = formatBytes(self.progress.bytes_downloaded);
+            const bytes_str = formatBytes(std.heap.page_allocator, self.progress.bytes_downloaded) catch "? B";
+            defer std.heap.page_allocator.free(bytes_str);
+
             const total_str = if (self.progress.total_bytes) |total|
-                formatBytes(total)
+                formatBytes(std.heap.page_allocator, total) catch "? B"
             else
                 "unknown";
-            const speed_str = formatBytes(self.progress.speed_bps);
+            defer if (self.progress.total_bytes != null) std.heap.page_allocator.free(total_str);
+
+            const speed_str = formatBytes(std.heap.page_allocator, self.progress.speed_bps) catch "? B";
+            defer std.heap.page_allocator.free(speed_str);
 
             const stats_buf = std.fmt.allocPrint(
                 std.heap.page_allocator,
@@ -239,27 +244,22 @@ pub const HttpClient = struct {
         }
     }
 
-    /// Format bytes as human-readable string (uses static buffer, not thread-safe)
-    fn formatBytes(bytes: u64) []const u8 {
+    /// Format bytes as human-readable string
+    /// Caller owns the returned memory and must free it
+    fn formatBytes(allocator: Allocator, bytes: u64) ![]const u8 {
         const kb: u64 = 1024;
         const mb: u64 = kb * 1024;
         const gb: u64 = mb * 1024;
 
-        // Static buffer for formatting (not thread-safe but simple)
-        var buf: [32]u8 = undefined;
-
-        const formatted = if (bytes >= gb)
-            std.fmt.bufPrint(&buf, "{d:.2} GB", .{@as(f64, @floatFromInt(bytes)) / @as(f64, @floatFromInt(gb))}) catch "? GB"
-        else if (bytes >= mb)
-            std.fmt.bufPrint(&buf, "{d:.2} MB", .{@as(f64, @floatFromInt(bytes)) / @as(f64, @floatFromInt(mb))}) catch "? MB"
-        else if (bytes >= kb)
-            std.fmt.bufPrint(&buf, "{d:.2} KB", .{@as(f64, @floatFromInt(bytes)) / @as(f64, @floatFromInt(kb))}) catch "? KB"
-        else
-            std.fmt.bufPrint(&buf, "{d} B", .{bytes}) catch "? B";
-
-        // WARNING: This returns a pointer to stack-allocated memory
-        // In real usage, caller should own the buffer
-        return formatted;
+        if (bytes >= gb) {
+            return std.fmt.allocPrint(allocator, "{d:.2} GB", .{@as(f64, @floatFromInt(bytes)) / @as(f64, @floatFromInt(gb))});
+        } else if (bytes >= mb) {
+            return std.fmt.allocPrint(allocator, "{d:.2} MB", .{@as(f64, @floatFromInt(bytes)) / @as(f64, @floatFromInt(mb))});
+        } else if (bytes >= kb) {
+            return std.fmt.allocPrint(allocator, "{d:.2} KB", .{@as(f64, @floatFromInt(bytes)) / @as(f64, @floatFromInt(kb))});
+        } else {
+            return std.fmt.allocPrint(allocator, "{d} B", .{bytes});
+        }
     }
 };
 
