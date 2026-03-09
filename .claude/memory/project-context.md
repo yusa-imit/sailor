@@ -116,6 +116,31 @@ All consumer projects can now upgrade to v1.7.0 with advanced layout & rendering
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-09 21:00 (Hour 21 - Stabilization Cycle)** 🛡️ CRITICAL MEMORY SAFETY FIX:
+  - **MODE**: STABILIZATION (hour % 3 == 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 724/726 passing (2 TTY-dependent skipped)
+  - ✅ Cross-platform: All 6 targets verified
+  - 🐛 **CRITICAL MEMORY SAFETY BUG FIXED** in HttpClient widget:
+    - **Severity**: HIGH — Undefined behavior in library code
+    - Root cause: `formatBytes()` returned pointer to stack-allocated buffer
+    - Function used local `var buf: [32]u8 = undefined`
+    - Returned slice pointing to this stack memory → UB when buffer went out of scope
+    - Violated core library principle: no memory safety issues
+  - ✅ **FIX IMPLEMENTED**:
+    - Changed `formatBytes` to accept Allocator parameter
+    - Use `allocPrint` instead of `bufPrint` for heap allocation
+    - Caller now owns returned memory and must free it
+    - Added proper `defer` statements for cleanup in render function
+    - All tests passing, cross-platform builds verified
+  - 🔍 **CODE AUDIT**:
+    - Verified WebSocket widget does NOT have same issue (uses caller-owned buffers correctly)
+    - Checked TimeSeriesChart widget — safe (accepts buf parameter from caller)
+    - All other stack buffer usages verified safe
+  - Commit: 24c3e13 fix: critical memory safety issue in HttpClient.formatBytes
+  - **Impact**: Prevents potential crashes and data corruption in HTTP client widget
+
 - **2026-03-09 09:00 (Hour 9 - Stabilization Cycle)** ✅ QUALITY ASSURANCE:
   - **MODE**: STABILIZATION (hour % 3 == 0)
   - ✅ CI Status: GREEN (all 5 recent runs successful, latest: success 2026-03-08 20:43)
