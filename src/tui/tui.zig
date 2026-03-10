@@ -120,6 +120,11 @@ pub const widgets = struct {
     pub const LogViewer = @import("widgets/logviewer.zig").LogViewer;
     pub const LogLevel = @import("widgets/logviewer.zig").LogLevel;
     pub const LogEntry = @import("widgets/logviewer.zig").LogEntry;
+
+    // v1.9.0+ widgets (Developer Tools & Ecosystem)
+    pub const WidgetDebugger = @import("widgets/debugger.zig").WidgetDebugger;
+    pub const WidgetNode = @import("widgets/debugger.zig").WidgetNode;
+    pub const DisplayMode = @import("widgets/debugger.zig").DisplayMode;
 };
 
 // Export commonly used types

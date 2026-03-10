@@ -489,12 +489,12 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] Custom widget traits (extensible widget protocol with render/measure)
   - [x] Layout caching (reuse constraint computation between frames)
 
-- [ ] **v1.8.0 — Network & Async Integration**
+- [x] **v1.8.0 — Network & Async Integration** ✅ COMPLETE & RELEASED
   - [x] HTTP client widget (download progress bar, streaming display)
   - [x] WebSocket widget (live data feed with auto-scroll)
-  - [ ] Async event loop integration (non-blocking I/O for network ops)
-  - [ ] Background task widget (parallel operation status indicator)
-  - [ ] Log viewer widget (tail -f style with filtering and search)
+  - [x] Async event loop integration (non-blocking I/O for network ops)
+  - [x] Background task widget (parallel operation status indicator)
+  - [x] Log viewer widget (tail -f style with filtering and search)
 
 - [ ] **v1.9.0 — Developer Tools & Ecosystem**
   - [ ] Widget debugger (inspect widget tree, layout bounds visualization)
