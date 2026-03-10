@@ -497,9 +497,9 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] Log viewer widget (tail -f style with filtering and search)
 
 - [ ] **v1.9.0 — Developer Tools & Ecosystem**
-  - [ ] Widget debugger (inspect widget tree, layout bounds visualization)
-  - [ ] Performance profiler widget (frame times, allocation stats, hot paths)
-  - [ ] REPL completion popup (implement TODO from repl.zig)
+  - [x] Widget debugger (inspect widget tree, layout bounds visualization)
+  - [x] Performance profiler widget (frame times, allocation stats, hot paths)
+  - [x] REPL completion popup (implement TODO from repl.zig)
   - [ ] Theme editor TUI (live theme customization with preview)
   - [ ] Widget gallery app (interactive showcase of all widgets)
 
