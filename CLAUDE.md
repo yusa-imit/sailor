@@ -503,6 +503,27 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] Theme editor TUI (live theme customization with preview)
   - [x] Widget gallery app (text listing of 40+ widgets — interactive demo deferred to future milestone)
 
+- [ ] **v1.10.0 — Mouse & Gamepad Input** (0/5 complete)
+  - [ ] Mouse event handling (click, drag, scroll, double-click)
+  - [ ] Widget-level mouse interaction protocol (clickable, draggable, scrollable traits)
+  - [ ] Gamepad/controller input support (D-pad, buttons, analog sticks)
+  - [ ] Touch gesture recognition (swipe, pinch, tap for future terminal emulators)
+  - [ ] Input mapping configuration (rebind mouse/gamepad to keyboard equivalents)
+
+- [ ] **v1.11.0 — Terminal Graphics & Effects** (0/5 complete)
+  - [ ] Sixel graphics protocol support (inline images in compatible terminals)
+  - [ ] Kitty graphics protocol support (high-performance image rendering)
+  - [ ] Animated widget transitions (fade, slide, grow/shrink)
+  - [ ] Particle effects system (confetti, sparkles for celebrations)
+  - [ ] Blur/transparency effects (where terminal supports it)
+
+- [ ] **v1.12.0 — Enterprise & Accessibility** (0/5 complete)
+  - [ ] Session recording & playback (record TUI interactions to file, replay for debugging)
+  - [ ] Audit logging (log all user interactions for compliance)
+  - [ ] High contrast themes (WCAG AAA compliance for accessibility)
+  - [ ] Screen reader enhancements (ARIA-like semantic hints for terminal screen readers)
+  - [ ] Keyboard-only navigation improvements (skip links, focus indicators)
+
 ### 마일스톤 수립 프로세스
 
 미완료 마일스톤이 **2개 이하**가 되면, 에이전트가 자율적으로 새 마일스톤을 수립한다.
