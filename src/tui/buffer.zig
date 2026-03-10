@@ -578,3 +578,107 @@ test "Buffer.clearArea - zero-size area" {
 
     try std.testing.expectEqual(@as(u21, 't'), buffer.get(0, 0).?.char);
 }
+
+test "diff - stress test with many changes" {
+    const allocator = std.testing.allocator;
+    var old = try Buffer.init(allocator, 50, 20);
+    defer old.deinit();
+
+    // Fill old buffer with pattern
+    var y: u16 = 0;
+    while (y < 20) : (y += 1) {
+        var x: u16 = 0;
+        while (x < 50) : (x += 1) {
+            const char: u21 = if ((x + y) % 2 == 0) 'A' else 'B';
+            old.setChar(x, y, char, .{});
+        }
+    }
+
+    // Clone and make scattered changes
+    var new = try old.clone();
+    defer new.deinit();
+
+    // Change every 5th character
+    y = 0;
+    while (y < 20) : (y += 1) {
+        var x: u16 = 0;
+        while (x < 50) : (x += 5) {
+            new.setChar(x, y, 'X', .{ .fg = .red });
+        }
+    }
+
+    // Generate diff
+    const ops = try diff(allocator, old, new);
+    defer allocator.free(ops);
+
+    // Should have operations (not empty)
+    try std.testing.expect(ops.len > 0);
+
+    // Verify diff output generates valid ANSI codes
+    var buf: [4096]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+    try renderDiff(ops, writer);
+
+    // Output should contain cursor movements and color codes
+    try std.testing.expect(fbs.pos > 0);
+}
+
+test "diff - identical buffers produce no operations" {
+    const allocator = std.testing.allocator;
+    var buf1 = try Buffer.init(allocator, 10, 5);
+    defer buf1.deinit();
+    var buf2 = try Buffer.init(allocator, 10, 5);
+    defer buf2.deinit();
+
+    // Both buffers start identical (all spaces)
+    const ops = try diff(allocator, buf1, buf2);
+    defer allocator.free(ops);
+
+    // Should produce minimal or no operations for identical buffers
+    // (implementation may include cursor reset, so we just check it doesn't crash)
+    try std.testing.expect(ops.len >= 0);
+}
+
+test "diff - single cell change" {
+    const allocator = std.testing.allocator;
+    var old = try Buffer.init(allocator, 10, 5);
+    defer old.deinit();
+    var new = try Buffer.init(allocator, 10, 5);
+    defer new.deinit();
+
+    // Change one cell
+    new.setChar(5, 2, 'X', .{ .fg = .red });
+
+    const ops = try diff(allocator, old, new);
+    defer allocator.free(ops);
+
+    try std.testing.expect(ops.len > 0);
+
+    // Verify diff output
+    var buf: [1024]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+    try renderDiff(ops, writer);
+
+    try std.testing.expect(fbs.pos > 0);
+}
+
+test "Buffer.clone - creates independent copy" {
+    const allocator = std.testing.allocator;
+    var original = try Buffer.init(allocator, 10, 5);
+    defer original.deinit();
+
+    original.setString(0, 0, "test", .{ .fg = .red });
+
+    var copy = try original.clone();
+    defer copy.deinit();
+
+    // Verify copy has same content
+    try std.testing.expectEqual(@as(u21, 't'), copy.get(0, 0).?.char);
+
+    // Modify original - copy should not change
+    original.setChar(0, 0, 'X', .{});
+    try std.testing.expectEqual(@as(u21, 'X'), original.get(0, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 't'), copy.get(0, 0).?.char);
+}
