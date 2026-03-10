@@ -245,7 +245,39 @@ pub const Repl = struct {
                     }
                 },
                 9 => { // Tab - completion
-                    // TODO: implement completion popup
+                    if (self.config.completer) |completer| {
+                        const buf_slice = self.buffer.items[0..self.cursor];
+                        const completions = try completer(buf_slice, self.allocator);
+                        defer {
+                            for (completions) |c| {
+                                self.allocator.free(c);
+                            }
+                            self.allocator.free(completions);
+                        }
+
+                        if (completions.len == 0) {
+                            // No completions, do nothing
+                        } else if (completions.len == 1) {
+                            // Single completion, auto-insert
+                            const completion = completions[0];
+                            try self.buffer.replaceRange(self.cursor, 0, completion);
+                            self.cursor += completion.len;
+                            try self.redraw(writer);
+                        } else {
+                            // Multiple completions - show popup
+                            // For now, just insert the common prefix
+                            const common_prefix = findCommonPrefix(completions);
+                            if (common_prefix.len > 0) {
+                                try self.buffer.replaceRange(self.cursor, 0, common_prefix);
+                                self.cursor += common_prefix.len;
+                                try self.redraw(writer);
+                            }
+                            // Note: Full popup UI requires TUI integration,
+                            // which is beyond REPL's scope (REPL is CLI-only).
+                            // The CompletionPopup widget is available for
+                            // applications that integrate REPL with TUI.
+                        }
+                    }
                 },
                 else => |c| {
                     if (c >= 32 and c < 127) {
@@ -360,6 +392,27 @@ pub const Repl = struct {
         }
     }
 
+    /// Find common prefix among completion strings
+    fn findCommonPrefix(completions: []const []const u8) []const u8 {
+        if (completions.len == 0) return "";
+        if (completions.len == 1) return completions[0];
+
+        var prefix_len: usize = 0;
+        const first = completions[0];
+
+        outer: while (prefix_len < first.len) {
+            const char = first[prefix_len];
+            for (completions[1..]) |completion| {
+                if (prefix_len >= completion.len or completion[prefix_len] != char) {
+                    break :outer;
+                }
+            }
+            prefix_len += 1;
+        }
+
+        return first[0..prefix_len];
+    }
+
     /// Add line to history
     fn addHistory(self: *Self, line: []const u8) !void {
         // Don't add duplicates of last entry
@@ -457,6 +510,36 @@ test "Repl.addHistory deduplicates consecutive entries" {
     try std.testing.expectEqual(2, repl.history.items.len);
     try std.testing.expectEqualStrings("first", repl.history.items[0]);
     try std.testing.expectEqualStrings("second", repl.history.items[1]);
+}
+
+test "Repl.findCommonPrefix empty" {
+    const completions = [_][]const u8{};
+    const prefix = Repl.findCommonPrefix(&completions);
+    try std.testing.expectEqualStrings("", prefix);
+}
+
+test "Repl.findCommonPrefix single" {
+    const completions = [_][]const u8{"hello"};
+    const prefix = Repl.findCommonPrefix(&completions);
+    try std.testing.expectEqualStrings("hello", prefix);
+}
+
+test "Repl.findCommonPrefix multiple with common" {
+    const completions = [_][]const u8{ "hello", "help", "helicopter" };
+    const prefix = Repl.findCommonPrefix(&completions);
+    try std.testing.expectEqualStrings("hel", prefix);
+}
+
+test "Repl.findCommonPrefix multiple no common" {
+    const completions = [_][]const u8{ "foo", "bar", "baz" };
+    const prefix = Repl.findCommonPrefix(&completions);
+    try std.testing.expectEqualStrings("", prefix);
+}
+
+test "Repl.findCommonPrefix identical" {
+    const completions = [_][]const u8{ "test", "test", "test" };
+    const prefix = Repl.findCommonPrefix(&completions);
+    try std.testing.expectEqualStrings("test", prefix);
 }
 
 test "Repl pipe mode" {

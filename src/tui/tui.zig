@@ -130,6 +130,8 @@ pub const widgets = struct {
     pub const AllocStats = @import("widgets/profiler.zig").AllocStats;
     pub const HotPath = @import("widgets/profiler.zig").HotPath;
     pub const ProfilerMode = @import("widgets/profiler.zig").ProfilerMode;
+    pub const CompletionPopup = @import("widgets/completion_popup.zig").CompletionPopup;
+    pub const CompletionItem = @import("widgets/completion_popup.zig").CompletionItem;
 };
 
 // Export commonly used types
