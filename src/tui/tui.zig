@@ -32,6 +32,9 @@ pub const effects = @import("effects.zig");
 pub const widget_trait = @import("widget_trait.zig");
 pub const layout_cache = @import("layout_cache.zig");
 
+// v1.10.0+ — Mouse & Gamepad Input
+pub const mouse = @import("mouse.zig");
+
 // v1.5.0+ — State Management & Testing
 pub const eventbus = @import("../eventbus.zig");
 pub const command = @import("../command.zig");
@@ -160,6 +163,13 @@ pub const TaskHandle = async_loop.TaskHandle;
 pub const TaskState = async_loop.TaskState;
 pub const PollMode = async_loop.PollMode;
 
+// Export mouse types (v1.10.0)
+pub const MouseEvent = mouse.MouseEvent;
+pub const MouseButton = mouse.MouseButton;
+pub const MouseEventType = mouse.MouseEventType;
+pub const MouseTrackingMode = mouse.TrackingMode;
+pub const DoubleClickDetector = mouse.DoubleClickDetector;
+
 /// Terminal wrapper for TUI applications (stub for Phase 3)
 pub const Terminal = struct {
     width: u16,
@@ -266,7 +276,7 @@ pub const Modifiers = struct {
 pub const Event = union(enum) {
     key: KeyEvent,
     resize: struct { width: u16, height: u16 },
-    mouse: void,
+    mouse: mouse.MouseEvent,
 };
 
 // ============================================================================
