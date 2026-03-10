@@ -34,6 +34,7 @@ pub const layout_cache = @import("layout_cache.zig");
 
 // v1.10.0+ — Mouse & Gamepad Input
 pub const mouse = @import("mouse.zig");
+pub const mouse_trait = @import("mouse_trait.zig");
 
 // v1.5.0+ — State Management & Testing
 pub const eventbus = @import("../eventbus.zig");
@@ -169,6 +170,14 @@ pub const MouseButton = mouse.MouseButton;
 pub const MouseEventType = mouse.MouseEventType;
 pub const MouseTrackingMode = mouse.TrackingMode;
 pub const DoubleClickDetector = mouse.DoubleClickDetector;
+
+// Export mouse interaction traits (v1.10.0)
+pub const Clickable = mouse_trait.Clickable;
+pub const Draggable = mouse_trait.Draggable;
+pub const Scrollable = mouse_trait.Scrollable;
+pub const Hoverable = mouse_trait.Hoverable;
+pub const CompositeInteraction = mouse_trait.CompositeInteraction;
+pub const InteractionResult = mouse_trait.InteractionResult;
 
 /// Terminal wrapper for TUI applications (stub for Phase 3)
 pub const Terminal = struct {
