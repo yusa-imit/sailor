@@ -9,15 +9,15 @@
 - Previous versions: v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.9.0 ✅ COMPLETE (released 2026-03-11 Hour 1)
-  - [x] Widget debugger (inspect widget tree, layout bounds visualization)
-  - [x] Performance profiler widget (frame times, allocation stats, hot paths)
-  - [x] REPL completion popup (implement TODO from repl.zig)
-  - [x] Theme editor TUI (live theme customization with preview)
-  - [x] Widget gallery app (text listing of 40+ widgets — interactive demo deferred to future milestone)
+- **Post-v1.0 Milestones**: v1.10.0 🚧 IN PROGRESS
+  - [x] Mouse event handling (click, drag, scroll, double-click)
+  - [x] Widget-level mouse interaction protocol (clickable, draggable, scrollable traits)
+  - [ ] Gamepad/controller input support (D-pad, buttons, analog sticks)
+  - [ ] Touch gesture recognition (swipe, pinch, tap for future terminal emulators)
+  - [ ] Input mapping configuration (rebind mouse/gamepad to keyboard equivalents)
 
 ## Project Status
-✅ **v1.9.0 COMPLETE & RELEASED** — Developer Tools & Ecosystem (5/5 features complete, 100%)
+🚧 **v1.10.0 IN PROGRESS** — Mouse & Gamepad Input (2/5 features complete, 40%)
 
 ## Completed Phases
 
@@ -69,7 +69,7 @@
 All consumer projects can now upgrade to v1.9.0 with developer tools & ecosystem improvements.
 
 ## Test Status
-- **Total Tests**: 827+ passing, 2 skipped (updated 2026-03-11 Hour 1 FEATURE)
+- **Total Tests**: 863+ passing, 2 skipped (updated 2026-03-11 Hour 5 FEATURE)
   - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)
@@ -116,6 +116,33 @@ All consumer projects can now upgrade to v1.9.0 with developer tools & ecosystem
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-11 05:00 (Hour 5 - Feature Cycle)** 🎯 v1.10.0 IMPLEMENTATION STARTED:
+  - **MODE**: FEATURE (hour % 3 != 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 863+ passing (36 new for v1.10.0)
+  - ✅ Cross-platform: All 6 targets verified
+  - 🎯 **MOUSE EVENT HANDLING** (1/5) — src/tui/mouse.zig (19 tests)
+    - MouseEvent struct with position, button, event type, modifiers
+    - Parse SGR (1006) extended mouse protocol from escape sequences
+    - Support click, drag, scroll, double-click event types
+    - DoubleClickDetector for timing-based double-click detection
+    - Enable/disable mouse tracking modes (click, drag, move)
+    - Integrated into Event union (mouse: void → mouse: MouseEvent)
+  - 🎯 **WIDGET MOUSE INTERACTION PROTOCOL** (2/5) — src/tui/mouse_trait.zig (17 tests)
+    - Clickable trait with on_click callback and area containment
+    - Draggable trait with drag lifecycle (start, drag, end) and state tracking
+    - Scrollable trait for scroll wheel events
+    - Hoverable trait for enter/leave/hover tracking
+    - CompositeInteraction helper to combine multiple traits
+    - InteractionResult enum (handled, ignored, propagate)
+    - DragState and HoverState structs for state management
+  - 📊 **Progress**: v1.10.0 milestone 2/5 complete (40%)
+  - Commits:
+    - 685563a feat: add mouse event handling (v1.10.0 1/5)
+    - 514bc77 feat: add widget-level mouse interaction protocol (v1.10.0 2/5)
+  - **Impact**: Widgets can now respond to mouse clicks, drags, scrolls, and hover!
+
 - **2026-03-11 01:00 (Hour 1 - Feature Cycle)** 🚀 v1.9.0 MILESTONE RELEASE:
   - **MODE**: FEATURE (hour % 3 != 0)
   - ✅ CI Status: GREEN (all builds passing)
