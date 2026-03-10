@@ -125,6 +125,11 @@ pub const widgets = struct {
     pub const WidgetDebugger = @import("widgets/debugger.zig").WidgetDebugger;
     pub const WidgetNode = @import("widgets/debugger.zig").WidgetNode;
     pub const DisplayMode = @import("widgets/debugger.zig").DisplayMode;
+    pub const PerformanceProfiler = @import("widgets/profiler.zig").PerformanceProfiler;
+    pub const FrameStats = @import("widgets/profiler.zig").FrameStats;
+    pub const AllocStats = @import("widgets/profiler.zig").AllocStats;
+    pub const HotPath = @import("widgets/profiler.zig").HotPath;
+    pub const ProfilerMode = @import("widgets/profiler.zig").ProfilerMode;
 };
 
 // Export commonly used types
