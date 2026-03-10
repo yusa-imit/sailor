@@ -132,6 +132,7 @@ pub const widgets = struct {
     pub const ProfilerMode = @import("widgets/profiler.zig").ProfilerMode;
     pub const CompletionPopup = @import("widgets/completion_popup.zig").CompletionPopup;
     pub const CompletionItem = @import("widgets/completion_popup.zig").CompletionItem;
+    pub const ThemeEditor = @import("widgets/theme_editor.zig").ThemeEditor;
 };
 
 // Export commonly used types
@@ -145,6 +146,7 @@ pub const Rect = layout.Rect;
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;
 pub const BoxSet = symbols.BoxSet;
+pub const Theme = theme.Theme;
 
 // Export performance types (v1.3.0)
 pub const RenderBudget = budget.RenderBudget;
