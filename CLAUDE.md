@@ -496,12 +496,12 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] Background task widget (parallel operation status indicator)
   - [x] Log viewer widget (tail -f style with filtering and search)
 
-- [ ] **v1.9.0 — Developer Tools & Ecosystem** (4/5 complete, ready for release)
+- [x] **v1.9.0 — Developer Tools & Ecosystem** ✅ COMPLETE & RELEASED
   - [x] Widget debugger (inspect widget tree, layout bounds visualization)
   - [x] Performance profiler widget (frame times, allocation stats, hot paths)
   - [x] REPL completion popup (implement TODO from repl.zig)
   - [x] Theme editor TUI (live theme customization with preview)
-  - [~] Widget gallery app (text listing stub — full interactive demo deferred)
+  - [x] Widget gallery app (text listing of 40+ widgets — interactive demo deferred to future milestone)
 
 ### 마일스톤 수립 프로세스
 
