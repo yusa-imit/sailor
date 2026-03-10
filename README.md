@@ -6,7 +6,8 @@ sailor is a batteries-included library for building terminal applications in Zig
 
 **Key Features:**
 - 🎨 **Rich CLI** - Styled output, progress bars, tables, REPL
-- 🖥️ **Full TUI** - Layout system, 17+ widgets, event handling
+- 🖥️ **Full TUI** - Layout system, 40+ widgets, event handling
+- 🌐 **Network & Async** - HTTP, WebSocket, background tasks, log streaming
 - 🔧 **Modular** - Use only what you need, each module is independent
 - 🌍 **Cross-platform** - Linux, macOS, Windows (x86_64 & ARM64)
 - 🚀 **Zero dependencies** - Only the Zig standard library
@@ -60,6 +61,12 @@ Block, Paragraph, List, Table, Input, Tabs, StatusBar, Gauge
 
 **Advanced Widgets** (v0.5.0):
 Tree, TextArea, Sparkline, BarChart, LineChart, Canvas, Dialog, Popup, Notification
+
+**Data Visualization** (v1.6.0):
+Heatmap, PieChart, ScatterPlot, Histogram, TimeSeriesChart
+
+**Network & Async** (v1.8.0):
+HttpClient, WebSocket, TaskRunner, LogViewer
 
 See the [Widget Gallery](docs/GUIDE.md#widget-gallery) for examples.
 
@@ -180,7 +187,7 @@ See [examples/](examples/) for complete applications.
 # Build library
 zig build
 
-# Run tests (308+ tests)
+# Run tests (720+ tests)
 zig build test
 
 # Run examples
@@ -214,6 +221,14 @@ All platforms are tested in CI on every commit.
 | **v0.4.0** | Core widgets (Block, List, Table, Input, Tabs, etc.) |
 | **v0.5.0** | Advanced widgets (Tree, TextArea, Charts, Dialog, etc.) |
 | **v1.0.0** | Polish, theming, animation, comprehensive docs |
+| **v1.1.0** | Accessibility (screen reader hints, focus management, keyboard nav) |
+| **v1.2.0** | Layout & composition (grid layout, scrollable viewport, overlays) |
+| **v1.3.0** | Performance (render budget, lazy rendering, debug overlay) |
+| **v1.4.0** | Advanced input & forms (Select, Checkbox, RadioGroup, Form) |
+| **v1.5.0** | State management (event bus, command pattern, test utilities) |
+| **v1.6.0** | Data visualization (Heatmap, PieChart, ScatterPlot, Histogram, TimeSeries) |
+| **v1.7.0** | Advanced layout (FlexBox, viewport clipping, shadow effects) |
+| **v1.8.0** | Network & async (HttpClient, WebSocket, TaskRunner, LogViewer) |
 
 ## Design Principles
 
@@ -222,7 +237,7 @@ All platforms are tested in CI on every commit.
 - **Error-aware** - No panics in library code, explicit error handling
 - **Modular** - Use `sailor.color` without importing `sailor.tui`
 - **Cross-platform** - Platform differences handled internally
-- **Well-tested** - 308+ tests with 100% coverage of public APIs
+- **Well-tested** - 720+ tests with 100% coverage of public APIs
 
 ## Inspiration
 

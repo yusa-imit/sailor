@@ -594,6 +594,95 @@ const notif = sailor.tui.widgets.Notification.init("Task completed!")
 frame.renderWidget(notif, area);
 ```
 
+### HttpClient Widget (v1.8.0)
+
+```zig
+var client = sailor.tui.widgets.HttpClient.init(frame.allocator);
+defer client.deinit();
+
+// Update progress from your HTTP client
+client.updateProgress(downloaded_bytes, total_bytes, elapsed_ms);
+
+// Or mark as completed/failed
+client.complete(response_body);
+// client.fail("Connection timeout");
+
+client.setBlock(sailor.tui.widgets.Block.init()
+    .setTitle(sailor.tui.Line.fromString("Download"))
+    .setBorders(sailor.tui.Borders.all));
+
+frame.renderWidget(client, area);
+```
+
+### WebSocket Widget (v1.8.0)
+
+```zig
+var ws = try sailor.tui.widgets.WebSocket.init(frame.allocator);
+defer ws.deinit();
+
+// Push messages to the widget
+try ws.pushMessage("Server connected", .incoming);
+try ws.pushMessage("Hello, server!", .outgoing);
+
+ws.setTimestampFormat(.datetime)
+  .setBlock(sailor.tui.widgets.Block.init()
+      .setTitle(sailor.tui.Line.fromString("WebSocket Feed"))
+      .setBorders(sailor.tui.Borders.all));
+
+// Handle scrolling
+if (scroll_up_event) ws.scrollUp(1);
+if (scroll_down_event) ws.scrollDown(1);
+
+frame.renderWidget(ws, area);
+```
+
+### TaskRunner Widget (v1.8.0)
+
+```zig
+var runner = try sailor.tui.widgets.TaskRunner.init(frame.allocator);
+defer runner.deinit();
+
+// Add tasks
+try runner.addTask(task_handle, "Build project");
+try runner.addTask(task_handle2, "Run tests");
+
+// Update task states
+runner.updateTaskState(task_handle, .running, 0.45); // 45% progress
+runner.updateTaskState(task_handle2, .completed, 1.0);
+
+runner.setDisplayFormat(.detailed)
+      .setBlock(sailor.tui.widgets.Block.init()
+          .setTitle(sailor.tui.Line.fromString("Background Tasks"))
+          .setBorders(sailor.tui.Borders.all));
+
+frame.renderWidget(runner, area);
+```
+
+### LogViewer Widget (v1.8.0)
+
+```zig
+var viewer = try sailor.tui.widgets.LogViewer.init(frame.allocator);
+defer viewer.deinit();
+
+// Push log entries
+try viewer.pushLog(.info, "Application started", "main");
+try viewer.pushLog(.warn, "Config file missing", "config");
+try viewer.pushLog(.err, "Connection failed", "network");
+
+// Enable auto-scroll and filtering
+viewer.setAutoScroll(true)
+      .setMinLevel(.info)
+      .setSourceFilter("network")
+      .setBlock(sailor.tui.widgets.Block.init()
+          .setTitle(sailor.tui.Line.fromString("Logs"))
+          .setBorders(sailor.tui.Borders.all));
+
+// Handle scrolling
+if (scroll_up_event) viewer.scrollUp(1);
+
+frame.renderWidget(viewer, area);
+```
+
 ---
 
 ## Best Practices

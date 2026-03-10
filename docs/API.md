@@ -782,6 +782,98 @@ pub const Notification = struct {
 };
 ```
 
+#### Network & Async Widgets (v1.8.0)
+
+```zig
+pub const HttpClient = struct {
+    pub const RequestState = enum { idle, connecting, sending, receiving, completed, failed };
+
+    allocator: std.mem.Allocator,
+    state: RequestState = .idle,
+    url: ?[]const u8 = null,
+    progress: DownloadProgress = .{},
+    response_preview: ?[]const u8 = null,
+    error_message: ?[]const u8 = null,
+    block: ?Block = null,
+
+    pub fn init(allocator: std.mem.Allocator) HttpClient
+    pub fn deinit(self: *HttpClient) void
+    pub fn updateProgress(self: *HttpClient, bytes_downloaded: u64, total_bytes: u64, elapsed_ms: u64) void
+    pub fn complete(self: *HttpClient, response: []const u8) !void
+    pub fn fail(self: *HttpClient, error_msg: []const u8) !void
+    pub fn render(self: HttpClient, buf: *Buffer, area: Rect) void
+};
+
+pub const WebSocket = struct {
+    pub const ConnectionState = enum { disconnected, connecting, connected, reconnecting, failed };
+    pub const MessageDirection = enum { incoming, outgoing };
+    pub const TimestampFormat = enum { time_only, datetime, unix_ms, relative };
+
+    allocator: std.mem.Allocator,
+    state: ConnectionState = .disconnected,
+    messages: std.ArrayListUnmanaged(Message) = .{},
+    max_messages: usize = 1000,
+    scroll_offset: usize = 0,
+    auto_scroll: bool = true,
+    timestamp_format: TimestampFormat = .time_only,
+    block: ?Block = null,
+
+    pub fn init(allocator: std.mem.Allocator) !WebSocket
+    pub fn deinit(self: *WebSocket) void
+    pub fn pushMessage(self: *WebSocket, content: []const u8, direction: MessageDirection) !void
+    pub fn scrollUp(self: *WebSocket, lines: usize) void
+    pub fn scrollDown(self: *WebSocket, lines: usize) void
+    pub fn scrollToBottom(self: *WebSocket) void
+    pub fn render(self: WebSocket, buf: *Buffer, area: Rect) void
+};
+
+pub const TaskRunner = struct {
+    pub const DisplayFormat = enum { compact, normal, detailed };
+
+    allocator: std.mem.Allocator,
+    tasks: std.ArrayListUnmanaged(TaskInfo) = .{},
+    selected_index: ?usize = null,
+    display_format: DisplayFormat = .normal,
+    use_unicode: bool = true,
+    block: ?Block = null,
+
+    pub fn init(allocator: std.mem.Allocator) !TaskRunner
+    pub fn deinit(self: *TaskRunner) void
+    pub fn addTask(self: *TaskRunner, handle: TaskHandle, name: []const u8) !void
+    pub fn updateTaskState(self: *TaskRunner, handle: TaskHandle, state: TaskState, progress: f32) void
+    pub fn updateTaskError(self: *TaskRunner, handle: TaskHandle, error_msg: []const u8) !void
+    pub fn selectNext(self: *TaskRunner) void
+    pub fn selectPrevious(self: *TaskRunner) void
+    pub fn render(self: TaskRunner, buf: *Buffer, area: Rect) void
+};
+
+pub const LogViewer = struct {
+    pub const LogLevel = enum { trace, debug, info, warn, err, fatal };
+
+    allocator: std.mem.Allocator,
+    entries: std.ArrayListUnmanaged(LogEntry) = .{},
+    max_entries: usize = 10000,
+    scroll_offset: usize = 0,
+    auto_scroll: bool = true,
+    min_level: LogLevel = .trace,
+    source_filter: ?[]const u8 = null,
+    search_term: ?[]const u8 = null,
+    block: ?Block = null,
+
+    pub fn init(allocator: std.mem.Allocator) !LogViewer
+    pub fn deinit(self: *LogViewer) void
+    pub fn pushLog(self: *LogViewer, level: LogLevel, message: []const u8, source: []const u8) !void
+    pub fn pushLogRaw(self: *LogViewer, raw_line: []const u8) !void
+    pub fn clear(self: *LogViewer) void
+    pub fn scrollUp(self: *LogViewer, lines: usize) void
+    pub fn scrollDown(self: *LogViewer, lines: usize) void
+    pub fn setMinLevel(self: *LogViewer, level: LogLevel) *LogViewer
+    pub fn setSourceFilter(self: *LogViewer, source: ?[]const u8) *LogViewer
+    pub fn setSearchTerm(self: *LogViewer, term: ?[]const u8) *LogViewer
+    pub fn render(self: LogViewer, buf: *Buffer, area: Rect) void
+};
+```
+
 ---
 
 ## Complete Example
