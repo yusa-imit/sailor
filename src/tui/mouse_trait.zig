@@ -609,3 +609,219 @@ test "CompositeInteraction scrollable only" {
     try std.testing.expectEqual(InteractionResult.handled, result);
     try std.testing.expectEqual(@as(i32, -1), scroll_delta);
 }
+
+test "Clickable.handleEvent double click" {
+    var clicked = false;
+    const TestCtx = struct {
+        clicked: *bool,
+    };
+
+    const onClick = struct {
+        fn f(ctx: *anyopaque, event: MouseEvent) InteractionResult {
+            const self: *TestCtx = @ptrCast(@alignCast(ctx));
+            self.clicked.* = true;
+            std.debug.assert(event.event_type == .double_click);
+            std.debug.assert(event.button == .left);
+            return .handled;
+        }
+    }.f;
+
+    const clickable = Clickable{ .on_click = onClick };
+    var ctx = TestCtx{ .clicked = &clicked };
+    const area = Rect.new(10, 5, 20, 10);
+    const event = MouseEvent{
+        .event_type = .double_click,
+        .button = .left,
+        .x = 15,
+        .y = 8,
+    };
+
+    const result = clickable.handleEvent(&ctx, event, area);
+    try std.testing.expectEqual(InteractionResult.handled, result);
+    try std.testing.expect(clicked);
+}
+
+test "CompositeInteraction draggable only" {
+    var drag_started = false;
+
+    const TestCtx = struct {
+        started: *bool,
+    };
+
+    const onDragStart = struct {
+        fn f(ctx: *anyopaque, _: MouseEvent) void {
+            const self: *TestCtx = @ptrCast(@alignCast(ctx));
+            self.started.* = true;
+        }
+    }.f;
+
+    const onDrag = struct {
+        fn f(_: *anyopaque, _: MouseEvent) InteractionResult {
+            return .handled;
+        }
+    }.f;
+
+    var composite = CompositeInteraction{
+        .draggable = Draggable{
+            .on_drag_start = onDragStart,
+            .on_drag = onDrag,
+        },
+    };
+
+    var ctx = TestCtx{ .started = &drag_started };
+    const area = Rect.new(10, 5, 20, 10);
+    const event = MouseEvent{ .event_type = .press, .button = .left, .x = 15, .y = 8 };
+
+    const result = composite.handleEvent(&ctx, event, area);
+    try std.testing.expectEqual(InteractionResult.handled, result);
+    try std.testing.expect(drag_started);
+    try std.testing.expect(composite.drag_state.active);
+}
+
+test "CompositeInteraction hoverable only" {
+    var hover_entered = false;
+
+    const TestCtx = struct {
+        entered: *bool,
+    };
+
+    const onHoverEnter = struct {
+        fn f(ctx: *anyopaque, _: MouseEvent) void {
+            const self: *TestCtx = @ptrCast(@alignCast(ctx));
+            self.entered.* = true;
+        }
+    }.f;
+
+    var composite = CompositeInteraction{
+        .hoverable = Hoverable{
+            .on_enter = onHoverEnter,
+        },
+    };
+
+    var ctx = TestCtx{ .entered = &hover_entered };
+    const area = Rect.new(10, 5, 20, 10);
+    const event = MouseEvent{ .event_type = .move, .button = .none, .x = 15, .y = 8 };
+
+    const result = composite.handleEvent(&ctx, event, area);
+    try std.testing.expectEqual(InteractionResult.handled, result);
+    try std.testing.expect(hover_entered);
+    try std.testing.expect(composite.hover_state.hovering);
+}
+
+test "CompositeInteraction clickable and scrollable" {
+    var clicked = false;
+    var scroll_delta: i32 = 0;
+
+    const TestCtx = struct {
+        clicked: *bool,
+        scroll_delta: *i32,
+    };
+
+    const onClick = struct {
+        fn f(ctx: *anyopaque, _: MouseEvent) InteractionResult {
+            const self: *TestCtx = @ptrCast(@alignCast(ctx));
+            self.clicked.* = true;
+            return .handled;
+        }
+    }.f;
+
+    const onScroll = struct {
+        fn f(ctx: *anyopaque, delta: i32, _: MouseEvent) InteractionResult {
+            const self: *TestCtx = @ptrCast(@alignCast(ctx));
+            self.scroll_delta.* = delta;
+            return .handled;
+        }
+    }.f;
+
+    var composite = CompositeInteraction{
+        .clickable = Clickable{ .on_click = onClick },
+        .scrollable = Scrollable{ .on_scroll = onScroll },
+    };
+
+    var ctx = TestCtx{ .clicked = &clicked, .scroll_delta = &scroll_delta };
+    const area = Rect.new(10, 5, 20, 10);
+
+    // Click event
+    const click_event = MouseEvent{ .event_type = .press, .button = .left, .x = 15, .y = 8 };
+    const result1 = composite.handleEvent(&ctx, click_event, area);
+    try std.testing.expectEqual(InteractionResult.handled, result1);
+    try std.testing.expect(clicked);
+
+    // Scroll event
+    const scroll_event = MouseEvent{ .event_type = .scroll_up, .button = .none, .x = 15, .y = 8 };
+    const result2 = composite.handleEvent(&ctx, scroll_event, area);
+    try std.testing.expectEqual(InteractionResult.handled, result2);
+    try std.testing.expectEqual(@as(i32, -1), scroll_delta);
+}
+
+test "Hoverable.handleEvent move outside" {
+    var left_called = false;
+
+    const TestCtx = struct {
+        left: *bool,
+    };
+
+    const onHoverLeave = struct {
+        fn f(ctx: *anyopaque) void {
+            const self: *TestCtx = @ptrCast(@alignCast(ctx));
+            self.left.* = true;
+        }
+    }.f;
+
+    var state = Hoverable.HoverState{};
+    state.hovering = true; // Start in hovering state
+
+    const hoverable = Hoverable{
+        .on_leave = onHoverLeave,
+    };
+
+    var ctx = TestCtx{ .left = &left_called };
+    const area = Rect.new(10, 5, 20, 10);
+    const event = MouseEvent{ .event_type = .move, .button = .none, .x = 5, .y = 5 }; // Outside area
+
+    const result = hoverable.handleEvent(&ctx, event, &state, area);
+    try std.testing.expectEqual(InteractionResult.handled, result);
+    try std.testing.expect(left_called);
+    try std.testing.expect(!state.hovering);
+}
+
+test "Draggable.handleEvent release outside area" {
+    var drag_ended = false;
+
+    const TestCtx = struct {
+        ended: *bool,
+    };
+
+    const onDragEnd = struct {
+        fn f(ctx: *anyopaque, _: MouseEvent) void {
+            const self: *TestCtx = @ptrCast(@alignCast(ctx));
+            self.ended.* = true;
+        }
+    }.f;
+
+    const onDrag = struct {
+        fn f(_: *anyopaque, _: MouseEvent) InteractionResult {
+            return .handled;
+        }
+    }.f;
+
+    var state = Draggable.DragState{};
+    state.active = true; // Start in dragging state
+    state.start_x = 15;
+    state.start_y = 8;
+    state.button = .left;
+
+    const draggable = Draggable{
+        .on_drag = onDrag,
+        .on_drag_end = onDragEnd,
+    };
+
+    var ctx = TestCtx{ .ended = &drag_ended };
+    const area = Rect.new(10, 5, 20, 10);
+    const event = MouseEvent{ .event_type = .release, .button = .left, .x = 50, .y = 50 }; // Far outside
+
+    const result = draggable.handleEvent(&ctx, event, &state, area);
+    try std.testing.expectEqual(InteractionResult.handled, result);
+    try std.testing.expect(drag_ended);
+    try std.testing.expect(!state.active);
+}
