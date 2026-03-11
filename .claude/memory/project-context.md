@@ -5,19 +5,19 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.9.0 (PRODUCTION READY)** 🎯
-- Previous versions: v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.10.0 (PRODUCTION READY)** 🎯
+- Previous versions: v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.10.0 🚧 IN PROGRESS
-  - [x] Mouse event handling (click, drag, scroll, double-click)
-  - [x] Widget-level mouse interaction protocol (clickable, draggable, scrollable traits)
-  - [x] Gamepad/controller input support (D-pad, buttons, analog sticks)
-  - [ ] Touch gesture recognition (swipe, pinch, tap for future terminal emulators)
-  - [ ] Input mapping configuration (rebind mouse/gamepad to keyboard equivalents)
+- **Post-v1.0 Milestones**: v1.11.0 🚧 NEXT
+  - [ ] Sixel graphics protocol support (inline images in compatible terminals)
+  - [ ] Kitty graphics protocol support (high-performance image rendering)
+  - [ ] Animated widget transitions (fade, slide, grow/shrink)
+  - [ ] Particle effects system (confetti, sparkles for celebrations)
+  - [ ] Blur/transparency effects (where terminal supports it)
 
 ## Project Status
-🚧 **v1.10.0 IN PROGRESS** — Mouse & Gamepad Input (3/5 features complete, 60%)
+✅ **v1.10.0 COMPLETE & RELEASED** — Mouse & Gamepad Input (5/5 features, 100%)
 
 ## Completed Phases
 
@@ -62,14 +62,14 @@
 ## Consumer Projects
 | Project | Path | Current Usage | Migration Status |
 |---------|------|--------------|------------------|
-| zr | ../zr | v0.4.0 (arg, color, progress, tui) | v1.9.0 READY |
-| zoltraak | ../zoltraak | v0.4.0 (arg, color, tui) | v1.9.0 READY |
-| silica | ../silica | v0.5.0 (arg, color, repl, fmt, tui) | v1.9.0 READY |
+| zr | ../zr | v0.4.0 (arg, color, progress, tui) | v1.10.0 READY |
+| zoltraak | ../zoltraak | v0.4.0 (arg, color, tui) | v1.10.0 READY |
+| silica | ../silica | v0.5.0 (arg, color, repl, fmt, tui) | v1.10.0 READY |
 
-All consumer projects can now upgrade to v1.9.0 with developer tools & ecosystem improvements.
+All consumer projects can now upgrade to v1.10.0 with mouse, gamepad, and touch input support.
 
 ## Test Status
-- **Total Tests**: 882+ passing (621 library + 261 integration), 8 skipped (updated 2026-03-11 Hour 13 FEATURE)
+- **Total Tests**: 965+ passing (704 library + 261 integration), 8 skipped (updated 2026-03-11 Hour 17 FEATURE)
   - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)
@@ -116,6 +116,40 @@ All consumer projects can now upgrade to v1.9.0 with developer tools & ecosystem
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-11 17:00 (Hour 17 - Feature Cycle)** 🚀 v1.10.0 MILESTONE RELEASE:
+  - **MODE**: FEATURE (hour % 3 != 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 965+ passing (704 library, 261 integration, 8 skipped)
+  - ✅ Cross-platform: All 6 targets verified
+  - 🎉 **v1.10.0 MILESTONE COMPLETE** — Mouse & Gamepad Input
+    - **All 5/5 features implemented**:
+      1. Mouse event handling — src/tui/mouse.zig (19 tests)
+      2. Widget mouse interaction — src/tui/mouse_trait.zig (17 tests)
+      3. Gamepad/controller input — src/tui/gamepad.zig (13 tests)
+      4. Touch gesture recognition — src/tui/touch.zig (18 tests)
+      5. Input mapping configuration — src/tui/input_map.zig (16 tests)
+    - **Total: 83 new tests for v1.10.0**
+  - 🚀 **RELEASE EXECUTED (AUTONOMOUS)**:
+    - Version bumped: build.zig.zon 1.9.0 → 1.10.0
+    - Tagged 2bef068 (input mapping) and 47d3dd5 (version bump) as v1.10.0
+    - GitHub Release created: https://github.com/yusa-imit/sailor/releases/tag/v1.10.0
+    - Consumer projects notified (zr: 68a3e41, zoltraak: 598647d, silica: 3b95a97)
+    - Discord notification sent
+  - 📊 **Quality Metrics**:
+    - 965+ tests passing (83 new for v1.10.0)
+    - 6/6 cross-platform builds verified
+    - Zero open bugs
+    - No breaking changes — fully backward compatible
+  - Commits:
+    - 685563a feat: add mouse event handling (v1.10.0 1/5)
+    - 514bc77 feat: add widget-level mouse interaction protocol (v1.10.0 2/5)
+    - f23b6d8 feat: add gamepad/controller input support (v1.10.0 3/5)
+    - 51229c9 feat: add touch gesture recognition (v1.10.0 4/5)
+    - 2bef068 feat: add input mapping configuration (v1.10.0 5/5)
+    - 47d3dd5 chore: bump version to v1.10.0
+  - **Milestone Impact**: sailor now supports mouse, gamepad, and touch input for rich TUI interactions!
+
 - **2026-03-11 13:00 (Hour 13 - Feature Cycle)** 🎮 GAMEPAD INPUT SUPPORT:
   - **MODE**: FEATURE (hour % 3 != 0)
   - ✅ CI Status: GREEN (all builds passing)
