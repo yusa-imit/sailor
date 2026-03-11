@@ -510,9 +510,9 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] Touch gesture recognition (swipe, pinch, tap for future terminal emulators)
   - [x] Input mapping configuration (rebind mouse/gamepad to keyboard equivalents)
 
-- [ ] **v1.11.0 — Terminal Graphics & Effects** (0/5 complete)
-  - [ ] Sixel graphics protocol support (inline images in compatible terminals)
-  - [ ] Kitty graphics protocol support (high-performance image rendering)
+- [ ] **v1.11.0 — Terminal Graphics & Effects** (2/5 complete, 40%)
+  - [x] Sixel graphics protocol support (inline images in compatible terminals)
+  - [x] Kitty graphics protocol support (high-performance image rendering)
   - [ ] Animated widget transitions (fade, slide, grow/shrink)
   - [ ] Particle effects system (confetti, sparkles for celebrations)
   - [ ] Blur/transparency effects (where terminal supports it)
