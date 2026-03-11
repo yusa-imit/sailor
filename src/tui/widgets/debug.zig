@@ -260,6 +260,17 @@ pub const DebugOverlay = struct {
                 .resize => |r| std.fmt.bufPrint(&line_buf, "Resize: {}x{}", .{ r.width, r.height }) catch "Resize: ?",
                 .mouse => "Mouse",
                 .gamepad => "Gamepad",
+                .touch => |t| switch (t) {
+                    .tap => "Touch: Tap",
+                    .double_tap => "Touch: DoubleTap",
+                    .long_press => "Touch: LongPress",
+                    .swipe_left => "Touch: SwipeLeft",
+                    .swipe_right => "Touch: SwipeRight",
+                    .swipe_up => "Touch: SwipeUp",
+                    .swipe_down => "Touch: SwipeDown",
+                    .pinch_in => "Touch: PinchIn",
+                    .pinch_out => "Touch: PinchOut",
+                },
             };
 
             buf.setString(area.x + 1, area.y + line, event_str, .{ .fg = Color.white });
