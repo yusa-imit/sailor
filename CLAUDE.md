@@ -503,12 +503,12 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] Theme editor TUI (live theme customization with preview)
   - [x] Widget gallery app (text listing of 40+ widgets — interactive demo deferred to future milestone)
 
-- [ ] **v1.10.0 — Mouse & Gamepad Input** (0/5 complete)
-  - [ ] Mouse event handling (click, drag, scroll, double-click)
-  - [ ] Widget-level mouse interaction protocol (clickable, draggable, scrollable traits)
-  - [ ] Gamepad/controller input support (D-pad, buttons, analog sticks)
-  - [ ] Touch gesture recognition (swipe, pinch, tap for future terminal emulators)
-  - [ ] Input mapping configuration (rebind mouse/gamepad to keyboard equivalents)
+- [x] **v1.10.0 — Mouse & Gamepad Input** ✅ COMPLETE & RELEASED
+  - [x] Mouse event handling (click, drag, scroll, double-click)
+  - [x] Widget-level mouse interaction protocol (clickable, draggable, scrollable traits)
+  - [x] Gamepad/controller input support (D-pad, buttons, analog sticks)
+  - [x] Touch gesture recognition (swipe, pinch, tap for future terminal emulators)
+  - [x] Input mapping configuration (rebind mouse/gamepad to keyboard equivalents)
 
 - [ ] **v1.11.0 — Terminal Graphics & Effects** (0/5 complete)
   - [ ] Sixel graphics protocol support (inline images in compatible terminals)
