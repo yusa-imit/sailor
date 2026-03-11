@@ -49,6 +49,7 @@ pub const async_loop = @import("async_loop.zig");
 
 // v1.11.0+ — Terminal Graphics & Effects
 pub const sixel = @import("sixel.zig");
+pub const kitty = @import("kitty.zig");
 
 // Phase 4+ widgets
 pub const widgets = struct {
