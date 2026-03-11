@@ -259,6 +259,7 @@ pub const DebugOverlay = struct {
                 },
                 .resize => |r| std.fmt.bufPrint(&line_buf, "Resize: {}x{}", .{ r.width, r.height }) catch "Resize: ?",
                 .mouse => "Mouse",
+                .gamepad => "Gamepad",
             };
 
             buf.setString(area.x + 1, area.y + line, event_str, .{ .fg = Color.white });

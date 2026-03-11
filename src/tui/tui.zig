@@ -35,6 +35,7 @@ pub const layout_cache = @import("layout_cache.zig");
 // v1.10.0+ — Mouse & Gamepad Input
 pub const mouse = @import("mouse.zig");
 pub const mouse_trait = @import("mouse_trait.zig");
+pub const gamepad = @import("gamepad.zig");
 
 // v1.5.0+ — State Management & Testing
 pub const eventbus = @import("../eventbus.zig");
@@ -286,6 +287,7 @@ pub const Event = union(enum) {
     key: KeyEvent,
     resize: struct { width: u16, height: u16 },
     mouse: mouse.MouseEvent,
+    gamepad: gamepad.GamepadEvent,
 };
 
 // ============================================================================

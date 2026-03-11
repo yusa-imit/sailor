@@ -45,7 +45,7 @@ pub const EventBatcher = struct {
                 // Coalesce resize events - only keep the latest
                 self.last_resize = .{ .width = size.width, .height = size.height };
             },
-            .key, .mouse => {
+            .key, .mouse, .gamepad => {
                 // Immediately add non-resize events
                 try self.events.append(self.allocator, event);
             },
