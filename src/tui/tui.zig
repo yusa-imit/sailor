@@ -47,6 +47,9 @@ pub const test_utils = @import("test_utils.zig");
 // v1.8.0+ — Network & Async Integration
 pub const async_loop = @import("async_loop.zig");
 
+// v1.11.0+ — Terminal Graphics & Effects
+pub const sixel = @import("sixel.zig");
+
 // Phase 4+ widgets
 pub const widgets = struct {
     pub const Block = @import("widgets/block.zig").Block;
