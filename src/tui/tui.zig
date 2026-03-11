@@ -37,6 +37,7 @@ pub const mouse = @import("mouse.zig");
 pub const mouse_trait = @import("mouse_trait.zig");
 pub const gamepad = @import("gamepad.zig");
 pub const touch = @import("touch.zig");
+pub const input_map = @import("input_map.zig");
 
 // v1.5.0+ — State Management & Testing
 pub const eventbus = @import("../eventbus.zig");
