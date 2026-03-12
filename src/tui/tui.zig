@@ -53,6 +53,9 @@ pub const kitty = @import("kitty.zig");
 pub const transitions = @import("transitions.zig");
 pub const blur = @import("blur.zig");
 
+// v1.12.0+ — Enterprise & Accessibility
+pub const session = @import("session.zig");
+
 // Phase 4+ widgets
 pub const widgets = struct {
     pub const Block = @import("widgets/block.zig").Block;
