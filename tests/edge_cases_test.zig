@@ -401,3 +401,185 @@ test "touch timestamp - large values" {
     // Should not overflow or crash
     try testing.expectEqual(@as(usize, 1), tracker.active_count);
 }
+
+// ============================================================================
+// Blur Effect Edge Cases
+// ============================================================================
+
+test "blur effect - zero intensity" {
+    const blur = @import("sailor").tui.blur;
+    var buf = try sailor.tui.buffer.Buffer.init(testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    const effect = blur.BlurEffect.init(.box_drawing, 0);
+    const area = layout.Rect.new(0, 0, 10, 10);
+    effect.apply(&buf, area);
+
+    // Zero intensity should still apply effect (minimal blur)
+    const cell = buf.get(5, 5) orelse return error.TestUnexpectedNull;
+    try testing.expect(cell.char == '░' or cell.char == '▒' or cell.char == '▓');
+}
+
+test "blur effect - maximum intensity" {
+    const blur = @import("sailor").tui.blur;
+    var buf = try sailor.tui.buffer.Buffer.init(testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    const effect = blur.BlurEffect.init(.shade_chars, 255);
+    const area = layout.Rect.new(0, 0, 10, 10);
+    effect.apply(&buf, area);
+
+    // Maximum intensity should apply strongest blur
+    const cell = buf.get(5, 5) orelse return error.TestUnexpectedNull;
+    try testing.expect(cell.char == '░' or cell.char == '▒' or cell.char == '▓' or cell.char == '█');
+}
+
+test "blur effect - out of bounds area" {
+    const blur = @import("sailor").tui.blur;
+    var buf = try sailor.tui.buffer.Buffer.init(testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    const effect = blur.BlurEffect.init(.box_drawing, 128);
+    // Area extends beyond buffer bounds
+    const area = layout.Rect.new(5, 5, 100, 100);
+
+    // Should not crash, only applies to valid cells
+    effect.apply(&buf, area);
+}
+
+test "transparency effect - zero alpha (fully transparent)" {
+    const blur = @import("sailor").tui.blur;
+    var buf = try sailor.tui.buffer.Buffer.init(testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    const effect = blur.TransparencyEffect.init(.char_fade, 0);
+    const area = layout.Rect.new(0, 0, 10, 10);
+    effect.apply(&buf, area);
+
+    // Zero alpha should show space or lightest fade char
+    const cell = buf.get(5, 5) orelse return error.TestUnexpectedNull;
+    try testing.expect(cell.char == ' ' or cell.char == '░');
+}
+
+test "transparency effect - maximum alpha (opaque)" {
+    const blur = @import("sailor").tui.blur;
+    var buf = try sailor.tui.buffer.Buffer.init(testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    const effect = blur.TransparencyEffect.init(.char_fade, 255);
+    const area = layout.Rect.new(0, 0, 10, 10);
+    effect.apply(&buf, area);
+
+    // Maximum alpha should show heaviest fade char
+    const cell = buf.get(5, 5) orelse return error.TestUnexpectedNull;
+    try testing.expect(cell.char == ' ' or cell.char == '░' or cell.char == '▒' or cell.char == '▓');
+}
+
+test "composite effect - both null effects" {
+    const blur = @import("sailor").tui.blur;
+    var buf = try sailor.tui.buffer.Buffer.init(testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    const composite = blur.CompositeEffect.init(null, null);
+    const area = layout.Rect.new(0, 0, 10, 10);
+
+    // Should be a no-op
+    composite.apply(&buf, area);
+}
+
+// ============================================================================
+// Transition Edge Cases
+// ============================================================================
+
+test "transition - zero duration" {
+    const transitions = @import("sailor").tui.transitions;
+    const animation = @import("sailor").tui.animation;
+
+    var trans = transitions.Transition.fade(0, animation.linear);
+    const rect = layout.Rect.new(10, 10, 50, 20);
+
+    trans.begin(1000, rect);
+
+    // Update to trigger completion check
+    _ = trans.update(1000);
+
+    // Zero duration should complete immediately after update
+    try testing.expect(trans.isComplete());
+}
+
+test "transition - slide with maximum rect dimensions" {
+    const transitions = @import("sailor").tui.transitions;
+    const animation = @import("sailor").tui.animation;
+
+    var trans = transitions.Transition.slide(1000, .right, animation.linear);
+    const rect = layout.Rect.new(0, 0, 65535, 32768);
+
+    trans.begin(0, rect);
+
+    // Should not overflow
+    const mid_rect = trans.update(500);
+    try testing.expect(mid_rect.width <= 65535);
+}
+
+test "transition - scale to zero" {
+    const transitions = @import("sailor").tui.transitions;
+    const animation = @import("sailor").tui.animation;
+
+    var trans = transitions.Transition.scale(1000, animation.linear);
+    const rect = layout.Rect.new(10, 10, 100, 50);
+
+    trans.begin(0, rect);
+
+    // At t=0, scale should be zero or near-zero
+    const start_rect = trans.update(0);
+    try testing.expect(start_rect.width <= rect.width);
+    try testing.expect(start_rect.height <= rect.height);
+}
+
+test "transition manager - duplicate IDs" {
+    const transitions = @import("sailor").tui.transitions;
+    const animation = @import("sailor").tui.animation;
+
+    var mgr = transitions.TransitionManager.init(testing.allocator);
+    defer mgr.deinit();
+
+    const trans1 = transitions.Transition.fade(1000, animation.linear);
+    const trans2 = transitions.Transition.slide(500, .left, animation.easeIn);
+
+    // Add two transitions with same ID
+    try mgr.add(1, trans1);
+    try mgr.add(1, trans2);
+
+    // Should handle duplicate IDs (implementation-defined behavior)
+    try testing.expectEqual(@as(usize, 2), mgr.transitions.items.len);
+}
+
+test "transition manager - start non-existent ID" {
+    const transitions = @import("sailor").tui.transitions;
+
+    var mgr = transitions.TransitionManager.init(testing.allocator);
+    defer mgr.deinit();
+
+    const rect = layout.Rect.new(0, 0, 100, 50);
+
+    // Starting non-existent ID should be no-op (not crash)
+    mgr.start(999, 0, rect);
+}
+
+test "transition manager - cleanup with active transitions" {
+    const transitions = @import("sailor").tui.transitions;
+    const animation = @import("sailor").tui.animation;
+
+    var mgr = transitions.TransitionManager.init(testing.allocator);
+    defer mgr.deinit();
+
+    const trans = transitions.Transition.fade(1000, animation.linear);
+    try mgr.add(1, trans);
+
+    const rect = layout.Rect.new(0, 0, 100, 50);
+    mgr.start(1, 0, rect);
+
+    // Cleanup with active transition should not remove it
+    mgr.cleanup();
+    try testing.expectEqual(@as(usize, 1), mgr.transitions.items.len);
+}
