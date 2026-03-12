@@ -55,6 +55,7 @@ pub const blur = @import("blur.zig");
 
 // v1.12.0+ — Enterprise & Accessibility
 pub const session = @import("session.zig");
+pub const audit = @import("audit.zig");
 
 // Phase 4+ widgets
 pub const widgets = struct {
