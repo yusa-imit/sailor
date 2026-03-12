@@ -57,6 +57,7 @@ pub const blur = @import("blur.zig");
 pub const session = @import("session.zig");
 pub const audit = @import("audit.zig");
 pub const screen_reader = @import("screen_reader.zig");
+pub const keyboard_nav = @import("keyboard_nav.zig");
 
 // Phase 4+ widgets
 pub const widgets = struct {
