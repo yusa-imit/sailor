@@ -9,11 +9,11 @@
 - Previous versions: v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.11.0 🚧 IN PROGRESS (2/5, 40%)
+- **Post-v1.0 Milestones**: v1.11.0 🚧 IN PROGRESS (3/5, 60%)
   - [x] Sixel graphics protocol support (inline images in compatible terminals) — src/tui/sixel.zig (18 tests)
   - [x] Kitty graphics protocol support (high-performance image rendering) — src/tui/kitty.zig (18 tests)
   - [x] Graphics integration tests — tests/graphics_integration_test.zig (17 tests)
-  - [ ] Animated widget transitions (fade, slide, grow/shrink)
+  - [x] Animated widget transitions (fade, slide, grow/shrink) — src/tui/transitions.zig (27 tests)
   - [ ] Particle effects system (confetti, sparkles for celebrations)
   - [ ] Blur/transparency effects (where terminal supports it)
 
@@ -117,6 +117,25 @@ All consumer projects can now upgrade to v1.10.0 with mouse, gamepad, and touch 
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-12 13:00 (Hour 13 - Feature Cycle)** 🎬 ANIMATED WIDGET TRANSITIONS:
+  - **MODE**: FEATURE (hour % 3 != 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 922 passing (+27 new transition tests, 8 skipped)
+  - ✅ Cross-platform: All 6 targets verified
+  - 🎬 **ANIMATED WIDGET TRANSITIONS IMPLEMENTED** (3/5) — src/tui/transitions.zig (27 tests)
+    - Three transition types: fade, slide (4 directions: left/right/up/down), scale (grow/shrink from center)
+    - Transition struct with easing function support (linear, easeIn, easeOut, easeInOut, cubic variants)
+    - Rect interpolation with proper u16 overflow handling
+    - Alpha calculation for fade transitions (0.0-1.0 range)
+    - TransitionManager for concurrent multi-transition management
+    - Lifecycle: init → begin → update → isComplete → reset
+    - Integration with existing animation.zig easing functions
+    - Comprehensive test coverage: all 3 types, 4 slide directions, progress tracking, concurrent transitions
+  - 📊 **Progress**: v1.11.0 milestone 3/5 complete (60%)
+  - Commit: 9158df6 feat: add animated widget transitions (v1.11.0 3/5)
+  - **Impact**: TUI applications can now animate widget appearance with smooth transitions!
+
 - **2026-03-12 09:00 (Hour 9 - Stabilization Cycle)** 🧪 GRAPHICS INTEGRATION TESTS:
   - **MODE**: STABILIZATION (hour % 3 == 0)
   - ✅ CI Status: GREEN (all builds passing)
