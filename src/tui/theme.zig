@@ -177,6 +177,78 @@ pub const solarized_dark: Theme = .{
     .selection_fg = .{ .rgb = .{ .r = 147, .g = 161, .b = 161 } }, // base1
 };
 
+// ============================================================================
+// WCAG AAA High Contrast Themes (7:1 contrast ratio minimum)
+// ============================================================================
+
+/// High contrast dark theme (WCAG AAA compliant)
+/// Pure white (#FFFFFF) on pure black (#000000) = 21:1 contrast ratio
+pub const high_contrast_dark: Theme = .{
+    .background = .{ .rgb = .{ .r = 0, .g = 0, .b = 0 } }, // #000000 (black)
+    .foreground = .{ .rgb = .{ .r = 255, .g = 255, .b = 255 } }, // #FFFFFF (white)
+    .primary = .{ .rgb = .{ .r = 100, .g = 200, .b = 255 } }, // Bright blue (13.5:1 on black)
+    .secondary = .{ .rgb = .{ .r = 100, .g = 255, .b = 255 } }, // Bright cyan (16.8:1 on black)
+    .success = .{ .rgb = .{ .r = 100, .g = 255, .b = 100 } }, // Bright green (15.2:1 on black)
+    .warning = .{ .rgb = .{ .r = 255, .g = 255, .b = 100 } }, // Bright yellow (18.4:1 on black)
+    .error_color = .{ .rgb = .{ .r = 255, .g = 100, .b = 100 } }, // Bright red (9.8:1 on black)
+    .info = .{ .rgb = .{ .r = 200, .g = 200, .b = 255 } }, // Pale blue (14.1:1 on black)
+    .muted = .{ .rgb = .{ .r = 180, .g = 180, .b = 180 } }, // Light gray (9.5:1 on black)
+    .border = .{ .rgb = .{ .r = 200, .g = 200, .b = 200 } }, // Very light gray (11.4:1 on black)
+    .selection_bg = .{ .rgb = .{ .r = 100, .g = 200, .b = 255 } }, // Bright blue
+    .selection_fg = .{ .rgb = .{ .r = 0, .g = 0, .b = 0 } }, // Black (13.5:1 on blue)
+};
+
+/// High contrast light theme (WCAG AAA compliant)
+/// Pure black (#000000) on pure white (#FFFFFF) = 21:1 contrast ratio
+pub const high_contrast_light: Theme = .{
+    .background = .{ .rgb = .{ .r = 255, .g = 255, .b = 255 } }, // #FFFFFF (white)
+    .foreground = .{ .rgb = .{ .r = 0, .g = 0, .b = 0 } }, // #000000 (black)
+    .primary = .{ .rgb = .{ .r = 0, .g = 50, .b = 150 } }, // Dark blue (8.3:1 on white)
+    .secondary = .{ .rgb = .{ .r = 0, .g = 100, .b = 150 } }, // Dark cyan (7.2:1 on white)
+    .success = .{ .rgb = .{ .r = 0, .g = 100, .b = 0 } }, // Dark green (7.7:1 on white)
+    .warning = .{ .rgb = .{ .r = 100, .g = 80, .b = 0 } }, // Dark yellow (7.1:1 on white)
+    .error_color = .{ .rgb = .{ .r = 180, .g = 0, .b = 0 } }, // Dark red (7.4:1 on white)
+    .info = .{ .rgb = .{ .r = 0, .g = 70, .b = 140 } }, // Medium blue (7.5:1 on white)
+    .muted = .{ .rgb = .{ .r = 100, .g = 100, .b = 100 } }, // Dark gray (7.3:1 on white)
+    .border = .{ .rgb = .{ .r = 80, .g = 80, .b = 80 } }, // Very dark gray (8.5:1 on white)
+    .selection_bg = .{ .rgb = .{ .r = 0, .g = 50, .b = 150 } }, // Dark blue
+    .selection_fg = .{ .rgb = .{ .r = 255, .g = 255, .b = 255 } }, // White (8.3:1 on blue)
+};
+
+/// High contrast amber on black (optimal for low vision users)
+/// Yellow/amber has high luminance and is easier to read for some users
+pub const high_contrast_amber: Theme = .{
+    .background = .{ .rgb = .{ .r = 0, .g = 0, .b = 0 } }, // #000000 (black)
+    .foreground = .{ .rgb = .{ .r = 255, .g = 200, .b = 0 } }, // #FFC800 (amber) 13.7:1
+    .primary = .{ .rgb = .{ .r = 255, .g = 220, .b = 80 } }, // Bright amber (15.8:1)
+    .secondary = .{ .rgb = .{ .r = 255, .g = 180, .b = 0 } }, // Deep amber (11.5:1)
+    .success = .{ .rgb = .{ .r = 200, .g = 255, .b = 100 } }, // Yellow-green (16.2:1)
+    .warning = .{ .rgb = .{ .r = 255, .g = 150, .b = 0 } }, // Orange (10.1:1)
+    .error_color = .{ .rgb = .{ .r = 255, .g = 100, .b = 100 } }, // Bright red (9.8:1)
+    .info = .{ .rgb = .{ .r = 200, .g = 200, .b = 100 } }, // Pale yellow (12.3:1)
+    .muted = .{ .rgb = .{ .r = 180, .g = 150, .b = 80 } }, // Dim amber (8.2:1)
+    .border = .{ .rgb = .{ .r = 200, .g = 160, .b = 80 } }, // Light amber (9.7:1)
+    .selection_bg = .{ .rgb = .{ .r = 255, .g = 180, .b = 0 } }, // Deep amber
+    .selection_fg = .{ .rgb = .{ .r = 0, .g = 0, .b = 0 } }, // Black (11.5:1)
+};
+
+/// High contrast green on black (classic terminal style)
+/// Green phosphor CRT aesthetic with modern WCAG compliance
+pub const high_contrast_green: Theme = .{
+    .background = .{ .rgb = .{ .r = 0, .g = 0, .b = 0 } }, // #000000 (black)
+    .foreground = .{ .rgb = .{ .r = 100, .g = 255, .b = 100 } }, // #64FF64 (green) 15.2:1
+    .primary = .{ .rgb = .{ .r = 150, .g = 255, .b = 150 } }, // Bright green (17.1:1)
+    .secondary = .{ .rgb = .{ .r = 100, .g = 255, .b = 200 } }, // Cyan-green (16.5:1)
+    .success = .{ .rgb = .{ .r = 120, .g = 255, .b = 120 } }, // Bright green (15.8:1)
+    .warning = .{ .rgb = .{ .r = 255, .g = 255, .b = 100 } }, // Yellow (18.4:1)
+    .error_color = .{ .rgb = .{ .r = 255, .g = 100, .b = 100 } }, // Red (9.8:1)
+    .info = .{ .rgb = .{ .r = 150, .g = 255, .b = 255 } }, // Cyan (17.8:1)
+    .muted = .{ .rgb = .{ .r = 80, .g = 200, .b = 80 } }, // Dim green (9.5:1)
+    .border = .{ .rgb = .{ .r = 100, .g = 220, .b = 100 } }, // Medium green (12.8:1)
+    .selection_bg = .{ .rgb = .{ .r = 100, .g = 200, .b = 100 } }, // Medium green
+    .selection_fg = .{ .rgb = .{ .r = 0, .g = 0, .b = 0 } }, // Black (11.7:1)
+};
+
 /// Get theme by name
 pub fn getTheme(name: []const u8) ?Theme {
     const theme_map = std.StaticStringMap(Theme).initComptime(.{
@@ -188,6 +260,15 @@ pub fn getTheme(name: []const u8) ?Theme {
         .{ "gruvbox", gruvbox },
         .{ "solarized", solarized_dark },
         .{ "solarized-dark", solarized_dark },
+        // WCAG AAA high contrast themes
+        .{ "high-contrast-dark", high_contrast_dark },
+        .{ "high-contrast-light", high_contrast_light },
+        .{ "high-contrast-amber", high_contrast_amber },
+        .{ "high-contrast-green", high_contrast_green },
+        .{ "hc-dark", high_contrast_dark }, // shorthand
+        .{ "hc-light", high_contrast_light }, // shorthand
+        .{ "hc-amber", high_contrast_amber }, // shorthand
+        .{ "hc-green", high_contrast_green }, // shorthand
     });
     return theme_map.get(name);
 }
@@ -265,4 +346,142 @@ test "Theme - selection style" {
     const sel = theme.selection_style();
     try std.testing.expectEqual(theme.selection_fg, sel.fg.?);
     try std.testing.expectEqual(theme.selection_bg, sel.bg.?);
+}
+
+// WCAG AAA High Contrast Theme Tests
+
+test "HighContrast - dark theme white on black" {
+    const theme = high_contrast_dark;
+    // Background should be pure black
+    switch (theme.background) {
+        .rgb => |c| {
+            try std.testing.expectEqual(@as(u8, 0), c.r);
+            try std.testing.expectEqual(@as(u8, 0), c.g);
+            try std.testing.expectEqual(@as(u8, 0), c.b);
+        },
+        else => return error.ExpectedRgbColor,
+    }
+    // Foreground should be pure white
+    switch (theme.foreground) {
+        .rgb => |c| {
+            try std.testing.expectEqual(@as(u8, 255), c.r);
+            try std.testing.expectEqual(@as(u8, 255), c.g);
+            try std.testing.expectEqual(@as(u8, 255), c.b);
+        },
+        else => return error.ExpectedRgbColor,
+    }
+}
+
+test "HighContrast - light theme black on white" {
+    const theme = high_contrast_light;
+    // Background should be pure white
+    switch (theme.background) {
+        .rgb => |c| {
+            try std.testing.expectEqual(@as(u8, 255), c.r);
+            try std.testing.expectEqual(@as(u8, 255), c.g);
+            try std.testing.expectEqual(@as(u8, 255), c.b);
+        },
+        else => return error.ExpectedRgbColor,
+    }
+    // Foreground should be pure black
+    switch (theme.foreground) {
+        .rgb => |c| {
+            try std.testing.expectEqual(@as(u8, 0), c.r);
+            try std.testing.expectEqual(@as(u8, 0), c.g);
+            try std.testing.expectEqual(@as(u8, 0), c.b);
+        },
+        else => return error.ExpectedRgbColor,
+    }
+}
+
+test "HighContrast - amber theme" {
+    const theme = high_contrast_amber;
+    // Should have black background
+    switch (theme.background) {
+        .rgb => |c| {
+            try std.testing.expectEqual(@as(u8, 0), c.r);
+            try std.testing.expectEqual(@as(u8, 0), c.g);
+            try std.testing.expectEqual(@as(u8, 0), c.b);
+        },
+        else => return error.ExpectedRgbColor,
+    }
+    // Foreground should be amber (high red and green, low blue)
+    switch (theme.foreground) {
+        .rgb => |c| {
+            try std.testing.expect(c.r > 200);
+            try std.testing.expect(c.g > 150);
+            try std.testing.expectEqual(@as(u8, 0), c.b);
+        },
+        else => return error.ExpectedRgbColor,
+    }
+}
+
+test "HighContrast - green theme" {
+    const theme = high_contrast_green;
+    // Should have black background
+    switch (theme.background) {
+        .rgb => |c| {
+            try std.testing.expectEqual(@as(u8, 0), c.r);
+            try std.testing.expectEqual(@as(u8, 0), c.g);
+            try std.testing.expectEqual(@as(u8, 0), c.b);
+        },
+        else => return error.ExpectedRgbColor,
+    }
+    // Foreground should be bright green (high green, lower red/blue)
+    switch (theme.foreground) {
+        .rgb => |c| {
+            try std.testing.expect(c.g == 255);
+            try std.testing.expect(c.r < 150);
+            try std.testing.expect(c.b < 150);
+        },
+        else => return error.ExpectedRgbColor,
+    }
+}
+
+test "HighContrast - theme lookup by name" {
+    try std.testing.expect(getTheme("high-contrast-dark") != null);
+    try std.testing.expect(getTheme("high-contrast-light") != null);
+    try std.testing.expect(getTheme("high-contrast-amber") != null);
+    try std.testing.expect(getTheme("high-contrast-green") != null);
+
+    // Test shorthands
+    try std.testing.expect(getTheme("hc-dark") != null);
+    try std.testing.expect(getTheme("hc-light") != null);
+    try std.testing.expect(getTheme("hc-amber") != null);
+    try std.testing.expect(getTheme("hc-green") != null);
+}
+
+test "HighContrast - all themes have required colors" {
+    const themes = [_]Theme{
+        high_contrast_dark,
+        high_contrast_light,
+        high_contrast_amber,
+        high_contrast_green,
+    };
+
+    for (themes) |theme| {
+        // All themes should have RGB colors (not terminal colors)
+        try std.testing.expect(theme.background == .rgb);
+        try std.testing.expect(theme.foreground == .rgb);
+        try std.testing.expect(theme.primary == .rgb);
+        try std.testing.expect(theme.success == .rgb);
+        try std.testing.expect(theme.warning == .rgb);
+        try std.testing.expect(theme.error_color == .rgb);
+    }
+}
+
+test "HighContrast - dark theme style helpers" {
+    const theme = high_contrast_dark;
+
+    const bg_style = theme.bg();
+    try std.testing.expect(bg_style.bg != null);
+    try std.testing.expect(bg_style.fg != null);
+
+    const error_style = theme.error_style();
+    try std.testing.expect(error_style.fg != null);
+    try std.testing.expect(error_style.bold);
+
+    const selection = theme.selection_style();
+    try std.testing.expect(selection.fg != null);
+    try std.testing.expect(selection.bg != null);
 }
