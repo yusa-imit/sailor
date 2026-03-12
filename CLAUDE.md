@@ -524,6 +524,20 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [ ] Screen reader enhancements (ARIA-like semantic hints for terminal screen readers)
   - [ ] Keyboard-only navigation improvements (skip links, focus indicators)
 
+- [ ] **v1.13.0 — Advanced Text Editing & Rich Input** (0/5 complete)
+  - [ ] Syntax highlighting system (extensible lexer/parser for code editing)
+  - [ ] Code editor widget (line numbers, selection, undo/redo, syntax highlighting)
+  - [ ] Autocomplete widget (fuzzy matching, suggestion list, custom providers)
+  - [ ] Multi-cursor editing (simultaneous editing at multiple positions)
+  - [ ] Rich text input (inline formatting, emoji picker, markdown preview)
+
+- [ ] **v1.14.0 — Performance & Memory Optimization** (0/5 complete)
+  - [ ] Memory pooling system (reduce allocations for frequently created objects)
+  - [ ] Render profiling tools (identify slow widgets, bottleneck detection)
+  - [ ] Virtual widget rendering (only render widgets in viewport, skip off-screen)
+  - [ ] Incremental layout solver (cache layout results, only recompute on changes)
+  - [ ] Buffer compression (reduce memory footprint for large TUI applications)
+
 ### 마일스톤 수립 프로세스
 
 미완료 마일스톤이 **2개 이하**가 되면, 에이전트가 자율적으로 새 마일스톤을 수립한다.
