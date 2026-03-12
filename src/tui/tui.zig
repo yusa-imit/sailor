@@ -145,6 +145,11 @@ pub const widgets = struct {
     pub const CompletionPopup = @import("widgets/completion_popup.zig").CompletionPopup;
     pub const CompletionItem = @import("widgets/completion_popup.zig").CompletionItem;
     pub const ThemeEditor = @import("widgets/theme_editor.zig").ThemeEditor;
+
+    // v1.11.0+ widgets (Terminal Graphics & Effects)
+    pub const ParticleSystem = @import("widgets/particles.zig").ParticleSystem;
+    pub const ParticleType = @import("widgets/particles.zig").ParticleType;
+    pub const Particle = @import("widgets/particles.zig").Particle;
 };
 
 // Export commonly used types
