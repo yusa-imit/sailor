@@ -51,6 +51,7 @@ pub const async_loop = @import("async_loop.zig");
 pub const sixel = @import("sixel.zig");
 pub const kitty = @import("kitty.zig");
 pub const transitions = @import("transitions.zig");
+pub const blur = @import("blur.zig");
 
 // Phase 4+ widgets
 pub const widgets = struct {
@@ -191,6 +192,13 @@ pub const Scrollable = mouse_trait.Scrollable;
 pub const Hoverable = mouse_trait.Hoverable;
 pub const CompositeInteraction = mouse_trait.CompositeInteraction;
 pub const InteractionResult = mouse_trait.InteractionResult;
+
+// Export blur/transparency types (v1.11.0)
+pub const BlurEffect = blur.BlurEffect;
+pub const BlurMode = blur.BlurMode;
+pub const TransparencyEffect = blur.TransparencyEffect;
+pub const TransparencyMode = blur.TransparencyMode;
+pub const CompositeEffect = blur.CompositeEffect;
 
 /// Terminal wrapper for TUI applications (stub for Phase 3)
 pub const Terminal = struct {
