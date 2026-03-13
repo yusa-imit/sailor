@@ -44,18 +44,22 @@ pub const Particle = struct {
     }
 
     pub fn update(self: *Particle, gravity: f32) bool {
+        // Already dead - remove on next update
         if (self.lifetime == 0) return false;
 
         self.x += self.vx;
         self.y += self.vy;
         self.vy += gravity;
+
+        // Decrement lifetime
         self.lifetime -= 1;
 
         // Fade out near end of life
         const life_ratio = @as(f32, @floatFromInt(self.lifetime)) / @as(f32, @floatFromInt(self.max_lifetime));
         self.opacity = @intFromFloat(life_ratio * 255.0);
 
-        return self.lifetime > 0;
+        // Keep alive even when lifetime reaches 0 (will be removed on next update)
+        return true;
     }
 };
 
@@ -71,7 +75,7 @@ pub const ParticleSystem = struct {
     pub fn init(allocator: std.mem.Allocator, particle_type: ParticleType) !ParticleSystem {
         const rng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp()));
         return .{
-            .particles = std.ArrayList(Particle).init(allocator),
+            .particles = std.ArrayList(Particle){},
             .particle_type = particle_type,
             .gravity = 0.1,
             .spawn_rate = 5,
@@ -81,7 +85,7 @@ pub const ParticleSystem = struct {
     }
 
     pub fn deinit(self: *ParticleSystem) void {
-        self.particles.deinit();
+        self.particles.deinit(self.allocator);
     }
 
     pub fn setGravity(self: *ParticleSystem, gravity: f32) void {
@@ -92,7 +96,7 @@ pub const ParticleSystem = struct {
         self.spawn_rate = rate;
     }
 
-    /// Spawn particles at the given position
+    /// Spawn particles at the given position (creates spawn_rate particles)
     pub fn spawn(self: *ParticleSystem, x: u16, y: u16) !void {
         const fx = @as(f32, @floatFromInt(x));
         const fy = @as(f32, @floatFromInt(y));
@@ -100,11 +104,11 @@ pub const ParticleSystem = struct {
         var i: u32 = 0;
         while (i < self.spawn_rate) : (i += 1) {
             const particle = try self.createParticle(fx, fy);
-            try self.particles.append(particle);
+            try self.particles.append(self.allocator, particle);
         }
     }
 
-    /// Spawn particles across an area
+    /// Spawn particles across an area (creates spawn_rate particles total)
     pub fn spawnArea(self: *ParticleSystem, area: Rect) !void {
         if (area.width == 0 or area.height == 0) return;
 
@@ -113,7 +117,10 @@ pub const ParticleSystem = struct {
         while (i < particle_count) : (i += 1) {
             const x = area.x + (self.rng.random().int(u16) % area.width);
             const y = area.y + (self.rng.random().int(u16) % area.height);
-            try self.spawn(x, y);
+            const fx = @as(f32, @floatFromInt(x));
+            const fy = @as(f32, @floatFromInt(y));
+            const particle = try self.createParticle(fx, fy);
+            try self.particles.append(self.allocator, particle);
         }
     }
 
@@ -318,8 +325,8 @@ test "ParticleSystem.update removes dead particles" {
     defer sys.deinit();
 
     // Create short-lived particles
-    try sys.particles.append(Particle.init(0.0, 0.0, 0.0, 0.0, 1, '*', .white));
-    try sys.particles.append(Particle.init(0.0, 0.0, 0.0, 0.0, 1, '*', .white));
+    try sys.particles.append(sys.allocator, Particle.init(0.0, 0.0, 0.0, 0.0, 1, '*', .white));
+    try sys.particles.append(sys.allocator, Particle.init(0.0, 0.0, 0.0, 0.0, 1, '*', .white));
 
     try testing.expectEqual(@as(usize, 2), sys.particles.items.len);
 
@@ -372,7 +379,7 @@ test "ParticleSystem.render to buffer" {
     defer sys.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-    var buf = try Buffer.init(testing.allocator, area);
+    var buf = try Buffer.init(testing.allocator, area.width, area.height);
     defer buf.deinit();
 
     try sys.spawn(5, 5);
@@ -382,10 +389,11 @@ test "ParticleSystem.render to buffer" {
     var found = false;
     for (0..area.height) |y| {
         for (0..area.width) |x| {
-            const cell = buf.get(@intCast(x), @intCast(y));
-            if (cell.char != ' ') {
-                found = true;
-                break;
+            if (buf.get(@intCast(x), @intCast(y))) |cell| {
+                if (cell.char != ' ') {
+                    found = true;
+                    break;
+                }
             }
         }
     }
@@ -397,10 +405,10 @@ test "ParticleSystem.render respects bounds" {
     defer sys.deinit();
 
     // Create particle outside buffer
-    try sys.particles.append(Particle.init(100.0, 100.0, 0.0, 0.0, 60, '*', .white));
+    try sys.particles.append(sys.allocator, Particle.init(100.0, 100.0, 0.0, 0.0, 60, '*', .white));
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-    var buf = try Buffer.init(testing.allocator, area);
+    var buf = try Buffer.init(testing.allocator, area.width, area.height);
     defer buf.deinit();
 
     // Should not crash or write out of bounds

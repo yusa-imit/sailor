@@ -51,6 +51,7 @@ pub const async_loop = @import("async_loop.zig");
 pub const sixel = @import("sixel.zig");
 pub const kitty = @import("kitty.zig");
 pub const transitions = @import("transitions.zig");
+pub const particles = @import("widgets/particles.zig");
 pub const blur = @import("blur.zig");
 
 // v1.12.0+ — Enterprise & Accessibility
@@ -58,6 +59,9 @@ pub const session = @import("session.zig");
 pub const audit = @import("audit.zig");
 pub const screen_reader = @import("screen_reader.zig");
 pub const keyboard_nav = @import("keyboard_nav.zig");
+
+// v1.13.0+ — Advanced Text Editing & Rich Input
+pub const syntax = @import("syntax.zig");
 
 // Phase 4+ widgets
 pub const widgets = struct {
