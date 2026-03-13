@@ -9,13 +9,15 @@
 - Previous versions: v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.13.0 📋 NEXT (0/5, 0%)
-  - Advanced Text Editing & Rich Input planned
-  - Syntax highlighting system, code editor widget, autocomplete, multi-cursor, rich text input
+- **Post-v1.0 Milestones**: v1.13.0 🚧 IN PROGRESS (2/5, 40%)
+  - Advanced Text Editing & Rich Input
+  - ✅ Syntax highlighting system
+  - ✅ Code editor widget
+  - ⏳ Autocomplete widget, multi-cursor editing, rich text input
 
 ## Project Status
 ✅ **v1.12.0 COMPLETE & RELEASED** — Enterprise & Accessibility (5/5 features, 100%)
-📋 **v1.13.0 PLANNED** — Advanced Text Editing & Rich Input (0/5 features, 0%)
+🚧 **v1.13.0 IN PROGRESS** — Advanced Text Editing & Rich Input (2/5 features, 40%)
 
 ## Completed Phases
 
@@ -67,7 +69,7 @@
 All consumer projects can now upgrade to v1.10.0 with mouse, gamepad, and touch input support.
 
 ## Test Status
-- **Total Tests**: 895 passing, 8 skipped (updated 2026-03-12 Hour 9 STABILIZATION)
+- **Total Tests**: 1027 passing, 8 skipped (updated 2026-03-13 Hour 17 FEATURE)
   - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)
@@ -114,6 +116,27 @@ All consumer projects can now upgrade to v1.10.0 with mouse, gamepad, and touch 
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-13 17:00 (Hour 17 - Feature Cycle)** ✏️ CODE EDITOR WIDGET IMPLEMENTED:
+  - **MODE**: FEATURE (hour % 3 != 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 1027/1035 passing (+24 new editor tests, 8 skipped)
+  - ✅ Cross-platform: All 6 targets verified
+  - ✏️ **CODE EDITOR WIDGET IMPLEMENTED** (2/5) — src/tui/widgets/editor.zig (24 tests)
+    - Complete text editor with line numbers (auto-width calculation)
+    - Text selection with visual highlighting and position tracking
+    - Undo/redo stack for all edit operations
+    - Cursor positioning with boundary clamping
+    - Syntax highlighting integration (uses existing syntax.zig)
+    - Multi-line editing: insertChar, deleteChar, insertNewline
+    - Optional block borders and customizable styles
+    - Editor API: setText/getText, moveCursor, setSelection, setLanguage
+    - Builder pattern: setBlock(), setShowLineNumbers()
+    - Comprehensive test coverage: lifecycle, content, editing, undo/redo, cursor, selection, rendering
+  - 📊 **Progress**: v1.13.0 milestone 2/5 complete (40%)
+  - Commit: b8f5050 feat: add code editor widget (v1.13.0 2/5)
+  - **Impact**: TUI applications can now embed full-featured code editors with syntax highlighting!
+
 - **2026-03-13 09:00 (Hour 9 - Stabilization Cycle)** ✅ v1.12.0 DOCUMENTATION UPDATE:
   - **MODE**: STABILIZATION (hour % 3 == 0)
   - ✅ CI Status: GREEN (all builds passing)
