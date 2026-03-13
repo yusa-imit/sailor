@@ -161,6 +161,12 @@ pub const widgets = struct {
     pub const ParticleSystem = @import("widgets/particles.zig").ParticleSystem;
     pub const ParticleType = @import("widgets/particles.zig").ParticleType;
     pub const Particle = @import("widgets/particles.zig").Particle;
+
+    // v1.13.0+ widgets (Advanced Text Editing & Rich Input)
+    pub const Editor = @import("widgets/editor.zig").Editor;
+    pub const Selection = @import("widgets/editor.zig").Selection;
+    pub const Position = @import("widgets/editor.zig").Position;
+    pub const Edit = @import("widgets/editor.zig").Edit;
 };
 
 // Export commonly used types
