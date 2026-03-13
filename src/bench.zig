@@ -234,3 +234,23 @@ test "bench result creation" {
     try std.testing.expectEqual(@as(usize, 10000), result.iterations);
     try std.testing.expectEqual(@as(u64, 100), result.avg_ns);
 }
+
+test "benchBuffer runs without error" {
+    const allocator = std.testing.allocator;
+    var buffer: [8192]u8 = undefined;
+    var buf = std.io.fixedBufferStream(&buffer);
+
+    try benchBuffer(allocator, buf.writer());
+
+    // Verify benchmark completed (no crash)
+}
+
+test "runAll runs without error" {
+    const allocator = std.testing.allocator;
+    var buffer: [8192]u8 = undefined;
+    var buf = std.io.fixedBufferStream(&buffer);
+
+    try runAll(allocator, buf.writer());
+
+    // Verify benchmark suite completed (no crash)
+}
