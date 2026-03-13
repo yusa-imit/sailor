@@ -167,6 +167,7 @@ pub const widgets = struct {
     pub const Selection = @import("widgets/editor.zig").Selection;
     pub const Position = @import("widgets/editor.zig").Position;
     pub const Edit = @import("widgets/editor.zig").Edit;
+    pub const Autocomplete = @import("widgets/autocomplete.zig").Autocomplete;
 };
 
 // Export commonly used types
