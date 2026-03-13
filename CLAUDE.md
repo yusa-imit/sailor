@@ -524,8 +524,8 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] Screen reader enhancements (ARIA-like semantic hints for terminal screen readers)
   - [x] Keyboard-only navigation improvements (skip links, focus indicators)
 
-- [ ] **v1.13.0 — Advanced Text Editing & Rich Input** (0/5 complete)
-  - [ ] Syntax highlighting system (extensible lexer/parser for code editing)
+- [ ] **v1.13.0 — Advanced Text Editing & Rich Input** (1/5 complete)
+  - [x] Syntax highlighting system (extensible lexer/parser for code editing)
   - [ ] Code editor widget (line numbers, selection, undo/redo, syntax highlighting)
   - [ ] Autocomplete widget (fuzzy matching, suggestion list, custom providers)
   - [ ] Multi-cursor editing (simultaneous editing at multiple positions)
