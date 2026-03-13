@@ -168,6 +168,9 @@ pub const widgets = struct {
     pub const Position = @import("widgets/editor.zig").Position;
     pub const Edit = @import("widgets/editor.zig").Edit;
     pub const Autocomplete = @import("widgets/autocomplete.zig").Autocomplete;
+    pub const MultiCursorEditor = @import("widgets/multicursor.zig").MultiCursorEditor;
+    pub const RichTextInput = @import("widgets/richtext.zig").RichTextInput;
+    pub const EmojiCategory = @import("widgets/richtext.zig").RichTextInput.EmojiCategory;
 };
 
 // Export commonly used types
