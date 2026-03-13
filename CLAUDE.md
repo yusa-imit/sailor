@@ -517,12 +517,12 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [x] Particle effects system (confetti, sparkles for celebrations)
   - [x] Blur/transparency effects (where terminal supports it)
 
-- [ ] **v1.12.0 — Enterprise & Accessibility** (0/5 complete)
-  - [ ] Session recording & playback (record TUI interactions to file, replay for debugging)
-  - [ ] Audit logging (log all user interactions for compliance)
-  - [ ] High contrast themes (WCAG AAA compliance for accessibility)
-  - [ ] Screen reader enhancements (ARIA-like semantic hints for terminal screen readers)
-  - [ ] Keyboard-only navigation improvements (skip links, focus indicators)
+- [x] **v1.12.0 — Enterprise & Accessibility** ✅ COMPLETE & RELEASED
+  - [x] Session recording & playback (record TUI interactions to file, replay for debugging)
+  - [x] Audit logging (log all user interactions for compliance)
+  - [x] High contrast themes (WCAG AAA compliance for accessibility)
+  - [x] Screen reader enhancements (ARIA-like semantic hints for terminal screen readers)
+  - [x] Keyboard-only navigation improvements (skip links, focus indicators)
 
 - [ ] **v1.13.0 — Advanced Text Editing & Rich Input** (0/5 complete)
   - [ ] Syntax highlighting system (extensible lexer/parser for code editing)
@@ -537,6 +537,13 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
   - [ ] Virtual widget rendering (only render widgets in viewport, skip off-screen)
   - [ ] Incremental layout solver (cache layout results, only recompute on changes)
   - [ ] Buffer compression (reduce memory footprint for large TUI applications)
+
+- [ ] **v1.15.0 — Technical Debt & Stability** (0/5 complete)
+  - [ ] Fix async_loop.zig thread safety (resolve 6 skipped tests due to thread hanging)
+  - [ ] Implement XTGETTCAP terminal capability querying (replace env var detection in sixel/kitty)
+  - [ ] Add comprehensive platform-specific tests (Windows, Linux, macOS edge cases)
+  - [ ] Memory leak audit (valgrind/ASan integration, fix any discovered leaks)
+  - [ ] Cross-platform CI enhancements (test on real Windows/Linux/macOS VMs, not just cross-compile)
 
 ### 마일스톤 수립 프로세스
 
