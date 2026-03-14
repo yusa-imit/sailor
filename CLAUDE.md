@@ -41,7 +41,7 @@ Claude Code는 이 프로젝트에서 **완전 자율 개발**을 수행한다. 
 1. **작업 수신** → PRD 또는 사용자 지시를 분석
 2. **계획 수립** → 대화형 세션: `EnterPlanMode`로 사용자 승인; 자율 세션(`claude -p`): 내부적으로 계획 후 즉시 구현 진행 (plan mode 도구 사용 금지)
 3. **팀 구성** → 작업 복잡도에 따라 동적으로 팀/서브에이전트 생성
-4. **구현** → 코딩, 테스트, 리뷰를 병렬 수행
+4. **구현** → TDD 사이클: 테스트 작성(test-writer) → 구현(zig-developer) → 리뷰 순차 수행
 5. **검증** → `zig build test`로 전체 테스트 통과 확인
 6. **커밋** → 변경사항 커밋 (사용자 요청 시)
 7. **메모리 갱신** → `.claude/memory/`에 기록
@@ -52,16 +52,22 @@ Claude Code는 이 프로젝트에서 **완전 자율 개발**을 수행한다. 
 
 ```
 Leader (orchestrator)
-├── zig-developer   — 구현 담당
+├── test-writer     — 테스트 먼저 작성 (MUST run before zig-developer)
+├── zig-developer   — 테스트를 통과시키는 구현
 ├── code-reviewer   — 코드 리뷰 & 품질 보증
-├── test-writer     — 테스트 작성
 └── architect       — 설계 검토 (필요 시)
 ```
 
+**TDD 실행 규칙**:
+- `test-writer`는 모든 구현 작업에서 필수로 먼저 호출한다 (단일 파일 수정 포함)
+- `zig-developer`는 `test-writer`가 작성한 실패하는 테스트가 존재한 후에만 호출한다
+- 테스트 수정이 필요하면 `zig-developer`가 직접 수정하지 않고 `test-writer`를 재호출한다
+- 테스트는 커버리지 수치가 아닌 의미 있는 검증을 기준으로 작성한다
+
 **팀 생성 기준**:
-- 3개 이상 파일 수정이 필요한 작업 → 팀 구성
-- 단일 파일 수정 → 직접 수행
-- 아키텍처 변경 → architect 포함
+- 3개 이상 파일 수정 → 팀 구성 (test-writer 필수 포함)
+- 단일 파일 수정 → test-writer 서브에이전트 호출 후 직접 구현
+- 아키텍처 변경 → architect + test-writer 포함
 
 **팀 해산**: 작업 완료 후 반드시 `shutdown_request` → `TeamDelete`로 정리
 
@@ -93,9 +99,10 @@ Leader (orchestrator)
 **구현 루프** (Phase 3 상세):
 
 작업을 작은 단위로 분할하고, 각 단위마다 다음을 반복한다:
-1. 코드 작성 (하나의 모듈/파일 단위)
-2. 테스트 작성 및 `zig build test` 통과 확인
-3. 즉시 커밋 + `git push` — 다음 단위로 넘어가기 전에 반드시 수행
+1. **Red** — `test-writer` 호출: 요구사항을 검증하는 실패하는 테스트 작성
+2. **Green** — `zig-developer` 호출: 테스트를 통과시키는 최소한의 구현
+3. **Refactor** — 테스트 통과 상태에서 코드 정리 (테스트 수정 필요 시 `test-writer` 재호출)
+4. 즉시 커밋 + `git push` — 다음 단위로 넘어가기 전에 반드시 수행
 - 미커밋 변경사항을 여러 파일에 걸쳐 누적하지 않는다
 - 한 사이클 내에 완료할 수 없는 작업은 동작하는 중간 상태로 커밋+푸시한다
 - `git add -A` 금지 — 변경된 파일을 명시적으로 지정
@@ -203,6 +210,13 @@ gh issue list --state open --label bug --limit 5
 - 이전 세션의 미완료 작업이 있으면 먼저 완료
 - **GitHub 이슈 bug 라벨은 PRD 작업보다 항상 우선**
 
+**테스트 품질 감사** (Stability 세션 필수):
+- 무조건 통과하는 무의미한 테스트 식별 및 개선 (예: 빈 assertion, 항상 true인 조건)
+- 구현 코드를 그대로 복사한 expected value 제거
+- happy-path-only 테스트에 실패 시나리오 보강
+- 경계값, 에러 경로, 동시성 시나리오 누락 확인
+- `test-writer`를 호출하여 개선 방향 수립
+
 **세션 요약 템플릿**:
 
     ## Session Summary
@@ -262,7 +276,7 @@ API 변경 시 소비자 프로젝트 호환성을 반드시 고려한다.
 - **Naming**: camelCase for functions/variables, PascalCase for types, SCREAMING_SNAKE for constants
 - **Error handling**: Always use explicit error unions, never `catch unreachable` in library code
 - **Memory**: Prefer arena allocators for request-scoped work, GPA for long-lived allocations. Library functions accept `std.mem.Allocator` — never hardcode allocator.
-- **Testing**: Every public function must have corresponding tests in the same file
+- **Testing**: 모든 공개 함수는 구현 전에 실패하는 테스트를 먼저 작성한다 (TDD). 테스트는 커버리지가 아닌 실제 동작 검증에 집중한다
 - **Comments**: Only where logic is non-obvious. No doc comments on self-explanatory functions
 - **Imports**: Group stdlib, then project imports, then test imports
 
@@ -382,6 +396,8 @@ rm -rf zig-out .zig-cache
 11. **Respect CI** — CI 파이프라인 호환성 유지
 12. **Never force push** — 파괴적 git 명령어 금지
 13. **Agent activity logging** — Subagent/Team 호출 시 반드시 `.claude/logs/agent-activity.jsonl`에 로그 기록 (아래 Agent Activity Logging 섹션 참조)
+14. **TDD is mandatory** — 구현 전 반드시 `test-writer`로 실패하는 테스트를 작성. 테스트 수정 시에도 `test-writer` 재호출
+15. **Meaningful tests only** — 무조건 통과하는 테스트, 구현을 복사한 테스트, assertion 없는 테스트 금지. 테스트가 실패할 수 있는 조건이 명확해야 한다
 
 ---
 
