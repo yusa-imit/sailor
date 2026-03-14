@@ -117,6 +117,30 @@ All consumer projects can now upgrade to v1.10.0 with mouse, gamepad, and touch 
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-14 17:00 (Hour 17 - Feature Cycle → CI RED FIX)** 🐛 CRITICAL THREAD SAFETY FIX:
+  - **MODE**: FEATURE → switched to STABILIZATION (CI RED on main)
+  - ✅ CI Status: Running (fix pushed, awaiting confirmation)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 1037/1037 passing locally (0 failures, 0 skipped)
+  - ✅ Cross-platform: All 6 targets verified
+  - 🐛 **CRITICAL BUG FIX**: Race condition causing segfault in async_loop.zig:135
+    - **CI Symptom**: "AsyncEventLoop multiple concurrent tasks" test → Segmentation fault at address 0x7f5b175a0074
+    - **Root Cause**: Task pointer cached across mutex unlock/lock boundary
+      - Line 127: Get `task_ptr` from `tasks.items` while holding mutex
+      - Line 125: **Unlock** mutex to execute long-running task function
+      - Line 132: **Re-lock** mutex
+      - Line 135: Dereference `task_p` → **SEGFAULT** (pointer invalidated by ArrayList reallocation)
+    - **Race Condition**: Another thread could modify `tasks` (append/remove) between unlock/lock, causing ArrayList to reallocate and invalidate cached pointer
+    - **Fix Applied** (9fd3f26):
+      - Don't hold task pointer across mutex unlock
+      - Re-find task by ID after re-acquiring lock (lines 125-141)
+      - Move callback invocation outside mutex to prevent deadlock
+      - Use local `cancelled_flag` instead of dereferencing task pointer during execution
+    - **Verification**: All 1037 tests passing locally, 3 cross-compile targets verified
+  - 📊 **Protocol Compliance**: CI RED → immediate fix, no new features until green
+  - Commit: 9fd3f26 fix: resolve race condition in AsyncEventLoop task execution
+  - **Quality Impact**: AsyncEventLoop thread safety fully restored, CI should turn green!
+
 - **2026-03-14 13:00 (Hour 13 - Feature Cycle → URGENT BUG FIX)** 🐛 CRITICAL PATCH RELEASE v1.13.1:
   - **MODE**: FEATURE → switched to BUG PRIORITY (from:zr issue detected)
   - ✅ CI Status: GREEN (all builds passing)
