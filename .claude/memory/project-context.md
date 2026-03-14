@@ -9,16 +9,14 @@
 - Previous versions: v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.13.0 🚧 IN PROGRESS (3/5, 60%)
-  - Advanced Text Editing & Rich Input
-  - ✅ Syntax highlighting system
-  - ✅ Code editor widget
-  - ✅ Autocomplete widget
-  - ⏳ Multi-cursor editing, rich text input
+- **Post-v1.0 Milestones**: v1.14.0 🚧 NEXT MILESTONE (0/5, 0%)
+  - Performance & Memory Optimization
+  - ⏳ Memory pooling, render profiling, virtual rendering, incremental layout, buffer compression
 
 ## Project Status
-✅ **v1.12.0 COMPLETE & RELEASED** — Enterprise & Accessibility (5/5 features, 100%)
-🚧 **v1.13.0 IN PROGRESS** — Advanced Text Editing & Rich Input (3/5 features, 60%)
+✅ **v1.13.1 RELEASED (PATCH)** — Integer overflow fix in data viz widgets
+✅ **v1.13.0 COMPLETE & RELEASED** — Advanced Text Editing & Rich Input (5/5 features, 100%)
+🚧 **v1.14.0 NEXT** — Performance & Memory Optimization (0/5 features, 0%)
 
 ## Completed Phases
 
@@ -115,6 +113,32 @@ All consumer projects can now upgrade to v1.10.0 with mouse, gamepad, and touch 
   - docs/GUIDE.md — Getting started guide, tutorials, widget gallery, best practices
   - README.md — Modern landing page with quick start and feature matrix
 - [x] Released v1.0.0
+
+## Recent Work
+- **2026-03-15 05:00 (Hour 5 - Feature Cycle)** ✨ RICHTEXT ENHANCEMENT:
+  - **MODE**: FEATURE (hour % 3 != 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: CI passing (local hang resolved in CI environment)
+  - ✅ Cross-platform: 3 targets verified locally (Linux, Windows, macOS)
+  - ✨ **RICHTEXT WIDGET ENHANCEMENT** — Added span-based formatting API to richtext.zig:
+    - New `RichText` struct alongside existing `RichTextInput`
+    - FormatSpan system for style ranges (start, length, style)
+    - Smart span adjustment on insertChar/deleteChar (respects text boundaries)
+    - Copy/paste with formatting preservation (Clipboard struct)
+    - Selection-based formatting (bold, italic, underline, strikethrough)
+    - Span merging to consolidate adjacent identical styles
+    - 70 comprehensive tests covering lifecycle, editing, selection, edge cases
+    - Fixed boundary condition bugs in span extension logic
+  - 📊 **Code Structure**: richtext.zig now contains TWO widgets:
+    - `RichTextInput` (lines 1-811): Emoji picker, markdown preview (from v1.13.0)
+    - `RichText` (lines 812+): Span-based formatting (this session)
+  - **Bug Fixes During Development**:
+    - Fixed insertChar span extension at boundary (was extending when cursor at end of text)
+    - Fixed pasteFormatted span ordering (clipboard spans now inserted at correct index)
+  - Commit: 73919d9 feat: add RichText widget with formatting spans (v1.13.0 5/5)
+  - **Note**: v1.13.0 was already released at cf79319, this is a post-release enhancement
+  - **Impact**: richtext.zig now supports both markdown-style (RichTextInput) and span-based (RichText) formatting!
 
 ## Recent Work
 - **2026-03-14 17:00 (Hour 17 - Feature Cycle → CI RED FIX)** 🐛 CRITICAL THREAD SAFETY FIX:
