@@ -1,7 +1,7 @@
 # sailor — Claude Code Orchestrator
 
 > **sailor**: Zig TUI framework & CLI toolkit
-> Current Phase: **Phase 6 — Polish**
+> All phases complete (v1.0.0+). Post-release development via milestones.
 
 ---
 
@@ -17,71 +17,18 @@
 
 ```
 sailor/
-├── CLAUDE.md                    # THIS FILE — orchestrator
-├── docs/PRD.md                  # Product Requirements Document
-├── .gitignore                   # Git ignore rules
-├── .claude/
-│   ├── agents/                  # Custom subagent definitions
-│   │   ├── zig-developer.md     #   model: sonnet — Zig 구현
-│   │   ├── code-reviewer.md     #   model: sonnet — 코드 리뷰
-│   │   ├── test-writer.md       #   model: sonnet — 테스트 작성
-│   │   ├── architect.md         #   model: opus   — 아키텍처 설계
-│   │   ├── git-manager.md       #   model: haiku  — Git 운영
-│   │   └── ci-cd.md             #   model: haiku  — CI/CD 관리
-│   ├── commands/                # Slash commands
-│   ├── memory/                  # Persistent agent memory
-│   └── settings.json            # Claude Code permissions
-├── .github/workflows/           # CI/CD pipelines
-│   └── ci.yml                   #   Build, test, cross-compile
-├── src/                         # Library source
-│   ├── sailor.zig               #   Root module — pub exports
-│   ├── term.zig                 #   Terminal backend
-│   ├── color.zig                #   Styled output
-│   ├── arg.zig                  #   Argument parser
-│   ├── repl.zig                 #   Interactive REPL
-│   ├── progress.zig             #   Progress indicators
-│   ├── fmt.zig                  #   Result formatting
-│   └── tui/                     #   TUI framework
-│       ├── tui.zig              #     Terminal, Frame, event loop
-│       ├── buffer.zig           #     Cell buffer, diff engine
-│       ├── layout.zig           #     Constraint solver
-│       ├── style.zig            #     Style, Color, Span, Line
-│       ├── symbols.zig          #     Box-drawing character sets
-│       └── widgets/             #     Built-in widgets
-│           ├── block.zig
-│           ├── paragraph.zig
-│           ├── list.zig
-│           ├── table.zig
-│           ├── tree.zig
-│           ├── input.zig
-│           ├── textarea.zig
-│           ├── tabs.zig
-│           ├── gauge.zig
-│           ├── sparkline.zig
-│           ├── barchart.zig
-│           ├── linechart.zig
-│           ├── canvas.zig
-│           ├── dialog.zig
-│           ├── notification.zig
-│           ├── popup.zig
-│           └── statusbar.zig
-├── tests/                       # Tests
-│   ├── term_test.zig
-│   ├── color_test.zig
-│   ├── arg_test.zig
-│   ├── repl_test.zig
-│   ├── progress_test.zig
-│   ├── fmt_test.zig
-│   ├── buffer_test.zig
-│   ├── layout_test.zig
-│   └── widget_test.zig
-└── examples/                    # Example applications
-    ├── hello.zig                #   Minimal TUI app
-    ├── counter.zig              #   Interactive counter
-    └── dashboard.zig            #   Multi-widget dashboard
+├── CLAUDE.md / docs/PRD.md      # Orchestrator / Requirements
+├── .claude/                     # Agents, commands, memory, settings
+├── .github/workflows/ci.yml     # CI/CD pipeline
+├── src/
+│   ├── sailor.zig               # Root module — pub exports
+│   ├── term.zig / color.zig / arg.zig / repl.zig / progress.zig / fmt.zig
+│   └── tui/                     # TUI framework (tui, buffer, layout, style, symbols, 17 widgets)
+├── tests/                       # Module tests (*_test.zig)
+└── examples/                    # hello, counter, dashboard
 ```
 
-> **Note**: 파일 구조는 참고안. 실제 구현에 따라 변경 가능하며, 소스 코드가 기준.
+> **Note**: 파일 구조는 참고안. 소스 코드가 기준.
 
 ---
 
@@ -128,18 +75,19 @@ Leader (orchestrator)
 3. `.claude/memory/decisions.md` — 기술 결정 로그
 4. `.claude/memory/debugging.md` — 알려진 이슈와 해결법
 5. `.claude/memory/patterns.md` — 검증된 코드 패턴
+6. `docs/milestones.md` — 마일스톤 로드맵, 의존성 추적
 
 **9단계 실행 사이클**:
 
 | Phase | 내용 | 비고 |
 |-------|------|------|
-| 1. 상태 파악 | `/status` 실행, git log·빌드·테스트 상태 점검 | 체크리스트에서 다음 미완료 항목 식별 |
+| 1. 상태 파악 | `/status` 실행, git log·빌드·테스트 상태 점검 | `docs/milestones.md`에서 다음 미완료 항목 식별 |
 | 1.5. 이슈 확인 | `gh issue list --state open --limit 10` | 아래 **이슈 우선순위 프로토콜** 참조 |
 | 2. 계획 | 구현 전략을 내부적으로 수립 (텍스트 출력) | `EnterPlanMode`/`ExitPlanMode` 사용 금지 — 비대화형 세션에서 블로킹됨 |
 | 3. 구현 → 검증 → 커밋 (반복) | 아래 **구현 루프** 참조 | 단위별로 즉시 커밋+푸시 |
 | 4. 코드 리뷰 | `/review` — PRD 준수·메모리 안전성·테스트 커버리지 확인 | 이슈 발견 시 수정 후 재커밋 |
 | 5. 릴리즈 판단 | 마일스톤 완료 또는 버그 수정 시 **자동 릴리즈** | 아래 **릴리즈 판단 프로토콜** 참조 |
-| 6. 메모리 갱신 | `.claude/memory/` 파일 업데이트 | 별도 커밋: `chore: update session memory` → push |
+| 6. 메모리 갱신 | `.claude/memory/` + `docs/milestones.md` 업데이트 | 별도 커밋: `chore: update session memory` → push |
 | 7. 세션 요약 | 구조화된 요약 출력 | 아래 템플릿 참조 |
 
 **구현 루프** (Phase 3 상세):
@@ -190,7 +138,7 @@ gh issue list --state open --label bug --limit 5
 **판단 로직**:
 - 태그 이후 커밋 없음 → **SKIP** (릴리즈 불필요)
 - `fix:` 커밋만 존재 → **PATCH** (v1.0.X)
-- 마일스톤 완료 (`[x]` 모두 체크) → **MINOR** (v1.X.0)
+- 마일스톤 완료 (`docs/milestones.md`에서 `[x]` 모두 체크) → **MINOR** (v1.X.0)
 - **MAJOR** (v2.0.0) → 사용자 지시 시에만 수행
 
 **공통 릴리즈 조건 (ALL must be true)**:
@@ -221,34 +169,30 @@ gh issue list --state open --label bug --limit 5
 4. 푸시: `git push origin v1.0.X`
 5. GitHub Release: `gh release create v1.0.X --title "v1.0.X: <요약>" --notes "<릴리즈 노트>"`
 6. 관련 이슈에 릴리즈 코멘트 추가
-7. 소비자 프로젝트 CLAUDE.md에 패치 안내 추가
+7. 소비자 프로젝트에 마이그레이션 이슈 발행 (아래 **Release & Consumer Migration Protocol** 참조)
 8. Discord 알림: `openclaw message send --channel discord --target user:264745080709971968 --message "[sailor] Released v1.0.X — <요약>"`
 
 ---
 
 **마이너 릴리즈 (v1.X.0)**:
 
-**Post-v1.0 Milestones** 섹션의 마일스톤이 완료되었을 때 발행한다. 단순 feat 커밋만으로는 마이너 릴리즈하지 않는다.
+`docs/milestones.md`의 마일스톤이 완료되었을 때 발행한다. 단순 feat 커밋만으로는 마이너 릴리즈하지 않는다.
 
 **릴리즈 조건 (패치 조건 + 추가)**:
 - 해당 마일스톤의 체크리스트 항목이 **모두 완료** (`[x]`)
 
 **마이너 릴리즈 절차**:
 1. `build.zig.zon`의 version 업데이트 (예: `"1.0.0"` → `"1.1.0"`)
-2. CLAUDE.md 마일스톤 체크리스트에 완료 표시
+2. `docs/milestones.md` 마일스톤 체크리스트에 완료 표시
 3. 커밋: `chore: bump version to v1.X.0`
 4. 태그: `git tag -a v1.X.0 -m "Release v1.X.0: <마일스톤 요약>"`
 5. 푸시: `git push && git push origin v1.X.0`
 6. GitHub Release 생성: `gh release create v1.X.0 --title "v1.X.0: <마일스톤 요약>" --notes "<릴리즈 노트>"`
-7. 소비자 프로젝트 알림 — 각 프로젝트의 CLAUDE.md에서 해당 버전 `status: PENDING` → `status: READY`:
-   - `../zr/CLAUDE.md`
-   - `../zoltraak/CLAUDE.md`
-   - `../silica/CLAUDE.md`
-   - 각각 커밋: `chore: mark sailor v1.X.0 migration as ready`
+7. 소비자 프로젝트에 마이그레이션 이슈 발행 (아래 **Release & Consumer Migration Protocol** 참조)
 8. 관련 이슈 닫기: `gh issue close <number> --comment "Resolved in v1.X.0"`
 9. Discord 알림: `openclaw message send --channel discord --target user:264745080709971968 --message "[sailor] Released v1.X.0 — <요약>"`
 10. 관련 이슈에 릴리즈 코멘트 추가
-11. **마일스톤 보충**: 미완료 마일스톤이 2개 이하이면 마일스톤 수립 프로세스 실행
+11. **마일스톤 보충**: 미완료 마일스톤이 2개 이하이면 마일스톤 수립 프로세스 실행 (`docs/milestones.md` 참조)
 
 **작업 선택 규칙**:
 - `build.zig`가 없으면 프로젝트 부트스트랩부터 시작
@@ -394,173 +338,11 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
 
 ---
 
-## Phase Implementation Roadmap
+## Milestones & Dependencies
 
-### Phase 1 — Terminal + CLI Foundation (v0.1.0) ✅ RELEASED
-- [x] `src/term.zig` — Raw mode, key reading, TTY detection, terminal size
-- [x] `src/color.zig` — ANSI codes, styles, 256/truecolor, NO_COLOR
-- [x] `src/arg.zig` — Flag parsing, subcommands, help generation
-- [x] Tests for all Phase 1 modules (102/102 passing)
-- [x] CI pipeline passing
+All 6 phases complete (v1.0.0). See `docs/PRD.md` for original requirements.
 
-### Phase 2 — Interactive (v0.2.0) ✅ RELEASED
-- [x] `src/repl.zig` — Line editing, history, completion, highlighting
-- [x] `src/progress.zig` — Bar, spinner, multi-progress
-- [x] `src/fmt.zig` — Table, JSON, CSV, plain output
-- [x] Tests for all Phase 2 modules
-
-### Phase 3 — TUI Core (v0.3.0) ✅ COMPLETE
-- [x] `src/tui/style.zig` — Style, Color, Span, Line
-- [x] `src/tui/symbols.zig` — Box-drawing sets
-- [x] `src/tui/layout.zig` — Constraint solver
-- [x] `src/tui/buffer.zig` — Cell grid, double buffering, diff
-- [x] `src/tui/tui.zig` — Terminal wrapper, Frame, event loop
-- [x] Tests for TUI core (96 tests passing)
-
-### Phase 4 — Core Widgets (v0.4.0) ✅ COMPLETE
-- [x] Block, Paragraph, List, Table, Input, Tabs, StatusBar, Gauge
-- [x] All 8 core widgets implemented with comprehensive tests
-- [ ] Consumer migration: zr, zoltraak-cli, silica shell prototypes (next phase)
-
-### Phase 5 — Advanced Widgets (v0.5.0) ✅ RELEASED
-- [x] Tree, TextArea, Sparkline, BarChart, LineChart
-- [x] Canvas, Dialog, Popup, Notification
-- [x] v0.5.1 patch: fix 4 consumer project bugs (#3, #4, #5, #6)
-
-### Phase 6 — Polish (v1.0.0) ✅ COMPLETE
-- [x] Theming system
-- [x] Animation support
-- [x] Performance benchmarks
-- [x] Example applications (hello, counter, dashboard)
-- [x] Comprehensive documentation
-
----
-
-## Post-v1.0 Milestones
-
-모든 Phase가 완료된 이후, 기능 개선은 마일스톤 단위로 관리한다.
-
-- [x] **v1.1.0 — Accessibility & Internationalization** ✅ COMPLETE
-  - [x] Screen reader hints (ARIA-like terminal annotations)
-  - [x] Focus management system (tab order, focus ring visualization)
-  - [x] Keyboard navigation protocol (widget-level key binding registration)
-  - [x] Unicode width calculation improvements (CJK wide characters, emoji)
-  - [x] Bidirectional text support (RTL rendering in Paragraph/Input)
-
-- [x] **v1.2.0 — Layout & Composition** ✅ COMPLETE
-  - [x] Grid layout (CSS Grid-inspired 2D constraint solver)
-  - [x] Scrollable viewport widget (virtual scrolling for large content)
-  - [x] Overlay/z-index system (non-modal popups, tooltips)
-  - [x] Widget composition helpers (split panes, resizable borders)
-  - [x] Responsive breakpoints (adapt layout to terminal size thresholds)
-
-- [x] **v1.3.0 — Performance & Developer Experience** ✅ COMPLETE
-  - [x] Render budget tracking (frame time budget, skip frames if overdue)
-  - [x] Lazy rendering (only compute visible cells for large buffers)
-  - [x] Event batching (coalesce rapid resize/key events)
-  - [x] Debug overlay (show layout rects, render stats, event log)
-  - [x] Hot-reload support for themes (watch theme file, apply without restart)
-
-- [x] **v1.4.0 — Advanced Input & Forms** ✅ COMPLETE & RELEASED
-  - [x] Form widget (field validation, submit/cancel handlers)
-  - [x] Select/Dropdown widget (single/multi-select with keyboard nav)
-  - [x] Checkbox widget (single and grouped checkboxes)
-  - [x] RadioGroup widget (mutually exclusive selection)
-  - [x] Input validators and masks (email, URL, number, custom patterns)
-
-- [x] **v1.5.0 — State Management & Testing** ✅ COMPLETE
-  - [x] Event bus system (pub/sub for cross-widget communication)
-  - [x] Command pattern (undo/redo support for stateful widgets)
-  - [x] Test utilities (MockTerminal, EventSimulator for integration tests)
-  - [x] Widget snapshot testing (assert rendered output matches expected)
-  - [x] Example test suite (comprehensive integration test patterns)
-
-- [x] **v1.6.0 — Data Visualization & Advanced Charts** ✅ COMPLETE
-  - [x] Heatmap widget (2D data visualization with color gradients)
-  - [x] PieChart widget (circular percentage display with legend)
-  - [x] ScatterPlot widget (X-Y coordinate plotting with markers)
-  - [x] Histogram widget (frequency distribution bars)
-  - [x] TimeSeriesChart widget (time-based line chart with axis labels)
-
-- [x] **v1.7.0 — Advanced Layout & Rendering** ✅ COMPLETE & RELEASED
-  - [x] FlexBox layout (CSS flexbox-inspired with justify-content/align-items)
-  - [x] Viewport clipping (render only visible region for huge buffers)
-  - [x] Shadow/border effects (3D appearance for widgets)
-  - [x] Custom widget traits (extensible widget protocol with render/measure)
-  - [x] Layout caching (reuse constraint computation between frames)
-
-- [x] **v1.8.0 — Network & Async Integration** ✅ COMPLETE & RELEASED
-  - [x] HTTP client widget (download progress bar, streaming display)
-  - [x] WebSocket widget (live data feed with auto-scroll)
-  - [x] Async event loop integration (non-blocking I/O for network ops)
-  - [x] Background task widget (parallel operation status indicator)
-  - [x] Log viewer widget (tail -f style with filtering and search)
-
-- [x] **v1.9.0 — Developer Tools & Ecosystem** ✅ COMPLETE & RELEASED
-  - [x] Widget debugger (inspect widget tree, layout bounds visualization)
-  - [x] Performance profiler widget (frame times, allocation stats, hot paths)
-  - [x] REPL completion popup (implement TODO from repl.zig)
-  - [x] Theme editor TUI (live theme customization with preview)
-  - [x] Widget gallery app (text listing of 40+ widgets — interactive demo deferred to future milestone)
-
-- [x] **v1.10.0 — Mouse & Gamepad Input** ✅ COMPLETE & RELEASED
-  - [x] Mouse event handling (click, drag, scroll, double-click)
-  - [x] Widget-level mouse interaction protocol (clickable, draggable, scrollable traits)
-  - [x] Gamepad/controller input support (D-pad, buttons, analog sticks)
-  - [x] Touch gesture recognition (swipe, pinch, tap for future terminal emulators)
-  - [x] Input mapping configuration (rebind mouse/gamepad to keyboard equivalents)
-
-- [x] **v1.11.0 — Terminal Graphics & Effects** ✅ COMPLETE
-  - [x] Sixel graphics protocol support (inline images in compatible terminals)
-  - [x] Kitty graphics protocol support (high-performance image rendering)
-  - [x] Animated widget transitions (fade, slide, grow/shrink)
-  - [x] Particle effects system (confetti, sparkles for celebrations)
-  - [x] Blur/transparency effects (where terminal supports it)
-
-- [x] **v1.12.0 — Enterprise & Accessibility** ✅ COMPLETE & RELEASED
-  - [x] Session recording & playback (record TUI interactions to file, replay for debugging)
-  - [x] Audit logging (log all user interactions for compliance)
-  - [x] High contrast themes (WCAG AAA compliance for accessibility)
-  - [x] Screen reader enhancements (ARIA-like semantic hints for terminal screen readers)
-  - [x] Keyboard-only navigation improvements (skip links, focus indicators)
-
-- [x] **v1.13.0 — Advanced Text Editing & Rich Input** ✅ COMPLETE
-  - [x] Syntax highlighting system (extensible lexer/parser for code editing)
-  - [x] Code editor widget (line numbers, selection, undo/redo, syntax highlighting)
-  - [x] Autocomplete widget (fuzzy matching, suggestion list, custom providers)
-  - [x] Multi-cursor editing (simultaneous editing at multiple positions)
-  - [x] Rich text input (inline formatting, emoji picker, markdown preview)
-
-- [ ] **v1.14.0 — Performance & Memory Optimization** (0/5 complete)
-  - [ ] Memory pooling system (reduce allocations for frequently created objects)
-  - [ ] Render profiling tools (identify slow widgets, bottleneck detection)
-  - [ ] Virtual widget rendering (only render widgets in viewport, skip off-screen)
-  - [ ] Incremental layout solver (cache layout results, only recompute on changes)
-  - [ ] Buffer compression (reduce memory footprint for large TUI applications)
-
-- [ ] **v1.15.0 — Technical Debt & Stability** (0/5 complete)
-  - [ ] Fix async_loop.zig thread safety (resolve 6 skipped tests due to thread hanging)
-  - [ ] Implement XTGETTCAP terminal capability querying (replace env var detection in sixel/kitty)
-  - [ ] Add comprehensive platform-specific tests (Windows, Linux, macOS edge cases)
-  - [ ] Memory leak audit (valgrind/ASan integration, fix any discovered leaks)
-  - [ ] Cross-platform CI enhancements (test on real Windows/Linux/macOS VMs, not just cross-compile)
-
-### 마일스톤 수립 프로세스
-
-미완료 마일스톤이 **2개 이하**가 되면, 에이전트가 자율적으로 새 마일스톤을 수립한다.
-
-**입력 소스** (우선순위 순):
-1. `gh issue list --state open --label feature-request` — 사용자/소비자 요청 기능
-2. `docs/PRD.md` — 미구현 PRD 항목
-3. 소비자 프로젝트 피드백 — zr, silica, zoltraak에서 발행한 `from:*` 이슈
-4. 기술 부채 — Known Limitations, TODO, 성능 병목
-5. Zig 버전 업데이트 대응
-
-**수립 규칙**:
-- 마일스톤 하나는 단일 테마로 구성
-- 1-2주 내 완료 가능한 범위로 스코프 설정
-- 버전 번호는 마지막 마일스톤의 다음 번호로 자동 부여
-- 수립 후 체크리스트에 추가하고 커밋: `chore: add milestone v1.X.0`
+See `docs/milestones.md` for active milestones, completed releases, milestone establishment process, and dependency tracking (zuda compatibility).
 
 ---
 
@@ -599,34 +381,77 @@ rm -rf zig-out .zig-cache
 10. **Stop if stuck** — 동일 에러 3회 시도 후 지속되면 `.claude/memory/debugging.md`에 기록
 11. **Respect CI** — CI 파이프라인 호환성 유지
 12. **Never force push** — 파괴적 git 명령어 금지
+13. **Agent activity logging** — Subagent/Team 호출 시 반드시 `.claude/logs/agent-activity.jsonl`에 로그 기록 (아래 Agent Activity Logging 섹션 참조)
+
+---
+
+## Agent Activity Logging
+
+Subagent(Task 도구) 또는 Team(TeamCreate)을 호출할 때마다 `.claude/logs/agent-activity.jsonl`에 로그를 기록한다.
+
+**로그 형식** (JSON Lines — 한 줄에 하나의 JSON 객체):
+```json
+{"timestamp":"2026-03-14T12:00:00Z","action":"subagent","agent_type":"zig-developer","task":"Fix Tree widget rendering","project":"sailor"}
+{"timestamp":"2026-03-14T12:05:00Z","action":"team_create","team_name":"v1.14-impl","members":["zig-developer","test-writer"],"task":"Implement v1.14.0 features","project":"sailor"}
+{"timestamp":"2026-03-14T13:00:00Z","action":"team_delete","team_name":"v1.14-impl","project":"sailor"}
+```
+
+**필드**:
+
+| 필드 | 필수 | 설명 |
+|------|------|------|
+| `timestamp` | ✅ | ISO 8601 형식 (UTC) |
+| `action` | ✅ | `subagent` \| `team_create` \| `team_delete` |
+| `agent_type` | subagent 시 | 에이전트 타입 (`zig-developer`, `code-reviewer`, `Explore` 등) |
+| `team_name` | team 시 | 팀 이름 |
+| `members` | team_create 시 | 팀 멤버 이름 배열 |
+| `task` | ✅ | 작업 설명 (Task 도구의 description 또는 prompt 요약) |
+| `project` | ✅ | 프로젝트 이름 (`sailor`) |
+
+**규칙**:
+1. `.claude/logs/` 디렉토리가 없으면 생성
+2. 파일에 append (기존 로그 유지)
+3. 로그는 git에 커밋+push 필수 — 커밋 메시지: `chore: update agent activity log`
+4. 세션 종료 전 미커밋 로그가 있으면 반드시 커밋+push
 
 ---
 
 ## Release & Consumer Migration Protocol
 
-sailor는 세 프로젝트(zr, zoltraak, silica)의 공유 라이브러리다. 버전 릴리즈 시 소비자 프로젝트에 마이그레이션을 알려야 한다.
+sailor는 세 프로젝트(zr, zoltraak, silica)의 공유 라이브러리다. 버전 릴리즈 시 소비자 프로젝트에 GitHub 이슈로 마이그레이션을 알린다.
 
 ### 릴리즈 시 필수 절차
 
-새 버전 태그 후, 각 소비자 프로젝트의 CLAUDE.md에서 `## Sailor Migration` 섹션의 해당 버전 체크리스트를 `READY`로 업데이트한다:
+새 버전 태그 후, 각 소비자 프로젝트의 GitHub 리포지토리에 `migration` 라벨 이슈를 발행한다:
 
 ```bash
-# 1. sailor 릴리즈 완료 후
-cd ../zr
-# CLAUDE.md의 sailor migration 섹션에서 해당 버전의 status를 READY로 변경
+# 소비자 프로젝트에 마이그레이션 이슈 발행
+for repo in zr zoltraak silica; do
+  gh issue create --repo yusa-imit/$repo \
+    --title "chore: migrate to sailor v1.X.0" \
+    --label "migration,from:sailor" \
+    --body "## sailor v1.X.0 릴리즈 알림
 
-cd ../zoltraak
-# 동일하게 CLAUDE.md 업데이트
+sailor v1.X.0이 릴리즈되었습니다. CLAUDE.md의 Sailor Migration 섹션에서 해당 버전 status를 READY로 변경하고 마이그레이션을 수행해주세요.
 
-cd ../silica
-# 동일하게 CLAUDE.md 업데이트
+## 새 기능
+- <주요 변경사항 요약>
+
+## 마이그레이션 가이드
+1. \`zig fetch --save https://github.com/yusa-imit/sailor/archive/refs/tags/v1.X.0.tar.gz\`
+2. \`zig build test\` 통과 확인
+3. CLAUDE.md에서 해당 버전 status: PENDING → DONE 변경
+
+## Breaking Changes
+- <있으면 기재, 없으면 '없음'>"
+done
 ```
 
-### 업데이트 규칙
+### 발행 규칙
 
-1. 각 소비자 프로젝트의 `CLAUDE.md` → `## Sailor Migration` 섹션을 찾는다
-2. 릴리즈된 버전의 `status: PENDING` → `status: READY`로 변경한다
-3. 변경사항을 커밋한다: `chore: mark sailor <version> migration as ready`
+1. 릴리즈 후 **각 소비자 프로젝트에 GitHub 이슈**를 발행한다 (`migration,from:sailor` 라벨)
+2. 소비자 프로젝트의 CLAUDE.md를 **직접 수정하지 않는다**
+3. 소비자 프로젝트의 에이전트가 `migration` 라벨 이슈를 감지하여 자체적으로 마이그레이션 수행
 4. **코드 마이그레이션은 하지 않는다** — 소비자 프로젝트의 에이전트가 자체적으로 수행
 
 ### 버전별 소비자 마이그레이션 매핑
@@ -641,42 +466,3 @@ cd ../silica
 
 ---
 
-## zuda Migration
-
-sailor는 TUI 프레임워크로서 자료구조/알고리즘의 직접적인 마이그레이션 대상은 적다.
-단, zuda 라이브러리가 릴리스되면 소비자 프로젝트(zr, zoltraak, silica)가 zuda 의존성을 추가하므로,
-sailor와 zuda 간 **의존성 충돌이 없는지** 확인이 필요하다.
-
-### 마이그레이션 대상: 없음
-
-sailor의 모든 자료구조(Cell Buffer, Layout Solver, Grid, Unicode Width 등)는 TUI에 특화되어 있어 zuda로 대체하지 않는다.
-대신 zuda 개발 시 다음 패턴을 참고 자료로 제공한다:
-
-- `src/tui/buffer.zig` — diff 엔진 알고리즘 패턴
-- `src/tui/layout.zig` — constraint solver 알고리즘 패턴
-- `src/unicode.zig` — Unicode width calculation 알고리즘 패턴
-
-### 호환성 검증 프로토콜
-
-소비자 프로젝트가 zuda를 도입할 때 sailor와의 호환성을 확인한다:
-
-1. `build.zig.zon`에서 sailor + zuda 동시 의존성이 빌드 충돌 없이 동작하는지 검증
-2. 모듈 이름 충돌이 없는지 확인 (sailor = "sailor", zuda = "zuda")
-3. 소비자가 zuda 도입 후에도 sailor 테스트가 전체 통과하는지 확인
-
-### zuda 이슈 발행 프로토콜
-
-zuda와의 호환성 문제가 발견될 때:
-
-```bash
-gh issue create --repo yusa-imit/zuda \
-  --title "bug: compatibility issue with sailor" \
-  --label "bug,from:sailor" \
-  --body "## 증상
-<sailor와 zuda를 동시에 의존성으로 사용할 때 발생하는 문제>
-
-## 환경
-- sailor: <version>
-- zuda: <version>
-- zig: $(zig version)"
-```
