@@ -114,35 +114,48 @@ pub const AsyncEventLoop = struct {
             fn run(ctx: @This()) void {
                 // Find task and mark as running
                 ctx.loop.mutex.lock();
-                var task_ptr: ?*Task = null;
+                var cancelled_flag: bool = false;
+                var callback_fn: ?TaskCallback = null;
+                var callback_data: ?*anyopaque = null;
+
                 for (ctx.loop.tasks.items) |*t| {
                     if (t.id == ctx.task_id) {
                         t.state = .running;
-                        task_ptr = t;
+                        // Store callback info while we have the lock
+                        callback_fn = t.callback;
+                        callback_data = t.user_data;
                         break;
                     }
                 }
                 ctx.loop.mutex.unlock();
 
-                if (task_ptr) |task_p| {
-                    // Execute task function
-                    const result = ctx.task_fn_ptr(ctx.task_context, &task_p.cancelled);
+                // Execute task function outside of lock
+                const result = ctx.task_fn_ptr(ctx.task_context, &cancelled_flag);
 
-                    // Update task state
+                // Update task state - re-find task after re-acquiring lock
+                {
                     ctx.loop.mutex.lock();
                     defer ctx.loop.mutex.unlock();
 
-                    task_p.result = result;
-                    if (task_p.cancelled) {
-                        task_p.state = .cancelled;
-                    } else if (result) |_| {
-                        task_p.state = .completed;
-                    } else |_| {
-                        task_p.state = .failed;
+                    for (ctx.loop.tasks.items) |*t| {
+                        if (t.id == ctx.task_id) {
+                            t.result = result;
+                            t.cancelled = cancelled_flag;
+                            if (cancelled_flag) {
+                                t.state = .cancelled;
+                            } else if (result) |_| {
+                                t.state = .completed;
+                            } else |_| {
+                                t.state = .failed;
+                            }
+                            break;
+                        }
                     }
+                }
 
-                    // Invoke callback
-                    task_p.callback(result, task_p.user_data);
+                // Invoke callback outside of lock to prevent deadlock
+                if (callback_fn) |cb| {
+                    cb(result, callback_data);
                 }
             }
         };
