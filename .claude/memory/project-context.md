@@ -5,8 +5,8 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.10.0 (PRODUCTION READY)** 🎯
-- Previous versions: v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.13.1 (PATCH RELEASE)** 🎯
+- Previous versions: v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
 - **Post-v1.0 Milestones**: v1.13.0 🚧 IN PROGRESS (3/5, 60%)
@@ -117,6 +117,33 @@ All consumer projects can now upgrade to v1.10.0 with mouse, gamepad, and touch 
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-14 13:00 (Hour 13 - Feature Cycle → URGENT BUG FIX)** 🐛 CRITICAL PATCH RELEASE v1.13.1:
+  - **MODE**: FEATURE → switched to BUG PRIORITY (from:zr issue detected)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs (issue #9 FIXED and closed)
+  - ✅ Tests: 1035/1037 passing (2 skipped TTY-dependent)
+  - ✅ Cross-platform: All 6 targets verified
+  - 🐛 **CRITICAL BUG FIX**: Integer overflow in data visualization widgets (#9 from:zr)
+    - **Symptom**: Histogram, TimeSeriesChart, ScatterPlot panicked with "integer does not fit in destination type"
+    - **Impact**: Blocked zr's `analytics --tui` feature
+    - **Root Cause**: Large data values (u64 bin counts, f64 coordinates) converted to u16 terminal coordinates without overflow protection
+    - **Fix Applied** (8ed2a18):
+      - Histogram: Clamp scaled values to max height/width before @intCast
+      - TimeSeriesChart/ScatterPlot: Apply min/max bounds to normalized floats BEFORE @intFromFloat()
+    - **Verification**: All tests pass, zr analytics TUI unblocked
+  - 🚀 **PATCH RELEASE EXECUTED** (v1.13.1):
+    - Tagged 8ed2a18 as v1.13.1
+    - GitHub Release created with detailed notes
+    - Consumer project notified (zr: 53c932c)
+    - Discord notification sent
+    - Issue #9 closed with fix details
+  - 📊 **Protocol Compliance**: Followed patch release protocol for consumer project bugs
+    - ✅ 0 open bug-labeled issues
+    - ✅ All tests passing
+    - ✅ from:zr bug → immediate patch release
+    - ✅ Tag-only release (no build.zig.zon version bump for patches)
+  - **Quality Impact**: Data viz widgets now production-ready with proper overflow protection!
+
 - **2026-03-14 09:00 (Hour 9 - Stabilization Cycle)** 🧪 THREAD SAFETY FIXES:
   - **MODE**: STABILIZATION (hour % 3 == 0)
   - ✅ CI Status: GREEN (all builds passing)
