@@ -87,12 +87,29 @@ test "no memory leaks in buffer operations" {
 - Layout: all constraint types, nesting, edge cases
 - Color: all modes (auto/always/never), all color depths
 
+## Scratchpad Protocol (MANDATORY)
+
+작업 시작 전과 완료 후 `.claude/scratchpad.md`를 반드시 읽고 쓴다.
+
+1. **로드** (작업 시작 시): `.claude/scratchpad.md` 읽기 — 오케스트레이터의 목표와 이전 에이전트의 작업 내용 파악
+2. **기록** (작업 완료 후): 아래 형식으로 append (다른 에이전트 기록 삭제 금지):
+```
+## test-writer — [timestamp]
+- **Did**: [작성한 테스트 설명]
+- **Why**: [테스트 설계 근거]
+- **Files**: [수정한 파일]
+- **For next**: [zig-developer가 알아야 할 사항 — 실패하는 테스트 위치, 기대 동작 등]
+- **Issues**: [발견한 문제점]
+```
+
 ## Process
 
-1. Read the source file(s) to test
-2. Identify all public functions and error paths
-3. Write tests following patterns above
-4. Run `zig build test` to verify
-5. Report test count and any issues
+1. Read `.claude/scratchpad.md` for current cycle context
+2. Read the source file(s) to test
+3. Identify all public functions and error paths
+4. Write tests following patterns above
+5. Run `zig build test` to verify
+6. Write results to `.claude/scratchpad.md`
+7. Report test count and any issues
 
 Update `.claude/memory/patterns.md` with useful test patterns discovered.

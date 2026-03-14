@@ -10,6 +10,7 @@ zig-out
 .claude/teams/
 .claude/tasks/
 .claude/projects/
+.claude/scratchpad.md
 
 # OS
 .DS_Store

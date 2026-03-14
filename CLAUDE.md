@@ -99,6 +99,7 @@ Leader (orchestrator)
 **구현 루프** (Phase 3 상세):
 
 작업을 작은 단위로 분할하고, 각 단위마다 다음을 반복한다:
+0. **Scratchpad 초기화** — `.claude/scratchpad.md`를 초기화 템플릿으로 덮어쓰기 (Shared Scratchpad Protocol 참조)
 1. **Red** — `test-writer` 호출: 요구사항을 검증하는 실패하는 테스트 작성
 2. **Green** — `zig-developer` 호출: 테스트를 통과시키는 최소한의 구현
 3. **Refactor** — 테스트 통과 상태에서 코드 정리 (테스트 수정 필요 시 `test-writer` 재호출)
@@ -349,6 +350,47 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
 1. 세션 시작 시 `.claude/memory/` 파일들을 읽어 컨텍스트 복원
 2. 중요한 결정/발견 시 즉시 해당 메모리 파일에 기록
 3. 메모리 파일이 200줄을 초과하면 핵심만 남기고 압축
+
+### Shared Scratchpad Protocol
+
+개발 사이클(Red-Green-Refactor) 중 서브에이전트 간 협업을 위한 **임시 공유 메모리**이다.
+영구 메모리(`.claude/memory/`)와 독립 운영되며, 기존 메모리 업데이트 규칙은 변경되지 않는다.
+
+**파일**: `.claude/scratchpad.md` — `.gitignore`에 등록, git에 커밋하지 않는다
+
+**대상 에이전트**: `test-writer`, `zig-developer`, `code-reviewer`
+
+**라이프사이클**:
+1. **사이클 시작** — 오케스트레이터가 `.claude/scratchpad.md`를 초기화 (기존 내용 덮어쓰기)
+2. **에이전트 작업** — 각 에이전트가 작업 전 로드 → 작업 후 기록
+3. **사이클 종료** — 다음 사이클 시작 시 다시 초기화
+
+**규칙**:
+1. **MUST LOAD**: 대상 에이전트는 작업 시작 시 `.claude/scratchpad.md`를 **반드시** 읽는다
+2. **MUST WRITE**: 작업 완료 후 자신의 작업 내용을 **반드시** 추가한다
+3. **NO DELETE**: 다른 에이전트의 기록을 삭제하지 않는다 (append-only)
+4. **EPHEMERAL**: git에 커밋하지 않는다 — 사이클 내 협업이 목적
+5. **NOT MEMORY**: 영구 보존이 필요한 인사이트는 `.claude/memory/`에 별도 기록 (기존 규칙 준수)
+
+**초기화 템플릿** — 오케스트레이터가 사이클 시작 시 작성:
+
+```markdown
+# Scratchpad — [작업 설명]
+> Cycle started: [timestamp]
+> Goal: [이번 사이클의 목표]
+---
+```
+
+**에이전트 기록 형식** — 작업 완료 후 append:
+
+```markdown
+## [agent-name] — [timestamp]
+- **Did**: [수행한 작업]
+- **Why**: [근거 / 의도]
+- **Files**: [변경한 파일 목록]
+- **For next**: [다음 에이전트가 알아야 할 사항]
+- **Issues**: [발견한 문제점, 없으면 생략]
+```
 
 ---
 
