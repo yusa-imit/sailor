@@ -169,6 +169,7 @@ pub const widgets = struct {
     pub const Edit = @import("widgets/editor.zig").Edit;
     pub const Autocomplete = @import("widgets/autocomplete.zig").Autocomplete;
     pub const MultiCursorEditor = @import("widgets/multicursor.zig").MultiCursorEditor;
+    pub const MultiCursor = @import("widgets/multicursor.zig").MultiCursor;
     pub const RichTextInput = @import("widgets/richtext.zig").RichTextInput;
     pub const EmojiCategory = @import("widgets/richtext.zig").RichTextInput.EmojiCategory;
 };

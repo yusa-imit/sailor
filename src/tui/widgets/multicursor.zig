@@ -104,7 +104,7 @@ pub const MultiCursorEditor = struct {
 
     pub fn removeCursor(self: *MultiCursorEditor, index: usize) void {
         if (index >= self.cursors.items.len) return;
-        _ = self.cursors.orderedRemove(index);
+        _ = self.cursors.swapRemove(index);
     }
 
     pub fn clearCursors(self: *MultiCursorEditor) void {
@@ -524,3 +524,419 @@ test "multicursor: getText preserves content" {
 
     try testing.expectEqualStrings(original, result);
 }
+
+// ============================================================================
+// MultiCursor — Simple multi-cursor editing widget for v1.13.0
+// ============================================================================
+
+/// Position in text buffer
+pub const MultiCursorPosition = struct {
+    line: usize,
+    col: usize,
+};
+
+/// Text selection range
+pub const MultiCursorSelection = struct {
+    start: MultiCursorPosition,
+    end: MultiCursorPosition,
+
+    pub fn isEmpty(self: MultiCursorSelection) bool {
+        return self.start.line == self.end.line and self.start.col == self.end.col;
+    }
+};
+
+/// Column specification for column-mode cursors
+pub const ColumnSpec = struct {
+    start_line: usize,
+    end_line: usize,
+    col: usize,
+};
+
+/// Cursor with optional selection range
+pub const MultiCursorCursor = struct {
+    pos: MultiCursorPosition,
+    selection: ?MultiCursorSelection,
+};
+
+/// Simple multi-cursor editing widget
+///
+/// Provides Sublime Text / VSCode-style multi-cursor editing without
+/// the full editor infrastructure. Manages multiple cursors and text buffer directly.
+pub const MultiCursor = struct {
+    allocator: Allocator,
+    cursors: std.ArrayList(MultiCursorCursor),
+    primary_cursor: ?usize,
+    lines: std.ArrayList([]u8),
+
+    pub const Position = MultiCursorPosition;
+    pub const Selection = MultiCursorSelection;
+    pub const Cursor = MultiCursorCursor;
+
+    pub const Error = error{
+        InvalidPosition,
+        InvalidCursorIndex,
+    };
+
+    pub fn init(allocator: Allocator) !MultiCursor {
+        return .{
+            .allocator = allocator,
+            .cursors = .{},
+            .primary_cursor = null,
+            .lines = .{},
+        };
+    }
+
+    pub fn deinit(self: *MultiCursor) void {
+        for (self.lines.items) |line| {
+            self.allocator.free(line);
+        }
+        self.lines.deinit(self.allocator);
+        self.cursors.deinit(self.allocator);
+    }
+
+    pub fn setText(self: *MultiCursor, text: []const u8) !void {
+        // Free existing lines
+        for (self.lines.items) |line| {
+            self.allocator.free(line);
+        }
+        self.lines.clearRetainingCapacity();
+
+        // Split by newline
+        var it = std.mem.splitScalar(u8, text, '\n');
+        while (it.next()) |line_slice| {
+            const line = try self.allocator.dupe(u8, line_slice);
+            try self.lines.append(self.allocator, line);
+        }
+
+        // Ensure at least one line exists
+        if (self.lines.items.len == 0) {
+            const empty_line = try self.allocator.dupe(u8, "");
+            try self.lines.append(self.allocator, empty_line);
+        }
+    }
+
+    pub fn addCursor(self: *MultiCursor, pos: MultiCursor.Position) !void {
+        // Validate position
+        if (pos.line >= self.lines.items.len) {
+            return Error.InvalidPosition;
+        }
+        if (pos.col > self.lines.items[pos.line].len) {
+            return Error.InvalidPosition;
+        }
+
+        // Check for duplicates and merge
+        for (self.cursors.items) |cursor| {
+            if (cursor.pos.line == pos.line and cursor.pos.col == pos.col) {
+                return; // Already exists, don't add duplicate
+            }
+        }
+
+        try self.cursors.append(self.allocator, .{
+            .pos = pos,
+            .selection = null,
+        });
+
+        // First cursor becomes primary
+        if (self.primary_cursor == null) {
+            self.primary_cursor = 0;
+        }
+    }
+
+    pub fn removeCursor(self: *MultiCursor, index: usize) !void {
+        if (index >= self.cursors.items.len) {
+            return Error.InvalidCursorIndex;
+        }
+
+        _ = self.cursors.swapRemove(index);
+
+        // Update primary cursor index
+        if (self.primary_cursor) |primary_idx| {
+            if (primary_idx == index) {
+                // Primary was removed
+                self.primary_cursor = if (self.cursors.items.len > 0) 0 else null;
+            } else if (primary_idx > index) {
+                self.primary_cursor = primary_idx - 1;
+            }
+        }
+    }
+
+    pub fn clearCursors(self: *MultiCursor) void {
+        self.cursors.clearRetainingCapacity();
+        self.primary_cursor = null;
+    }
+
+    pub fn setPrimaryCursor(self: *MultiCursor, index: usize) !void {
+        if (index >= self.cursors.items.len) {
+            return Error.InvalidCursorIndex;
+        }
+        self.primary_cursor = index;
+    }
+
+    pub fn insertChar(self: *MultiCursor, ch: u8) !void {
+        if (self.cursors.items.len == 0) return;
+
+        // Sort cursors by position (reverse order: bottom-right to top-left)
+        var indices: std.ArrayList(usize) = .{};
+        defer indices.deinit(self.allocator);
+        try indices.ensureTotalCapacity(self.allocator, self.cursors.items.len);
+
+        for (0..self.cursors.items.len) |i| {
+            indices.appendAssumeCapacity(i);
+        }
+
+        std.mem.sort(usize, indices.items, self, struct {
+            fn lessThan(ctx: *const MultiCursor, a_idx: usize, b_idx: usize) bool {
+                const a = ctx.cursors.items[a_idx].pos;
+                const b = ctx.cursors.items[b_idx].pos;
+                if (a.line > b.line) return true;
+                if (a.line < b.line) return false;
+                return a.col > b.col;
+            }
+        }.lessThan);
+
+        // Insert at each cursor (reverse order to maintain positions)
+        for (indices.items) |idx| {
+            const cursor = &self.cursors.items[idx];
+            const line_idx = cursor.pos.line;
+            if (line_idx >= self.lines.items.len) continue;
+
+            const old_line = self.lines.items[line_idx];
+            const new_line = try self.allocator.alloc(u8, old_line.len + 1);
+
+            @memcpy(new_line[0..cursor.pos.col], old_line[0..cursor.pos.col]);
+            new_line[cursor.pos.col] = ch;
+            @memcpy(new_line[cursor.pos.col + 1 ..], old_line[cursor.pos.col..]);
+
+            self.allocator.free(old_line);
+            self.lines.items[line_idx] = new_line;
+
+            // Move cursor forward
+            cursor.pos.col += 1;
+
+            // Update other cursors on same line that are after this position
+            for (self.cursors.items, 0..) |*other_cursor, other_idx| {
+                if (other_idx == idx) continue;
+                if (other_cursor.pos.line == line_idx and other_cursor.pos.col >= cursor.pos.col - 1) {
+                    other_cursor.pos.col += 1;
+                }
+            }
+        }
+
+        self.mergeCursors();
+    }
+
+    pub fn deleteChar(self: *MultiCursor) !void {
+        if (self.cursors.items.len == 0) return;
+
+        // Sort cursors by position (reverse order)
+        var indices: std.ArrayList(usize) = .{};
+        defer indices.deinit(self.allocator);
+        try indices.ensureTotalCapacity(self.allocator, self.cursors.items.len);
+
+        for (0..self.cursors.items.len) |i| {
+            indices.appendAssumeCapacity(i);
+        }
+
+        std.mem.sort(usize, indices.items, self, struct {
+            fn lessThan(ctx: *const MultiCursor, a_idx: usize, b_idx: usize) bool {
+                const a = ctx.cursors.items[a_idx].pos;
+                const b = ctx.cursors.items[b_idx].pos;
+                if (a.line > b.line) return true;
+                if (a.line < b.line) return false;
+                return a.col > b.col;
+            }
+        }.lessThan);
+
+        // Delete at each cursor
+        for (indices.items) |idx| {
+            const cursor = &self.cursors.items[idx];
+            const line_idx = cursor.pos.line;
+            if (line_idx >= self.lines.items.len) continue;
+            if (cursor.pos.col == 0) continue; // Can't delete before beginning of line
+
+            const old_line = self.lines.items[line_idx];
+            const new_line = try self.allocator.alloc(u8, old_line.len - 1);
+
+            @memcpy(new_line[0 .. cursor.pos.col - 1], old_line[0 .. cursor.pos.col - 1]);
+            @memcpy(new_line[cursor.pos.col - 1 ..], old_line[cursor.pos.col..]);
+
+            self.allocator.free(old_line);
+            self.lines.items[line_idx] = new_line;
+
+            // Move cursor back
+            const old_col = cursor.pos.col;
+            cursor.pos.col -= 1;
+
+            // Update other cursors on same line
+            for (self.cursors.items, 0..) |*other_cursor, other_idx| {
+                if (other_idx == idx) continue;
+                if (other_cursor.pos.line == line_idx and other_cursor.pos.col >= old_col) {
+                    other_cursor.pos.col -|= 1;
+                }
+            }
+        }
+
+        self.mergeCursors();
+    }
+
+    pub fn insertNewline(self: *MultiCursor) !void {
+        if (self.cursors.items.len == 0) return;
+
+        // Sort cursors by position (reverse order)
+        var indices: std.ArrayList(usize) = .{};
+        defer indices.deinit(self.allocator);
+        try indices.ensureTotalCapacity(self.allocator, self.cursors.items.len);
+
+        for (0..self.cursors.items.len) |i| {
+            indices.appendAssumeCapacity(i);
+        }
+
+        std.mem.sort(usize, indices.items, self, struct {
+            fn lessThan(ctx: *const MultiCursor, a_idx: usize, b_idx: usize) bool {
+                const a = ctx.cursors.items[a_idx].pos;
+                const b = ctx.cursors.items[b_idx].pos;
+                if (a.line > b.line) return true;
+                if (a.line < b.line) return false;
+                return a.col > b.col;
+            }
+        }.lessThan);
+
+        // Insert newline at each cursor
+        for (indices.items) |idx| {
+            const cursor = &self.cursors.items[idx];
+            const line_idx = cursor.pos.line;
+            if (line_idx >= self.lines.items.len) continue;
+
+            const old_line = self.lines.items[line_idx];
+
+            // Split line at cursor position
+            const left = try self.allocator.dupe(u8, old_line[0..cursor.pos.col]);
+            const right = try self.allocator.dupe(u8, old_line[cursor.pos.col..]);
+
+            self.allocator.free(old_line);
+            self.lines.items[line_idx] = left;
+            try self.lines.insert(self.allocator, line_idx + 1, right);
+
+            // Move cursor to beginning of new line
+            cursor.pos.line = line_idx + 1;
+            cursor.pos.col = 0;
+
+            // Update other cursors
+            for (self.cursors.items, 0..) |*other_cursor, other_idx| {
+                if (other_idx == idx) continue;
+                if (other_cursor.pos.line > line_idx) {
+                    other_cursor.pos.line += 1;
+                }
+            }
+        }
+
+        self.mergeCursors();
+    }
+
+    pub fn mergeCursors(self: *MultiCursor) void {
+        if (self.cursors.items.len <= 1) return;
+
+        var i: usize = 0;
+        while (i < self.cursors.items.len) {
+            var j: usize = i + 1;
+            while (j < self.cursors.items.len) {
+                if (self.cursors.items[i].pos.line == self.cursors.items[j].pos.line and
+                    self.cursors.items[i].pos.col == self.cursors.items[j].pos.col)
+                {
+                    _ = self.cursors.orderedRemove(j);
+                    // Update primary cursor if needed
+                    if (self.primary_cursor) |*primary_idx| {
+                        if (primary_idx.* == j) {
+                            primary_idx.* = i;
+                        } else if (primary_idx.* > j) {
+                            primary_idx.* -= 1;
+                        }
+                    }
+                } else {
+                    j += 1;
+                }
+            }
+            i += 1;
+        }
+    }
+
+    pub fn addColumnCursors(self: *MultiCursor, spec: ColumnSpec) !void {
+        const start_line = @min(spec.start_line, spec.end_line);
+        const end_line = @min(spec.end_line, self.lines.items.len - 1);
+
+        for (start_line..end_line + 1) |line_idx| {
+            if (line_idx >= self.lines.items.len) break;
+
+            // Clamp column to line length
+            const col = @min(spec.col, self.lines.items[line_idx].len);
+
+            try self.addCursor(.{ .line = line_idx, .col = col });
+        }
+    }
+
+    pub fn setSelection(self: *MultiCursor, cursor_idx: usize, start: MultiCursor.Position, end: MultiCursor.Position) void {
+        if (cursor_idx >= self.cursors.items.len) return;
+        self.cursors.items[cursor_idx].selection = .{ .start = start, .end = end };
+    }
+
+    pub fn clearSelection(self: *MultiCursor, cursor_idx: usize) void {
+        if (cursor_idx >= self.cursors.items.len) return;
+        self.cursors.items[cursor_idx].selection = null;
+    }
+
+    pub fn render(self: *const MultiCursor, buf: *Buffer, area: Rect) void {
+        // Render text lines
+        for (self.lines.items, 0..) |line, line_idx| {
+            if (line_idx >= area.height) break;
+
+            const y = area.y + @as(u16, @intCast(line_idx));
+
+            for (line, 0..) |char, col_idx| {
+                if (col_idx >= area.width) break;
+
+                const x = area.x + @as(u16, @intCast(col_idx));
+                var style = Style{};
+
+                // Check if this position is in a selection
+                for (self.cursors.items) |cursor| {
+                    if (cursor.selection) |sel| {
+                        const pos = MultiCursor.Position{ .line = line_idx, .col = col_idx };
+                        if (sel.start.line == sel.end.line and sel.start.line == line_idx) {
+                            const start_col = @min(sel.start.col, sel.end.col);
+                            const end_col = @max(sel.start.col, sel.end.col);
+                            if (col_idx >= start_col and col_idx < end_col) {
+                                style.bg = Color{ .indexed = 240 };
+                            }
+                        }
+                        _ = pos; // Use pos if needed for multiline selections
+                    }
+                }
+
+                buf.setChar(x, y, char, style);
+            }
+        }
+
+        // Render cursors
+        for (self.cursors.items, 0..) |cursor, cursor_idx| {
+            if (cursor.pos.line >= self.lines.items.len) continue;
+            if (cursor.pos.line >= area.height) continue;
+            if (cursor.pos.col > area.width) continue;
+
+            const x = area.x + @as(u16, @intCast(cursor.pos.col));
+            const y = area.y + @as(u16, @intCast(cursor.pos.line));
+
+            const cursor_style = if (self.primary_cursor == cursor_idx)
+                Style{ .bg = Color{ .indexed = 15 }, .fg = Color.black } // Primary cursor - bright
+            else
+                Style{ .bg = Color{ .indexed = 240 }, .fg = Color.white }; // Secondary cursor - dim
+
+            // Get the character at cursor position (or space if at end of line)
+            const char = if (cursor.pos.col < self.lines.items[cursor.pos.line].len)
+                self.lines.items[cursor.pos.line][cursor.pos.col]
+            else
+                ' ';
+
+            buf.setChar(x, y, char, cursor_style);
+        }
+    }
+};
