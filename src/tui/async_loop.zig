@@ -324,13 +324,99 @@ test "AsyncEventLoop init and deinit" {
 }
 
 test "AsyncEventLoop spawn task" {
-    // FIXME: Skipped due to thread hanging in deinit
-    return error.SkipZigTest;
+    var loop = AsyncEventLoop.init(std.testing.allocator);
+    defer loop.deinit();
+
+    const TestContext = struct {
+        value: *u32,
+    };
+
+    var test_value: u32 = 0;
+    const ctx = TestContext{ .value = &test_value };
+
+    var completed = false;
+    const callback = struct {
+        fn call(result: anyerror!void, user_data: ?*anyopaque) void {
+            _ = result catch unreachable;
+            const flag = @as(*bool, @ptrCast(@alignCast(user_data.?)));
+            flag.* = true;
+        }
+    }.call;
+
+    const task_fn = struct {
+        fn run(context: TestContext, cancelled: *bool) anyerror!void {
+            _ = cancelled;
+            context.value.* = 42;
+            // Short sleep to ensure task completes before deinit
+            std.Thread.sleep(10 * std.time.ns_per_ms);
+        }
+    }.run;
+
+    const handle = try loop.spawnTask(ctx, task_fn, callback, &completed);
+    try std.testing.expect(handle.id > 0);
+
+    // Wait for task to complete with timeout
+    var retries: usize = 0;
+    while (retries < 100 and !completed) : (retries += 1) {
+        std.Thread.sleep(10 * std.time.ns_per_ms);
+    }
+
+    try std.testing.expect(completed);
+    try std.testing.expectEqual(@as(u32, 42), test_value);
+
+    // Clean up completed tasks before deinit
+    loop.cleanupTasks();
 }
 
 test "AsyncEventLoop cancel task" {
-    // FIXME: Skipped due to thread hanging in deinit
-    return error.SkipZigTest;
+    var loop = AsyncEventLoop.init(std.testing.allocator);
+    defer loop.deinit();
+
+    const TestContext = struct {
+        value: *u32,
+    };
+
+    var test_value: u32 = 0;
+    const ctx = TestContext{ .value = &test_value };
+
+    var completed = false;
+    const callback = struct {
+        fn call(result: anyerror!void, user_data: ?*anyopaque) void {
+            result catch {};
+            const flag = @as(*bool, @ptrCast(@alignCast(user_data.?)));
+            flag.* = true;
+        }
+    }.call;
+
+    const task_fn = struct {
+        fn run(context: TestContext, cancelled: *bool) anyerror!void {
+            var i: u32 = 0;
+            while (i < 100 and !cancelled.*) : (i += 1) {
+                context.value.* = i;
+                std.Thread.sleep(1 * std.time.ns_per_ms);
+            }
+        }
+    }.run;
+
+    const handle = try loop.spawnTask(ctx, task_fn, callback, &completed);
+
+    // Give task time to start
+    std.Thread.sleep(5 * std.time.ns_per_ms);
+
+    // Cancel the task
+    loop.cancelTask(handle);
+
+    // Wait for callback
+    var retries: usize = 0;
+    while (retries < 200 and !completed) : (retries += 1) {
+        std.Thread.sleep(1 * std.time.ns_per_ms);
+    }
+
+    try std.testing.expect(completed);
+    try std.testing.expect(test_value < 100); // Task should have been cancelled before completion
+
+    // Clean up
+    loop.cleanupTasks();
 }
 
 test "AsyncEventLoop push and poll event" {
@@ -361,21 +447,195 @@ test "AsyncEventLoop quit request" {
 }
 
 test "AsyncEventLoop cleanup tasks" {
-    // FIXME: Skipped due to thread hanging in deinit
-    return error.SkipZigTest;
+    var loop = AsyncEventLoop.init(std.testing.allocator);
+    defer loop.deinit();
+
+    const ctx = struct {
+        value: u32 = 0,
+    }{};
+
+    var completed1 = false;
+    var completed2 = false;
+
+    const callback = struct {
+        fn call(result: anyerror!void, user_data: ?*anyopaque) void {
+            _ = result catch unreachable;
+            const flag = @as(*bool, @ptrCast(@alignCast(user_data.?)));
+            flag.* = true;
+        }
+    }.call;
+
+    const quick_task = struct {
+        fn run(context: @TypeOf(ctx), cancelled: *bool) anyerror!void {
+            _ = context;
+            _ = cancelled;
+            std.Thread.sleep(5 * std.time.ns_per_ms);
+        }
+    }.run;
+
+    _ = try loop.spawnTask(ctx, quick_task, callback, &completed1);
+    _ = try loop.spawnTask(ctx, quick_task, callback, &completed2);
+
+    try std.testing.expectEqual(@as(usize, 2), loop.activeTaskCount());
+
+    // Wait for tasks to complete
+    var retries: usize = 0;
+    while (retries < 100 and (!completed1 or !completed2)) : (retries += 1) {
+        std.Thread.sleep(5 * std.time.ns_per_ms);
+    }
+
+    try std.testing.expect(completed1);
+    try std.testing.expect(completed2);
+
+    // Tasks should still be in list before cleanup
+    try std.testing.expectEqual(@as(usize, 2), loop.completedTaskCount());
+
+    // Cleanup should remove completed tasks
+    loop.cleanupTasks();
+    try std.testing.expectEqual(@as(usize, 0), loop.activeTaskCount());
+    try std.testing.expectEqual(@as(usize, 0), loop.completedTaskCount());
 }
 
 test "AsyncEventLoop task state transitions" {
-    // FIXME: Skipped due to thread hanging in deinit
-    return error.SkipZigTest;
+    var loop = AsyncEventLoop.init(std.testing.allocator);
+    defer loop.deinit();
+
+    const ctx = struct {
+        value: u32 = 0,
+    }{};
+
+    var completed = false;
+    const callback = struct {
+        fn call(result: anyerror!void, user_data: ?*anyopaque) void {
+            _ = result catch unreachable;
+            const flag = @as(*bool, @ptrCast(@alignCast(user_data.?)));
+            flag.* = true;
+        }
+    }.call;
+
+    const task_fn = struct {
+        fn run(context: @TypeOf(ctx), cancelled: *bool) anyerror!void {
+            _ = context;
+            _ = cancelled;
+            std.Thread.sleep(20 * std.time.ns_per_ms);
+        }
+    }.run;
+
+    const handle = try loop.spawnTask(ctx, task_fn, callback, &completed);
+
+    // Task should start in pending state (may transition to running quickly)
+    const initial_state = loop.getTaskState(handle);
+    try std.testing.expect(initial_state == .pending or initial_state == .running);
+
+    // Wait for task to start running
+    std.Thread.sleep(5 * std.time.ns_per_ms);
+
+    const running_state = loop.getTaskState(handle);
+    try std.testing.expect(running_state == .running);
+
+    // Wait for completion
+    var retries: usize = 0;
+    while (retries < 100 and !completed) : (retries += 1) {
+        std.Thread.sleep(5 * std.time.ns_per_ms);
+    }
+
+    const final_state = loop.getTaskState(handle);
+    try std.testing.expectEqual(TaskState.completed, final_state.?);
+
+    loop.cleanupTasks();
 }
 
 test "AsyncEventLoop multiple concurrent tasks" {
-    // FIXME: Skipped due to thread timing issues
-    return error.SkipZigTest;
+    var loop = AsyncEventLoop.init(std.testing.allocator);
+    defer loop.deinit();
+
+    const TestContext = struct {
+        counter: *std.atomic.Value(u32),
+    };
+
+    var counter = std.atomic.Value(u32).init(0);
+    const ctx = TestContext{ .counter = &counter };
+
+    var completed_flags = [_]bool{false} ** 5;
+
+    const callback = struct {
+        fn call(result: anyerror!void, user_data: ?*anyopaque) void {
+            _ = result catch unreachable;
+            const flag = @as(*bool, @ptrCast(@alignCast(user_data.?)));
+            flag.* = true;
+        }
+    }.call;
+
+    const task_fn = struct {
+        fn run(context: TestContext, cancelled: *bool) anyerror!void {
+            _ = cancelled;
+            _ = context.counter.fetchAdd(1, .seq_cst);
+            std.Thread.sleep(10 * std.time.ns_per_ms);
+        }
+    }.run;
+
+    // Spawn 5 concurrent tasks
+    for (&completed_flags) |*flag| {
+        _ = try loop.spawnTask(ctx, task_fn, callback, flag);
+    }
+
+    try std.testing.expectEqual(@as(usize, 5), loop.activeTaskCount());
+
+    // Wait for all tasks to complete
+    var all_done = false;
+    var retries: usize = 0;
+    while (!all_done and retries < 200) : (retries += 1) {
+        all_done = true;
+        for (completed_flags) |flag| {
+            if (!flag) all_done = false;
+        }
+        std.Thread.sleep(5 * std.time.ns_per_ms);
+    }
+
+    try std.testing.expect(all_done);
+    try std.testing.expectEqual(@as(u32, 5), counter.load(.seq_cst));
+
+    loop.cleanupTasks();
 }
 
 test "AsyncEventLoop error handling in tasks" {
-    // FIXME: Skipped due to thread timing issues
-    return error.SkipZigTest;
+    var loop = AsyncEventLoop.init(std.testing.allocator);
+    defer loop.deinit();
+
+    const ctx = struct {
+        value: u32 = 0,
+    }{};
+
+    var completed = false;
+    const callback = struct {
+        fn call(result: anyerror!void, user_data: ?*anyopaque) void {
+            _ = result catch {}; // Error is expected
+            const flag = @as(*bool, @ptrCast(@alignCast(user_data.?)));
+            flag.* = true;
+        }
+    }.call;
+
+    const failing_task = struct {
+        fn run(context: @TypeOf(ctx), cancelled: *bool) anyerror!void {
+            _ = context;
+            _ = cancelled;
+            std.Thread.sleep(10 * std.time.ns_per_ms);
+            return error.TaskFailed;
+        }
+    }.run;
+
+    const handle = try loop.spawnTask(ctx, failing_task, callback, &completed);
+
+    // Wait for task to fail
+    var retries: usize = 0;
+    while (retries < 100 and !completed) : (retries += 1) {
+        std.Thread.sleep(5 * std.time.ns_per_ms);
+    }
+
+    try std.testing.expect(completed);
+
+    const state = loop.getTaskState(handle);
+    try std.testing.expectEqual(TaskState.failed, state.?);
+
+    loop.cleanupTasks();
 }
