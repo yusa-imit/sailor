@@ -70,7 +70,7 @@
 All consumer projects can now upgrade to v1.10.0 with mouse, gamepad, and touch input support.
 
 ## Test Status
-- **Total Tests**: 1029 passing, 8 skipped (updated 2026-03-13 Hour 21 STABILIZATION)
+- **Total Tests**: 1035 passing, 2 skipped (updated 2026-03-14 Hour 9 STABILIZATION)
   - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)
@@ -117,6 +117,31 @@ All consumer projects can now upgrade to v1.10.0 with mouse, gamepad, and touch 
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-14 09:00 (Hour 9 - Stabilization Cycle)** 🧪 THREAD SAFETY FIXES:
+  - **MODE**: STABILIZATION (hour % 3 == 0)
+  - ✅ CI Status: GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 1035/1037 passing (+6 fixed tests, 2 skipped)
+  - ✅ Cross-platform: All 6 targets verified
+  - 🐛 **ASYNC_LOOP THREAD SAFETY FIXED** — src/tui/async_loop.zig:
+    - Fixed 6 previously skipped tests (lines 326-381)
+    - Root issue: Tests were hanging during deinit due to improper thread cleanup
+    - **Solution**: Add proper cleanup before deinit + timeout-based waits
+    - Fix std.time.sleep → std.Thread.sleep (Zig 0.15.x API)
+    - Fix error union discard syntax: `_ = result catch |_| {}` → `result catch {}`
+    - **Tests now passing**:
+      1. spawn task — validates task execution and completion
+      2. cancel task — validates cancellation during execution
+      3. cleanup tasks — validates proper task removal
+      4. task state transitions — validates pending→running→completed
+      5. multiple concurrent tasks — validates parallel execution with atomic counter
+      6. error handling — validates failed task state tracking
+    - **Impact**: Reduced skipped tests from 8 to 2 (remaining 2 are TTY-dependent, intentional)
+  - 📊 **Technical Debt Progress**: Addressed v1.15.0 milestone item 1/5
+    - "Fix async_loop.zig thread safety (resolve 6 skipped tests)" → ✅ COMPLETE
+  - Commit: 97aba50 fix: resolve 6 thread safety tests in async_loop.zig
+  - **Quality Impact**: AsyncEventLoop is now production-ready with comprehensive test coverage!
+
 - **2026-03-14 01:00 (Hour 1 - Feature Cycle)** 🔍 AUTOCOMPLETE WIDGET IMPLEMENTED:
   - **MODE**: FEATURE (hour % 3 != 0, but CI RED due to GitHub API 401 error - infrastructure issue, not code)
   - ✅ CI Status: Tests pass locally (GitHub API authentication issue blocks CI runner)
