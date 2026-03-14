@@ -177,6 +177,18 @@ pub const Buffer = struct {
         @memcpy(new_buffer.cells, self.cells);
         return new_buffer;
     }
+
+    /// Get character at position (convenience method for testing)
+    pub fn getChar(self: Buffer, x: u16, y: u16) u21 {
+        const cell = self.getConst(x, y) orelse return ' ';
+        return cell.char;
+    }
+
+    /// Get style at position (convenience method for testing)
+    pub fn getStyle(self: Buffer, x: u16, y: u16) Style {
+        const cell = self.getConst(x, y) orelse return .{};
+        return cell.style;
+    }
 };
 
 /// Diff operation for incremental rendering

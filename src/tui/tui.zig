@@ -172,6 +172,7 @@ pub const widgets = struct {
     pub const MultiCursor = @import("widgets/multicursor.zig").MultiCursor;
     pub const RichTextInput = @import("widgets/richtext.zig").RichTextInput;
     pub const EmojiCategory = @import("widgets/richtext.zig").RichTextInput.EmojiCategory;
+    pub const RichText = @import("widgets/richtext.zig").RichText;
 };
 
 // Export commonly used types

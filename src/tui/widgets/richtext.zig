@@ -811,3 +811,680 @@ test "richtext: builder pattern" {
 
     try testing.expect(rt.block != null);
 }
+
+// ============================================================================
+// RichText Widget (Span-Based Formatting)
+// ============================================================================
+
+/// Rich text editor with span-based formatting
+pub const RichText = struct {
+    allocator: Allocator,
+    text: ArrayList(u8),
+    cursor: usize,
+    selection: ?Selection,
+    spans: ArrayList(FormatSpan),
+
+    /// Formatting span - applies a style to a range of text
+    pub const FormatSpan = struct {
+        start: usize,
+        length: usize,
+        style: Style,
+    };
+
+    /// Selection range
+    pub const Selection = struct {
+        start: usize,
+        end: usize,
+    };
+
+    /// Clipboard with formatted content
+    pub const Clipboard = struct {
+        text: []const u8,
+        spans: []const FormatSpan,
+
+        pub fn deinit(self: Clipboard, allocator: Allocator) void {
+            allocator.free(self.text);
+            allocator.free(self.spans);
+        }
+    };
+
+    /// Initialize empty rich text
+    pub fn init(allocator: Allocator) RichText {
+        return .{
+            .allocator = allocator,
+            .text = ArrayList(u8){},
+            .cursor = 0,
+            .selection = null,
+            .spans = ArrayList(FormatSpan){},
+        };
+    }
+
+    /// Clean up
+    pub fn deinit(self: *RichText) void {
+        self.text.deinit(self.allocator);
+        self.spans.deinit(self.allocator);
+    }
+
+    /// Set text content (clears existing text and formatting)
+    pub fn setText(self: *RichText, text: []const u8) !void {
+        self.text.clearRetainingCapacity();
+        self.spans.clearRetainingCapacity();
+        try self.text.appendSlice(self.allocator, text);
+        self.cursor = 0;
+        self.selection = null;
+    }
+
+    /// Get text content
+    pub fn getText(self: *const RichText) []const u8 {
+        return self.text.items;
+    }
+
+    /// Insert character at cursor position
+    pub fn insertChar(self: *RichText, ch: u8) !void {
+        const was_at_end = self.cursor >= self.text.items.len;
+        try self.text.insert(self.allocator, self.cursor, ch);
+
+        // Adjust spans after insertion
+        for (self.spans.items) |*span| {
+            if (span.start > self.cursor) {
+                // Span starts after cursor - shift it
+                span.start += 1;
+            } else if (self.cursor > span.start and self.cursor < span.start + span.length) {
+                // Cursor is strictly inside span - extend it
+                span.length += 1;
+            } else if (self.cursor == span.start + span.length and !was_at_end) {
+                // Cursor is at end of span AND not at end of original text - extend it
+                span.length += 1;
+            } else if (span.start == self.cursor) {
+                // Cursor is exactly at start of span - shift it
+                span.start += 1;
+            }
+        }
+
+        self.cursor += 1;
+    }
+
+    /// Insert text at cursor position
+    pub fn insertText(self: *RichText, text: []const u8) !void {
+        try self.text.insertSlice(self.allocator, self.cursor, text);
+
+        // Adjust spans after insertion
+        for (self.spans.items) |*span| {
+            if (span.start > self.cursor) {
+                // Span starts after cursor - shift it
+                span.start += text.len;
+            } else if (span.start + span.length > self.cursor) {
+                // Cursor is inside span - extend it
+                span.length += text.len;
+            }
+        }
+
+        self.cursor += text.len;
+    }
+
+    /// Delete character at cursor position (backspace behavior)
+    pub fn deleteChar(self: *RichText) void {
+        if (self.cursor == 0 or self.text.items.len == 0) return;
+
+        const pos = self.cursor - 1;
+        _ = self.text.orderedRemove(pos);
+
+        // Adjust spans after deletion
+        var i: usize = 0;
+        while (i < self.spans.items.len) {
+            const span = &self.spans.items[i];
+
+            if (span.start > pos) {
+                // Span starts after deleted position - shift it
+                span.start -= 1;
+                i += 1;
+            } else if (pos < span.start + span.length) {
+                // Deleted position is inside span - shrink it
+                span.length -= 1;
+                if (span.length == 0) {
+                    // Span is now empty - remove it
+                    _ = self.spans.orderedRemove(i);
+                } else {
+                    i += 1;
+                }
+            } else {
+                i += 1;
+            }
+        }
+
+        self.cursor = pos;
+    }
+
+    /// Delete range of text
+    pub fn deleteRange(self: *RichText, start: usize, end: usize) !void {
+        if (start >= end or start >= self.text.items.len) return;
+
+        const actual_end = @min(end, self.text.items.len);
+        const len = actual_end - start;
+
+        // Remove text
+        for (0..len) |_| {
+            _ = self.text.orderedRemove(start);
+        }
+
+        // Adjust spans
+        var i: usize = 0;
+        while (i < self.spans.items.len) {
+            const span = &self.spans.items[i];
+
+            if (span.start >= actual_end) {
+                // Span starts after deleted range - shift it
+                span.start -= len;
+                i += 1;
+            } else if (span.start >= start and span.start + span.length <= actual_end) {
+                // Span is completely inside deleted range - remove it
+                _ = self.spans.orderedRemove(i);
+            } else if (span.start < start and span.start + span.length > actual_end) {
+                // Span contains deleted range - shrink it
+                span.length -= len;
+                i += 1;
+            } else if (span.start < start and span.start + span.length > start) {
+                // Span overlaps start of deleted range
+                const overlap = span.start + span.length - start;
+                span.length -= @min(overlap, len);
+                if (span.length == 0) {
+                    _ = self.spans.orderedRemove(i);
+                } else {
+                    i += 1;
+                }
+            } else if (span.start >= start and span.start < actual_end) {
+                // Span starts inside deleted range and extends beyond
+                const new_start = start;
+                const overlap = actual_end - span.start;
+                span.length -= overlap;
+                span.start = new_start;
+                if (span.length == 0) {
+                    _ = self.spans.orderedRemove(i);
+                } else {
+                    i += 1;
+                }
+            } else {
+                i += 1;
+            }
+        }
+
+        self.cursor = start;
+    }
+
+    /// Set cursor position
+    pub fn setCursor(self: *RichText, pos: usize) void {
+        self.cursor = @min(pos, self.text.items.len);
+    }
+
+    /// Get cursor position
+    pub fn getCursor(self: *const RichText) usize {
+        return self.cursor;
+    }
+
+    /// Move cursor by delta (can be negative)
+    pub fn moveCursor(self: *RichText, delta: i32) void {
+        if (delta < 0) {
+            const abs_delta = @abs(delta);
+            if (abs_delta > self.cursor) {
+                self.cursor = 0;
+            } else {
+                self.cursor -= @intCast(abs_delta);
+            }
+        } else {
+            self.cursor = @min(self.cursor + @as(usize, @intCast(delta)), self.text.items.len);
+        }
+    }
+
+    /// Set selection range
+    pub fn setSelection(self: *RichText, start: usize, end: usize) void {
+        self.selection = .{ .start = start, .end = end };
+    }
+
+    /// Clear selection
+    pub fn clearSelection(self: *RichText) void {
+        self.selection = null;
+    }
+
+    /// Add formatting span
+    pub fn addSpan(self: *RichText, start: usize, length: usize, style: Style) !void {
+        if (start + length > self.text.items.len) return error.InvalidSpan;
+        try self.spans.append(self.allocator, .{
+            .start = start,
+            .length = length,
+            .style = style,
+        });
+    }
+
+    /// Get all spans at a position
+    pub fn getSpansAt(self: *const RichText, pos: usize, buf: []FormatSpan) usize {
+        var count: usize = 0;
+        for (self.spans.items) |span| {
+            if (pos >= span.start and pos < span.start + span.length) {
+                if (count < buf.len) {
+                    buf[count] = span;
+                    count += 1;
+                }
+            }
+        }
+        return count;
+    }
+
+    /// Clear formatting in range
+    pub fn clearFormatting(self: *RichText) !void {
+        if (self.selection) |sel| {
+            // Clear formatting in selection
+            var i: usize = 0;
+            while (i < self.spans.items.len) {
+                const span = &self.spans.items[i];
+
+                if (span.start >= sel.end or span.start + span.length <= sel.start) {
+                    // Span doesn't overlap selection - keep it
+                    i += 1;
+                } else if (span.start >= sel.start and span.start + span.length <= sel.end) {
+                    // Span is completely inside selection - remove it
+                    _ = self.spans.orderedRemove(i);
+                } else if (span.start < sel.start and span.start + span.length > sel.end) {
+                    // Selection is inside span - split it
+                    const second_span = FormatSpan{
+                        .start = sel.end,
+                        .length = span.start + span.length - sel.end,
+                        .style = span.style,
+                    };
+                    span.length = sel.start - span.start;
+                    try self.spans.insert(self.allocator, i + 1, second_span);
+                    i += 2;
+                } else if (span.start < sel.start) {
+                    // Span overlaps start of selection
+                    span.length = sel.start - span.start;
+                    i += 1;
+                } else {
+                    // Span overlaps end of selection
+                    const overlap = sel.end - span.start;
+                    span.start = sel.end;
+                    span.length -= overlap;
+                    i += 1;
+                }
+            }
+        } else {
+            // No selection - clear all formatting
+            self.spans.clearRetainingCapacity();
+        }
+    }
+
+    /// Merge adjacent spans with identical styles
+    pub fn mergeSpans(self: *RichText) !void {
+        if (self.spans.items.len < 2) return;
+
+        // Sort spans by start position
+        std.sort.pdq(FormatSpan, self.spans.items, {}, struct {
+            fn lessThan(_: void, a: FormatSpan, b: FormatSpan) bool {
+                return a.start < b.start;
+            }
+        }.lessThan);
+
+        var i: usize = 0;
+        while (i + 1 < self.spans.items.len) {
+            const current = &self.spans.items[i];
+            const next = self.spans.items[i + 1];
+
+            // Check if adjacent and have same style
+            if (current.start + current.length == next.start and
+                std.meta.eql(current.style, next.style))
+            {
+                // Merge spans
+                current.length += next.length;
+                _ = self.spans.orderedRemove(i + 1);
+            } else {
+                i += 1;
+            }
+        }
+    }
+
+    /// Toggle bold formatting on selection
+    pub fn toggleBold(self: *RichText) !void {
+        const sel = self.selection orelse return;
+        if (sel.start == sel.end) return; // Zero-length selection
+
+        try self.toggleFormatting(sel, "bold");
+    }
+
+    /// Toggle italic formatting on selection
+    pub fn toggleItalic(self: *RichText) !void {
+        const sel = self.selection orelse return;
+        if (sel.start == sel.end) return;
+
+        try self.toggleFormatting(sel, "italic");
+    }
+
+    /// Toggle underline formatting on selection
+    pub fn toggleUnderline(self: *RichText) !void {
+        const sel = self.selection orelse return;
+        if (sel.start == sel.end) return;
+
+        try self.toggleFormatting(sel, "underline");
+    }
+
+    /// Toggle strikethrough formatting on selection
+    pub fn toggleStrikethrough(self: *RichText) !void {
+        const sel = self.selection orelse return;
+        if (sel.start == sel.end) return;
+
+        try self.toggleFormatting(sel, "strikethrough");
+    }
+
+    /// Set color formatting on selection
+    pub fn setColor(self: *RichText, fg: ?Color, bg: ?Color) !void {
+        const sel = self.selection orelse return;
+        if (sel.start == sel.end) return;
+
+        var style = Style{};
+        if (fg) |c| style.fg = c;
+        if (bg) |c| style.bg = c;
+
+        try self.spans.append(self.allocator, .{
+            .start = sel.start,
+            .length = sel.end - sel.start,
+            .style = style,
+        });
+    }
+
+    /// Helper to toggle formatting attribute
+    fn toggleFormatting(self: *RichText, sel: Selection, attr: []const u8) !void {
+        // Check if selection already has this formatting
+        var has_formatting = false;
+        var i: usize = 0;
+        while (i < self.spans.items.len) {
+            const span = self.spans.items[i];
+            if (span.start <= sel.start and span.start + span.length >= sel.end) {
+                const has_attr = blk: {
+                    if (std.mem.eql(u8, attr, "bold")) break :blk span.style.bold;
+                    if (std.mem.eql(u8, attr, "italic")) break :blk span.style.italic;
+                    if (std.mem.eql(u8, attr, "underline")) break :blk span.style.underline;
+                    if (std.mem.eql(u8, attr, "strikethrough")) break :blk span.style.strikethrough;
+                    break :blk false;
+                };
+                if (has_attr) {
+                    has_formatting = true;
+                    break;
+                }
+            }
+            i += 1;
+        }
+
+        if (has_formatting) {
+            // Remove formatting - split spans
+            i = 0;
+            while (i < self.spans.items.len) {
+                const span = &self.spans.items[i];
+
+                const has_attr = blk: {
+                    if (std.mem.eql(u8, attr, "bold")) break :blk span.style.bold;
+                    if (std.mem.eql(u8, attr, "italic")) break :blk span.style.italic;
+                    if (std.mem.eql(u8, attr, "underline")) break :blk span.style.underline;
+                    if (std.mem.eql(u8, attr, "strikethrough")) break :blk span.style.strikethrough;
+                    break :blk false;
+                };
+
+                if (!has_attr) {
+                    i += 1;
+                    continue;
+                }
+
+                if (span.start >= sel.end or span.start + span.length <= sel.start) {
+                    // No overlap
+                    i += 1;
+                } else if (span.start >= sel.start and span.start + span.length <= sel.end) {
+                    // Completely inside selection - remove
+                    _ = self.spans.orderedRemove(i);
+                } else if (span.start < sel.start and span.start + span.length > sel.end) {
+                    // Selection inside span - split into 3 parts
+                    const left_len = sel.start - span.start;
+                    const right_start = sel.end;
+                    const right_len = span.start + span.length - sel.end;
+
+                    // Keep left part
+                    span.length = left_len;
+
+                    // Add right part
+                    try self.spans.insert(self.allocator, i + 1, .{
+                        .start = right_start,
+                        .length = right_len,
+                        .style = span.style,
+                    });
+                    i += 2;
+                } else if (span.start < sel.start) {
+                    // Overlaps start
+                    span.length = sel.start - span.start;
+                    i += 1;
+                } else {
+                    // Overlaps end
+                    const new_start = sel.end;
+                    const new_len = span.start + span.length - sel.end;
+                    span.start = new_start;
+                    span.length = new_len;
+                    i += 1;
+                }
+            }
+        } else {
+            // Add formatting
+            var style = Style{};
+            if (std.mem.eql(u8, attr, "bold")) style.bold = true;
+            if (std.mem.eql(u8, attr, "italic")) style.italic = true;
+            if (std.mem.eql(u8, attr, "underline")) style.underline = true;
+            if (std.mem.eql(u8, attr, "strikethrough")) style.strikethrough = true;
+
+            try self.spans.append(self.allocator, .{
+                .start = sel.start,
+                .length = sel.end - sel.start,
+                .style = style,
+            });
+        }
+    }
+
+    /// Export to plain text (strip formatting)
+    pub fn toPlainText(self: *const RichText, allocator: Allocator) ![]u8 {
+        return try allocator.dupe(u8, self.text.items);
+    }
+
+    /// Export to markdown
+    pub fn toMarkdown(self: *const RichText, allocator: Allocator) ![]u8 {
+        var result = ArrayList(u8){};
+        errdefer result.deinit(allocator);
+
+        // Sort spans by start position
+        const sorted_spans = try allocator.dupe(FormatSpan, self.spans.items);
+        defer allocator.free(sorted_spans);
+
+        std.sort.pdq(FormatSpan, sorted_spans, {}, struct {
+            fn lessThan(_: void, a: FormatSpan, b: FormatSpan) bool {
+                return a.start < b.start;
+            }
+        }.lessThan);
+
+        var pos: usize = 0;
+        var active_spans = ArrayList(FormatSpan){};
+        defer active_spans.deinit(allocator);
+
+        while (pos < self.text.items.len) {
+            // Close spans that end here
+            var i: usize = 0;
+            while (i < active_spans.items.len) {
+                if (active_spans.items[i].start + active_spans.items[i].length <= pos) {
+                    const span = active_spans.orderedRemove(i);
+                    if (span.style.bold and span.style.italic) {
+                        try result.appendSlice(allocator, "***");
+                    } else if (span.style.bold) {
+                        try result.appendSlice(allocator, "**");
+                    } else if (span.style.italic) {
+                        try result.append(allocator, '*');
+                    } else if (span.style.strikethrough) {
+                        try result.appendSlice(allocator, "~~");
+                    }
+                } else {
+                    i += 1;
+                }
+            }
+
+            // Open new spans starting here
+            for (sorted_spans) |span| {
+                if (span.start == pos and !hasSpan(&active_spans, span)) {
+                    // Skip color-only spans (markdown doesn't support colors)
+                    if (span.style.fg == null and span.style.bg == null and
+                        (span.style.bold or span.style.italic or span.style.strikethrough))
+                    {
+                        if (span.style.bold and span.style.italic) {
+                            try result.appendSlice(allocator, "***");
+                        } else if (span.style.bold) {
+                            try result.appendSlice(allocator, "**");
+                        } else if (span.style.italic) {
+                            try result.append(allocator, '*');
+                        } else if (span.style.strikethrough) {
+                            try result.appendSlice(allocator, "~~");
+                        }
+                        try active_spans.append(allocator, span);
+                    }
+                }
+            }
+
+            // Append character
+            try result.append(allocator, self.text.items[pos]);
+            pos += 1;
+        }
+
+        // Close remaining spans
+        for (active_spans.items) |span| {
+            if (span.style.bold and span.style.italic) {
+                try result.appendSlice(allocator, "***");
+            } else if (span.style.bold) {
+                try result.appendSlice(allocator, "**");
+            } else if (span.style.italic) {
+                try result.append(allocator, '*');
+            } else if (span.style.strikethrough) {
+                try result.appendSlice(allocator, "~~");
+            }
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+
+    fn hasSpan(list: *ArrayList(FormatSpan), span: FormatSpan) bool {
+        for (list.items) |s| {
+            if (s.start == span.start and s.length == span.length and
+                std.meta.eql(s.style, span.style))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// Copy formatted text from selection
+    pub fn copyFormatted(self: *const RichText, allocator: Allocator) !Clipboard {
+        const sel = self.selection orelse return Clipboard{
+            .text = try allocator.dupe(u8, ""),
+            .spans = try allocator.alloc(FormatSpan, 0),
+        };
+
+        const text = try allocator.dupe(u8, self.text.items[sel.start..sel.end]);
+        errdefer allocator.free(text);
+
+        // Collect spans that overlap with selection
+        var spans_list = ArrayList(FormatSpan){};
+        defer spans_list.deinit(allocator);
+
+        for (self.spans.items) |span| {
+            if (span.start >= sel.end or span.start + span.length <= sel.start) {
+                continue; // No overlap
+            }
+
+            // Calculate overlapping range
+            const overlap_start = @max(span.start, sel.start);
+            const overlap_end = @min(span.start + span.length, sel.end);
+
+            // Adjust to 0-based relative to copied text
+            try spans_list.append(allocator, .{
+                .start = overlap_start - sel.start,
+                .length = overlap_end - overlap_start,
+                .style = span.style,
+            });
+        }
+
+        const spans = try spans_list.toOwnedSlice(allocator);
+
+        return Clipboard{
+            .text = text,
+            .spans = spans,
+        };
+    }
+
+    /// Paste formatted text at cursor
+    pub fn pasteFormatted(self: *RichText, clipboard: Clipboard) !void {
+        const insert_pos = self.cursor;
+
+        // Insert text
+        try self.text.insertSlice(self.allocator, insert_pos, clipboard.text);
+
+        // Add clipboard spans first (at insertion position)
+        for (clipboard.spans) |span| {
+            try self.spans.insert(self.allocator, 0, .{
+                .start = insert_pos + span.start,
+                .length = span.length,
+                .style = span.style,
+            });
+        }
+
+        // Shift existing spans (skip newly inserted clipboard spans)
+        const clipboard_span_count = clipboard.spans.len;
+        for (self.spans.items[clipboard_span_count..]) |*span| {
+            if (span.start >= insert_pos) {
+                span.start += clipboard.text.len;
+            }
+        }
+
+        self.cursor = insert_pos + clipboard.text.len;
+    }
+
+    /// Render rich text to buffer
+    pub fn render(self: *const RichText, buf: *Buffer, area: Rect) void {
+        var x: u16 = area.x;
+        const y: u16 = area.y;
+
+        for (self.text.items, 0..) |ch, i| {
+            if (x >= area.x + area.width) break; // Truncate at width
+
+            // Collect all spans at this position
+            var merged_style = Style{};
+            for (self.spans.items) |span| {
+                if (i >= span.start and i < span.start + span.length) {
+                    // Merge styles
+                    if (span.style.bold) merged_style.bold = true;
+                    if (span.style.italic) merged_style.italic = true;
+                    if (span.style.underline) merged_style.underline = true;
+                    if (span.style.strikethrough) merged_style.strikethrough = true;
+                    if (span.style.fg) |c| merged_style.fg = c;
+                    if (span.style.bg) |c| merged_style.bg = c;
+                }
+            }
+
+            // Apply selection style
+            if (self.selection) |sel| {
+                if (i >= sel.start and i < sel.end) {
+                    merged_style.bg = Color.blue;
+                }
+            }
+
+            // Apply cursor style
+            if (i == self.cursor) {
+                merged_style.reverse = true;
+            }
+
+            buf.setChar(x, y, @intCast(ch), merged_style);
+            x += 1;
+        }
+
+        // Render cursor if at end of text
+        if (self.cursor == self.text.items.len and x < area.x + area.width) {
+            buf.setChar(x, y, ' ', .{ .reverse = true });
+        }
+    }
+};
