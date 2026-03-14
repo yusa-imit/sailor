@@ -169,10 +169,11 @@ pub const Histogram = struct {
             const x_start = area.x + idx * bar_width;
             const bin_style = bin.style orelse self.bar_style;
 
-            // Calculate bar height
-            const bar_height: u16 = if (max > 0)
-                @intCast(@min(effective_max_height, (bin.count * effective_max_height) / max))
-            else 0;
+            // Calculate bar height (clamp to prevent overflow)
+            const bar_height: u16 = if (max > 0) blk: {
+                const scaled = (bin.count * @as(u64, effective_max_height)) / max;
+                break :blk @intCast(@min(scaled, effective_max_height));
+            } else 0;
 
             // Draw bar (from bottom to top)
             const bar_bottom = area.y + area.height - label_height - 1;
@@ -241,10 +242,11 @@ pub const Histogram = struct {
             const truncated_label = if (bin.label.len > max_label_len) bin.label[0..max_label_len] else bin.label;
             buf.setString(area.x, y, truncated_label, self.label_style);
 
-            // Calculate bar width
-            const bar_width: u16 = if (max > 0)
-                @intCast(@min(effective_max_width, (bin.count * effective_max_width) / max))
-            else 0;
+            // Calculate bar width (clamp to prevent overflow)
+            const bar_width: u16 = if (max > 0) blk: {
+                const scaled = (bin.count * @as(u64, effective_max_width)) / max;
+                break :blk @intCast(@min(scaled, effective_max_width));
+            } else 0;
 
             // Draw bar
             const bar_x_start = area.x + label_width;

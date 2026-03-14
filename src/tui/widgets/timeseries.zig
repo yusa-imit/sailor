@@ -294,12 +294,16 @@ pub const TimeSeriesChart = struct {
         var prev_screen_y: ?u16 = null;
 
         for (self.timestamps, self.values) |timestamp, value| {
-            // Map to screen coordinates
+            // Map to screen coordinates with bounds clamping
             const x_norm = @as(f64, @floatFromInt(timestamp - min_time)) / time_range;
             const y_norm = (value - min_y) / y_range;
 
-            const screen_x = plot_area.x + @as(u16, @intFromFloat(x_norm * @as(f64, @floatFromInt(plot_area.width - 1))));
-            const screen_y = plot_area.y + plot_area.height - 1 - @as(u16, @intFromFloat(y_norm * @as(f64, @floatFromInt(plot_area.height - 1))));
+            // Clamp to valid u16 range before casting
+            const x_offset_f = @min(@max(x_norm * @as(f64, @floatFromInt(plot_area.width - 1)), 0), @as(f64, @floatFromInt(plot_area.width - 1)));
+            const y_offset_f = @min(@max(y_norm * @as(f64, @floatFromInt(plot_area.height - 1)), 0), @as(f64, @floatFromInt(plot_area.height - 1)));
+
+            const screen_x = plot_area.x + @as(u16, @intFromFloat(x_offset_f));
+            const screen_y = plot_area.y + plot_area.height - 1 - @as(u16, @intFromFloat(y_offset_f));
 
             if (screen_x >= plot_area.x and screen_x < plot_area.x + plot_area.width and
                 screen_y >= plot_area.y and screen_y < plot_area.y + plot_area.height)
