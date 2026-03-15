@@ -9,9 +9,9 @@
 
 ## Active Milestones
 
-### v1.14.0 — Performance & Memory Optimization (0/5 complete)
+### v1.14.0 — Performance & Memory Optimization (1/5 complete)
 
-- [ ] Memory pooling system (reduce allocations for frequently created objects)
+- [x] Memory pooling system (reduce allocations for frequently created objects) — src/pool.zig
 - [ ] Render profiling tools (identify slow widgets, bottleneck detection)
 - [ ] Virtual widget rendering (only render widgets in viewport, skip off-screen)
 - [ ] Incremental layout solver (cache layout results, only recompute on changes)

@@ -45,6 +45,9 @@ pub const pool = @import("pool.zig");
 pub const eventbus = @import("eventbus.zig");
 pub const command = @import("command.zig");
 
+// v1.14.0 — Performance & Memory Optimization
+pub const profiler = @import("profiler.zig");
+
 test {
     // Pull in all module tests
     std.testing.refAllDecls(@This());
