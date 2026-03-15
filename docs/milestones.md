@@ -2,20 +2,12 @@
 
 ## Current Status
 
-- **Latest release**: v1.13.1 (2026-03-14) — Patch: integer overflow fix in data visualization widgets
-- **Latest minor**: v1.13.0 (2026-03-14) — Advanced Text Editing & Rich Input
-- **Next milestone**: v1.14.0 — Performance & Memory Optimization
+- **Latest release**: v1.14.0 (2026-03-16) — Performance & Memory Optimization
+- **Latest minor**: v1.14.0 (2026-03-16) — Performance & Memory Optimization
+- **Next milestone**: v1.15.0 — Technical Debt & Stability
 - **Blockers**: None
 
 ## Active Milestones
-
-### v1.14.0 — Performance & Memory Optimization (5/5 complete) ✅ READY FOR RELEASE
-
-- [x] Memory pooling system (reduce allocations for frequently created objects) — src/pool.zig
-- [x] Render profiling tools (identify slow widgets, bottleneck detection) — src/profiler.zig
-- [x] Virtual widget rendering (only render widgets in viewport, skip off-screen) — src/tui/virtual.zig
-- [x] Incremental layout solver (cache layout results, only recompute on changes) — src/tui/incremental_layout.zig
-- [x] Buffer compression (reduce memory footprint for large TUI applications) — src/tui/buffer_compression.zig
 
 ### v1.15.0 — Technical Debt & Stability (0/5 complete)
 
@@ -25,10 +17,35 @@
 - [ ] Memory leak audit (valgrind/ASan integration, fix any discovered leaks)
 - [ ] Cross-platform CI enhancements (test on real Windows/Linux/macOS VMs, not just cross-compile)
 
+### v1.16.0 — Advanced Terminal Features & Protocols (0/5 complete)
+
+- [ ] Terminal capability database (comprehensive terminfo parser, fallback detection)
+- [ ] Bracketed paste mode (prevent command injection, detect paste events)
+- [ ] Synchronized output protocol (eliminate tearing during rapid updates)
+- [ ] Hyperlink support (OSC 8 for clickable URLs in terminal)
+- [ ] Focus tracking (detect when terminal gains/loses focus)
+
+### v1.17.0 — Widget Ecosystem Expansion (0/5 complete)
+
+- [ ] Menu widget (dropdown/popup menus, keyboard navigation, nested submenus)
+- [ ] Calendar widget (date picker, range selection, month/year navigation)
+- [ ] FileBrowser widget (directory tree, file selection, preview pane)
+- [ ] Terminal widget (embed shell session, scrollback, ANSI emulation)
+- [ ] Markdown renderer widget (parse and render markdown with syntax highlighting)
+
+### v1.18.0 — Developer Experience & Tooling (0/5 complete)
+
+- [ ] Hot reload for themes (watch theme files, auto-reload on change)
+- [ ] Widget inspector (runtime introspection, layout debugging, event tracing)
+- [ ] Benchmark suite (performance regression detection, CI integration)
+- [ ] Example gallery (interactive showcase of all widgets, copy-pasteable code)
+- [ ] Documentation generator (auto-generate API docs from source comments)
+
 ## Completed Milestones
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.14.0 | Performance & Memory Optimization | 2026-03 | Memory pooling, render profiling, virtual rendering, incremental layout, buffer compression |
 | v0.1.0 | Terminal + CLI Foundation (Phase 1) | 2026-02 | term.zig, color.zig, arg.zig, 102 tests |
 | v0.2.0 | Interactive (Phase 2) | 2026-02 | repl.zig, progress.zig, fmt.zig |
 | v0.3.0 | TUI Core (Phase 3) | 2026-02 | style, symbols, layout, buffer, tui core, 96 tests |
