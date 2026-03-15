@@ -96,8 +96,7 @@ pub fn Pool(comptime T: type) type {
             // Try to get from free stack first
             if (self.free_stack.items.len > 0) {
                 // Get from the top of the free stack (LIFO)
-                const obj = self.free_stack.items[self.free_stack.items.len - 1];
-                _ = self.free_stack.pop();
+                const obj = self.free_stack.pop() orelse unreachable; // Safe: we checked len > 0
 
                 // Update statistics
                 self.in_use += 1;
