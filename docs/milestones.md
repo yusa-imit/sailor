@@ -9,13 +9,13 @@
 
 ## Active Milestones
 
-### v1.14.0 — Performance & Memory Optimization (1/5 complete)
+### v1.14.0 — Performance & Memory Optimization (5/5 complete) ✅ READY FOR RELEASE
 
 - [x] Memory pooling system (reduce allocations for frequently created objects) — src/pool.zig
-- [ ] Render profiling tools (identify slow widgets, bottleneck detection)
-- [ ] Virtual widget rendering (only render widgets in viewport, skip off-screen)
-- [ ] Incremental layout solver (cache layout results, only recompute on changes)
-- [ ] Buffer compression (reduce memory footprint for large TUI applications)
+- [x] Render profiling tools (identify slow widgets, bottleneck detection) — src/profiler.zig
+- [x] Virtual widget rendering (only render widgets in viewport, skip off-screen) — src/tui/virtual.zig
+- [x] Incremental layout solver (cache layout results, only recompute on changes) — src/tui/incremental_layout.zig
+- [x] Buffer compression (reduce memory footprint for large TUI applications) — src/tui/buffer_compression.zig
 
 ### v1.15.0 — Technical Debt & Stability (0/5 complete)
 
