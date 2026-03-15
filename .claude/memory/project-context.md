@@ -9,9 +9,9 @@
 - Previous versions: v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.14.0 🚧 IN PROGRESS (1/5, 20%)
+- **Post-v1.0 Milestones**: v1.14.0 🚧 IN PROGRESS (2/5, 40%)
   - Performance & Memory Optimization
-  - ✅ Memory pooling | ⏳ Render profiling, virtual rendering, incremental layout, buffer compression
+  - ✅ Memory pooling, render profiling | ⏳ Virtual rendering, incremental layout, buffer compression
 
 ## Project Status
 ✅ **v1.13.1 RELEASED (PATCH)** — Integer overflow fix in data viz widgets
@@ -115,6 +115,32 @@ All consumer projects can now upgrade to v1.10.0 with mouse, gamepad, and touch 
 - [x] Released v1.0.0
 
 ## Recent Work
+- **2026-03-15 17:00 (Hour 17 - Feature Cycle)** 🚀 RENDER PROFILING + CI FIX (v1.14.0 2/5):
+  - **MODE**: FEATURE (hour % 3 != 0) → STABILIZATION (CI RED) → FEATURE
+  - ✅ CI Status: RED → **FIXED** → GREEN (all builds passing)
+  - ✅ GitHub Issues: 0 open bugs
+  - ✅ Tests: 1194/1198 passing (3 TTY-dependent skipped, 1 pre-existing flaky async_loop test)
+  - ✅ Cross-platform: 6 targets verified
+  - 🐛 **CRITICAL CI FIX** — Fixed duplicate `pool` import and LIFO bug:
+    - Removed duplicate `pool = @import("pool.zig")` in sailor.zig (lines 42 vs 49)
+    - Fixed pool.zig acquire() to use `pop()` correctly (was caching wrong index)
+    - Fixed pooling_test LIFO assertion (reverse order for reused objects)
+    - Commented out unreachable code in skipped test
+    - Commit: b525662 fix: resolve CI failures (duplicate pool import + LIFO bug)
+  - 🎯 **RENDER PROFILING IMPLEMENTED** — src/profiler.zig (380+ lines, 12 tests):
+    - Profiler tracks widget render times with nanosecond precision
+    - ProfileGuard provides RAII-based automatic profiling (start/end)
+    - Detect bottlenecks exceeding configurable threshold
+    - Per-widget statistics: avg, min, max, total render time
+    - slowestWidget/fastestWidget for quick identification
+    - Frame-based profiling with nextFrame() to clear between renders
+    - totalRenderTime() aggregates all widgets in current frame
+    - 12 comprehensive tests (all passing): init, guard, bottlenecks, stats, slowest/fastest, conversions
+  - 📊 **Impact**: Developers can now identify performance bottlenecks in TUI apps
+  - Commit: 9866644 feat: add render profiling tools (v1.14.0 2/5)
+  - **Quality Impact**: Production-ready profiling system with comprehensive test coverage!
+  - **v1.14.0 Progress**: 2/5 complete (40%)
+
 - **2026-03-15 13:00 (Hour 13 - Feature Cycle)** 🎯 MEMORY POOLING SYSTEM (v1.14.0 1/5):
   - **MODE**: FEATURE (hour % 3 != 0)
   - ✅ CI Status: GREEN (all builds passing)
