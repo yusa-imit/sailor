@@ -32,6 +32,7 @@ pub const virtual = @import("virtual.zig");
 pub const effects = @import("effects.zig");
 pub const widget_trait = @import("widget_trait.zig");
 pub const layout_cache = @import("layout_cache.zig");
+pub const incremental_layout = @import("incremental_layout.zig");
 
 // v1.10.0+ — Mouse & Gamepad Input
 pub const mouse = @import("mouse.zig");
@@ -194,6 +195,12 @@ pub const RenderBudget = budget.RenderBudget;
 pub const LazyBuffer = lazy.LazyBuffer;
 pub const EventBatcher = batch.EventBatcher;
 pub const ThemeWatcher = hotreload.ThemeWatcher;
+
+// Export performance types (v1.14.0)
+pub const Viewport = viewport.Viewport;
+pub const VirtualRenderer = virtual.VirtualRenderer;
+pub const LayoutCache = layout_cache.LayoutCache;
+pub const IncrementalLayout = incremental_layout.IncrementalLayout;
 
 // Export async types (v1.8.0)
 pub const AsyncEventLoop = async_loop.AsyncEventLoop;

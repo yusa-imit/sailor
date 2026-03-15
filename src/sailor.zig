@@ -55,6 +55,8 @@ pub const Rect = tui.layout.Rect;
 pub const Style = tui.style.Style;
 pub const Viewport = tui.viewport.Viewport;
 pub const VirtualRenderer = tui.virtual.VirtualRenderer;
+pub const IncrementalLayout = tui.incremental_layout.IncrementalLayout;
+pub const LayoutCache = tui.layout_cache.LayoutCache;
 
 test {
     // Pull in all module tests
