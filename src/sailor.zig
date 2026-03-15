@@ -48,6 +48,14 @@ pub const command = @import("command.zig");
 // v1.14.0 — Performance & Memory Optimization
 pub const profiler = @import("profiler.zig");
 
+// Convenient re-exports from tui submodules
+pub const Buffer = tui.buffer.Buffer;
+pub const Cell = tui.buffer.Cell;
+pub const Rect = tui.layout.Rect;
+pub const Style = tui.style.Style;
+pub const Viewport = tui.viewport.Viewport;
+pub const VirtualRenderer = tui.virtual.VirtualRenderer;
+
 test {
     // Pull in all module tests
     std.testing.refAllDecls(@This());

@@ -28,6 +28,7 @@ pub const hotreload = @import("hotreload.zig");
 pub const validators = @import("validators.zig");
 pub const flexbox = @import("flexbox.zig");
 pub const viewport = @import("viewport.zig");
+pub const virtual = @import("virtual.zig");
 pub const effects = @import("effects.zig");
 pub const widget_trait = @import("widget_trait.zig");
 pub const layout_cache = @import("layout_cache.zig");
