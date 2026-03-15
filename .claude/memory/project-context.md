@@ -5,18 +5,20 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.13.1 (PATCH RELEASE)** 🎯
-- Previous versions: v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.14.0** 🎯
+- Previous versions: v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.14.0 ✅ COMPLETE (5/5, 100%)
-  - Performance & Memory Optimization
-  - ✅ Memory pooling, render profiling, virtual rendering, incremental layout, buffer compression
+- **Post-v1.0 Milestones**: v1.15.0 → Technical Debt & Stability (0/5, 0%)
+  - Next up: async_loop.zig thread safety fixes
 
 ## Project Status
-✅ **v1.14.0 COMPLETE** — Performance & Memory Optimization (5/5 features, 100%) — READY FOR RELEASE
+✅ **v1.14.0 RELEASED** — Performance & Memory Optimization (2026-03-16)
+  - Memory pooling, render profiling, virtual rendering, incremental layout, buffer compression
+  - Migration issues created for zr, zoltraak, silica
+  - 3 new milestones added: v1.16.0 (Terminal), v1.17.0 (Widgets), v1.18.0 (DX)
 ✅ **v1.13.1 RELEASED (PATCH)** — Integer overflow fix in data viz widgets
-✅ **v1.13.0 COMPLETE & RELEASED** — Advanced Text Editing & Rich Input (5/5 features, 100%)
+✅ **v1.13.0 RELEASED** — Advanced Text Editing & Rich Input (5/5 features, 100%)
 
 ## Completed Phases
 
