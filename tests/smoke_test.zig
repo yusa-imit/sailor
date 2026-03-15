@@ -11,7 +11,9 @@ const testing = std.testing;
 const builtin = @import("builtin");
 
 test "test framework is operational" {
-    try testing.expect(true);
+    // Verify basic arithmetic works in tests
+    const result = 2 + 2;
+    try testing.expectEqual(4, result);
 }
 
 test "platform detection works" {

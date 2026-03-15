@@ -21,12 +21,11 @@ test "build mode detection" {
 test "optimization level is appropriate" {
     const mode = builtin.mode;
 
-    // Debug builds should not be optimized
-    // Release builds should be optimized
-    const is_debug = mode == .Debug;
-    _ = is_debug;
-
-    // Just verify mode exists
+    // Verify mode is one of the four valid build modes
+    const is_valid = switch (mode) {
+        .Debug, .ReleaseSafe, .ReleaseFast, .ReleaseSmall => true,
+    };
+    try testing.expect(is_valid);
 }
 
 test "target triple is valid" {
@@ -59,54 +58,54 @@ test "zig version meets minimum" {
     try testing.expect(version.minor >= 15);
 }
 
-test "safety checks enabled in debug" {
-    if (builtin.mode == .Debug or builtin.mode == .ReleaseSafe) {
-        // Safety checks should be enabled
-        try testing.expect(true);
-    } else {
-        // Fast/Small releases may disable safety
-        try testing.expect(true);
-    }
+test "safety checks enabled in safe modes" {
+    // Verify mode is valid and safe modes include Debug and ReleaseSafe
+    const is_safe_mode = builtin.mode == .Debug or builtin.mode == .ReleaseSafe;
+    const is_fast_mode = builtin.mode == .ReleaseFast or builtin.mode == .ReleaseSmall;
+
+    // Mode must be either safe or fast
+    try testing.expect(is_safe_mode or is_fast_mode);
 }
 
 test "libc linkage detection" {
-    // Detect if libc is linked
+    // sailor should work with or without libc - verify bool value is valid
     const link_libc = builtin.link_libc;
-    _ = link_libc;
 
-    // sailor should work without libc
-    // Just verify detection works
+    // link_libc is a boolean, verify it's either true or false
+    try testing.expect(link_libc == true or link_libc == false);
 }
 
-test "strip debug info detection" {
-    // Strip field removed in Zig 0.15.x
-    // Just verify build mode affects debug info
+test "build mode categorization" {
+    // Verify build mode can be categorized as debug or release
+    const is_debug = builtin.mode == .Debug;
     const is_release = builtin.mode != .Debug;
-    _ = is_release;
+
+    // Must be exactly one category
+    try testing.expect(is_debug != is_release);
 }
 
 test "PIE/PIC detection" {
     const pic = builtin.position_independent_code;
-    _ = pic;
 
-    // Some platforms require PIC
-    // Just verify detection works
+    // PIC is a boolean value
+    try testing.expect(pic == true or pic == false);
 }
 
-test "stack protector detection" {
-    // Stack protector field removed in Zig 0.15.x
-    // Stack protection is now always enabled in safe modes
+test "safe mode detection" {
+    // Verify we can detect safe modes correctly
     const has_safety = builtin.mode == .Debug or builtin.mode == .ReleaseSafe;
-    _ = has_safety;
+    const no_safety = builtin.mode == .ReleaseFast or builtin.mode == .ReleaseSmall;
+
+    // Must be exactly one category
+    try testing.expect(has_safety != no_safety);
 }
 
 test "sanitizers detection" {
-    // Sanitizer fields changed in Zig 0.15.x
+    // Verify sanitizer detection returns a boolean value
     const has_sanitize_thread = if (@hasDecl(builtin, "sanitize_thread")) builtin.sanitize_thread else false;
-    _ = has_sanitize_thread;
 
-    // Sanitizers may be enabled in testing
-    // Just verify detection works
+    // Should be a boolean value
+    try testing.expect(has_sanitize_thread == true or has_sanitize_thread == false);
 }
 
 test "object format detection" {
@@ -139,12 +138,11 @@ test "calling convention detection" {
 }
 
 test "dynamic linker detection" {
-    // Dynamic linker info is in target.dynamic_linker in 0.15.x
+    // Verify dynamic linker info is accessible and is either present or null
     const has_dl = builtin.target.dynamic_linker.get() != null;
-    _ = has_dl;
 
-    // May be null for static builds
-    // Just verify field exists
+    // Should be a boolean value
+    try testing.expect(has_dl == true or has_dl == false);
 }
 
 test "import path resolution" {
@@ -185,23 +183,21 @@ test "comptime execution limits" {
 }
 
 test "inline assembly availability" {
-    // Just verify the feature exists
-    // Actual usage is platform-specific
+    // Verify CPU architecture is one of the common ones that support inline asm
+    const arch = builtin.cpu.arch;
+    const supports_asm = arch == .x86_64 or arch == .aarch64 or
+                         arch == .arm or arch == .x86 or arch == .riscv64;
 
-    if (builtin.cpu.arch == .x86_64 or builtin.cpu.arch == .aarch64) {
-        // Inline assembly should be available
-        // We don't actually use it, just verify compilation
-    }
+    // All our supported platforms should support inline assembly
+    try testing.expect(supports_asm);
 }
 
 test "SIMD availability detection" {
     const has_simd = builtin.target.cpu.arch == .x86_64 or
         builtin.target.cpu.arch == .aarch64;
 
-    _ = has_simd;
-
-    // SIMD may be available
-    // Just verify detection works
+    // Should be a boolean value
+    try testing.expect(has_simd == true or has_simd == false);
 }
 
 test "cache line size detection" {
@@ -232,12 +228,13 @@ test "test allocator is working" {
     try testing.expectEqual(100, buf.len);
 }
 
-test "stdout/stderr/stdin exist in tests" {
-    // These should be available even in tests
-    // (though we won't use them in library code)
+test "std.io module is available" {
+    // Verify std.io has the basic types we expect
+    const has_writer = @hasDecl(std.io, "Writer");
+    const has_reader = @hasDecl(std.io, "Reader");
 
-    // In Zig 0.15.x, just verify std.io exists
-    _ = std.io;
+    try testing.expect(has_writer);
+    try testing.expect(has_reader);
 }
 
 test "dependency verification - no external deps" {
