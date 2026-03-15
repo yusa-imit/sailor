@@ -56,34 +56,35 @@ pub fn Pool(comptime T: type) type {
         grow_policy: GrowPolicy,
 
         /// Initialize a new pool with the given configuration
-        pub fn init(allocator: std.mem.Allocator, config: PoolConfig) !Self {
-            var self = Self{
-                .allocator = allocator,
-                .storage = std.ArrayList(T){},
-                .free_stack = std.ArrayList(*T){},
-                .mutex = std.Thread.Mutex{},
+        pub fn init(alloc: std.mem.Allocator, config: PoolConfig) !Self {
+            var storage: std.ArrayList(T) = .{};
+            errdefer storage.deinit(alloc);
+            try storage.ensureTotalCapacity(alloc, config.capacity);
+
+            var free_stack: std.ArrayList(*T) = .{};
+            errdefer free_stack.deinit(alloc);
+            try free_stack.ensureTotalCapacity(alloc, config.capacity);
+
+            return Self{
+                .allocator = alloc,
+                .storage = storage,
+                .free_stack = free_stack,
+                .mutex = .{},
                 .capacity = config.capacity,
                 .allocated = 0,
                 .in_use = 0,
                 .peak_usage = 0,
                 .grow_policy = config.grow_policy,
             };
-
-            // Pre-allocate storage to initial capacity
-            try self.storage.ensureTotalCapacity(allocator, config.capacity);
-            try self.free_stack.ensureTotalCapacity(allocator, config.capacity);
-
-            return self;
         }
 
         /// Deinitialize the pool and release all resources
-        pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+        pub fn deinit(self: *Self) void {
             self.mutex.lock();
             defer self.mutex.unlock();
 
-            self.storage.deinit(allocator);
-            self.free_stack.deinit(allocator);
-            self.* = undefined;
+            self.storage.deinit(self.allocator);
+            self.free_stack.deinit(self.allocator);
         }
 
         /// Acquire an object from the pool.
@@ -141,21 +142,17 @@ pub fn Pool(comptime T: type) type {
             }
         }
 
-        /// Reset the pool, clearing all allocated objects and returning them to the free stack.
-        /// Preserves capacity.
+        /// Reset the pool, clearing all allocated objects.
+        /// Preserves capacity but clears all storage.
         pub fn reset(self: *Self) void {
             self.mutex.lock();
             defer self.mutex.unlock();
 
-            // Clear the free stack
+            // Clear both storage and free stack
+            self.storage.clearRetainingCapacity();
             self.free_stack.clearRetainingCapacity();
 
-            // Put all allocated objects back on the free stack
-            for (0..self.allocated) |i| {
-                self.free_stack.append(self.allocator, &self.storage.items[i]) catch return;
-            }
-
-            // Reset counters
+            // Reset all counters
             self.in_use = 0;
             self.allocated = 0;
         }
