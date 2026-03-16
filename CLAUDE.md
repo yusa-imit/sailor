@@ -136,6 +136,15 @@ gh issue list --state open --limit 10 --json number,title,labels,createdAt
 
 세션 사이클의 **Step 5 (릴리즈 판단)** 에서 아래 조건을 확인하고, 충족 시 자율적으로 릴리즈를 수행한다.
 
+### 버전 안전 규칙 (CRITICAL)
+
+- **버전은 반드시 단조 증가**해야 한다. 새 버전은 `build.zig.zon`의 현재 버전보다 **반드시 높아야** 한다.
+- 릴리즈 전 반드시 현재 버전을 확인: `grep 'version' build.zig.zon`
+- 새 태그가 `git tag -l 'v*' --sort=-v:refname | head -1`보다 **낮으면 즉시 중단**.
+- 버전 다운그레이드는 **절대 금지** — semver에서 1.15.0 → 1.0.0은 회귀이다.
+- **버전 건너뛰기 금지**: 릴리즈 버전은 현재 `build.zig.zon` 버전의 **다음 마이너**여야 한다. 마일스톤에 미리 할당된 버전 번호가 있더라도, 실제 릴리즈 시점에는 현재 버전 + 1을 사용한다.
+- **마일스톤은 이름(테마)으로 관리**: 버전 번호는 릴리즈 시점에 결정. 마일스톤 수립 시 미리 할당된 번호는 참고용.
+
 ```bash
 # 릴리즈 판단 체크
 LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
