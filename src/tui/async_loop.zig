@@ -574,11 +574,11 @@ test "AsyncEventLoop task state transitions" {
     const initial_state = loop.getTaskState(handle);
     try std.testing.expect(initial_state == .pending or initial_state == .running);
 
-    // Wait for task to start running
+    // Wait for task to start running (or complete if very fast)
     std.Thread.sleep(5 * std.time.ns_per_ms);
 
     const running_state = loop.getTaskState(handle);
-    try std.testing.expect(running_state == .running);
+    try std.testing.expect(running_state == .running or running_state == .completed);
 
     // Wait for completion
     var retries: usize = 0;
