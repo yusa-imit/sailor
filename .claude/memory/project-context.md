@@ -9,8 +9,9 @@
 - Previous versions: v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.16.0 → Advanced Terminal Features & Protocols (0/5, 0%)
-  - Next up: Terminal capability database (comprehensive terminfo parser)
+- **Post-v1.0 Milestones**: v1.16.0 → Advanced Terminal Features & Protocols (1/5, 20%)
+  - ✅ Terminal capability database (terminfo parser, fallback detection) — IN PROGRESS: compiled but tests not fully verified
+  - Next up: Bracketed paste mode (prevent command injection)
 
 ## Project Status
 ✅ **v1.15.0 RELEASED** — Technical Debt & Stability (2026-03-16)
