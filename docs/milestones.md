@@ -2,20 +2,12 @@
 
 ## Current Status
 
-- **Latest release**: v1.14.0 (2026-03-16) — Performance & Memory Optimization
-- **Latest minor**: v1.14.0 (2026-03-16) — Performance & Memory Optimization
-- **Next milestone**: v1.15.0 — Technical Debt & Stability
+- **Latest release**: v1.15.0 (2026-03-16) — Technical Debt & Stability
+- **Latest minor**: v1.15.0 (2026-03-16) — Technical Debt & Stability
+- **Next milestone**: v1.16.0 — Advanced Terminal Features & Protocols
 - **Blockers**: None
 
 ## Active Milestones
-
-### v1.15.0 — Technical Debt & Stability (4/5 complete, 80%)
-
-- [x] Fix async_loop.zig thread safety (dangling pointer, deinit race condition)
-- [x] Implement XTGETTCAP terminal capability querying (replace env var detection in sixel/kitty)
-- [x] Add comprehensive platform-specific tests (13 new tests for Windows, Linux, macOS edge cases)
-- [x] Memory leak audit (fixed 6 memory leaks in repl.zig and editor.zig)
-- [ ] Cross-platform CI enhancements (test on real Windows/Linux/macOS VMs, not just cross-compile)
 
 ### v1.16.0 — Advanced Terminal Features & Protocols (0/5 complete)
 
@@ -45,6 +37,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.15.0 | Technical Debt & Stability | 2026-03-16 | Thread safety fixes, XTGETTCAP implementation, platform-specific tests, memory leak audit, multi-platform CI |
 | v1.14.0 | Performance & Memory Optimization | 2026-03 | Memory pooling, render profiling, virtual rendering, incremental layout, buffer compression |
 | v0.1.0 | Terminal + CLI Foundation (Phase 1) | 2026-02 | term.zig, color.zig, arg.zig, 102 tests |
 | v0.2.0 | Interactive (Phase 2) | 2026-02 | repl.zig, progress.zig, fmt.zig |
