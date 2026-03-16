@@ -15,9 +15,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
-    name: Build & Test
-    runs-on: ubuntu-latest
+  test-native:
+    name: Test on ${{ matrix.os }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64
+          - os: Linux
+            arch: x86_64
+            runner: ubuntu-latest
+          # macOS x86_64 (Intel)
+          - os: macOS
+            arch: x86_64
+            runner: macos-13
+          # macOS ARM64 (Apple Silicon)
+          - os: macOS
+            arch: ARM64
+            runner: macos-latest
+          # Windows x86_64
+          - os: Windows
+            arch: x86_64
+            runner: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -29,13 +49,22 @@ jobs:
       - name: Build
         run: zig build
 
-      - name: Test
+      - name: Run Tests
         run: zig build test
+
+      - name: Build ReleaseSafe
+        run: zig build -Doptimize=ReleaseSafe
+
+      - name: Build ReleaseSmall
+        run: zig build -Doptimize=ReleaseSmall
+
+      - name: Build ReleaseFast
+        run: zig build -Doptimize=ReleaseFast
 
   cross-compile:
     name: Cross-compile (${{ matrix.target }})
     runs-on: ubuntu-latest
-    needs: build-and-test
+    needs: test-native
     strategy:
       fail-fast: false
       matrix:
