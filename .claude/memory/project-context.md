@@ -9,11 +9,12 @@
 - Previous versions: v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.15.0 → Technical Debt & Stability (3/5, 60%)
+- **Post-v1.0 Milestones**: v1.15.0 → Technical Debt & Stability (4/5, 80%)
   - ✅ Fixed async_loop.zig thread safety (dangling pointer, race condition)
+  - ✅ Implemented XTGETTCAP terminal capability querying (18 tests, 616 lines)
   - ✅ Added 13 platform-specific edge case tests
   - ✅ Memory leak audit (fixed 6 leaks in repl.zig, editor.zig)
-  - Next up: XTGETTCAP terminal capability querying
+  - Next up: Cross-platform CI enhancements (real VM testing)
 
 ## Project Status
 ✅ **v1.14.0 RELEASED** — Performance & Memory Optimization (2026-03-16)
