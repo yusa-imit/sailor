@@ -48,6 +48,9 @@ pub const command = @import("command.zig");
 // v1.14.0 — Performance & Memory Optimization
 pub const profiler = @import("profiler.zig");
 
+// v1.16.0 — Terminal Capability Database
+pub const termcap = @import("termcap.zig");
+
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;
 pub const Cell = tui.buffer.Cell;
