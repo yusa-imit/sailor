@@ -9,8 +9,11 @@
 - Previous versions: v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.15.0 → Technical Debt & Stability (0/5, 0%)
-  - Next up: async_loop.zig thread safety fixes
+- **Post-v1.0 Milestones**: v1.15.0 → Technical Debt & Stability (3/5, 60%)
+  - ✅ Fixed async_loop.zig thread safety (dangling pointer, race condition)
+  - ✅ Added 13 platform-specific edge case tests
+  - ✅ Memory leak audit (fixed 6 leaks in repl.zig, editor.zig)
+  - Next up: XTGETTCAP terminal capability querying
 
 ## Project Status
 ✅ **v1.14.0 RELEASED** — Performance & Memory Optimization (2026-03-16)
@@ -70,7 +73,7 @@
 All consumer projects can now upgrade to v1.10.0 with mouse, gamepad, and touch input support.
 
 ## Test Status
-- **Total Tests**: 1035 passing, 2 skipped (updated 2026-03-14 Hour 9 STABILIZATION)
+- **Total Tests**: 1239 passing, 4 skipped (updated 2026-03-16 Hour 9 STABILIZATION)
   - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)

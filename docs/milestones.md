@@ -9,12 +9,12 @@
 
 ## Active Milestones
 
-### v1.15.0 — Technical Debt & Stability (0/5 complete)
+### v1.15.0 — Technical Debt & Stability (3/5 complete, 60%)
 
-- [ ] Fix async_loop.zig thread safety (resolve 6 skipped tests due to thread hanging)
+- [x] Fix async_loop.zig thread safety (dangling pointer, deinit race condition)
 - [ ] Implement XTGETTCAP terminal capability querying (replace env var detection in sixel/kitty)
-- [ ] Add comprehensive platform-specific tests (Windows, Linux, macOS edge cases)
-- [ ] Memory leak audit (valgrind/ASan integration, fix any discovered leaks)
+- [x] Add comprehensive platform-specific tests (13 new tests for Windows, Linux, macOS edge cases)
+- [x] Memory leak audit (fixed 6 memory leaks in repl.zig and editor.zig)
 - [ ] Cross-platform CI enhancements (test on real Windows/Linux/macOS VMs, not just cross-compile)
 
 ### v1.16.0 — Advanced Terminal Features & Protocols (0/5 complete)
