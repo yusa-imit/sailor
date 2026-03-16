@@ -134,6 +134,7 @@ pub const Editor = struct {
         var it = std.mem.splitScalar(u8, text, '\n');
         while (it.next()) |line| {
             const owned = try self.allocator.dupe(u8, line);
+            errdefer self.allocator.free(owned);
             try self.lines.append(owned);
         }
 
@@ -198,6 +199,7 @@ pub const Editor = struct {
 
         // Record edit for undo
         const edit_text = try self.allocator.dupe(u8, &[_]u8{ch});
+        errdefer self.allocator.free(edit_text);
         try self.undo_stack.append(.{
             .type = .insert,
             .pos = self.cursor,
@@ -228,6 +230,7 @@ pub const Editor = struct {
 
         // Record edit for undo
         const edit_text = try self.allocator.dupe(u8, old_line[self.cursor.col - 1 .. self.cursor.col]);
+        errdefer self.allocator.free(edit_text);
         try self.undo_stack.append(.{
             .type = .delete,
             .pos = .{ .line = line_idx, .col = self.cursor.col - 1 },
@@ -250,7 +253,9 @@ pub const Editor = struct {
 
         const old_line = self.lines.items[line_idx];
         const left = try self.allocator.dupe(u8, old_line[0..self.cursor.col]);
+        errdefer self.allocator.free(left);
         const right = try self.allocator.dupe(u8, old_line[self.cursor.col..]);
+        errdefer self.allocator.free(right);
 
         self.allocator.free(old_line);
         self.lines.items[line_idx] = left;

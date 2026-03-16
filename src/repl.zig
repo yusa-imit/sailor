@@ -429,6 +429,7 @@ pub const Repl = struct {
 
         // Add new entry
         const owned = try self.allocator.dupe(u8, line);
+        errdefer self.allocator.free(owned);
         try self.history.append(owned);
     }
 
@@ -447,6 +448,7 @@ pub const Repl = struct {
         while (lines.next()) |line| {
             if (line.len > 0) {
                 const owned = try self.allocator.dupe(u8, line);
+                errdefer self.allocator.free(owned);
                 try self.history.append(owned);
             }
         }
