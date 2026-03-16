@@ -5,22 +5,23 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.14.0** 🎯
-- Previous versions: v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.15.0** 🎯
+- Previous versions: v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.15.0 → Technical Debt & Stability (4/5, 80%)
-  - ✅ Fixed async_loop.zig thread safety (dangling pointer, race condition)
-  - ✅ Implemented XTGETTCAP terminal capability querying (18 tests, 616 lines)
-  - ✅ Added 13 platform-specific edge case tests
-  - ✅ Memory leak audit (fixed 6 leaks in repl.zig, editor.zig)
-  - Next up: Cross-platform CI enhancements (real VM testing)
+- **Post-v1.0 Milestones**: v1.16.0 → Advanced Terminal Features & Protocols (0/5, 0%)
+  - Next up: Terminal capability database (comprehensive terminfo parser)
 
 ## Project Status
+✅ **v1.15.0 RELEASED** — Technical Debt & Stability (2026-03-16)
+  - Thread safety fixes (async_loop.zig)
+  - XTGETTCAP capability querying
+  - 13 platform-specific tests
+  - Memory leak audit (6 leaks fixed)
+  - Multi-platform CI (Linux/macOS/Windows VMs)
+  - Migration issues: zr#27, zoltraak#5, silica#7
 ✅ **v1.14.0 RELEASED** — Performance & Memory Optimization (2026-03-16)
   - Memory pooling, render profiling, virtual rendering, incremental layout, buffer compression
-  - Migration issues created for zr, zoltraak, silica
-  - 3 new milestones added: v1.16.0 (Terminal), v1.17.0 (Widgets), v1.18.0 (DX)
 ✅ **v1.13.1 RELEASED (PATCH)** — Integer overflow fix in data viz widgets
 ✅ **v1.13.0 RELEASED** — Advanced Text Editing & Rich Input (5/5 features, 100%)
 
