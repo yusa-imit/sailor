@@ -32,7 +32,7 @@ const Task = struct {
     callback: TaskCallback,
     user_data: ?*anyopaque,
     thread: ?std.Thread,
-    cancelled: bool,
+    cancelled: *bool, // Heap-allocated for stable addressing across array reallocations
     result: anyerror!void,
 };
 
@@ -66,16 +66,33 @@ pub const AsyncEventLoop = struct {
 
     /// Clean up event loop and cancel all pending tasks
     pub fn deinit(self: *AsyncEventLoop) void {
+        // Lock to safely cancel all tasks and prevent concurrent modifications
+        self.mutex.lock();
+
         // Cancel all tasks
         for (self.tasks.items) |*task| {
             if (task.state == .running or task.state == .pending) {
-                task.cancelled = true;
+                task.cancelled.* = true;
                 task.state = .cancelled;
-                if (task.thread) |thread| {
-                    thread.join();
-                }
             }
         }
+
+        // Unlock before joining threads to prevent deadlock
+        // (threads may need to acquire lock during shutdown)
+        self.mutex.unlock();
+
+        // Join all threads
+        for (self.tasks.items) |*task| {
+            if (task.thread) |thread| {
+                thread.join();
+            }
+        }
+
+        // Free all cancelled flags
+        for (self.tasks.items) |*task| {
+            self.allocator.destroy(task.cancelled);
+        }
+
         self.tasks.deinit(self.allocator);
         self.event_queue.deinit(self.allocator);
     }
@@ -88,6 +105,11 @@ pub const AsyncEventLoop = struct {
         callback: TaskCallback,
         user_data: ?*anyopaque,
     ) !TaskHandle {
+        // Allocate cancelled flag on heap for stable addressing
+        const cancelled_ptr = try self.allocator.create(bool);
+        errdefer self.allocator.destroy(cancelled_ptr);
+        cancelled_ptr.* = false;
+
         self.mutex.lock();
         defer self.mutex.unlock();
 
@@ -100,7 +122,7 @@ pub const AsyncEventLoop = struct {
             .callback = callback,
             .user_data = user_data,
             .thread = null,
-            .cancelled = false,
+            .cancelled = cancelled_ptr,
             .result = {},
         };
 
@@ -110,11 +132,11 @@ pub const AsyncEventLoop = struct {
             task_id: u32,
             task_context: @TypeOf(context),
             task_fn_ptr: *const fn (@TypeOf(context), *bool) anyerror!void,
+            cancelled_ptr: *bool, // Stable pointer to cancelled flag
 
             fn run(ctx: @This()) void {
                 // Find task and mark as running
                 ctx.loop.mutex.lock();
-                var cancelled_flag: bool = false;
                 var callback_fn: ?TaskCallback = null;
                 var callback_data: ?*anyopaque = null;
 
@@ -129,8 +151,8 @@ pub const AsyncEventLoop = struct {
                 }
                 ctx.loop.mutex.unlock();
 
-                // Execute task function outside of lock
-                const result = ctx.task_fn_ptr(ctx.task_context, &cancelled_flag);
+                // Execute task function outside of lock with stable cancelled pointer
+                const result = ctx.task_fn_ptr(ctx.task_context, ctx.cancelled_ptr);
 
                 // Update task state - re-find task after re-acquiring lock
                 {
@@ -140,8 +162,8 @@ pub const AsyncEventLoop = struct {
                     for (ctx.loop.tasks.items) |*t| {
                         if (t.id == ctx.task_id) {
                             t.result = result;
-                            t.cancelled = cancelled_flag;
-                            if (cancelled_flag) {
+                            // cancelled flag is already updated via pointer
+                            if (ctx.cancelled_ptr.*) {
                                 t.state = .cancelled;
                             } else if (result) |_| {
                                 t.state = .completed;
@@ -165,6 +187,7 @@ pub const AsyncEventLoop = struct {
             .task_id = task_id,
             .task_context = context,
             .task_fn_ptr = &task_fn,
+            .cancelled_ptr = cancelled_ptr, // Pass stable heap pointer
         };
 
         const thread = try std.Thread.spawn(.{}, ThreadContext.run, .{thread_ctx});
@@ -172,20 +195,29 @@ pub const AsyncEventLoop = struct {
         task.thread = thread;
         try self.tasks.append(self.allocator, task);
 
+        // Return stable pointer that won't be invalidated by array reallocation
         return TaskHandle{
             .id = task_id,
-            .cancelled = &self.tasks.items[self.tasks.items.len - 1].cancelled,
+            .cancelled = cancelled_ptr,
         };
     }
 
     /// Cancel a background task
     pub fn cancelTask(self: *AsyncEventLoop, handle: TaskHandle) void {
+        // Directly set the cancelled flag via stable pointer
+        // No need for mutex since this is an atomic bool write
+        handle.cancelled.* = true;
+
+        // Update task state under lock
         self.mutex.lock();
         defer self.mutex.unlock();
 
         for (self.tasks.items) |*task| {
             if (task.id == handle.id) {
-                task.cancelled = true;
+                // cancelled pointer already updated above
+                if (task.state == .pending or task.state == .running) {
+                    task.state = .cancelled;
+                }
                 break;
             }
         }
@@ -288,6 +320,8 @@ pub const AsyncEventLoop = struct {
                 if (task.thread) |thread| {
                     thread.join();
                 }
+                // Free the heap-allocated cancelled flag
+                self.allocator.destroy(task.cancelled);
                 _ = self.tasks.orderedRemove(i);
             } else {
                 i += 1;
@@ -649,6 +683,65 @@ test "AsyncEventLoop error handling in tasks" {
 
     const state = loop.getTaskState(handle);
     try std.testing.expectEqual(TaskState.failed, state.?);
+
+    loop.cleanupTasks();
+}
+
+test "AsyncEventLoop dangling pointer safety after array reallocation" {
+    // This test ensures TaskHandle.cancelled pointer remains valid
+    // even after tasks array reallocates
+    var loop = AsyncEventLoop.init(std.testing.allocator);
+    defer loop.deinit();
+
+    const ctx = struct {
+        value: u32 = 0,
+    }{};
+
+    var completed_flags: [20]bool = undefined;
+    @memset(&completed_flags, false);
+
+    const callback = struct {
+        fn call(result: anyerror!void, user_data: ?*anyopaque) void {
+            _ = result catch unreachable;
+            const flag = @as(*bool, @ptrCast(@alignCast(user_data.?)));
+            flag.* = true;
+        }
+    }.call;
+
+    const long_task = struct {
+        fn run(context: @TypeOf(ctx), cancelled: *bool) anyerror!void {
+            _ = context;
+            // Check cancelled flag multiple times during execution
+            var i: usize = 0;
+            while (i < 50 and !cancelled.*) : (i += 1) {
+                std.Thread.sleep(1 * std.time.ns_per_ms);
+            }
+        }
+    }.run;
+
+    // Spawn many tasks to force array reallocation
+    // This should expose dangling pointer bug if present
+    var handles: [20]TaskHandle = undefined;
+    for (&handles, 0..) |*handle, i| {
+        handle.* = try loop.spawnTask(ctx, long_task, callback, &completed_flags[i]);
+    }
+
+    // Cancel first task - if its cancelled pointer is dangling, this could crash
+    loop.cancelTask(handles[0]);
+
+    // Wait for tasks
+    var retries: usize = 0;
+    while (retries < 200) : (retries += 1) {
+        var all_done = true;
+        for (completed_flags) |flag| {
+            if (!flag) all_done = false;
+        }
+        if (all_done) break;
+        std.Thread.sleep(5 * std.time.ns_per_ms);
+    }
+
+    // First task should have been cancelled
+    try std.testing.expectEqual(TaskState.cancelled, loop.getTaskState(handles[0]).?);
 
     loop.cleanupTasks();
 }
