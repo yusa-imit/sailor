@@ -203,7 +203,21 @@ pub const SixelEncoder = struct {
 
 /// Detect if terminal supports Sixel graphics
 pub fn detectSixelSupport() bool {
-    // Check TERM environment variable for known Sixel-capable terminals
+    const term_mod = @import("../term.zig");
+
+    // Try XTGETTCAP query first (most reliable)
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Query "Sixel" capability with 100ms timeout
+    if (term_mod.hasCapability(allocator, std.posix.STDOUT_FILENO, "Sixel", 100)) |has_sixel| {
+        if (has_sixel) return true;
+    } else |_| {
+        // XTGETTCAP failed (not a TTY, unsupported platform, etc.) - fall back to env vars
+    }
+
+    // Fallback: Check TERM environment variable for known Sixel-capable terminals
     const term = std.posix.getenv("TERM") orelse return false;
 
     const sixel_terms = [_][]const u8{
@@ -221,7 +235,6 @@ pub fn detectSixelSupport() bool {
         }
     }
 
-    // TODO: Use XTGETTCAP to query Sixel capability
     return false;
 }
 

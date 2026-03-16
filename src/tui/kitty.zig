@@ -202,7 +202,24 @@ pub const KittyEncoder = struct {
 
 /// Detect if terminal supports Kitty graphics protocol
 pub fn detectKittySupport() bool {
-    // Check for TERM_PROGRAM=kitty or KITTY_WINDOW_ID environment variable
+    const term_mod = @import("../term.zig");
+
+    // Try XTGETTCAP query first (most reliable)
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Query "TN" (terminal name) capability with 100ms timeout
+    // Kitty terminals typically identify as "xterm-kitty"
+    if (term_mod.queryTerminalCapability(allocator, std.posix.STDOUT_FILENO, "TN", 100)) |value| {
+        defer allocator.free(value);
+        const has_kitty = std.mem.indexOf(u8, value, "kitty") != null;
+        if (has_kitty) return true;
+    } else |_| {
+        // XTGETTCAP failed - fall back to env vars
+    }
+
+    // Fallback: Check for TERM_PROGRAM=kitty or KITTY_WINDOW_ID environment variable
     const term_program = std.posix.getenv("TERM_PROGRAM");
     if (term_program) |prog| {
         if (std.mem.eql(u8, prog, "kitty")) return true;
@@ -217,7 +234,6 @@ pub fn detectKittySupport() bool {
         if (std.mem.indexOf(u8, t, "kitty") != null) return true;
     }
 
-    // TODO: Could also query terminal via XTGETTCAP, but requires async response
     return false;
 }
 
