@@ -9,9 +9,9 @@
 
 ## Active Milestones
 
-### v1.16.0 — Advanced Terminal Features & Protocols (0/5 complete)
+### v1.16.0 — Advanced Terminal Features & Protocols (1/5 complete)
 
-- [ ] Terminal capability database (comprehensive terminfo parser, fallback detection)
+- [x] Terminal capability database (comprehensive terminfo parser, fallback detection) — **DONE** (2026-03-17)
 - [ ] Bracketed paste mode (prevent command injection, detect paste events)
 - [ ] Synchronized output protocol (eliminate tearing during rapid updates)
 - [ ] Hyperlink support (OSC 8 for clickable URLs in terminal)
