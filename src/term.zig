@@ -8,6 +8,7 @@
 //! - Bracketed paste mode (prevent command injection)
 //! - Synchronized output protocol (eliminate tearing)
 //! - Hyperlink support (OSC 8 for clickable URLs)
+//! - Focus tracking (detect terminal focus in/out events)
 //!
 //! All platform-specific code is guarded with `comptime` checks.
 
@@ -297,6 +298,36 @@ pub fn writeHyperlinkWithParams(writer: std.io.AnyWriter, params: []const u8, ur
 
     // End hyperlink: OSC 8 ; ; ST
     try writer.writeAll("\x1b]8;;\x1b\\");
+}
+
+/// Focus tracking - detect when terminal gains/loses focus
+/// Terminals supporting this mode will send focus in/out events.
+/// Based on DEC private mode 1004.
+pub const FocusTracking = struct {
+    writer: std.io.AnyWriter,
+
+    /// Enable focus tracking
+    /// Sends CSI ? 1004 h sequence to the terminal
+    pub fn enable(writer: std.io.AnyWriter) !FocusTracking {
+        try writer.writeAll("\x1b[?1004h");
+        return FocusTracking{ .writer = writer };
+    }
+
+    /// Disable focus tracking
+    /// Sends CSI ? 1004 l sequence to the terminal
+    pub fn deinit(self: FocusTracking) void {
+        self.writer.writeAll("\x1b[?1004l") catch {};
+    }
+};
+
+/// Check if buffer contains focus in event (ESC [ I)
+pub fn isFocusIn(buf: []const u8) bool {
+    return std.mem.indexOf(u8, buf, "\x1b[I") != null;
+}
+
+/// Check if buffer contains focus out event (ESC [ O)
+pub fn isFocusOut(buf: []const u8) bool {
+    return std.mem.indexOf(u8, buf, "\x1b[O") != null;
 }
 
 /// Check if buffer contains paste start marker (ESC [ 200 ~)
@@ -1350,4 +1381,127 @@ test "writeHyperlinkWithParams multiple params" {
     const written = stream.getWritten();
     try std.testing.expect(std.mem.indexOf(u8, written, "id=x:type=external") != null);
     try std.testing.expect(std.mem.indexOf(u8, written, "https://example.com") != null);
+}
+
+// Focus Tracking Tests
+
+test "FocusTracking.enable writes correct escape sequence" {
+    var buf: [64]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    const focus = try FocusTracking.enable(stream.writer().any());
+    defer focus.deinit();
+
+    // Should write CSI ? 1004 h
+    try std.testing.expectEqualStrings("\x1b[?1004h", stream.getWritten());
+}
+
+test "FocusTracking.deinit writes disable sequence" {
+    var buf: [64]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    var focus = try FocusTracking.enable(stream.writer().any());
+
+    // Reset buffer to capture only deinit output
+    stream.reset();
+    focus.deinit();
+
+    // Should write CSI ? 1004 l
+    try std.testing.expectEqualStrings("\x1b[?1004l", stream.getWritten());
+}
+
+test "FocusTracking RAII disables on scope exit" {
+    var buf: [128]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    {
+        var focus = try FocusTracking.enable(stream.writer().any());
+        defer focus.deinit();
+    }
+
+    const written = stream.getWritten();
+    // Should contain both enable and disable sequences
+    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?1004h") != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?1004l") != null);
+}
+
+test "isFocusIn detects focus in event" {
+    // Should detect ESC [ I
+    try std.testing.expect(isFocusIn("\x1b[I"));
+    try std.testing.expect(isFocusIn("prefix\x1b[Isuffix"));
+    try std.testing.expect(!isFocusIn("\x1b[O")); // focus out
+    try std.testing.expect(!isFocusIn("\x1b[?1004h")); // enable sequence
+    try std.testing.expect(!isFocusIn("random text"));
+    try std.testing.expect(!isFocusIn(""));
+}
+
+test "isFocusOut detects focus out event" {
+    // Should detect ESC [ O
+    try std.testing.expect(isFocusOut("\x1b[O"));
+    try std.testing.expect(isFocusOut("prefix\x1b[Osuffix"));
+    try std.testing.expect(!isFocusOut("\x1b[I")); // focus in
+    try std.testing.expect(!isFocusOut("\x1b[?1004l")); // disable sequence
+    try std.testing.expect(!isFocusOut("random text"));
+    try std.testing.expect(!isFocusOut(""));
+}
+
+test "isFocusIn and isFocusOut with partial sequences" {
+    // Incomplete sequences should not be detected
+    try std.testing.expect(!isFocusIn("\x1b["));
+    try std.testing.expect(!isFocusIn("\x1b"));
+    try std.testing.expect(!isFocusIn("I"));
+
+    try std.testing.expect(!isFocusOut("\x1b["));
+    try std.testing.expect(!isFocusOut("\x1b"));
+    try std.testing.expect(!isFocusOut("O"));
+}
+
+test "isFocusIn and isFocusOut are exact matches" {
+    // Similar but different sequences should not match
+    try std.testing.expect(!isFocusIn("\x1b]I")); // OSC instead of CSI
+    try std.testing.expect(!isFocusIn("\x1b[In")); // extended
+    try std.testing.expect(!isFocusIn("\x1bI")); // missing CSI
+
+    try std.testing.expect(!isFocusOut("\x1b]O")); // OSC instead of CSI
+    try std.testing.expect(!isFocusOut("\x1b[Out")); // extended
+    try std.testing.expect(!isFocusOut("\x1bO")); // missing CSI
+}
+
+test "FocusTracking multiple enable/disable cycles" {
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    // First cycle
+    {
+        var focus = try FocusTracking.enable(stream.writer().any());
+        defer focus.deinit();
+    }
+
+    const first_written = stream.getWritten();
+    try std.testing.expectEqualStrings("\x1b[?1004h\x1b[?1004l", first_written);
+
+    // Second cycle
+    stream.reset();
+    {
+        var focus = try FocusTracking.enable(stream.writer().any());
+        defer focus.deinit();
+    }
+
+    const second_written = stream.getWritten();
+    try std.testing.expectEqualStrings("\x1b[?1004h\x1b[?1004l", second_written);
+}
+
+test "FocusTracking with simulated focus events" {
+    var enable_buf: [64]u8 = undefined;
+    var enable_stream = std.io.fixedBufferStream(&enable_buf);
+
+    var focus = try FocusTracking.enable(enable_stream.writer().any());
+    defer focus.deinit();
+
+    // Simulate receiving focus events (in real usage, these come from terminal input)
+    const focus_in_event = "\x1b[I";
+    const focus_out_event = "\x1b[O";
+
+    try std.testing.expect(isFocusIn(focus_in_event));
+    try std.testing.expect(isFocusOut(focus_out_event));
 }
