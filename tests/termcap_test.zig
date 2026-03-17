@@ -98,7 +98,7 @@ const MockTerminfo = struct {
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // bool_count
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // num_count
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 2))); // str_count: 2 strings
-        try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 13))); // str_table_size
+        try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 12))); // str_table_size
 
         // Terminal names
         try buf.appendSlice(allocator, "xterm\x00");
@@ -125,7 +125,7 @@ const MockTerminfo = struct {
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 2))); // bool_count
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 3))); // num_count
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 3))); // str_count
-        try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 33))); // str_table_size
+        try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 29))); // str_table_size
 
         // Terminal names
         try buf.appendSlice(allocator, "xterm-256color\x00\x00\x00\x00");

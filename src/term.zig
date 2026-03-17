@@ -224,6 +224,35 @@ pub const RawMode = struct {
     }
 };
 
+/// Bracketed paste mode - prevents command injection and allows detecting paste events
+/// Terminals supporting this mode wrap pasted content with special escape sequences.
+pub const BracketedPaste = struct {
+    writer: std.io.AnyWriter,
+
+    /// Enable bracketed paste mode
+    /// Sends CSI ? 2004 h sequence to the terminal
+    pub fn enable(writer: std.io.AnyWriter) !BracketedPaste {
+        try writer.writeAll("\x1b[?2004h");
+        return BracketedPaste{ .writer = writer };
+    }
+
+    /// Disable bracketed paste mode
+    /// Sends CSI ? 2004 l sequence to the terminal
+    pub fn deinit(self: BracketedPaste) void {
+        self.writer.writeAll("\x1b[?2004l") catch {};
+    }
+};
+
+/// Check if buffer contains paste start marker (ESC [ 200 ~)
+pub fn isPasteStart(buf: []const u8) bool {
+    return std.mem.indexOf(u8, buf, "\x1b[200~") != null;
+}
+
+/// Check if buffer contains paste end marker (ESC [ 201 ~)
+pub fn isPasteEnd(buf: []const u8) bool {
+    return std.mem.indexOf(u8, buf, "\x1b[201~") != null;
+}
+
 /// Read a single byte from stdin with timeout (in milliseconds)
 /// Returns null if timeout expires
 pub fn readByte(timeout_ms: u32) !?u8 {
@@ -937,4 +966,116 @@ test "XTGETTCAP common capabilities" {
 
         try std.testing.expectEqualStrings(cap, decoded);
     }
+}
+
+// Bracketed Paste Mode Tests
+
+test "BracketedPaste.enable writes correct escape sequence" {
+    var buf: [64]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    const bp = try BracketedPaste.enable(stream.writer().any());
+    defer bp.deinit();
+
+    // Should write CSI ? 2004 h
+    try std.testing.expectEqualStrings("\x1b[?2004h", stream.getWritten());
+}
+
+test "BracketedPaste.deinit writes disable sequence" {
+    var buf: [64]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    var bp = try BracketedPaste.enable(stream.writer().any());
+
+    // Reset buffer to capture only deinit output
+    stream.reset();
+    bp.deinit();
+
+    // Should write CSI ? 2004 l
+    try std.testing.expectEqualStrings("\x1b[?2004l", stream.getWritten());
+}
+
+test "BracketedPaste RAII disables on scope exit" {
+    var buf: [128]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    {
+        var bp = try BracketedPaste.enable(stream.writer().any());
+        defer bp.deinit();
+    }
+
+    const written = stream.getWritten();
+    // Should contain both enable and disable sequences
+    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?2004h") != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?2004l") != null);
+}
+
+test "isPasteStart detects paste start sequence" {
+    // Should detect ESC [ 2 0 0 ~
+    try std.testing.expect(isPasteStart("\x1b[200~"));
+    try std.testing.expect(isPasteStart("prefix\x1b[200~suffix"));
+    try std.testing.expect(!isPasteStart("\x1b[201~")); // paste end
+    try std.testing.expect(!isPasteStart("\x1b[?2004h")); // enable sequence
+    try std.testing.expect(!isPasteStart("random text"));
+    try std.testing.expect(!isPasteStart(""));
+}
+
+test "isPasteEnd detects paste end sequence" {
+    // Should detect ESC [ 2 0 1 ~
+    try std.testing.expect(isPasteEnd("\x1b[201~"));
+    try std.testing.expect(isPasteEnd("prefix\x1b[201~suffix"));
+    try std.testing.expect(!isPasteEnd("\x1b[200~")); // paste start
+    try std.testing.expect(!isPasteEnd("\x1b[?2004l")); // disable sequence
+    try std.testing.expect(!isPasteEnd("random text"));
+    try std.testing.expect(!isPasteEnd(""));
+}
+
+test "isPasteStart and isPasteEnd with partial sequences" {
+    // Incomplete sequences should not be detected
+    try std.testing.expect(!isPasteStart("\x1b[200"));
+    try std.testing.expect(!isPasteStart("\x1b[20"));
+    try std.testing.expect(!isPasteStart("\x1b[2"));
+    try std.testing.expect(!isPasteStart("\x1b["));
+    try std.testing.expect(!isPasteStart("\x1b"));
+
+    try std.testing.expect(!isPasteEnd("\x1b[201"));
+    try std.testing.expect(!isPasteEnd("\x1b[20"));
+    try std.testing.expect(!isPasteEnd("\x1b[2"));
+    try std.testing.expect(!isPasteEnd("\x1b["));
+    try std.testing.expect(!isPasteEnd("\x1b"));
+}
+
+test "isPasteStart and isPasteEnd are exact matches" {
+    // Similar but different sequences should not match
+    try std.testing.expect(!isPasteStart("\x1b[2000~")); // wrong number
+    try std.testing.expect(!isPasteStart("\x1b[20~"));   // truncated
+    try std.testing.expect(!isPasteStart("\x1b]200~"));  // wrong CSI (OSC instead)
+
+    try std.testing.expect(!isPasteEnd("\x1b[2010~"));   // wrong number
+    try std.testing.expect(!isPasteEnd("\x1b[21~"));     // truncated
+    try std.testing.expect(!isPasteEnd("\x1b]201~"));    // wrong CSI
+}
+
+test "BracketedPaste multiple enable/disable cycles" {
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    // First cycle
+    {
+        var bp = try BracketedPaste.enable(stream.writer().any());
+        defer bp.deinit();
+    }
+
+    const first_written = stream.getWritten();
+    try std.testing.expectEqualStrings("\x1b[?2004h\x1b[?2004l", first_written);
+
+    // Second cycle
+    stream.reset();
+    {
+        var bp = try BracketedPaste.enable(stream.writer().any());
+        defer bp.deinit();
+    }
+
+    const second_written = stream.getWritten();
+    try std.testing.expectEqualStrings("\x1b[?2004h\x1b[?2004l", second_written);
 }
