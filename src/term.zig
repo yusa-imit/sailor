@@ -7,6 +7,7 @@
 //! - Key reading with timeout
 //! - Bracketed paste mode (prevent command injection)
 //! - Synchronized output protocol (eliminate tearing)
+//! - Hyperlink support (OSC 8 for clickable URLs)
 //!
 //! All platform-specific code is guarded with `comptime` checks.
 
@@ -264,6 +265,39 @@ pub const SynchronizedOutput = struct {
         self.writer.writeAll("\x1b[?2026l") catch {};
     }
 };
+
+/// Write a hyperlink using OSC 8 escape sequence
+/// Terminals supporting this will render clickable URLs.
+/// Format: ESC ] 8 ; params ; url ST text ESC ] 8 ; ; ST
+/// where ST = ESC \ (String Terminator)
+pub fn writeHyperlink(writer: std.io.AnyWriter, url: []const u8, text: []const u8) !void {
+    // Start hyperlink: OSC 8 ; ; url ST
+    try writer.writeAll("\x1b]8;;");
+    try writer.writeAll(url);
+    try writer.writeAll("\x1b\\");
+
+    // Link text
+    try writer.writeAll(text);
+
+    // End hyperlink: OSC 8 ; ; ST
+    try writer.writeAll("\x1b]8;;\x1b\\");
+}
+
+/// Write a hyperlink with optional parameters (e.g., "id=abc123")
+pub fn writeHyperlinkWithParams(writer: std.io.AnyWriter, params: []const u8, url: []const u8, text: []const u8) !void {
+    // Start hyperlink: OSC 8 ; params ; url ST
+    try writer.writeAll("\x1b]8;");
+    try writer.writeAll(params);
+    try writer.writeAll(";");
+    try writer.writeAll(url);
+    try writer.writeAll("\x1b\\");
+
+    // Link text
+    try writer.writeAll(text);
+
+    // End hyperlink: OSC 8 ; ; ST
+    try writer.writeAll("\x1b]8;;\x1b\\");
+}
 
 /// Check if buffer contains paste start marker (ESC [ 200 ~)
 pub fn isPasteStart(buf: []const u8) bool {
@@ -1216,4 +1250,104 @@ test "SynchronizedOutput nested begin/end is safe" {
     const end_count = std.mem.count(u8, written, "\x1b[?2026l");
     try std.testing.expectEqual(@as(usize, 2), begin_count);
     try std.testing.expectEqual(@as(usize, 2), end_count);
+}
+
+// Hyperlink Support Tests (OSC 8)
+
+test "writeHyperlink basic usage" {
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    try writeHyperlink(stream.writer().any(), "https://example.com", "Example Link");
+
+    const written = stream.getWritten();
+    // Should be: OSC 8 ; ; url ST text OSC 8 ; ; ST
+    const expected = "\x1b]8;;https://example.com\x1b\\Example Link\x1b]8;;\x1b\\";
+    try std.testing.expectEqualStrings(expected, written);
+}
+
+test "writeHyperlink empty url" {
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    try writeHyperlink(stream.writer().any(), "", "Plain text");
+
+    const written = stream.getWritten();
+    // Should still wrap with OSC 8 sequences
+    const expected = "\x1b]8;;\x1b\\Plain text\x1b]8;;\x1b\\";
+    try std.testing.expectEqualStrings(expected, written);
+}
+
+test "writeHyperlink special characters in url" {
+    var buf: [512]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    const url = "https://example.com/path?query=value&foo=bar#anchor";
+    try writeHyperlink(stream.writer().any(), url, "Complex URL");
+
+    const written = stream.getWritten();
+    try std.testing.expect(std.mem.indexOf(u8, written, url) != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, "Complex URL") != null);
+}
+
+test "writeHyperlinkWithParams adds parameters" {
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    try writeHyperlinkWithParams(stream.writer().any(), "id=abc123", "https://example.com", "Link with ID");
+
+    const written = stream.getWritten();
+    // Should include params: OSC 8 ; id=abc123 ; url ST text OSC 8 ; ; ST
+    const expected = "\x1b]8;id=abc123;https://example.com\x1b\\Link with ID\x1b]8;;\x1b\\";
+    try std.testing.expectEqualStrings(expected, written);
+}
+
+test "writeHyperlinkWithParams empty params" {
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    try writeHyperlinkWithParams(stream.writer().any(), "", "https://example.com", "No params");
+
+    const written = stream.getWritten();
+    // Should be same as writeHyperlink: OSC 8 ; ; url ST text OSC 8 ; ; ST
+    const expected = "\x1b]8;;https://example.com\x1b\\No params\x1b]8;;\x1b\\";
+    try std.testing.expectEqualStrings(expected, written);
+}
+
+test "writeHyperlink multiple links in sequence" {
+    var buf: [512]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    try writeHyperlink(stream.writer().any(), "https://first.com", "First");
+    try stream.writer().any().writeAll(" - ");
+    try writeHyperlink(stream.writer().any(), "https://second.com", "Second");
+
+    const written = stream.getWritten();
+    try std.testing.expect(std.mem.indexOf(u8, written, "https://first.com") != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, "First") != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, "https://second.com") != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, "Second") != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, " - ") != null);
+}
+
+test "writeHyperlink unicode text" {
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    try writeHyperlink(stream.writer().any(), "https://example.com", "링크 🔗 Link");
+
+    const written = stream.getWritten();
+    try std.testing.expect(std.mem.indexOf(u8, written, "링크 🔗 Link") != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, "https://example.com") != null);
+}
+
+test "writeHyperlinkWithParams multiple params" {
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    try writeHyperlinkWithParams(stream.writer().any(), "id=x:type=external", "https://example.com", "Multi-param");
+
+    const written = stream.getWritten();
+    try std.testing.expect(std.mem.indexOf(u8, written, "id=x:type=external") != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, "https://example.com") != null);
 }
