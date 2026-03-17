@@ -10,7 +10,8 @@
 
 ## Current Phase
 - **Post-v1.0 Milestones**: v1.16.0 → Advanced Terminal Features & Protocols (1/5, 20%)
-  - ✅ Terminal capability database (terminfo parser, fallback detection) — IN PROGRESS: compiled but tests not fully verified
+  - ✅ Terminal capability database (terminfo parser, fallback detection) — Test data fixed (commit 4aada80)
+  - ⚠️ Test suite performance issue identified (90s+ runtime, needs investigation)
   - Next up: Bracketed paste mode (prevent command injection)
 
 ## Project Status
