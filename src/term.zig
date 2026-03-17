@@ -5,6 +5,8 @@
 //! - Terminal size detection
 //! - Raw mode (non-canonical input, no echo)
 //! - Key reading with timeout
+//! - Bracketed paste mode (prevent command injection)
+//! - Synchronized output protocol (eliminate tearing)
 //!
 //! All platform-specific code is guarded with `comptime` checks.
 
@@ -240,6 +242,26 @@ pub const BracketedPaste = struct {
     /// Sends CSI ? 2004 l sequence to the terminal
     pub fn deinit(self: BracketedPaste) void {
         self.writer.writeAll("\x1b[?2004l") catch {};
+    }
+};
+
+/// Synchronized output protocol - eliminates tearing during rapid updates
+/// Terminals supporting this mode will batch output until explicitly flushed.
+/// Based on DEC private mode 2026.
+pub const SynchronizedOutput = struct {
+    writer: std.io.AnyWriter,
+
+    /// Begin synchronized output mode
+    /// Sends CSI ? 2026 h sequence to the terminal
+    pub fn begin(writer: std.io.AnyWriter) !SynchronizedOutput {
+        try writer.writeAll("\x1b[?2026h");
+        return SynchronizedOutput{ .writer = writer };
+    }
+
+    /// End synchronized output mode and flush
+    /// Sends CSI ? 2026 l sequence to the terminal
+    pub fn end(self: SynchronizedOutput) void {
+        self.writer.writeAll("\x1b[?2026l") catch {};
     }
 };
 
@@ -1078,4 +1100,120 @@ test "BracketedPaste multiple enable/disable cycles" {
 
     const second_written = stream.getWritten();
     try std.testing.expectEqualStrings("\x1b[?2004h\x1b[?2004l", second_written);
+}
+
+// Synchronized Output Protocol Tests
+
+test "SynchronizedOutput.begin writes correct escape sequence" {
+    var buf: [64]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    const sync = try SynchronizedOutput.begin(stream.writer().any());
+    defer sync.end();
+
+    // Should write CSI ? 2026 h
+    try std.testing.expectEqualStrings("\x1b[?2026h", stream.getWritten());
+}
+
+test "SynchronizedOutput.end writes flush sequence" {
+    var buf: [64]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    var sync = try SynchronizedOutput.begin(stream.writer().any());
+
+    // Reset buffer to capture only end output
+    stream.reset();
+    sync.end();
+
+    // Should write CSI ? 2026 l
+    try std.testing.expectEqualStrings("\x1b[?2026l", stream.getWritten());
+}
+
+test "SynchronizedOutput RAII flushes on scope exit" {
+    var buf: [128]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    {
+        var sync = try SynchronizedOutput.begin(stream.writer().any());
+        defer sync.end();
+    }
+
+    const written = stream.getWritten();
+    // Should contain both begin and end sequences
+    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?2026h") != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?2026l") != null);
+}
+
+test "SynchronizedOutput prevents tearing during rapid updates" {
+    var buf: [512]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    {
+        var sync = try SynchronizedOutput.begin(stream.writer().any());
+        defer sync.end();
+
+        // Simulate multiple rapid writes that would normally tear
+        const writer = stream.writer().any();
+        try writer.writeAll("Line 1\n");
+        try writer.writeAll("Line 2\n");
+        try writer.writeAll("Line 3\n");
+    }
+
+    const written = stream.getWritten();
+    // Should have begin sequence, content, then end sequence
+    try std.testing.expect(std.mem.startsWith(u8, written, "\x1b[?2026h"));
+    try std.testing.expect(std.mem.endsWith(u8, written, "\x1b[?2026l"));
+    try std.testing.expect(std.mem.indexOf(u8, written, "Line 1\nLine 2\nLine 3\n") != null);
+}
+
+test "SynchronizedOutput multiple begin/end cycles" {
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    // First cycle
+    {
+        var sync = try SynchronizedOutput.begin(stream.writer().any());
+        defer sync.end();
+    }
+
+    const first_written = stream.getWritten();
+    try std.testing.expectEqualStrings("\x1b[?2026h\x1b[?2026l", first_written);
+
+    // Second cycle
+    stream.reset();
+    {
+        var sync = try SynchronizedOutput.begin(stream.writer().any());
+        defer sync.end();
+    }
+
+    const second_written = stream.getWritten();
+    try std.testing.expectEqualStrings("\x1b[?2026h\x1b[?2026l", second_written);
+}
+
+test "SynchronizedOutput nested begin/end is safe" {
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    {
+        var outer = try SynchronizedOutput.begin(stream.writer().any());
+        defer outer.end();
+
+        try stream.writer().any().writeAll("outer\n");
+
+        {
+            var inner = try SynchronizedOutput.begin(stream.writer().any());
+            defer inner.end();
+
+            try stream.writer().any().writeAll("inner\n");
+        }
+
+        try stream.writer().any().writeAll("outer again\n");
+    }
+
+    const written = stream.getWritten();
+    // Should have multiple begin/end pairs
+    const begin_count = std.mem.count(u8, written, "\x1b[?2026h");
+    const end_count = std.mem.count(u8, written, "\x1b[?2026l");
+    try std.testing.expectEqual(@as(usize, 2), begin_count);
+    try std.testing.expectEqual(@as(usize, 2), end_count);
 }
