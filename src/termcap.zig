@@ -227,11 +227,11 @@ pub const TermInfo = struct {
         // Calculate string table size
         const str_table_size: u16 = if (is_dumb) 0 else blk: {
             var size: u16 = 0;
-            size += 10; // clear: "\x1b[H\x1b[2J\x00"
-            size += 5;  // home: "\x1b[H\x00"
-            size += 20; // cup: "\x1b[%i%p1%d;%p2%dH\x00"
-            size += 8;  // setaf: "\x1b[3%p1%dm\x00"
-            size += 8;  // setab: "\x1b[4%p1%dm\x00"
+            size += 8;  // clear: "\x1b[H\x1b[2J\x00"
+            size += 4;  // home: "\x1b[H\x00"
+            size += 17; // cup: "\x1b[%i%p1%d;%p2%dH\x00"
+            size += 10; // setaf: "\x1b[3%p1%dm\x00"
+            size += 10; // setab: "\x1b[4%p1%dm\x00"
             break :blk size;
         };
         try buf.appendSlice(allocator, &std.mem.toBytes(str_table_size));
@@ -257,14 +257,14 @@ pub const TermInfo = struct {
             // String offsets section
             var offset: i16 = 0;
             try buf.appendSlice(allocator, &std.mem.toBytes(offset)); // clear at 0
-            offset += 10;
-            try buf.appendSlice(allocator, &std.mem.toBytes(offset)); // home at 10
-            offset += 5;
-            try buf.appendSlice(allocator, &std.mem.toBytes(offset)); // cup at 15
-            offset += 20;
-            try buf.appendSlice(allocator, &std.mem.toBytes(offset)); // setaf at 35
             offset += 8;
-            try buf.appendSlice(allocator, &std.mem.toBytes(offset)); // setab at 43
+            try buf.appendSlice(allocator, &std.mem.toBytes(offset)); // home at 8
+            offset += 4;
+            try buf.appendSlice(allocator, &std.mem.toBytes(offset)); // cup at 12
+            offset += 17;
+            try buf.appendSlice(allocator, &std.mem.toBytes(offset)); // setaf at 29
+            offset += 10;
+            try buf.appendSlice(allocator, &std.mem.toBytes(offset)); // setab at 39
 
             // String table
             try buf.appendSlice(allocator, "\x1b[H\x1b[2J\x00"); // clear
@@ -282,10 +282,11 @@ pub const TermInfo = struct {
         }
 
         const data = try buf.toOwnedSlice(allocator);
-        return parse(allocator, data) catch |err| {
-            allocator.free(data);
-            return err;
-        };
+        errdefer allocator.free(data);
+
+        const result = try parse(allocator, data);
+        allocator.free(data); // parse makes its own copy, so free the original
+        return result;
     }
 
     pub fn deinit(self: *const TermInfo) void {

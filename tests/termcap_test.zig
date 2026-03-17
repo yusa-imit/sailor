@@ -45,20 +45,23 @@ const MockTerminfo = struct {
 
         // Header
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o432))); // magic
-        try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 12))); // names_size
+        try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 10))); // names_size
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 4))); // bool_count: 4 booleans
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // num_count
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // str_count
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // str_table_size
 
         // Terminal names
-        try buf.appendSlice(allocator, "xterm-256\x00\x00");
+        try buf.appendSlice(allocator, "xterm-256\x00");
 
         // Boolean section (1 byte each: 0=absent, 1=present)
         try buf.append(allocator, 1); // auto_left_margin (am)
         try buf.append(allocator, 1); // auto_right_margin (am)
         try buf.append(allocator, 0); // beehive_glitch (xsb)
         try buf.append(allocator, 1); // back_color_erase (bce)
+
+        // Alignment padding to 2-byte boundary
+        try buf.append(allocator, 0);
 
         return buf.toOwnedSlice(allocator);
     }
@@ -105,7 +108,7 @@ const MockTerminfo = struct {
 
         // String offsets section (2 bytes each, offset into string table, -1 means absent)
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 0))); // clear_screen offset
-        try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 9))); // cursor_home offset
+        try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 8))); // cursor_home offset
 
         // String table (null-terminated strings)
         try buf.appendSlice(allocator, "\x1b[H\x1b[2J\x00"); // clear_screen: ESC[H ESC[2J
@@ -125,7 +128,7 @@ const MockTerminfo = struct {
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 2))); // bool_count
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 3))); // num_count
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 3))); // str_count
-        try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 29))); // str_table_size
+        try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 28))); // str_table_size
 
         // Terminal names
         try buf.appendSlice(allocator, "xterm-256color\x00\x00\x00\x00");
@@ -141,8 +144,8 @@ const MockTerminfo = struct {
 
         // String offsets
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 0))); // clear_screen
-        try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 9))); // cursor_home
-        try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 13))); // cursor_address
+        try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 8))); // cursor_home
+        try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 12))); // cursor_address
 
         // String table
         try buf.appendSlice(allocator, "\x1b[H\x1b[2J\x00"); // clear
