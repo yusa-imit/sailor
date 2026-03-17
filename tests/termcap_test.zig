@@ -98,14 +98,14 @@ const MockTerminfo = struct {
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // bool_count
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // num_count
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 2))); // str_count: 2 strings
-        try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 20))); // str_table_size
+        try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 13))); // str_table_size
 
         // Terminal names
         try buf.appendSlice(allocator, "xterm\x00");
 
         // String offsets section (2 bytes each, offset into string table, -1 means absent)
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 0))); // clear_screen offset
-        try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 10))); // cursor_home offset
+        try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 9))); // cursor_home offset
 
         // String table (null-terminated strings)
         try buf.appendSlice(allocator, "\x1b[H\x1b[2J\x00"); // clear_screen: ESC[H ESC[2J
@@ -125,7 +125,7 @@ const MockTerminfo = struct {
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 2))); // bool_count
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 3))); // num_count
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 3))); // str_count
-        try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 30))); // str_table_size
+        try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 33))); // str_table_size
 
         // Terminal names
         try buf.appendSlice(allocator, "xterm-256color\x00\x00\x00\x00");
@@ -141,8 +141,8 @@ const MockTerminfo = struct {
 
         // String offsets
         try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 0))); // clear_screen
-        try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 10))); // cursor_home
-        try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 15))); // cursor_address
+        try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 9))); // cursor_home
+        try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 13))); // cursor_address
 
         // String table
         try buf.appendSlice(allocator, "\x1b[H\x1b[2J\x00"); // clear
