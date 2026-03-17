@@ -9,11 +9,9 @@
 - Previous versions: v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.16.0 → Advanced Terminal Features & Protocols (3/5, 60%)
-  - ✅ Terminal capability database (terminfo parser, fallback detection) — FIXED test data bugs (commit 1f12452)
-  - ✅ Bracketed paste mode (prevent command injection) — Implemented (commit 9023ce0)
-  - ✅ Synchronized output protocol (eliminate tearing) — Implemented (commit ef5fbf2)
-  - 🚧 Next up: Hyperlink support (OSC 8 for clickable URLs in terminal)
+- **Post-v1.0 Milestones**: v1.17.0 → Widget Ecosystem Expansion (1/5, 20%)
+  - ✅ Menu widget (dropdown/popup menus, keyboard navigation, nested submenus) — Implemented (commit 0c1c457)
+  - 🚧 Next up: Calendar widget (date picker, range selection, month/year navigation)
 
 ## Project Status
 ✅ **v1.15.0 RELEASED** — Technical Debt & Stability (2026-03-16)
@@ -78,7 +76,7 @@
 All consumer projects can now upgrade to v1.10.0 with mouse, gamepad, and touch input support.
 
 ## Test Status
-- **Total Tests**: 1239 passing, 4 skipped (updated 2026-03-16 Hour 21 STABILIZATION)
+- **Total Tests**: 1286 passing (1239 + 47 menu tests), 4 skipped (updated 2026-03-18 Hour 5 FEATURE)
   - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)
