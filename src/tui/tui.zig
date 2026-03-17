@@ -176,6 +176,10 @@ pub const widgets = struct {
     pub const RichTextInput = @import("widgets/richtext.zig").RichTextInput;
     pub const EmojiCategory = @import("widgets/richtext.zig").RichTextInput.EmojiCategory;
     pub const RichText = @import("widgets/richtext.zig").RichText;
+
+    // v1.17.0+ widgets (Advanced UI Components)
+    pub const Menu = @import("widgets/menu.zig").Menu;
+    pub const MenuItem = Menu.MenuItem;
 };
 
 // Export commonly used types
