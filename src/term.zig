@@ -1456,15 +1456,21 @@ test "isFocusIn and isFocusOut with partial sequences" {
     try std.testing.expect(!isFocusOut("O"));
 }
 
-test "isFocusIn and isFocusOut are exact matches" {
-    // Similar but different sequences should not match
-    try std.testing.expect(!isFocusIn("\x1b]I")); // OSC instead of CSI
-    try std.testing.expect(!isFocusIn("\x1b[In")); // extended
-    try std.testing.expect(!isFocusIn("\x1bI")); // missing CSI
+test "isFocusIn and isFocusOut detect sequences in buffers" {
+    // Should detect correct sequences even in larger buffers
+    try std.testing.expect(isFocusIn("some text\x1b[Imore text")); // in middle
+    try std.testing.expect(isFocusIn("\x1b[Itrailing")); // at start
+    try std.testing.expect(isFocusIn("leading\x1b[I")); // at end
 
+    try std.testing.expect(isFocusOut("some text\x1b[Omore text")); // in middle
+    try std.testing.expect(isFocusOut("\x1b[Otrailing")); // at start
+    try std.testing.expect(isFocusOut("leading\x1b[O")); // at end
+
+    // Should not detect wrong sequences
+    try std.testing.expect(!isFocusIn("\x1b]I")); // OSC instead of CSI
+    try std.testing.expect(!isFocusIn("\x1bI")); // missing [
     try std.testing.expect(!isFocusOut("\x1b]O")); // OSC instead of CSI
-    try std.testing.expect(!isFocusOut("\x1b[Out")); // extended
-    try std.testing.expect(!isFocusOut("\x1bO")); // missing CSI
+    try std.testing.expect(!isFocusOut("\x1bO")); // missing [
 }
 
 test "FocusTracking multiple enable/disable cycles" {
