@@ -126,7 +126,7 @@ pub const Menu = struct {
     }
 
     /// Render the menu widget
-    pub fn render(self: Menu, buf: *Buffer, area: Rect) void {
+    pub fn render(self: Menu, buf: *Buffer, area: Rect) !void {
         if (area.width == 0 or area.height == 0) return;
 
         // Render block if present
@@ -139,7 +139,7 @@ pub const Menu = struct {
         if (inner_area.width == 0 or inner_area.height == 0) return;
 
         // Render main menu items
-        self.renderItems(buf, inner_area, self.items, self.selected);
+        try self.renderItems(buf, inner_area, self.items, self.selected);
 
         // Render submenu if open
         if (self.submenu_open) |submenu_idx| {
@@ -165,7 +165,7 @@ pub const Menu = struct {
                             .height = inner_area.height -| @as(u16, @intCast(submenu_idx)),
                         };
                         // Render submenu items (none selected in submenu for now)
-                        self.renderItems(buf, submenu_area, submenu_items, std.math.maxInt(usize));
+                        try self.renderItems(buf, submenu_area, submenu_items, std.math.maxInt(usize));
                     }
                 }
             }
@@ -173,7 +173,7 @@ pub const Menu = struct {
     }
 
     /// Render menu items (helper function)
-    fn renderItems(self: Menu, buf: *Buffer, area: Rect, items: []const MenuItem, selected_idx: usize) void {
+    fn renderItems(self: Menu, buf: *Buffer, area: Rect, items: []const MenuItem, selected_idx: usize) !void {
         var y = area.y;
         for (items, 0..) |item, i| {
             if (y >= area.y + area.height) break;
@@ -205,9 +205,10 @@ pub const Menu = struct {
 
             // Append submenu indicator if item has submenu
             if (item.submenu != null) {
-                for (self.submenu_indicator) |c| {
+                var it = (try std.unicode.Utf8View.init(self.submenu_indicator)).iterator();
+                while (it.nextCodepoint()) |codepoint| {
                     if (x >= area.x + area.width) break;
-                    buf.setChar(x, y, c, base_style);
+                    buf.setChar(x, y, codepoint, base_style);
                     x += 1;
                 }
             }

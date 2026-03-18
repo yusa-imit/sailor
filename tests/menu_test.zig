@@ -146,7 +146,7 @@ test "Menu.render empty area does nothing" {
     var buf = try Buffer.init(std.testing.allocator, 10, 10);
     defer buf.deinit();
 
-    menu.render(&buf, Rect{ .x = 0, .y = 0, .width = 0, .height = 0 });
+    try menu.render(&buf, Rect{ .x = 0, .y = 0, .width = 0, .height = 0 });
     // Should not crash
 }
 
@@ -158,7 +158,7 @@ test "Menu.render single item" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-    menu.render(&buf, area);
+    try menu.render(&buf, area);
 
     // Check item is rendered
     try std.testing.expectEqual(@as(u21, 'F'), buf.get(0, 0).?.char);
@@ -179,7 +179,7 @@ test "Menu.render multiple items vertically" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-    menu.render(&buf, area);
+    try menu.render(&buf, area);
 
     // Check each item is on its own line
     try std.testing.expectEqual(@as(u21, 'F'), buf.get(0, 0).?.char); // File
@@ -202,7 +202,7 @@ test "Menu.render with selection highlight" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-    menu.render(&buf, area);
+    try menu.render(&buf, area);
 
     // Selected item (Edit) should have blue background and bold
     const selected_cell = buf.get(0, 1).?;
@@ -225,7 +225,7 @@ test "Menu.render with borders" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
-    menu.render(&buf, area);
+    try menu.render(&buf, area);
 
     // Check border is rendered
     try std.testing.expectEqual(@as(u21, '\u{250C}'), buf.get(0, 0).?.char); // ┌
@@ -250,7 +250,7 @@ test "Menu.render item with hotkey underlined" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-    menu.render(&buf, area);
+    try menu.render(&buf, area);
 
     // Hotkey character 'F' should be underlined and yellow
     const hotkey_cell = buf.get(0, 0).?;
@@ -275,7 +275,7 @@ test "Menu.render hotkey in middle of label" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-    menu.render(&buf, area);
+    try menu.render(&buf, area);
 
     // 'O' should be normal
     try std.testing.expect(buf.get(0, 0).?.style.fg == null or
@@ -302,7 +302,7 @@ test "Menu.render hotkey case insensitive match" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-    menu.render(&buf, area);
+    try menu.render(&buf, area);
 
     // 'F' should match lowercase 'f' hotkey
     const hotkey_cell = buf.get(0, 0).?;
@@ -328,7 +328,7 @@ test "Menu.render item with submenu shows indicator" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-    menu.render(&buf, area);
+    try menu.render(&buf, area);
 
     // "File" should have submenu indicator " >"
     try std.testing.expectEqual(@as(u21, 'F'), buf.get(0, 0).?.char);
@@ -360,7 +360,7 @@ test "Menu.render with custom unicode submenu indicator" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-    menu.render(&buf, area);
+    try menu.render(&buf, area);
 
     // Should render unicode indicator
     try std.testing.expectEqual(@as(u21, ' '), buf.get(4, 0).?.char);
@@ -539,7 +539,7 @@ test "Menu.render with open submenu shows both levels" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
-    menu.render(&buf, area);
+    try menu.render(&buf, area);
 
     // Main menu should be visible
     try std.testing.expectEqual(@as(u21, 'F'), buf.get(0, 0).?.char); // File
@@ -582,7 +582,7 @@ test "Menu.render closed submenu only shows main menu" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
-    menu.render(&buf, area);
+    try menu.render(&buf, area);
 
     // Main menu should be visible
     try std.testing.expectEqual(@as(u21, 'F'), buf.get(0, 0).?.char);
@@ -622,7 +622,7 @@ test "Menu.render clips at area width boundary" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
-    menu.render(&buf, area);
+    try menu.render(&buf, area);
 
     // Should only render up to width boundary
     try std.testing.expectEqual(@as(u21, 'V'), buf.get(0, 0).?.char);
@@ -644,7 +644,7 @@ test "Menu.render clips at area height boundary" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 3 };
-    menu.render(&buf, area);
+    try menu.render(&buf, area);
 
     // Should only render first 3 items
     try std.testing.expectEqual(@as(u21, 'O'), buf.get(0, 0).?.char); // One
@@ -663,7 +663,7 @@ test "Menu.render with offset area" {
     defer buf.deinit();
 
     const area = Rect{ .x = 10, .y = 5, .width = 15, .height = 8 };
-    menu.render(&buf, area);
+    try menu.render(&buf, area);
 
     // Should render at offset position
     try std.testing.expectEqual(@as(u21, 'I'), buf.get(10, 5).?.char);
@@ -686,7 +686,7 @@ test "Menu.render selection fills width with background" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
-    menu.render(&buf, area);
+    try menu.render(&buf, area);
 
     // All cells in selected row should have cyan background
     for (0..20) |x| {
