@@ -180,6 +180,8 @@ pub const widgets = struct {
     // v1.17.0+ widgets (Advanced UI Components)
     pub const Menu = @import("widgets/menu.zig").Menu;
     pub const MenuItem = Menu.MenuItem;
+    pub const Calendar = @import("widgets/calendar.zig").Calendar;
+    pub const Date = Calendar.Date;
 };
 
 // Export commonly used types
