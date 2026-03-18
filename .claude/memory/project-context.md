@@ -11,6 +11,7 @@
 ## Current Phase
 - **Post-v1.0 Milestones**: v1.17.0 → Widget Ecosystem Expansion (1/5, 20%)
   - ✅ Menu widget (dropdown/popup menus, keyboard navigation, nested submenus) — Implemented (commit 0c1c457)
+  - 🐛 Menu widget UTF-8 fix (Unicode submenu indicators) — Fixed (commit 578a46f)
   - 🚧 Next up: Calendar widget (date picker, range selection, month/year navigation)
 
 ## Project Status
