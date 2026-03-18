@@ -93,6 +93,106 @@ errdefer allocator.free(buf);
 // If error occurs after this, buf is freed
 ```
 
+## Builder Pattern (Widget API)
+
+Widgets in sailor use a fluent builder pattern for configuration:
+
+```zig
+pub const Menu = struct {
+    items: []const MenuItem,
+    selected: usize = 0,
+    // ... fields
+
+    pub fn init(items: []const MenuItem) Menu {
+        return .{ .items = items };
+    }
+
+    pub fn withSelected(self: Menu, index: usize) Menu {
+        var result = self;
+        result.selected = index;
+        return result;
+    }
+};
+
+// Usage:
+var menu = Menu.init(items)
+    .withSelected(1)
+    .withBlock(block);
+```
+
+**Key points**:
+- `init` creates the widget with required fields
+- Builder methods (`with*`) take `self` by value, modify a copy, return the modified copy
+- Enables method chaining and declarative configuration
+- Works well with Zig's struct value semantics
+- Variables can be `var` or `const` (both work, but `const` is preferred for immutability)
+
+## Date Arithmetic Pattern (Zeller's Congruence)
+
+Calendar systems use Zeller's congruence for day-of-week calculation:
+
+```zig
+// Returns 0=Sunday, 1=Monday, ..., 6=Saturday
+pub fn dayOfWeek(self: Date) u3 {
+    var m = self.month;
+    var y = self.year;
+
+    // Adjust: January=1, February=12, March=1, etc.
+    if (m < 3) {
+        m += 12;
+        y -= 1;
+    }
+
+    const q = self.day;
+    const k = y % 100;  // Year of century
+    const j = y / 100;  // Century
+
+    // Zeller formula (gives 0=Saturday)
+    const h = (q + (13 * (m + 1)) / 5 + k + k / 4 + j / 4 - 2 * j) % 7;
+
+    // Convert from Zeller (0=Sat) to custom (0=Sun)
+    const day_val = @as(i8, @intCast(h)) - 1;
+    return @intCast(@mod(day_val, 7));
+}
+```
+
+**Key points**:
+- Zeller's congruence works for Gregorian calendar (1582+)
+- Formula naturally gives 0=Saturday, convert as needed
+- Modulo arithmetic: `@mod(negative_i8, 7)` properly handles negatives in Zig
+- Use u3 for day-of-week (3 bits = 0-7)
+
+## Calendar Grid Rendering Pattern
+
+Calendar widgets render a 6-week x 7-day grid:
+
+```zig
+// Calculate day to display at position (week, day_of_week)
+const first_day = Date.init(year, month, 1).dayOfWeek();
+const offset = (first_day - first_day_of_week + 7) % 7;
+
+for (0..6) |week| {
+    for (0..7) |dow| {
+        const total_cells = week * 7 + dow;
+        const day_to_show = total_cells + 1 - offset;
+
+        if (day_to_show >= 1 and day_to_show <= days_in_month) {
+            // Current month
+        } else if (day_to_show < 1) {
+            // Previous month
+        } else {
+            // Next month
+        }
+    }
+}
+```
+
+**Key points**:
+- `offset` = columns before month starts (0-6)
+- `day_to_show` = calculated day number (can be negative or >31)
+- Handle all three cases: prev/current/next month
+- Apply styles based on: selected > today > in_range > out_of_bounds > default
+
 ## Cross-Platform Verification
 
 Verified targets (all passing):
