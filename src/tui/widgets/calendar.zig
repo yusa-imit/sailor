@@ -503,7 +503,7 @@ pub const Calendar = struct {
                     }
                 } else {
                     // Next month
-                    const next_month = self.current_month.addMonths(1);
+                    _ = self.current_month.addMonths(1);
                     const next_day = @as(u8, @intCast(day_to_show - days_in_month));
 
                     if (next_day >= 1 and next_day <= 31) { // 31 is max days in any month

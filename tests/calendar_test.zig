@@ -304,7 +304,7 @@ test "Calendar.init enables weekday and month/year display by default" {
 test "Calendar.withMonth sets current month" {
     const today = createToday();
     const target = createDate(2026, 6, 1);
-    var calendar = Calendar.init(today).withMonth(target);
+    const calendar = Calendar.init(today).withMonth(target);
 
     try std.testing.expectEqual(@as(u8, 6), calendar.current_month.month);
     try std.testing.expectEqual(@as(u16, 2026), calendar.current_month.year);
@@ -346,14 +346,14 @@ test "Calendar.withConstraints sets min/max dates" {
 test "Calendar.withBlock sets block" {
     const today = createToday();
     const block = Block.init();
-    var calendar = Calendar.init(today).withBlock(block);
+    const calendar = Calendar.init(today).withBlock(block);
 
     try std.testing.expect(calendar.block != null);
 }
 
 test "Calendar.withFirstDayOfWeek sets first_day_of_week" {
     const today = createToday();
-    var calendar = Calendar.init(today).withFirstDayOfWeek(1); // Monday
+    const calendar = Calendar.init(today).withFirstDayOfWeek(1); // Monday
 
     try std.testing.expectEqual(@as(u3, 1), calendar.first_day_of_week);
 }
@@ -366,7 +366,7 @@ test "Calendar.withStyles sets all styles" {
     const style_in_range = Style{ .bg = .cyan };
     const style_out_of_bounds = Style{ .fg = .gray };
 
-    var calendar = Calendar.init(today)
+    const calendar = Calendar.init(today)
         .withStyles(style_default, style_selected, style_today, style_in_range, style_out_of_bounds);
 
     try std.testing.expect(calendar.style_default.fg != null);
@@ -381,7 +381,7 @@ test "Calendar builder methods chain" {
     const selected = createDate(2026, 3, 18);
     const target_month = createDate(2026, 4, 1);
 
-    var calendar = Calendar.init(today)
+    const calendar = Calendar.init(today)
         .withMonth(target_month)
         .withSelected(selected)
         .withFirstDayOfWeek(1);
