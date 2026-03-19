@@ -141,7 +141,11 @@ pub const Calendar = struct {
                     result.month += @intCast(remaining);
                     remaining = 0;
                 } else {
-                    remaining -= (12 - result.month);
+                    // Jump to next year's January
+                    // If we're at month 10 and add 5 months:
+                    // - We consume (12 - 10 + 1) = 3 months to get to next January
+                    // - Remaining = 5 - 3 = 2, then add to January → month 3
+                    remaining -= (12 - result.month + 1);
                     result.month = 1;
                     result.year += 1;
                 }
@@ -152,6 +156,10 @@ pub const Calendar = struct {
                     result.month = @intCast(@as(i32, result.month) + remaining);
                     remaining = 0;
                 } else {
+                    // Jump to previous year's December
+                    // If we're at month 3 and subtract 5 months:
+                    // - We consume -3 months to get to previous December
+                    // - Remaining = -5 + 3 = -2, then add to December → month 10
                     remaining += @as(i32, result.month);
                     result.month = 12;
                     result.year -= 1;
@@ -255,12 +263,25 @@ pub const Calendar = struct {
 
     /// Move to next month
     pub fn nextMonth(self: *Calendar) void {
-        if (self.current_month.month == 12) {
-            self.current_month.month = 1;
-            self.current_month.year += 1;
+        // Calculate next month
+        var next = self.current_month;
+        if (next.month == 12) {
+            next.month = 1;
+            next.year += 1;
         } else {
-            self.current_month.month += 1;
+            next.month += 1;
         }
+
+        // Check if next month exceeds max_date constraint
+        if (self.max_date) |max| {
+            // Compare using first day of next month
+            const next_first = Date.init(next.year, next.month, 1);
+            if (next_first.compare(max) > 0) {
+                return; // Don't navigate beyond max_date
+            }
+        }
+
+        self.current_month = next;
         // Clamp day if necessary (e.g., Jan 31 -> Feb 28)
         const max_day = self.current_month.daysInMonth();
         if (self.current_month.day > max_day) {
@@ -270,12 +291,25 @@ pub const Calendar = struct {
 
     /// Move to previous month
     pub fn prevMonth(self: *Calendar) void {
-        if (self.current_month.month == 1) {
-            self.current_month.month = 12;
-            self.current_month.year -= 1;
+        // Calculate previous month
+        var prev = self.current_month;
+        if (prev.month == 1) {
+            prev.month = 12;
+            prev.year -= 1;
         } else {
-            self.current_month.month -= 1;
+            prev.month -= 1;
         }
+
+        // Check if previous month is before min_date constraint
+        if (self.min_date) |min| {
+            // Compare using last day of previous month
+            const prev_last = Date.init(prev.year, prev.month, Date.init(prev.year, prev.month, 1).daysInMonth());
+            if (prev_last.compare(min) < 0) {
+                return; // Don't navigate before min_date
+            }
+        }
+
+        self.current_month = prev;
         // Clamp day if necessary
         const max_day = self.current_month.daysInMonth();
         if (self.current_month.day > max_day) {
@@ -285,6 +319,13 @@ pub const Calendar = struct {
 
     /// Move to next year
     pub fn nextYear(self: *Calendar) void {
+        // Check if next year exceeds max_date constraint
+        if (self.max_date) |max| {
+            if (self.current_month.year + 1 > max.year) {
+                return; // Don't navigate beyond max_date
+            }
+        }
+
         self.current_month.year += 1;
         // Clamp day if necessary (for leap year changes)
         const max_day = self.current_month.daysInMonth();
@@ -295,6 +336,13 @@ pub const Calendar = struct {
 
     /// Move to previous year
     pub fn prevYear(self: *Calendar) void {
+        // Check if previous year is before min_date constraint
+        if (self.min_date) |min| {
+            if (self.current_month.year - 1 < min.year) {
+                return; // Don't navigate before min_date
+            }
+        }
+
         self.current_month.year -= 1;
         // Clamp day if necessary
         const max_day = self.current_month.daysInMonth();
@@ -416,7 +464,8 @@ pub const Calendar = struct {
 
         // Calculate offset based on first_day_of_week setting
         // offset = number of columns to skip before the 1st of the month
-        const offset = (first_day_of_month - self.first_day_of_week + 7) % 7;
+        // Add 7 before subtraction to avoid underflow
+        const offset = (@as(u32, first_day_of_month) + 7 - @as(u32, self.first_day_of_week)) % 7;
 
         // Render 6 weeks (enough for any month)
         for (0..6) |week| {
