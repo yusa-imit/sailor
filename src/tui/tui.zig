@@ -184,6 +184,7 @@ pub const widgets = struct {
     pub const Date = Calendar.Date;
     pub const FileBrowser = @import("widgets/filebrowser.zig").FileBrowser;
     pub const Entry = @import("widgets/filebrowser.zig").Entry;
+    pub const SelectionResult = @import("widgets/filebrowser.zig").SelectionResult;
 };
 
 // Export commonly used types

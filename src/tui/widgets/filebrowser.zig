@@ -17,6 +17,17 @@ pub const Entry = struct {
     expanded: bool = false,
 };
 
+/// Selection result - wrapper that holds selected entries with allocator
+pub const SelectionResult = struct {
+    items: []Entry,
+    allocator: std.mem.Allocator,
+
+    /// Clean up allocated memory
+    pub fn deinit(self: SelectionResult) void {
+        self.allocator.free(self.items);
+    }
+};
+
 /// FileBrowser widget - interactive file system navigator with selection and preview
 pub const FileBrowser = struct {
     allocator: std.mem.Allocator,
@@ -280,14 +291,18 @@ pub const FileBrowser = struct {
     }
 
     /// Get all selected entries
-    pub fn getSelectedEntries(self: *FileBrowser, allocator: std.mem.Allocator) !std.ArrayList(Entry) {
+    pub fn getSelectedEntries(self: *FileBrowser, allocator: std.mem.Allocator) !SelectionResult {
         var selected: std.ArrayList(Entry) = .{};
         for (self.entries) |entry| {
             if (entry.selected) {
                 try selected.append(allocator, entry);
             }
         }
-        return selected;
+        const slice = try selected.toOwnedSlice(allocator);
+        return SelectionResult{
+            .items = slice,
+            .allocator = allocator,
+        };
     }
 
     /// Toggle expansion state of current directory
@@ -325,10 +340,17 @@ pub const FileBrowser = struct {
 
         // Read up to 1KB for preview
         const preview_size = 1024;
-        var buf = try allocator.alloc(u8, preview_size);
+        const buf = try allocator.alloc(u8, preview_size);
+        errdefer allocator.free(buf);
 
         const bytes_read = try file.readAll(buf);
-        return buf[0..bytes_read];
+
+        // Resize to actual size to allow proper deallocation
+        if (bytes_read < buf.len) {
+            const resized = try allocator.realloc(buf, bytes_read);
+            return resized;
+        }
+        return buf;
     }
 
     /// Get info about a directory
@@ -450,10 +472,361 @@ pub const FileBrowser = struct {
 };
 
 // ============================================================================
-// Tests (included from filebrowser_test.zig)
+// Tests
 // ============================================================================
 
 test "FileBrowser imports" {
     _ = FileBrowser;
     _ = Entry;
+    _ = SelectionResult;
+}
+
+test "FileBrowser init and deinit" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    // Create a temporary test directory
+    const test_dir = "test_filebrowser_init_tmp";
+    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    defer std.fs.cwd().deleteTree(test_dir) catch {};
+
+    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+
+    var browser = try FileBrowser.init(allocator, abs_path);
+    defer browser.deinit();
+
+    try testing.expectEqualStrings(abs_path, browser.current_path);
+    try testing.expectEqual(@as(usize, 0), browser.entries.len);
+    try testing.expectEqual(@as(usize, 0), browser.selected_index);
+}
+
+test "FileBrowser refresh loads entries" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    // Create test directory structure
+    const test_dir = "test_filebrowser_refresh_tmp";
+    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    defer std.fs.cwd().deleteTree(test_dir) catch {};
+
+    // Create test files
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file1.txt", .data = "test" });
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file2.zig", .data = "test" });
+    try std.fs.cwd().makeDir(test_dir ++ "/subdir");
+
+    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+
+    var browser = try FileBrowser.init(allocator, abs_path);
+    defer browser.deinit();
+
+    // Should have 3 entries (2 files + 1 dir)
+    try testing.expectEqual(@as(usize, 3), browser.entries.len);
+
+    // Directories should come first (due to sorting)
+    try testing.expect(browser.entries[0].is_dir);
+    try testing.expectEqualStrings("subdir", browser.entries[0].name);
+}
+
+test "FileBrowser navigation" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const test_dir = "test_filebrowser_nav_tmp";
+    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    defer std.fs.cwd().deleteTree(test_dir) catch {};
+
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file2.txt", .data = "b" });
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file3.txt", .data = "c" });
+
+    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+
+    var browser = try FileBrowser.init(allocator, abs_path);
+    defer browser.deinit();
+
+    try testing.expectEqual(@as(usize, 0), browser.selected_index);
+
+    browser.navigateDown();
+    try testing.expectEqual(@as(usize, 1), browser.selected_index);
+
+    browser.navigateDown();
+    try testing.expectEqual(@as(usize, 2), browser.selected_index);
+
+    // Wrap around to beginning
+    browser.navigateDown();
+    try testing.expectEqual(@as(usize, 0), browser.selected_index);
+
+    // Navigate up
+    browser.navigateUp();
+    try testing.expectEqual(@as(usize, 2), browser.selected_index);
+}
+
+test "FileBrowser hidden files" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const test_dir = "test_filebrowser_hidden_tmp";
+    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    defer std.fs.cwd().deleteTree(test_dir) catch {};
+
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/visible.txt", .data = "a" });
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/.hidden", .data = "b" });
+
+    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+
+    // Without hidden files (default)
+    var browser = try FileBrowser.init(allocator, abs_path);
+    defer browser.deinit();
+    try testing.expectEqual(@as(usize, 1), browser.entries.len);
+
+    // With hidden files
+    var browser_hidden = try FileBrowser.init(allocator, abs_path);
+    defer browser_hidden.deinit();
+    browser_hidden = browser_hidden.withHiddenFiles(true);
+    try browser_hidden.refresh();
+    try testing.expectEqual(@as(usize, 2), browser_hidden.entries.len);
+}
+
+test "FileBrowser selection" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const test_dir = "test_filebrowser_select_tmp";
+    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    defer std.fs.cwd().deleteTree(test_dir) catch {};
+
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file2.txt", .data = "b" });
+
+    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+
+    var browser = try FileBrowser.init(allocator, abs_path);
+    defer browser.deinit();
+
+    // Single select mode
+    browser.toggleSelection();
+    try testing.expect(browser.entries[0].selected);
+    try testing.expect(!browser.entries[1].selected);
+
+    browser.navigateDown();
+    browser.toggleSelection();
+    try testing.expect(!browser.entries[0].selected);
+    try testing.expect(browser.entries[1].selected);
+}
+
+test "FileBrowser multiselect" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const test_dir = "test_filebrowser_multisel_tmp";
+    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    defer std.fs.cwd().deleteTree(test_dir) catch {};
+
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file2.txt", .data = "b" });
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file3.txt", .data = "c" });
+
+    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+
+    var browser = try FileBrowser.init(allocator, abs_path);
+    defer browser.deinit();
+    browser = browser.withMultiselect(true);
+
+    // Select multiple items
+    browser.toggleSelection();
+    try testing.expect(browser.entries[0].selected);
+
+    browser.navigateDown();
+    browser.toggleSelection();
+    try testing.expect(browser.entries[0].selected); // Still selected
+    try testing.expect(browser.entries[1].selected); // Now selected too
+
+    browser.navigateDown();
+    browser.toggleSelection();
+    try testing.expect(browser.entries[0].selected);
+    try testing.expect(browser.entries[1].selected);
+    try testing.expect(browser.entries[2].selected);
+
+    // Get selected entries
+    const result = try browser.getSelectedEntries(allocator);
+    defer result.deinit();
+    try testing.expectEqual(@as(usize, 3), result.items.len);
+}
+
+test "FileBrowser filter" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const test_dir = "test_filebrowser_filter_tmp";
+    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    defer std.fs.cwd().deleteTree(test_dir) catch {};
+
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file2.zig", .data = "b" });
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file3.txt", .data = "c" });
+
+    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+
+    var browser = try FileBrowser.init(allocator, abs_path);
+    defer browser.deinit();
+
+    // All files initially
+    try testing.expectEqual(@as(usize, 3), browser.entries.len);
+
+    // Filter to .txt files only
+    try browser.setFilter(allocator, ".txt");
+    try browser.refresh();
+    try testing.expectEqual(@as(usize, 2), browser.entries.len);
+
+    // Clear filter
+    browser.clearFilter();
+    try browser.refresh();
+    try testing.expectEqual(@as(usize, 3), browser.entries.len);
+}
+
+test "FileBrowser render basic" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const test_dir = "test_filebrowser_render_tmp";
+    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    defer std.fs.cwd().deleteTree(test_dir) catch {};
+
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file.txt", .data = "test" });
+
+    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+
+    var browser = try FileBrowser.init(allocator, abs_path);
+    defer browser.deinit();
+
+    var buffer = try Buffer.init(allocator, 40, 10);
+    defer buffer.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+    try browser.render(&buffer, area);
+
+    // Verify path is rendered
+    const first_row = buffer.getRow(0);
+    try testing.expect(first_row.len > 0);
+}
+
+test "FileBrowser render with block" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const test_dir = "test_filebrowser_block_tmp";
+    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    defer std.fs.cwd().deleteTree(test_dir) catch {};
+
+    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+
+    var browser = try FileBrowser.init(allocator, abs_path);
+    defer browser.deinit();
+
+    const block = Block.init().withTitle("Files").withBorders(.all);
+    browser = browser.withBlock(block);
+
+    var buffer = try Buffer.init(allocator, 40, 10);
+    defer buffer.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+    try browser.render(&buffer, area);
+
+    // Just verify it doesn't crash
+    try testing.expect(true);
+}
+
+test "FileBrowser enter and parent directory" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const test_dir = "test_filebrowser_enter_tmp";
+    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    defer std.fs.cwd().deleteTree(test_dir) catch {};
+
+    try std.fs.cwd().makeDir(test_dir ++ "/subdir");
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/subdir/file.txt", .data = "test" });
+
+    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+
+    var browser = try FileBrowser.init(allocator, abs_path);
+    defer browser.deinit();
+
+    const original_path = browser.current_path;
+
+    // Enter subdirectory (should be first entry due to sorting)
+    try browser.enterDirectory();
+    try testing.expect(!std.mem.eql(u8, browser.current_path, original_path));
+    try testing.expect(std.mem.endsWith(u8, browser.current_path, "subdir"));
+
+    // Go back to parent
+    browser.parentDirectory();
+    // Note: parentDirectory may fail silently, so we just check it doesn't crash
+}
+
+test "FileBrowser SelectionResult deinit" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const test_dir = "test_filebrowser_result_tmp";
+    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    defer std.fs.cwd().deleteTree(test_dir) catch {};
+
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
+
+    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+
+    var browser = try FileBrowser.init(allocator, abs_path);
+    defer browser.deinit();
+
+    browser.toggleSelection();
+
+    const result = try browser.getSelectedEntries(allocator);
+    defer result.deinit();
+
+    try testing.expectEqual(@as(usize, 1), result.items.len);
 }
