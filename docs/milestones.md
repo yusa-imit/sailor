@@ -4,7 +4,7 @@
 
 - **Latest release**: v1.15.0 (2026-03-16) — Technical Debt & Stability
 - **Latest minor**: v1.15.0 (2026-03-16) — Technical Debt & Stability
-- **Next milestone**: v1.17.0 — Widget Ecosystem Expansion (in progress, 2/5)
+- **Next milestone**: v1.17.0 — Widget Ecosystem Expansion (in progress, 3/5)
 - **Blockers**: None
 
 ## Active Milestones
@@ -17,11 +17,11 @@
 - [x] Hyperlink support (OSC 8 for clickable URLs in terminal) — **DONE** (2026-03-17)
 - [x] Focus tracking (detect when terminal gains/loses focus) — **DONE** (2026-03-17)
 
-### v1.17.0 — Widget Ecosystem Expansion (2/5 complete, 40%)
+### v1.17.0 — Widget Ecosystem Expansion (3/5 complete, 60%)
 
 - [x] Menu widget (dropdown/popup menus, keyboard navigation, nested submenus) — Implemented (commit 0c1c457)
-- [x] Calendar widget (date picker, range selection, month/year navigation) — Implemented (commit 348c641)
-- [ ] FileBrowser widget (directory tree, file selection, preview pane)
+- [x] Calendar widget (date picker, range selection, month/year navigation) — Fixed & tested (commit a5fcd8f)
+- [x] FileBrowser widget (directory tree, file selection, preview pane) — Improved & tested (commit 3fa1234)
 - [ ] Terminal widget (embed shell session, scrollback, ANSI emulation)
 - [ ] Markdown renderer widget (parse and render markdown with syntax highlighting)
 

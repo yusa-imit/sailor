@@ -2,6 +2,21 @@
 
 ## Fixed Issues
 
+### Calendar Date Arithmetic and Navigation Constraints (2026-03-19)
+**Symptom**: Test failures in Calendar widget:
+  1. `addMonths()` incorrectly calculated month 10 + 5 months → month 4 instead of month 3
+  2. `nextYear()` didn't respect `max_date` constraint, allowing navigation beyond boundaries
+**Root Cause**:
+  1. Year-wrapping logic used `(12 - month)` instead of `(12 - month + 1)` to account for jumping to January
+  2. Navigation methods (`nextYear`, `prevYear`, `nextMonth`, `prevMonth`) lacked constraint checking
+**Fix**:
+  1. Corrected arithmetic: when at month 10 adding 5, consume 3 months to reach next January, leaving 2 to add → month 3
+  2. Added min/max date boundary checks in all navigation methods
+**Test Coverage**:
+  - "Date.addMonths wraps to next year" now passes
+  - "Calendar prevents navigation with min/max year constraints" now passes
+**Commit**: a5fcd8f
+
 ### UTF-8 Handling in Menu Widget Submenu Indicators (2026-03-18)
 **Symptom**: Unicode submenu indicator '▶' rendered as byte 226 instead of codepoint 9654.
 **Root Cause**: `Menu.renderItems()` iterated over `submenu_indicator` as bytes (`for (self.submenu_indicator) |c|`), treating UTF-8 multi-byte sequences as individual characters.
