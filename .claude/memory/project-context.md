@@ -9,10 +9,11 @@
 - Previous versions: v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.17.0 → Widget Ecosystem Expansion (1/5, 20%)
+- **Post-v1.0 Milestones**: v1.17.0 → Widget Ecosystem Expansion (2/5, 40%)
   - ✅ Menu widget (dropdown/popup menus, keyboard navigation, nested submenus) — Implemented (commit 0c1c457)
   - 🐛 Menu widget UTF-8 fix (Unicode submenu indicators) — Fixed (commit 578a46f)
-  - 🚧 Next up: Calendar widget (date picker, range selection, month/year navigation)
+  - ✅ Calendar widget (date picker, range selection, month/year navigation) — Implemented (commit 348c641)
+  - 🚧 Next up: FileBrowser widget (directory tree, file selection, preview pane)
 
 ## Project Status
 ✅ **v1.15.0 RELEASED** — Technical Debt & Stability (2026-03-16)
