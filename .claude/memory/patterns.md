@@ -193,6 +193,65 @@ for (0..6) |week| {
 - Handle all three cases: prev/current/next month
 - Apply styles based on: selected > today > in_range > out_of_bounds > default
 
+## Widget Test Pattern (FileBrowser v1.17.0 style)
+
+Comprehensive widget testing with real filesystem operations:
+
+```zig
+// Setup: Create temp test directory
+fn createTestDir(allocator) !std.fs.Dir {
+    var tmp_dir = try std.fs.cwd().makeOpenPath("test_widget_tmp", .{
+        .iterate = true,
+    });
+    try tmp_dir.makePath("subdir1");
+    // ... create test files
+    return tmp_dir;
+}
+
+// Cleanup (defer at test start)
+fn cleanupTestDir() void {
+    std.fs.cwd().deleteTree("test_widget_tmp") catch {};
+}
+
+// Test pattern: isolate with real files
+test "widget navigates directory" {
+    cleanupTestDir();
+    defer cleanupTestDir();
+
+    var tmp_dir = try createTestDir(std.testing.allocator);
+    defer tmp_dir.close();
+
+    const cwd_path = try std.fs.cwd().realpathAlloc(allocator, "test_widget_tmp");
+    defer allocator.free(cwd_path);
+
+    var widget = try Widget.init(allocator, cwd_path);
+    defer widget.deinit();
+
+    try widget.refresh();
+    try std.testing.expect(widget.entries.len > 0);
+}
+```
+
+**Key points**:
+- Each test is isolated with its own temp directory
+- Real filesystem operations (not mocks) ensure correctness
+- Cleanup happens in defer blocks to prevent pollution
+- Tests can be run in any order without side effects
+- 55+ tests with ~25 lines each achieves comprehensive coverage
+
+**Test Categories for File Browser**:
+1. Initialization & Memory (4 tests)
+2. Configuration API / Builder (7 tests)
+3. Entry Listing & Sorting (7 tests)
+4. Navigation & Movement (8 tests)
+5. Selection & State (6 tests)
+6. Tree Expansion (7 tests)
+7. Preview Pane (4 tests)
+8. Rendering to Buffer (8 tests)
+9. Edge Cases & Errors (4 tests)
+10. Search/Filter (2 tests)
+11. Performance (3 tests)
+
 ## Cross-Platform Verification
 
 Verified targets (all passing):

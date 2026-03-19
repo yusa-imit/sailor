@@ -182,6 +182,14 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    const filebrowser_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/filebrowser_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
     // Add sailor module to integration tests
     const sailor_module_for_tests = b.createModule(.{
         .root_source_file = b.path("src/sailor.zig"),
@@ -203,6 +211,7 @@ pub fn build(b: *std.Build) void {
     termcap_tests.root_module.addImport("sailor", sailor_module_for_tests);
     menu_tests.root_module.addImport("sailor", sailor_module_for_tests);
     calendar_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    filebrowser_tests.root_module.addImport("sailor", sailor_module_for_tests);
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&b.addRunArtifact(lib_tests).step);
@@ -225,6 +234,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(termcap_tests).step);
     test_step.dependOn(&b.addRunArtifact(menu_tests).step);
     test_step.dependOn(&b.addRunArtifact(calendar_tests).step);
+    test_step.dependOn(&b.addRunArtifact(filebrowser_tests).step);
 
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
