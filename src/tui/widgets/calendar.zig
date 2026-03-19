@@ -148,11 +148,11 @@ pub const Calendar = struct {
             }
 
             while (remaining < 0) {
-                if (result.month + @as(i8, @intCast(remaining)) > 0) {
+                if (@as(i32, result.month) + remaining > 0) {
                     result.month = @intCast(@as(i32, result.month) + remaining);
                     remaining = 0;
                 } else {
-                    remaining += result.month;
+                    remaining += @as(i32, result.month);
                     result.month = 12;
                     result.year -= 1;
                 }

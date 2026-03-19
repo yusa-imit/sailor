@@ -364,7 +364,7 @@ test "Calendar.withStyles sets all styles" {
     const style_selected = Style{ .bg = .blue };
     const style_today = Style{ .fg = .green };
     const style_in_range = Style{ .bg = .cyan };
-    const style_out_of_bounds = Style{ .fg = .gray };
+    const style_out_of_bounds = Style{ .fg = .bright_black };
 
     const calendar = Calendar.init(today)
         .withStyles(style_default, style_selected, style_today, style_in_range, style_out_of_bounds);
@@ -695,7 +695,7 @@ test "Calendar.render displays month and year title" {
 test "Calendar.render highlights selected date with selected style" {
     const today = createToday();
     const selected = createDate(2026, 3, 18);
-    const selected_style = Style{ .bg = .blue, .bold = true };
+    _ = Style{ .bg = .blue, .bold = true }; // selected_style
     var calendar = Calendar.init(today)
         .withSelected(selected)
         .withFirstDayOfWeek(0);
@@ -714,7 +714,7 @@ test "Calendar.render highlights selected date with selected style" {
 
 test "Calendar.render highlights today with today style" {
     const today = createToday();
-    const today_style = Style{ .fg = .green };
+    _ = Style{ .fg = .green }; // today_style
     var calendar = Calendar.init(today).withFirstDayOfWeek(0);
 
     var buf = try Buffer.init(std.testing.allocator, 40, 20);
@@ -904,7 +904,7 @@ test "Calendar range with reversed dates (start > end)" {
 
     // Calendar might auto-swap or keep as-is
     // Either way, isDateInRange should handle it correctly
-    const in_range = calendar.isDateInRange(createDate(2026, 3, 15));
+    _ = calendar.isDateInRange(createDate(2026, 3, 15));
     // This depends on calendar implementation: might be true or false
 }
 
