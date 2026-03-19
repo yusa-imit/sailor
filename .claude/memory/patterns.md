@@ -252,6 +252,77 @@ test "widget navigates directory" {
 10. Search/Filter (2 tests)
 11. Performance (3 tests)
 
+## Terminal Widget Pattern (v1.17.0)
+
+Terminal widget for embedding shell sessions with scrollback and ANSI support:
+
+```zig
+pub const TerminalWidget = struct {
+    lines: std.ArrayList([]const u8),
+    scroll_offset: usize = 0,
+    pty_fd: i32 = -1,
+    child_pid: i32 = -1,
+    width: u16 = 80,
+    height: u16 = 24,
+    allocator: std.mem.Allocator,
+    block: ?Block = null,
+    text_style: Style = .{},
+    max_lines: usize = 10000,
+    ansi_state: AnsiParseState = .{},
+
+    pub fn init(allocator: Allocator) !TerminalWidget
+    pub fn deinit(self: *TerminalWidget) void
+    pub fn addLine(self: *TerminalWidget, line: []const u8) !void
+    pub fn clear(self: *TerminalWidget) void
+    pub fn lineCount(self: TerminalWidget) usize
+    pub fn scrollUp(self: *TerminalWidget, n: usize) void
+    pub fn scrollDown(self: *TerminalWidget, n: usize) void
+    pub fn visibleLines(self: TerminalWidget) []const []const u8
+    pub fn render(self: TerminalWidget, buf: *Buffer, area: Rect) void
+
+    // Builder methods
+    pub fn withBlock(self: TerminalWidget, new_block: Block) TerminalWidget
+    pub fn withTitle(self: TerminalWidget, title: []const u8) TerminalWidget
+    pub fn withMaxLines(self: TerminalWidget, max: usize) TerminalWidget
+    pub fn withSize(self: TerminalWidget, width: u16, height: u16) TerminalWidget
+};
+
+pub const AnsiParseState = struct {
+    cursor_x: u16 = 0,
+    cursor_y: u16 = 0,
+    foreground: ?Color = null,
+    background: ?Color = null,
+    bold: bool = false,
+    dim: bool = false,
+    italic: bool = false,
+    underline: bool = false,
+    reverse: bool = false,
+
+    pub fn parseSequence(self: *AnsiParseState, seq: []const u8) void
+    pub fn reset(self: *AnsiParseState) void
+};
+```
+
+**Key design patterns**:
+- `ArrayList([]const u8)` for line storage (each line is a duped string)
+- `scroll_offset` tracks position in history (0 = bottom/newest)
+- `visibleLines()` returns slice of lines currently visible in viewport
+- `addLine()` enforces `max_lines` limit by removing oldest lines
+- `render()` handles block borders via `blk.inner(area)`
+- ANSI state machine supports: 0 (reset), 1 (bold), 2 (dim), 3 (italic), 4 (underline), 7 (reverse)
+- Builder pattern for fluent configuration
+
+**Test coverage** (43 tests):
+- Initialization & cleanup (deinit, GPA leak testing)
+- Line management (add, clear, count)
+- Scrollback limits and enforcement
+- Scroll operations (up/down, bounds, edge cases)
+- Visible line calculation (with/without scroll, height constraints)
+- Rendering (empty buffer, with content, block wrapping, offset position)
+- ANSI state parsing (individual attributes, reset, independence)
+- Memory safety (no leaks, proper deallocation)
+- Edge cases (empty strings, special chars, zero area, rapid updates, mixed line lengths)
+
 ## Cross-Platform Verification
 
 Verified targets (all passing):
