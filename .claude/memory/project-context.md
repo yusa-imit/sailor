@@ -5,24 +5,25 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.15.0** 🎯
-- Previous versions: v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.17.1** 🎯
+- Previous versions: v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.17.0 → Widget Ecosystem Expansion (2/5, 40%)
-  - ✅ Menu widget (dropdown/popup menus, keyboard navigation, nested submenus) — Implemented (commit 0c1c457)
-  - 🐛 Menu widget UTF-8 fix (Unicode submenu indicators) — Fixed (commit 578a46f)
-  - ✅ Calendar widget (date picker, range selection, month/year navigation) — Implemented (commit 348c641)
-  - 🚧 Next up: FileBrowser widget (directory tree, file selection, preview pane)
+- **Post-v1.0 Milestones**: v1.18.0 → Developer Experience & Tooling (3/5, 60%)
+  - ✅ Widget inspector (runtime introspection, layout debugging, event tracing) — Implemented
+  - ✅ Hot reload for themes (ThemeWatcher with file watching, auto-reload) — Implemented
+  - ✅ Benchmark suite (performance regression detection, CI integration) — Implemented (commit 6c3a558)
+  - 🚧 Next up: Example gallery (interactive showcase of all widgets, copy-pasteable code)
 
 ## Project Status
+✅ **v1.17.1 RELEASED (PATCH)** — Memory Leak Fixes & API Compatibility (2026-03-21)
+  - Memory leak fixes in Inspector (getSiblings, detectLayoutViolations, widget tree cleanup)
+  - Zig 0.15 ArrayList API compatibility fixes
+  - All cross-platform builds verified
+✅ **v1.17.0 RELEASED** — Widget Ecosystem Expansion (2026-03-19)
+  - Menu, Calendar, FileBrowser, Terminal, Markdown widgets (5/5 complete)
 ✅ **v1.15.0 RELEASED** — Technical Debt & Stability (2026-03-16)
-  - Thread safety fixes (async_loop.zig)
-  - XTGETTCAP capability querying
-  - 13 platform-specific tests
-  - Memory leak audit (6 leaks fixed)
-  - Multi-platform CI (Linux/macOS/Windows VMs)
-  - Migration issues: zr#27, zoltraak#5, silica#7
+  - Thread safety fixes, XTGETTCAP, platform-specific tests, memory leak audit
 ✅ **v1.14.0 RELEASED** — Performance & Memory Optimization (2026-03-16)
   - Memory pooling, render profiling, virtual rendering, incremental layout, buffer compression
 ✅ **v1.13.1 RELEASED (PATCH)** — Integer overflow fix in data viz widgets
