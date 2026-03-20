@@ -51,6 +51,10 @@ pub const profiler = @import("profiler.zig");
 // v1.16.0 — Terminal Capability Database
 pub const termcap = @import("termcap.zig");
 
+// v1.18.0 — Developer Experience & Tooling
+pub const ThemeWatcher = @import("tui/hotreload.zig").ThemeWatcher;
+pub const Inspector = @import("tui/inspector.zig").Inspector;
+
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;
 pub const Cell = tui.buffer.Cell;
