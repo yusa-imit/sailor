@@ -108,6 +108,12 @@ test "inspector captures widget tree structure" {
     try testing.expect(tree != null);
 
     const root = tree.?;
+    defer {
+        const mutable_root = @constCast(root);
+        mutable_root.deinit(allocator);
+        allocator.destroy(mutable_root);
+    }
+
     try testing.expectEqualStrings("Root", root.name);
     try testing.expectEqual(@as(usize, 2), root.children.len);
 }
