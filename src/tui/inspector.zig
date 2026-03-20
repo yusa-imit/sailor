@@ -477,21 +477,23 @@ pub const Inspector = struct {
         return depth;
     }
 
-    /// Get widget siblings
-    pub fn getSiblings(self: *const Inspector, widget_id: u32) []const u32 {
-        const widget = self.widgets.get(widget_id) orelse return &[_]u32{};
-        const parent_id = widget.parent_id orelse return &[_]u32{};
-        const parent = self.widgets.get(parent_id) orelse return &[_]u32{};
+    /// Get widget siblings (caller must deinit the returned ArrayList)
+    pub fn getSiblings(self: *const Inspector, allocator: Allocator, widget_id: u32) !ArrayList(u32) {
+        var siblings = ArrayList(u32){};
+        errdefer siblings.deinit(allocator);
+
+        const widget = self.widgets.get(widget_id) orelse return siblings;
+        const parent_id = widget.parent_id orelse return siblings;
+        const parent = self.widgets.get(parent_id) orelse return siblings;
 
         // Filter out the widget itself from siblings
-        var siblings = ArrayList(u32){};
         for (parent.children) |child_id| {
             if (child_id != widget_id) {
-                siblings.append(self.allocator, child_id) catch continue;
+                try siblings.append(allocator, child_id);
             }
         }
 
-        return siblings.items;
+        return siblings;
     }
 
     /// Get all events
@@ -521,9 +523,16 @@ pub const Inspector = struct {
         self.events.clearRetainingCapacity();
     }
 
-    /// Detect layout violations
-    pub fn detectLayoutViolations(self: *const Inspector) []const LayoutViolation {
+    /// Detect layout violations (caller must deinit the returned ArrayList and free each violation's strings)
+    pub fn detectLayoutViolations(self: *const Inspector, allocator: Allocator) !ArrayList(LayoutViolation) {
         var violations = ArrayList(LayoutViolation){};
+        errdefer {
+            for (violations.items) |v| {
+                allocator.free(v.violation_type_owned);
+                allocator.free(v.description_owned);
+            }
+            violations.deinit(allocator);
+        }
 
         for (self.widget_order.items) |widget_id| {
             const widget = self.widgets.get(widget_id) orelse continue;
@@ -537,27 +546,30 @@ pub const Inspector = struct {
             const parent_bottom = parent.area.y + parent.area.height;
 
             if (child_right > parent_right or child_bottom > parent_bottom) {
-                const violation_type = self.allocator.dupe(u8, "overflow") catch continue;
-                const description = std.fmt.allocPrint(
-                    self.allocator,
+                const violation_type = try allocator.dupe(u8, "overflow");
+                errdefer allocator.free(violation_type);
+
+                const description = try std.fmt.allocPrint(
+                    allocator,
                     "Widget extends beyond parent bounds",
                     .{},
-                ) catch continue;
+                );
+                errdefer allocator.free(description);
 
                 const violation = LayoutViolation{
                     .widget_id = widget_id,
                     .violation_type = violation_type,
                     .description = description,
-                    .allocator = self.allocator,
+                    .allocator = allocator,
                     .violation_type_owned = violation_type,
                     .description_owned = description,
                 };
 
-                violations.append(self.allocator, violation) catch continue;
+                try violations.append(allocator, violation);
             }
         }
 
-        return violations.items;
+        return violations;
     }
 
     /// Begin a new frame
