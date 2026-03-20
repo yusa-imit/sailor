@@ -52,7 +52,7 @@ pub const TerminalWidget = struct {
         for (self.lines.items) |line| {
             self.allocator.free(line);
         }
-        self.lines.deinit();
+        self.lines.deinit(self.allocator);
     }
 
     pub fn withBlock(self: TerminalWidget, new_block: Block) TerminalWidget {
@@ -92,7 +92,7 @@ pub const TerminalWidget = struct {
 
         const line_copy = try self.allocator.dupe(u8, line);
         errdefer self.allocator.free(line_copy);
-        try self.lines.append(line_copy);
+        try self.lines.append(self.allocator, line_copy);
     }
 
     /// Clear all lines
