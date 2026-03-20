@@ -2,6 +2,21 @@
 
 ## Fixed Issues
 
+### Markdown Widget Ambiguous Reference and ArrayList API (2026-03-20)
+**Symptom**: Compilation errors blocking all tests:
+  1. Ambiguous reference to `Node` type in markdown.zig
+  2. ArrayList.init() method doesn't exist in Zig 0.15
+  3. ArrayList.deinit() and append() missing allocator parameter
+**Root Cause**:
+  1. Duplicate `Node` type declarations: module-level + struct-level re-export created conflict
+  2. Unmanaged ArrayList API in Zig 0.15 requires explicit allocator for all operations
+**Fix**:
+  1. Use module reference `const markdown_mod = @This()` and qualified names `markdown_mod.Node` internally
+  2. ArrayList initialization: `ArrayList(T){}` not `.init(allocator)`
+  3. Add allocator parameter: `lines.deinit(self.allocator)` and `lines.append(self.allocator, item)`
+**Test Coverage**: All compilation errors resolved, cross-compilation verified (Linux, Windows)
+**Commits**: e2b9d74, 12c83a6
+
 ### Calendar Date Arithmetic and Navigation Constraints (2026-03-19)
 **Symptom**: Test failures in Calendar widget:
   1. `addMonths()` incorrectly calculated month 10 + 5 months → month 4 instead of month 3
@@ -33,9 +48,11 @@
 
 ## Known Zig 0.15.x Gotchas (from zr experience)
 - `std.ArrayList(T){}` not `.init(allocator)` — unmanaged API
+- ArrayList methods need allocator: `list.deinit(allocator)`, `list.append(allocator, item)`
 - `std.Thread.sleep(ns)` not `std.time.sleep`
 - `child.wait()` closes stdout — read stdout BEFORE wait()
 - `callconv(.c)` lowercase in 0.15
 - Buffered writers: flush before `std.process.exit()`
 - File-scope: `const X = expr;` (no `comptime` keyword — redundant error)
 - `zig build test` uses `--listen=-` protocol — NEVER use `stdout()` in test code
+- Ambiguous type references: Use module-level references (`const mod = @This()`) when re-exporting types
