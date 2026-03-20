@@ -2,6 +2,22 @@
 
 ## Fixed Issues
 
+### Inspector Module Zig 0.15 API Compatibility (2026-03-20 STABILIZATION)
+**Symptom**: Compilation errors blocking inspector_test.zig:
+  1. `clearRetainingCapacity(allocator)` - method expects 0 arguments, found 1
+  2. `ArrayList(T).init(allocator)` - struct has no member named 'init'
+  3. `std.time.sleep()` - root source file has no member named 'sleep'
+  4. Ignored return value from `recordWidget()` - returns u32
+**Root Cause**: Zig 0.15 ArrayList API changes + std.time module reorganization
+**Fix**:
+  1. ArrayList cleared without allocator: `list.clearRetainingCapacity()`
+  2. ArrayList unmanaged initialization: `ArrayList(T){}` with explicit allocator in methods
+  3. Thread sleep API: `std.Thread.sleep(ns)` not `std.time.sleep`
+  4. Discard return values: `_ = inspector.recordWidget(...)`
+  5. Memory leak: Added `deinit()` + `destroy()` calls for widget tree in tests
+**Test Coverage**: Compilation errors fixed, memory leaks resolved
+**Commits**: 1c2f502, 252af25, 5a73864
+
 ### Markdown Widget Ambiguous Reference and ArrayList API (2026-03-20)
 **Symptom**: Compilation errors blocking all tests:
   1. Ambiguous reference to `Node` type in markdown.zig
