@@ -754,7 +754,7 @@ test "Markdown with block wrapper" {
     var md = try Markdown.init(allocator);
     defer md.deinit();
 
-    const block = Block.init().withTitle("Markdown", .left).withBorders(.all);
+    const block = Block.init().withTitle("Markdown", .top_left).withBorders(.all);
     md = md.withBlock(block);
 
     try md.setContent("# Content");
