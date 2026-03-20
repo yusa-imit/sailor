@@ -44,7 +44,7 @@ pub const TerminalWidget = struct {
     pub fn init(allocator: std.mem.Allocator) !TerminalWidget {
         return .{
             .allocator = allocator,
-            .lines = std.ArrayList([]const u8).init(allocator),
+            .lines = std.ArrayList([]const u8){},
         };
     }
 
