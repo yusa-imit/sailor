@@ -187,6 +187,9 @@ pub const widgets = struct {
     pub const SelectionResult = @import("widgets/filebrowser.zig").SelectionResult;
     pub const TerminalWidget = @import("widgets/terminal.zig").TerminalWidget;
     pub const AnsiParseState = @import("widgets/terminal.zig").AnsiParseState;
+    pub const Markdown = @import("widgets/markdown.zig").Markdown;
+    pub const MarkdownNode = @import("widgets/markdown.zig").Node;
+    pub const MarkdownNodeType = @import("widgets/markdown.zig").NodeType;
 };
 
 // Export commonly used types
