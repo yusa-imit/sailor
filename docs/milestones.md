@@ -4,7 +4,7 @@
 
 - **Latest release**: v1.17.1 (2026-03-21) — Memory Leak Fixes & API Compatibility (PATCH)
 - **Latest minor**: v1.17.0 (2026-03-19) — Widget Ecosystem Expansion
-- **Next milestone**: v1.18.0 — Developer Experience & Tooling (3/5 complete, 60%)
+- **Next milestone**: v1.18.0 — Developer Experience & Tooling (4/5 complete, 80%)
 - **Blockers**: None
 
 ## Active Milestones
@@ -25,12 +25,12 @@
 - [x] Terminal widget (embed shell session, scrollback, ANSI emulation) — Implemented (commit 7d50ad0)
 - [x] Markdown renderer widget (parse and render markdown with syntax highlighting) — Implemented with 69 tests (commit dc5518f)
 
-### v1.18.0 — Developer Experience & Tooling (3/5 complete, 60%)
+### v1.18.0 — Developer Experience & Tooling (4/5 complete, 80%)
 
 - [x] Hot reload for themes (watch theme files, auto-reload on change) — **DONE** (2026-03-21)
 - [x] Widget inspector (runtime introspection, layout debugging, event tracing) — **DONE** (2026-03-20)
 - [x] Benchmark suite (performance regression detection, CI integration) — **DONE** (2026-03-21)
-- [ ] Example gallery (interactive showcase of all widgets, copy-pasteable code)
+- [x] Example gallery (interactive showcase of all widgets, copy-pasteable code) — **DONE** (2026-03-21)
 - [ ] Documentation generator (auto-generate API docs from source comments)
 
 ## Completed Milestones
