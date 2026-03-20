@@ -78,42 +78,45 @@
 
 ## Dependency Tracking
 
-### zuda Compatibility
+### zuda Library
 
-sailor는 TUI 프레임워크로서 자료구조/알고리즘의 직접적인 마이그레이션 대상은 적다.
-단, zuda 라이브러리가 릴리스되면 소비자 프로젝트(zr, zoltraak, silica)가 zuda 의존성을 추가하므로,
-sailor와 zuda 간 **의존성 충돌이 없는지** 확인이 필요하다.
+- **Repository**: https://github.com/yusa-imit/zuda (v1.15.0 available)
+- **Migration targets**: 없음 — TUI 특화 자료구조는 sailor 자체 유지
+- **zuda-first policy**: 범용 데이터 구조/알고리즘이 필요하면 zuda에서 먼저 확인 후 사용
 
-#### 마이그레이션 대상: 없음
+#### TUI 특화 구조 (sailor 자체 유지)
 
-sailor의 모든 자료구조(Cell Buffer, Layout Solver, Grid, Unicode Width 등)는 TUI에 특화되어 있어 zuda로 대체하지 않는다.
-대신 zuda 개발 시 다음 패턴을 참고 자료로 제공한다:
+sailor의 다음 자료구조는 TUI에 특화되어 있어 zuda로 대체하지 않는다:
+- `src/tui/buffer.zig` — Cell Buffer diff 엔진
+- `src/tui/layout.zig` — Layout constraint solver
+- `src/tui/grid.zig` — Grid layout 알고리즘
+- `src/unicode.zig` — Unicode width calculation
 
-- `src/tui/buffer.zig` — diff 엔진 알고리즘 패턴
-- `src/tui/layout.zig` — constraint solver 알고리즘 패턴
-- `src/unicode.zig` — Unicode width calculation 알고리즘 패턴
+#### zuda-first Policy
+
+새 기능 구현 시 **범용** 자료구조/알고리즘이 필요하면:
+1. zuda에 해당 모듈이 있는지 확인 → 있으면 `build.zig.zon`에 zuda 의존성 추가 후 import
+2. 없으면 → `gh issue create --repo yusa-imit/zuda --label "feature-request,from:sailor"` 발행 후 판단
+3. TUI 특화 구조(위젯, 렌더링, 레이아웃)는 해당하지 않음
 
 #### 호환성 검증 프로토콜
 
-소비자 프로젝트가 zuda를 도입할 때 sailor와의 호환성을 확인한다:
+소비자 프로젝트(zr, zoltraak, silica)가 zuda를 도입할 때 sailor와의 호환성을 확인한다:
 
 1. `build.zig.zon`에서 sailor + zuda 동시 의존성이 빌드 충돌 없이 동작하는지 검증
 2. 모듈 이름 충돌이 없는지 확인 (sailor = "sailor", zuda = "zuda")
 3. 소비자가 zuda 도입 후에도 sailor 테스트가 전체 통과하는지 확인
 
-#### zuda 이슈 발행 프로토콜
-
-zuda와의 호환성 문제가 발견될 때:
+#### Issue Filing
 
 ```bash
-gh issue create --repo yusa-imit/zuda \
+# 호환성 문제
+gh issue create --repo yusa-imit/zuda --label "bug,from:sailor" \
   --title "bug: compatibility issue with sailor" \
-  --label "bug,from:sailor" \
-  --body "## 증상
-<sailor와 zuda를 동시에 의존성으로 사용할 때 발생하는 문제>
+  --body "## 증상\n<문제>\n## 환경\n- sailor: <ver>\n- zuda: <ver>\n- zig: $(zig version)"
 
-## 환경
-- sailor: <version>
-- zuda: <version>
-- zig: $(zig version)"
+# 기능 요청
+gh issue create --repo yusa-imit/zuda --label "feature-request,from:sailor" \
+  --title "feat: <description>" \
+  --body "## 필요한 이유\n<why>\n## 제안 API\n<usage>"
 ```

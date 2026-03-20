@@ -403,6 +403,25 @@ Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `perf`, `ci`
 
 ---
 
+## zuda Library
+
+- **Repository**: https://github.com/yusa-imit/zuda
+- **Migration targets**: 없음 — sailor의 자료구조(Cell Buffer, Layout Solver, Grid, Unicode Width)는 TUI 특화이므로 zuda로 대체하지 않는다
+- **Compatibility**: 소비자 프로젝트(zr, zoltraak, silica)가 zuda를 도입할 때 sailor와의 빌드 충돌이 없어야 한다
+
+### zuda-first Policy (CRITICAL)
+- 새로운 기능 구현 시 **범용** 데이터 구조/알고리즘이 필요하면, **zuda에 해당 모듈이 있는지 먼저 확인**한다
+- TUI 특화 구조(위젯, 렌더링 버퍼, 레이아웃 등)는 해당하지 않음 — sailor 자체 구현 유지
+- 범용 구조(정렬, 검색, 해시맵 변형, 그래프, 확률적 자료구조 등)는 zuda에 있으면 import하여 사용
+- zuda에 없으면 → `gh issue create --repo yusa-imit/zuda --label "feature-request,from:sailor"` 발행 후 판단
+- **범용 자료구조를 자체 구현하는 것은 최후의 수단**이다
+
+### Issue Filing
+- 호환성 문제: `gh issue create --repo yusa-imit/zuda --label "bug,from:sailor"`
+- 기능 요청: `gh issue create --repo yusa-imit/zuda --label "feature-request,from:sailor"`
+
+---
+
 ## Milestones & Dependencies
 
 All 6 phases complete (v1.0.0). See `docs/PRD.md` for original requirements.
