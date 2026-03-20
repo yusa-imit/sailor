@@ -9,11 +9,12 @@
 - Previous versions: v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.18.0 → Developer Experience & Tooling (3/5, 60%)
+- **Post-v1.0 Milestones**: v1.18.0 → Developer Experience & Tooling (4/5, 80%)
   - ✅ Widget inspector (runtime introspection, layout debugging, event tracing) — Implemented
   - ✅ Hot reload for themes (ThemeWatcher with file watching, auto-reload) — Implemented
   - ✅ Benchmark suite (performance regression detection, CI integration) — Implemented (commit 6c3a558)
-  - 🚧 Next up: Example gallery (interactive showcase of all widgets, copy-pasteable code)
+  - ✅ Example gallery (9+ widgets, copy-pasteable code, categorized) — Implemented (commit 8cc80c8)
+  - 🚧 Next up: Documentation generator (auto-generate API docs from source comments)
 
 ## Project Status
 ✅ **v1.17.1 RELEASED (PATCH)** — Memory Leak Fixes & API Compatibility (2026-03-21)
