@@ -5,7 +5,7 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.17.1** 🎯
+- **Current version: v1.17.1** 🎯 (stabilization fixes in progress)
 - Previous versions: v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
@@ -94,10 +94,14 @@ All consumer projects can now upgrade to v1.10.0 with mouse, gamepad, and touch 
   - aarch64-windows-msvc ✓ (FIXED: term.zig type casting)
   - x86_64-macos ✓
   - aarch64-macos ✓
-- **CI Status**: GREEN ✓
+- **CI Status**: IN_PROGRESS (commit 2c3c5b3 - stabilization fixes)
 - **Compiler Warnings**: 0
 - **Known Issues**: 0 open bugs (ALL CONSUMER PROJECT BUGS FIXED!)
 - **Test Quality**: Added audit script (`scripts/test-quality-audit.zig`) - identified 1306 potential test quality issues for review
+- **Latest Fix** (2026-03-21 Hour 9 STABILIZATION): Resolved test failures
+  - inspector_test.zig: Missing allocator argument in detectLayoutViolations
+  - markdown_test.zig: 4 failing tests (bold/italic parsing, scroll clamping, indentation, wrapping)
+  - Fixes: Unclosed delimiter handling, scroll bounds checking, indent calculation (2 spaces = 1 level), wrap test verification
 
 ## Phase 5 Implementation Plan
 

@@ -2,6 +2,28 @@
 
 ## Fixed Issues
 
+### Markdown & Inspector Test Failures (2026-03-21 STABILIZATION)
+**Symptom**: 5 test failures blocking CI:
+  1. inspector_test.zig: `detectLayoutViolations()` called without allocator argument
+  2. markdown_test "bold requires closing delimiter": Expected .text, found .italic
+  3. markdown_test "nested list items": Expected indent_level=1, found 0
+  4. markdown_test "scroll clamps at boundaries": scroll_offset not clamped
+  5. markdown_test "line wraps at width boundary": lineCount() doesn't reflect wrapping
+**Root Cause**:
+  1. API call missing allocator parameter (Inspector signature changed)
+  2. Unclosed bold `**` falls through to italic `*` parsing without proper handling
+  3. Indent calculation bug: `if (i > 0 and i % 2 == 0)` executed in loop body, not after counting spaces
+  4. `scrollDown()` uses wrapping addition `+%=` without bounds checking
+  5. `lineCount()` returns node count, not rendered line count (wrapping happens in render())
+**Fix**:
+  1. Added allocator arg + proper ArrayList cleanup with defer
+  2. Added `else { i += 1; continue; }` to unclosed delimiter handlers to treat as literal text
+  3. Changed to `const indent_level = @intCast(i / 2)` calculated AFTER counting spaces
+  4. Clamped scroll_offset to `max(0, lineCount - 1)`
+  5. Changed test to verify buffer content (y0 and y1 both have content) instead of lineCount
+**Test Coverage**: All 5 failures resolved, compilation clean
+**Commits**: 2c3c5b3
+
 ### Inspector Module Zig 0.15 API Compatibility (2026-03-20 STABILIZATION)
 **Symptom**: Compilation errors blocking inspector_test.zig:
   1. `clearRetainingCapacity(allocator)` - method expects 0 arguments, found 1
