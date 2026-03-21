@@ -9,7 +9,22 @@
 
 ## Active Milestones
 
-(No active milestones — need to establish new milestone per Milestone Establishment Process)
+### v1.19.0 — CLI Enhancements & Ergonomics
+
+**Theme**: Improve core CLI modules for better developer experience in consumer projects
+
+**Scope**:
+- [ ] Enhanced arg parser with positional arguments and argument groups
+- [ ] Color themes & color scheme management (light/dark mode auto-switching)
+- [ ] Table formatting improvements (alignment, padding control, multi-line cells)
+- [ ] Progress bar templates and presets (spinners, styles, formats)
+- [ ] Environment variable configuration support across all modules
+
+**Rationale**: Consumer projects (zr, zoltraak, silica) heavily use arg, color, fmt, progress. Enhancing these foundational modules provides immediate value to all users.
+
+**Dependencies**: None (all modules already exist)
+
+**Target completion**: 1-2 weeks
 
 ## Completed Milestones
 
