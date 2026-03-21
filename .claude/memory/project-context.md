@@ -5,30 +5,31 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.17.1** 🎯 (stabilization fixes in progress)
-- Previous versions: v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.18.0** 🎯 (2026-03-21)
+- Previous versions: v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Post-v1.0 Milestones**: v1.18.0 → Developer Experience & Tooling (4/5, 80%)
-  - ✅ Widget inspector (runtime introspection, layout debugging, event tracing) — Implemented
-  - ✅ Hot reload for themes (ThemeWatcher with file watching, auto-reload) — Implemented
-  - ✅ Benchmark suite (performance regression detection, CI integration) — Implemented (commit 6c3a558)
-  - ✅ Example gallery (9+ widgets, copy-pasteable code, categorized) — Implemented (commit 8cc80c8)
-  - 🚧 Next up: Documentation generator (auto-generate API docs from source comments)
+- **Post-v1.0 Milestones**: No active milestone — need to establish new milestone per Milestone Establishment Process
+- **Last completed**: v1.18.0 → Developer Experience & Tooling (5/5, 100%) ✅
+  - ✅ Widget inspector (runtime introspection, layout debugging, event tracing)
+  - ✅ Hot reload for themes (ThemeWatcher with file watching, auto-reload)
+  - ✅ Benchmark suite (performance regression detection, CI integration)
+  - ✅ Example gallery (interactive showcase with copy-pasteable code)
+  - ✅ Documentation generator (auto-generate API docs from source, 69 tests)
 
 ## Project Status
+✅ **v1.18.0 RELEASED** — Developer Experience & Tooling (2026-03-21)
+  - Hot reload for themes, widget inspector, benchmark suite, example gallery, documentation generator (5/5 complete)
+  - Migration issues created for zr (#31), zoltraak (#8), silica (#10)
 ✅ **v1.17.1 RELEASED (PATCH)** — Memory Leak Fixes & API Compatibility (2026-03-21)
   - Memory leak fixes in Inspector (getSiblings, detectLayoutViolations, widget tree cleanup)
   - Zig 0.15 ArrayList API compatibility fixes
-  - All cross-platform builds verified
 ✅ **v1.17.0 RELEASED** — Widget Ecosystem Expansion (2026-03-19)
   - Menu, Calendar, FileBrowser, Terminal, Markdown widgets (5/5 complete)
+✅ **v1.16.0 RELEASED** — Advanced Terminal Features & Protocols (2026-03-17)
+  - Terminal capability database, bracketed paste, synchronized output, hyperlinks, focus tracking
 ✅ **v1.15.0 RELEASED** — Technical Debt & Stability (2026-03-16)
   - Thread safety fixes, XTGETTCAP, platform-specific tests, memory leak audit
-✅ **v1.14.0 RELEASED** — Performance & Memory Optimization (2026-03-16)
-  - Memory pooling, render profiling, virtual rendering, incremental layout, buffer compression
-✅ **v1.13.1 RELEASED (PATCH)** — Integer overflow fix in data viz widgets
-✅ **v1.13.0 RELEASED** — Advanced Text Editing & Rich Input (5/5 features, 100%)
 
 ## Completed Phases
 
