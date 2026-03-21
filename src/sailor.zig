@@ -54,6 +54,7 @@ pub const termcap = @import("termcap.zig");
 // v1.18.0 — Developer Experience & Tooling
 pub const ThemeWatcher = @import("tui/hotreload.zig").ThemeWatcher;
 pub const Inspector = @import("tui/inspector.zig").Inspector;
+pub const docgen = @import("docgen.zig");
 
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;
