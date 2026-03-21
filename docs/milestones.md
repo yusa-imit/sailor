@@ -2,41 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v1.17.1 (2026-03-21) — Memory Leak Fixes & API Compatibility (PATCH)
-- **Latest minor**: v1.17.0 (2026-03-19) — Widget Ecosystem Expansion
-- **Next milestone**: v1.18.0 — Developer Experience & Tooling (4/5 complete, 80%)
+- **Latest release**: v1.18.0 (2026-03-21) — Developer Experience & Tooling
+- **Latest minor**: v1.18.0 (2026-03-21) — Developer Experience & Tooling
+- **Next milestone**: TBD (need to establish new milestone)
 - **Blockers**: None
 
 ## Active Milestones
 
-### v1.16.0 — Advanced Terminal Features & Protocols (5/5 COMPLETE) ✅
-
-- [x] Terminal capability database (comprehensive terminfo parser, fallback detection) — **DONE** (2026-03-17)
-- [x] Bracketed paste mode (prevent command injection, detect paste events) — **DONE** (2026-03-17)
-- [x] Synchronized output protocol (eliminate tearing during rapid updates) — **DONE** (2026-03-17)
-- [x] Hyperlink support (OSC 8 for clickable URLs in terminal) — **DONE** (2026-03-17)
-- [x] Focus tracking (detect when terminal gains/loses focus) — **DONE** (2026-03-17)
-
-### v1.17.0 — Widget Ecosystem Expansion (5/5 complete, 100%) ✅
-
-- [x] Menu widget (dropdown/popup menus, keyboard navigation, nested submenus) — Implemented (commit 0c1c457)
-- [x] Calendar widget (date picker, range selection, month/year navigation) — Fixed & tested (commit a5fcd8f)
-- [x] FileBrowser widget (directory tree, file selection, preview pane) — Improved & tested (commit 3fa1234)
-- [x] Terminal widget (embed shell session, scrollback, ANSI emulation) — Implemented (commit 7d50ad0)
-- [x] Markdown renderer widget (parse and render markdown with syntax highlighting) — Implemented with 69 tests (commit dc5518f)
-
-### v1.18.0 — Developer Experience & Tooling (4/5 complete, 80%)
-
-- [x] Hot reload for themes (watch theme files, auto-reload on change) — **DONE** (2026-03-21)
-- [x] Widget inspector (runtime introspection, layout debugging, event tracing) — **DONE** (2026-03-20)
-- [x] Benchmark suite (performance regression detection, CI integration) — **DONE** (2026-03-21)
-- [x] Example gallery (interactive showcase of all widgets, copy-pasteable code) — **DONE** (2026-03-21)
-- [ ] Documentation generator (auto-generate API docs from source comments)
+(No active milestones — need to establish new milestone per Milestone Establishment Process)
 
 ## Completed Milestones
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.18.0 | Developer Experience & Tooling | 2026-03-21 | Hot reload for themes, widget inspector, benchmark suite, example gallery, documentation generator |
+| v1.17.0 | Widget Ecosystem Expansion | 2026-03-19 | Menu, Calendar, FileBrowser, Terminal, Markdown widgets |
+| v1.16.0 | Advanced Terminal Features & Protocols | 2026-03-17 | Terminal capability database, bracketed paste, synchronized output, hyperlinks, focus tracking |
 | v1.15.0 | Technical Debt & Stability | 2026-03-16 | Thread safety fixes, XTGETTCAP implementation, platform-specific tests, memory leak audit, multi-platform CI |
 | v1.14.0 | Performance & Memory Optimization | 2026-03 | Memory pooling, render profiling, virtual rendering, incremental layout, buffer compression |
 | v0.1.0 | Terminal + CLI Foundation (Phase 1) | 2026-02 | term.zig, color.zig, arg.zig, 102 tests |
