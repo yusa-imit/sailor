@@ -14,7 +14,7 @@
 **Theme**: Improve core CLI modules for better developer experience in consumer projects
 
 **Scope**:
-- [ ] Enhanced arg parser with positional arguments and argument groups
+- [x] Enhanced arg parser with positional arguments and argument groups (positional already existed, added groups)
 - [ ] Color themes & color scheme management (light/dark mode auto-switching)
 - [ ] Table formatting improvements (alignment, padding control, multi-line cells)
 - [ ] Progress bar templates and presets (spinners, styles, formats)
