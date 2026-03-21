@@ -1116,8 +1116,14 @@ test "Markdown line wraps at width boundary" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     try md.render(&buf, area);
 
-    // Should render across multiple lines
-    try testing.expect(md.lineCount() > 1);
+    // Should render across multiple lines - check buffer has content on multiple rows
+    var has_content_y0 = false;
+    var has_content_y1 = false;
+    for (0..20) |x| {
+        if (buf.getChar(@intCast(x), 0) != ' ') has_content_y0 = true;
+        if (buf.getChar(@intCast(x), 1) != ' ') has_content_y1 = true;
+    }
+    try testing.expect(has_content_y0 and has_content_y1);
 }
 
 test "Markdown no wrap truncates lines" {

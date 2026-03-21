@@ -253,8 +253,15 @@ test "inspector records layout parent-child relationships" {
     _ = inspector.recordWidgetWithParent("Child", .{ .x = 10, .y = 10, .width = 30, .height = 20 }, parent_id);
 
     // Child should fit within parent
-    const violation = inspector.detectLayoutViolations();
-    try testing.expectEqual(@as(usize, 0), violation.len); // No violations
+    var violations_check = try inspector.detectLayoutViolations(allocator);
+    defer {
+        for (violations_check.items) |v| {
+            allocator.free(v.violation_type_owned);
+            allocator.free(v.description_owned);
+        }
+        violations_check.deinit(allocator);
+    }
+    try testing.expectEqual(@as(usize, 0), violations_check.items.len); // No violations
 
     // Record child that overflows parent
     const overflow_id = inspector.recordWidgetWithParent("Overflow", .{ .x = 80, .y = 0, .width = 50, .height = 10 }, parent_id);

@@ -111,7 +111,9 @@ pub const Markdown = struct {
 
     /// Scroll down by n lines
     pub fn scrollDown(self: *Markdown, n: usize) void {
-        self.scroll_offset +%= n;
+        const max_scroll = if (self.lineCount() > 0) self.lineCount() - 1 else 0;
+        const new_offset = self.scroll_offset + n;
+        self.scroll_offset = if (new_offset > max_scroll) max_scroll else new_offset;
     }
 
     /// Scroll up by n lines
@@ -237,11 +239,9 @@ pub const Markdown = struct {
         // Check for ordered list
         if (line.len >= 2) {
             var i: usize = 0;
-            var indent_level: u8 = 0;
-            // Count leading spaces for indentation
-            while (i < line.len and line[i] == ' ') : (i += 1) {
-                if (i > 0 and i % 2 == 0) indent_level += 1;
-            }
+            // Count leading spaces for indentation (2 spaces = 1 level)
+            while (i < line.len and line[i] == ' ') : (i += 1) {}
+            const indent_level: u8 = @intCast(i / 2);
 
             const rest = line[i..];
             if (rest.len >= 2) {
@@ -269,11 +269,9 @@ pub const Markdown = struct {
         // Check for unordered list
         if (line.len >= 2) {
             var i: usize = 0;
-            var indent_level: u8 = 0;
-            // Count leading spaces for indentation
-            while (i < line.len and line[i] == ' ') : (i += 1) {
-                if (i > 0 and i % 2 == 0) indent_level += 1;
-            }
+            // Count leading spaces for indentation (2 spaces = 1 level)
+            while (i < line.len and line[i] == ' ') : (i += 1) {}
+            const indent_level: u8 = @intCast(i / 2);
 
             const rest = line[i..];
             if (rest.len >= 2 and (rest[0] == '-' or rest[0] == '*')) {
@@ -357,6 +355,10 @@ pub const Markdown = struct {
                     i = e + 2;
                     last_pos = i;
                     continue;
+                } else {
+                    // No closing delimiter found, treat as literal text
+                    i += 1;
+                    continue;
                 }
             }
 
@@ -385,6 +387,10 @@ pub const Markdown = struct {
                     try self.nodes.append(self.allocator,markdown_mod.Node{ .node_type = .italic, .text = content });
                     i = e + 1;
                     last_pos = i;
+                    continue;
+                } else {
+                    // No closing delimiter found, treat as literal text
+                    i += 1;
                     continue;
                 }
             }
