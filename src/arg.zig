@@ -27,6 +27,7 @@ pub const FlagDef = struct {
     required: bool = false,
     default: ?[]const u8 = null,
     help: []const u8 = "",
+    group: ?[]const u8 = null, // Optional group name for organizing help output
 };
 
 /// Parse result value
@@ -269,38 +270,93 @@ pub fn Parser(comptime flags: []const FlagDef) type {
 
         /// Generate help text
         pub fn writeHelp(writer: anytype) !void {
-            try writer.writeAll("Options:\n");
+            // Collect unique groups
+            var groups = [_]?[]const u8{null} ** flags.len;
+            var group_count: usize = 0;
+
             inline for (flags) |flag| {
-                try writer.writeAll("  ");
-                if (flag.short) |ch| {
-                    try writer.print("-{c}, ", .{ch});
-                } else {
-                    try writer.writeAll("    ");
+                if (flag.group) |g| {
+                    var found = false;
+                    for (groups[0..group_count]) |existing| {
+                        if (existing) |eg| {
+                            if (std.mem.eql(u8, eg, g)) {
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!found) {
+                        groups[group_count] = g;
+                        group_count += 1;
+                    }
                 }
-                try writer.print("--{s}", .{flag.name});
+            }
 
-                const type_str = switch (flag.type) {
-                    .bool => "",
-                    .string => " <string>",
-                    .int => " <int>",
-                    .float => " <float>",
-                };
-                try writer.writeAll(type_str);
-
-                if (flag.required) {
-                    try writer.writeAll(" (required)");
+            // Write ungrouped flags first
+            var has_ungrouped = false;
+            inline for (flags) |flag| {
+                if (flag.group == null) {
+                    has_ungrouped = true;
+                    break;
                 }
+            }
 
-                if (flag.help.len > 0) {
-                    try writer.print("\n      {s}", .{flag.help});
+            if (has_ungrouped) {
+                try writer.writeAll("Options:\n");
+                inline for (flags) |flag| {
+                    if (flag.group == null) {
+                        try writeFlag(writer, flag);
+                    }
                 }
-
-                if (flag.default) |default| {
-                    try writer.print(" [default: {s}]", .{default});
-                }
-
                 try writer.writeAll("\n");
             }
+
+            // Write grouped flags
+            for (groups[0..group_count]) |maybe_group| {
+                if (maybe_group) |group_name| {
+                    try writer.print("{s}:\n", .{group_name});
+                    inline for (flags) |flag| {
+                        if (flag.group) |g| {
+                            if (std.mem.eql(u8, g, group_name)) {
+                                try writeFlag(writer, flag);
+                            }
+                        }
+                    }
+                    try writer.writeAll("\n");
+                }
+            }
+        }
+
+        fn writeFlag(writer: anytype, flag: FlagDef) !void {
+            try writer.writeAll("  ");
+            if (flag.short) |ch| {
+                try writer.print("-{c}, ", .{ch});
+            } else {
+                try writer.writeAll("    ");
+            }
+            try writer.print("--{s}", .{flag.name});
+
+            const type_str = switch (flag.type) {
+                .bool => "",
+                .string => " <string>",
+                .int => " <int>",
+                .float => " <float>",
+            };
+            try writer.writeAll(type_str);
+
+            if (flag.required) {
+                try writer.writeAll(" (required)");
+            }
+
+            if (flag.help.len > 0) {
+                try writer.print("\n      {s}", .{flag.help});
+            }
+
+            if (flag.default) |default| {
+                try writer.print(" [default: {s}]", .{default});
+            }
+
+            try writer.writeAll("\n");
         }
     };
 }
