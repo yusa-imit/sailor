@@ -224,6 +224,9 @@ pub const DocGenerator = struct {
             close_paren_idx += 1;
         }
 
+        // If we didn't find matching paren, malformed input - skip
+        if (paren_depth != 0) return;
+
         // Extract parameters
         const params_str = fn_part[paren_idx + 1 .. close_paren_idx - 1];
         var parameters = std.ArrayListUnmanaged(Parameter){};
@@ -265,7 +268,7 @@ pub const DocGenerator = struct {
         try self.declarations.append(self.allocator, Declaration{
             .type = .function,
             .is_public = is_public,
-            .comment = if (comment) |c| Comment{ .content = c } else null,
+            .comment = if (comment) |c| Comment{ .content = try self.allocator.dupe(u8, c) } else null,
             .signature = FunctionSignature{
                 .name = name_copy,
                 .parameters = try self.allocator.dupe(Parameter, parameters.items),
@@ -299,7 +302,11 @@ pub const DocGenerator = struct {
                         if (std.mem.indexOf(u8, f, ":")) |colon_idx| {
                             const fname = std.mem.trim(u8, f[0..colon_idx], " \t");
                             const ftype_part = f[colon_idx + 1 ..];
-                            const ftype = std.mem.trim(u8, ftype_part, " \t=0123456789;");
+                            // Extract type, stop at '=' for default values
+                            var ftype = std.mem.trim(u8, ftype_part, " \t;");
+                            if (std.mem.indexOf(u8, ftype, "=")) |eq_pos| {
+                                ftype = std.mem.trim(u8, ftype[0..eq_pos], " \t");
+                            }
 
                             try fields.append(self.allocator, StructField{
                                 .name = try self.allocator.dupe(u8, fname),
@@ -314,7 +321,7 @@ pub const DocGenerator = struct {
         try self.declarations.append(self.allocator, Declaration{
             .type = .struct_type,
             .is_public = is_public,
-            .comment = if (comment) |c| Comment{ .content = c } else null,
+            .comment = if (comment) |c| Comment{ .content = try self.allocator.dupe(u8, c) } else null,
             .struct_fields = if (fields.items.len > 0) try self.allocator.dupe(StructField, fields.items) else null,
         });
 
@@ -353,7 +360,7 @@ pub const DocGenerator = struct {
         try self.declarations.append(self.allocator, Declaration{
             .type = .enum_type,
             .is_public = is_public,
-            .comment = if (comment) |c| Comment{ .content = c } else null,
+            .comment = if (comment) |c| Comment{ .content = try self.allocator.dupe(u8, c) } else null,
             .enum_values = if (values.items.len > 0) try self.allocator.dupe(EnumValue, values.items) else null,
         });
     }
@@ -397,7 +404,7 @@ pub const DocGenerator = struct {
         try self.declarations.append(self.allocator, Declaration{
             .type = .union_type,
             .is_public = is_public,
-            .comment = if (comment) |c| Comment{ .content = c } else null,
+            .comment = if (comment) |c| Comment{ .content = try self.allocator.dupe(u8, c) } else null,
             .struct_fields = if (fields.items.len > 0) try self.allocator.dupe(StructField, fields.items) else null,
         });
     }
@@ -412,7 +419,7 @@ pub const DocGenerator = struct {
         try self.declarations.append(self.allocator, Declaration{
             .type = .constant,
             .is_public = is_public,
-            .comment = if (comment) |c| Comment{ .content = c } else null,
+            .comment = if (comment) |c| Comment{ .content = try self.allocator.dupe(u8, c) } else null,
         });
     }
 
