@@ -636,3 +636,216 @@ fn parseHexComponent(hex_str: []const u8) !u8 {
     else
         @intCast(value >> 8); // Take high byte of 16-bit
 }
+
+// ============================================================================
+// ColorTheme Tests
+// ============================================================================
+
+test "ColorTheme.dark preset" {
+    const theme = ColorTheme.dark();
+
+    // Verify error color is bright red
+    try std.testing.expectEqual(Color{ .basic = .bright_red }, theme.error_fg);
+
+    // Verify warning is bright yellow
+    try std.testing.expectEqual(Color{ .basic = .bright_yellow }, theme.warning_fg);
+
+    // Verify success is bright green
+    try std.testing.expectEqual(Color{ .basic = .bright_green }, theme.success_fg);
+
+    // Verify info is bright cyan
+    try std.testing.expectEqual(Color{ .basic = .bright_cyan }, theme.info_fg);
+
+    // Verify dark background
+    try std.testing.expectEqual(Color.fromRgb(20, 20, 20), theme.background);
+
+    // Verify light foreground
+    try std.testing.expectEqual(Color.fromRgb(220, 220, 220), theme.foreground);
+}
+
+test "ColorTheme.light preset" {
+    const theme = ColorTheme.light();
+
+    // Verify error color is red (not bright)
+    try std.testing.expectEqual(Color{ .basic = .red }, theme.error_fg);
+
+    // Verify warning is yellow
+    try std.testing.expectEqual(Color{ .basic = .yellow }, theme.warning_fg);
+
+    // Verify success is green
+    try std.testing.expectEqual(Color{ .basic = .green }, theme.success_fg);
+
+    // Verify info is blue
+    try std.testing.expectEqual(Color{ .basic = .blue }, theme.info_fg);
+
+    // Verify light background
+    try std.testing.expectEqual(Color.fromRgb(250, 250, 250), theme.background);
+
+    // Verify dark foreground
+    try std.testing.expectEqual(Color.fromRgb(30, 30, 30), theme.foreground);
+}
+
+test "ColorTheme.init with custom fields" {
+    const theme = ColorTheme.init(.{
+        .error_fg = Color.fromRgb(255, 0, 0),
+        .success_fg = Color.fromRgb(0, 255, 0),
+    });
+
+    // Verify overridden fields
+    try std.testing.expectEqual(Color.fromRgb(255, 0, 0), theme.error_fg);
+    try std.testing.expectEqual(Color.fromRgb(0, 255, 0), theme.success_fg);
+
+    // Verify non-overridden fields retain dark theme defaults
+    try std.testing.expectEqual(Color{ .basic = .bright_yellow }, theme.warning_fg);
+    try std.testing.expectEqual(Color{ .basic = .bright_cyan }, theme.info_fg);
+}
+
+test "ColorTheme.detectFromTerminalWithQuery - dark background" {
+    const allocator = std.testing.allocator;
+
+    // Mock query function returning dark background
+    const mockDarkQuery = struct {
+        fn query() !Color {
+            return Color.fromRgb(20, 20, 20);
+        }
+    }.query;
+
+    const theme = try ColorTheme.detectFromTerminalWithQuery(allocator, mockDarkQuery);
+
+    // Should return dark theme
+    try std.testing.expectEqual(Color{ .basic = .bright_red }, theme.error_fg);
+    try std.testing.expectEqual(Color.fromRgb(20, 20, 20), theme.background);
+}
+
+test "ColorTheme.detectFromTerminalWithQuery - light background" {
+    const allocator = std.testing.allocator;
+
+    // Mock query function returning light background
+    const mockLightQuery = struct {
+        fn query() !Color {
+            return Color.fromRgb(250, 250, 250);
+        }
+    }.query;
+
+    const theme = try ColorTheme.detectFromTerminalWithQuery(allocator, mockLightQuery);
+
+    // Should return light theme
+    try std.testing.expectEqual(Color{ .basic = .red }, theme.error_fg);
+    try std.testing.expectEqual(Color.fromRgb(250, 250, 250), theme.background);
+}
+
+test "ColorTheme.detectFromTerminalWithQuery - query failure fallback" {
+    const allocator = std.testing.allocator;
+
+    // Mock query function that fails
+    const mockFailQuery = struct {
+        fn query() !Color {
+            return error.QueryFailed;
+        }
+    }.query;
+
+    const theme = try ColorTheme.detectFromTerminalWithQuery(allocator, mockFailQuery);
+
+    // Should fall back to dark theme
+    try std.testing.expectEqual(Color{ .basic = .bright_red }, theme.error_fg);
+    try std.testing.expectEqual(Color.fromRgb(20, 20, 20), theme.background);
+}
+
+test "ColorTheme.detectFromTerminalWithQuery - allocation failure" {
+    var failing_allocator = std.testing.FailingAllocator.init(std.testing.allocator, .{ .fail_index = 0 });
+    const allocator = failing_allocator.allocator();
+
+    // Mock query function
+    const mockQuery = struct {
+        fn query() !Color {
+            return Color.fromRgb(20, 20, 20);
+        }
+    }.query;
+
+    // Should propagate allocation error
+    const result = ColorTheme.detectFromTerminalWithQuery(allocator, mockQuery);
+    try std.testing.expectError(error.OutOfMemory, result);
+}
+
+test "ColorTheme.apply - writes foreground color" {
+    var buf: [128]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const theme = ColorTheme.dark();
+    try theme.apply(writer, .error_fg);
+
+    const output = fbs.getWritten();
+    // Should contain ANSI escape for bright red foreground
+    try std.testing.expect(std.mem.indexOf(u8, output, "\x1b[") != null);
+}
+
+test "ColorTheme.applyBg - writes background color" {
+    var buf: [128]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const theme = ColorTheme.dark();
+    try theme.applyBg(writer, .background);
+
+    const output = fbs.getWritten();
+    // Should contain ANSI escape for RGB background
+    try std.testing.expect(std.mem.indexOf(u8, output, "\x1b[") != null);
+}
+
+test "ColorTheme.styled - creates Style from semantic name" {
+    const theme = ColorTheme.dark();
+    const style = theme.styled(.error_fg);
+
+    // Should have error color as fg
+    try std.testing.expectEqual(Color{ .basic = .bright_red }, style.fg);
+
+    // Should have default background
+    try std.testing.expectEqual(Color.default, style.bg);
+}
+
+test "ColorTheme luminance calculation - dark threshold" {
+    const allocator = std.testing.allocator;
+
+    // RGB(127, 127, 127) should have luminance just below threshold
+    const mockBorderQuery = struct {
+        fn query() !Color {
+            return Color.fromRgb(127, 127, 127);
+        }
+    }.query;
+
+    const theme = try ColorTheme.detectFromTerminalWithQuery(allocator, mockBorderQuery);
+
+    // luminance = 127*299 + 127*587 + 127*114 = 127000 (< 128000 = dark)
+    try std.testing.expectEqual(Color{ .basic = .bright_red }, theme.error_fg);
+}
+
+test "ColorTheme basic color detection - dark colors" {
+    const allocator = std.testing.allocator;
+
+    // Test black (enum 0)
+    const mockBlackQuery = struct {
+        fn query() !Color {
+            return Color{ .basic = .black };
+        }
+    }.query;
+
+    const theme = try ColorTheme.detectFromTerminalWithQuery(allocator, mockBlackQuery);
+    // Black should be detected as dark
+    try std.testing.expectEqual(Color{ .basic = .bright_red }, theme.error_fg);
+}
+
+test "ColorTheme basic color detection - light colors" {
+    const allocator = std.testing.allocator;
+
+    // Test white (enum >= 7)
+    const mockWhiteQuery = struct {
+        fn query() !Color {
+            return Color{ .basic = .white };
+        }
+    }.query;
+
+    const theme = try ColorTheme.detectFromTerminalWithQuery(allocator, mockWhiteQuery);
+    // White should be detected as light
+    try std.testing.expectEqual(Color{ .basic = .red }, theme.error_fg);
+}
