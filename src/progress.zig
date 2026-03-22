@@ -58,6 +58,83 @@ pub const BarConfig = struct {
     empty: []const u8 = "░",
 };
 
+/// Progress indicator template with preset styles
+pub const Template = struct {
+    config: BarConfig,
+    spinner: SpinnerStyle,
+    label: []const u8,
+
+    /// Download progress template
+    pub const download = Template{
+        .config = .{
+            .width = 40,
+            .show_percent = true,
+            .show_count = true,
+            .use_color = null,
+            .filled = "▓",
+            .empty = "░",
+        },
+        .spinner = .braille,
+        .label = "Downloading",
+    };
+
+    /// Build progress template
+    pub const build = Template{
+        .config = .{
+            .width = 40,
+            .show_percent = true,
+            .show_count = true,
+            .use_color = null,
+            .filled = "▒",
+            .empty = "░",
+        },
+        .spinner = .arc,
+        .label = "Building",
+    };
+
+    /// Test run progress template
+    pub const test_run = Template{
+        .config = .{
+            .width = 40,
+            .show_percent = true,
+            .show_count = true,
+            .use_color = null,
+            .filled = "█",
+            .empty = "░",
+        },
+        .spinner = .dots,
+        .label = "Testing",
+    };
+
+    /// Install progress template
+    pub const install = Template{
+        .config = .{
+            .width = 40,
+            .show_percent = true,
+            .show_count = true,
+            .use_color = null,
+            .filled = "▓",
+            .empty = "▒",
+        },
+        .spinner = .line,
+        .label = "Installing",
+    };
+
+    /// Processing progress template
+    pub const processing = Template{
+        .config = .{
+            .width = 40,
+            .show_percent = true,
+            .show_count = true,
+            .use_color = null,
+            .filled = "▒",
+            .empty = "▓",
+        },
+        .spinner = .braille,
+        .label = "Processing",
+    };
+};
+
 /// Progress bar state
 pub const Bar = struct {
     config: BarConfig,
@@ -386,4 +463,177 @@ test "Multi basic" {
     try std.testing.expectEqual(@as(usize, 0), spinner_idx);
 
     multi.tickSpinner(spinner_idx);
+}
+
+// Template preset tests
+
+test "Template download preset has braille spinner" {
+    const template = Template.download;
+    try std.testing.expectEqual(SpinnerStyle.braille, template.spinner);
+}
+
+test "Template download preset has non-empty label" {
+    const template = Template.download;
+    try std.testing.expect(template.label.len > 0);
+}
+
+test "Template download preset has valid bar config" {
+    const template = Template.download;
+    try std.testing.expect(template.config.width > 0);
+    try std.testing.expect(template.config.filled.len > 0);
+    try std.testing.expect(template.config.empty.len > 0);
+}
+
+test "Template build preset has arc spinner" {
+    const template = Template.build;
+    try std.testing.expectEqual(SpinnerStyle.arc, template.spinner);
+}
+
+test "Template build preset has non-empty label" {
+    const template = Template.build;
+    try std.testing.expect(template.label.len > 0);
+}
+
+test "Template build preset has valid bar config" {
+    const template = Template.build;
+    try std.testing.expect(template.config.width > 0);
+    try std.testing.expect(template.config.filled.len > 0);
+    try std.testing.expect(template.config.empty.len > 0);
+}
+
+test "Template test_run preset has dots spinner" {
+    const template = Template.test_run;
+    try std.testing.expectEqual(SpinnerStyle.dots, template.spinner);
+}
+
+test "Template test_run preset has non-empty label" {
+    const template = Template.test_run;
+    try std.testing.expect(template.label.len > 0);
+}
+
+test "Template test_run preset has valid bar config" {
+    const template = Template.test_run;
+    try std.testing.expect(template.config.width > 0);
+    try std.testing.expect(template.config.filled.len > 0);
+    try std.testing.expect(template.config.empty.len > 0);
+}
+
+test "Template install preset has line spinner" {
+    const template = Template.install;
+    try std.testing.expectEqual(SpinnerStyle.line, template.spinner);
+}
+
+test "Template install preset has non-empty label" {
+    const template = Template.install;
+    try std.testing.expect(template.label.len > 0);
+}
+
+test "Template install preset has valid bar config" {
+    const template = Template.install;
+    try std.testing.expect(template.config.width > 0);
+    try std.testing.expect(template.config.filled.len > 0);
+    try std.testing.expect(template.config.empty.len > 0);
+}
+
+test "Template processing preset has braille spinner" {
+    const template = Template.processing;
+    try std.testing.expectEqual(SpinnerStyle.braille, template.spinner);
+}
+
+test "Template processing preset has non-empty label" {
+    const template = Template.processing;
+    try std.testing.expect(template.label.len > 0);
+}
+
+test "Template processing preset has valid bar config" {
+    const template = Template.processing;
+    try std.testing.expect(template.config.width > 0);
+    try std.testing.expect(template.config.filled.len > 0);
+    try std.testing.expect(template.config.empty.len > 0);
+}
+
+test "create Bar from download template" {
+    const template = Template.download;
+    var bar = Bar.init(1000, template.config);
+    bar.update(500);
+    try std.testing.expectEqual(@as(u64, 500), bar.current);
+    try std.testing.expectEqual(@as(u64, 1000), bar.total);
+}
+
+test "create Bar from build template" {
+    const template = Template.build;
+    var bar = Bar.init(100, template.config);
+    bar.update(75);
+    try std.testing.expectEqual(@as(u64, 75), bar.current);
+    try std.testing.expectEqual(@as(u64, 100), bar.total);
+}
+
+test "create Bar from test_run template" {
+    const template = Template.test_run;
+    var bar = Bar.init(50, template.config);
+    bar.inc();
+    try std.testing.expectEqual(@as(u64, 1), bar.current);
+}
+
+test "create Spinner from download template" {
+    const template = Template.download;
+    const spinner = Spinner.init(template.label, template.spinner, false);
+    try std.testing.expectEqual(template.spinner, spinner.style);
+    try std.testing.expectEqualStrings(template.label, spinner.message);
+}
+
+test "create Spinner from build template" {
+    const template = Template.build;
+    const spinner = Spinner.init(template.label, template.spinner, false);
+    try std.testing.expectEqual(template.spinner, spinner.style);
+    try std.testing.expectEqualStrings(template.label, spinner.message);
+}
+
+test "create Spinner from test_run template" {
+    const template = Template.test_run;
+    const spinner = Spinner.init(template.label, template.spinner, false);
+    try std.testing.expectEqual(template.spinner, spinner.style);
+    try std.testing.expectEqualStrings(template.label, spinner.message);
+}
+
+test "create Spinner from install template" {
+    const template = Template.install;
+    const spinner = Spinner.init(template.label, template.spinner, false);
+    try std.testing.expectEqual(template.spinner, spinner.style);
+    try std.testing.expectEqualStrings(template.label, spinner.message);
+}
+
+test "create Spinner from processing template" {
+    const template = Template.processing;
+    const spinner = Spinner.init(template.label, template.spinner, false);
+    try std.testing.expectEqual(template.spinner, spinner.style);
+    try std.testing.expectEqualStrings(template.label, spinner.message);
+}
+
+test "all templates have same width" {
+    const dl = Template.download;
+    const bl = Template.build;
+    const tr = Template.test_run;
+    const in = Template.install;
+    const pr = Template.processing;
+
+    try std.testing.expectEqual(dl.config.width, bl.config.width);
+    try std.testing.expectEqual(bl.config.width, tr.config.width);
+    try std.testing.expectEqual(tr.config.width, in.config.width);
+    try std.testing.expectEqual(in.config.width, pr.config.width);
+}
+
+test "all templates have reasonable width" {
+    const templates = .{
+        Template.download,
+        Template.build,
+        Template.test_run,
+        Template.install,
+        Template.processing,
+    };
+
+    inline for (templates) |template| {
+        try std.testing.expect(template.config.width >= 20);
+        try std.testing.expect(template.config.width <= 100);
+    }
 }
