@@ -86,8 +86,8 @@
 All consumer projects can now upgrade to v1.10.0 with mouse, gamepad, and touch input support.
 
 ## Test Status
-- **Total Tests**: 1286 passing (1239 + 47 menu tests), 4 skipped (updated 2026-03-18 Hour 5 FEATURE)
-  - Phase 1-2 modules: 68 (term: 5, color: 16, arg: 13, repl: 5, progress: 7, fmt: 13)
+- **Total Tests**: 1300 passing, 4 skipped (updated 2026-03-22 Hour 21 STABILIZATION)
+  - Phase 1-2 modules: 82 (term: 5, color: 30, arg: 13, repl: 5, progress: 7, fmt: 13) — +14 ColorTheme tests
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)
   - Phase 5 widgets: 185 (tree: 25, textarea: 28, sparkline: 25, barchart: 25, linechart: 32, canvas: 11, dialog: 10, popup: 12, notification: 17)
