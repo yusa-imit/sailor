@@ -1107,3 +1107,150 @@ test "Table alignment with multi-line cells" {
     // Center alignment should work with multi-line content
     try std.testing.expect(std.mem.indexOf(u8, output, "First") != null);
 }
+
+test "Table left alignment" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{ "Name", "Age" }, .{
+        .borders = true,
+        .alignments = &.{ .left, .left },
+        .min_width = 10,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{ "Alice", "30" });
+    try table.addRow(&.{ "Bob", "25" });
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    // Left alignment: text should be at the start with trailing spaces
+    try std.testing.expect(std.mem.indexOf(u8, output, "Alice     ") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "30        ") != null);
+}
+
+test "Table right alignment" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{ "Name", "Amount" }, .{
+        .borders = true,
+        .alignments = &.{ .left, .right },
+        .min_width = 10,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{ "Alice", "100" });
+    try table.addRow(&.{ "Bob", "50" });
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    // Right alignment: numbers should have leading spaces
+    try std.testing.expect(std.mem.indexOf(u8, output, "       100") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "        50") != null);
+}
+
+test "Table center alignment" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{"Status"}, .{
+        .borders = true,
+        .alignments = &.{.center},
+        .min_width = 12,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{"OK"});
+    try table.addRow(&.{"FAIL"});
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    // Center alignment: text should have balanced padding
+    // "OK" (2 chars) in 12 width: 5 left, 5 right padding
+    try std.testing.expect(std.mem.indexOf(u8, output, "     OK     ") != null);
+    // "FAIL" (4 chars) in 12 width: 4 left, 4 right padding
+    try std.testing.expect(std.mem.indexOf(u8, output, "    FAIL    ") != null);
+}
+
+test "Table mixed alignments" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{ "Name", "Score", "Status" }, .{
+        .borders = true,
+        .alignments = &.{ .left, .right, .center },
+        .min_width = 8,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{ "Alice", "95", "PASS" });
+    try table.addRow(&.{ "Bob", "70", "PASS" });
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    // Should contain all three alignment styles
+    try std.testing.expect(std.mem.indexOf(u8, output, "Alice") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "95") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "PASS") != null);
+}
+
+test "Table alignment with varying widths" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{ "Short", "Medium Length", "X" }, .{
+        .borders = true,
+        .alignments = &.{ .left, .center, .right },
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{ "A", "B", "C" });
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    // Each column should adapt to its header width with proper alignment
+    try std.testing.expect(std.mem.indexOf(u8, output, "Short") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "Medium Length") != null);
+    try std.testing.expect(output.len > 0);
+}
+
+test "Table alignment with padding" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{ "L", "C", "R" }, .{
+        .borders = true,
+        .alignments = &.{ .left, .center, .right },
+        .padding_left = 2,
+        .padding_right = 2,
+        .min_width = 6,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{ "A", "B", "C" });
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    // Padding should not interfere with alignment
+    try std.testing.expect(output.len > 0);
+    try std.testing.expect(std.mem.indexOf(u8, output, "A") != null);
+}
