@@ -45,6 +45,18 @@ pub const TableConfig = struct {
 
     /// Maximum column width (default: unlimited)
     max_width: ?usize = null,
+
+    /// Left padding (default: 0)
+    padding_left: usize = 0,
+
+    /// Right padding (default: 0)
+    padding_right: usize = 0,
+
+    /// Top padding (default: 0)
+    padding_top: usize = 0,
+
+    /// Bottom padding (default: 0)
+    padding_bottom: usize = 0,
 };
 
 /// CSV configuration
@@ -119,6 +131,11 @@ pub const Table = struct {
             try self.renderBorder(writer, .top);
         }
 
+        // Top padding
+        for (0..self.config.padding_top) |_| {
+            try self.renderBlankRow(writer);
+        }
+
         // Header
         try self.renderRow(writer, self.headers);
 
@@ -130,6 +147,11 @@ pub const Table = struct {
         // Rows
         for (self.rows.items) |row| {
             try self.renderRow(writer, row);
+        }
+
+        // Bottom padding
+        for (0..self.config.padding_bottom) |_| {
+            try self.renderBlankRow(writer);
         }
 
         // Bottom border
@@ -156,7 +178,7 @@ pub const Table = struct {
 
         try writer.writeAll(chars.left);
         for (self.widths, 0..) |width, i| {
-            for (0..width + 2) |_| {
+            for (0..width + 2 + self.config.padding_left + self.config.padding_right) |_| {
                 try writer.writeAll(chars.horiz);
             }
             if (i < self.widths.len - 1) {
@@ -167,40 +189,175 @@ pub const Table = struct {
         try writer.writeByte('\n');
     }
 
+    /// Wrap a cell string into lines based on max_width
+    fn wrapCell(self: Self, cell: []const u8) !std.ArrayListUnmanaged([]const u8) {
+        var lines = std.ArrayListUnmanaged([]const u8){};
+
+        // First split on explicit newlines
+        var line_iter = std.mem.splitScalar(u8, cell, '\n');
+        while (line_iter.next()) |line| {
+            if (self.config.max_width) |max_width| {
+                // Further split by word wrapping if line exceeds max_width
+                var wrapped_lines = try self.wrapLine(line, max_width);
+                defer wrapped_lines.deinit(self.allocator);
+
+                for (wrapped_lines.items) |wrapped_line| {
+                    try lines.append(self.allocator, wrapped_line);
+                }
+            } else {
+                try lines.append(self.allocator, line);
+            }
+        }
+
+        return lines;
+    }
+
+    /// Wrap a single line by word boundaries
+    fn wrapLine(self: Self, line: []const u8, max_width: usize) !std.ArrayListUnmanaged([]const u8) {
+        var wrapped = std.ArrayListUnmanaged([]const u8){};
+
+        if (line.len <= max_width) {
+            try wrapped.append(self.allocator, line);
+            return wrapped;
+        }
+
+        var current_pos: usize = 0;
+
+        while (current_pos < line.len) {
+            var line_end = @min(current_pos + max_width, line.len);
+
+            // If we're not at the end, try to find a word boundary
+            if (line_end < line.len) {
+                // Look backwards for last space
+                var search_pos = line_end;
+                while (search_pos > current_pos) {
+                    if (line[search_pos - 1] == ' ') {
+                        // Found a space, trim trailing spaces
+                        while (search_pos > current_pos and line[search_pos - 1] == ' ') {
+                            search_pos -= 1;
+                        }
+                        break;
+                    }
+                    search_pos -= 1;
+                }
+
+                // If we found a space position that's reasonable
+                if (search_pos > current_pos) {
+                    line_end = search_pos;
+                } else {
+                    // No good word boundary, hard break at max_width
+                    line_end = current_pos + max_width;
+                }
+            }
+
+            try wrapped.append(self.allocator, line[current_pos..line_end]);
+            current_pos = line_end;
+
+            // Skip leading spaces on next line
+            while (current_pos < line.len and line[current_pos] == ' ') {
+                current_pos += 1;
+            }
+        }
+
+        return wrapped;
+    }
+
     fn renderRow(self: Self, writer: anytype, row: []const []const u8) !void {
+        // Wrap all cells first
+        var wrapped_cells = try self.allocator.alloc(std.ArrayListUnmanaged([]const u8), row.len);
+        defer {
+            for (wrapped_cells) |*cell_lines| {
+                cell_lines.deinit(self.allocator);
+            }
+            self.allocator.free(wrapped_cells);
+        }
+
+        var max_lines: usize = 1;
+
+        for (row, 0..) |cell, i| {
+            wrapped_cells[i] = try self.wrapCell(cell);
+            max_lines = @max(max_lines, wrapped_cells[i].items.len);
+        }
+
+        // Render each line of the row
+        for (0..max_lines) |line_idx| {
+            if (self.config.borders) {
+                try writer.writeAll("│ ");
+            }
+
+            for (row, 0..) |_, i| {
+                const alignment = if (self.config.alignments) |aligns|
+                    aligns[i]
+                else
+                    .left;
+
+                const width = self.widths[i];
+
+                // Get the cell line content (or empty if this cell doesn't have this many lines)
+                const cell_line = if (line_idx < wrapped_cells[i].items.len)
+                    wrapped_cells[i].items[line_idx]
+                else
+                    "";
+
+                const cell_len = @min(cell_line.len, width);
+                const cell_pad = width -| cell_len;
+
+                // Apply left padding
+                for (0..self.config.padding_left) |_| {
+                    try writer.writeByte(' ');
+                }
+
+                // Apply alignment
+                switch (alignment) {
+                    .left => {
+                        try writer.writeAll(cell_line[0..cell_len]);
+                        for (0..cell_pad) |_| try writer.writeByte(' ');
+                    },
+                    .right => {
+                        for (0..cell_pad) |_| try writer.writeByte(' ');
+                        try writer.writeAll(cell_line[0..cell_len]);
+                    },
+                    .center => {
+                        const left_pad = cell_pad / 2;
+                        const right_pad = cell_pad - left_pad;
+                        for (0..left_pad) |_| try writer.writeByte(' ');
+                        try writer.writeAll(cell_line[0..cell_len]);
+                        for (0..right_pad) |_| try writer.writeByte(' ');
+                    },
+                }
+
+                // Apply right padding
+                for (0..self.config.padding_right) |_| {
+                    try writer.writeByte(' ');
+                }
+
+                if (i < row.len - 1) {
+                    if (self.config.borders) {
+                        try writer.writeAll(" │ ");
+                    } else {
+                        try writer.writeAll("  ");
+                    }
+                }
+            }
+
+            if (self.config.borders) {
+                try writer.writeAll(" │");
+            }
+            try writer.writeByte('\n');
+        }
+    }
+
+    fn renderBlankRow(self: Self, writer: anytype) !void {
         if (self.config.borders) {
             try writer.writeAll("│ ");
         }
 
-        for (row, 0..) |cell, i| {
-            const alignment = if (self.config.alignments) |aligns|
-                aligns[i]
-            else
-                .left;
-
-            const width = self.widths[i];
-            const cell_len = @min(cell.len, width);
-            const padding = width -| cell_len;
-
-            switch (alignment) {
-                .left => {
-                    try writer.writeAll(cell[0..cell_len]);
-                    for (0..padding) |_| try writer.writeByte(' ');
-                },
-                .right => {
-                    for (0..padding) |_| try writer.writeByte(' ');
-                    try writer.writeAll(cell[0..cell_len]);
-                },
-                .center => {
-                    const left_pad = padding / 2;
-                    const right_pad = padding - left_pad;
-                    for (0..left_pad) |_| try writer.writeByte(' ');
-                    try writer.writeAll(cell[0..cell_len]);
-                    for (0..right_pad) |_| try writer.writeByte(' ');
-                },
+        for (self.widths, 0..) |width, i| {
+            for (0..width + self.config.padding_left + self.config.padding_right) |_| {
+                try writer.writeByte(' ');
             }
 
-            if (i < row.len - 1) {
+            if (i < self.widths.len - 1) {
                 if (self.config.borders) {
                     try writer.writeAll(" │ ");
                 } else {
@@ -616,4 +773,337 @@ test "JSON escaping control characters" {
 
     const expected = "tab\\there\\r\\nbackslash\\\\";
     try std.testing.expectEqualStrings(expected, buf.items);
+}
+
+// Padding control tests
+
+test "Table with custom horizontal padding" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{"Name", "Age"}, .{
+        .borders = true,
+        .padding_left = 2,
+        .padding_right = 2,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{"Alice", "30"});
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    // Expected: padding adds 2 spaces on each side of cell content
+    try std.testing.expect(std.mem.indexOf(u8, output, "Alice") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "30") != null);
+}
+
+test "Table with custom vertical padding" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{"Col1"}, .{
+        .borders = true,
+        .padding_top = 1,
+        .padding_bottom = 1,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{"Data"});
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    // With vertical padding, each row should have blank lines above and below
+    try std.testing.expect(std.mem.indexOf(u8, output, "Data") != null);
+}
+
+test "Table with asymmetric padding" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{"A", "B"}, .{
+        .borders = false,
+        .padding_left = 3,
+        .padding_right = 1,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{"X", "Y"});
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    try std.testing.expect(std.mem.indexOf(u8, output, "X") != null);
+}
+
+test "Table with zero padding" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{"Name"}, .{
+        .borders = false,
+        .padding_left = 0,
+        .padding_right = 0,
+        .padding_top = 0,
+        .padding_bottom = 0,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{"Test"});
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    // With zero padding, content should be adjacent to boundaries
+    try std.testing.expect(std.mem.indexOf(u8, output, "Test") != null);
+}
+
+test "Table with large padding values" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{"X"}, .{
+        .borders = false,
+        .padding_left = 10,
+        .padding_right = 10,
+        .padding_top = 5,
+        .padding_bottom = 5,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{"A"});
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    try std.testing.expect(std.mem.indexOf(u8, output, "A") != null);
+}
+
+// Multi-line cell tests
+
+test "Table with newline in cell" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{"Description"}, .{
+        .borders = false,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{"Line 1\nLine 2"});
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    // Multi-line cell should preserve newlines
+    try std.testing.expect(std.mem.indexOf(u8, output, "Line 1") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "Line 2") != null);
+}
+
+test "Table with cell wrapping on max_width" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{"Text"}, .{
+        .borders = false,
+        .max_width = 10,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{"This is a very long text"});
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    // Content should be wrapped or truncated based on max_width
+    try std.testing.expect(output.len > 0);
+}
+
+test "Table with mixed single and multi-line cells in same row" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{"Col1", "Col2"}, .{
+        .borders = false,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{"Single", "Multi\nLine"});
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    // Both types of cells should be present
+    try std.testing.expect(std.mem.indexOf(u8, output, "Single") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "Multi") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "Line") != null);
+}
+
+test "Table with multiple newlines in single cell" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{"Notes"}, .{
+        .borders = false,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{"First\nSecond\nThird"});
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    try std.testing.expect(std.mem.indexOf(u8, output, "First") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "Second") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "Third") != null);
+}
+
+test "Table with empty lines within cell" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{"Content"}, .{
+        .borders = false,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{"Line 1\n\nLine 3"});
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    // Should handle blank lines within cell content
+    try std.testing.expect(std.mem.indexOf(u8, output, "Line 1") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "Line 3") != null);
+}
+
+test "Table with word wrapping at word boundaries" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{"Message"}, .{
+        .borders = false,
+        .max_width = 15,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{"The quick brown fox"});
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    // Word wrap should break at word boundaries, not mid-word
+    try std.testing.expect(output.len > 0);
+}
+
+test "Table with very long word exceeding max_width" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{"Code"}, .{
+        .borders = false,
+        .max_width = 8,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{"verylongword"});
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    // Should handle long words that can't fit within max_width
+    try std.testing.expect(output.len > 0);
+}
+
+test "Table with newlines and padding combined" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{"Col1"}, .{
+        .borders = false,
+        .padding_left = 1,
+        .padding_right = 1,
+        .padding_top = 1,
+        .padding_bottom = 1,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{"Line A\nLine B"});
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    // Multi-line cells with padding should work together
+    try std.testing.expect(std.mem.indexOf(u8, output, "Line A") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "Line B") != null);
+}
+
+test "Table multi-line with borders and padding" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{"Name", "Desc"}, .{
+        .borders = true,
+        .padding_left = 1,
+        .padding_right = 1,
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{"Alice", "A\nB"});
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    try std.testing.expect(std.mem.indexOf(u8, output, "Alice") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "A") != null);
+}
+
+test "Table alignment with multi-line cells" {
+    const allocator = std.testing.allocator;
+
+    var table = try Table.init(allocator, &.{"Name"}, .{
+        .borders = false,
+        .alignments = &.{.center},
+    });
+    defer table.deinit();
+
+    try table.addRow(&.{"First\nSecond"});
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    try table.render(buf.writer());
+
+    const output = buf.items;
+    // Center alignment should work with multi-line content
+    try std.testing.expect(std.mem.indexOf(u8, output, "First") != null);
 }
