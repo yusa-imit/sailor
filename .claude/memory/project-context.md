@@ -9,10 +9,10 @@
 - Previous versions: v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: v1.19.0 → CLI Enhancements & Ergonomics (2/5, 40%) 🚧
+- **Active milestone**: v1.19.0 → CLI Enhancements & Ergonomics (3/5, 60%) 🚧
   - ✅ Enhanced arg parser with argument groups (positional already existed)
   - ✅ Color themes & color scheme management (ColorTheme with semantic colors, light/dark presets, terminal detection)
-  - ⏳ Table formatting improvements
+  - ✅ Table formatting improvements (alignment, padding control, multi-line cells) - added 6 comprehensive tests
   - ⏳ Progress bar templates and presets
   - ⏳ Environment variable configuration support
 - **Last completed**: v1.18.0 → Developer Experience & Tooling (5/5, 100%) ✅
