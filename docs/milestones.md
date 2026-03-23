@@ -2,34 +2,20 @@
 
 ## Current Status
 
-- **Latest release**: v1.18.0 (2026-03-21) — Developer Experience & Tooling
-- **Latest minor**: v1.18.0 (2026-03-21) — Developer Experience & Tooling
+- **Latest release**: v1.19.0 (2026-03-24) — CLI Enhancements & Ergonomics
+- **Latest minor**: v1.19.0 (2026-03-24) — CLI Enhancements & Ergonomics
 - **Next milestone**: TBD (need to establish new milestone)
 - **Blockers**: None
 
 ## Active Milestones
 
-### v1.19.0 — CLI Enhancements & Ergonomics
-
-**Theme**: Improve core CLI modules for better developer experience in consumer projects
-
-**Scope**:
-- [x] Enhanced arg parser with positional arguments and argument groups (positional already existed, added groups)
-- [x] Color themes & color scheme management (light/dark mode auto-switching)
-- [x] Table formatting improvements (alignment, padding control, multi-line cells)
-- [x] Progress bar templates and presets (Template struct with 5 presets: download, build, test_run, install, processing)
-- [x] Environment variable configuration support (env.zig with get/getBool/getInt, tests/env_config_test.zig)
-
-**Rationale**: Consumer projects (zr, zoltraak, silica) heavily use arg, color, fmt, progress. Enhancing these foundational modules provides immediate value to all users.
-
-**Dependencies**: None (all modules already exist)
-
-**Target completion**: 1-2 weeks
+(No active milestones — need to establish next milestone)
 
 ## Completed Milestones
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.19.0 | CLI Enhancements & Ergonomics | 2026-03-24 | Arg groups, color themes, table formatting, progress templates, env config |
 | v1.18.0 | Developer Experience & Tooling | 2026-03-21 | Hot reload for themes, widget inspector, benchmark suite, example gallery, documentation generator |
 | v1.17.0 | Widget Ecosystem Expansion | 2026-03-19 | Menu, Calendar, FileBrowser, Terminal, Markdown widgets |
 | v1.16.0 | Advanced Terminal Features & Protocols | 2026-03-17 | Terminal capability database, bracketed paste, synchronized output, hyperlinks, focus tracking |
