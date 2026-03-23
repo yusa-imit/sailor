@@ -11,6 +11,7 @@ zig-out
 .claude/tasks/
 .claude/projects/
 .claude/scratchpad.md
+.claude/session-counter
 
 # OS
 .DS_Store

@@ -447,9 +447,25 @@ See `docs/milestones.md` for active milestones, completed releases, milestone es
 - **성능 회귀 테스트**: PR별 벤치마크 비교
 
 ### cron 작업 규칙
-- 로컬 cron에서 `zig build test`는 허용하되, 벤치마크/크로스 컴파일은 **금지**
+- 로컬 cron에서 `zig build test`는 허용하되, 벤치마크/크로스 컴파일은 **금지** (Stabilization 세션 예외)
 - 여러 Zig 프로젝트(zuda, zr, silica, zoltraak)의 cron이 동시에 실행될 수 있으므로, 로컬 cron은 경량 작업만 수행
 - 무거운 검증은 `git push` 후 GitHub Actions에서 결과 확인
+
+### Stabilization 세션 예외
+- 실행 횟수 기반 판별 — `.claude/session-counter` 파일로 카운트
+- 매 세션 시작 시: 카운터 읽기 → +1 → 저장 → `counter % 5 == 0`이면 Stabilization 세션
+- 판별 로직:
+  ```bash
+  COUNTER_FILE=".claude/session-counter"
+  COUNTER=$(cat "$COUNTER_FILE" 2>/dev/null || echo 0)
+  COUNTER=$((COUNTER + 1))
+  echo "$COUNTER" > "$COUNTER_FILE"
+  if [ $((COUNTER % 5)) -eq 0 ]; then echo "STABILIZATION"; else echo "NORMAL"; fi
+  ```
+- Stabilization 세션에서는 **크로스 컴파일**(6개 타겟) 및 **벤치마크** 로컬 실행 허용
+- **동시 실행 금지**: 실행 전 다른 Zig 프로젝트의 heavy process가 없는지 확인 — `pgrep -f "zig build"` 결과가 없을 때만 진행
+- 크로스 컴파일은 **순차 실행** (6개 타겟 동시 빌드 금지, 하나씩 실행)
+- Stabilization이 아닌 일반 세션에서는 기존 정책 유지 (CI에서만 실행)
 
 ---
 
