@@ -17,8 +17,8 @@
 - [x] Enhanced arg parser with positional arguments and argument groups (positional already existed, added groups)
 - [x] Color themes & color scheme management (light/dark mode auto-switching)
 - [x] Table formatting improvements (alignment, padding control, multi-line cells)
-- [ ] Progress bar templates and presets (spinners, styles, formats)
-- [ ] Environment variable configuration support across all modules
+- [x] Progress bar templates and presets (Template struct with 5 presets: download, build, test_run, install, processing)
+- [x] Environment variable configuration support (env.zig with get/getBool/getInt, tests/env_config_test.zig)
 
 **Rationale**: Consumer projects (zr, zoltraak, silica) heavily use arg, color, fmt, progress. Enhancing these foundational modules provides immediate value to all users.
 
