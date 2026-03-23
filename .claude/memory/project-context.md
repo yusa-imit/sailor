@@ -5,17 +5,12 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.18.0** 🎯 (2026-03-21)
-- Previous versions: v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.19.0** 🎯 (2026-03-24)
+- Previous versions: v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: v1.19.0 → CLI Enhancements & Ergonomics (4/5, 80%) 🚧
-  - ✅ Enhanced arg parser with argument groups (positional already existed)
-  - ✅ Color themes & color scheme management (ColorTheme with semantic colors, light/dark presets, terminal detection)
-  - ✅ Table formatting improvements (alignment, padding control, multi-line cells) - added 6 comprehensive tests
-  - ✅ Environment variable configuration support (src/env.zig with get/getBool/getInt, 54 comprehensive tests)
-  - ⏳ Progress bar templates and presets
-- **Last completed**: v1.18.0 → Developer Experience & Tooling (5/5, 100%) ✅
+- **Active milestone**: None — need to establish next milestone
+- **Last completed**: v1.19.0 → CLI Enhancements & Ergonomics (5/5, 100%) ✅
   - ✅ Widget inspector (runtime introspection, layout debugging, event tracing)
   - ✅ Hot reload for themes (ThemeWatcher with file watching, auto-reload)
   - ✅ Benchmark suite (performance regression detection, CI integration)
@@ -23,6 +18,9 @@
   - ✅ Documentation generator (auto-generate API docs from source, 69 tests)
 
 ## Project Status
+✅ **v1.19.0 RELEASED** — CLI Enhancements & Ergonomics (2026-03-24)
+  - Progress bar templates (5 presets), env config, color themes, table formatting, arg groups (5/5 complete)
+  - Migration issues created for zr (#32), zoltraak (#9), silica (#12)
 ✅ **v1.18.0 RELEASED** — Developer Experience & Tooling (2026-03-21)
   - Hot reload for themes, widget inspector, benchmark suite, example gallery, documentation generator (5/5 complete)
   - Migration issues created for zr (#31), zoltraak (#8), silica (#10)
