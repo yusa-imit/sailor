@@ -122,3 +122,282 @@ pub fn getInt(comptime T: type, key: []const u8, default: T) T {
 
     return result;
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "get retrieves set environment variable" {
+    const allocator = std.testing.allocator;
+
+    // Set test env var
+    _ = setenv("SAILOR_TEST_GET", "test_value", 1);
+    defer _ = unsetenv("SAILOR_TEST_GET");
+
+    const result = try get(allocator, "SAILOR_TEST_GET", "default");
+    defer allocator.free(result);
+
+    try std.testing.expectEqualStrings("test_value", result);
+}
+
+test "get returns default for unset variable" {
+    const allocator = std.testing.allocator;
+
+    // Ensure the var is not set
+    _ = unsetenv("SAILOR_TEST_UNSET");
+
+    const result = try get(allocator, "SAILOR_TEST_UNSET", "fallback");
+    defer allocator.free(result);
+
+    try std.testing.expectEqualStrings("fallback", result);
+}
+
+test "get returns empty string when variable is set to empty" {
+    const allocator = std.testing.allocator;
+
+    _ = setenv("SAILOR_TEST_EMPTY", "", 1);
+    defer _ = unsetenv("SAILOR_TEST_EMPTY");
+
+    const result = try get(allocator, "SAILOR_TEST_EMPTY", "default");
+    defer allocator.free(result);
+
+    try std.testing.expectEqualStrings("", result);
+}
+
+test "get does not leak memory" {
+    const allocator = std.testing.allocator;
+
+    _ = setenv("SAILOR_TEST_LEAK", "some_value", 1);
+    defer _ = unsetenv("SAILOR_TEST_LEAK");
+
+    // Multiple allocations and frees
+    for (0..10) |_| {
+        const result = try get(allocator, "SAILOR_TEST_LEAK", "default");
+        allocator.free(result);
+    }
+
+    // If there's a leak, allocator will catch it
+}
+
+test "getBool recognizes true value: 1" {
+    _ = setenv("SAILOR_TEST_BOOL", "1", 1);
+    defer _ = unsetenv("SAILOR_TEST_BOOL");
+
+    try std.testing.expect(getBool("SAILOR_TEST_BOOL", false));
+}
+
+test "getBool recognizes true value: true" {
+    _ = setenv("SAILOR_TEST_BOOL", "true", 1);
+    defer _ = unsetenv("SAILOR_TEST_BOOL");
+
+    try std.testing.expect(getBool("SAILOR_TEST_BOOL", false));
+}
+
+test "getBool recognizes true value: yes" {
+    _ = setenv("SAILOR_TEST_BOOL", "yes", 1);
+    defer _ = unsetenv("SAILOR_TEST_BOOL");
+
+    try std.testing.expect(getBool("SAILOR_TEST_BOOL", false));
+}
+
+test "getBool recognizes true value: on" {
+    _ = setenv("SAILOR_TEST_BOOL", "on", 1);
+    defer _ = unsetenv("SAILOR_TEST_BOOL");
+
+    try std.testing.expect(getBool("SAILOR_TEST_BOOL", false));
+}
+
+test "getBool recognizes true value: y" {
+    _ = setenv("SAILOR_TEST_BOOL", "y", 1);
+    defer _ = unsetenv("SAILOR_TEST_BOOL");
+
+    try std.testing.expect(getBool("SAILOR_TEST_BOOL", false));
+}
+
+test "getBool recognizes false value: 0" {
+    _ = setenv("SAILOR_TEST_BOOL", "0", 1);
+    defer _ = unsetenv("SAILOR_TEST_BOOL");
+
+    try std.testing.expect(!getBool("SAILOR_TEST_BOOL", true));
+}
+
+test "getBool recognizes false value: false" {
+    _ = setenv("SAILOR_TEST_BOOL", "false", 1);
+    defer _ = unsetenv("SAILOR_TEST_BOOL");
+
+    try std.testing.expect(!getBool("SAILOR_TEST_BOOL", true));
+}
+
+test "getBool recognizes false value: no" {
+    _ = setenv("SAILOR_TEST_BOOL", "no", 1);
+    defer _ = unsetenv("SAILOR_TEST_BOOL");
+
+    try std.testing.expect(!getBool("SAILOR_TEST_BOOL", true));
+}
+
+test "getBool recognizes false value: off" {
+    _ = setenv("SAILOR_TEST_BOOL", "off", 1);
+    defer _ = unsetenv("SAILOR_TEST_BOOL");
+
+    try std.testing.expect(!getBool("SAILOR_TEST_BOOL", true));
+}
+
+test "getBool recognizes false value: n" {
+    _ = setenv("SAILOR_TEST_BOOL", "n", 1);
+    defer _ = unsetenv("SAILOR_TEST_BOOL");
+
+    try std.testing.expect(!getBool("SAILOR_TEST_BOOL", true));
+}
+
+test "getBool is case-insensitive: TRUE" {
+    _ = setenv("SAILOR_TEST_BOOL", "TRUE", 1);
+    defer _ = unsetenv("SAILOR_TEST_BOOL");
+
+    try std.testing.expect(getBool("SAILOR_TEST_BOOL", false));
+}
+
+test "getBool is case-insensitive: False" {
+    _ = setenv("SAILOR_TEST_BOOL", "False", 1);
+    defer _ = unsetenv("SAILOR_TEST_BOOL");
+
+    try std.testing.expect(!getBool("SAILOR_TEST_BOOL", true));
+}
+
+test "getBool is case-insensitive: YeS" {
+    _ = setenv("SAILOR_TEST_BOOL", "YeS", 1);
+    defer _ = unsetenv("SAILOR_TEST_BOOL");
+
+    try std.testing.expect(getBool("SAILOR_TEST_BOOL", false));
+}
+
+test "getBool returns default when variable is unset" {
+    _ = unsetenv("SAILOR_TEST_BOOL_UNSET");
+
+    try std.testing.expect(getBool("SAILOR_TEST_BOOL_UNSET", true));
+    try std.testing.expect(!getBool("SAILOR_TEST_BOOL_UNSET", false));
+}
+
+test "getBool treats empty string as false" {
+    _ = setenv("SAILOR_TEST_BOOL", "", 1);
+    defer _ = unsetenv("SAILOR_TEST_BOOL");
+
+    try std.testing.expect(!getBool("SAILOR_TEST_BOOL", true));
+}
+
+test "getBool treats invalid value as false" {
+    _ = setenv("SAILOR_TEST_BOOL", "invalid", 1);
+    defer _ = unsetenv("SAILOR_TEST_BOOL");
+
+    try std.testing.expect(!getBool("SAILOR_TEST_BOOL", true));
+}
+
+test "getBool treats long value (>32 chars) as false" {
+    const long_value = "this_is_a_very_long_string_that_exceeds_32_characters";
+    _ = setenv("SAILOR_TEST_BOOL", long_value, 1);
+    defer _ = unsetenv("SAILOR_TEST_BOOL");
+
+    try std.testing.expect(!getBool("SAILOR_TEST_BOOL", true));
+}
+
+test "getInt parses valid positive integer (u32)" {
+    _ = setenv("SAILOR_TEST_INT", "12345", 1);
+    defer _ = unsetenv("SAILOR_TEST_INT");
+
+    const result = getInt(u32, "SAILOR_TEST_INT", 0);
+    try std.testing.expectEqual(@as(u32, 12345), result);
+}
+
+test "getInt parses valid negative integer (i32)" {
+    _ = setenv("SAILOR_TEST_INT", "-9876", 1);
+    defer _ = unsetenv("SAILOR_TEST_INT");
+
+    const result = getInt(i32, "SAILOR_TEST_INT", 0);
+    try std.testing.expectEqual(@as(i32, -9876), result);
+}
+
+test "getInt returns default on overflow (u8)" {
+    _ = setenv("SAILOR_TEST_INT", "300", 1); // u8 max is 255
+    defer _ = unsetenv("SAILOR_TEST_INT");
+
+    const result = getInt(u8, "SAILOR_TEST_INT", 42);
+    try std.testing.expectEqual(@as(u8, 42), result);
+}
+
+test "getInt returns default on underflow (u32)" {
+    _ = setenv("SAILOR_TEST_INT", "-100", 1);
+    defer _ = unsetenv("SAILOR_TEST_INT");
+
+    const result = getInt(u32, "SAILOR_TEST_INT", 99);
+    try std.testing.expectEqual(@as(u32, 99), result);
+}
+
+test "getInt returns default on invalid format" {
+    _ = setenv("SAILOR_TEST_INT", "not_a_number", 1);
+    defer _ = unsetenv("SAILOR_TEST_INT");
+
+    const result = getInt(i32, "SAILOR_TEST_INT", -1);
+    try std.testing.expectEqual(@as(i32, -1), result);
+}
+
+test "getInt returns default when variable is unset" {
+    _ = unsetenv("SAILOR_TEST_INT_UNSET");
+
+    const result = getInt(i32, "SAILOR_TEST_INT_UNSET", 777);
+    try std.testing.expectEqual(@as(i32, 777), result);
+}
+
+test "getInt parses max value for type (i8)" {
+    _ = setenv("SAILOR_TEST_INT", "127", 1);
+    defer _ = unsetenv("SAILOR_TEST_INT");
+
+    const result = getInt(i8, "SAILOR_TEST_INT", 0);
+    try std.testing.expectEqual(@as(i8, 127), result);
+}
+
+test "getInt parses min value for type (i8)" {
+    _ = setenv("SAILOR_TEST_INT", "-128", 1);
+    defer _ = unsetenv("SAILOR_TEST_INT");
+
+    const result = getInt(i8, "SAILOR_TEST_INT", 0);
+    try std.testing.expectEqual(@as(i8, -128), result);
+}
+
+test "getInt parses max value for type (u16)" {
+    _ = setenv("SAILOR_TEST_INT", "65535", 1);
+    defer _ = unsetenv("SAILOR_TEST_INT");
+
+    const result = getInt(u16, "SAILOR_TEST_INT", 0);
+    try std.testing.expectEqual(@as(u16, 65535), result);
+}
+
+test "getInt rejects leading whitespace" {
+    _ = setenv("SAILOR_TEST_INT", " 123", 1);
+    defer _ = unsetenv("SAILOR_TEST_INT");
+
+    const result = getInt(i32, "SAILOR_TEST_INT", 999);
+    try std.testing.expectEqual(@as(i32, 999), result);
+}
+
+test "getInt rejects trailing whitespace" {
+    _ = setenv("SAILOR_TEST_INT", "123 ", 1);
+    defer _ = unsetenv("SAILOR_TEST_INT");
+
+    const result = getInt(i32, "SAILOR_TEST_INT", 999);
+    try std.testing.expectEqual(@as(i32, 999), result);
+}
+
+test "getInt parses zero" {
+    _ = setenv("SAILOR_TEST_INT", "0", 1);
+    defer _ = unsetenv("SAILOR_TEST_INT");
+
+    const result = getInt(i32, "SAILOR_TEST_INT", -1);
+    try std.testing.expectEqual(@as(i32, 0), result);
+}
+
+test "getInt rejects empty string" {
+    _ = setenv("SAILOR_TEST_INT", "", 1);
+    defer _ = unsetenv("SAILOR_TEST_INT");
+
+    const result = getInt(i32, "SAILOR_TEST_INT", 555);
+    try std.testing.expectEqual(@as(i32, 555), result);
+}
