@@ -15,7 +15,7 @@
 
 - [x] Directory scanning for docgen (complete TODO in docgen.zig:529) — commit 3f31631
 - [x] Error message context improvements (add file/line info where missing) — error_context.zig module with ErrorContext and SimpleErrorMsg
-- [ ] Edge case hardening (empty inputs, boundary conditions, null checks)
+- [x] Edge case hardening (empty inputs, boundary conditions, null checks) — fixed division by zero in touch.zig pinch detection, comprehensive audit of arithmetic/bounds/unicode edge cases
 - [ ] Documentation gaps (examples for complex APIs, common patterns)
 - [ ] Platform-specific testing (Windows console edge cases, Unicode on Windows)
 
