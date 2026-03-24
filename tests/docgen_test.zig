@@ -846,17 +846,423 @@ test "DocGenerator generates markdown for undocumented functions" {
 // Directory Scanning Tests
 // ============================================================================
 
-test "DocGenerator scans directory recursively" {
+test "DocGenerator parses single .zig file from directory" {
+    const allocator = testing.allocator;
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    // Create a single .zig file
+    try tmp.dir.writeFile(.{
+        .sub_path = "module.zig",
+        .data = "/// Adds two numbers\npub fn add(a: i32, b: i32) i32 {\n    return a + b;\n}\n",
+    });
+
+    var gen = try DocGenerator.init(allocator);
+    defer gen.deinit();
+
+    // Construct the full path to the temp directory
+    var path_buf: [256]u8 = undefined;
+    const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+
+    try gen.parseDirectory(path);
+
+    const decls = gen.getDeclarations();
+    try testing.expect(decls.len > 0);
+    try testing.expectEqual(DeclarationType.function, decls[0].type);
+}
+
+test "DocGenerator scans recursive nested directories" {
+    const allocator = testing.allocator;
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    // Create nested structure
+    try tmp.dir.makeDir("src");
+    try tmp.dir.makeDir("src/utils");
+
+    // Create files at different levels
+    try tmp.dir.writeFile(.{
+        .sub_path = "root.zig",
+        .data = "/// Root level function\npub fn rootFunc() void {}\n",
+    });
+
+    try tmp.dir.writeFile(.{
+        .sub_path = "src/module.zig",
+        .data = "/// Module function\npub fn moduleFunc() void {}\n",
+    });
+
+    try tmp.dir.writeFile(.{
+        .sub_path = "src/utils/helper.zig",
+        .data = "/// Helper function\npub fn helper() void {}\n",
+    });
+
+    var gen = try DocGenerator.init(allocator);
+    defer gen.deinit();
+
+    var path_buf: [256]u8 = undefined;
+    const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+    try gen.parseDirectory(path);
+
+    const decls = gen.getDeclarations();
+    // Should have parsed functions from all three files
+    try testing.expect(decls.len >= 3);
+}
+
+test "DocGenerator filters non-.zig files" {
+    const allocator = testing.allocator;
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    // Create mixed file types
+    try tmp.dir.writeFile(.{
+        .sub_path = "module.zig",
+        .data = "pub fn zigFunc() void {}\n",
+    });
+
+    try tmp.dir.writeFile(.{
+        .sub_path = "README.md",
+        .data = "# Documentation\nThis is markdown",
+    });
+
+    try tmp.dir.writeFile(.{
+        .sub_path = "config.json",
+        .data = "{\"version\": \"1.0.0\"}",
+    });
+
+    try tmp.dir.writeFile(.{
+        .sub_path = "notes.txt",
+        .data = "Some notes",
+    });
+
+    var gen = try DocGenerator.init(allocator);
+    defer gen.deinit();
+
+    var path_buf: [256]u8 = undefined;
+    const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+    try gen.parseDirectory(path);
+
+    const decls = gen.getDeclarations();
+    // Should only parse the .zig file
+    try testing.expect(decls.len > 0);
+    // Verify we parsed the zig file, not other formats
+    try testing.expectEqual(DeclarationType.function, decls[0].type);
+}
+
+test "DocGenerator accumulates declarations from multiple files" {
+    const allocator = testing.allocator;
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    // Create multiple .zig files with different declarations
+    try tmp.dir.writeFile(.{
+        .sub_path = "functions.zig",
+        .data = "pub fn func1() void {}\npub fn func2() void {}\n",
+    });
+
+    try tmp.dir.writeFile(.{
+        .sub_path = "types.zig",
+        .data = "pub const Point = struct { x: i32, y: i32 };\npub const Color = enum { red, green, blue };\n",
+    });
+
+    var gen = try DocGenerator.init(allocator);
+    defer gen.deinit();
+
+    var path_buf: [256]u8 = undefined;
+    const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+    try gen.parseDirectory(path);
+
+    const decls = gen.getDeclarations();
+    // Should have accumulated all declarations from both files
+    try testing.expect(decls.len >= 4);
+}
+
+test "DocGenerator handles empty directory" {
+    const allocator = testing.allocator;
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var gen = try DocGenerator.init(allocator);
+    defer gen.deinit();
+
+    var path_buf: [256]u8 = undefined;
+    const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+    try gen.parseDirectory(path);
+
+    const decls = gen.getDeclarations();
+    // Empty directory should produce no declarations
+    try testing.expectEqual(@as(usize, 0), decls.len);
+}
+
+test "DocGenerator handles directory with no .zig files" {
+    const allocator = testing.allocator;
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    // Create only non-Zig files
+    try tmp.dir.writeFile(.{
+        .sub_path = "readme.md",
+        .data = "# README",
+    });
+
+    try tmp.dir.writeFile(.{
+        .sub_path = "config.toml",
+        .data = "version = \"1.0\"",
+    });
+
+    var gen = try DocGenerator.init(allocator);
+    defer gen.deinit();
+
+    var path_buf: [256]u8 = undefined;
+    const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+    try gen.parseDirectory(path);
+
+    const decls = gen.getDeclarations();
+    try testing.expectEqual(@as(usize, 0), decls.len);
+}
+
+test "DocGenerator handles non-existent directory path" {
     const allocator = testing.allocator;
 
     var gen = try DocGenerator.init(allocator);
     defer gen.deinit();
 
-    // Should support directory path
-    // This test validates the API exists and can be called
-    // Actual scanning tested via integration
-    const has_parse_directory = @hasDecl(DocGenerator, "parseDirectory");
-    try testing.expect(has_parse_directory);
+    const result = gen.parseDirectory("/nonexistent/path/that/does/not/exist");
+    // Should return an error (specific type depends on implementation)
+    try testing.expectError(error.FileNotFound, result);
+}
+
+test "DocGenerator handles deeply nested directory structure" {
+    const allocator = testing.allocator;
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    // Create deeply nested structure
+    try tmp.dir.makePath("a/b/c/d/e");
+
+    try tmp.dir.writeFile(.{
+        .sub_path = "a/file1.zig",
+        .data = "pub fn level1() void {}\n",
+    });
+
+    try tmp.dir.writeFile(.{
+        .sub_path = "a/b/file2.zig",
+        .data = "pub fn level2() void {}\n",
+    });
+
+    try tmp.dir.writeFile(.{
+        .sub_path = "a/b/c/d/e/file5.zig",
+        .data = "pub fn level5() void {}\n",
+    });
+
+    var gen = try DocGenerator.init(allocator);
+    defer gen.deinit();
+
+    var path_buf: [256]u8 = undefined;
+    const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+    try gen.parseDirectory(path);
+
+    const decls = gen.getDeclarations();
+    // Should find all files at all nesting levels
+    try testing.expect(decls.len >= 3);
+}
+
+test "DocGenerator parses doc comments from directory files" {
+    const allocator = testing.allocator;
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try tmp.dir.writeFile(.{
+        .sub_path = "documented.zig",
+        .data = "/// This function has documentation\npub fn documented() void {}\n",
+    });
+
+    var gen = try DocGenerator.init(allocator);
+    defer gen.deinit();
+
+    var path_buf: [256]u8 = undefined;
+    const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+    try gen.parseDirectory(path);
+
+    const decls = gen.getDeclarations();
+    try testing.expect(decls.len > 0);
+    try testing.expect(decls[0].comment != null);
+    try expectStringContains(decls[0].comment.?.content, "documentation");
+}
+
+test "DocGenerator preserves file content accuracy across multiple files" {
+    const allocator = testing.allocator;
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    // File 1: specific signature
+    try tmp.dir.writeFile(.{
+        .sub_path = "math.zig",
+        .data = "pub fn add(a: i32, b: i32) i32 { return a + b; }\n",
+    });
+
+    // File 2: different signature
+    try tmp.dir.writeFile(.{
+        .sub_path = "string.zig",
+        .data = "pub fn concat(left: []const u8, right: []const u8) []const u8 { return left; }\n",
+    });
+
+    var gen = try DocGenerator.init(allocator);
+    defer gen.deinit();
+
+    var path_buf: [256]u8 = undefined;
+    const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+    try gen.parseDirectory(path);
+
+    const decls = gen.getDeclarations();
+
+    // Find each function and verify its signature
+    var add_found = false;
+    var concat_found = false;
+
+    for (decls) |decl| {
+        if (decl.signature) |sig| {
+            if (std.mem.eql(u8, sig.name, "add")) {
+                add_found = true;
+                try testing.expectEqual(@as(usize, 2), sig.parameters.len);
+                try testing.expectEqualStrings("i32", sig.return_type);
+            }
+            if (std.mem.eql(u8, sig.name, "concat")) {
+                concat_found = true;
+                try testing.expectEqual(@as(usize, 2), sig.parameters.len);
+                try testing.expectEqualStrings("[]const u8", sig.return_type);
+            }
+        }
+    }
+
+    try testing.expect(add_found);
+    try testing.expect(concat_found);
+}
+
+test "DocGenerator handles .zig files with mixed case" {
+    const allocator = testing.allocator;
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    // Create files with various cases (case-sensitive filesystems)
+    try tmp.dir.writeFile(.{
+        .sub_path = "Module.zig",
+        .data = "pub fn moduleFunc() void {}\n",
+    });
+
+    try tmp.dir.writeFile(.{
+        .sub_path = "CONSTANTS.zig",
+        .data = "pub const MAX = 100;\n",
+    });
+
+    var gen = try DocGenerator.init(allocator);
+    defer gen.deinit();
+
+    var path_buf: [256]u8 = undefined;
+    const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+    try gen.parseDirectory(path);
+
+    const decls = gen.getDeclarations();
+    try testing.expect(decls.len >= 2);
+}
+
+test "DocGenerator handles scan of directory with permission constraints" {
+    const allocator = testing.allocator;
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    // Create accessible files
+    try tmp.dir.writeFile(.{
+        .sub_path = "accessible.zig",
+        .data = "pub fn func() void {}\n",
+    });
+
+    var gen = try DocGenerator.init(allocator);
+    defer gen.deinit();
+
+    var buf: [256]u8 = undefined;
+    const path = try std.fmt.bufPrint(&buf, "{}", .{tmp.dir});
+
+    // This should succeed for accessible files
+    try gen.parseDirectory(path);
+
+    const decls = gen.getDeclarations();
+    try testing.expect(decls.len > 0);
+}
+
+test "DocGenerator parses multiple struct and enum definitions across files" {
+    const allocator = testing.allocator;
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try tmp.dir.writeFile(.{
+        .sub_path = "types.zig",
+        .data =
+            \\pub const Config = struct { timeout: u32, retries: u8 };
+            \\pub const Status = enum { pending, active, complete };
+        ,
+    });
+
+    var gen = try DocGenerator.init(allocator);
+    defer gen.deinit();
+
+    var path_buf: [256]u8 = undefined;
+    const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+    try gen.parseDirectory(path);
+
+    const decls = gen.getDeclarations();
+
+    // Should have parsed struct and enum
+    var struct_found = false;
+    var enum_found = false;
+
+    for (decls) |decl| {
+        if (decl.type == .struct_type) struct_found = true;
+        if (decl.type == .enum_type) enum_found = true;
+    }
+
+    try testing.expect(struct_found);
+    try testing.expect(enum_found);
+}
+
+test "DocGenerator correctly counts declarations when parsing directory" {
+    const allocator = testing.allocator;
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    // Create files with known number of declarations
+    try tmp.dir.writeFile(.{
+        .sub_path = "file1.zig",
+        .data = "pub fn f1() void {}\npub fn f2() void {}\npub fn f3() void {}\n",
+    });
+
+    try tmp.dir.writeFile(.{
+        .sub_path = "file2.zig",
+        .data = "pub const C1 = 1;\npub const C2 = 2;\n",
+    });
+
+    var gen = try DocGenerator.init(allocator);
+    defer gen.deinit();
+
+    var path_buf: [256]u8 = undefined;
+    const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+    try gen.parseDirectory(path);
+
+    const decls = gen.getDeclarations();
+    // Should have 5 declarations total (3 functions + 2 constants)
+    try testing.expectEqual(@as(usize, 5), decls.len);
 }
 
 // ============================================================================

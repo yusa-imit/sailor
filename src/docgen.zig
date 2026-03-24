@@ -522,10 +522,45 @@ pub const DocGenerator = struct {
         }
     }
 
-    /// Parse a directory recursively (stub for API testing)
-    pub fn parseDirectory(self: *Self, path: []const u8) !void {
-        _ = self;
-        _ = path;
-        // TODO: Implement directory scanning
+    /// Parse a directory recursively
+    pub fn parseDirectory(self: *Self, dir_path: []const u8) !void {
+        var dir = std.fs.cwd().openDir(dir_path, .{ .iterate = true }) catch |err| {
+            return err;
+        };
+        defer dir.close();
+
+        try self.parseDirectoryRecursive(dir, dir_path);
+    }
+
+    /// Recursively parse directory helper
+    fn parseDirectoryRecursive(self: *Self, dir: std.fs.Dir, base_path: []const u8) !void {
+        var iter = dir.iterate();
+        while (try iter.next()) |entry| {
+            switch (entry.kind) {
+                .file => {
+                    // Only process .zig files
+                    if (std.mem.endsWith(u8, entry.name, ".zig")) {
+                        // Read file contents
+                        const file_contents = try dir.readFileAlloc(self.allocator, entry.name, 1024 * 1024); // 1MB max
+                        defer self.allocator.free(file_contents);
+
+                        // Parse the file
+                        try self.parseSource(file_contents);
+                    }
+                },
+                .directory => {
+                    // Recursively scan subdirectories
+                    var subdir = try dir.openDir(entry.name, .{ .iterate = true });
+                    defer subdir.close();
+
+                    // Construct new base path
+                    var path_buf: [std.fs.max_path_bytes]u8 = undefined;
+                    const new_base = try std.fmt.bufPrint(&path_buf, "{s}/{s}", .{ base_path, entry.name });
+
+                    try self.parseDirectoryRecursive(subdir, new_base);
+                },
+                else => {}, // Skip symlinks, pipes, etc.
+            }
+        }
     }
 };
