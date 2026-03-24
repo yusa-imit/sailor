@@ -34,7 +34,8 @@ pub const Size = struct {
 };
 
 /// Check if a file descriptor is a TTY
-pub fn isatty(fd: posix.fd_t) bool {
+/// Accepts standard FD integers (0=stdin, 1=stdout, 2=stderr)
+pub fn isatty(fd: i32) bool {
     return switch (builtin.os.tag) {
         .linux, .macos => posix.isatty(fd),
         .windows => blk: {
