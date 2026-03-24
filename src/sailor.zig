@@ -57,6 +57,9 @@ pub const ThemeWatcher = @import("tui/hotreload.zig").ThemeWatcher;
 pub const Inspector = @import("tui/inspector.zig").Inspector;
 pub const docgen = @import("docgen.zig");
 
+// v1.20.0 — Quality & Completeness
+pub const error_context = @import("error_context.zig");
+
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;
 pub const Cell = tui.buffer.Cell;

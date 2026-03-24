@@ -14,7 +14,7 @@
 **Theme**: Complete unfinished features, improve error handling, harden edge cases
 
 - [x] Directory scanning for docgen (complete TODO in docgen.zig:529) — commit 3f31631
-- [ ] Error message context improvements (add file/line info where missing)
+- [x] Error message context improvements (add file/line info where missing) — error_context.zig module with ErrorContext and SimpleErrorMsg
 - [ ] Edge case hardening (empty inputs, boundary conditions, null checks)
 - [ ] Documentation gaps (examples for complex APIs, common patterns)
 - [ ] Platform-specific testing (Windows console edge cases, Unicode on Windows)

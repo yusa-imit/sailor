@@ -9,9 +9,9 @@
 - Previous versions: v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: v1.20.0 — Quality & Completeness (1/5, 20%)
+- **Active milestone**: v1.20.0 — Quality & Completeness (2/5, 40%)
   - ✅ Directory scanning for docgen (parseDirectory() + 14 tests)
-  - ⏳ Error message context improvements
+  - ✅ Error message context improvements (error_context.zig module with ErrorContext, SimpleErrorMsg, here() helper + 7 tests)
   - ⏳ Edge case hardening
   - ⏳ Documentation gaps
   - ⏳ Platform-specific testing
@@ -84,7 +84,8 @@
 All consumer projects can now upgrade to v1.10.0 with mouse, gamepad, and touch input support.
 
 ## Test Status
-- **Total Tests**: 1300 passing, 4 skipped (updated 2026-03-22 Hour 21 STABILIZATION)
+- **Total Tests**: 1307 passing, 4 skipped (updated 2026-03-24 Session 3 FEATURE MODE)
+  - +7 error_context.zig tests
   - Phase 1-2 modules: 82 (term: 5, color: 30, arg: 13, repl: 5, progress: 7, fmt: 13) — +14 ColorTheme tests
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)
