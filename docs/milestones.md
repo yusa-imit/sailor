@@ -2,27 +2,20 @@
 
 ## Current Status
 
-- **Latest release**: v1.19.0 (2026-03-24) — CLI Enhancements & Ergonomics
-- **Latest minor**: v1.19.0 (2026-03-24) — CLI Enhancements & Ergonomics
-- **Next milestone**: v1.20.0 — Quality & Completeness
+- **Latest release**: v1.20.0 (2026-03-25) — Quality & Completeness
+- **Latest minor**: v1.20.0 (2026-03-25) — Quality & Completeness
+- **Next milestone**: TBD (awaiting milestone establishment)
 - **Blockers**: None
 
 ## Active Milestones
 
-### v1.20.0 — Quality & Completeness (Target: 2026-03-25)
-
-**Theme**: Complete unfinished features, improve error handling, harden edge cases
-
-- [x] Directory scanning for docgen (complete TODO in docgen.zig:529) — commit 3f31631
-- [x] Error message context improvements (add file/line info where missing) — error_context.zig module with ErrorContext and SimpleErrorMsg
-- [x] Edge case hardening (empty inputs, boundary conditions, null checks) — fixed division by zero in touch.zig pinch detection, comprehensive audit of arithmetic/bounds/unicode edge cases
-- [x] Documentation gaps (examples for complex APIs, common patterns) — docs/patterns.md with comprehensive examples for all major APIs (terminal, color, arg, progress, REPL, fmt, TUI, events, layout, widgets)
-- [x] Platform-specific testing (Windows console edge cases, Unicode on Windows) — windows_unicode_test.zig with 23 comprehensive tests covering UTF-16 surrogates, CJK width, ANSI escapes, console modes
+(No active milestones — need to establish new ones per Milestone Establishment Process)
 
 ## Completed Milestones
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.20.0 | Quality & Completeness | 2026-03-25 | Windows Unicode tests (23), pattern docs, docgen dir scanning, error context, edge hardening |
 | v1.19.0 | CLI Enhancements & Ergonomics | 2026-03-24 | Arg groups, color themes, table formatting, progress templates, env config |
 | v1.18.0 | Developer Experience & Tooling | 2026-03-21 | Hot reload for themes, widget inspector, benchmark suite, example gallery, documentation generator |
 | v1.17.0 | Widget Ecosystem Expansion | 2026-03-19 | Menu, Calendar, FileBrowser, Terminal, Markdown widgets |

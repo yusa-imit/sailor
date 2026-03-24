@@ -5,19 +5,17 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.19.0** 🎯 (2026-03-24)
-- Previous versions: v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.20.0** 🎯 (2026-03-25)
+- Previous versions: v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: v1.20.0 — Quality & Completeness (4/5, 80%)
-  - ✅ Directory scanning for docgen (parseDirectory() + 14 tests)
-  - ✅ Error message context improvements (error_context.zig module with ErrorContext, SimpleErrorMsg, here() helper + 7 tests)
-  - ✅ Edge case hardening (division by zero in touch.zig pinch detection + test, comprehensive codebase audit)
-  - ✅ Documentation gaps (env.zig: 0→34 tests, gitignore: *.o pattern added)
-  - ⏳ Platform-specific testing
-- **Last completed**: v1.19.0 → CLI Enhancements & Ergonomics (5/5, 100%) ✅
+- **Active milestone**: NONE — awaiting new milestone
+- **Last completed**: v1.20.0 → Quality & Completeness (5/5, 100%) ✅
 
 ## Project Status
+✅ **v1.20.0 RELEASED** — Quality & Completeness (2026-03-25)
+  - Windows Unicode tests (23 tests), pattern documentation, docgen directory scanning, error context, edge case hardening (5/5 complete)
+  - Migration issues created for zr (#33), zoltraak (#10), silica (#14)
 ✅ **v1.19.0 RELEASED** — CLI Enhancements & Ergonomics (2026-03-24)
   - Progress bar templates (5 presets), env config, color themes, table formatting, arg groups (5/5 complete)
   - Migration issues created for zr (#32), zoltraak (#9), silica (#12)
@@ -84,8 +82,9 @@
 All consumer projects can now upgrade to v1.10.0 with mouse, gamepad, and touch input support.
 
 ## Test Status
-- **Total Tests**: 1342 passing, 4 skipped (updated 2026-03-24 Session 5 STABILIZATION MODE)
-  - +34 env.zig tests (CRITICAL: coverage increased from 0 to 34)
+- **Total Tests**: 1365+ passing, 4 skipped (updated 2026-03-25 Session 6 FEATURE MODE)
+  - +23 Windows Unicode tests (windows_unicode_test.zig)
+  - +34 env.zig tests (from previous session)
   - Phase 1-2 modules: 116 (term: 5, color: 30, arg: 13, repl: 5, progress: 7, fmt: 13, env: 34) — +34 env tests
   - Phase 3 TUI core: 107 (style: 19, symbols: 19, layout: 26, buffer: 25, tui: 6, widget integration: 12)
   - Phase 4 widgets: 148 (block: 14, paragraph: 14, list: 21, table: 27, input: 16, tabs: 16, statusbar: 17, gauge: 23)
