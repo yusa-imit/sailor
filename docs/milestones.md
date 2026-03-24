@@ -4,12 +4,20 @@
 
 - **Latest release**: v1.19.0 (2026-03-24) — CLI Enhancements & Ergonomics
 - **Latest minor**: v1.19.0 (2026-03-24) — CLI Enhancements & Ergonomics
-- **Next milestone**: TBD (need to establish new milestone)
+- **Next milestone**: v1.20.0 — Quality & Completeness
 - **Blockers**: None
 
 ## Active Milestones
 
-(No active milestones — need to establish next milestone)
+### v1.20.0 — Quality & Completeness (Target: 2026-03-25)
+
+**Theme**: Complete unfinished features, improve error handling, harden edge cases
+
+- [ ] Directory scanning for docgen (complete TODO in docgen.zig:529)
+- [ ] Error message context improvements (add file/line info where missing)
+- [ ] Edge case hardening (empty inputs, boundary conditions, null checks)
+- [ ] Documentation gaps (examples for complex APIs, common patterns)
+- [ ] Platform-specific testing (Windows console edge cases, Unicode on Windows)
 
 ## Completed Milestones
 
