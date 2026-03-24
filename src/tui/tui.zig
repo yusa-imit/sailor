@@ -78,6 +78,7 @@ pub const widgets = struct {
     pub const Alignment = @import("widgets/paragraph.zig").Alignment;
     pub const Wrap = @import("widgets/paragraph.zig").Wrap;
     pub const List = @import("widgets/list.zig").List;
+    pub const VirtualList = @import("widgets/virtuallist.zig").VirtualList;
     pub const Table = @import("widgets/table.zig").Table;
     pub const Column = @import("widgets/table.zig").Column;
     pub const ColumnWidth = @import("widgets/table.zig").ColumnWidth;
