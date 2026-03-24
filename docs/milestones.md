@@ -4,12 +4,41 @@
 
 - **Latest release**: v1.20.0 (2026-03-25) — Quality & Completeness
 - **Latest minor**: v1.20.0 (2026-03-25) — Quality & Completeness
-- **Next milestone**: TBD (awaiting milestone establishment)
+- **Next milestone**: v1.21.0 — Streaming & Large Data
+- **Active milestones**: 3 (v1.21.0, v1.22.0, v1.23.0)
 - **Blockers**: None
 
 ## Active Milestones
 
-(No active milestones — need to establish new ones per Milestone Establishment Process)
+### v1.21.0 — Streaming & Large Data (ACTIVE)
+**Theme**: Efficient handling of large datasets and streaming data
+**Target**: 2026-04 (1-2 weeks)
+**Checklist**:
+- [ ] Virtual List widget - render only visible items for 100k+ item lists
+- [ ] Streaming Table - lazy-load rows from iterators/generators
+- [ ] Chunked Buffer - render large text without loading entire content into memory
+- [ ] DataSource abstraction - unified interface for sync/async data providers
+- [ ] Benchmark suite for large data scenarios (1M items, 100MB text files)
+
+### v1.22.0 — Rich Text & Formatting (ACTIVE)
+**Theme**: Advanced text rendering and inline formatting
+**Target**: 2026-04 (1-2 weeks)
+**Checklist**:
+- [ ] Inline styles - render text with mixed styles within a line (Span chaining)
+- [ ] Rich text parser - convert common markup (markdown-like) to styled spans
+- [ ] Text alignment - left/center/right/justify for Paragraph widget
+- [ ] Line breaking - word wrap with hyphenation support
+- [ ] Text measurements - calculate layout metrics before rendering (width, height)
+
+### v1.23.0 — Plugin Architecture & Extensibility (ACTIVE)
+**Theme**: Enable custom widgets and renderer extensions
+**Target**: 2026-04 (1-2 weeks)
+**Checklist**:
+- [ ] Widget trait system - define renderable/focusable/eventable traits
+- [ ] Custom renderer hooks - allow pre/post render callbacks
+- [ ] Theme plugin system - load themes from external files (JSON/TOML)
+- [ ] Widget composition helpers - decorators, wrappers, containers
+- [ ] Example plugin - demonstrate third-party widget integration
 
 ## Completed Milestones
 
