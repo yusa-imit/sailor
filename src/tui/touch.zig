@@ -192,6 +192,9 @@ pub const TouchTracker = struct {
         const current_dist = distance(t0, t1);
         const initial_dist = self.initial_distance.?;
 
+        // Guard against division by zero if touches started at same position
+        if (initial_dist < 0.001) return null;
+
         const scale = current_dist / initial_dist;
 
         const center_x = @as(u16, @intCast((@as(u32, t0.x) + @as(u32, t1.x)) / 2));
@@ -477,6 +480,28 @@ test "TouchTracker - pinch out" {
     const gesture = tracker.getPinchGesture();
     try testing.expect(gesture != null);
     try testing.expectEqual(GestureType.pinch_out, gesture.?.getType());
+}
+
+test "TouchTracker - pinch with zero initial distance" {
+    var tracker = TouchTracker.init();
+
+    // Edge case: two touches at same position (distance = 0)
+    const t1_start = TouchPoint.init(1, 10, 10);
+    const t2_start = TouchPoint.init(2, 10, 10); // Same position!
+
+    tracker.touchDown(t1_start, 1000);
+    tracker.touchDown(t2_start, 1000);
+
+    // Even if touches move apart, getPinchGesture should return null
+    // because initial distance was zero (would cause division by zero)
+    const t1_end = TouchPoint.init(1, 5, 10);
+    const t2_end = TouchPoint.init(2, 15, 10);
+
+    tracker.touchMove(t1_end);
+    tracker.touchMove(t2_end);
+
+    const gesture = tracker.getPinchGesture();
+    try testing.expect(gesture == null); // Should return null, not crash
 }
 
 test "TouchTracker - tap with small movement tolerance" {
