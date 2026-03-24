@@ -323,6 +323,37 @@ pub const AnsiParseState = struct {
 - Memory safety (no leaks, proper deallocation)
 - Edge cases (empty strings, special chars, zero area, rapid updates, mixed line lengths)
 
+## Environment Variable Testing Pattern
+
+Test environment variables using C bindings (cross-platform):
+
+```zig
+// Declare C bindings at top of file
+extern "c" fn setenv(key: [*:0]const u8, value: [*:0]const u8, overwrite: c_int) c_int;
+extern "c" fn unsetenv(key: [*:0]const u8) c_int;
+
+test "env var with cleanup" {
+    _ = setenv("TEST_VAR", "value", 1);
+    defer _ = unsetenv("TEST_VAR");
+
+    const result = getEnvVar("TEST_VAR");
+    try std.testing.expectEqualStrings("value", result);
+}
+```
+
+**Key points**:
+- Use `setenv/unsetenv` C bindings for test isolation (Zig 0.15.x doesn't provide these)
+- Always `defer unsetenv()` to avoid test pollution
+- Test both set and unset conditions
+- For boolean parsing: test all true values (1/true/yes/on/y), all false values (0/false/no/off/n), case-insensitivity
+- For integer parsing: test overflow/underflow, boundary values, invalid format, whitespace rejection
+- Memory safety: test leak-free allocations with `std.testing.allocator`
+
+**Test categories for env module** (34 tests):
+1. String retrieval: set var, unset var, empty string, memory leak check
+2. Boolean parsing: true values (5), false values (5), case-insensitivity (3), edge cases (4)
+3. Integer parsing: valid values (2), overflow/underflow (2), invalid format (1), boundary values (3), whitespace/empty (3), unset var (1)
+
 ## Cross-Platform Verification
 
 Verified targets (all passing):
