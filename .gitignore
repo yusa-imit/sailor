@@ -4,6 +4,7 @@
 .zig-cache
 zig-out
 *.a
+*.o
 
 # Claude Code
 .claude/settings.local.json
