@@ -28,6 +28,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    lib_tests.root_module.link_libc = true; // Required for env.zig tests (setenv/unsetenv)
 
     // Standalone tests in tests/ directory
     const smoke_tests = b.addTest(.{
