@@ -1191,7 +1191,7 @@ test "DocGenerator handles scan of directory with permission constraints" {
     defer gen.deinit();
 
     var buf: [256]u8 = undefined;
-    const path = try std.fmt.bufPrint(&buf, "{}", .{tmp.dir});
+    const path = try std.fmt.bufPrint(&buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
 
     // This should succeed for accessible files
     try gen.parseDirectory(path);

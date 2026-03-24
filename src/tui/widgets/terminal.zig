@@ -83,6 +83,7 @@ pub const TerminalWidget = struct {
     /// Add a line to scrollback buffer
     pub fn addLine(self: *TerminalWidget, line: []const u8) !void {
         // Trim old lines if exceeding max
+        if (self.max_lines == 0) return;
         while (self.lines.items.len >= self.max_lines) {
             if (self.lines.items.len > 0) {
                 self.allocator.free(self.lines.items[0]);
