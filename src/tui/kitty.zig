@@ -478,7 +478,11 @@ test "KittyEncoder: shared memory transmission medium" {
 }
 
 test "detectKittySupport: no environment variables" {
-    // This test depends on environment state, so we just verify it doesn't crash
+    // Skip when stdout is not a TTY (e.g., zig build test --listen=- mode)
+    // detectKittySupport() writes escape sequences to STDOUT_FILENO which
+    // would corrupt the --listen=- IPC pipe
+    const term_mod = @import("../term.zig");
+    if (!term_mod.isatty(std.posix.STDOUT_FILENO)) return error.SkipZigTest;
     _ = detectKittySupport();
 }
 
