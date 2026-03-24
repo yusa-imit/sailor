@@ -150,12 +150,9 @@ pub const TermInfo = struct {
             defer file.close();
 
             const data = file.readToEndAlloc(allocator, 1024 * 1024) catch continue;
-            errdefer allocator.free(data);
+            defer allocator.free(data);
 
-            return parse(allocator, data) catch |err| {
-                allocator.free(data);
-                return err;
-            };
+            return parse(allocator, data);
         }
 
         // If not found, try to create fallback
