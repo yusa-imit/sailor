@@ -28,16 +28,15 @@ extern "c" fn unsetenv(key: [*:0]const u8) c_int;
 ///   Allocated string containing either the env var value or the default.
 ///   Caller must free the returned slice.
 pub fn get(allocator: std.mem.Allocator, key: []const u8, default: []const u8) ![]const u8 {
-    // Try to get the env var from the environment
-    const env_value = std.posix.getenv(key);
+    // Cross-platform environment variable retrieval
+    // std.posix.getenv doesn't work on Windows (WTF-16), so use process API
+    const env_value = std.process.getEnvVarOwned(allocator, key) catch |err| switch (err) {
+        error.EnvironmentVariableNotFound => return try allocator.dupe(u8, default),
+        else => return err,
+    };
 
-    if (env_value) |value| {
-        // Environment variable is set; duplicate it
-        return try allocator.dupe(u8, value);
-    } else {
-        // Environment variable is not set; use default
-        return try allocator.dupe(u8, default);
-    }
+    // Value was allocated by getEnvVarOwned, return it directly
+    return env_value;
 }
 
 /// Parses an environment variable as a boolean value.
@@ -58,7 +57,10 @@ pub fn get(allocator: std.mem.Allocator, key: []const u8, default: []const u8) !
 /// Returns:
 ///   Parsed boolean value or default
 pub fn getBool(key: []const u8, default: bool) bool {
-    const env_value = std.posix.getenv(key) orelse return default;
+    // Use a fixed buffer allocator for temporary env var retrieval
+    var buffer: [256]u8 = undefined;
+    var fba = std.heap.FixedBufferAllocator.init(&buffer);
+    const env_value = std.process.getEnvVarOwned(fba.allocator(), key) catch return default;
 
     // Convert to lowercase for case-insensitive comparison
     if (env_value.len >= 32) {
@@ -112,7 +114,10 @@ pub fn getBool(key: []const u8, default: bool) bool {
 /// Returns:
 ///   Parsed integer or default value
 pub fn getInt(comptime T: type, key: []const u8, default: T) T {
-    const env_value = std.posix.getenv(key) orelse return default;
+    // Use a fixed buffer allocator for temporary env var retrieval
+    var buffer: [256]u8 = undefined;
+    var fba = std.heap.FixedBufferAllocator.init(&buffer);
+    const env_value = std.process.getEnvVarOwned(fba.allocator(), key) catch return default;
 
     // Try to parse as integer with base 10
     const result = std.fmt.parseInt(T, env_value, 10) catch {
