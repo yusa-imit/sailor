@@ -13,7 +13,7 @@
 
 **Theme**: Complete unfinished features, improve error handling, harden edge cases
 
-- [ ] Directory scanning for docgen (complete TODO in docgen.zig:529)
+- [x] Directory scanning for docgen (complete TODO in docgen.zig:529) — commit 3f31631
 - [ ] Error message context improvements (add file/line info where missing)
 - [ ] Edge case hardening (empty inputs, boundary conditions, null checks)
 - [ ] Documentation gaps (examples for complex APIs, common patterns)
