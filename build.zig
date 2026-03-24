@@ -245,6 +245,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    env_config_tests.linkLibC();
 
     // Add sailor module to integration tests
     const sailor_module_for_tests = b.createModule(.{
