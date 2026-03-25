@@ -2,23 +2,13 @@
 
 ## Current Status
 
-- **Latest release**: v1.20.0 (2026-03-25) — Quality & Completeness
-- **Latest minor**: v1.20.0 (2026-03-25) — Quality & Completeness
-- **Next milestone**: v1.21.0 — Streaming & Large Data
-- **Active milestones**: 3 (v1.21.0, v1.22.0, v1.23.0)
+- **Latest release**: v1.21.0 (2026-03-25) — Streaming & Large Data
+- **Latest minor**: v1.21.0 (2026-03-25) — Streaming & Large Data
+- **Next milestone**: v1.22.0 — Rich Text & Formatting
+- **Active milestones**: 2 (v1.22.0, v1.23.0)
 - **Blockers**: None
 
 ## Active Milestones
-
-### v1.21.0 — Streaming & Large Data (COMPLETE ✅)
-**Theme**: Efficient handling of large datasets and streaming data
-**Target**: 2026-03-25 (completed)
-**Checklist**:
-- [x] Virtual List widget - render only visible items for 100k+ item lists
-- [x] Streaming Table - lazy-load rows from iterators/generators
-- [x] Chunked Buffer - render large text without loading entire content into memory
-- [x] DataSource abstraction - unified interface for Item/Table/Line data sources (8 tests)
-- [x] Benchmark suite for large data scenarios (1M items, 100MB text files)
 
 ### v1.22.0 — Rich Text & Formatting (ACTIVE)
 **Theme**: Advanced text rendering and inline formatting
@@ -44,6 +34,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.21.0 | Streaming & Large Data | 2026-03-25 | DataSource abstraction (Item/Table/Line), large data benchmarks (1M items, 100MB+) |
 | v1.20.0 | Quality & Completeness | 2026-03-25 | Windows Unicode tests (23), pattern docs, docgen dir scanning, error context, edge hardening |
 | v1.19.0 | CLI Enhancements & Ergonomics | 2026-03-24 | Arg groups, color themes, table formatting, progress templates, env config |
 | v1.18.0 | Developer Experience & Tooling | 2026-03-21 | Hot reload for themes, widget inspector, benchmark suite, example gallery, documentation generator |
