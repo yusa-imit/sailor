@@ -195,6 +195,9 @@ pub const widgets = struct {
     pub const Markdown = @import("widgets/markdown.zig").Markdown;
     pub const MarkdownNode = @import("widgets/markdown.zig").Node;
     pub const MarkdownNodeType = @import("widgets/markdown.zig").NodeType;
+
+    // v1.21.0+ widgets (Large Dataset Efficiency)
+    pub const ChunkedBuffer = @import("widgets/chunkedbuffer.zig").ChunkedBuffer;
 };
 
 // Export commonly used types

@@ -189,6 +189,27 @@ pub const Buffer = struct {
         const cell = self.getConst(x, y) orelse return .{};
         return cell.style;
     }
+
+    /// Get line text as string (convenience method for testing)
+    /// Caller owns the returned memory
+    /// Returns empty string on error (panics are not acceptable in library code, but this is test-only)
+    pub fn getLine(self: Buffer, y: u16, start_x: u16, end_x: u16) []const u8 {
+        if (y >= self.height) return self.allocator.dupe(u8, "") catch &[_]u8{};
+        const max_x = @min(end_x, self.width);
+        if (start_x >= max_x) return self.allocator.dupe(u8, "") catch &[_]u8{};
+
+        var result = std.ArrayList(u8){};
+
+        var x = start_x;
+        while (x < max_x) : (x += 1) {
+            const cell = self.getConst(x, y) orelse break;
+            var buf: [4]u8 = undefined;
+            const len = std.unicode.utf8Encode(cell.char, &buf) catch continue;
+            result.appendSlice(self.allocator, buf[0..len]) catch break;
+        }
+
+        return result.toOwnedSlice(self.allocator) catch &[_]u8{};
+    }
 };
 
 /// Diff operation for incremental rendering
