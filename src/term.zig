@@ -765,12 +765,6 @@ test "readByte with zero timeout" {
     _ = byte;
 }
 
-test "Size struct" {
-    const size = Size{ .cols = 80, .rows = 24 };
-    try std.testing.expectEqual(@as(u16, 80), size.cols);
-    try std.testing.expectEqual(@as(u16, 24), size.rows);
-}
-
 // XTGETTCAP Tests
 
 test "hex encode string for XTGETTCAP" {

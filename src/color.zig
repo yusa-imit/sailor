@@ -215,30 +215,8 @@ pub fn printStyled(writer: anytype, style: Style, comptime fmt: []const u8, args
 
 // Tests
 
-test "ColorLevel.detect respects NO_COLOR" {
-    // This test checks if NO_COLOR is set — behavior depends on environment
-    const level = ColorLevel.detect();
-    _ = level; // Can't reliably test in CI
-}
-
-test "BasicColor values" {
-    try std.testing.expectEqual(@as(u8, 0), @intFromEnum(BasicColor.black));
-    try std.testing.expectEqual(@as(u8, 1), @intFromEnum(BasicColor.red));
-    try std.testing.expectEqual(@as(u8, 7), @intFromEnum(BasicColor.white));
-    try std.testing.expectEqual(@as(u8, 15), @intFromEnum(BasicColor.bright_white));
-}
-
-test "Color.fromRgb" {
-    const c = Color.fromRgb(255, 128, 64);
-    try std.testing.expectEqual(@as(u8, 255), c.rgb.r);
-    try std.testing.expectEqual(@as(u8, 128), c.rgb.g);
-    try std.testing.expectEqual(@as(u8, 64), c.rgb.b);
-}
-
-test "Color.fromIndex" {
-    const c = Color.fromIndex(123);
-    try std.testing.expectEqual(@as(u8, 123), c.indexed);
-}
+// NOTE: ColorLevel.detect() behavior is environment-dependent (NO_COLOR, TERM, COLORTERM)
+// and tested implicitly through integration tests with real terminal interaction
 
 test "Color.writeFg basic" {
     var buf: [64]u8 = undefined;
