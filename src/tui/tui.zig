@@ -35,6 +35,7 @@ pub const layout_cache = @import("layout_cache.zig");
 pub const incremental_layout = @import("incremental_layout.zig");
 pub const buffer_compression = @import("buffer_compression.zig");
 pub const datasource = @import("datasource.zig");
+pub const richtext_parser = @import("richtext_parser.zig");
 
 // v1.10.0+ — Mouse & Gamepad Input
 pub const mouse = @import("mouse.zig");
@@ -208,6 +209,7 @@ pub const Span = style.Span;
 pub const Line = style.Line;
 pub const SpanBuilder = style.SpanBuilder;
 pub const LineBuilder = style.LineBuilder;
+pub const RichTextParser = richtext_parser.RichTextParser;
 pub const Buffer = buffer.Buffer;
 pub const Cell = buffer.Cell;
 pub const Rect = layout.Rect;

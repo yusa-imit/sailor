@@ -70,6 +70,7 @@ pub const VirtualRenderer = tui.virtual.VirtualRenderer;
 pub const IncrementalLayout = tui.incremental_layout.IncrementalLayout;
 pub const LayoutCache = tui.layout_cache.LayoutCache;
 pub const CompressedBuffer = tui.buffer_compression.CompressedBuffer;
+pub const RichTextParser = tui.richtext_parser.RichTextParser;
 
 test {
     // Pull in all module tests
