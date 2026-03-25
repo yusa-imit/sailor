@@ -2,23 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v1.21.0 (2026-03-25) — Streaming & Large Data
-- **Latest minor**: v1.21.0 (2026-03-25) — Streaming & Large Data
-- **Next milestone**: v1.22.0 — Rich Text & Formatting
-- **Active milestones**: 2 (v1.22.0, v1.23.0)
+- **Latest release**: v1.22.0 (2026-03-26) — Rich Text & Formatting
+- **Latest minor**: v1.22.0 (2026-03-26) — Rich Text & Formatting
+- **Next milestone**: v1.23.0 — Plugin Architecture & Extensibility
+- **Active milestones**: 1 (v1.23.0)
 - **Blockers**: None
 
 ## Active Milestones
 
-### v1.22.0 — Rich Text & Formatting (ACTIVE)
+### v1.22.0 — Rich Text & Formatting (COMPLETED 2026-03-26)
 **Theme**: Advanced text rendering and inline formatting
-**Target**: 2026-04 (1-2 weeks)
 **Checklist**:
-- [ ] Inline styles - render text with mixed styles within a line (Span chaining)
-- [ ] Rich text parser - convert common markup (markdown-like) to styled spans
-- [ ] Text alignment - left/center/right/justify for Paragraph widget
-- [ ] Line breaking - word wrap with hyphenation support
-- [ ] Text measurements - calculate layout metrics before rendering (width, height)
+- [x] Inline styles - SpanBuilder/LineBuilder fluent APIs (56 tests)
+- [x] Rich text parser - markdown-to-spans conversion (45 tests)
+- [x] Text alignment - left/center/right/justify (already in Paragraph)
+- [x] Line breaking - word wrap with hyphenation support (31 tests)
+- [x] Text measurements - Unicode-aware dimension calculation (47 tests)
 
 ### v1.23.0 — Plugin Architecture & Extensibility (ACTIVE)
 **Theme**: Enable custom widgets and renderer extensions
@@ -34,6 +33,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.22.0 | Rich Text & Formatting | 2026-03-26 | SpanBuilder/LineBuilder, markdown parser, line breaking, text measurements (+123 tests) |
 | v1.21.0 | Streaming & Large Data | 2026-03-25 | DataSource abstraction (Item/Table/Line), large data benchmarks (1M items, 100MB+) |
 | v1.20.0 | Quality & Completeness | 2026-03-25 | Windows Unicode tests (23), pattern docs, docgen dir scanning, error context, edge hardening |
 | v1.19.0 | CLI Enhancements & Ergonomics | 2026-03-24 | Arg groups, color themes, table formatting, progress templates, env config |
