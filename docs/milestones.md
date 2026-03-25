@@ -10,15 +10,15 @@
 
 ## Active Milestones
 
-### v1.21.0 — Streaming & Large Data (ACTIVE)
+### v1.21.0 — Streaming & Large Data (COMPLETE ✅)
 **Theme**: Efficient handling of large datasets and streaming data
-**Target**: 2026-04 (1-2 weeks)
+**Target**: 2026-03-25 (completed)
 **Checklist**:
 - [x] Virtual List widget - render only visible items for 100k+ item lists
 - [x] Streaming Table - lazy-load rows from iterators/generators
 - [x] Chunked Buffer - render large text without loading entire content into memory
-- [ ] DataSource abstraction - unified interface for sync/async data providers
-- [ ] Benchmark suite for large data scenarios (1M items, 100MB text files)
+- [x] DataSource abstraction - unified interface for Item/Table/Line data sources (8 tests)
+- [x] Benchmark suite for large data scenarios (1M items, 100MB text files)
 
 ### v1.22.0 — Rich Text & Formatting (ACTIVE)
 **Theme**: Advanced text rendering and inline formatting

@@ -9,16 +9,16 @@
 - Previous versions: v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: v1.21.0 → Streaming & Large Data (3/5, 60%)
+- **Active milestone**: v1.21.0 → Streaming & Large Data (5/5, 100%) ✅ READY TO RELEASE
 - **Last completed**: v1.20.0 → Quality & Completeness (5/5, 100%) ✅
 
 ## Project Status
-🚧 **v1.21.0 IN PROGRESS** — Streaming & Large Data (2026-03-25)
+✅ **v1.21.0 COMPLETE** — Streaming & Large Data (2026-03-25 Session 11)
   - [x] Virtual List widget (7 tests) — callback-based lazy rendering, 10M+ item support
   - [x] Streaming Table widget (10 tests) — lazy row loading, column layout, 1M+ row support
   - [x] Chunked Buffer widget (4 tests) — line-based lazy text rendering, 1M+ lines, wrapping support
-  - [ ] DataSource abstraction
-  - [ ] Large data benchmarks
+  - [x] DataSource abstraction (8 tests) — unified interface for Item/Table/Line data sources
+  - [x] Large data benchmarks — comprehensive benchmark suite (1M items, 100MB+ text)
 ✅ **v1.20.0 RELEASED** — Quality & Completeness (2026-03-25)
   - Windows Unicode tests (23 tests), pattern documentation, docgen directory scanning, error context, edge case hardening (5/5 complete)
   - Migration issues created for zr (#33), zoltraak (#10), silica (#14)
