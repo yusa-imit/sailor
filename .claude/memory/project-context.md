@@ -15,8 +15,8 @@
 ## Project Status
 🚧 **v1.21.0 IN PROGRESS** — Streaming & Large Data (2026-03-25)
   - [x] Virtual List widget (7 tests) — callback-based lazy rendering, 10M+ item support
-  - [x] Streaming Table widget (11 tests) — lazy row loading, column layout, 1M+ row support
-  - [x] Chunked Buffer widget (23 tests) — line-based lazy text rendering, 1M+ lines, wrapping support
+  - [x] Streaming Table widget (10 tests) — lazy row loading, column layout, 1M+ row support
+  - [x] Chunked Buffer widget (4 tests) — line-based lazy text rendering, 1M+ lines, wrapping support
   - [ ] DataSource abstraction
   - [ ] Large data benchmarks
 ✅ **v1.20.0 RELEASED** — Quality & Completeness (2026-03-25)

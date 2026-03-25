@@ -2,6 +2,22 @@
 
 ## Fixed Issues
 
+### Test Quality Audit - Trivial Tests Removed (2026-03-25 STABILIZATION Session 10)
+**Symptom**: Tests that cannot fail unless there's a compiler bug:
+  1. `term.zig` - "Size struct" test verifies struct field assignment
+  2. `color.zig` - "BasicColor values" test verifies enum integer values
+  3. `color.zig` - "Color.fromRgb" and "Color.fromIndex" verify union field assignment
+  4. `color.zig` - "ColorLevel.detect respects NO_COLOR" has no assertions (only calls function)
+**Root Cause**: These tests add noise without value - they verify compiler behavior, not our logic
+**Fix**:
+  1. Removed Size struct field test - struct assignment can't fail
+  2. Removed BasicColor enum test - enum values are explicitly declared
+  3. Removed Color constructor tests - union field assignment is trivial
+  4. Removed NO_COLOR test with no assertions - replaced with explanatory comment
+**Impact**: Cleaner test suite, reduced false sense of coverage
+**Test Coverage**: All tests still pass (1deba79)
+**Commits**: 1deba79
+
 ### Markdown & Inspector Test Failures (2026-03-21 STABILIZATION)
 **Symptom**: 5 test failures blocking CI:
   1. inspector_test.zig: `detectLayoutViolations()` called without allocator argument
