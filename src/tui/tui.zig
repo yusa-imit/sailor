@@ -34,6 +34,7 @@ pub const widget_trait = @import("widget_trait.zig");
 pub const layout_cache = @import("layout_cache.zig");
 pub const incremental_layout = @import("incremental_layout.zig");
 pub const buffer_compression = @import("buffer_compression.zig");
+pub const datasource = @import("datasource.zig");
 
 // v1.10.0+ — Mouse & Gamepad Input
 pub const mouse = @import("mouse.zig");
