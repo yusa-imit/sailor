@@ -70,6 +70,7 @@ pub const syntax = @import("syntax.zig");
 
 // v1.22.0+ — Line Breaking & Hyphenation
 pub const line_break = @import("line_break.zig");
+pub const text_measure = @import("text_measure.zig");
 
 // v1.18.0+ — Widget Inspector
 pub const inspector = @import("inspector.zig");
