@@ -106,8 +106,8 @@ pub const Style = struct {
         if (self.dim) try writer.writeAll("\x1b[2m");
         if (self.italic) try writer.writeAll("\x1b[3m");
         if (self.underline) try writer.writeAll("\x1b[4m");
-        if (self.blink) try writer.writeAll("\x1b[5m");
         if (self.reverse) try writer.writeAll("\x1b[7m");
+        if (self.blink) try writer.writeAll("\x1b[5m");
         if (self.strikethrough) try writer.writeAll("\x1b[9m");
     }
 
@@ -191,6 +191,154 @@ pub const Line = struct {
             w += span.content.len;
         }
         return w;
+    }
+};
+
+/// Fluent builder for creating styled spans
+/// Uses pointer semantics — methods return *SpanBuilder for chaining
+pub const SpanBuilder = struct {
+    content: []const u8 = "",
+    current_style: Style = .{},
+
+    /// Initialize a new SpanBuilder
+    pub fn init() SpanBuilder {
+        return .{
+            .content = "",
+            .current_style = .{},
+        };
+    }
+
+    /// Set the text content
+    pub fn text(self: *SpanBuilder, new_content: []const u8) *SpanBuilder {
+        self.content = new_content;
+        return self;
+    }
+
+    /// Apply bold modifier
+    pub fn bold(self: *SpanBuilder) *SpanBuilder {
+        self.current_style.bold = true;
+        return self;
+    }
+
+    /// Apply italic modifier
+    pub fn italic(self: *SpanBuilder) *SpanBuilder {
+        self.current_style.italic = true;
+        return self;
+    }
+
+    /// Apply underline modifier
+    pub fn underline(self: *SpanBuilder) *SpanBuilder {
+        self.current_style.underline = true;
+        return self;
+    }
+
+    /// Apply dim modifier
+    pub fn dim(self: *SpanBuilder) *SpanBuilder {
+        self.current_style.dim = true;
+        return self;
+    }
+
+    /// Apply strikethrough modifier
+    pub fn strikethrough(self: *SpanBuilder) *SpanBuilder {
+        self.current_style.strikethrough = true;
+        return self;
+    }
+
+    /// Apply reverse modifier
+    pub fn reverse(self: *SpanBuilder) *SpanBuilder {
+        self.current_style.reverse = true;
+        return self;
+    }
+
+    /// Apply blink modifier
+    pub fn blink(self: *SpanBuilder) *SpanBuilder {
+        self.current_style.blink = true;
+        return self;
+    }
+
+    /// Set foreground color
+    pub fn fg(self: *SpanBuilder, color: Color) *SpanBuilder {
+        self.current_style.fg = color;
+        return self;
+    }
+
+    /// Set background color
+    pub fn bg(self: *SpanBuilder, color: Color) *SpanBuilder {
+        self.current_style.bg = color;
+        return self;
+    }
+
+    /// Merge a complete style using Style.merge
+    pub fn style(self: *SpanBuilder, s: Style) *SpanBuilder {
+        self.current_style = self.current_style.merge(s);
+        return self;
+    }
+
+    /// Build the final Span
+    pub fn build(self: SpanBuilder) Span {
+        return .{
+            .content = self.content,
+            .style = self.current_style,
+        };
+    }
+};
+
+/// Fluent builder for creating lines with multiple spans
+/// Uses pointer semantics — methods return *LineBuilder for chaining
+pub const LineBuilder = struct {
+    allocator: Allocator,
+    spans: std.ArrayList(Span),
+
+    /// Initialize a new LineBuilder
+    pub fn init(allocator: Allocator) LineBuilder {
+        return .{
+            .allocator = allocator,
+            .spans = std.ArrayList(Span){},
+        };
+    }
+
+    /// Clean up the ArrayList (but not the Line slice — caller owns it)
+    pub fn deinit(self: *LineBuilder) void {
+        self.spans.deinit(self.allocator);
+    }
+
+    /// Add a pre-built span
+    pub fn span(self: *LineBuilder, s: Span) *LineBuilder {
+        self.spans.append(self.allocator, s) catch @panic("LineBuilder.span: allocation failed");
+        return self;
+    }
+
+    /// Add a raw (unstyled) span
+    pub fn raw(self: *LineBuilder, content: []const u8) *LineBuilder {
+        self.spans.append(self.allocator, .{
+            .content = content,
+            .style = .{},
+        }) catch @panic("LineBuilder.raw: allocation failed");
+        return self;
+    }
+
+    /// Add a styled span
+    pub fn text(self: *LineBuilder, content: []const u8, s: Style) *LineBuilder {
+        self.spans.append(self.allocator, .{
+            .content = content,
+            .style = s,
+        }) catch @panic("LineBuilder.text: allocation failed");
+        return self;
+    }
+
+    /// Build a Line with unowned slice (caller must keep spans alive)
+    pub fn build(self: LineBuilder) Line {
+        return .{
+            .spans = self.spans.items,
+        };
+    }
+
+    /// Build a Line with owned slice (allocates, caller must free)
+    pub fn buildOwned(self: *LineBuilder) !Line {
+        const owned_spans = try self.allocator.dupe(Span, self.spans.items);
+        return .{
+            .spans = owned_spans,
+        };
     }
 };
 
@@ -312,7 +460,7 @@ test "Style.apply - all features" {
         .strikethrough = true,
     };
     try s.apply(writer);
-    const expected = "\x1b[31m\x1b[47m\x1b[1m\x1b[2m\x1b[3m\x1b[4m\x1b[5m\x1b[7m\x1b[9m";
+    const expected = "\x1b[31m\x1b[47m\x1b[1m\x1b[2m\x1b[3m\x1b[4m\x1b[7m\x1b[5m\x1b[9m";
     try std.testing.expectEqualStrings(expected, fbs.getWritten());
 }
 
