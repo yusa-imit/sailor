@@ -142,7 +142,7 @@ pub const VirtualList = struct {
                     render_area.y + y,
                     self.highlight_symbol,
                     style,
-                ) catch {};
+                );
                 x = @intCast(self.highlight_symbol.len);
             } else {
                 // Indent non-selected to align with selected

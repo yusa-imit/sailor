@@ -354,6 +354,25 @@ pub fn build(b: *std.Build) void {
     bench_run.step.dependOn(&bench_install.step);
     bench_step.dependOn(&bench_run.step);
 
+    // Large data benchmark (v1.21.0)
+    const large_data_bench_exe = b.addExecutable(.{
+        .name = "large_data_bench",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("benchmarks/large_data_bench.zig"),
+            .target = target,
+            .optimize = .ReleaseFast, // Use optimized build for accurate benchmarks
+        }),
+    });
+    large_data_bench_exe.root_module.addImport("sailor", sailor_module);
+
+    const large_data_bench_install = b.addInstallArtifact(large_data_bench_exe, .{});
+    const large_data_bench_step = b.step("bench-large-data", "Run large data streaming benchmarks (1M items)");
+    large_data_bench_step.dependOn(&large_data_bench_install.step);
+
+    const large_data_bench_run = b.addRunArtifact(large_data_bench_exe);
+    large_data_bench_run.step.dependOn(&large_data_bench_install.step);
+    large_data_bench_step.dependOn(&large_data_bench_run.step);
+
     // Example applications
     const examples = [_]struct {
         name: []const u8,
