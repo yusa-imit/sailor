@@ -68,6 +68,9 @@ pub const keyboard_nav = @import("keyboard_nav.zig");
 // v1.13.0+ — Advanced Text Editing & Rich Input
 pub const syntax = @import("syntax.zig");
 
+// v1.22.0+ — Line Breaking & Hyphenation
+pub const line_break = @import("line_break.zig");
+
 // v1.18.0+ — Widget Inspector
 pub const inspector = @import("inspector.zig");
 
