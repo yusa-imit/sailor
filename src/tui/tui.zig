@@ -82,6 +82,7 @@ pub const widgets = struct {
     pub const Table = @import("widgets/table.zig").Table;
     pub const Column = @import("widgets/table.zig").Column;
     pub const ColumnWidth = @import("widgets/table.zig").ColumnWidth;
+    pub const StreamingTable = @import("widgets/streaming_table.zig").StreamingTable;
     pub const Input = @import("widgets/input.zig").Input;
     pub const Tabs = @import("widgets/tabs.zig").Tabs;
     pub const StatusBar = @import("widgets/statusbar.zig").StatusBar;
