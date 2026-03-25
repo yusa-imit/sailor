@@ -16,7 +16,7 @@
 **Checklist**:
 - [x] Virtual List widget - render only visible items for 100k+ item lists
 - [x] Streaming Table - lazy-load rows from iterators/generators
-- [ ] Chunked Buffer - render large text without loading entire content into memory
+- [x] Chunked Buffer - render large text without loading entire content into memory
 - [ ] DataSource abstraction - unified interface for sync/async data providers
 - [ ] Benchmark suite for large data scenarios (1M items, 100MB text files)
 
