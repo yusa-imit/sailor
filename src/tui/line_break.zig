@@ -358,11 +358,16 @@ test "style preserved across line breaks" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 7, .{}) catch |err| {
+    const result = breaker.breakLine(line, 7, .{}) catch |err| {
         try std.testing.expectEqual(error.NotImplemented, err);
         return;
     };
-    
+    defer {
+        for (result) |result_line| {
+            std.testing.allocator.free(result_line.spans);
+        }
+        std.testing.allocator.free(result);
+    }
 }
 
 test "multiple spans in one line" {
@@ -375,10 +380,34 @@ test "multiple spans in one line" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 7, .{}) catch |err| {
+    const result = breaker.breakLine(line, 7, .{}) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -392,10 +421,34 @@ test "break in middle of span preserves style" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 6, .{}) catch |err| {
+    const result = breaker.breakLine(line, 6, .{}) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -408,10 +461,34 @@ test "exact width boundary no extra lines" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 5, .{}) catch |err| {
+    const result = breaker.breakLine(line, 5, .{}) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -424,10 +501,34 @@ test "one char over width boundary" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 5, .{}) catch |err| {
+    const result = breaker.breakLine(line, 5, .{}) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -440,10 +541,34 @@ test "leading whitespace trimmed on continuation line" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 6, .{}) catch |err| {
+    const result = breaker.breakLine(line, 6, .{}) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -457,10 +582,25 @@ test "trailing whitespace preserved on wrapped line" {
     defer std.testing.allocator.free(line.spans);
 
     // Function returns NotImplemented until implementation complete
-    _ = breaker.breakLine(line, 10, .{}) catch |err| {
+    const result = breaker.breakLine(line, 10, .{}) catch |err| {
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
         return;
+
     };
+
+    defer {
+
+        for (result) |result_line| {
+
+            std.testing.allocator.free(result_line.spans);
+
+        }
+
+        std.testing.allocator.free(result);
+
+    }
 }
 
 test "unicode grapheme clusters not split" {
@@ -472,10 +612,34 @@ test "unicode grapheme clusters not split" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 5, .{}) catch |err| {
+    const result = breaker.breakLine(line, 5, .{}) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -488,10 +652,34 @@ test "emoji in text handled correctly" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 8, .{}) catch |err| {
+    const result = breaker.breakLine(line, 8, .{}) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -504,10 +692,34 @@ test "custom hyphen character" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 5, .{ .hyphenate = true, .hyphen_char = "→" }) catch |err| {
+    const result = breaker.breakLine(line, 5, .{ .hyphenate = true, .hyphen_char = "→" }) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -520,10 +732,34 @@ test "hyphen added at end of first broken line" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 6, .{ .hyphenate = true }) catch |err| {
+    const result = breaker.breakLine(line, 6, .{ .hyphenate = true }) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -536,10 +772,34 @@ test "no hyphen when word exactly fits remaining width" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 11, .{}) catch |err| {
+    const result = breaker.breakLine(line, 11, .{}) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -554,10 +814,34 @@ test "multiple style changes within text" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 8, .{}) catch |err| {
+    const result = breaker.breakLine(line, 8, .{}) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -570,10 +854,34 @@ test "only whitespace in span" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 5, .{}) catch |err| {
+    const result = breaker.breakLine(line, 5, .{}) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -586,10 +894,34 @@ test "tab character treated as single char" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 8, .{}) catch |err| {
+    const result = breaker.breakLine(line, 8, .{}) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -603,10 +935,25 @@ test "newline in span handled (single line context)" {
     defer std.testing.allocator.free(line.spans);
 
     // Function returns NotImplemented until implementation complete
-    _ = breaker.breakLine(line, 10, .{}) catch |err| {
+    const result = breaker.breakLine(line, 10, .{}) catch |err| {
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
         return;
+
     };
+
+    defer {
+
+        for (result) |result_line| {
+
+            std.testing.allocator.free(result_line.spans);
+
+        }
+
+        std.testing.allocator.free(result);
+
+    }
 }
 
 test "hyphenate mid-word correctly" {
@@ -618,10 +965,34 @@ test "hyphenate mid-word correctly" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 5, .{ .hyphenate = true }) catch |err| {
+    const result = breaker.breakLine(line, 5, .{ .hyphenate = true }) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -634,10 +1005,34 @@ test "very narrow width requires hyphenation of every word" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 2, .{ .hyphenate = true }) catch |err| {
+    const result = breaker.breakLine(line, 2, .{ .hyphenate = true }) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -652,10 +1047,34 @@ test "break with mixed styled and unstyled spans" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 8, .{}) catch |err| {
+    const result = breaker.breakLine(line, 8, .{}) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -668,10 +1087,34 @@ test "zero width max_width boundary case" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 0, .{}) catch |err| {
+    const result = breaker.breakLine(line, 0, .{}) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -684,10 +1127,34 @@ test "hyphen takes space from max_width" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 4, .{ .hyphenate = true }) catch |err| {
+    const result = breaker.breakLine(line, 4, .{ .hyphenate = true }) catch |err| {
+
+
         try std.testing.expectEqual(error.NotImplemented, err);
+
+
         return;
+
+
     };
+
+
+    defer {
+
+
+        for (result) |result_line| {
+
+
+            std.testing.allocator.free(result_line.spans);
+
+
+        }
+
+
+        std.testing.allocator.free(result);
+
+
+    }
     
 }
 
@@ -700,9 +1167,14 @@ test "return value is owned slice" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    // Function returns NotImplemented until implementation complete
-    _ = breaker.breakLine(line, 10, .{}) catch |err| {
+    const result = breaker.breakLine(line, 10, .{}) catch |err| {
         try std.testing.expectEqual(error.NotImplemented, err);
         return;
     };
+    defer {
+        for (result) |result_line| {
+            std.testing.allocator.free(result_line.spans);
+        }
+        std.testing.allocator.free(result);
+    }
 }

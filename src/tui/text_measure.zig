@@ -192,8 +192,8 @@ test "measureLine - emoji characters" {
     const line = Line{ .spans = &spans };
     const size = measureLine(line, .{});
 
-    // H(1) + e(1) + l(1) + l(1) + o(1) + space(1) + emoji(2) + space(1) + W(1) + o(1) + r(1) + l(1) + d(1) = 15
-    try std.testing.expectEqual(@as(usize, 15), size.width);
+    // H(1) + e(1) + l(1) + l(1) + o(1) + space(1) + emoji(2) + space(1) + W(1) + o(1) + r(1) + l(1) + d(1) = 14
+    try std.testing.expectEqual(@as(usize, 14), size.width);
     try std.testing.expectEqual(@as(usize, 1), size.height);
 }
 
@@ -449,8 +449,10 @@ test "measureText - mixed width characters with tabs and newlines" {
 }
 
 test "measureText - real-world example 1" {
-    const size = measureText("Title\nBody\nFooter", .{});
-    try std.testing.expectEqual(@as(usize, 5), size.width);
+    const text = "Title\nBody\nFooter";
+    const size = measureText(text, .{});
+    // Title = 5, Body = 4, Footer = 6 → max width = 6
+    try std.testing.expectEqual(@as(usize, 6), size.width);
     try std.testing.expectEqual(@as(usize, 3), size.height);
 }
 
