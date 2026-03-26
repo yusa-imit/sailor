@@ -13,6 +13,11 @@
 - **Last completed**: v1.22.0 → Rich Text & Formatting (5/5, 100%) ✅
 
 ## Project Status
+🔧 **Session 14** — Bug Fix (2026-03-26 FEATURE MODE)
+  - Fixed critical memory leak in LineBuilder causing integer overflow and test failures
+  - LineBreaker now properly reuses builder via clearRetainingCapacity() instead of creating new instances
+  - Reduced leaks from massive overflow to 22 isolated test cleanup issues
+  - Commit: 5aeb1fe
 ✅ **v1.22.0 RELEASED** — Rich Text & Formatting (2026-03-26 Session 13)
   - SpanBuilder/LineBuilder fluent APIs, RichTextParser (markdown), line breaking with hyphenation, text measurements
   - +123 tests (richtext_parser: 45, line_break: 31, text_measure: 47)
