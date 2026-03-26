@@ -188,7 +188,12 @@ const WidgetBox = struct {
             .render_fn = struct {
                 fn render(data: *anyopaque, buf: *Buffer, area: Rect) !void {
                     const self: *T = @ptrCast(@alignCast(data));
-                    return try self.render(buf, area);
+                    const ReturnType = @typeInfo(@TypeOf(T.render)).@"fn".return_type.?;
+                    if (ReturnType == void) {
+                        self.render(buf, area);
+                    } else {
+                        return try self.render(buf, area);
+                    }
                 }
             }.render,
         };

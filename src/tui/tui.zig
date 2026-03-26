@@ -32,6 +32,7 @@ pub const viewport = @import("viewport.zig");
 pub const virtual = @import("virtual.zig");
 pub const effects = @import("effects.zig");
 pub const widget_trait = @import("widget_trait.zig");
+pub const widget_helpers = @import("widget_helpers.zig");
 pub const layout_cache = @import("layout_cache.zig");
 pub const incremental_layout = @import("incremental_layout.zig");
 pub const buffer_compression = @import("buffer_compression.zig");
