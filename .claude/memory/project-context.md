@@ -5,14 +5,26 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.22.0** 🎯 (2026-03-26)
-- Previous versions: v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.23.0** 🎯 (2026-03-27)
+- Previous versions: v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: v1.23.0 → Plugin Architecture & Extensibility (3/5, 60%)
-- **Last completed**: v1.22.0 → Rich Text & Formatting (5/5, 100%) ✅
+- **Active milestone**: None (will establish next milestone post-release)
+- **Last completed**: v1.23.0 → Plugin Architecture & Extensibility (5/5, 100%) ✅
 
 ## Project Status
+✅ **Session 19** — v1.23.0 Release (2026-03-27 FEATURE MODE)
+  - Completed milestone: Plugin Architecture & Extensibility (5/5 items)
+  - Added plugin_test.zig with 10 comprehensive integration tests
+  - Tests validate: widget protocol, composition helpers, example plugin demo
+  - All 2213 tests pass ✅
+  - Released v1.23.0 with GitHub release + Discord notification
+  - Commits: c73ac13, 7a4d414
+✅ **Session 18** — Widget Composition Helpers (2026-03-26 FEATURE MODE)
+  - Implemented 5 composition helpers: Padding, Centered, Aligned, Stack, Constrained
+  - 26 new tests (widget_helpers_test.zig)
+  - Full nesting support
+  - Commit: cbfd800
 ✅ **Session 17** — Theme Plugin System (2026-03-26 FEATURE MODE)
   - Implemented ThemeLoader for loading themes from JSON files
   - JSON parsing with hex (#RRGGBB) and named color support
