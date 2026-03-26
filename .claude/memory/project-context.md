@@ -9,10 +9,16 @@
 - Previous versions: v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: v1.23.0 → Plugin Architecture & Extensibility (0/5, 0%)
+- **Active milestone**: v1.23.0 → Plugin Architecture & Extensibility (2/5, 40%)
 - **Last completed**: v1.22.0 → Rich Text & Formatting (5/5, 100%) ✅
 
 ## Project Status
+✅ **Session 16** — Custom Renderer Hooks (2026-03-26 FEATURE MODE)
+  - Implemented RenderHooks API with pre/post render callbacks
+  - Added Terminal.draw() method with full hook lifecycle
+  - 15 new tests for hook execution, context passing, error propagation, null safety
+  - All 2123 tests pass ✅
+  - Commit: 5093222
 ✅ **Session 15** — Stabilization (2026-03-26 STABILIZATION MODE)
   - Fixed ALL remaining memory leaks (22 leaks → 0 leaks) in line_break.zig tests
   - Fixed 2 test expectation errors in text_measure.zig (emoji width, real-world example)

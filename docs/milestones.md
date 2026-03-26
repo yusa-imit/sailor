@@ -23,8 +23,8 @@
 **Theme**: Enable custom widgets and renderer extensions
 **Target**: 2026-04 (1-2 weeks)
 **Checklist**:
-- [ ] Widget trait system - define renderable/focusable/eventable traits
-- [ ] Custom renderer hooks - allow pre/post render callbacks
+- [x] Widget trait system - define renderable/focusable/eventable traits (already complete in widget_trait.zig)
+- [x] Custom renderer hooks - allow pre/post render callbacks (15 tests, Terminal.draw())
 - [ ] Theme plugin system - load themes from external files (JSON/TOML)
 - [ ] Widget composition helpers - decorators, wrappers, containers
 - [ ] Example plugin - demonstrate third-party widget integration
