@@ -270,6 +270,8 @@ pub const Terminal = struct {
     current: Buffer,
     previous: Buffer,
     allocator: Allocator,
+    hooks: ?RenderHooks = null,
+    hooks_context: ?*anyopaque = null,
 
     /// Initialize terminal
     pub fn init(allocator: Allocator) !Terminal {
@@ -305,6 +307,65 @@ pub const Terminal = struct {
     /// Clear terminal
     pub fn clear(self: *Terminal) void {
         self.current.clear();
+    }
+
+    /// Set render hooks for this terminal
+    pub fn setHooks(self: *Terminal, hooks: RenderHooks, context: ?*anyopaque) void {
+        self.hooks = hooks;
+        self.hooks_context = context;
+    }
+
+    /// Draw to terminal with optional render hooks
+    /// Callback receives a Frame covering the entire terminal area
+    pub fn draw(self: *Terminal, writer: anytype, callback: anytype) !void {
+        // Create frame for entire terminal area
+        var frame = Frame{
+            .buffer = &self.current,
+            .area = self.size(),
+        };
+
+        // Call preRender hook if set
+        if (self.hooks) |hooks| {
+            if (hooks.preRender) |hook| {
+                try hook(&frame, self.hooks_context orelse @as(*anyopaque, @ptrFromInt(@as(usize, 0))));
+            }
+        }
+
+        // Execute user render callback
+        try callback(&frame);
+
+        // Call postRender hook if set
+        if (self.hooks) |hooks| {
+            if (hooks.postRender) |hook| {
+                try hook(&frame, self.hooks_context orelse @as(*anyopaque, @ptrFromInt(@as(usize, 0))));
+            }
+        }
+
+        // Perform buffer diff
+        const ops = try buffer.diff(self.allocator, self.previous, self.current);
+        defer self.allocator.free(ops);
+
+        // Call preFlush hook if set
+        if (self.hooks) |hooks| {
+            if (hooks.preFlush) |hook| {
+                try hook(&self.current, self.hooks_context orelse @as(*anyopaque, @ptrFromInt(@as(usize, 0))));
+            }
+        }
+
+        // Flush operations to terminal
+        for (ops) |op| {
+            try op.write(writer);
+        }
+
+        // Call postFlush hook if set
+        if (self.hooks) |hooks| {
+            if (hooks.postFlush) |hook| {
+                try hook(&self.current, self.hooks_context orelse @as(*anyopaque, @ptrFromInt(@as(usize, 0))));
+            }
+        }
+
+        // Swap buffers for next frame
+        std.mem.swap(Buffer, &self.current, &self.previous);
     }
 };
 
@@ -449,6 +510,391 @@ test "Event union" {
 
     try std.testing.expectEqual('x', ev1.key.code.char);
     try std.testing.expectEqual(80, ev2.resize.width);
+}
+
+// ============================================================================
+// RenderHooks API Tests (v1.23.0 — Plugin Architecture & Extensibility)
+// ============================================================================
+
+/// RenderHooks struct for pre/post render callbacks
+pub const RenderHooks = struct {
+    /// Called before widget rendering starts
+    preRender: ?*const fn (*Frame, *anyopaque) anyerror!void = null,
+    /// Called after widget rendering completes
+    postRender: ?*const fn (*Frame, *anyopaque) anyerror!void = null,
+    /// Called before buffer diff/flush
+    preFlush: ?*const fn (*Buffer, *anyopaque) anyerror!void = null,
+    /// Called after buffer flush
+    postFlush: ?*const fn (*Buffer, *anyopaque) anyerror!void = null,
+};
+
+test "RenderHooks struct definition" {
+    const hooks = RenderHooks{};
+    try std.testing.expectEqual(null, hooks.preRender);
+    try std.testing.expectEqual(null, hooks.postRender);
+    try std.testing.expectEqual(null, hooks.preFlush);
+    try std.testing.expectEqual(null, hooks.postFlush);
+}
+
+test "RenderHooks with all callbacks set" {
+    var buf = try Buffer.init(std.testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+    var context: i32 = 42;
+
+    const hooks = RenderHooks{
+        .preRender = struct {
+            fn call(_: *Frame, ctx: *anyopaque) anyerror!void {
+                const c: *i32 = @ptrCast(@alignCast(ctx));
+                _ = c;
+                // Would be called before rendering
+            }
+        }.call,
+        .postRender = struct {
+            fn call(_: *Frame, ctx: *anyopaque) anyerror!void {
+                const c: *i32 = @ptrCast(@alignCast(ctx));
+                _ = c;
+                // Would be called after rendering
+            }
+        }.call,
+        .preFlush = struct {
+            fn call(_: *Buffer, ctx: *anyopaque) anyerror!void {
+                const c: *i32 = @ptrCast(@alignCast(ctx));
+                _ = c;
+                // Would be called before flush
+            }
+        }.call,
+        .postFlush = struct {
+            fn call(_: *Buffer, ctx: *anyopaque) anyerror!void {
+                const c: *i32 = @ptrCast(@alignCast(ctx));
+                _ = c;
+                // Would be called after flush
+            }
+        }.call,
+    };
+
+    try std.testing.expect(hooks.preRender != null);
+    try std.testing.expect(hooks.postRender != null);
+    try std.testing.expect(hooks.preFlush != null);
+    try std.testing.expect(hooks.postFlush != null);
+
+    // Call preRender to verify it doesn't crash
+    try hooks.preRender.?(&frame, @ptrCast(&context));
+
+    // Call postRender
+    try hooks.postRender.?(&frame, @ptrCast(&context));
+
+    // Call preFlush
+    try hooks.preFlush.?(&buf, @ptrCast(&context));
+
+    // Call postFlush
+    try hooks.postFlush.?(&buf, @ptrCast(&context));
+}
+
+test "RenderHooks context passing with correct types" {
+    var buf = try Buffer.init(std.testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+
+    var context_data = struct { value: u32 = 100, name: [10:0]u8 = undefined }{};
+    context_data.name[0] = 'T';
+    context_data.name[1] = 'e';
+    context_data.name[2] = 's';
+    context_data.name[3] = 't';
+    context_data.name[4] = 0;
+
+    const hooks = RenderHooks{
+        .preRender = struct {
+            fn call(_: *Frame, ctx: *anyopaque) anyerror!void {
+                const data: *@TypeOf(context_data) = @ptrCast(@alignCast(ctx));
+                try std.testing.expectEqual(@as(u32, 100), data.value);
+            }
+        }.call,
+    };
+
+    try hooks.preRender.?(&frame, @ptrCast(&context_data));
+}
+
+test "RenderHooks Frame modification in preRender" {
+    var buf = try Buffer.init(std.testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+
+    var context_frame: ?*Frame = null;
+
+    const hooks = RenderHooks{
+        .preRender = struct {
+            fn call(f: *Frame, ctx: *anyopaque) anyerror!void {
+                const ctx_ptr: *(?*Frame) = @ptrCast(@alignCast(ctx));
+                ctx_ptr.* = f;
+                // Modify frame's buffer
+                f.setString(0, 0, "Hook", .{});
+            }
+        }.call,
+    };
+
+    try hooks.preRender.?(&frame, @ptrCast(&context_frame));
+
+    try std.testing.expect(context_frame != null);
+    const cell = buf.get(0, 0).?;
+    try std.testing.expectEqual('H', cell.char);
+}
+
+test "RenderHooks Buffer modification in preFlush" {
+    var buf = try Buffer.init(std.testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    var modified = false;
+
+    const hooks = RenderHooks{
+        .preFlush = struct {
+            fn call(b: *Buffer, ctx: *anyopaque) anyerror!void {
+                const m: *bool = @ptrCast(@alignCast(ctx));
+                m.* = true;
+                b.setChar(0, 0, 'X', .{});
+            }
+        }.call,
+    };
+
+    try hooks.preFlush.?(&buf, @ptrCast(&modified));
+
+    try std.testing.expect(modified);
+    const cell = buf.get(0, 0).?;
+    try std.testing.expectEqual('X', cell.char);
+}
+
+test "RenderHooks error propagation from preRender" {
+    var buf = try Buffer.init(std.testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+
+    const TestError = error{ HookFailed, OutOfMemory };
+
+    const hooks = RenderHooks{
+        .preRender = struct {
+            fn call(_: *Frame, _: *anyopaque) anyerror!void {
+                return TestError.HookFailed;
+            }
+        }.call,
+    };
+
+    const result = hooks.preRender.?(&frame, undefined);
+    try std.testing.expectError(TestError.HookFailed, result);
+}
+
+test "RenderHooks error propagation from postRender" {
+    var buf = try Buffer.init(std.testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+
+    const TestError = error{HookFailed};
+
+    const hooks = RenderHooks{
+        .postRender = struct {
+            fn call(_: *Frame, _: *anyopaque) anyerror!void {
+                return TestError.HookFailed;
+            }
+        }.call,
+    };
+
+    const result = hooks.postRender.?(&frame, undefined);
+    try std.testing.expectError(TestError.HookFailed, result);
+}
+
+test "RenderHooks error propagation from preFlush" {
+    var buf = try Buffer.init(std.testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    const TestError = error{FlushFailed};
+
+    const hooks = RenderHooks{
+        .preFlush = struct {
+            fn call(_: *Buffer, _: *anyopaque) anyerror!void {
+                return TestError.FlushFailed;
+            }
+        }.call,
+    };
+
+    const result = hooks.preFlush.?(&buf, undefined);
+    try std.testing.expectError(TestError.FlushFailed, result);
+}
+
+test "RenderHooks error propagation from postFlush" {
+    var buf = try Buffer.init(std.testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    const TestError = error{PostFlushFailed};
+
+    const hooks = RenderHooks{
+        .postFlush = struct {
+            fn call(_: *Buffer, _: *anyopaque) anyerror!void {
+                return TestError.PostFlushFailed;
+            }
+        }.call,
+    };
+
+    const result = hooks.postFlush.?(&buf, undefined);
+    try std.testing.expectError(TestError.PostFlushFailed, result);
+}
+
+test "RenderHooks null safety - preRender not called if null" {
+    var buf = try Buffer.init(std.testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+
+    const hooks = RenderHooks{
+        .preRender = null,
+    };
+
+    if (hooks.preRender) |hook| {
+        try hook(&frame, undefined);
+        unreachable; // Should not be reached
+    }
+    // Test passes if we get here without crashing
+}
+
+test "RenderHooks null safety - postRender not called if null" {
+    var buf = try Buffer.init(std.testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+
+    const hooks = RenderHooks{
+        .postRender = null,
+    };
+
+    if (hooks.postRender) |hook| {
+        try hook(&frame, undefined);
+        unreachable; // Should not be reached
+    }
+    // Test passes if we get here without crashing
+}
+
+test "RenderHooks null safety - preFlush not called if null" {
+    var buf = try Buffer.init(std.testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    const hooks = RenderHooks{
+        .preFlush = null,
+    };
+
+    if (hooks.preFlush) |hook| {
+        try hook(&buf, undefined);
+        unreachable; // Should not be reached
+    }
+    // Test passes if we get here without crashing
+}
+
+test "RenderHooks null safety - postFlush not called if null" {
+    var buf = try Buffer.init(std.testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    const hooks = RenderHooks{
+        .postFlush = null,
+    };
+
+    if (hooks.postFlush) |hook| {
+        try hook(&buf, undefined);
+        unreachable; // Should not be reached
+    }
+    // Test passes if we get here without crashing
+}
+
+test "RenderHooks multiple hooks execution" {
+    var buf = try Buffer.init(std.testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+
+    var counter: u32 = 0;
+
+    const hooks = RenderHooks{
+        .preRender = struct {
+            fn call(_: *Frame, ctx: *anyopaque) anyerror!void {
+                const c: *u32 = @ptrCast(@alignCast(ctx));
+                c.* = 1;
+            }
+        }.call,
+        .postRender = struct {
+            fn call(_: *Frame, ctx: *anyopaque) anyerror!void {
+                const c: *u32 = @ptrCast(@alignCast(ctx));
+                c.* = 2;
+            }
+        }.call,
+        .preFlush = struct {
+            fn call(_: *Buffer, ctx: *anyopaque) anyerror!void {
+                const c: *u32 = @ptrCast(@alignCast(ctx));
+                c.* = 3;
+            }
+        }.call,
+        .postFlush = struct {
+            fn call(_: *Buffer, ctx: *anyopaque) anyerror!void {
+                const c: *u32 = @ptrCast(@alignCast(ctx));
+                c.* = 4;
+            }
+        }.call,
+    };
+
+    // Test that each hook can be called
+    try hooks.preRender.?(&frame, @ptrCast(&counter));
+    try std.testing.expectEqual(@as(u32, 1), counter);
+
+    try hooks.postRender.?(&frame, @ptrCast(&counter));
+    try std.testing.expectEqual(@as(u32, 2), counter);
+
+    try hooks.preFlush.?(&buf, @ptrCast(&counter));
+    try std.testing.expectEqual(@as(u32, 3), counter);
+
+    try hooks.postFlush.?(&buf, @ptrCast(&counter));
+    try std.testing.expectEqual(@as(u32, 4), counter);
+}
+
+test "RenderHooks mixed null and non-null callbacks" {
+    var buf = try Buffer.init(std.testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+
+    var hook_called = false;
+
+    const hooks = RenderHooks{
+        .preRender = struct {
+            fn call(_: *Frame, ctx: *anyopaque) anyerror!void {
+                const called: *bool = @ptrCast(@alignCast(ctx));
+                called.* = true;
+            }
+        }.call,
+        .postRender = null,
+        .preFlush = null,
+        .postFlush = struct {
+            fn call(_: *Buffer, ctx: *anyopaque) anyerror!void {
+                const called: *bool = @ptrCast(@alignCast(ctx));
+                called.* = !called.*;
+            }
+        }.call,
+    };
+
+    try hooks.preRender.?(&frame, @ptrCast(&hook_called));
+    try std.testing.expect(hook_called);
+
+    if (hooks.postRender) |hook| {
+        try hook(&frame, undefined);
+        unreachable;
+    }
+
+    if (hooks.preFlush) |hook| {
+        try hook(&buf, undefined);
+        unreachable;
+    }
+
+    try hooks.postFlush.?(&buf, @ptrCast(&hook_called));
+    try std.testing.expect(!hook_called);
 }
 
 test {
