@@ -4,8 +4,8 @@
 
 - **Latest release**: v1.23.0 (2026-03-27) — Plugin Architecture & Extensibility
 - **Latest minor**: v1.23.0 (2026-03-27) — Plugin Architecture & Extensibility
-- **Next milestone**: TBD (will establish after release)
-- **Active milestones**: 0
+- **Next milestone**: v1.24.0 — Animation & Transitions
+- **Active milestones**: 2 (v1.24.0, v1.25.0)
 - **Blockers**: None
 
 ## Active Milestones
@@ -18,6 +18,26 @@
 - [x] Text alignment - left/center/right/justify (already in Paragraph)
 - [x] Line breaking - word wrap with hyphenation support (31 tests)
 - [x] Text measurements - Unicode-aware dimension calculation (47 tests)
+
+### v1.24.0 — Animation & Transitions (ACTIVE)
+**Theme**: Smooth transitions, effects, and time-based rendering
+**Target**: 2026-04 (1-2 weeks)
+**Checklist**:
+- [ ] Animation trait - define keyframe/tween protocol
+- [ ] Transition helpers - fade, slide, expand/collapse
+- [ ] Timer system - async animation scheduling
+- [ ] Easing functions - smooth interpolation (linear, ease-in/out, elastic, bounce)
+- [ ] Example animations - showcase transitions and effects
+
+### v1.25.0 — Form & Validation (ACTIVE)
+**Theme**: Complex input handling and validation
+**Target**: 2026-04 (1-2 weeks)
+**Checklist**:
+- [ ] Form widget - container for multiple inputs
+- [ ] Validators - required, pattern, range, custom
+- [ ] Error display - inline validation messages
+- [ ] Field focus - tab navigation between fields
+- [ ] Example form - registration/login demo
 
 ### v1.23.0 — Plugin Architecture & Extensibility (COMPLETED 2026-03-27)
 **Theme**: Enable custom widgets and renderer extensions
