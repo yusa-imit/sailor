@@ -25,8 +25,8 @@
 **Checklist**:
 - [x] Widget trait system - define renderable/focusable/eventable traits (already complete in widget_trait.zig)
 - [x] Custom renderer hooks - allow pre/post render callbacks (15 tests, Terminal.draw())
-- [ ] Theme plugin system - load themes from external files (JSON/TOML)
-- [ ] Widget composition helpers - decorators, wrappers, containers
+- [x] Theme plugin system - load themes from external files (JSON) — 25 tests (Session 17)
+- [x] Widget composition helpers - decorators, wrappers, containers — 26 tests (Session 18)
 - [ ] Example plugin - demonstrate third-party widget integration
 
 ## Completed Milestones
