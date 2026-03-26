@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v1.22.0 (2026-03-26) — Rich Text & Formatting
-- **Latest minor**: v1.22.0 (2026-03-26) — Rich Text & Formatting
-- **Next milestone**: v1.23.0 — Plugin Architecture & Extensibility
-- **Active milestones**: 1 (v1.23.0)
+- **Latest release**: v1.23.0 (2026-03-27) — Plugin Architecture & Extensibility
+- **Latest minor**: v1.23.0 (2026-03-27) — Plugin Architecture & Extensibility
+- **Next milestone**: TBD (will establish after release)
+- **Active milestones**: 0
 - **Blockers**: None
 
 ## Active Milestones
@@ -19,20 +19,20 @@
 - [x] Line breaking - word wrap with hyphenation support (31 tests)
 - [x] Text measurements - Unicode-aware dimension calculation (47 tests)
 
-### v1.23.0 — Plugin Architecture & Extensibility (ACTIVE)
+### v1.23.0 — Plugin Architecture & Extensibility (COMPLETED 2026-03-27)
 **Theme**: Enable custom widgets and renderer extensions
-**Target**: 2026-04 (1-2 weeks)
 **Checklist**:
 - [x] Widget trait system - define renderable/focusable/eventable traits (already complete in widget_trait.zig)
 - [x] Custom renderer hooks - allow pre/post render callbacks (15 tests, Terminal.draw())
 - [x] Theme plugin system - load themes from external files (JSON) — 25 tests (Session 17)
 - [x] Widget composition helpers - decorators, wrappers, containers — 26 tests (Session 18)
-- [ ] Example plugin - demonstrate third-party widget integration
+- [x] Example plugin - demonstrate third-party widget integration (plugin_demo.zig + 10 tests)
 
 ## Completed Milestones
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.23.0 | Plugin Architecture & Extensibility | 2026-03-27 | Widget trait system, renderer hooks, theme plugin (JSON), composition helpers (Padding/Centered/Aligned/Stack/Constrained), plugin demo example (+10 tests) |
 | v1.22.0 | Rich Text & Formatting | 2026-03-26 | SpanBuilder/LineBuilder, markdown parser, line breaking, text measurements (+123 tests) |
 | v1.21.0 | Streaming & Large Data | 2026-03-25 | DataSource abstraction (Item/Table/Line), large data benchmarks (1M items, 100MB+) |
 | v1.20.0 | Quality & Completeness | 2026-03-25 | Windows Unicode tests (23), pattern docs, docgen dir scanning, error context, edge hardening |
