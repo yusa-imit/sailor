@@ -9,10 +9,17 @@
 - Previous versions: v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: v1.23.0 → Plugin Architecture & Extensibility (2/5, 40%)
+- **Active milestone**: v1.23.0 → Plugin Architecture & Extensibility (3/5, 60%)
 - **Last completed**: v1.22.0 → Rich Text & Formatting (5/5, 100%) ✅
 
 ## Project Status
+✅ **Session 17** — Theme Plugin System (2026-03-26 FEATURE MODE)
+  - Implemented ThemeLoader for loading themes from JSON files
+  - JSON parsing with hex (#RRGGBB) and named color support
+  - Comprehensive error handling (InvalidJson, MissingField, InvalidColor, FileNotFound, IsDir)
+  - 25 new tests (theme_loader_test.zig)
+  - All 2148 tests pass ✅
+  - Commits: cc2c68d, 05aef4d
 ✅ **Session 16** — Custom Renderer Hooks (2026-03-26 FEATURE MODE)
   - Implemented RenderHooks API with pre/post render callbacks
   - Added Terminal.draw() method with full hook lifecycle
