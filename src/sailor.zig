@@ -60,6 +60,9 @@ pub const docgen = @import("docgen.zig");
 // v1.20.0 — Quality & Completeness
 pub const error_context = @import("error_context.zig");
 
+// v1.23.0 — Plugin Architecture & Extensibility
+pub const ThemeLoader = @import("tui/theme_loader.zig").ThemeLoader;
+
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;
 pub const Cell = tui.buffer.Cell;

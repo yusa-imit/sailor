@@ -20,6 +20,7 @@ pub const composition = @import("composition.zig");
 pub const responsive = @import("responsive.zig");
 pub const symbols = @import("symbols.zig");
 pub const theme = @import("theme.zig");
+pub const theme_loader = @import("theme_loader.zig");
 pub const animation = @import("animation.zig");
 pub const budget = @import("budget.zig");
 pub const lazy = @import("lazy.zig");
@@ -227,6 +228,7 @@ pub const RenderBudget = budget.RenderBudget;
 pub const LazyBuffer = lazy.LazyBuffer;
 pub const EventBatcher = batch.EventBatcher;
 pub const ThemeWatcher = hotreload.ThemeWatcher;
+pub const ThemeLoader = theme_loader.ThemeLoader;
 
 // Export performance types (v1.14.0)
 pub const Viewport = viewport.Viewport;
