@@ -53,7 +53,7 @@ pub const LineBreaker = struct {
         }
 
         var builder = LineBuilder.init(self.allocator);
-        defer builder.deinit();
+        errdefer builder.deinit();
 
         var current_width: usize = 0;
 
@@ -93,7 +93,7 @@ pub const LineBreaker = struct {
                     // Finalize current line
                     const built_line = try builder.buildOwned();
                     try result_lines.append(self.allocator, built_line);
-                    builder = LineBuilder.init(self.allocator);
+                    builder.spans.clearRetainingCapacity();
                     current_width = 0;
 
                     // Skip leading whitespace on next line
@@ -111,7 +111,7 @@ pub const LineBreaker = struct {
 
                             const built_line = try builder.buildOwned();
                             try result_lines.append(self.allocator, built_line);
-                            builder = LineBuilder.init(self.allocator);
+                            builder.spans.clearRetainingCapacity();
                             current_width = 0;
                             remaining = remaining[take_len..];
                         } else {
@@ -119,7 +119,7 @@ pub const LineBreaker = struct {
                             if (current_width > 0) {
                                 const built_line = try builder.buildOwned();
                                 try result_lines.append(self.allocator, built_line);
-                                builder = LineBuilder.init(self.allocator);
+                                builder.spans.clearRetainingCapacity();
                                 current_width = 0;
                             } else {
                                 // Even on empty line, can't fit hyphen - just break anyway
@@ -128,7 +128,7 @@ pub const LineBreaker = struct {
                                 current_width += take_len;
                                 const built_line = try builder.buildOwned();
                                 try result_lines.append(self.allocator, built_line);
-                                builder = LineBuilder.init(self.allocator);
+                                builder.spans.clearRetainingCapacity();
                                 current_width = 0;
                                 remaining = remaining[take_len..];
                             }
@@ -141,7 +141,7 @@ pub const LineBreaker = struct {
 
                         const built_line = try builder.buildOwned();
                         try result_lines.append(self.allocator, built_line);
-                        builder = LineBuilder.init(self.allocator);
+                        builder.spans.clearRetainingCapacity();
                         current_width = 0;
                         remaining = remaining[take_len..];
                     }
@@ -154,7 +154,7 @@ pub const LineBreaker = struct {
                     // No space on current line, start new line
                     const built_line = try builder.buildOwned();
                     try result_lines.append(self.allocator, built_line);
-                    builder = LineBuilder.init(self.allocator);
+                    builder.spans.clearRetainingCapacity();
                     current_width = 0;
                 }
             }
@@ -164,10 +164,9 @@ pub const LineBreaker = struct {
         if (current_width > 0 or result_lines.items.len == 0) {
             const built_line = try builder.buildOwned();
             try result_lines.append(self.allocator, built_line);
-        } else {
-            builder.deinit();
         }
 
+        builder.deinit();
         return try result_lines.toOwnedSlice(self.allocator);
     }
 };
@@ -232,11 +231,17 @@ test "single word without spaces and fits width" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    // Function returns NotImplemented until implementation complete
-    _ = breaker.breakLine(line, 10, .{}) catch |err| {
-        try std.testing.expectEqual(error.NotImplemented, err);
-        return;
-    };
+    const result = try breaker.breakLine(line, 10, .{});
+    defer {
+        for (result) |result_line| {
+            std.testing.allocator.free(result_line.spans);
+        }
+        std.testing.allocator.free(result);
+    }
+
+    try std.testing.expectEqual(@as(usize, 1), result.len);
+    try std.testing.expectEqual(@as(usize, 1), result[0].spans.len);
+    try std.testing.expectEqualStrings("test", result[0].spans[0].content);
 }
 
 test "word wrap at whitespace boundary" {
@@ -270,11 +275,15 @@ test "multiple words wrap across lines" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 8, .{}) catch |err| {
-        try std.testing.expectEqual(error.NotImplemented, err);
-        return;
-    };
-    
+    const result = try breaker.breakLine(line, 8, .{});
+    defer {
+        for (result) |result_line| {
+            std.testing.allocator.free(result_line.spans);
+        }
+        std.testing.allocator.free(result);
+    }
+
+    try std.testing.expect(result.len >= 2);
 }
 
 test "long word hyphenated when exceeds width" {
@@ -286,11 +295,15 @@ test "long word hyphenated when exceeds width" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 10, .{ .hyphenate = true }) catch |err| {
-        try std.testing.expectEqual(error.NotImplemented, err);
-        return;
-    };
-    
+    const result = try breaker.breakLine(line, 10, .{ .hyphenate = true });
+    defer {
+        for (result) |result_line| {
+            std.testing.allocator.free(result_line.spans);
+        }
+        std.testing.allocator.free(result);
+    }
+
+    try std.testing.expect(result.len > 1);
 }
 
 test "hyphenation disabled truncates long word" {
@@ -302,11 +315,15 @@ test "hyphenation disabled truncates long word" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 5, .{ .hyphenate = false }) catch |err| {
-        try std.testing.expectEqual(error.NotImplemented, err);
-        return;
-    };
-    
+    const result = try breaker.breakLine(line, 5, .{ .hyphenate = false });
+    defer {
+        for (result) |result_line| {
+            std.testing.allocator.free(result_line.spans);
+        }
+        std.testing.allocator.free(result);
+    }
+
+    try std.testing.expect(result.len > 0);
 }
 
 test "style preserved in first span" {
@@ -319,11 +336,16 @@ test "style preserved in first span" {
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
-    _ = breaker.breakLine(line, 5, .{}) catch |err| {
-        try std.testing.expectEqual(error.NotImplemented, err);
-        return;
-    };
-    
+    const result = try breaker.breakLine(line, 5, .{});
+    defer {
+        for (result) |result_line| {
+            std.testing.allocator.free(result_line.spans);
+        }
+        std.testing.allocator.free(result);
+    }
+
+    try std.testing.expect(result.len > 0);
+    try std.testing.expect(result[0].spans.len > 0);
 }
 
 test "style preserved across line breaks" {

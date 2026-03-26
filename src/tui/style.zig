@@ -293,7 +293,7 @@ pub const LineBuilder = struct {
     pub fn init(allocator: Allocator) LineBuilder {
         return .{
             .allocator = allocator,
-            .spans = std.ArrayList(Span){},
+            .spans = .{},
         };
     }
 
