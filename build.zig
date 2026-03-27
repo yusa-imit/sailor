@@ -466,6 +466,7 @@ pub fn build(b: *std.Build) void {
         .{ .name = "layout_showcase", .source = "examples/layout_showcase.zig", .description = "Build and run layout showcase (v1.2.0 features)" },
         .{ .name = "widget_gallery", .source = "examples/widget_gallery.zig", .description = "Interactive widget gallery with code examples (v1.18.0)" },
         .{ .name = "plugin_demo", .source = "examples/plugin_demo.zig", .description = "Plugin architecture demo — custom widgets & composition (v1.23.0)" },
+        .{ .name = "animation_demo", .source = "examples/animation_demo.zig", .description = "Animation & transitions demo — easing functions, timers, color animation (v1.24.0)" },
     };
 
     inline for (examples) |example| {
