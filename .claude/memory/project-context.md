@@ -9,10 +9,38 @@
 - Previous versions: v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: None (will establish next milestone post-release)
+- **Active milestone**: v1.24.0 → Animation & Transitions (3/5, 60%)
 - **Last completed**: v1.23.0 → Plugin Architecture & Extensibility (5/5, 100%) ✅
 
 ## Project Status
+✅ **Session 22** — Timer System Implementation (2026-03-27 FEATURE MODE)
+  - Implemented Timer system for v1.24.0 milestone (item 3/5)
+  - Timer struct: one-shot and repeating timers with lifecycle management
+  - TimerManager: central pool for managing multiple concurrent timers
+  - Callback support: context passing and event triggering
+  - Time management: pause/resume, time scaling, precision handling
+  - 30 new tests (timer_test.zig):
+    - 6 basic timer operations tests
+    - 6 callback execution tests
+    - 6 animation integration tests
+    - 6 time management tests
+    - 6 timer pool/manager tests
+  - Fixes:
+    - ArrayList API migration: std.ArrayList(T).init() → .{} for Zig 0.15.2
+    - Float precision: only use float conversion when time_scale != 1.0
+    - Repeating timer lifecycle: properly reset elapsed_ms after firing
+    - One-shot timer completion: add 'fired' flag to prevent multiple fires
+  - All 2360 tests pass (30 timer + 2330 existing) ✅
+  - Cross-platform verification: 6/6 targets compile ✅
+  - CI status: clean
+  - Open issues: 0 bugs
+  - Commit: 6459384
+✅ **Session 21** — Transition Helpers (2026-03-27 FEATURE MODE)
+  - Implemented transition helpers for v1.24.0 milestone (item 2/5)
+  - Animation module with keyframe/tween protocol (item 1/5, session 20)
+  - FadeTransition, SlideTransition with easing function support
+  - All tests pass ✅
+  - Commit: bfeb2f4
 ✅ **Session 20** — Test Coverage Audit (2026-03-27 STABILIZATION MODE)
   - Added 38 comprehensive tests to previously untested modules:
     - theme_loader.zig: 22 tests (hex color parsing, named colors, JSON validation, error handling)

@@ -23,9 +23,9 @@
 **Theme**: Smooth transitions, effects, and time-based rendering
 **Target**: 2026-04 (1-2 weeks)
 **Checklist**:
-- [ ] Animation trait - define keyframe/tween protocol
-- [ ] Transition helpers - fade, slide, expand/collapse
-- [ ] Timer system - async animation scheduling
+- [x] Animation trait - define keyframe/tween protocol
+- [x] Transition helpers - fade, slide, expand/collapse
+- [x] Timer system - async animation scheduling (30 tests, Session 22)
 - [ ] Easing functions - smooth interpolation (linear, ease-in/out, elastic, bounce)
 - [ ] Example animations - showcase transitions and effects
 
