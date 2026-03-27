@@ -65,6 +65,7 @@ pub const ThemeLoader = @import("tui/theme_loader.zig").ThemeLoader;
 
 // v1.24.0 — Animation & Transitions
 pub const animation = @import("tui/animation.zig");
+pub const transition = @import("tui/transition.zig");
 
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;

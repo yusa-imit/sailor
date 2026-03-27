@@ -61,6 +61,9 @@ pub const transitions = @import("transitions.zig");
 pub const particles = @import("widgets/particles.zig");
 pub const blur = @import("blur.zig");
 
+// v1.24.0+ — Transition Helpers
+pub const transition = @import("transition.zig");
+
 // v1.12.0+ — Enterprise & Accessibility
 pub const session = @import("session.zig");
 pub const audit = @import("audit.zig");
