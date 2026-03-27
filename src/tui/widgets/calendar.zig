@@ -596,3 +596,262 @@ pub const Calendar = struct {
 test {
     std.testing.refAllDecls(@This());
 }
+
+// ============================================================================
+// Tests for Date API
+// ============================================================================
+
+test "Date: init and equality" {
+    const date1 = Calendar.Date.init(2024, 3, 15);
+    const date2 = Calendar.Date.init(2024, 3, 15);
+    const date3 = Calendar.Date.init(2024, 3, 16);
+
+    try std.testing.expect(date1.eql(date2));
+    try std.testing.expect(!date1.eql(date3));
+}
+
+test "Date: compare dates" {
+    const early = Calendar.Date.init(2023, 12, 31);
+    const mid = Calendar.Date.init(2024, 1, 1);
+    const late = Calendar.Date.init(2024, 1, 2);
+
+    try std.testing.expectEqual(@as(i8, -1), early.compare(mid));
+    try std.testing.expectEqual(@as(i8, 0), mid.compare(mid));
+    try std.testing.expectEqual(@as(i8, 1), late.compare(mid));
+}
+
+test "Date: leap year detection" {
+    // Standard leap year (divisible by 4)
+    try std.testing.expect(Calendar.Date.isLeapYear(2024));
+    try std.testing.expect(!Calendar.Date.isLeapYear(2023));
+
+    // Century year not divisible by 400 (not leap)
+    try std.testing.expect(!Calendar.Date.isLeapYear(1900));
+    try std.testing.expect(!Calendar.Date.isLeapYear(2100));
+
+    // Century year divisible by 400 (leap)
+    try std.testing.expect(Calendar.Date.isLeapYear(2000));
+    try std.testing.expect(Calendar.Date.isLeapYear(2400));
+}
+
+test "Date: days in month" {
+    // 31-day months
+    try std.testing.expectEqual(@as(u8, 31), Calendar.Date.init(2024, 1, 1).daysInMonth());
+    try std.testing.expectEqual(@as(u8, 31), Calendar.Date.init(2024, 3, 1).daysInMonth());
+    try std.testing.expectEqual(@as(u8, 31), Calendar.Date.init(2024, 5, 1).daysInMonth());
+    try std.testing.expectEqual(@as(u8, 31), Calendar.Date.init(2024, 7, 1).daysInMonth());
+    try std.testing.expectEqual(@as(u8, 31), Calendar.Date.init(2024, 8, 1).daysInMonth());
+    try std.testing.expectEqual(@as(u8, 31), Calendar.Date.init(2024, 10, 1).daysInMonth());
+    try std.testing.expectEqual(@as(u8, 31), Calendar.Date.init(2024, 12, 1).daysInMonth());
+
+    // 30-day months
+    try std.testing.expectEqual(@as(u8, 30), Calendar.Date.init(2024, 4, 1).daysInMonth());
+    try std.testing.expectEqual(@as(u8, 30), Calendar.Date.init(2024, 6, 1).daysInMonth());
+    try std.testing.expectEqual(@as(u8, 30), Calendar.Date.init(2024, 9, 1).daysInMonth());
+    try std.testing.expectEqual(@as(u8, 30), Calendar.Date.init(2024, 11, 1).daysInMonth());
+
+    // February: leap year vs non-leap year
+    try std.testing.expectEqual(@as(u8, 29), Calendar.Date.init(2024, 2, 1).daysInMonth());
+    try std.testing.expectEqual(@as(u8, 28), Calendar.Date.init(2023, 2, 1).daysInMonth());
+    try std.testing.expectEqual(@as(u8, 28), Calendar.Date.init(1900, 2, 1).daysInMonth());
+    try std.testing.expectEqual(@as(u8, 29), Calendar.Date.init(2000, 2, 1).daysInMonth());
+}
+
+test "Date: isValid" {
+    // Valid dates
+    try std.testing.expect(Calendar.Date.init(2024, 1, 31).isValid());
+    try std.testing.expect(Calendar.Date.init(2024, 2, 29).isValid());
+    try std.testing.expect(Calendar.Date.init(2023, 2, 28).isValid());
+
+    // Invalid month
+    try std.testing.expect(!Calendar.Date.init(2024, 0, 15).isValid());
+    try std.testing.expect(!Calendar.Date.init(2024, 13, 15).isValid());
+
+    // Invalid day
+    try std.testing.expect(!Calendar.Date.init(2024, 1, 0).isValid());
+    try std.testing.expect(!Calendar.Date.init(2024, 1, 32).isValid());
+    try std.testing.expect(!Calendar.Date.init(2023, 2, 29).isValid()); // Not a leap year
+    try std.testing.expect(!Calendar.Date.init(2024, 4, 31).isValid()); // April has 30 days
+}
+
+test "Date: dayOfWeek known dates" {
+    // 2024-01-01 is Monday (1)
+    try std.testing.expectEqual(@as(u3, 1), Calendar.Date.init(2024, 1, 1).dayOfWeek());
+
+    // 2024-12-25 is Wednesday (3)
+    try std.testing.expectEqual(@as(u3, 3), Calendar.Date.init(2024, 12, 25).dayOfWeek());
+
+    // 2000-01-01 is Saturday (6)
+    try std.testing.expectEqual(@as(u3, 6), Calendar.Date.init(2000, 1, 1).dayOfWeek());
+
+    // 1900-01-01 is Monday (1)
+    try std.testing.expectEqual(@as(u3, 1), Calendar.Date.init(1900, 1, 1).dayOfWeek());
+}
+
+test "Date: addDays positive" {
+    // Add within same month
+    const d1 = Calendar.Date.init(2024, 3, 15);
+    const d2 = d1.addDays(10);
+    try std.testing.expect(d2.eql(Calendar.Date.init(2024, 3, 25)));
+
+    // Add across month boundary
+    const d3 = Calendar.Date.init(2024, 3, 28);
+    const d4 = d3.addDays(5);
+    try std.testing.expect(d4.eql(Calendar.Date.init(2024, 4, 2)));
+
+    // Add across year boundary
+    const d5 = Calendar.Date.init(2023, 12, 30);
+    const d6 = d5.addDays(5);
+    try std.testing.expect(d6.eql(Calendar.Date.init(2024, 1, 4)));
+
+    // Add large number of days
+    const d7 = Calendar.Date.init(2024, 1, 1);
+    const d8 = d7.addDays(366); // Leap year has 366 days
+    try std.testing.expect(d8.eql(Calendar.Date.init(2025, 1, 1)));
+}
+
+test "Date: addDays negative" {
+    // Subtract within same month
+    const d1 = Calendar.Date.init(2024, 3, 15);
+    const d2 = d1.addDays(-10);
+    try std.testing.expect(d2.eql(Calendar.Date.init(2024, 3, 5)));
+
+    // Subtract across month boundary
+    const d3 = Calendar.Date.init(2024, 4, 2);
+    const d4 = d3.addDays(-5);
+    try std.testing.expect(d4.eql(Calendar.Date.init(2024, 3, 28)));
+
+    // Subtract across year boundary
+    const d5 = Calendar.Date.init(2024, 1, 4);
+    const d6 = d5.addDays(-5);
+    try std.testing.expect(d6.eql(Calendar.Date.init(2023, 12, 30)));
+}
+
+test "Date: addDays zero" {
+    const d = Calendar.Date.init(2024, 6, 15);
+    const result = d.addDays(0);
+    try std.testing.expect(d.eql(result));
+}
+
+test "Date: addMonths positive" {
+    // Add within same year
+    const d1 = Calendar.Date.init(2024, 3, 15);
+    const d2 = d1.addMonths(2);
+    try std.testing.expect(d2.eql(Calendar.Date.init(2024, 5, 15)));
+
+    // Add across year boundary
+    const d3 = Calendar.Date.init(2023, 11, 15);
+    const d4 = d3.addMonths(3);
+    try std.testing.expect(d4.eql(Calendar.Date.init(2024, 2, 15)));
+
+    // Day clamping: Jan 31 + 1 month → Feb 28/29
+    const d5 = Calendar.Date.init(2024, 1, 31);
+    const d6 = d5.addMonths(1);
+    try std.testing.expect(d6.eql(Calendar.Date.init(2024, 2, 29))); // 2024 is leap year
+
+    const d7 = Calendar.Date.init(2023, 1, 31);
+    const d8 = d7.addMonths(1);
+    try std.testing.expect(d8.eql(Calendar.Date.init(2023, 2, 28))); // 2023 is not leap year
+}
+
+test "Date: addMonths negative" {
+    // Subtract within same year
+    const d1 = Calendar.Date.init(2024, 5, 15);
+    const d2 = d1.addMonths(-2);
+    try std.testing.expect(d2.eql(Calendar.Date.init(2024, 3, 15)));
+
+    // Subtract across year boundary
+    const d3 = Calendar.Date.init(2024, 2, 15);
+    const d4 = d3.addMonths(-3);
+    try std.testing.expect(d4.eql(Calendar.Date.init(2023, 11, 15)));
+
+    // Day clamping: Mar 31 - 1 month → Feb 28/29
+    const d5 = Calendar.Date.init(2024, 3, 31);
+    const d6 = d5.addMonths(-1);
+    try std.testing.expect(d6.eql(Calendar.Date.init(2024, 2, 29))); // 2024 is leap year
+}
+
+test "Date: addMonths zero" {
+    const d = Calendar.Date.init(2024, 6, 15);
+    const result = d.addMonths(0);
+    try std.testing.expect(d.eql(result));
+}
+
+test "Date: addMonths large values" {
+    // Add 12 months = 1 year
+    const d1 = Calendar.Date.init(2024, 6, 15);
+    const d2 = d1.addMonths(12);
+    try std.testing.expect(d2.eql(Calendar.Date.init(2025, 6, 15)));
+
+    // Add 25 months
+    const d3 = Calendar.Date.init(2023, 10, 10);
+    const d4 = d3.addMonths(25);
+    try std.testing.expect(d4.eql(Calendar.Date.init(2025, 11, 10)));
+
+    // Subtract 15 months
+    const d5 = Calendar.Date.init(2024, 3, 5);
+    const d6 = d5.addMonths(-15);
+    try std.testing.expect(d6.eql(Calendar.Date.init(2022, 12, 5)));
+}
+
+test "Calendar: init" {
+    const today = Calendar.Date.init(2024, 3, 28);
+    const cal = Calendar.init(today);
+
+    try std.testing.expect(cal.current_month.eql(today));
+    try std.testing.expect(cal.today.eql(today));
+    try std.testing.expect(cal.selected == null);
+    try std.testing.expect(cal.show_weekdays);
+}
+
+test "Calendar: selectDate" {
+    const today = Calendar.Date.init(2024, 3, 28);
+    var cal = Calendar.init(today);
+
+    const target = Calendar.Date.init(2024, 3, 15);
+    cal.selectDate(target);
+
+    try std.testing.expect(cal.selected != null);
+    try std.testing.expect(cal.selected.?.eql(target));
+}
+
+test "Calendar: setRange" {
+    const today = Calendar.Date.init(2024, 3, 28);
+    var cal = Calendar.init(today);
+
+    const start = Calendar.Date.init(2024, 3, 10);
+    const end = Calendar.Date.init(2024, 3, 20);
+    cal.setRange(start, end);
+
+    try std.testing.expect(cal.range_start != null);
+    try std.testing.expect(cal.range_end != null);
+    try std.testing.expect(cal.range_start.?.eql(start));
+    try std.testing.expect(cal.range_end.?.eql(end));
+}
+
+test "Calendar: nextMonth and prevMonth" {
+    const today = Calendar.Date.init(2024, 3, 28);
+    var cal = Calendar.init(today);
+
+    // Next month
+    cal.nextMonth();
+    try std.testing.expectEqual(@as(u16, 2024), cal.current_month.year);
+    try std.testing.expectEqual(@as(u8, 4), cal.current_month.month);
+
+    // Previous month (back to March)
+    cal.prevMonth();
+    try std.testing.expectEqual(@as(u16, 2024), cal.current_month.year);
+    try std.testing.expectEqual(@as(u8, 3), cal.current_month.month);
+
+    // Cross year boundary forward (Dec → Jan)
+    cal.current_month = Calendar.Date.init(2024, 12, 15);
+    cal.nextMonth();
+    try std.testing.expectEqual(@as(u16, 2025), cal.current_month.year);
+    try std.testing.expectEqual(@as(u8, 1), cal.current_month.month);
+
+    // Cross year boundary backward (Jan → Dec)
+    cal.current_month = Calendar.Date.init(2024, 1, 15);
+    cal.prevMonth();
+    try std.testing.expectEqual(@as(u16, 2023), cal.current_month.year);
+    try std.testing.expectEqual(@as(u8, 12), cal.current_month.month);
+}
