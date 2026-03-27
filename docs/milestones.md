@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v1.23.0 (2026-03-27) — Plugin Architecture & Extensibility
-- **Latest minor**: v1.23.0 (2026-03-27) — Plugin Architecture & Extensibility
-- **Next milestone**: v1.24.0 — Animation & Transitions
-- **Active milestones**: 2 (v1.24.0, v1.25.0)
+- **Latest release**: v1.24.0 (2026-03-27) — Animation & Transitions
+- **Latest minor**: v1.24.0 (2026-03-27) — Animation & Transitions
+- **Next milestone**: v1.25.0 — Form & Validation (ready for release)
+- **Active milestones**: 1 (v1.25.0 complete, ready for release)
 - **Blockers**: None
 
 ## Active Milestones
@@ -29,15 +29,15 @@
 - [x] Easing functions - smooth interpolation (22 total: linear, cubic, elastic, bounce, back, circ, expo)
 - [x] Example animations - animation_demo.zig showcasing all features
 
-### v1.25.0 — Form & Validation (ACTIVE)
+### v1.25.0 — Form & Validation (COMPLETE)
 **Theme**: Complex input handling and validation
 **Target**: 2026-04 (1-2 weeks)
 **Checklist**:
-- [ ] Form widget - container for multiple inputs
-- [ ] Validators - required, pattern, range, custom
-- [ ] Error display - inline validation messages
-- [ ] Field focus - tab navigation between fields
-- [ ] Example form - registration/login demo
+- [x] Form widget - container for multiple inputs
+- [x] Validators - required, pattern, range, custom (basic, numeric, pattern, masks)
+- [x] Error display - inline validation messages
+- [x] Field focus - tab navigation between fields
+- [x] Example form - registration/login demo (form_demo.zig)
 
 ### v1.23.0 — Plugin Architecture & Extensibility (COMPLETED 2026-03-27)
 **Theme**: Enable custom widgets and renderer extensions
