@@ -19,15 +19,15 @@
 - [x] Line breaking - word wrap with hyphenation support (31 tests)
 - [x] Text measurements - Unicode-aware dimension calculation (47 tests)
 
-### v1.24.0 — Animation & Transitions (ACTIVE)
+### v1.24.0 — Animation & Transitions (COMPLETE)
 **Theme**: Smooth transitions, effects, and time-based rendering
 **Target**: 2026-04 (1-2 weeks)
 **Checklist**:
 - [x] Animation trait - define keyframe/tween protocol
 - [x] Transition helpers - fade, slide, expand/collapse
 - [x] Timer system - async animation scheduling (30 tests, Session 22)
-- [ ] Easing functions - smooth interpolation (linear, ease-in/out, elastic, bounce)
-- [ ] Example animations - showcase transitions and effects
+- [x] Easing functions - smooth interpolation (22 total: linear, cubic, elastic, bounce, back, circ, expo)
+- [x] Example animations - animation_demo.zig showcasing all features
 
 ### v1.25.0 — Form & Validation (ACTIVE)
 **Theme**: Complex input handling and validation
