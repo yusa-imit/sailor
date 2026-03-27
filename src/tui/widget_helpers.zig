@@ -440,3 +440,309 @@ pub fn Constrained(comptime T: type) type {
         }
     };
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+// Mock widget for testing
+const MockWidget = struct {
+    content: u8,
+
+    pub fn render(self: MockWidget, buf: *Buffer, area: Rect) void {
+        for (0..area.height) |dy| {
+            for (0..area.width) |dx| {
+                buf.setChar(
+                    @intCast(area.x + @as(u16, @intCast(dx))),
+                    @intCast(area.y + @as(u16, @intCast(dy))),
+                    self.content,
+                    .{},
+                );
+            }
+        }
+    }
+
+    pub fn measure(_: MockWidget, _: std.mem.Allocator, _: u16, _: u16) !Size {
+        return Size{ .width = 10, .height = 5 };
+    }
+};
+
+test "Padding - uniform padding" {
+    const PaddedWidget = Padding(MockWidget);
+    const mock = MockWidget{ .content = 'X' };
+    const padded = PaddedWidget.init(mock, 2);
+
+    try std.testing.expectEqual(@as(u16, 2), padded.top);
+    try std.testing.expectEqual(@as(u16, 2), padded.right);
+    try std.testing.expectEqual(@as(u16, 2), padded.bottom);
+    try std.testing.expectEqual(@as(u16, 2), padded.left);
+}
+
+test "Padding - custom padding" {
+    const PaddedWidget = Padding(MockWidget);
+    const mock = MockWidget{ .content = 'X' };
+    const padded = PaddedWidget.initCustom(mock, 1, 2, 3, 4);
+
+    try std.testing.expectEqual(@as(u16, 1), padded.top);
+    try std.testing.expectEqual(@as(u16, 2), padded.right);
+    try std.testing.expectEqual(@as(u16, 3), padded.bottom);
+    try std.testing.expectEqual(@as(u16, 4), padded.left);
+}
+
+test "Padding - render with padding" {
+    const PaddedWidget = Padding(MockWidget);
+    const mock = MockWidget{ .content = 'X' };
+    const padded = PaddedWidget.init(mock, 2);
+
+    var buf = try Buffer.init(std.testing.allocator, 20, 20);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 20 };
+    padded.render(&buf, area);
+
+    // Check that padding area is NOT filled
+    try std.testing.expectEqual(@as(u21, ' '), buf.getConst(0, 0).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.getConst(0, 1).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.getConst(1, 0).?.char);
+
+    // Check that inner area IS filled
+    try std.testing.expectEqual(@as(u21, 'X'), buf.getConst(2, 2).?.char);
+    try std.testing.expectEqual(@as(u21, 'X'), buf.getConst(10, 10).?.char);
+}
+
+test "Padding - excessive padding renders nothing" {
+    const PaddedWidget = Padding(MockWidget);
+    const mock = MockWidget{ .content = 'X' };
+    const padded = PaddedWidget.init(mock, 100); // Excessive padding
+
+    var buf = try Buffer.init(std.testing.allocator, 20, 20);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 20 };
+    padded.render(&buf, area);
+
+    // All cells should remain empty (space)
+    for (0..20) |y| {
+        for (0..20) |x| {
+            try std.testing.expectEqual(@as(u21, ' '), buf.getConst(@intCast(x), @intCast(y)).?.char);
+        }
+    }
+}
+
+test "Centered - centers widget with measure" {
+    const CenteredWidget = Centered(MockWidget);
+    const mock = MockWidget{ .content = 'C' };
+    const centered = CenteredWidget.init(mock);
+
+    var buf = try Buffer.init(std.testing.allocator, 30, 20);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 20 };
+    centered.render(&buf, area);
+
+    // Widget should be centered: (30-10)/2 = 10, (20-5)/2 = 7.5 ≈ 7
+    // Check centered position (offset_x = 10, offset_y = 7)
+    try std.testing.expectEqual(@as(u21, 'C'), buf.getConst(10, 7).?.char);
+    try std.testing.expectEqual(@as(u21, 'C'), buf.getConst(19, 11).?.char); // 10+9, 7+4
+}
+
+test "Alignment - horizontal left, vertical top" {
+    const AlignedWidget = Aligned(MockWidget);
+    const mock = MockWidget{ .content = 'A' };
+    const aligned = AlignedWidget.init(mock, .{
+        .horizontal = .left,
+        .vertical = .top,
+    });
+
+    var buf = try Buffer.init(std.testing.allocator, 30, 20);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 20 };
+    aligned.render(&buf, area);
+
+    // Should align to top-left (0, 0)
+    try std.testing.expectEqual(@as(u21, 'A'), buf.getConst(0, 0).?.char);
+}
+
+test "Alignment - horizontal right, vertical bottom" {
+    const AlignedWidget = Aligned(MockWidget);
+    const mock = MockWidget{ .content = 'A' };
+    const aligned = AlignedWidget.init(mock, .{
+        .horizontal = .right,
+        .vertical = .bottom,
+    });
+
+    var buf = try Buffer.init(std.testing.allocator, 30, 20);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 20 };
+    aligned.render(&buf, area);
+
+    // Should align to bottom-right: x = 30-10 = 20, y = 20-5 = 15
+    try std.testing.expectEqual(@as(u21, 'A'), buf.getConst(20, 15).?.char);
+}
+
+test "Alignment - horizontal center, vertical middle" {
+    const AlignedWidget = Aligned(MockWidget);
+    const mock = MockWidget{ .content = 'A' };
+    const aligned = AlignedWidget.init(mock, .{
+        .horizontal = .center,
+        .vertical = .middle,
+    });
+
+    var buf = try Buffer.init(std.testing.allocator, 30, 20);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 20 };
+    aligned.render(&buf, area);
+
+    // Should center: x = (30-10)/2 = 10, y = (20-5)/2 = 7
+    try std.testing.expectEqual(@as(u21, 'A'), buf.getConst(10, 7).?.char);
+}
+
+test "Alignment - measure passthrough" {
+    const AlignedWidget = Aligned(MockWidget);
+    const mock = MockWidget{ .content = 'A' };
+    const aligned = AlignedWidget.init(mock, .{
+        .horizontal = .center,
+        .vertical = .middle,
+    });
+
+    const size = try aligned.measure(std.testing.allocator, 100, 100);
+    try std.testing.expectEqual(@as(u16, 10), size.width);
+    try std.testing.expectEqual(@as(u16, 5), size.height);
+}
+
+test "Stack - vertical layout" {
+    var stack = try Stack.initVertical(std.testing.allocator);
+    defer stack.deinit();
+
+    try stack.push(MockWidget{ .content = '1' });
+    try stack.push(MockWidget{ .content = '2' });
+    try stack.push(MockWidget{ .content = '3' });
+
+    var buf = try Buffer.init(std.testing.allocator, 20, 30);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 30 };
+    stack.render(&buf, area);
+
+    // Each widget gets 30/3 = 10 rows
+    try std.testing.expectEqual(@as(u21, '1'), buf.getConst(0, 0).?.char); // First widget
+    try std.testing.expectEqual(@as(u21, '2'), buf.getConst(0, 10).?.char); // Second widget
+    try std.testing.expectEqual(@as(u21, '3'), buf.getConst(0, 20).?.char); // Third widget
+}
+
+test "Stack - horizontal layout" {
+    var stack = try Stack.initHorizontal(std.testing.allocator);
+    defer stack.deinit();
+
+    try stack.push(MockWidget{ .content = 'A' });
+    try stack.push(MockWidget{ .content = 'B' });
+
+    var buf = try Buffer.init(std.testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
+    stack.render(&buf, area);
+
+    // Each widget gets 20/2 = 10 columns
+    try std.testing.expectEqual(@as(u21, 'A'), buf.getConst(0, 0).?.char); // First widget
+    try std.testing.expectEqual(@as(u21, 'B'), buf.getConst(10, 0).?.char); // Second widget
+}
+
+test "Stack - empty stack renders nothing" {
+    var stack = try Stack.initVertical(std.testing.allocator);
+    defer stack.deinit();
+
+    var buf = try Buffer.init(std.testing.allocator, 20, 20);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 20 };
+    stack.render(&buf, area);
+
+    // Should remain empty
+    try std.testing.expectEqual(@as(u21, ' '), buf.getConst(0, 0).?.char);
+}
+
+test "Constrained - min/max width" {
+    const ConstrainedWidget = Constrained(MockWidget);
+    const mock = MockWidget{ .content = 'C' };
+    const constrained = ConstrainedWidget.init(mock, .{
+        .min_width = 5,
+        .max_width = 15,
+    });
+
+    const size1 = try constrained.measure(std.testing.allocator, 100, 100);
+    try std.testing.expectEqual(@as(u16, 10), size1.width); // Widget prefers 10, within [5, 15]
+
+    const constrained_max = ConstrainedWidget.init(mock, .{
+        .min_width = 5,
+        .max_width = 8,
+    });
+    const size2 = try constrained_max.measure(std.testing.allocator, 100, 100);
+    try std.testing.expectEqual(@as(u16, 8), size2.width); // Forced to max_width (widget wants 10)
+
+    const constrained_min = ConstrainedWidget.init(mock, .{
+        .min_width = 15,
+        .max_width = 20,
+    });
+    const size3 = try constrained_min.measure(std.testing.allocator, 100, 100);
+    try std.testing.expectEqual(@as(u16, 15), size3.width); // Forced to min_width (widget wants 10)
+}
+
+test "Constrained - min/max height" {
+    const ConstrainedWidget = Constrained(MockWidget);
+    const mock = MockWidget{ .content = 'C' };
+    const constrained = ConstrainedWidget.init(mock, .{
+        .min_height = 3,
+        .max_height = 8,
+    });
+
+    const size1 = try constrained.measure(std.testing.allocator, 100, 100);
+    try std.testing.expectEqual(@as(u16, 5), size1.height); // Widget prefers 5, within [3, 8]
+
+    const constrained_max = ConstrainedWidget.init(mock, .{
+        .min_height = 1,
+        .max_height = 3,
+    });
+    const size2 = try constrained_max.measure(std.testing.allocator, 100, 100);
+    try std.testing.expectEqual(@as(u16, 3), size2.height); // Forced to max_height (widget wants 5)
+
+    const constrained_min = ConstrainedWidget.init(mock, .{
+        .min_height = 8,
+        .max_height = 10,
+    });
+    const size3 = try constrained_min.measure(std.testing.allocator, 100, 100);
+    try std.testing.expectEqual(@as(u16, 8), size3.height); // Forced to min_height (widget wants 5)
+}
+
+test "Constrained - render with constraints" {
+    const ConstrainedWidget = Constrained(MockWidget);
+    const mock = MockWidget{ .content = 'C' };
+    const constrained = ConstrainedWidget.init(mock, .{
+        .max_width = 10,
+        .max_height = 10,
+    });
+
+    var buf = try Buffer.init(std.testing.allocator, 50, 50);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 50 };
+    constrained.render(&buf, area);
+
+    // Widget should be constrained to 10x10
+    try std.testing.expectEqual(@as(u21, 'C'), buf.getConst(0, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'C'), buf.getConst(9, 9).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.getConst(10, 10).?.char); // Outside constraint
+}
+
+test "Constraints - all fields optional" {
+    const c1 = Constraints{};
+    try std.testing.expectEqual(@as(?u16, null), c1.min_width);
+    try std.testing.expectEqual(@as(?u16, null), c1.max_width);
+
+    const c2 = Constraints{ .min_width = 10 };
+    try std.testing.expectEqual(@as(?u16, 10), c2.min_width);
+    try std.testing.expectEqual(@as(?u16, null), c2.max_width);
+}
