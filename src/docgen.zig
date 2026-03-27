@@ -564,3 +564,378 @@ pub const DocGenerator = struct {
         }
     }
 };
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "DocGenerator: init and deinit" {
+    const testing = std.testing;
+    var gen = try DocGenerator.init(testing.allocator);
+    defer gen.deinit();
+
+    try testing.expectEqual(@as(usize, 0), gen.declarations.items.len);
+    try testing.expect(gen.module_comment == null);
+}
+
+test "DocGenerator: parse module comment" {
+    const testing = std.testing;
+    var gen = try DocGenerator.init(testing.allocator);
+    defer gen.deinit();
+
+    const source =
+        \\//! This is a module
+        \\//! with multiple lines
+        \\
+        \\const std = @import("std");
+    ;
+
+    try gen.parseSource(source);
+
+    try testing.expect(gen.module_comment != null);
+    const comment = gen.module_comment.?;
+    try testing.expect(std.mem.indexOf(u8, comment.content, "This is a module") != null);
+    try testing.expect(std.mem.indexOf(u8, comment.content, "with multiple lines") != null);
+}
+
+test "DocGenerator: parse public function" {
+    const testing = std.testing;
+    var gen = try DocGenerator.init(testing.allocator);
+    defer gen.deinit();
+
+    const source =
+        \\/// Adds two numbers
+        \\pub fn add(x: i32, y: i32) i32 {
+        \\    return x + y;
+        \\}
+    ;
+
+    try gen.parseSource(source);
+
+    const decls = gen.getDeclarations();
+    try testing.expectEqual(@as(usize, 1), decls.len);
+
+    const decl = decls[0];
+    try testing.expectEqual(DeclarationType.function, decl.type);
+    try testing.expect(decl.is_public);
+
+    const sig = decl.signature.?;
+    try testing.expectEqualStrings("add", sig.name);
+    try testing.expectEqual(@as(usize, 2), sig.parameters.len);
+    try testing.expectEqualStrings("x", sig.parameters[0].name);
+    try testing.expectEqualStrings("i32", sig.parameters[0].param_type);
+    try testing.expectEqualStrings("y", sig.parameters[1].name);
+    try testing.expectEqualStrings("i32", sig.parameters[1].param_type);
+    try testing.expectEqualStrings("i32", sig.return_type);
+
+    const comment = decl.comment.?;
+    try testing.expectEqualStrings("Adds two numbers", comment.content);
+}
+
+test "DocGenerator: parse private function (not public)" {
+    const testing = std.testing;
+    var gen = try DocGenerator.init(testing.allocator);
+    defer gen.deinit();
+
+    const source =
+        \\fn helper() void {}
+    ;
+
+    try gen.parseSource(source);
+
+    const decls = gen.getDeclarations();
+    try testing.expectEqual(@as(usize, 1), decls.len);
+    try testing.expect(!decls[0].is_public);
+}
+
+test "DocGenerator: parse function with no parameters" {
+    const testing = std.testing;
+    var gen = try DocGenerator.init(testing.allocator);
+    defer gen.deinit();
+
+    const source =
+        \\pub fn init() Self {
+        \\    return .{};
+        \\}
+    ;
+
+    try gen.parseSource(source);
+
+    const decls = gen.getDeclarations();
+    try testing.expectEqual(@as(usize, 1), decls.len);
+
+    const sig = decls[0].signature.?;
+    try testing.expectEqualStrings("init", sig.name);
+    try testing.expectEqual(@as(usize, 0), sig.parameters.len);
+    try testing.expectEqualStrings("Self", sig.return_type);
+}
+
+test "DocGenerator: parse struct with fields" {
+    const testing = std.testing;
+    var gen = try DocGenerator.init(testing.allocator);
+    defer gen.deinit();
+
+    const source =
+        \\/// A point in 2D space
+        \\pub const Point = struct { x: i32, y: i32 };
+    ;
+
+    try gen.parseSource(source);
+
+    const decls = gen.getDeclarations();
+    try testing.expectEqual(@as(usize, 1), decls.len);
+
+    const decl = decls[0];
+    try testing.expectEqual(DeclarationType.struct_type, decl.type);
+    try testing.expect(decl.is_public);
+
+    const comment = decl.comment.?;
+    try testing.expectEqualStrings("A point in 2D space", comment.content);
+
+    const fields = decl.struct_fields.?;
+    try testing.expectEqual(@as(usize, 2), fields.len);
+    try testing.expectEqualStrings("x", fields[0].name);
+    try testing.expectEqualStrings("i32", fields[0].field_type);
+    try testing.expectEqualStrings("y", fields[1].name);
+    try testing.expectEqualStrings("i32", fields[1].field_type);
+}
+
+test "DocGenerator: parse enum with values" {
+    const testing = std.testing;
+    var gen = try DocGenerator.init(testing.allocator);
+    defer gen.deinit();
+
+    const source =
+        \\/// Color enumeration
+        \\pub const Color = enum { red, green, blue };
+    ;
+
+    try gen.parseSource(source);
+
+    const decls = gen.getDeclarations();
+    try testing.expectEqual(@as(usize, 1), decls.len);
+
+    const decl = decls[0];
+    try testing.expectEqual(DeclarationType.enum_type, decl.type);
+    try testing.expect(decl.is_public);
+
+    const comment = decl.comment.?;
+    try testing.expectEqualStrings("Color enumeration", comment.content);
+
+    const values = decl.enum_values.?;
+    try testing.expectEqual(@as(usize, 3), values.len);
+    try testing.expectEqualStrings("red", values[0].name);
+    try testing.expectEqualStrings("green", values[1].name);
+    try testing.expectEqualStrings("blue", values[2].name);
+}
+
+test "DocGenerator: parse union with fields" {
+    const testing = std.testing;
+    var gen = try DocGenerator.init(testing.allocator);
+    defer gen.deinit();
+
+    const source =
+        \\/// Value union
+        \\pub const Value = union { int: i32, float: f32 };
+    ;
+
+    try gen.parseSource(source);
+
+    const decls = gen.getDeclarations();
+    try testing.expectEqual(@as(usize, 1), decls.len);
+
+    const decl = decls[0];
+    try testing.expectEqual(DeclarationType.union_type, decl.type);
+    try testing.expect(decl.is_public);
+
+    const fields = decl.struct_fields.?;
+    try testing.expectEqual(@as(usize, 2), fields.len);
+    try testing.expectEqualStrings("int", fields[0].name);
+    try testing.expectEqualStrings("i32", fields[0].field_type);
+}
+
+test "DocGenerator: parse constant" {
+    const testing = std.testing;
+    var gen = try DocGenerator.init(testing.allocator);
+    defer gen.deinit();
+
+    const source =
+        \\/// Maximum buffer size
+        \\pub const MAX_SIZE = 1024;
+    ;
+
+    try gen.parseSource(source);
+
+    const decls = gen.getDeclarations();
+    try testing.expectEqual(@as(usize, 1), decls.len);
+
+    const decl = decls[0];
+    try testing.expectEqual(DeclarationType.constant, decl.type);
+    try testing.expect(decl.is_public);
+
+    const comment = decl.comment.?;
+    try testing.expectEqualStrings("Maximum buffer size", comment.content);
+}
+
+test "DocGenerator: generateMarkdown with function" {
+    const testing = std.testing;
+    var gen = try DocGenerator.init(testing.allocator);
+    defer gen.deinit();
+
+    const source =
+        \\//! Test module
+        \\
+        \\/// Multiplies two numbers
+        \\pub fn mul(a: i32, b: i32) i32 {
+        \\    return a * b;
+        \\}
+    ;
+
+    try gen.parseSource(source);
+
+    var buf: [4096]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    try gen.generateMarkdown(fbs.writer());
+
+    const output = fbs.getWritten();
+    try testing.expect(std.mem.indexOf(u8, output, "# Overview") != null);
+    try testing.expect(std.mem.indexOf(u8, output, "Test module") != null);
+    try testing.expect(std.mem.indexOf(u8, output, "fn mul(") != null);
+    try testing.expect(std.mem.indexOf(u8, output, "a: i32") != null);
+    try testing.expect(std.mem.indexOf(u8, output, "b: i32") != null);
+    try testing.expect(std.mem.indexOf(u8, output, "Multiplies two numbers") != null);
+}
+
+test "DocGenerator: generateMarkdown with struct" {
+    const testing = std.testing;
+    var gen = try DocGenerator.init(testing.allocator);
+    defer gen.deinit();
+
+    const source =
+        \\/// A rectangle
+        \\pub const Rect = struct { width: u32, height: u32 };
+    ;
+
+    try gen.parseSource(source);
+
+    var buf: [4096]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    try gen.generateMarkdown(fbs.writer());
+
+    const output = fbs.getWritten();
+    try testing.expect(std.mem.indexOf(u8, output, "## Struct") != null);
+    try testing.expect(std.mem.indexOf(u8, output, "A rectangle") != null);
+    try testing.expect(std.mem.indexOf(u8, output, "### Fields") != null);
+    try testing.expect(std.mem.indexOf(u8, output, "width: u32") != null);
+    try testing.expect(std.mem.indexOf(u8, output, "height: u32") != null);
+}
+
+test "DocGenerator: generateMarkdown with enum" {
+    const testing = std.testing;
+    var gen = try DocGenerator.init(testing.allocator);
+    defer gen.deinit();
+
+    const source =
+        \\/// Status enumeration
+        \\pub const Status = enum { pending, active, done };
+    ;
+
+    try gen.parseSource(source);
+
+    var buf: [4096]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    try gen.generateMarkdown(fbs.writer());
+
+    const output = fbs.getWritten();
+    try testing.expect(std.mem.indexOf(u8, output, "## Enum") != null);
+    try testing.expect(std.mem.indexOf(u8, output, "Status enumeration") != null);
+    try testing.expect(std.mem.indexOf(u8, output, "### Values") != null);
+    try testing.expect(std.mem.indexOf(u8, output, "pending") != null);
+    try testing.expect(std.mem.indexOf(u8, output, "active") != null);
+    try testing.expect(std.mem.indexOf(u8, output, "done") != null);
+}
+
+test "DocGenerator: skip private declarations in markdown" {
+    const testing = std.testing;
+    var gen = try DocGenerator.init(testing.allocator);
+    defer gen.deinit();
+
+    const source =
+        \\pub fn publicFunc() void {}
+        \\fn privateFunc() void {}
+    ;
+
+    try gen.parseSource(source);
+
+    var buf: [4096]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    try gen.generateMarkdown(fbs.writer());
+
+    const output = fbs.getWritten();
+    try testing.expect(std.mem.indexOf(u8, output, "publicFunc") != null);
+    try testing.expect(std.mem.indexOf(u8, output, "privateFunc") == null);
+}
+
+test "DocGenerator: multiple declarations" {
+    const testing = std.testing;
+    var gen = try DocGenerator.init(testing.allocator);
+    defer gen.deinit();
+
+    const source =
+        \\pub fn foo() void {}
+        \\pub fn bar() i32 { return 42; }
+        \\pub const X = 10;
+    ;
+
+    try gen.parseSource(source);
+
+    const decls = gen.getDeclarations();
+    try testing.expectEqual(@as(usize, 3), decls.len);
+    try testing.expectEqual(DeclarationType.function, decls[0].type);
+    try testing.expectEqual(DeclarationType.function, decls[1].type);
+    try testing.expectEqual(DeclarationType.constant, decls[2].type);
+}
+
+test "DocGenerator: function with complex return type" {
+    const testing = std.testing;
+    var gen = try DocGenerator.init(testing.allocator);
+    defer gen.deinit();
+
+    const source =
+        \\pub fn allocate(size: usize) ![]u8 {
+        \\    return undefined;
+        \\}
+    ;
+
+    try gen.parseSource(source);
+
+    const decls = gen.getDeclarations();
+    try testing.expectEqual(@as(usize, 1), decls.len);
+
+    const sig = decls[0].signature.?;
+    try testing.expectEqualStrings("allocate", sig.name);
+    try testing.expectEqual(@as(usize, 1), sig.parameters.len);
+    try testing.expect(std.mem.indexOf(u8, sig.return_type, "![]u8") != null);
+}
+
+test "DocGenerator: struct with default values" {
+    const testing = std.testing;
+    var gen = try DocGenerator.init(testing.allocator);
+    defer gen.deinit();
+
+    const source =
+        \\pub const Config = struct { timeout: u32 = 5000, retries: u8 = 3 };
+    ;
+
+    try gen.parseSource(source);
+
+    const decls = gen.getDeclarations();
+    try testing.expectEqual(@as(usize, 1), decls.len);
+
+    const fields = decls[0].struct_fields.?;
+    try testing.expectEqual(@as(usize, 2), fields.len);
+    try testing.expectEqualStrings("timeout", fields[0].name);
+    try testing.expectEqualStrings("u32", fields[0].field_type);
+    try testing.expectEqualStrings("retries", fields[1].name);
+    try testing.expectEqualStrings("u8", fields[1].field_type);
+}
