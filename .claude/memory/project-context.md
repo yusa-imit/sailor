@@ -9,10 +9,18 @@
 - Previous versions: v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: None (need to establish new milestones)
+- **Active milestone**: v1.26.0 → Testing & Quality Assurance (1/5, 20%)
 - **Last completed**: v1.25.0 → Form & Validation (5/5, 100%) ✅
 
 ## Project Status
+✅ **Session 25** — STABILIZATION MODE: Test Coverage Improvements (2026-03-28)
+  - Added 37 comprehensive tests (+37 total)
+  - docgen.zig: 0 → 17 tests (module comment, functions, structs, enums, unions, markdown generation)
+  - calendar.zig: 1 → 21 tests (date math: leap years, day-of-week, addDays, addMonths, boundaries)
+  - Cross-platform verification: 6 targets compiled successfully (sequential)
+  - Established 3 new milestones (v1.26.0, v1.27.0, v1.28.0)
+  - CI status: cancelled runs are expected (cancel-in-progress policy)
+  - Commits: 48af71b (docgen tests), 22f999c (calendar tests)
 ✅ **Session 24** — v1.25.0 Release: Form & Validation (2026-03-28 FEATURE MODE)
   - Completed v1.25.0 milestone (5/5 items, 100%)
   - Added form_demo.zig example:
