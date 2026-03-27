@@ -48,6 +48,135 @@ pub fn easeInOutCubic(t: f32) f32 {
     return 1.0 + t1 * t1 * t1 / 2.0;
 }
 
+/// Ease-in-elastic (spring-like overshoot at start)
+pub fn easeInElastic(t: f32) f32 {
+    if (t == 0.0) return 0.0;
+    if (t == 1.0) return 1.0;
+    const c4 = (2.0 * std.math.pi) / 3.0;
+    return -std.math.pow(f32, 2.0, 10.0 * t - 10.0) * @sin((t * 10.0 - 10.75) * c4);
+}
+
+/// Ease-out-elastic (spring-like overshoot at end)
+pub fn easeOutElastic(t: f32) f32 {
+    if (t == 0.0) return 0.0;
+    if (t == 1.0) return 1.0;
+    const c4 = (2.0 * std.math.pi) / 3.0;
+    return std.math.pow(f32, 2.0, -10.0 * t) * @sin((t * 10.0 - 0.75) * c4) + 1.0;
+}
+
+/// Ease-in-out-elastic (spring-like overshoot at both ends)
+pub fn easeInOutElastic(t: f32) f32 {
+    if (t == 0.0) return 0.0;
+    if (t == 1.0) return 1.0;
+    const c5 = (2.0 * std.math.pi) / 4.5;
+    if (t < 0.5) {
+        return -(std.math.pow(f32, 2.0, 20.0 * t - 10.0) * @sin((20.0 * t - 11.125) * c5)) / 2.0;
+    }
+    return (std.math.pow(f32, 2.0, -20.0 * t + 10.0) * @sin((20.0 * t - 11.125) * c5)) / 2.0 + 1.0;
+}
+
+/// Ease-in-bounce (bouncing ball effect at start)
+pub fn easeInBounce(t: f32) f32 {
+    return 1.0 - easeOutBounce(1.0 - t);
+}
+
+/// Ease-out-bounce (bouncing ball effect at end)
+pub fn easeOutBounce(t: f32) f32 {
+    const n1: f32 = 7.5625;
+    const d1: f32 = 2.75;
+
+    if (t < 1.0 / d1) {
+        return n1 * t * t;
+    } else if (t < 2.0 / d1) {
+        const t2 = t - (1.5 / d1);
+        return n1 * t2 * t2 + 0.75;
+    } else if (t < 2.5 / d1) {
+        const t2 = t - (2.25 / d1);
+        return n1 * t2 * t2 + 0.9375;
+    } else {
+        const t2 = t - (2.625 / d1);
+        return n1 * t2 * t2 + 0.984375;
+    }
+}
+
+/// Ease-in-out-bounce (bouncing ball effect at both ends)
+pub fn easeInOutBounce(t: f32) f32 {
+    if (t < 0.5) {
+        return (1.0 - easeOutBounce(1.0 - 2.0 * t)) / 2.0;
+    }
+    return (1.0 + easeOutBounce(2.0 * t - 1.0)) / 2.0;
+}
+
+/// Ease-in-back (slight backward motion before forward)
+pub fn easeInBack(t: f32) f32 {
+    const c1: f32 = 1.70158;
+    const c3 = c1 + 1.0;
+    return c3 * t * t * t - c1 * t * t;
+}
+
+/// Ease-out-back (slight forward overshoot before settling)
+pub fn easeOutBack(t: f32) f32 {
+    const c1: f32 = 1.70158;
+    const c3 = c1 + 1.0;
+    const t1 = t - 1.0;
+    return 1.0 + c3 * t1 * t1 * t1 + c1 * t1 * t1;
+}
+
+/// Ease-in-out-back (slight backward/forward motion at both ends)
+pub fn easeInOutBack(t: f32) f32 {
+    const c1: f32 = 1.70158;
+    const c2 = c1 * 1.525;
+
+    if (t < 0.5) {
+        const t2 = 2.0 * t;
+        return (t2 * t2 * ((c2 + 1.0) * 2.0 * t - c2)) / 2.0;
+    }
+    const t2 = 2.0 * t - 2.0;
+    return (t2 * t2 * ((c2 + 1.0) * t2 + c2) + 2.0) / 2.0;
+}
+
+/// Ease-in-circ (circular arc acceleration)
+pub fn easeInCirc(t: f32) f32 {
+    return 1.0 - @sqrt(1.0 - std.math.pow(f32, t, 2.0));
+}
+
+/// Ease-out-circ (circular arc deceleration)
+pub fn easeOutCirc(t: f32) f32 {
+    const t1 = t - 1.0;
+    return @sqrt(1.0 - t1 * t1);
+}
+
+/// Ease-in-out-circ (circular arc at both ends)
+pub fn easeInOutCirc(t: f32) f32 {
+    if (t < 0.5) {
+        return (1.0 - @sqrt(1.0 - std.math.pow(f32, 2.0 * t, 2.0))) / 2.0;
+    }
+    const t2 = -2.0 * t + 2.0;
+    return (@sqrt(1.0 - std.math.pow(f32, t2, 2.0)) + 1.0) / 2.0;
+}
+
+/// Ease-in-expo (exponential acceleration)
+pub fn easeInExpo(t: f32) f32 {
+    if (t == 0.0) return 0.0;
+    return std.math.pow(f32, 2.0, 10.0 * t - 10.0);
+}
+
+/// Ease-out-expo (exponential deceleration)
+pub fn easeOutExpo(t: f32) f32 {
+    if (t == 1.0) return 1.0;
+    return 1.0 - std.math.pow(f32, 2.0, -10.0 * t);
+}
+
+/// Ease-in-out-expo (exponential at both ends)
+pub fn easeInOutExpo(t: f32) f32 {
+    if (t == 0.0) return 0.0;
+    if (t == 1.0) return 1.0;
+    if (t < 0.5) {
+        return std.math.pow(f32, 2.0, 20.0 * t - 10.0) / 2.0;
+    }
+    return (2.0 - std.math.pow(f32, 2.0, -20.0 * t + 10.0)) / 2.0;
+}
+
 /// Interpolate between two numeric values
 pub fn lerp(start: f32, end: f32, t: f32) f32 {
     return start + (end - start) * t;
@@ -205,7 +334,7 @@ pub const ColorAnimation = struct {
     }
 };
 
-test "Animation - easing functions" {
+test "Animation - easing functions - basic" {
     // Linear
     try std.testing.expectEqual(@as(f32, 0.0), linear(0.0));
     try std.testing.expectEqual(@as(f32, 0.5), linear(0.5));
@@ -225,6 +354,147 @@ test "Animation - easing functions" {
     try std.testing.expectEqual(@as(f32, 0.0), easeInOut(0.0));
     try std.testing.expectApproxEqRel(@as(f32, 0.5), easeInOut(0.5), 0.01);
     try std.testing.expectEqual(@as(f32, 1.0), easeInOut(1.0));
+}
+
+test "Animation - easing functions - cubic" {
+    // Ease-in-cubic
+    try std.testing.expectEqual(@as(f32, 0.0), easeInCubic(0.0));
+    try std.testing.expectApproxEqRel(@as(f32, 0.125), easeInCubic(0.5), 0.01);
+    try std.testing.expectEqual(@as(f32, 1.0), easeInCubic(1.0));
+
+    // Ease-out-cubic
+    try std.testing.expectEqual(@as(f32, 0.0), easeOutCubic(0.0));
+    try std.testing.expectApproxEqRel(@as(f32, 0.875), easeOutCubic(0.5), 0.01);
+    try std.testing.expectEqual(@as(f32, 1.0), easeOutCubic(1.0));
+
+    // Ease-in-out-cubic
+    try std.testing.expectEqual(@as(f32, 0.0), easeInOutCubic(0.0));
+    try std.testing.expectApproxEqRel(@as(f32, 0.5), easeInOutCubic(0.5), 0.01);
+    try std.testing.expectEqual(@as(f32, 1.0), easeInOutCubic(1.0));
+}
+
+test "Animation - easing functions - elastic" {
+    // Elastic functions should start at 0, end at 1
+    try std.testing.expectEqual(@as(f32, 0.0), easeInElastic(0.0));
+    try std.testing.expectEqual(@as(f32, 1.0), easeInElastic(1.0));
+
+    try std.testing.expectEqual(@as(f32, 0.0), easeOutElastic(0.0));
+    try std.testing.expectEqual(@as(f32, 1.0), easeOutElastic(1.0));
+
+    try std.testing.expectEqual(@as(f32, 0.0), easeInOutElastic(0.0));
+    try std.testing.expectEqual(@as(f32, 1.0), easeInOutElastic(1.0));
+
+    // Elastic should overshoot (values outside [0,1] range during animation)
+    const mid = easeOutElastic(0.5);
+    try std.testing.expect(mid > 1.0); // Should overshoot past 1.0
+}
+
+test "Animation - easing functions - bounce" {
+    // Bounce functions should start at 0, end at 1
+    try std.testing.expectEqual(@as(f32, 0.0), easeInBounce(0.0));
+    try std.testing.expectEqual(@as(f32, 1.0), easeInBounce(1.0));
+
+    try std.testing.expectEqual(@as(f32, 0.0), easeOutBounce(0.0));
+    try std.testing.expectEqual(@as(f32, 1.0), easeOutBounce(1.0));
+
+    try std.testing.expectEqual(@as(f32, 0.0), easeInOutBounce(0.0));
+    try std.testing.expectEqual(@as(f32, 1.0), easeInOutBounce(1.0));
+
+    // Bounce should create small local peaks
+    const val = easeOutBounce(0.5);
+    try std.testing.expect(val > 0.0 and val < 1.0);
+}
+
+test "Animation - easing functions - back" {
+    // Back functions should start at 0, end at 1
+    try std.testing.expectEqual(@as(f32, 0.0), easeInBack(0.0));
+    try std.testing.expectEqual(@as(f32, 1.0), easeInBack(1.0));
+
+    try std.testing.expectEqual(@as(f32, 0.0), easeOutBack(0.0));
+    try std.testing.expectEqual(@as(f32, 1.0), easeOutBack(1.0));
+
+    try std.testing.expectEqual(@as(f32, 0.0), easeInOutBack(0.0));
+    try std.testing.expectEqual(@as(f32, 1.0), easeInOutBack(1.0));
+
+    // Back should go slightly negative at start
+    const early = easeInBack(0.1);
+    try std.testing.expect(early < 0.0); // Should pull back before moving forward
+}
+
+test "Animation - easing functions - circ" {
+    // Circ functions should start at 0, end at 1
+    try std.testing.expectEqual(@as(f32, 0.0), easeInCirc(0.0));
+    try std.testing.expectEqual(@as(f32, 1.0), easeInCirc(1.0));
+
+    try std.testing.expectEqual(@as(f32, 0.0), easeOutCirc(0.0));
+    try std.testing.expectEqual(@as(f32, 1.0), easeOutCirc(1.0));
+
+    try std.testing.expectEqual(@as(f32, 0.0), easeInOutCirc(0.0));
+    try std.testing.expectEqual(@as(f32, 1.0), easeInOutCirc(1.0));
+
+    // Circ should create smooth curve
+    const mid = easeInCirc(0.5);
+    try std.testing.expect(mid > 0.0 and mid < 1.0);
+}
+
+test "Animation - easing functions - expo" {
+    // Expo functions should start at 0, end at 1
+    try std.testing.expectEqual(@as(f32, 0.0), easeInExpo(0.0));
+    try std.testing.expectEqual(@as(f32, 1.0), easeInExpo(1.0));
+
+    try std.testing.expectEqual(@as(f32, 0.0), easeOutExpo(0.0));
+    try std.testing.expectEqual(@as(f32, 1.0), easeOutExpo(1.0));
+
+    try std.testing.expectEqual(@as(f32, 0.0), easeInOutExpo(0.0));
+    try std.testing.expectEqual(@as(f32, 1.0), easeInOutExpo(1.0));
+
+    // Expo should create sharp curve
+    const mid = easeInExpo(0.5);
+    try std.testing.expect(mid > 0.0 and mid < 0.5); // Should be slow at start
+}
+
+test "Animation - all easing functions are monotonic or intentionally non-monotonic" {
+    // Test that easing functions behave correctly across the range
+    const easings = [_]struct { name: []const u8, fn_ptr: EasingFn, monotonic: bool }{
+        .{ .name = "linear", .fn_ptr = linear, .monotonic = true },
+        .{ .name = "easeIn", .fn_ptr = easeIn, .monotonic = true },
+        .{ .name = "easeOut", .fn_ptr = easeOut, .monotonic = true },
+        .{ .name = "easeInOut", .fn_ptr = easeInOut, .monotonic = true },
+        .{ .name = "easeInCubic", .fn_ptr = easeInCubic, .monotonic = true },
+        .{ .name = "easeOutCubic", .fn_ptr = easeOutCubic, .monotonic = true },
+        .{ .name = "easeInOutCubic", .fn_ptr = easeInOutCubic, .monotonic = true },
+        .{ .name = "easeInCirc", .fn_ptr = easeInCirc, .monotonic = true },
+        .{ .name = "easeOutCirc", .fn_ptr = easeOutCirc, .monotonic = true },
+        .{ .name = "easeInOutCirc", .fn_ptr = easeInOutCirc, .monotonic = true },
+        .{ .name = "easeInExpo", .fn_ptr = easeInExpo, .monotonic = true },
+        .{ .name = "easeOutExpo", .fn_ptr = easeOutExpo, .monotonic = true },
+        .{ .name = "easeInOutExpo", .fn_ptr = easeInOutExpo, .monotonic = true },
+        // These intentionally overshoot/bounce (non-monotonic)
+        .{ .name = "easeInElastic", .fn_ptr = easeInElastic, .monotonic = false },
+        .{ .name = "easeOutElastic", .fn_ptr = easeOutElastic, .monotonic = false },
+        .{ .name = "easeInOutElastic", .fn_ptr = easeInOutElastic, .monotonic = false },
+        .{ .name = "easeInBounce", .fn_ptr = easeInBounce, .monotonic = false },
+        .{ .name = "easeOutBounce", .fn_ptr = easeOutBounce, .monotonic = false },
+        .{ .name = "easeInOutBounce", .fn_ptr = easeInOutBounce, .monotonic = false },
+        .{ .name = "easeInBack", .fn_ptr = easeInBack, .monotonic = false },
+        .{ .name = "easeOutBack", .fn_ptr = easeOutBack, .monotonic = false },
+        .{ .name = "easeInOutBack", .fn_ptr = easeInOutBack, .monotonic = false },
+    };
+
+    for (easings) |easing| {
+        const val0 = easing.fn_ptr(0.0);
+        const val1 = easing.fn_ptr(1.0);
+
+        // All should map 0->0 and 1->1 (approximately)
+        try std.testing.expectApproxEqRel(@as(f32, 0.0), val0, 0.01);
+        try std.testing.expectApproxEqRel(@as(f32, 1.0), val1, 0.01);
+
+        // For monotonic functions, intermediate values should be in range
+        if (easing.monotonic) {
+            const val_mid = easing.fn_ptr(0.5);
+            try std.testing.expect(val_mid >= 0.0 and val_mid <= 1.0);
+        }
+    }
 }
 
 test "Animation - lerp" {
