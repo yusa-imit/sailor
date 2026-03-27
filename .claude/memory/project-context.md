@@ -5,14 +5,34 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.24.0** 🎯 (2026-03-27)
-- Previous versions: v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.25.0** 🎯 (2026-03-28)
+- Previous versions: v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: v1.25.0 → Form & Validation (0/5, 0%)
-- **Last completed**: v1.24.0 → Animation & Transitions (5/5, 100%) ✅
+- **Active milestone**: None (need to establish new milestones)
+- **Last completed**: v1.25.0 → Form & Validation (5/5, 100%) ✅
 
 ## Project Status
+✅ **Session 24** — v1.25.0 Release: Form & Validation (2026-03-28 FEATURE MODE)
+  - Completed v1.25.0 milestone (5/5 items, 100%)
+  - Added form_demo.zig example:
+    - Registration/login form demonstration
+    - Email and password fields with validators
+    - Centered form rendering with rounded borders
+    - Instructions display
+    - Feature summary output
+  - Fixed form.zig bugs:
+    - Password masking: `"*" ** field.value.len` → character-by-char rendering
+    - Duplicate ValidationResult: removed from form.zig, now uses validators module
+    - Color.gray → Color.bright_black (3 occurrences: help text, cursor, instructions)
+    - Cursor rendering: properly handles password masking
+  - Released v1.25.0:
+    - Version bump: v1.24.0 → v1.25.0
+    - GitHub release created with comprehensive validator list
+    - Discord notification sent
+  - All tests pass ✅ (2631 tests)
+  - Open issues: 0 bugs
+  - Commits: 27e5270 (form demo + fixes), 5fbfac4 (version), ade15ae (milestones)
 ✅ **Session 23** — v1.24.0 Release: Animation & Transitions (2026-03-27 FEATURE MODE)
   - Completed v1.24.0 milestone (5/5 items, 100%)
   - Implemented comprehensive easing functions (271 lines):
