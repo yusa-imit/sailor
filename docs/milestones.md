@@ -4,11 +4,41 @@
 
 - **Latest release**: v1.25.0 (2026-03-28) — Form & Validation
 - **Latest minor**: v1.25.0 (2026-03-28) — Form & Validation
-- **Next milestone**: TBD (need to establish new milestones)
-- **Active milestones**: 0 (all complete)
+- **Next milestone**: v1.26.0 (Testing & Quality Assurance)
+- **Active milestones**: 3 (v1.26.0, v1.27.0, v1.28.0)
 - **Blockers**: None
 
 ## Active Milestones
+
+### v1.26.0 — Testing & Quality Assurance
+**Theme**: Test coverage improvements, edge case hardening, test quality audit
+**Target**: 2026-04 (1-2 weeks)
+**Checklist**:
+- [ ] Identify modules with <5 tests per 200 lines
+- [ ] Add meaningful tests (not stub/always-pass tests)
+- [ ] Test quality audit: remove trivial tests, add failure scenarios
+- [ ] Edge case testing: boundary values, error paths
+- [ ] Memory leak audit in complex widgets (Tree, Table, Form)
+
+### v1.27.0 — Documentation & Examples
+**Theme**: Improve developer experience with comprehensive docs and examples
+**Target**: 2026-04 (1-2 weeks)
+**Checklist**:
+- [ ] API documentation review (all pub fns have doc comments)
+- [ ] Add 5 new example apps demonstrating real-world patterns
+- [ ] Getting started guide for each module (term, color, arg, tui, widgets)
+- [ ] Troubleshooting guide (common errors, solutions)
+- [ ] Performance tuning guide (when to use lazy rendering, buffer pooling)
+
+### v1.28.0 — Ecosystem Integration & Polish
+**Theme**: zuda integration, consumer feedback, final polish
+**Target**: 2026-04 (1-2 weeks)
+**Checklist**:
+- [ ] Audit for zuda-compatible algorithms (sorting, searching, hashing)
+- [ ] Replace custom implementations with zuda imports where applicable
+- [ ] Address any open consumer issues (from:zr, from:zoltraak, from:silica)
+- [ ] Performance benchmarking across all widgets
+- [ ] Release v2.0.0 planning document (breaking changes, major features)
 
 ### v1.22.0 — Rich Text & Formatting (COMPLETED 2026-03-26)
 **Theme**: Advanced text rendering and inline formatting
