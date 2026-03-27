@@ -63,6 +63,7 @@ pub const blur = @import("blur.zig");
 
 // v1.24.0+ — Transition Helpers
 pub const transition = @import("transition.zig");
+pub const timer = @import("timer.zig");
 
 // v1.12.0+ — Enterprise & Accessibility
 pub const session = @import("session.zig");
