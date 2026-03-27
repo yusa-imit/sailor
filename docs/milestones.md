@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v1.24.0 (2026-03-27) — Animation & Transitions
-- **Latest minor**: v1.24.0 (2026-03-27) — Animation & Transitions
-- **Next milestone**: v1.25.0 — Form & Validation (ready for release)
-- **Active milestones**: 1 (v1.25.0 complete, ready for release)
+- **Latest release**: v1.25.0 (2026-03-28) — Form & Validation
+- **Latest minor**: v1.25.0 (2026-03-28) — Form & Validation
+- **Next milestone**: TBD (need to establish new milestones)
+- **Active milestones**: 0 (all complete)
 - **Blockers**: None
 
 ## Active Milestones
@@ -29,16 +29,6 @@
 - [x] Easing functions - smooth interpolation (22 total: linear, cubic, elastic, bounce, back, circ, expo)
 - [x] Example animations - animation_demo.zig showcasing all features
 
-### v1.25.0 — Form & Validation (COMPLETE)
-**Theme**: Complex input handling and validation
-**Target**: 2026-04 (1-2 weeks)
-**Checklist**:
-- [x] Form widget - container for multiple inputs
-- [x] Validators - required, pattern, range, custom (basic, numeric, pattern, masks)
-- [x] Error display - inline validation messages
-- [x] Field focus - tab navigation between fields
-- [x] Example form - registration/login demo (form_demo.zig)
-
 ### v1.23.0 — Plugin Architecture & Extensibility (COMPLETED 2026-03-27)
 **Theme**: Enable custom widgets and renderer extensions
 **Checklist**:
@@ -52,6 +42,8 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.25.0 | Form & Validation | 2026-03-28 | Form widget, 15+ validators (basic, numeric, pattern), input masks (SSN, phone, date), inline error display, field focus navigation, form_demo.zig example |
+| v1.24.0 | Animation & Transitions | 2026-03-27 | Animation trait, transition helpers (fade, slide, expand), Timer system, 22 easing functions (cubic, elastic, bounce, back, circ, expo), animation_demo.zig |
 | v1.23.0 | Plugin Architecture & Extensibility | 2026-03-27 | Widget trait system, renderer hooks, theme plugin (JSON), composition helpers (Padding/Centered/Aligned/Stack/Constrained), plugin demo example (+10 tests) |
 | v1.22.0 | Rich Text & Formatting | 2026-03-26 | SpanBuilder/LineBuilder, markdown parser, line breaking, text measurements (+123 tests) |
 | v1.21.0 | Streaming & Large Data | 2026-03-25 | DataSource abstraction (Item/Table/Line), large data benchmarks (1M items, 100MB+) |
