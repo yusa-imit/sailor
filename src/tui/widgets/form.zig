@@ -8,19 +8,11 @@ const Line = @import("../style.zig").Line;
 const Block = @import("block.zig").Block;
 const Input = @import("input.zig").Input;
 const symbols = @import("../symbols.zig");
+const validators = @import("../validators.zig");
 
-/// Form validation result
-pub const ValidationResult = union(enum) {
-    valid,
-    invalid: []const u8, // error message
-
-    pub fn isValid(self: ValidationResult) bool {
-        return self == .valid;
-    }
-};
-
-/// Field validator function type
-pub const Validator = *const fn (value: []const u8) ValidationResult;
+/// Re-export validator types for convenience
+pub const ValidationResult = validators.ValidationResult;
+pub const Validator = validators.Validator;
 
 /// Form field definition
 pub const Field = struct {
@@ -285,28 +277,27 @@ pub const Form = struct {
             const value_x = label_x + self.label_width + 2;
             if (value_x < label_x + render_area.width) {
                 const value_width = render_area.width -| (self.label_width + 2);
-                const display_value = if (field.is_password)
-                    "*" ** field.value.len
-                else
-                    field.value;
 
-                for (display_value, 0..) |ch, x| {
+                for (field.value, 0..) |ch, x| {
                     if (x >= value_width) break;
+                    const display_char = if (field.is_password) '*' else ch;
                     buf.set(@intCast(value_x + x), label_y, .{
-                        .char = @intCast(ch),
+                        .char = @intCast(display_char),
                         .style = field_style,
                     });
                 }
 
                 // Render cursor if focused
                 if (is_focused and field.cursor <= value_width) {
-                    const cursor_char = if (field.cursor < display_value.len)
-                        @as(u21, @intCast(display_value[field.cursor]))
+                    const cursor_char = if (field.cursor < field.value.len)
+                        if (field.is_password) '*' else @as(u21, @intCast(field.value[field.cursor]))
                     else
                         ' ';
+                    var cursor_style = field_style;
+                    cursor_style.reverse = true;
                     buf.set(@intCast(value_x + field.cursor), label_y, .{
                         .char = cursor_char,
-                        .style = field_style.reversed(),
+                        .style = cursor_style,
                     });
                 }
             }
@@ -334,7 +325,7 @@ pub const Form = struct {
         if (self.show_help and render_area.height > 0) {
             const help_y = render_area.y + render_area.height - 1;
             const help_text = "Tab: Next | Shift+Tab: Prev | Enter: Submit | Esc: Cancel";
-            const help_style = Style{ .fg = .gray };
+            const help_style = Style{ .fg = .bright_black };
             for (help_text, 0..) |ch, x| {
                 if (x >= render_area.width) break;
                 buf.set(@intCast(render_area.x + x), help_y, .{
@@ -345,93 +336,6 @@ pub const Form = struct {
         }
     }
 };
-
-// Validator functions
-
-/// Validates that field is not empty
-pub fn notEmpty(value: []const u8) ValidationResult {
-    if (value.len == 0) {
-        return .{ .invalid = "This field is required" };
-    }
-    return .valid;
-}
-
-/// Validates email format (basic check)
-pub fn email(value: []const u8) ValidationResult {
-    if (value.len == 0) {
-        return .{ .invalid = "Email is required" };
-    }
-
-    var has_at = false;
-    var has_dot_after_at = false;
-    var at_pos: usize = 0;
-
-    for (value, 0..) |ch, i| {
-        if (ch == '@') {
-            if (has_at) {
-                return .{ .invalid = "Email cannot have multiple @ symbols" };
-            }
-            has_at = true;
-            at_pos = i;
-        } else if (has_at and ch == '.') {
-            if (i > at_pos + 1) {
-                has_dot_after_at = true;
-            }
-        }
-    }
-
-    if (!has_at) {
-        return .{ .invalid = "Email must contain @" };
-    }
-    if (!has_dot_after_at) {
-        return .{ .invalid = "Email must contain domain" };
-    }
-
-    return .valid;
-}
-
-/// Validates minimum length
-pub fn minLength(min: usize) Validator {
-    const validators = struct {
-        fn check(value: []const u8) ValidationResult {
-            if (value.len < min) {
-                return .{ .invalid = "Too short" };
-            }
-            return .valid;
-        }
-    };
-    return validators.check;
-}
-
-/// Validates that value contains only digits
-pub fn numeric(value: []const u8) ValidationResult {
-    if (value.len == 0) {
-        return .{ .invalid = "Number is required" };
-    }
-
-    for (value) |ch| {
-        if (ch < '0' or ch > '9') {
-            return .{ .invalid = "Must be a number" };
-        }
-    }
-
-    return .valid;
-}
-
-/// Validates URL format (basic check)
-pub fn url(value: []const u8) ValidationResult {
-    if (value.len == 0) {
-        return .{ .invalid = "URL is required" };
-    }
-
-    if (std.mem.startsWith(u8, value, "http://") or
-        std.mem.startsWith(u8, value, "https://"))
-    {
-        return .valid;
-    }
-
-    return .{ .invalid = "URL must start with http:// or https://" };
-}
 
 // Tests
 
@@ -493,8 +397,8 @@ test "Form: focusedField" {
 
 test "Form: validation" {
     var fields = [_]Field{
-        Field.init("Name").withValidator(notEmpty),
-        Field.init("Email").withValidator(email),
+        Field.init("Name").withValidator(validators.notEmpty),
+        Field.init("Email").withValidator(validators.email),
     };
 
     var form = Form.init(&fields);
@@ -552,58 +456,8 @@ test "Form: render with block" {
     try std.testing.expectEqual(symbols.border.plain.top_left, top_left.char);
 }
 
-test "Validator: notEmpty" {
-    const result1 = notEmpty("");
-    try std.testing.expect(!result1.isValid());
-
-    const result2 = notEmpty("hello");
-    try std.testing.expect(result2.isValid());
-}
-
-test "Validator: email" {
-    const result1 = email("");
-    try std.testing.expect(!result1.isValid());
-
-    const result2 = email("invalid");
-    try std.testing.expect(!result2.isValid());
-
-    const result3 = email("no-domain@");
-    try std.testing.expect(!result3.isValid());
-
-    const result4 = email("valid@example.com");
-    try std.testing.expect(result4.isValid());
-}
-
-test "Validator: numeric" {
-    const result1 = numeric("");
-    try std.testing.expect(!result1.isValid());
-
-    const result2 = numeric("abc");
-    try std.testing.expect(!result2.isValid());
-
-    const result3 = numeric("123");
-    try std.testing.expect(result3.isValid());
-
-    const result4 = numeric("12.34");
-    try std.testing.expect(!result4.isValid());
-}
-
-test "Validator: url" {
-    const result1 = url("");
-    try std.testing.expect(!result1.isValid());
-
-    const result2 = url("example.com");
-    try std.testing.expect(!result2.isValid());
-
-    const result3 = url("http://example.com");
-    try std.testing.expect(result3.isValid());
-
-    const result4 = url("https://example.com");
-    try std.testing.expect(result4.isValid());
-}
-
 test "Field: withValidator" {
-    var field = Field.init("Email").withValidator(email);
+    var field = Field.init("Email").withValidator(validators.email);
 
     field.value = "invalid";
     try std.testing.expect(!field.validate());
