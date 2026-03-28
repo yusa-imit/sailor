@@ -2,23 +2,13 @@
 
 ## Current Status
 
-- **Latest release**: v1.25.0 (2026-03-28) — Form & Validation
-- **Latest minor**: v1.25.0 (2026-03-28) — Form & Validation
-- **Next milestone**: v1.26.0 (Testing & Quality Assurance)
-- **Active milestones**: 3 (v1.26.0, v1.27.0, v1.28.0)
+- **Latest release**: v1.26.0 (2026-03-29) — Testing & Quality Assurance
+- **Latest minor**: v1.26.0 (2026-03-29) — Testing & Quality Assurance
+- **Next milestone**: v1.27.0 (Documentation & Examples)
+- **Active milestones**: 2 (v1.27.0, v1.28.0)
 - **Blockers**: None
 
 ## Active Milestones
-
-### v1.26.0 — Testing & Quality Assurance
-**Theme**: Test coverage improvements, edge case hardening, test quality audit
-**Target**: 2026-04 (1-2 weeks)
-**Checklist**:
-- [x] Identify modules with <5 tests per 200 lines (Session 26)
-- [x] Add meaningful tests (not stub/always-pass tests) — termcap.zig (+37), pool.zig (+17), bench.zig (+12)
-- [x] Test quality audit: add failure scenarios — repl.zig (+8 error tests), docgen.zig (+7 error tests) (Session 27)
-- [x] Edge case testing: boundary values, error paths (Sessions 28-29: transition +32, timer +35, menu +50, form +30, chunkedbuffer +28, richtext_parser +38 = 213 edge case tests)
-- [x] Memory leak audit in complex widgets (Tree, Table, Form) — Session 31: fixed Tree page_allocator leak, Form insertChar/deleteChar leaks, verified Table clean, added 13 leak tests
 
 ### v1.27.0 — Documentation & Examples
 **Theme**: Improve developer experience with comprehensive docs and examples
@@ -72,6 +62,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.26.0 | Testing & Quality Assurance | 2026-03-29 | Memory leak audit & fixes (Tree, Form), 292 new tests (termcap +37, pool +17, bench +12, repl +8, docgen +7, transition +32, timer +35, menu +50, form +30, chunkedbuffer +28, richtext_parser +38, 13 leak tests), total 3393 tests |
 | v1.25.0 | Form & Validation | 2026-03-28 | Form widget, 15+ validators (basic, numeric, pattern), input masks (SSN, phone, date), inline error display, field focus navigation, form_demo.zig example |
 | v1.24.0 | Animation & Transitions | 2026-03-27 | Animation trait, transition helpers (fade, slide, expand), Timer system, 22 easing functions (cubic, elastic, bounce, back, circ, expo), animation_demo.zig |
 | v1.23.0 | Plugin Architecture & Extensibility | 2026-03-27 | Widget trait system, renderer hooks, theme plugin (JSON), composition helpers (Padding/Centered/Aligned/Stack/Constrained), plugin demo example (+10 tests) |

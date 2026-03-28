@@ -5,14 +5,26 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.25.0** 🎯 (2026-03-28)
-- Previous versions: v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.26.0** 🎯 (2026-03-29)
+- Previous versions: v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: v1.26.0 → Testing & Quality Assurance (3/5, 60%)
-- **Last completed**: v1.25.0 → Form & Validation (5/5, 100%) ✅
+- **Active milestone**: v1.27.0 → Documentation & Examples (0/5, 0%)
+- **Last completed**: v1.26.0 → Testing & Quality Assurance (5/5, 100%) ✅
 
 ## Project Status
+✅ **Session 31** — FEATURE MODE: Memory Leak Audit & v1.26.0 Release (2026-03-29)
+  - **RELEASED v1.26.0** — Testing & Quality Assurance milestone complete (5/5, 100%)
+  - Memory leak audit performed on Tree, Table, Form widgets
+  - **Tree widget FIXED**: Removed hardcoded page_allocator, changed to stack BoundedArray (max 256 nodes)
+  - **Form widget FIXED**: insertChar/deleteChar leaks, added Field.deinit() and Form.deinit()
+  - **Table widget VERIFIED**: No leaks (already used stack arrays)
+  - Added 13 memory leak tests across all three widgets
+  - Total tests: 3393 (all passing)
+  - GitHub release: https://github.com/yusa-imit/sailor/releases/tag/v1.26.0
+  - Discord notification sent
+  - Next milestone: v1.27.0 (Documentation & Examples)
+  - Commits: 0e0eb83 (memory leak fixes), 7361284 (version bump)
 ✅ **Session 30** — STABILIZATION MODE: Cross-platform Verification (2026-03-29)
   - Verified all 6 cross-compilation targets build successfully
   - Targets: x86_64/aarch64 Linux/macOS/Windows
