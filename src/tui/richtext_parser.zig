@@ -335,3 +335,548 @@ test "parse: heading" {
     }
     try testing.expect(has_bold);
 }
+
+// ============================================================================
+// Edge Case Tests
+// ============================================================================
+
+// Empty/Whitespace Edge Cases
+
+test "parse: empty string returns empty array" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const lines = try parser.parse("");
+    defer testing.allocator.free(lines);
+
+    try testing.expectEqual(@as(usize, 0), lines.len);
+}
+
+test "parseInline: empty string returns line with empty spans" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 0), line.spans.len);
+}
+
+test "parseInline: only whitespace treated as plain text" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("   ");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("   ", line.spans[0].content);
+}
+
+test "parseInline: line with only spaces is plain text" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("     ");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expect(!line.spans[0].style.bold);
+}
+
+// Unclosed Markers Edge Cases
+
+test "parseInline: unclosed bold marker treated as literal" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("**bold without closing");
+    defer testing.allocator.free(line.spans);
+
+    // ** at pos 0 doesn't match (no closing **), then * at pos 0 matches * at pos 1
+    // Result: empty italic span, then "bold without closing" as plain text
+    try testing.expectEqual(@as(usize, 2), line.spans.len);
+    try testing.expectEqualStrings("", line.spans[0].content);
+    try testing.expect(line.spans[0].style.italic);
+    try testing.expectEqualStrings("bold without closing", line.spans[1].content);
+    try testing.expect(!line.spans[1].style.italic);
+}
+
+test "parseInline: unclosed italic marker treated as literal text" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("*italic without closing");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("*italic without closing", line.spans[0].content);
+}
+
+test "parseInline: unclosed code marker treated as literal text" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("`code without closing");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("`code without closing", line.spans[0].content);
+}
+
+test "parseInline: unclosed strikethrough marker treated as literal text" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("~~strikethrough without closing");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("~~strikethrough without closing", line.spans[0].content);
+}
+
+// Tight Binding Violations
+
+test "parseInline: space after opening bold marker not formatted" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("** space after opening**");
+    defer testing.allocator.free(line.spans);
+
+    // ** at pos 0 fails (tight binding - space after), * at pos 0 matches * at pos 1
+    // Creates empty italic, then " space after opening", then * at pos 22 matches * at pos 23
+    try testing.expectEqual(@as(usize, 3), line.spans.len);
+    try testing.expectEqualStrings("", line.spans[0].content);
+    try testing.expect(line.spans[0].style.italic);
+    try testing.expectEqualStrings(" space after opening", line.spans[1].content);
+    try testing.expect(!line.spans[1].style.italic);
+    try testing.expectEqualStrings("", line.spans[2].content);
+    try testing.expect(line.spans[2].style.italic);
+}
+
+test "parseInline: space before closing bold marker not formatted" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("**space before closing **");
+    defer testing.allocator.free(line.spans);
+
+    // ** at pos 0 fails (space before closing **), * at pos 0 matches * at pos 1
+    // Creates empty italic, then "space before closing ", then * at pos 23 matches * at pos 24
+    try testing.expectEqual(@as(usize, 3), line.spans.len);
+    try testing.expectEqualStrings("", line.spans[0].content);
+    try testing.expect(line.spans[0].style.italic);
+    try testing.expectEqualStrings("space before closing ", line.spans[1].content);
+    try testing.expect(!line.spans[1].style.italic);
+    try testing.expectEqualStrings("", line.spans[2].content);
+    try testing.expect(line.spans[2].style.italic);
+}
+
+test "parseInline: space after opening italic marker not formatted" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("* space italic *");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("* space italic *", line.spans[0].content);
+}
+
+// Word-Internal Markers
+
+test "parseInline: underscore in snake_case not formatted" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("snake_case_variable");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("snake_case_variable", line.spans[0].content);
+    try testing.expect(!line.spans[0].style.italic);
+}
+
+test "parseInline: asterisk in expression not formatted" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("multi*plied*value");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("multi*plied*value", line.spans[0].content);
+}
+
+test "parseInline: multiple underscores in identifier not formatted" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("file_name_here");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("file_name_here", line.spans[0].content);
+}
+
+// Valid Formatting Edge Cases
+
+test "parseInline: bold only" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("**bold**");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("bold", line.spans[0].content);
+    try testing.expect(line.spans[0].style.bold);
+    try testing.expect(!line.spans[0].style.italic);
+}
+
+test "parseInline: italic with asterisk" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("*italic*");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("italic", line.spans[0].content);
+    try testing.expect(line.spans[0].style.italic);
+}
+
+test "parseInline: italic with underscore" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("_italic_");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("italic", line.spans[0].content);
+    try testing.expect(line.spans[0].style.italic);
+}
+
+test "parseInline: bold italic combined" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("***bold italic***");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("bold italic", line.spans[0].content);
+    try testing.expect(line.spans[0].style.bold);
+    try testing.expect(line.spans[0].style.italic);
+}
+
+test "parseInline: code with dim style" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("`code`");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("code", line.spans[0].content);
+    try testing.expect(line.spans[0].style.dim);
+}
+
+test "parseInline: strikethrough" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("~~strikethrough~~");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("strikethrough", line.spans[0].content);
+    try testing.expect(line.spans[0].style.strikethrough);
+}
+
+// Multiple Markers in Sequence
+
+test "parseInline: bold then italic" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("**bold** then *italic*");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 3), line.spans.len);
+    try testing.expectEqualStrings("bold", line.spans[0].content);
+    try testing.expect(line.spans[0].style.bold);
+    try testing.expectEqualStrings(" then ", line.spans[1].content);
+    try testing.expectEqualStrings("italic", line.spans[2].content);
+    try testing.expect(line.spans[2].style.italic);
+}
+
+test "parseInline: bold plain italic" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("**bold** plain *italic*");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 3), line.spans.len);
+    try testing.expectEqualStrings("bold", line.spans[0].content);
+    try testing.expectEqualStrings(" plain ", line.spans[1].content);
+    try testing.expectEqualStrings("italic", line.spans[2].content);
+}
+
+test "parseInline: multiple formatted sections" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("**bold** `code` *italic*");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 5), line.spans.len);
+    try testing.expect(line.spans[0].style.bold);
+    try testing.expect(line.spans[2].style.dim);
+    try testing.expect(line.spans[4].style.italic);
+}
+
+// Heading Edge Cases
+
+test "parseInline: valid heading level 1" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("# Valid Heading");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("Valid Heading", line.spans[0].content);
+    try testing.expect(line.spans[0].style.bold);
+    try testing.expectEqual(Color.bright_white, line.spans[0].style.fg);
+}
+
+test "parseInline: valid heading level 2" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("## Level 2");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("Level 2", line.spans[0].content);
+    try testing.expect(line.spans[0].style.bold);
+}
+
+test "parseInline: valid heading level 6" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("###### Level 6");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("Level 6", line.spans[0].content);
+    try testing.expect(line.spans[0].style.bold);
+}
+
+test "parseInline: 7 hashes not a heading" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("####### 7 hashes");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("####### 7 hashes", line.spans[0].content);
+    try testing.expect(!line.spans[0].style.bold);
+}
+
+test "parseInline: no space after hash not a heading" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("#NoSpace");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("#NoSpace", line.spans[0].content);
+    try testing.expect(!line.spans[0].style.bold);
+}
+
+test "parseInline: empty heading" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("# ");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("", line.spans[0].content);
+    try testing.expect(line.spans[0].style.bold);
+}
+
+test "parseInline: hash in middle not a heading" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("text with # in middle");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("text with # in middle", line.spans[0].content);
+    try testing.expect(!line.spans[0].style.bold);
+}
+
+// Multi-line Parsing
+
+test "parse: three lines" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const lines = try parser.parse("line1\nline2\nline3");
+    defer {
+        for (lines) |line| {
+            testing.allocator.free(line.spans);
+        }
+        testing.allocator.free(lines);
+    }
+
+    try testing.expectEqual(@as(usize, 3), lines.len);
+}
+
+test "parse: lines with different formatting" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const lines = try parser.parse("**bold**\n*italic*\nplain");
+    defer {
+        for (lines) |line| {
+            testing.allocator.free(line.spans);
+        }
+        testing.allocator.free(lines);
+    }
+
+    try testing.expectEqual(@as(usize, 3), lines.len);
+    try testing.expect(lines[0].spans[0].style.bold);
+    try testing.expect(lines[1].spans[0].style.italic);
+    try testing.expect(!lines[2].spans[0].style.bold);
+}
+
+test "parse: empty lines in multi-line text" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const lines = try parser.parse("line1\n\nline3");
+    defer {
+        for (lines) |line| {
+            testing.allocator.free(line.spans);
+        }
+        testing.allocator.free(lines);
+    }
+
+    try testing.expectEqual(@as(usize, 3), lines.len);
+    try testing.expectEqual(@as(usize, 0), lines[1].spans.len);
+}
+
+// Special Characters in Formatted Content
+
+test "parseInline: asterisk inside bold text" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("**bold with * inside**");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("bold with * inside", line.spans[0].content);
+    try testing.expect(line.spans[0].style.bold);
+}
+
+test "parseInline: markdown inside code is literal" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("`code with ** inside`");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("code with ** inside", line.spans[0].content);
+    try testing.expect(line.spans[0].style.dim);
+}
+
+// Complex Combinations
+
+test "parseInline: double asterisk alone too short" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("**");
+    defer testing.allocator.free(line.spans);
+
+    // ** fails to match (no closing), then * at pos 0 matches * at pos 1
+    // Result: empty italic span between the two asterisks
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("", line.spans[0].content);
+    try testing.expect(line.spans[0].style.italic);
+}
+
+test "parseInline: minimum bold content" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("**a**");
+    defer testing.allocator.free(line.spans);
+
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expectEqualStrings("a", line.spans[0].content);
+    try testing.expect(line.spans[0].style.bold);
+}
+
+test "parseInline: nested markers not supported" {
+    const testing = std.testing;
+    var parser = RichTextParser.init(testing.allocator);
+    defer parser.deinit();
+
+    const line = try parser.parseInline("**bold *italic* bold**");
+    defer testing.allocator.free(line.spans);
+
+    // Parser takes first match, so "bold *italic* bold" becomes bold
+    try testing.expectEqual(@as(usize, 1), line.spans.len);
+    try testing.expect(line.spans[0].style.bold);
+}
