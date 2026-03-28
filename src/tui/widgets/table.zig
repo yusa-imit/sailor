@@ -594,3 +594,80 @@ test "Table.render with missing cells" {
     // Second column should be spaces
     try std.testing.expectEqual(@as(u21, ' '), buf.get(6, 1).?.char);
 }
+
+// Memory Leak Tests
+
+test "Table: render does not leak memory" {
+    const columns = &[_]Column{
+        .{ .title = "Name", .width = ColumnWidth.ofFixed(10) },
+        .{ .title = "Age", .width = ColumnWidth.ofFixed(5) },
+        .{ .title = "City", .width = ColumnWidth.ofPercentage(30) },
+    };
+    const rows = &[_]Row{
+        &[_][]const u8{ "Alice", "30", "NYC" },
+        &[_][]const u8{ "Bob", "25", "LA" },
+        &[_][]const u8{ "Charlie", "35", "SF" },
+    };
+
+    var buf = try Buffer.init(std.testing.allocator, 40, 10);
+    defer buf.deinit();
+
+    const table = Table.init(columns, rows);
+
+    // Render multiple times - should not leak (all stack allocations)
+    for (0..100) |_| {
+        table.render(&buf, Rect{ .x = 0, .y = 0, .width = 40, .height = 10 });
+    }
+}
+
+test "Table: render with many columns does not leak" {
+    const columns = &[_]Column{
+        .{ .title = "C1", .width = ColumnWidth.ofFixed(5) },
+        .{ .title = "C2", .width = ColumnWidth.ofFixed(5) },
+        .{ .title = "C3", .width = ColumnWidth.ofFixed(5) },
+        .{ .title = "C4", .width = ColumnWidth.ofFixed(5) },
+        .{ .title = "C5", .width = ColumnWidth.ofFixed(5) },
+        .{ .title = "C6", .width = ColumnWidth.ofFixed(5) },
+        .{ .title = "C7", .width = ColumnWidth.ofFixed(5) },
+        .{ .title = "C8", .width = ColumnWidth.ofFixed(5) },
+    };
+    const rows = &[_]Row{
+        &[_][]const u8{ "A", "B", "C", "D", "E", "F", "G", "H" },
+    };
+
+    var buf = try Buffer.init(std.testing.allocator, 50, 5);
+    defer buf.deinit();
+
+    const table = Table.init(columns, rows);
+
+    // Render multiple times
+    for (0..100) |_| {
+        table.render(&buf, Rect{ .x = 0, .y = 0, .width = 50, .height = 5 });
+    }
+}
+
+test "Table: render with large dataset does not leak" {
+    const columns = &[_]Column{
+        .{ .title = "ID", .width = ColumnWidth.ofFixed(8) },
+        .{ .title = "Data", .width = ColumnWidth.ofPercentage(50) },
+    };
+
+    // Create 100 rows
+    var rows_storage: [100]Row = undefined;
+    var row_data: [100][2][]const u8 = undefined;
+    for (0..100) |i| {
+        row_data[i][0] = "ID";
+        row_data[i][1] = "Data";
+        rows_storage[i] = &row_data[i];
+    }
+
+    var buf = try Buffer.init(std.testing.allocator, 40, 10);
+    defer buf.deinit();
+
+    const table = Table.init(columns, &rows_storage);
+
+    // Render with scrolling
+    for (0..100) |offset| {
+        table.withOffset(offset).render(&buf, Rect{ .x = 0, .y = 0, .width = 40, .height = 10 });
+    }
+}

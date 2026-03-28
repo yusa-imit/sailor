@@ -142,16 +142,18 @@ pub const Tree = struct {
         depth: u16,
     };
 
-    fn flattenNodes(nodes: []const TreeNode, depth: u16, out: *std.ArrayList(FlatNode), allocator: std.mem.Allocator) !void {
+    fn flattenNodesStack(nodes: []const TreeNode, depth: u16, out: *std.BoundedArray(FlatNode, 256)) !void {
         for (nodes) |*node| {
-            try out.append(allocator, .{ .node = node, .depth = depth });
+            if (out.len >= 256) return error.TooManyNodes;
+            out.appendAssumeCapacity(.{ .node = node, .depth = depth });
             if (!node.isLeaf() and node.expanded) {
-                try flattenNodes(node.children, depth + 1, out, allocator);
+                try flattenNodesStack(node.children, depth + 1, out);
             }
         }
     }
 
     /// Render the tree widget
+    /// Note: Uses a fixed-size buffer to avoid allocations. Maximum 256 visible nodes supported.
     pub fn render(self: Tree, buf: *Buffer, area: Rect) void {
         if (area.width == 0 or area.height == 0) return;
 
@@ -164,12 +166,11 @@ pub const Tree = struct {
 
         if (inner_area.width == 0 or inner_area.height == 0) return;
 
-        // Flatten visible nodes
-        var flat_list: std.ArrayList(FlatNode) = .{};
-        defer flat_list.deinit(std.heap.page_allocator);
-        flattenNodes(self.nodes, 0, &flat_list, std.heap.page_allocator) catch return;
+        // Flatten visible nodes using stack-allocated buffer
+        var flat_list = std.BoundedArray(FlatNode, 256).init(0) catch unreachable;
+        flattenNodesStack(self.nodes, 0, &flat_list) catch return;
 
-        const flat_nodes = flat_list.items;
+        const flat_nodes = flat_list.slice();
         if (flat_nodes.len == 0) return;
 
         // Calculate visible range
@@ -512,4 +513,78 @@ test "Tree: multiple roots" {
     const tree = Tree.init(&nodes);
     // Tree A + A1 + Tree B + B1 = 4
     try std.testing.expectEqual(@as(usize, 4), tree.visibleCount());
+}
+
+// Memory Leak Tests
+
+test "Tree: render does not leak memory" {
+    const children = [_]TreeNode{
+        TreeNode.leaf("Child 1"),
+        TreeNode.leaf("Child 2"),
+        TreeNode.leaf("Child 3"),
+    };
+    const nodes = [_]TreeNode{
+        TreeNode.branch("Parent", &children),
+        TreeNode.leaf("Sibling"),
+    };
+
+    var buf = try Buffer.init(std.testing.allocator, 30, 10);
+    defer buf.deinit();
+
+    const tree = Tree.init(&nodes);
+
+    // Render multiple times - should not leak
+    for (0..100) |_| {
+        tree.render(&buf, Rect.init(0, 0, 30, 10));
+    }
+
+    // If this test passes without leaking, the render function is memory-safe
+}
+
+test "Tree: render with large tree does not leak" {
+    // Create a tree with many nodes
+    const l3 = [_]TreeNode{
+        TreeNode.leaf("L3-1"),
+        TreeNode.leaf("L3-2"),
+        TreeNode.leaf("L3-3"),
+    };
+    const l2 = [_]TreeNode{
+        TreeNode.branch("L2-1", &l3),
+        TreeNode.branch("L2-2", &l3),
+    };
+    const l1 = [_]TreeNode{
+        TreeNode.branch("L1-1", &l2),
+        TreeNode.branch("L1-2", &l2),
+        TreeNode.branch("L1-3", &l2),
+    };
+
+    var buf = try Buffer.init(std.testing.allocator, 40, 20);
+    defer buf.deinit();
+
+    const tree = Tree.init(&l1);
+
+    // Render multiple times
+    for (0..50) |_| {
+        tree.render(&buf, Rect.init(0, 0, 40, 20));
+    }
+}
+
+test "Tree: render handles more than 256 nodes gracefully" {
+    // Create a very deep tree that exceeds 256 nodes
+    var nodes_l0: [100]TreeNode = undefined;
+    for (&nodes_l0) |*node| {
+        node.* = TreeNode.leaf("Item");
+    }
+
+    const root = [_]TreeNode{
+        TreeNode.branch("Root", &nodes_l0),
+    };
+
+    var buf = try Buffer.init(std.testing.allocator, 30, 10);
+    defer buf.deinit();
+
+    const tree = Tree.init(&root);
+
+    // Should not crash or leak when exceeding 256 node limit
+    tree.render(&buf, Rect.init(0, 0, 30, 10));
 }

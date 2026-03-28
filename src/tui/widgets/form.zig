@@ -23,12 +23,22 @@ pub const Field = struct {
     max_length: ?usize = null,
     cursor: usize = 0,
     validation_error: ?[]const u8 = null,
+    /// Allocator used for value (null if value is static/not owned)
+    value_allocator: ?std.mem.Allocator = null,
 
     pub fn init(label: []const u8) Field {
         return .{
             .label = label,
             .value = "",
         };
+    }
+
+    /// Free allocated value memory
+    pub fn deinit(self: *Field) void {
+        if (self.value_allocator) |allocator| {
+            allocator.free(self.value);
+            self.value_allocator = null;
+        }
     }
 
     pub fn withValidator(self: Field, validator: Validator) Field {
@@ -87,6 +97,13 @@ pub const Form = struct {
 
     pub fn init(fields: []Field) Form {
         return .{ .fields = fields };
+    }
+
+    /// Free all allocated field values
+    pub fn deinit(self: *Form) void {
+        for (self.fields) |*field| {
+            field.deinit();
+        }
     }
 
     pub fn withBlock(self: Form, block: Block) Form {
@@ -178,7 +195,13 @@ pub const Form = struct {
                 @memcpy(new_value[field.cursor + 1 ..], field.value[field.cursor..]);
             }
 
+            // Free old value if it was allocated
+            if (field.value_allocator) |old_allocator| {
+                old_allocator.free(field.value);
+            }
+
             field.value = new_value;
+            field.value_allocator = allocator;
             field.cursor += 1;
         }
     }
@@ -197,7 +220,13 @@ pub const Form = struct {
                 @memcpy(new_value[field.cursor - 1 ..], field.value[field.cursor..]);
             }
 
+            // Free old value if it was allocated
+            if (field.value_allocator) |old_allocator| {
+                old_allocator.free(field.value);
+            }
+
             field.value = new_value;
+            field.value_allocator = allocator;
             field.cursor -= 1;
         }
     }
@@ -818,4 +847,125 @@ test "Form: render password field with cursor shows masked character" {
     const cursor_cell = buf.get(@intCast(cursor_x), 0);
     try std.testing.expectEqual('*', cursor_cell.char);
     try std.testing.expect(cursor_cell.style.reverse);
+}
+
+// Memory Leak Tests
+
+test "Form: insertChar frees old value" {
+    var fields = [_]Field{Field.init("Name")};
+    var form = Form.init(&fields);
+
+    // Insert multiple characters - each should free the previous allocation
+    try form.insertChar(std.testing.allocator, 'J');
+    try form.insertChar(std.testing.allocator, 'o');
+    try form.insertChar(std.testing.allocator, 'h');
+    try form.insertChar(std.testing.allocator, 'n');
+
+    try std.testing.expectEqualStrings("John", fields[0].value);
+
+    // Clean up
+    form.deinit();
+}
+
+test "Form: deleteChar frees old value" {
+    var fields = [_]Field{Field.init("Name")};
+    var form = Form.init(&fields);
+
+    // Build up a value
+    try form.insertChar(std.testing.allocator, 'J');
+    try form.insertChar(std.testing.allocator, 'o');
+    try form.insertChar(std.testing.allocator, 'h');
+    try form.insertChar(std.testing.allocator, 'n');
+
+    // Delete characters - each should free the previous allocation
+    try form.deleteChar(std.testing.allocator);
+    try form.deleteChar(std.testing.allocator);
+
+    try std.testing.expectEqualStrings("Jo", fields[0].value);
+
+    // Clean up
+    form.deinit();
+}
+
+test "Form: deinit frees all field values" {
+    var fields = [_]Field{
+        Field.init("Name"),
+        Field.init("Email"),
+        Field.init("Phone"),
+    };
+    var form = Form.init(&fields);
+
+    // Modify all fields
+    try form.insertChar(std.testing.allocator, 'A');
+    form.focusNext();
+    try form.insertChar(std.testing.allocator, 'B');
+    form.focusNext();
+    try form.insertChar(std.testing.allocator, 'C');
+
+    // Deinit should free all allocated values
+    form.deinit();
+}
+
+test "Form: multiple insert/delete cycles do not leak" {
+    var fields = [_]Field{Field.init("Test")};
+    var form = Form.init(&fields);
+
+    // Simulate typing and deleting multiple times
+    for (0..100) |_| {
+        try form.insertChar(std.testing.allocator, 'x');
+        try form.deleteChar(std.testing.allocator);
+    }
+
+    // Should have no leaks
+    form.deinit();
+}
+
+test "Form: mixed insertChar and deleteChar do not leak" {
+    var fields = [_]Field{Field.init("Name")};
+    var form = Form.init(&fields);
+
+    // Type a word
+    try form.insertChar(std.testing.allocator, 'H');
+    try form.insertChar(std.testing.allocator, 'e');
+    try form.insertChar(std.testing.allocator, 'l');
+    try form.insertChar(std.testing.allocator, 'l');
+    try form.insertChar(std.testing.allocator, 'o');
+
+    // Delete some
+    try form.deleteChar(std.testing.allocator);
+    try form.deleteChar(std.testing.allocator);
+
+    // Type more
+    try form.insertChar(std.testing.allocator, 'p');
+
+    try std.testing.expectEqualStrings("Help", fields[0].value);
+
+    form.deinit();
+}
+
+test "Form: insertChar at max_length does not leak" {
+    var fields = [_]Field{Field.init("Code").withMaxLength(4)};
+    var form = Form.init(&fields);
+
+    // Fill to max
+    try form.insertChar(std.testing.allocator, '1');
+    try form.insertChar(std.testing.allocator, '2');
+    try form.insertChar(std.testing.allocator, '3');
+    try form.insertChar(std.testing.allocator, '4');
+
+    // Try to exceed max - should not allocate or leak
+    try form.insertChar(std.testing.allocator, '5');
+    try form.insertChar(std.testing.allocator, '6');
+
+    try std.testing.expectEqualStrings("1234", fields[0].value);
+
+    form.deinit();
+}
+
+test "Field: deinit on static value does nothing" {
+    var field = Field.init("Name");
+    field.value = "static"; // Static string, no allocator
+
+    // Should not crash
+    field.deinit();
 }
