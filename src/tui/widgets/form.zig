@@ -477,3 +477,345 @@ test "Field: withMaxLength" {
     const field = Field.init("Code").withMaxLength(6);
     try std.testing.expectEqual(6, field.max_length.?);
 }
+
+// Edge Case Tests
+
+test "Form: focusNext on empty form" {
+    var fields = [_]Field{};
+    var form = Form.init(&fields);
+
+    // Should not crash or change focused_field
+    const initial_focus = form.focused_field;
+    form.focusNext();
+    try std.testing.expectEqual(initial_focus, form.focused_field);
+}
+
+test "Form: focusPrev on empty form" {
+    var fields = [_]Field{};
+    var form = Form.init(&fields);
+
+    const initial_focus = form.focused_field;
+    form.focusPrev();
+    try std.testing.expectEqual(initial_focus, form.focused_field);
+}
+
+test "Form: focusedField on empty form" {
+    var fields = [_]Field{};
+    const form = Form.init(&fields);
+
+    const field = form.focusedField();
+    try std.testing.expect(field == null);
+}
+
+test "Form: validate on empty form" {
+    var fields = [_]Field{};
+    var form = Form.init(&fields);
+
+    // Empty form should be considered valid
+    try std.testing.expect(form.validate());
+}
+
+test "Form: focusNext on single field stays at index 0" {
+    var fields = [_]Field{Field.init("Only")};
+    var form = Form.init(&fields);
+
+    try std.testing.expectEqual(0, form.focused_field);
+    form.focusNext();
+    try std.testing.expectEqual(0, form.focused_field);
+}
+
+test "Form: focusPrev on single field stays at index 0" {
+    var fields = [_]Field{Field.init("Only")};
+    var form = Form.init(&fields);
+
+    try std.testing.expectEqual(0, form.focused_field);
+    form.focusPrev();
+    try std.testing.expectEqual(0, form.focused_field);
+}
+
+test "Form: insertChar at start of value" {
+    var fields = [_]Field{Field.init("Name")};
+    var form = Form.init(&fields);
+    fields[0].value = "ohn";
+    fields[0].cursor = 0;
+
+    try form.insertChar(std.testing.allocator, 'J');
+    try std.testing.expectEqualStrings("John", fields[0].value);
+    try std.testing.expectEqual(1, fields[0].cursor);
+}
+
+test "Form: insertChar at end of value" {
+    var fields = [_]Field{Field.init("Name")};
+    var form = Form.init(&fields);
+    fields[0].value = "Joh";
+    fields[0].cursor = 3;
+
+    try form.insertChar(std.testing.allocator, 'n');
+    try std.testing.expectEqualStrings("John", fields[0].value);
+    try std.testing.expectEqual(4, fields[0].cursor);
+}
+
+test "Form: insertChar in middle of value" {
+    var fields = [_]Field{Field.init("Name")};
+    var form = Form.init(&fields);
+    fields[0].value = "Jon";
+    fields[0].cursor = 2;
+
+    try form.insertChar(std.testing.allocator, 'h');
+    try std.testing.expectEqualStrings("John", fields[0].value);
+    try std.testing.expectEqual(3, fields[0].cursor);
+}
+
+test "Form: insertChar when max_length reached" {
+    var fields = [_]Field{Field.init("Code").withMaxLength(4)};
+    var form = Form.init(&fields);
+    fields[0].value = "1234";
+    fields[0].cursor = 4;
+
+    try form.insertChar(std.testing.allocator, '5');
+    // Should not insert
+    try std.testing.expectEqualStrings("1234", fields[0].value);
+    try std.testing.expectEqual(4, fields[0].cursor);
+}
+
+test "Form: insertChar when max_length exactly at limit" {
+    var fields = [_]Field{Field.init("Code").withMaxLength(3)};
+    var form = Form.init(&fields);
+    fields[0].value = "123";
+    fields[0].cursor = 3;
+
+    try form.insertChar(std.testing.allocator, '4');
+    // Should not insert
+    try std.testing.expectEqualStrings("123", fields[0].value);
+}
+
+test "Form: insertChar on empty form" {
+    var fields = [_]Field{};
+    var form = Form.init(&fields);
+
+    // Should not crash
+    try form.insertChar(std.testing.allocator, 'x');
+}
+
+test "Form: deleteChar at start does nothing" {
+    var fields = [_]Field{Field.init("Name")};
+    var form = Form.init(&fields);
+    fields[0].value = "John";
+    fields[0].cursor = 0;
+
+    try form.deleteChar(std.testing.allocator);
+    try std.testing.expectEqualStrings("John", fields[0].value);
+    try std.testing.expectEqual(0, fields[0].cursor);
+}
+
+test "Form: deleteChar at end" {
+    var fields = [_]Field{Field.init("Name")};
+    var form = Form.init(&fields);
+    fields[0].value = "John";
+    fields[0].cursor = 4;
+
+    try form.deleteChar(std.testing.allocator);
+    try std.testing.expectEqualStrings("Joh", fields[0].value);
+    try std.testing.expectEqual(3, fields[0].cursor);
+}
+
+test "Form: deleteChar from empty string" {
+    var fields = [_]Field{Field.init("Name")};
+    var form = Form.init(&fields);
+    fields[0].value = "";
+    fields[0].cursor = 0;
+
+    try form.deleteChar(std.testing.allocator);
+    try std.testing.expectEqualStrings("", fields[0].value);
+}
+
+test "Form: deleteChar on empty form" {
+    var fields = [_]Field{};
+    var form = Form.init(&fields);
+
+    // Should not crash
+    try form.deleteChar(std.testing.allocator);
+}
+
+test "Form: cursorLeft at start stays at 0" {
+    var fields = [_]Field{Field.init("Name")};
+    var form = Form.init(&fields);
+    fields[0].value = "John";
+    fields[0].cursor = 0;
+
+    form.cursorLeft();
+    try std.testing.expectEqual(0, fields[0].cursor);
+}
+
+test "Form: cursorRight at end stays at value.len" {
+    var fields = [_]Field{Field.init("Name")};
+    var form = Form.init(&fields);
+    fields[0].value = "John";
+    fields[0].cursor = 4;
+
+    form.cursorRight();
+    try std.testing.expectEqual(4, fields[0].cursor);
+}
+
+test "Form: cursor movement on empty form" {
+    var fields = [_]Field{};
+    var form = Form.init(&fields);
+
+    // Should not crash
+    form.cursorLeft();
+    form.cursorRight();
+}
+
+test "Field: validate without validator returns true" {
+    var field = Field.init("Optional");
+    field.value = "anything";
+
+    try std.testing.expect(field.validate());
+    try std.testing.expect(field.validation_error == null);
+}
+
+test "Form: validate with mixed valid and invalid fields" {
+    var fields = [_]Field{
+        Field.init("Name").withValidator(validators.notEmpty),
+        Field.init("Email").withValidator(validators.email),
+    };
+    var form = Form.init(&fields);
+
+    fields[0].value = "John"; // valid
+    fields[1].value = "invalid-email"; // invalid
+
+    try std.testing.expect(!form.validate());
+    try std.testing.expect(fields[0].validation_error == null);
+    try std.testing.expect(fields[1].validation_error != null);
+}
+
+test "Form: re-validate after fixing error" {
+    var field = Field.init("Email").withValidator(validators.email);
+
+    field.value = "invalid";
+    try std.testing.expect(!field.validate());
+    try std.testing.expect(field.validation_error != null);
+
+    field.value = "valid@example.com";
+    try std.testing.expect(field.validate());
+    try std.testing.expect(field.validation_error == null);
+}
+
+test "Form: render with zero-width area" {
+    var fields = [_]Field{Field.init("Name")};
+    const form = Form.init(&fields);
+
+    var buf = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buf.deinit(std.testing.allocator);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 10 };
+    form.render(&buf, area);
+    // Should not crash
+}
+
+test "Form: render with zero-height area" {
+    var fields = [_]Field{Field.init("Name")};
+    const form = Form.init(&fields);
+
+    var buf = try Buffer.init(std.testing.allocator, 40, 10);
+    defer buf.deinit(std.testing.allocator);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 0 };
+    form.render(&buf, area);
+    // Should not crash
+}
+
+test "Form: render with label longer than label_width" {
+    var fields = [_]Field{Field.init("Very Long Label Name")};
+    const form = Form.init(&fields).withLabelWidth(5);
+
+    var buf = try Buffer.init(std.testing.allocator, 40, 5);
+    defer buf.deinit(std.testing.allocator);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 5 };
+    form.render(&buf, area);
+
+    // Only first 5 characters should be visible
+    try std.testing.expectEqual('V', buf.get(0, 0).char);
+    try std.testing.expectEqual('e', buf.get(1, 0).char);
+    try std.testing.expectEqual('r', buf.get(2, 0).char);
+    try std.testing.expectEqual('y', buf.get(3, 0).char);
+    try std.testing.expectEqual(' ', buf.get(4, 0).char);
+    try std.testing.expectEqual(':', buf.get(5, 0).char);
+}
+
+test "Form: render with value longer than available width" {
+    var fields = [_]Field{Field.init("Name")};
+    fields[0].value = "Very Long Value That Should Be Truncated";
+    const form = Form.init(&fields).withLabelWidth(5);
+
+    var buf = try Buffer.init(std.testing.allocator, 20, 5);
+    defer buf.deinit(std.testing.allocator);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
+    form.render(&buf, area);
+
+    // Value should be truncated to fit
+    const value_start_x = 7; // label_width + 2
+    const visible_width = 20 - 7;
+
+    for (0..visible_width) |i| {
+        const cell = buf.get(@intCast(value_start_x + i), 0);
+        try std.testing.expect(cell.char != 0);
+    }
+}
+
+test "Form: render with error message longer than available width" {
+    var fields = [_]Field{Field.init("Email").withValidator(validators.email)};
+    fields[0].value = "invalid";
+    var form = Form.init(&fields).withLabelWidth(5);
+
+    _ = form.validate(); // Generate error
+
+    var buf = try Buffer.init(std.testing.allocator, 20, 5);
+    defer buf.deinit(std.testing.allocator);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
+    form.render(&buf, area);
+
+    // Error should be rendered on second line, truncated if needed
+    try std.testing.expect(fields[0].validation_error != null);
+}
+
+test "Form: render password field with masked characters" {
+    var fields = [_]Field{Field.init("Password").withPassword()};
+    fields[0].value = "secret123";
+    const form = Form.init(&fields).withLabelWidth(10);
+
+    var buf = try Buffer.init(std.testing.allocator, 40, 5);
+    defer buf.deinit(std.testing.allocator);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 5 };
+    form.render(&buf, area);
+
+    // All password characters should be masked as '*'
+    const value_start_x = 12; // label_width + 2
+    for (0..9) |i| {
+        const cell = buf.get(@intCast(value_start_x + i), 0);
+        try std.testing.expectEqual('*', cell.char);
+    }
+}
+
+test "Form: render password field with cursor shows masked character" {
+    var fields = [_]Field{Field.init("Pass").withPassword()};
+    fields[0].value = "secret";
+    fields[0].cursor = 3;
+    var form = Form.init(&fields).withLabelWidth(5);
+
+    var buf = try Buffer.init(std.testing.allocator, 40, 5);
+    defer buf.deinit(std.testing.allocator);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 5 };
+    form.render(&buf, area);
+
+    // Cursor position should show '*' not actual character
+    const cursor_x = 7 + 3; // label_width + 2 + cursor
+    const cursor_cell = buf.get(@intCast(cursor_x), 0);
+    try std.testing.expectEqual('*', cursor_cell.char);
+    try std.testing.expect(cursor_cell.style.reverse);
+}
