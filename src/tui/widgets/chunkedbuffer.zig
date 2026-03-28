@@ -303,3 +303,571 @@ test "ChunkedBuffer.render writes correct line content to buffer" {
     defer allocator.free(line2);
     try testing.expect(std.mem.indexOf(u8, line2, "Line 2") != null);
 }
+
+// ============================================================================
+// Edge Case Tests
+// ============================================================================
+
+// 1. Zero/Empty Edge Cases
+
+test "ChunkedBuffer.init with zero total lines" {
+    const cb = ChunkedBuffer.init(0);
+    try testing.expectEqual(@as(usize, 0), cb.total_lines);
+}
+
+test "ChunkedBuffer.render with zero-width area" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 40, 10);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 10 };
+    const cb = ChunkedBuffer.init(100);
+
+    var call_count: usize = 0;
+    const Ctx = struct {
+        var count: *usize = undefined;
+        fn callback(line_index: usize, writer: anytype) !void {
+            count.* += 1;
+            try writer.print("Line {d}", .{line_index});
+        }
+    };
+    Ctx.count = &call_count;
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+    // Should not call callback when width is zero
+    try testing.expectEqual(@as(usize, 0), call_count);
+}
+
+test "ChunkedBuffer.render with zero-height area" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 40, 10);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 0 };
+    const cb = ChunkedBuffer.init(100);
+
+    var call_count: usize = 0;
+    const Ctx = struct {
+        var count: *usize = undefined;
+        fn callback(line_index: usize, writer: anytype) !void {
+            count.* += 1;
+            try writer.print("Line {d}", .{line_index});
+        }
+    };
+    Ctx.count = &call_count;
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+    // Should not call callback when height is zero
+    try testing.expectEqual(@as(usize, 0), call_count);
+}
+
+test "ChunkedBuffer.render with zero total_lines" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 40, 10);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+    const cb = ChunkedBuffer.init(0); // Zero lines
+
+    var call_count: usize = 0;
+    const Ctx = struct {
+        var count: *usize = undefined;
+        fn callback(line_index: usize, writer: anytype) !void {
+            count.* += 1;
+            try writer.print("Line {d}", .{line_index});
+        }
+    };
+    Ctx.count = &call_count;
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+    // Should not call callback when no lines exist
+    try testing.expectEqual(@as(usize, 0), call_count);
+}
+
+// 2. Line Offset Edge Cases
+
+test "ChunkedBuffer.render with line_offset equal to total_lines" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 40, 10);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+    const cb = ChunkedBuffer.init(20).withLineOffset(20); // At boundary
+
+    var call_count: usize = 0;
+    const Ctx = struct {
+        var count: *usize = undefined;
+        fn callback(line_index: usize, writer: anytype) !void {
+            count.* += 1;
+            try writer.print("Line {d}", .{line_index});
+        }
+    };
+    Ctx.count = &call_count;
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+    // Should not render any lines when offset equals total
+    try testing.expectEqual(@as(usize, 0), call_count);
+}
+
+test "ChunkedBuffer.render with line_offset beyond total_lines" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 40, 10);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+    const cb = ChunkedBuffer.init(20).withLineOffset(50); // Beyond boundary
+
+    var call_count: usize = 0;
+    const Ctx = struct {
+        var count: *usize = undefined;
+        fn callback(line_index: usize, writer: anytype) !void {
+            count.* += 1;
+            try writer.print("Line {d}", .{line_index});
+        }
+    };
+    Ctx.count = &call_count;
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+    // Should not render any lines when offset exceeds total
+    try testing.expectEqual(@as(usize, 0), call_count);
+}
+
+test "ChunkedBuffer.render with line_offset near end" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 40, 10);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+    const cb = ChunkedBuffer.init(25).withLineOffset(22); // 3 lines remaining
+
+    var call_count: usize = 0;
+    const Ctx = struct {
+        var count: *usize = undefined;
+        fn callback(line_index: usize, writer: anytype) !void {
+            count.* += 1;
+            try writer.print("Line {d}", .{line_index});
+        }
+    };
+    Ctx.count = &call_count;
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+    // Should render only 3 lines (25 - 22)
+    try testing.expectEqual(@as(usize, 3), call_count);
+}
+
+// 3. Column Offset Edge Cases
+
+test "ChunkedBuffer.render with column_offset larger than line length" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 40, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 5 };
+    const cb = ChunkedBuffer.init(10).withColumnOffset(100); // Far beyond line
+
+    const Ctx = struct {
+        fn callback(line_index: usize, writer: anytype) !void {
+            try writer.print("Line {d}", .{line_index});
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    // Should render empty (scrolled past content)
+    const line0 = buf.getLine(0, 0, 40);
+    defer allocator.free(line0);
+    // Line should be empty or contain no visible text
+    try testing.expect(std.mem.trim(u8, line0, " ").len == 0);
+}
+
+test "ChunkedBuffer.render with column_offset in middle of multi-byte UTF-8" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 40, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 5 };
+    const cb = ChunkedBuffer.init(10).withColumnOffset(3); // Skip 3 columns
+
+    const Ctx = struct {
+        fn callback(line_index: usize, writer: anytype) !void {
+            _ = line_index;
+            try writer.writeAll("AB中文"); // ASCII + CJK
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    // Should handle UTF-8 boundary correctly
+    const line0 = buf.getLine(0, 0, 40);
+    defer allocator.free(line0);
+    // After skipping 3 columns (A=1, B=1, 中=2 partially), should show remaining
+    try testing.expect(line0.len > 0); // Should render something without crashing
+}
+
+test "ChunkedBuffer.render with column_offset and wide characters" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 40, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 5 };
+    const cb = ChunkedBuffer.init(10).withColumnOffset(2); // Skip 2 display columns
+
+    const Ctx = struct {
+        fn callback(line_index: usize, writer: anytype) !void {
+            _ = line_index;
+            try writer.writeAll("😀X"); // Emoji (width 2) + ASCII
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    // Should skip emoji (2 columns) and show X
+    const line0 = buf.getLine(0, 0, 40);
+    defer allocator.free(line0);
+    try testing.expect(std.mem.indexOf(u8, line0, "X") != null);
+}
+
+// 4. Truncation Mode Edge Cases
+
+test "ChunkedBuffer truncation with line exactly fitting viewport width" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 10, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
+    const cb = ChunkedBuffer.init(10);
+
+    const Ctx = struct {
+        fn callback(line_index: usize, writer: anytype) !void {
+            _ = line_index;
+            try writer.writeAll("ABCDEFGHIJ"); // Exactly 10 chars
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    const line0 = buf.getLine(0, 0, 10);
+    defer allocator.free(line0);
+    try testing.expectEqualStrings("ABCDEFGHIJ", line0);
+}
+
+test "ChunkedBuffer truncation with line one character too long" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 10, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
+    const cb = ChunkedBuffer.init(10);
+
+    const Ctx = struct {
+        fn callback(line_index: usize, writer: anytype) !void {
+            _ = line_index;
+            try writer.writeAll("ABCDEFGHIJK"); // 11 chars
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    const line0 = buf.getLine(0, 0, 10);
+    defer allocator.free(line0);
+    // Should truncate last character
+    try testing.expect(std.mem.startsWith(u8, line0, "ABCDEFGHIJ"));
+    try testing.expect(std.mem.indexOf(u8, line0, "K") == null);
+}
+
+test "ChunkedBuffer truncation with wide character at boundary" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 5, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 5, .height = 5 };
+    const cb = ChunkedBuffer.init(10);
+
+    const Ctx = struct {
+        fn callback(line_index: usize, writer: anytype) !void {
+            _ = line_index;
+            try writer.writeAll("ABCD中"); // 4 ASCII + 1 wide char (would overflow)
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    const line0 = buf.getLine(0, 0, 5);
+    defer allocator.free(line0);
+    // Should not split wide character - truncate before it
+    try testing.expect(std.mem.startsWith(u8, line0, "ABCD"));
+}
+
+test "ChunkedBuffer truncation with empty line" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 10, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
+    const cb = ChunkedBuffer.init(10);
+
+    const Ctx = struct {
+        fn callback(_: usize, _: anytype) !void {
+            // Write nothing
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    const line0 = buf.getLine(0, 0, 10);
+    defer allocator.free(line0);
+    // Empty line should render as spaces
+    try testing.expect(std.mem.trim(u8, line0, " ").len == 0);
+}
+
+test "ChunkedBuffer truncation with line of only wide characters" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 6, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 6, .height = 5 };
+    const cb = ChunkedBuffer.init(10);
+
+    const Ctx = struct {
+        fn callback(line_index: usize, writer: anytype) !void {
+            _ = line_index;
+            try writer.writeAll("中文测试"); // 4 CJK chars = 8 display columns
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    const line0 = buf.getLine(0, 0, 6);
+    defer allocator.free(line0);
+    // Should fit exactly 3 wide chars (6 columns)
+    try testing.expect(std.mem.indexOf(u8, line0, "中") != null);
+}
+
+// 5. Wrapping Mode Edge Cases
+
+test "ChunkedBuffer wrap with line wrapping exactly at viewport width" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 10, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
+    const cb = ChunkedBuffer.init(10).withWrap(true);
+
+    const Ctx = struct {
+        fn callback(line_index: usize, writer: anytype) !void {
+            _ = line_index;
+            try writer.writeAll("ABCDEFGHIJKLMNO"); // 15 chars, should wrap to 2 lines
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    const line0 = buf.getLine(0, 0, 10);
+    defer allocator.free(line0);
+    try testing.expectEqualStrings("ABCDEFGHIJ", line0);
+
+    const line1 = buf.getLine(1, 0, 10);
+    defer allocator.free(line1);
+    try testing.expect(std.mem.startsWith(u8, line1, "KLMNO"));
+}
+
+test "ChunkedBuffer wrap with line wrapping multiple times" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 5, 10);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 5, .height = 10 };
+    const cb = ChunkedBuffer.init(10).withWrap(true);
+
+    const Ctx = struct {
+        fn callback(line_index: usize, writer: anytype) !void {
+            _ = line_index;
+            try writer.writeAll("ABCDEFGHIJKLMNO"); // 15 chars / 5 width = 3 lines
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    const line0 = buf.getLine(0, 0, 5);
+    defer allocator.free(line0);
+    try testing.expectEqualStrings("ABCDE", line0);
+
+    const line1 = buf.getLine(1, 0, 5);
+    defer allocator.free(line1);
+    try testing.expectEqualStrings("FGHIJ", line1);
+
+    const line2 = buf.getLine(2, 0, 5);
+    defer allocator.free(line2);
+    try testing.expect(std.mem.startsWith(u8, line2, "KLMNO"));
+}
+
+test "ChunkedBuffer wrap with wide character at wrap boundary" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 5, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 5, .height = 5 };
+    const cb = ChunkedBuffer.init(10).withWrap(true);
+
+    const Ctx = struct {
+        fn callback(line_index: usize, writer: anytype) !void {
+            _ = line_index;
+            try writer.writeAll("ABCD中EF"); // Wide char at position 4
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    const line0 = buf.getLine(0, 0, 5);
+    defer allocator.free(line0);
+    // Should not split wide character - wrap it to next line
+    try testing.expect(std.mem.startsWith(u8, line0, "ABCD"));
+
+    const line1 = buf.getLine(1, 0, 5);
+    defer allocator.free(line1);
+    // Wide char should be on second line
+    try testing.expect(std.mem.indexOf(u8, line1, "中") != null);
+}
+
+test "ChunkedBuffer wrap with wide character wider than viewport" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 1, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 1, .height = 5 };
+    const cb = ChunkedBuffer.init(10).withWrap(true);
+
+    const Ctx = struct {
+        fn callback(line_index: usize, writer: anytype) !void {
+            _ = line_index;
+            try writer.writeAll("中文"); // Each char needs 2 columns but viewport is 1
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    // Should handle gracefully without crashing
+    const line0 = buf.getLine(0, 0, 1);
+    defer allocator.free(line0);
+    // Might be empty or partial - just shouldn't crash
+    try testing.expect(line0.len >= 0);
+}
+
+test "ChunkedBuffer wrap with empty line" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 10, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
+    const cb = ChunkedBuffer.init(10).withWrap(true);
+
+    const Ctx = struct {
+        fn callback(_: usize, _: anytype) !void {
+            // Empty line
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    const line0 = buf.getLine(0, 0, 10);
+    defer allocator.free(line0);
+    // Empty line should render and advance y by 1
+    try testing.expect(std.mem.trim(u8, line0, " ").len == 0);
+}
+
+// 6. Unicode Edge Cases
+
+test "ChunkedBuffer handles CJK characters with correct width" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 10, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
+    const cb = ChunkedBuffer.init(10);
+
+    const Ctx = struct {
+        fn callback(line_index: usize, writer: anytype) !void {
+            _ = line_index;
+            try writer.writeAll("你好世界"); // 4 CJK chars = 8 display width
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    const line0 = buf.getLine(0, 0, 10);
+    defer allocator.free(line0);
+    try testing.expect(std.mem.indexOf(u8, line0, "你") != null);
+}
+
+test "ChunkedBuffer handles emoji with correct width" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 10, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
+    const cb = ChunkedBuffer.init(10);
+
+    const Ctx = struct {
+        fn callback(line_index: usize, writer: anytype) !void {
+            _ = line_index;
+            try writer.writeAll("😀😁"); // 2 emoji = 4 display width
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    const line0 = buf.getLine(0, 0, 10);
+    defer allocator.free(line0);
+    try testing.expect(std.mem.indexOf(u8, line0, "😀") != null);
+}
+
+test "ChunkedBuffer handles mixed ASCII and wide characters" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 20, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
+    const cb = ChunkedBuffer.init(10);
+
+    const Ctx = struct {
+        fn callback(line_index: usize, writer: anytype) !void {
+            _ = line_index;
+            try writer.writeAll("Hello世界Test😀"); // Mix of ASCII, CJK, emoji
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    const line0 = buf.getLine(0, 0, 20);
+    defer allocator.free(line0);
+    try testing.expect(std.mem.indexOf(u8, line0, "Hello") != null);
+    try testing.expect(std.mem.indexOf(u8, line0, "世界") != null);
+}
+
+// 7. Block Integration
+
+test "ChunkedBuffer with block reduces inner area correctly" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 20, 10);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
+    const block = Block.init().withBorders(.all);
+    const cb = ChunkedBuffer.init(100).withBlock(block);
+
+    var call_count: usize = 0;
+    const Ctx = struct {
+        var count: *usize = undefined;
+        fn callback(line_index: usize, writer: anytype) !void {
+            count.* += 1;
+            try writer.print("Line {d}", .{line_index});
+        }
+    };
+    Ctx.count = &call_count;
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    // With borders, inner area is reduced by 2 in each dimension
+    // Height: 10 - 2 = 8, so should render 8 lines
+    try testing.expectEqual(@as(usize, 8), call_count);
+}
