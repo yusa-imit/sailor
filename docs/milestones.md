@@ -18,7 +18,7 @@
 - [x] Add meaningful tests (not stub/always-pass tests) — termcap.zig (+37), pool.zig (+17), bench.zig (+12)
 - [x] Test quality audit: add failure scenarios — repl.zig (+8 error tests), docgen.zig (+7 error tests) (Session 27)
 - [x] Edge case testing: boundary values, error paths (Sessions 28-29: transition +32, timer +35, menu +50, form +30, chunkedbuffer +28, richtext_parser +38 = 213 edge case tests)
-- [ ] Memory leak audit in complex widgets (Tree, Table, Form)
+- [x] Memory leak audit in complex widgets (Tree, Table, Form) — Session 31: fixed Tree page_allocator leak, Form insertChar/deleteChar leaks, verified Table clean, added 13 leak tests
 
 ### v1.27.0 — Documentation & Examples
 **Theme**: Improve developer experience with comprehensive docs and examples
