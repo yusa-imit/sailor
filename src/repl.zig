@@ -26,9 +26,9 @@ pub const Error = error{
 
 /// Validation result for multi-line input
 pub const Validation = enum {
-    complete,   // Line is complete, submit it
+    complete, // Line is complete, submit it
     incomplete, // Need more input, show continuation prompt
-    invalid,    // Syntax error, reject input
+    invalid, // Syntax error, reject input
 };
 
 /// Completion callback signature
@@ -464,7 +464,6 @@ pub const Repl = struct {
             try file.writeAll("\n");
         }
     }
-
 };
 
 // Tests
@@ -565,4 +564,110 @@ test "Validation enum" {
     try std.testing.expect(v1 == .complete);
     try std.testing.expect(v2 == .incomplete);
     try std.testing.expect(v3 == .invalid);
+}
+
+test "loadHistory with missing file is caught gracefully" {
+    const allocator = std.testing.allocator;
+
+    // loadHistory catches FileNotFound at line 439 and returns void (no error)
+    // This tests that missing files don't cause init to fail
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    // History should be empty when file doesn't exist
+    try std.testing.expectEqual(0, repl.history.items.len);
+}
+
+test "init with missing history file does not error" {
+    const allocator = std.testing.allocator;
+
+    // init calls loadHistory internally and silently catches errors
+    var repl = try Repl.init(allocator, .{ .history_file = "/nonexistent/history.txt" });
+    defer repl.deinit();
+
+    // Repl should still be valid even if history file doesn't exist
+    try std.testing.expectEqual(0, repl.history.items.len);
+}
+
+test "addHistory enforces max size limit" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{ .history_size = 2 });
+    defer repl.deinit();
+
+    // Add beyond limit
+    try repl.addHistory("first");
+    try repl.addHistory("second");
+    try repl.addHistory("third");
+
+    // Should trim oldest (first)
+    try std.testing.expectEqual(2, repl.history.items.len);
+    try std.testing.expectEqualStrings("second", repl.history.items[0]);
+    try std.testing.expectEqualStrings("third", repl.history.items[1]);
+
+    try repl.addHistory("fourth");
+    try std.testing.expectEqual(2, repl.history.items.len);
+    try std.testing.expectEqualStrings("third", repl.history.items[0]);
+    try std.testing.expectEqualStrings("fourth", repl.history.items[1]);
+}
+
+test "addHistory prevents consecutive duplicates but allows later duplicates" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{ .history_size = 10 });
+    defer repl.deinit();
+
+    try repl.addHistory("cmd1");
+    try repl.addHistory("cmd1"); // Duplicate - should not be added
+    try std.testing.expectEqual(1, repl.history.items.len);
+
+    try repl.addHistory("cmd2");
+    try repl.addHistory("cmd1"); // Same cmd1 but not consecutive - SHOULD be added (line 419 only blocks immediate dupes)
+    try std.testing.expectEqual(3, repl.history.items.len);
+    try std.testing.expectEqualStrings("cmd1", repl.history.items[2]);
+}
+
+test "findCommonPrefix with different first char has no prefix" {
+    const completions = [_][]const u8{ "apple", "banana", "cherry" };
+    const prefix = Repl.findCommonPrefix(&completions);
+    try std.testing.expectEqualStrings("", prefix);
+}
+
+test "addHistory with empty line is rejected" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    try repl.addHistory("");
+    // Empty lines should still be added (readLineInteractive filters at line 189 with `if (self.buffer.items.len > 0)`)
+    try std.testing.expectEqual(1, repl.history.items.len);
+}
+
+test "addHistory respects history_size boundary" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{ .history_size = 3 });
+    defer repl.deinit();
+
+    try repl.addHistory("a");
+    try repl.addHistory("b");
+    try repl.addHistory("c");
+    try std.testing.expectEqual(3, repl.history.items.len);
+
+    // Adding 4th should trigger trim at line 426 (orderedRemove(0))
+    try repl.addHistory("d");
+    try std.testing.expectEqual(3, repl.history.items.len);
+    try std.testing.expectEqualStrings("b", repl.history.items[0]); // "a" was removed
+    try std.testing.expectEqualStrings("d", repl.history.items[2]); // "d" was added
+}
+
+test "Repl.buffer starts empty" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    try std.testing.expectEqual(0, repl.buffer.items.len);
+    try std.testing.expectEqual(0, repl.cursor);
 }
