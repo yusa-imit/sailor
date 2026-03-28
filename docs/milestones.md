@@ -16,8 +16,8 @@
 **Checklist**:
 - [x] Identify modules with <5 tests per 200 lines (Session 26)
 - [x] Add meaningful tests (not stub/always-pass tests) — termcap.zig (+37), pool.zig (+17), bench.zig (+12)
-- [ ] Test quality audit: remove trivial tests, add failure scenarios
-- [ ] Edge case testing: boundary values, error paths
+- [x] Test quality audit: add failure scenarios — repl.zig (+8 error tests), docgen.zig (+7 error tests) (Session 27)
+- [ ] Edge case testing: boundary values, error paths (more modules)
 - [ ] Memory leak audit in complex widgets (Tree, Table, Form)
 
 ### v1.27.0 — Documentation & Examples
