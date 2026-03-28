@@ -13,6 +13,15 @@
 - **Last completed**: v1.25.0 → Form & Validation (5/5, 100%) ✅
 
 ## Project Status
+✅ **Session 28** — FEATURE MODE: Edge Case Testing (2026-03-28)
+  - Added 117 comprehensive edge case tests (+117 total = 2884 tests)
+  - transition.zig: 0 → 32 tests (FadeTransition, SlideTransition, ExpandTransition lifecycles, boundaries, edge cases)
+  - timer.zig: 0 → 35 tests (Timer/TimerManager, callbacks, pause/resume, time scaling, boundaries)
+  - menu.zig: 0 → 50 tests (navigation, submenu operations, rendering, hotkeys, style merging)
+  - All tests cover boundary values (zero/max values, empty collections, out-of-bounds)
+  - All tests cover edge cases (wrapping, idempotence, null returns, early returns)
+  - Progressing v1.26.0 milestone item 4: edge case testing for more modules
+  - Commits: cf62b4c (transition), 653bae3 (timer), 1cb54ab (menu)
 ✅ **Session 27** — FEATURE MODE: Test Quality Audit (2026-03-28)
   - Added 15 comprehensive error path tests (+15 total = 2767 tests)
   - repl.zig: +8 tests (FileNotFound handling, history_size boundaries, deduplication logic, edge cases)
