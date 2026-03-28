@@ -13,6 +13,14 @@
 - **Last completed**: v1.25.0 → Form & Validation (5/5, 100%) ✅
 
 ## Project Status
+✅ **Session 29** — FEATURE MODE: Edge Case Testing (2026-03-28)
+  - Added 96 comprehensive edge case tests (+96 total = 2980 tests)
+  - form.zig: 9 → 39 tests (+30): empty forms, boundaries, insertChar/deleteChar edge cases, cursor movement, validation, rendering (zero-size, truncation, password masking)
+  - chunkedbuffer.zig: 4 → 32 tests (+28): zero-size areas, line/column offset boundaries, truncation/wrapping modes, Unicode (CJK/emoji width), block integration
+  - richtext_parser.zig: 5 → 43 tests (+38): empty/whitespace, unclosed markers, tight binding, word-internal markers, multi-line, special chars, headings
+  - All tests verify actual behavior with meaningful assertions
+  - Progressing v1.26.0 milestone item 4: edge case testing (3 more modules completed)
+  - Commits: f0d1a10 (form), 60da95a (chunkedbuffer), f39a576 (richtext_parser)
 ✅ **Session 28** — FEATURE MODE: Edge Case Testing (2026-03-28)
   - Added 117 comprehensive edge case tests (+117 total = 2884 tests)
   - transition.zig: 0 → 32 tests (FadeTransition, SlideTransition, ExpandTransition lifecycles, boundaries, edge cases)

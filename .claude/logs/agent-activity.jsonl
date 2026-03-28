@@ -15,3 +15,6 @@
 {"timestamp":"2026-03-28T12:15:00Z","action":"subagent","agent_type":"test-writer","task":"Write comprehensive edge case tests for transition.zig (32 tests)","project":"sailor"}
 {"timestamp":"2026-03-28T12:25:00Z","action":"subagent","agent_type":"test-writer","task":"Write comprehensive edge case tests for timer.zig (35 tests)","project":"sailor"}
 {"timestamp":"2026-03-28T12:35:00Z","action":"subagent","agent_type":"test-writer","task":"Write comprehensive edge case tests for menu.zig (50 tests)","project":"sailor"}
+{"timestamp":"2026-03-28T09:15:00Z","action":"subagent","agent_type":"test-writer","task":"Add 30 edge case tests for form.zig","project":"sailor"}
+{"timestamp":"2026-03-28T09:30:00Z","action":"subagent","agent_type":"test-writer","task":"Add 28 edge case tests for chunkedbuffer.zig","project":"sailor"}
+{"timestamp":"2026-03-28T09:45:00Z","action":"subagent","agent_type":"test-writer","task":"Add 38 edge case tests for richtext_parser.zig","project":"sailor"}
