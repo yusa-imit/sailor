@@ -171,6 +171,354 @@ pub fn Pool(comptime T: type) type {
     };
 }
 
+const TestObject = struct {
+    value: u32,
+};
+
+test "pool initialization with double growth policy" {
+    const alloc = std.testing.allocator;
+    var pool = try Pool(TestObject).init(alloc, .{
+        .capacity = 10,
+        .grow_policy = .double,
+    });
+    defer pool.deinit();
+
+    try std.testing.expectEqual(@as(usize, 10), pool.capacity);
+    try std.testing.expectEqual(@as(usize, 0), pool.allocated);
+    try std.testing.expectEqual(@as(usize, 0), pool.in_use);
+    try std.testing.expectEqual(@as(usize, 0), pool.peak_usage);
+}
+
+test "pool initialization with linear growth policy" {
+    const alloc = std.testing.allocator;
+    var pool = try Pool(TestObject).init(alloc, .{
+        .capacity = 5,
+        .grow_policy = .{ .linear = 3 },
+    });
+    defer pool.deinit();
+
+    try std.testing.expectEqual(@as(usize, 5), pool.capacity);
+    try std.testing.expectEqual(@as(usize, 0), pool.allocated);
+    try std.testing.expectEqual(@as(usize, 0), pool.in_use);
+    try std.testing.expectEqual(@as(usize, 0), pool.peak_usage);
+}
+
+test "acquire from empty pool allocates new object" {
+    const alloc = std.testing.allocator;
+    var pool = try Pool(TestObject).init(alloc, .{
+        .capacity = 10,
+        .grow_policy = .double,
+    });
+    defer pool.deinit();
+
+    const obj = try pool.acquire();
+    obj.value = 42;
+    try std.testing.expectEqual(@as(u32, 42), obj.value);
+    try std.testing.expectEqual(@as(usize, 1), pool.allocated);
+    try std.testing.expectEqual(@as(usize, 1), pool.in_use);
+    try std.testing.expectEqual(@as(usize, 1), pool.peak_usage);
+}
+
+test "release object adds to free stack" {
+    const alloc = std.testing.allocator;
+    var pool = try Pool(TestObject).init(alloc, .{
+        .capacity = 10,
+        .grow_policy = .double,
+    });
+    defer pool.deinit();
+
+    const obj = try pool.acquire();
+    try std.testing.expectEqual(@as(usize, 1), pool.in_use);
+
+    pool.release(obj);
+    try std.testing.expectEqual(@as(usize, 0), pool.in_use);
+    try std.testing.expectEqual(@as(usize, 1), pool.allocated);
+}
+
+test "acquire after release reuses object (LIFO)" {
+    const alloc = std.testing.allocator;
+    var pool = try Pool(TestObject).init(alloc, .{
+        .capacity = 10,
+        .grow_policy = .double,
+    });
+    defer pool.deinit();
+
+    const obj1 = try pool.acquire();
+    obj1.value = 42;
+    pool.release(obj1);
+
+    const obj2 = try pool.acquire();
+    try std.testing.expectEqual(@as(usize, 42), obj2.value);
+    try std.testing.expectEqual(@as(usize, 1), pool.allocated);
+}
+
+test "LIFO behavior: last released is first acquired" {
+    const alloc = std.testing.allocator;
+    var pool = try Pool(TestObject).init(alloc, .{
+        .capacity = 10,
+        .grow_policy = .double,
+    });
+    defer pool.deinit();
+
+    const obj1 = try pool.acquire();
+    obj1.value = 1;
+    const obj2 = try pool.acquire();
+    obj2.value = 2;
+    const obj3 = try pool.acquire();
+    obj3.value = 3;
+
+    pool.release(obj1);
+    pool.release(obj2);
+    pool.release(obj3);
+
+    // LIFO: obj3 was released last, should be acquired first
+    const reacquired = try pool.acquire();
+    try std.testing.expectEqual(@as(usize, 3), reacquired.value);
+}
+
+test "double growth policy: capacity doubles when exceeded" {
+    const alloc = std.testing.allocator;
+    var pool = try Pool(TestObject).init(alloc, .{
+        .capacity = 2,
+        .grow_policy = .double,
+    });
+    defer pool.deinit();
+
+    const obj1 = try pool.acquire();
+    const obj2 = try pool.acquire();
+    const obj3 = try pool.acquire();
+    try std.testing.expectEqual(@as(usize, 4), pool.capacity);
+
+    pool.release(obj1);
+    pool.release(obj2);
+    pool.release(obj3);
+}
+
+test "linear growth policy: capacity grows by step" {
+    const alloc = std.testing.allocator;
+    var pool = try Pool(TestObject).init(alloc, .{
+        .capacity = 2,
+        .grow_policy = .{ .linear = 3 },
+    });
+    defer pool.deinit();
+
+    const obj1 = try pool.acquire();
+    const obj2 = try pool.acquire();
+    const obj3 = try pool.acquire();
+    try std.testing.expectEqual(@as(usize, 5), pool.capacity);
+
+    pool.release(obj1);
+    pool.release(obj2);
+    pool.release(obj3);
+}
+
+test "statistics: in_use increases on acquire, decreases on release" {
+    const alloc = std.testing.allocator;
+    var pool = try Pool(TestObject).init(alloc, .{
+        .capacity = 10,
+        .grow_policy = .double,
+    });
+    defer pool.deinit();
+
+    try std.testing.expectEqual(@as(usize, 0), pool.in_use);
+
+    const obj1 = try pool.acquire();
+    try std.testing.expectEqual(@as(usize, 1), pool.in_use);
+
+    const obj2 = try pool.acquire();
+    try std.testing.expectEqual(@as(usize, 2), pool.in_use);
+
+    pool.release(obj1);
+    try std.testing.expectEqual(@as(usize, 1), pool.in_use);
+
+    pool.release(obj2);
+    try std.testing.expectEqual(@as(usize, 0), pool.in_use);
+}
+
+test "statistics: peak_usage tracks maximum concurrent usage" {
+    const alloc = std.testing.allocator;
+    var pool = try Pool(TestObject).init(alloc, .{
+        .capacity = 10,
+        .grow_policy = .double,
+    });
+    defer pool.deinit();
+
+    try std.testing.expectEqual(@as(usize, 0), pool.peak_usage);
+
+    const obj1 = try pool.acquire();
+    const obj2 = try pool.acquire();
+    const obj3 = try pool.acquire();
+    try std.testing.expectEqual(@as(usize, 3), pool.peak_usage);
+
+    pool.release(obj1);
+    pool.release(obj2);
+    pool.release(obj3);
+
+    const obj4 = try pool.acquire();
+    const obj5 = try pool.acquire();
+    try std.testing.expectEqual(@as(usize, 3), pool.peak_usage);
+
+    pool.release(obj4);
+    pool.release(obj5);
+}
+
+test "statistics: allocated count increases on new object creation" {
+    const alloc = std.testing.allocator;
+    var pool = try Pool(TestObject).init(alloc, .{
+        .capacity = 10,
+        .grow_policy = .double,
+    });
+    defer pool.deinit();
+
+    try std.testing.expectEqual(@as(usize, 0), pool.allocated);
+
+    const obj1 = try pool.acquire();
+    try std.testing.expectEqual(@as(usize, 1), pool.allocated);
+
+    const obj2 = try pool.acquire();
+    try std.testing.expectEqual(@as(usize, 2), pool.allocated);
+
+    // Releasing doesn't change allocated
+    pool.release(obj1);
+    try std.testing.expectEqual(@as(usize, 2), pool.allocated);
+
+    // Re-acquiring doesn't increase allocated
+    const obj3 = try pool.acquire();
+    try std.testing.expectEqual(@as(usize, 2), pool.allocated);
+
+    pool.release(obj3);
+    pool.release(obj2);
+}
+
+test "reset clears storage and resets counters" {
+    const alloc = std.testing.allocator;
+    var pool = try Pool(TestObject).init(alloc, .{
+        .capacity = 10,
+        .grow_policy = .double,
+    });
+    defer pool.deinit();
+
+    const obj1 = try pool.acquire();
+    const obj2 = try pool.acquire();
+    pool.release(obj1);
+    pool.release(obj2);
+
+    try std.testing.expectEqual(@as(usize, 2), pool.allocated);
+    try std.testing.expectEqual(@as(usize, 0), pool.in_use);
+
+    pool.reset();
+
+    try std.testing.expectEqual(@as(usize, 0), pool.allocated);
+    try std.testing.expectEqual(@as(usize, 0), pool.in_use);
+    try std.testing.expectEqual(@as(usize, 10), pool.capacity);
+}
+
+test "reset preserves capacity" {
+    const alloc = std.testing.allocator;
+    var pool = try Pool(TestObject).init(alloc, .{
+        .capacity = 5,
+        .grow_policy = .double,
+    });
+    defer pool.deinit();
+
+    const obj1 = try pool.acquire();
+    const obj2 = try pool.acquire();
+    const obj3 = try pool.acquire();
+    pool.release(obj1);
+    pool.release(obj2);
+    pool.release(obj3);
+
+    pool.reset();
+
+    try std.testing.expectEqual(@as(usize, 5), pool.capacity);
+}
+
+test "acquire many objects with growth" {
+    const alloc = std.testing.allocator;
+    var pool = try Pool(TestObject).init(alloc, .{
+        .capacity = 2,
+        .grow_policy = .double,
+    });
+    defer pool.deinit();
+
+    var objects: [10]*TestObject = undefined;
+    for (0..10) |i| {
+        objects[i] = try pool.acquire();
+        objects[i].value = @intCast(i);
+    }
+
+    try std.testing.expectEqual(@as(usize, 10), pool.allocated);
+    try std.testing.expectEqual(@as(usize, 10), pool.in_use);
+    try std.testing.expectEqual(@as(usize, 10), pool.peak_usage);
+
+    for (0..10) |i| {
+        pool.release(objects[i]);
+    }
+
+    try std.testing.expectEqual(@as(usize, 0), pool.in_use);
+    try std.testing.expectEqual(@as(usize, 10), pool.allocated);
+}
+
+test "release unbalanced with acquire is safe" {
+    const alloc = std.testing.allocator;
+    var pool = try Pool(TestObject).init(alloc, .{
+        .capacity = 10,
+        .grow_policy = .double,
+    });
+    defer pool.deinit();
+
+    const obj1 = try pool.acquire();
+    const obj2 = try pool.acquire();
+
+    pool.release(obj1);
+    pool.release(obj2);
+    pool.release(obj2); // Release same object again
+
+    // Should not crash, in_use won't go below 0
+    try std.testing.expectEqual(@as(usize, 0), pool.in_use);
+}
+
+test "multiple acquire-release cycles" {
+    const alloc = std.testing.allocator;
+    var pool = try Pool(TestObject).init(alloc, .{
+        .capacity = 5,
+        .grow_policy = .double,
+    });
+    defer pool.deinit();
+
+    // First cycle
+    const obj1 = try pool.acquire();
+    obj1.value = 10;
+    pool.release(obj1);
+
+    // Second cycle - should reuse
+    const obj2 = try pool.acquire();
+    try std.testing.expectEqual(@as(usize, 10), obj2.value);
+    pool.release(obj2);
+
+    // Third cycle
+    const obj3 = try pool.acquire();
+    obj3.value = 20;
+    pool.release(obj3);
+
+    const obj4 = try pool.acquire();
+    try std.testing.expectEqual(@as(usize, 20), obj4.value);
+
+    pool.release(obj4);
+}
+
+test "zeroed initialization on new objects" {
+    const alloc = std.testing.allocator;
+    var pool = try Pool(TestObject).init(alloc, .{
+        .capacity = 10,
+        .grow_policy = .double,
+    });
+    defer pool.deinit();
+
+    const obj = try pool.acquire();
+    try std.testing.expectEqual(@as(u32, 0), obj.value);
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
