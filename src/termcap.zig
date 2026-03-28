@@ -428,6 +428,548 @@ fn strCapabilityIndex(name: []const u8) ?usize {
     return null;
 }
 
+// Tests
+test "parse valid terminfo binary with magic 0o432" {
+    const allocator = std.testing.allocator;
+
+    // Build minimal valid terminfo with legacy magic
+    var buf = std.ArrayList(u8){};
+    defer buf.deinit(allocator);
+
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o432))); // magic
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 6))); // names_size: "xterm\0"
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // bool_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // num_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // str_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // str_table_size
+    try buf.appendSlice(allocator, "xterm\x00");
+
+    const data = buf.items;
+    var ti = try TermInfo.parse(allocator, data);
+    defer ti.deinit();
+
+    try std.testing.expectEqualStrings("xterm", ti.name);
+    try std.testing.expectEqual(@as(usize, 0), ti.bool_count);
+    try std.testing.expectEqual(@as(usize, 0), ti.num_count);
+}
+
+test "parse valid terminfo binary with extended magic 0o542" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.ArrayList(u8){};
+    defer buf.deinit(allocator);
+
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o542))); // extended magic
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 6))); // names_size: "xtest\0"
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // bool_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // num_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // str_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // str_table_size
+    try buf.appendSlice(allocator, "xtest\x00");
+
+    const data = buf.items;
+    var ti = try TermInfo.parse(allocator, data);
+    defer ti.deinit();
+
+    try std.testing.expectEqualStrings("xtest", ti.name);
+}
+
+test "parse rejects invalid magic number" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.ArrayList(u8){};
+    defer buf.deinit(allocator);
+
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0x1234))); // invalid magic
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 5))); // names_size
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // bool_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // num_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // str_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // str_table_size
+    try buf.appendSlice(allocator, "test\x00");
+
+    const result = TermInfo.parse(allocator, buf.items);
+    try std.testing.expectError(error.InvalidMagicNumber, result);
+}
+
+test "parse rejects truncated file (too short)" {
+    const allocator = std.testing.allocator;
+    const data: [11]u8 = undefined; // only 11 bytes, header needs 12
+
+    const result = TermInfo.parse(allocator, &data);
+    try std.testing.expectError(error.TruncatedFile, result);
+}
+
+test "parse rejects truncated names section" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.ArrayList(u8){};
+    defer buf.deinit(allocator);
+
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o432))); // magic
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 100))); // names_size: 100
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // bool_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // num_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // str_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // str_table_size
+    try buf.appendSlice(allocator, "short");
+
+    const result = TermInfo.parse(allocator, buf.items);
+    try std.testing.expectError(error.TruncatedFile, result);
+}
+
+test "getBool by name returns correct value" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm");
+    defer ti.deinit();
+
+    const bce = try ti.getBool("bce");
+    try std.testing.expect(bce);
+}
+
+test "getBool by name returns error for missing capability" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm");
+    defer ti.deinit();
+
+    const result = ti.getBool("nonexistent");
+    try std.testing.expectError(error.CapabilityNotFound, result);
+}
+
+test "getBoolByIndex returns correct value" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm");
+    defer ti.deinit();
+
+    const bce = ti.getBoolByIndex(0); // bce is index 0
+    try std.testing.expect(bce);
+
+    const ccc = ti.getBoolByIndex(1); // ccc is index 1 (not set)
+    try std.testing.expect(!ccc);
+}
+
+test "getBoolByIndex returns false for out of bounds" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm");
+    defer ti.deinit();
+
+    const result = ti.getBoolByIndex(999);
+    try std.testing.expect(!result);
+}
+
+test "getNum by name returns correct value" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm");
+    defer ti.deinit();
+
+    const cols = try ti.getNum("cols");
+    try std.testing.expectEqual(@as(i16, 80), cols);
+
+    const lines = try ti.getNum("lines");
+    try std.testing.expectEqual(@as(i16, 24), lines);
+}
+
+test "getNum by name returns error for missing capability" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm");
+    defer ti.deinit();
+
+    const result = ti.getNum("nonexistent");
+    try std.testing.expectError(error.CapabilityNotFound, result);
+}
+
+test "getNum by name returns error for absent numeric value (-1)" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.ArrayList(u8){};
+    defer buf.deinit(allocator);
+
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o432))); // magic
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 6))); // names_size: "test\x00\x00"
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // bool_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 1))); // num_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // str_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // str_table_size
+    try buf.appendSlice(allocator, "test\x00\x00");
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, -1))); // cols = -1 (absent)
+
+    var ti = try TermInfo.parse(allocator, buf.items);
+    defer ti.deinit();
+
+    const result = ti.getNum("cols");
+    try std.testing.expectError(error.CapabilityNotFound, result);
+}
+
+test "getNumByIndex returns correct value" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm");
+    defer ti.deinit();
+
+    const cols = ti.getNumByIndex(0);
+    try std.testing.expectEqual(@as(?i16, 80), cols);
+
+    const lines = ti.getNumByIndex(1);
+    try std.testing.expectEqual(@as(?i16, 24), lines);
+}
+
+test "getNumByIndex returns null for absent value (-1)" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.ArrayList(u8){};
+    defer buf.deinit(allocator);
+
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o432))); // magic
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 6))); // names_size: "test\x00\x00"
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // bool_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 1))); // num_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // str_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // str_table_size
+    try buf.appendSlice(allocator, "test\x00\x00");
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, -1))); // value absent
+
+    var ti = try TermInfo.parse(allocator, buf.items);
+    defer ti.deinit();
+
+    const result = ti.getNumByIndex(0);
+    try std.testing.expectEqual(@as(?i16, null), result);
+}
+
+test "getNumByIndex returns null for out of bounds" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm");
+    defer ti.deinit();
+
+    const result = ti.getNumByIndex(999);
+    try std.testing.expectEqual(@as(?i16, null), result);
+}
+
+test "getString by name returns correct value" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm");
+    defer ti.deinit();
+
+    const clear = try ti.getString("clear");
+    try std.testing.expectEqualStrings("\x1b[H\x1b[2J", clear);
+
+    const home = try ti.getString("home");
+    try std.testing.expectEqualStrings("\x1b[H", home);
+}
+
+test "getString by name returns error for missing capability" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm");
+    defer ti.deinit();
+
+    const result = ti.getString("nonexistent");
+    try std.testing.expectError(error.CapabilityNotFound, result);
+}
+
+test "getString by name returns error for absent string (-1 offset)" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.ArrayList(u8){};
+    defer buf.deinit(allocator);
+
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o432))); // magic
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 6))); // names_size: "test\x00\x00"
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // bool_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // num_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 1))); // str_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 5))); // str_table_size
+    try buf.appendSlice(allocator, "test\x00\x00");
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, -1))); // clear absent
+    try buf.appendSlice(allocator, "table");
+
+    var ti = try TermInfo.parse(allocator, buf.items);
+    defer ti.deinit();
+
+    const result = ti.getString("clear");
+    try std.testing.expectError(error.CapabilityNotFound, result);
+}
+
+test "getStrByIndex returns correct value" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm");
+    defer ti.deinit();
+
+    const clear = ti.getStrByIndex(0);
+    try std.testing.expect(clear != null);
+    try std.testing.expectEqualStrings("\x1b[H\x1b[2J", clear.?);
+}
+
+test "getStrByIndex returns null for absent value (-1 offset)" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.ArrayList(u8){};
+    defer buf.deinit(allocator);
+
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o432))); // magic
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 6))); // names_size: "test\x00\x00"
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // bool_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // num_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 1))); // str_count
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 5))); // str_table_size
+    try buf.appendSlice(allocator, "test\x00\x00");
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, -1))); // absent
+    try buf.appendSlice(allocator, "table");
+
+    var ti = try TermInfo.parse(allocator, buf.items);
+    defer ti.deinit();
+
+    const result = ti.getStrByIndex(0);
+    try std.testing.expectEqual(@as(?[]const u8, null), result);
+}
+
+test "getStrByIndex returns null for out of bounds" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm");
+    defer ti.deinit();
+
+    const result = ti.getStrByIndex(999);
+    try std.testing.expectEqual(@as(?[]const u8, null), result);
+}
+
+test "createFallback xterm-256color returns 256 colors" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm-256color");
+    defer ti.deinit();
+
+    const colors = try ti.getNum("colors");
+    try std.testing.expectEqual(@as(i16, 256), colors);
+}
+
+test "createFallback xterm returns 8 colors" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm");
+    defer ti.deinit();
+
+    const colors = try ti.getNum("colors");
+    try std.testing.expectEqual(@as(i16, 8), colors);
+}
+
+test "createFallback screen returns 256 colors" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "screen");
+    defer ti.deinit();
+
+    const colors = try ti.getNum("colors");
+    try std.testing.expectEqual(@as(i16, 256), colors);
+}
+
+test "createFallback tmux returns 256 colors" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "tmux");
+    defer ti.deinit();
+
+    const colors = try ti.getNum("colors");
+    try std.testing.expectEqual(@as(i16, 256), colors);
+}
+
+test "createFallback dumb has no colors" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "dumb");
+    defer ti.deinit();
+
+    // dumb terminal has 0 string capabilities, so colors lookup will fail
+    const result = ti.getNum("colors");
+    try std.testing.expectError(error.CapabilityNotFound, result);
+}
+
+test "createFallback dumb has basic dimensions" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "dumb");
+    defer ti.deinit();
+
+    const cols = try ti.getNum("cols");
+    try std.testing.expectEqual(@as(i16, 80), cols);
+
+    const lines = try ti.getNum("lines");
+    try std.testing.expectEqual(@as(i16, 24), lines);
+}
+
+test "createFallback rejects unknown terminal" {
+    const allocator = std.testing.allocator;
+
+    const result = TermInfo.createFallback(allocator, "unknown-terminal-xyz");
+    try std.testing.expectError(error.TerminalNotFound, result);
+}
+
+test "supportsColors returns true for xterm" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm");
+    defer ti.deinit();
+
+    try std.testing.expect(ti.supportsColors());
+}
+
+test "supportsColors returns false for dumb" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "dumb");
+    defer ti.deinit();
+
+    try std.testing.expect(!ti.supportsColors());
+}
+
+test "getColorCount returns 8 for xterm" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm");
+    defer ti.deinit();
+
+    const count = ti.getColorCount();
+    try std.testing.expectEqual(@as(u32, 8), count);
+}
+
+test "getColorCount returns 256 for xterm-256color" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm-256color");
+    defer ti.deinit();
+
+    const count = ti.getColorCount();
+    try std.testing.expectEqual(@as(u32, 256), count);
+}
+
+test "getColorCount returns 0 for dumb" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "dumb");
+    defer ti.deinit();
+
+    const count = ti.getColorCount();
+    try std.testing.expectEqual(@as(u32, 0), count);
+}
+
+test "alignment handling for boolean section padding" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.ArrayList(u8){};
+    defer buf.deinit(allocator);
+
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o432))); // magic (2 bytes)
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 6))); // names_size: "test\x00\x00" (2 bytes)
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 1))); // bool_count (2 bytes)
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 2))); // num_count (2 bytes)
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // str_count (2 bytes)
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0))); // str_table_size (2 bytes)
+    // Total header: 12 bytes (even), so next offset is even
+    try buf.appendSlice(allocator, "test\x00\x00"); // 6 bytes, total 18 (even)
+    try buf.append(allocator, 1); // booleans: 1 byte, total 19 (odd)
+    try buf.append(allocator, 0); // padding: 1 byte, total 20 (even) - now aligned for i16
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 80))); // cols
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 24))); // lines
+
+    var ti = try TermInfo.parse(allocator, buf.items);
+    defer ti.deinit();
+
+    const cols = try ti.getNum("cols");
+    try std.testing.expectEqual(@as(i16, 80), cols);
+}
+
+test "create fallback xterm includes all string capabilities" {
+    const allocator = std.testing.allocator;
+
+    var ti = try TermInfo.createFallback(allocator, "xterm");
+    defer ti.deinit();
+
+    const clear = try ti.getString("clear");
+    try std.testing.expect(clear.len > 0);
+
+    const home = try ti.getString("home");
+    try std.testing.expect(home.len > 0);
+
+    const cup = try ti.getString("cup");
+    try std.testing.expect(cup.len > 0);
+
+    const setaf = try ti.getString("setaf");
+    try std.testing.expect(setaf.len > 0);
+
+    const setab = try ti.getString("setab");
+    try std.testing.expect(setab.len > 0);
+}
+
+test "load with empty terminal name returns error" {
+    const allocator = std.testing.allocator;
+
+    const result = TermInfo.load(allocator, "");
+    try std.testing.expectError(error.InvalidTerminalName, result);
+}
+
+test "parse with complex multi-capability terminfo" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.ArrayList(u8){};
+    defer buf.deinit(allocator);
+
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o432))); // magic (2 bytes, offset=0)
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 7))); // names_size (2 bytes, offset=2)
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 2))); // bool_count (2 bytes, offset=4)
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 2))); // num_count (2 bytes, offset=6)
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 2))); // str_count (2 bytes, offset=8)
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 10))); // str_table_size (2 bytes, offset=10)
+    // Header ends at offset 12
+
+    // Names (7 bytes, offset=12)
+    try buf.appendSlice(allocator, "linux\x00\x00");
+    // offset=19 (odd), so after booleans we need padding
+
+    // Booleans: 2 bytes (offset=19)
+    try buf.append(allocator, 1); // bce
+    try buf.append(allocator, 0); // ccc
+    // offset=21 (odd), so add 1 byte padding
+
+    // Padding
+    try buf.append(allocator, 0);
+    // offset=22 (even) - now aligned for i16
+
+    // Numbers: 2 count = 4 bytes (offset=22)
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 80))); // cols
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 24))); // lines
+    // offset=26
+
+    // String offsets: 2 count = 4 bytes (offset=26)
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 0))); // clear at 0
+    try buf.appendSlice(allocator, &std.mem.toBytes(@as(i16, 6))); // home at 6
+    // offset=30
+
+    // String table: 10 bytes (offset=30)
+    try buf.appendSlice(allocator, "hello\x00home\x00");
+
+    var ti = try TermInfo.parse(allocator, buf.items);
+    defer ti.deinit();
+
+    try std.testing.expectEqualStrings("linux", ti.name);
+    try std.testing.expectEqual(@as(usize, 2), ti.bool_count);
+    try std.testing.expectEqual(@as(usize, 2), ti.num_count);
+    try std.testing.expectEqual(@as(usize, 2), ti.str_count);
+
+    const clear = try ti.getString("clear");
+    try std.testing.expectEqualStrings("hello", clear);
+
+    const home = try ti.getString("home");
+    try std.testing.expectEqualStrings("home", home);
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
