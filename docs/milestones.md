@@ -14,8 +14,8 @@
 **Theme**: Test coverage improvements, edge case hardening, test quality audit
 **Target**: 2026-04 (1-2 weeks)
 **Checklist**:
-- [ ] Identify modules with <5 tests per 200 lines
-- [ ] Add meaningful tests (not stub/always-pass tests)
+- [x] Identify modules with <5 tests per 200 lines (Session 26)
+- [x] Add meaningful tests (not stub/always-pass tests) — termcap.zig (+37), pool.zig (+17), bench.zig (+12)
 - [ ] Test quality audit: remove trivial tests, add failure scenarios
 - [ ] Edge case testing: boundary values, error paths
 - [ ] Memory leak audit in complex widgets (Tree, Table, Form)
