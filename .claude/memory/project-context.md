@@ -13,6 +13,14 @@
 - **Last completed**: v1.26.0 → Testing & Quality Assurance (5/5, 100%) ✅
 
 ## Project Status
+✅ **Session 37** — FEATURE MODE: API Documentation Phase 5 (2026-03-30)
+  - Completed multicursor.zig: 28 functions documented (MultiCursorEditor + MultiCursor types)
+  - **Phase 5 (Widget Completeness) progress**: editor.zig + multicursor.zig — 2/7 widgets complete
+  - Total documented this session: 28 functions (277 remaining)
+  - Cumulative: 83 functions documented across sessions 33-37
+  - Cleanup: Removed obsolete src/examples/ directory (examples now in examples/ root)
+  - Commits: a8f4bc7 (cleanup), 4a66c71 (multicursor docs)
+  - Next: Continue Phase 5 — richtext.zig (30 fns), autocomplete.zig (14 fns), checkbox/radio/select
 ✅ **Session 36** — FEATURE MODE: Real-World Examples (2026-03-30)
   - **MILESTONE ITEM 2 COMPLETE**: Added 5 new example applications (item 2/5, 40% milestone progress)
   - Created examples/: hello.zig (132 LOC), counter.zig (159 LOC), dashboard.zig (185 LOC), task_list.zig (170 LOC), layout_showcase.zig (152 LOC)
@@ -21,7 +29,6 @@
   - All examples build successfully (zig build example-*)
   - Patterns demonstrated: state management, nested layouts, conditional styling, data modeling, widget composition
   - Commits: c5992f1 (initial), 423c1f7 (API corrections)
-  - Next: Continue API documentation (item 1, 305 functions remaining) or Getting Started guides (item 3)
 ✅ **Session 35** — STABILIZATION MODE: Test Quality & Cross-platform (2026-03-29)
   - Test quality audit: Improved FileBrowser render test (replaced no-op `expect(true)`)
   - Cross-compilation verified: Windows x86_64, Linux x86_64, macOS ARM64 — all PASS
