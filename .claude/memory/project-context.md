@@ -9,10 +9,21 @@
 - Previous versions: v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: v1.27.0 → Documentation & Examples (0/5, 0%)
+- **Active milestone**: v1.27.0 → Documentation & Examples (1/5, 20%)
 - **Last completed**: v1.26.0 → Testing & Quality Assurance (5/5, 100%) ✅
 
 ## Project Status
+✅ **Session 33** — FEATURE MODE: API Documentation Review (2026-03-29)
+  - Started v1.27.0 milestone: Documentation & Examples (item 1: API documentation review)
+  - Generated comprehensive doc comment audit: 1,471 functions audited, 335 undocumented (23%)
+  - **Phase 1 complete**: progress.zig (1 fn), term.zig (5 fns MockTerminal)
+  - **Phase 2 complete**: widget_trait.zig (2 fns), widget_helpers.zig (8 fns)
+  - **Phase 3 complete**: form.zig (13 fns)
+  - **Total documented: 30 functions** (305 remaining)
+  - Audit report: AUDIT_DOC_COMMENTS.md with phased implementation roadmap
+  - All tests pass (3393 tests)
+  - Commits: 6f809c1 (17 fns), 44223c0 (13 fns)
+  - Progress: Core modules 97→103/103 (100%), Key widgets 74→87/87 (100%)
 ✅ **Session 31** — FEATURE MODE: Memory Leak Audit & v1.26.0 Release (2026-03-29)
   - **RELEASED v1.26.0** — Testing & Quality Assurance milestone complete (5/5, 100%)
   - Memory leak audit performed on Tree, Table, Form widgets
