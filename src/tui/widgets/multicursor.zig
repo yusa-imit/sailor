@@ -47,6 +47,8 @@ pub const MultiCursorEditor = struct {
         selection: ?Selection,
     };
 
+    /// Initializes a MultiCursorEditor with default values.
+    /// The returned instance must be freed with `.deinit()`.
     pub fn init(allocator: Allocator) MultiCursorEditor {
         return .{
             .base = Editor.init(allocator),
@@ -56,31 +58,43 @@ pub const MultiCursorEditor = struct {
         };
     }
 
+    /// Frees resources associated with this editor instance.
     pub fn deinit(self: *MultiCursorEditor) void {
         self.base.deinit();
         self.cursors.deinit();
     }
 
+    /// Sets the editor text to the given content.
+    /// Clears all secondary cursors and disables column mode.
     pub fn setText(self: *MultiCursorEditor, text: []const u8) !void {
         try self.base.setText(text);
         self.cursors.clearRetainingCapacity();
         self.column_mode = false;
     }
 
+    /// Returns the editor text as an owned string.
+    /// Caller must free the returned slice.
     pub fn getText(self: *const MultiCursorEditor, allocator: Allocator) ![]const u8 {
         return self.base.getText(allocator);
     }
 
+    /// Sets the syntax highlighting language.
+    /// Returns `self` for method chaining.
     pub fn setLanguage(self: *MultiCursorEditor, lang: @TypeOf(self.base.language)) *MultiCursorEditor {
         _ = self.base.setLanguage(lang);
         return self;
     }
 
+    /// Sets the surrounding block border and title.
+    /// Returns `self` for method chaining.
     pub fn setBlock(self: *MultiCursorEditor, block: Block) *MultiCursorEditor {
         _ = self.base.setBlock(block);
         return self;
     }
 
+    /// Adds a secondary cursor at the specified position.
+    /// Position is clamped to valid text bounds.
+    /// Ignores duplicate cursor positions.
     pub fn addCursor(self: *MultiCursorEditor, pos: Position) !void {
         // Clamp position to valid bounds
         const line = @min(pos.line, self.base.lines.items.len - 1);
@@ -102,19 +116,25 @@ pub const MultiCursorEditor = struct {
         });
     }
 
+    /// Removes the secondary cursor at the given index.
+    /// Does nothing if index is out of bounds.
     pub fn removeCursor(self: *MultiCursorEditor, index: usize) void {
         if (index >= self.cursors.items.len) return;
         _ = self.cursors.swapRemove(index);
     }
 
+    /// Removes all secondary cursors, keeping only the primary cursor.
     pub fn clearCursors(self: *MultiCursorEditor) void {
         self.cursors.clearRetainingCapacity();
     }
 
+    /// Returns the total number of cursors (primary + secondary).
     pub fn getCursorCount(self: *const MultiCursorEditor) usize {
         return 1 + self.cursors.items.len; // Primary + secondary cursors
     }
 
+    /// Enables or disables column selection mode (rectangular selection).
+    /// Returns `self` for method chaining.
     pub fn setColumnMode(self: *MultiCursorEditor, enabled: bool) *MultiCursorEditor {
         self.column_mode = enabled;
         return self;
@@ -236,6 +256,8 @@ pub const MultiCursorEditor = struct {
         return a.col > b.col;
     }
 
+    /// Renders the multi-cursor editor to the given buffer within the specified area.
+    /// Draws the base editor and overlays all secondary cursors.
     pub fn render(self: *const MultiCursorEditor, buf: *Buffer, area: Rect) void {
         // Render base editor
         self.base.render(buf, area);
@@ -540,6 +562,7 @@ pub const MultiCursorSelection = struct {
     start: MultiCursorPosition,
     end: MultiCursorPosition,
 
+    /// Returns true if the selection is empty (start equals end).
     pub fn isEmpty(self: MultiCursorSelection) bool {
         return self.start.line == self.end.line and self.start.col == self.end.col;
     }
@@ -577,6 +600,8 @@ pub const MultiCursor = struct {
         InvalidCursorIndex,
     };
 
+    /// Initializes a MultiCursor widget with empty text buffer.
+    /// The returned instance must be freed with `.deinit()`.
     pub fn init(allocator: Allocator) !MultiCursor {
         return .{
             .allocator = allocator,
@@ -586,6 +611,7 @@ pub const MultiCursor = struct {
         };
     }
 
+    /// Frees all resources associated with this widget.
     pub fn deinit(self: *MultiCursor) void {
         for (self.lines.items) |line| {
             self.allocator.free(line);
@@ -594,6 +620,8 @@ pub const MultiCursor = struct {
         self.cursors.deinit(self.allocator);
     }
 
+    /// Sets the text buffer to the given content.
+    /// Splits text by newlines and allocates owned lines.
     pub fn setText(self: *MultiCursor, text: []const u8) !void {
         // Free existing lines
         for (self.lines.items) |line| {
@@ -615,6 +643,9 @@ pub const MultiCursor = struct {
         }
     }
 
+    /// Adds a cursor at the specified position.
+    /// Returns `error.InvalidPosition` if position is out of bounds.
+    /// Ignores duplicate positions.
     pub fn addCursor(self: *MultiCursor, pos: MultiCursor.Position) !void {
         // Validate position
         if (pos.line >= self.lines.items.len) {
@@ -642,6 +673,9 @@ pub const MultiCursor = struct {
         }
     }
 
+    /// Removes the cursor at the given index.
+    /// Returns `error.InvalidCursorIndex` if index is out of bounds.
+    /// Adjusts primary cursor index if affected.
     pub fn removeCursor(self: *MultiCursor, index: usize) !void {
         if (index >= self.cursors.items.len) {
             return Error.InvalidCursorIndex;
@@ -660,11 +694,14 @@ pub const MultiCursor = struct {
         }
     }
 
+    /// Removes all cursors and resets primary cursor.
     pub fn clearCursors(self: *MultiCursor) void {
         self.cursors.clearRetainingCapacity();
         self.primary_cursor = null;
     }
 
+    /// Sets the primary cursor to the specified index.
+    /// Returns `error.InvalidCursorIndex` if index is out of bounds.
     pub fn setPrimaryCursor(self: *MultiCursor, index: usize) !void {
         if (index >= self.cursors.items.len) {
             return Error.InvalidCursorIndex;
@@ -672,6 +709,8 @@ pub const MultiCursor = struct {
         self.primary_cursor = index;
     }
 
+    /// Inserts a character at all cursor positions simultaneously.
+    /// Cursors are processed in reverse order to maintain position validity.
     pub fn insertChar(self: *MultiCursor, ch: u8) !void {
         if (self.cursors.items.len == 0) return;
 
@@ -725,6 +764,8 @@ pub const MultiCursor = struct {
         self.mergeCursors();
     }
 
+    /// Deletes the character before each cursor (backspace behavior).
+    /// Cursors are processed in reverse order to maintain position validity.
     pub fn deleteChar(self: *MultiCursor) !void {
         if (self.cursors.items.len == 0) return;
 
@@ -779,6 +820,8 @@ pub const MultiCursor = struct {
         self.mergeCursors();
     }
 
+    /// Inserts a newline at each cursor position, splitting lines.
+    /// Cursors are moved to the beginning of the new lines.
     pub fn insertNewline(self: *MultiCursor) !void {
         if (self.cursors.items.len == 0) return;
 
@@ -833,6 +876,7 @@ pub const MultiCursor = struct {
         self.mergeCursors();
     }
 
+    /// Merges cursors that are at the same position after edits.
     pub fn mergeCursors(self: *MultiCursor) void {
         if (self.cursors.items.len <= 1) return;
 
@@ -860,6 +904,8 @@ pub const MultiCursor = struct {
         }
     }
 
+    /// Adds cursors in a vertical column (rectangular selection).
+    /// Cursors are added at the specified column for each line in the range.
     pub fn addColumnCursors(self: *MultiCursor, spec: ColumnSpec) !void {
         const start_line = @min(spec.start_line, spec.end_line);
         const end_line = @min(spec.end_line, self.lines.items.len - 1);
@@ -874,16 +920,21 @@ pub const MultiCursor = struct {
         }
     }
 
+    /// Sets the selection range for the specified cursor.
+    /// Does nothing if cursor index is out of bounds.
     pub fn setSelection(self: *MultiCursor, cursor_idx: usize, start: MultiCursor.Position, end: MultiCursor.Position) void {
         if (cursor_idx >= self.cursors.items.len) return;
         self.cursors.items[cursor_idx].selection = .{ .start = start, .end = end };
     }
 
+    /// Clears the selection for the specified cursor.
+    /// Does nothing if cursor index is out of bounds.
     pub fn clearSelection(self: *MultiCursor, cursor_idx: usize) void {
         if (cursor_idx >= self.cursors.items.len) return;
         self.cursors.items[cursor_idx].selection = null;
     }
 
+    /// Renders the text buffer and all cursors to the given buffer within the specified area.
     pub fn render(self: *const MultiCursor, buf: *Buffer, area: Rect) void {
         // Render text lines
         for (self.lines.items, 0..) |line, line_idx| {
