@@ -5,7 +5,7 @@ const Rect = @import("../layout.zig").Rect;
 const Style = @import("../style.zig").Style;
 const Color = @import("../style.zig").Color;
 const Block = @import("block.zig").Block;
-const BorderType = @import("block.zig").BorderType;
+const BoxSet = @import("../symbols.zig").BoxSet;
 
 /// Completion item
 pub const CompletionItem = struct {
@@ -134,7 +134,7 @@ pub const CompletionPopup = struct {
         const block = Block{
             .title = "Completions",
             .borders = .all,
-            .border_type = .single,
+            .border_set = BoxSet.single,
             .style = .{ .fg = .{ .basic = .cyan } },
         };
         block.render(buf, area);

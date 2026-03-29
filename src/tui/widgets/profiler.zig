@@ -5,7 +5,7 @@ const Rect = @import("../layout.zig").Rect;
 const Style = @import("../style.zig").Style;
 const Color = @import("../style.zig").Color;
 const Block = @import("block.zig").Block;
-const BorderType = @import("block.zig").BorderType;
+const BoxSet = @import("../symbols.zig").BoxSet;
 const Sparkline = @import("sparkline.zig").Sparkline;
 
 /// Frame timing statistics
@@ -182,7 +182,7 @@ pub const PerformanceProfiler = struct {
         const block = Block{
             .title = "Frame Performance",
             .borders = .all,
-            .border_type = .single,
+            .border_set = BoxSet.single,
         };
         block.render(buf, area);
         const inner = block.inner(area);
@@ -252,7 +252,7 @@ pub const PerformanceProfiler = struct {
         const block = Block{
             .title = "Memory Usage",
             .borders = .all,
-            .border_type = .single,
+            .border_set = BoxSet.single,
         };
         block.render(buf, area);
         const inner = block.inner(area);
@@ -318,7 +318,7 @@ pub const PerformanceProfiler = struct {
         const block = Block{
             .title = "Hot Paths",
             .borders = .all,
-            .border_type = .single,
+            .border_set = BoxSet.single,
         };
         block.render(buf, area);
         const inner = block.inner(area);

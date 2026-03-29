@@ -5,7 +5,7 @@ const Rect = @import("../layout.zig").Rect;
 const Style = @import("../style.zig").Style;
 const Color = @import("../style.zig").Color;
 const Block = @import("block.zig").Block;
-const BorderType = @import("block.zig").BorderType;
+const BoxSet = @import("../symbols.zig").BoxSet;
 
 /// Widget tree node for debugging
 pub const WidgetNode = struct {
@@ -129,7 +129,7 @@ pub const WidgetDebugger = struct {
         const block = Block{
             .title = "Widget Tree",
             .borders = .all,
-            .border_type = .single,
+            .border_set = BoxSet.single,
         };
         block.render(buf, area);
         const inner = block.inner(area);
@@ -212,7 +212,7 @@ pub const WidgetDebugger = struct {
         const block = Block{
             .title = "Layout Bounds",
             .borders = .all,
-            .border_type = .single,
+            .border_set = BoxSet.single,
         };
         block.render(buf, area);
         const inner = block.inner(area);
