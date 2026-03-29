@@ -9,10 +9,19 @@
 - Previous versions: v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: v1.27.0 → Documentation & Examples (1/5, 20%)
+- **Active milestone**: v1.27.0 → Documentation & Examples (2/5, 40%)
 - **Last completed**: v1.26.0 → Testing & Quality Assurance (5/5, 100%) ✅
 
 ## Project Status
+✅ **Session 36** — FEATURE MODE: Real-World Examples (2026-03-30)
+  - **MILESTONE ITEM 2 COMPLETE**: Added 5 new example applications (item 2/5, 40% milestone progress)
+  - Created examples/: hello.zig (132 LOC), counter.zig (159 LOC), dashboard.zig (185 LOC), task_list.zig (170 LOC), layout_showcase.zig (152 LOC)
+  - Total: 798 LOC of practical, real-world example code
+  - Corrected to use Sailor's actual API (buffer-based rendering, not Terminal event loops)
+  - All examples build successfully (zig build example-*)
+  - Patterns demonstrated: state management, nested layouts, conditional styling, data modeling, widget composition
+  - Commits: c5992f1 (initial), 423c1f7 (API corrections)
+  - Next: Continue API documentation (item 1, 305 functions remaining) or Getting Started guides (item 3)
 ✅ **Session 35** — STABILIZATION MODE: Test Quality & Cross-platform (2026-03-29)
   - Test quality audit: Improved FileBrowser render test (replaced no-op `expect(true)`)
   - Cross-compilation verified: Windows x86_64, Linux x86_64, macOS ARM64 — all PASS
