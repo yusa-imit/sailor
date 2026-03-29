@@ -24,6 +24,7 @@ pub const SpinnerStyle = enum {
     line,     // -\|/
     arc,      // ◜◠◝◞◡◟
 
+    /// Returns the animation frames for this spinner style.
     pub fn frames(self: SpinnerStyle) []const []const u8 {
         return switch (self) {
             .braille => &.{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},

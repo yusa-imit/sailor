@@ -92,10 +92,12 @@ pub fn Centered(comptime T: type) type {
 
         const Self = @This();
 
+        /// Creates a new centered wrapper for the given widget.
         pub fn init(widget: T) Self {
             return .{ .widget = widget };
         }
 
+        /// Renders the widget centered within the given area.
         pub fn render(self: Self, buf: *Buffer, area: Rect) void {
             // Check if widget implements measure()
             if (@hasDecl(T, "measure")) {
@@ -165,6 +167,7 @@ pub fn Aligned(comptime T: type) type {
 
         const Self = @This();
 
+        /// Creates a new aligned wrapper for the given widget and alignment settings.
         pub fn init(widget: T, alignment: Alignment) Self {
             return .{
                 .widget = widget,
@@ -173,6 +176,7 @@ pub fn Aligned(comptime T: type) type {
             };
         }
 
+        /// Measures the inner widget's preferred size.
         pub fn measure(self: Self, allocator: std.mem.Allocator, max_width: u16, max_height: u16) !Size {
             if (@hasDecl(T, "measure")) {
                 return try self.widget.measure(allocator, max_width, max_height);
@@ -181,6 +185,7 @@ pub fn Aligned(comptime T: type) type {
             }
         }
 
+        /// Renders the widget at an aligned position within the given area.
         pub fn render(self: Self, buf: *Buffer, area: Rect) void {
             if (@hasDecl(T, "measure")) {
                 // Widget has measure() — calculate aligned position
@@ -260,6 +265,7 @@ pub const Stack = struct {
         };
     }
 
+    /// Releases all resources owned by this stack.
     pub fn deinit(self: *Self) void {
         self.widgets.deinit();
     }
@@ -368,6 +374,7 @@ pub fn Constrained(comptime T: type) type {
 
         const Self = @This();
 
+        /// Creates a new constrained wrapper for the given widget and constraints.
         pub fn init(widget: T, constraints: Constraints) Self {
             return .{
                 .widget = widget,
@@ -378,6 +385,7 @@ pub fn Constrained(comptime T: type) type {
             };
         }
 
+        /// Measures the widget's size with constraints applied.
         pub fn measure(self: Self, allocator: std.mem.Allocator, max_width: u16, max_height: u16) !Size {
             // Get widget's preferred size
             var width = max_width;
@@ -408,6 +416,7 @@ pub fn Constrained(comptime T: type) type {
             return Size{ .width = width, .height = height };
         }
 
+        /// Renders the widget with constraints applied to the area.
         pub fn render(self: Self, buf: *Buffer, area: Rect) void {
             // Apply constraints to area dimensions
             var constrained_width = area.width;
@@ -449,6 +458,7 @@ pub fn Constrained(comptime T: type) type {
 const MockWidget = struct {
     content: u8,
 
+    /// Renders the mock widget by filling the area with content character.
     pub fn render(self: MockWidget, buf: *Buffer, area: Rect) void {
         for (0..area.height) |dy| {
             for (0..area.width) |dx| {
@@ -462,6 +472,7 @@ const MockWidget = struct {
         }
     }
 
+    /// Returns fixed size of 10x5 for testing.
     pub fn measure(_: MockWidget, _: std.mem.Allocator, _: u16, _: u16) !Size {
         return Size{ .width = 10, .height = 5 };
     }

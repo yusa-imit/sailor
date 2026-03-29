@@ -99,6 +99,7 @@ pub const WidgetList = struct {
 
     const Self = @This();
 
+    /// Initializes a new widget list with the given allocator.
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
             .items = .{},
@@ -107,6 +108,7 @@ pub const WidgetList = struct {
         };
     }
 
+    /// Releases all resources owned by this widget list.
     pub fn deinit(self: *Self) void {
         self.arena.deinit();
         self.items.deinit(self.gpa);

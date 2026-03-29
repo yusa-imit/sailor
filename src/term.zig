@@ -690,6 +690,7 @@ pub const MockTerminal = struct {
     chunk_index: usize,
     read_offset: usize,
 
+    /// Initializes a new MockTerminal with no response configured.
     pub fn init() MockTerminal {
         return MockTerminal{
             .response_mode = .none,
@@ -700,16 +701,19 @@ pub const MockTerminal = struct {
         };
     }
 
+    /// Configures the mock to return a single response string.
     pub fn setResponse(self: *MockTerminal, response: []const u8) void {
         self.response_mode = .single;
         self.single_response = response;
         self.read_offset = 0;
     }
 
+    /// Configures the mock to return no response (empty reads).
     pub fn setNoResponse(self: *MockTerminal) void {
         self.response_mode = .none;
     }
 
+    /// Configures the mock to return responses in chunks (for testing partial reads).
     pub fn setChunkedResponse(self: *MockTerminal, chunks: []const []const u8) void {
         self.response_mode = .chunked;
         self.chunked_responses = chunks;
@@ -717,6 +721,7 @@ pub const MockTerminal = struct {
         self.read_offset = 0;
     }
 
+    /// Returns a mock file descriptor for testing.
     pub fn fd(self: *MockTerminal) posix.fd_t {
         _ = self;
         // Return a fake fd that won't conflict with real fds
