@@ -15,10 +15,12 @@ pub const Selection = struct {
     start: Position,
     end: Position,
 
+    /// Returns true if the selection is empty (start equals end).
     pub fn isEmpty(self: Selection) bool {
         return self.start.line == self.end.line and self.start.col == self.end.col;
     }
 
+    /// Returns the selection with start guaranteed to be before or equal to end.
     pub fn normalized(self: Selection) Selection {
         if (self.start.line < self.end.line or
             (self.start.line == self.end.line and self.start.col < self.end.col))
@@ -28,6 +30,7 @@ pub const Selection = struct {
         return .{ .start = self.end, .end = self.start };
     }
 
+    /// Returns true if the given position is within the normalized selection bounds.
     pub fn contains(self: Selection, pos: Position) bool {
         const norm = self.normalized();
         if (pos.line < norm.start.line or pos.line > norm.end.line) return false;
@@ -50,6 +53,7 @@ pub const Edit = struct {
     text: []const u8,
     allocator: std.mem.Allocator,
 
+    /// Frees the text memory owned by this edit operation.
     pub fn deinit(self: *Edit) void {
         self.allocator.free(self.text);
     }
@@ -84,6 +88,8 @@ pub const Editor = struct {
     /// Allocator for internal memory
     allocator: std.mem.Allocator,
 
+    /// Initializes a new editor with a single empty line.
+    /// The returned instance must be freed with `.deinit()`.
     pub fn init(allocator: std.mem.Allocator) Editor {
         var lines = std.ArrayList([]const u8).init(allocator);
         // Start with one empty line
@@ -106,6 +112,7 @@ pub const Editor = struct {
         };
     }
 
+    /// Frees all resources owned by this editor including lines and undo/redo stacks.
     pub fn deinit(self: *Editor) void {
         for (self.lines.items) |line| {
             self.allocator.free(line);
@@ -123,6 +130,8 @@ pub const Editor = struct {
         self.redo_stack.deinit();
     }
 
+    /// Replaces the entire editor content with the given text.
+    /// Clears undo/redo history and resets cursor to the beginning.
     pub fn setText(self: *Editor, text: []const u8) !void {
         // Clear existing lines
         for (self.lines.items) |line| {
@@ -154,6 +163,8 @@ pub const Editor = struct {
         self.redo_stack.clearRetainingCapacity();
     }
 
+    /// Returns the entire editor content as a single string with newline separators.
+    /// Caller owns the returned memory.
     pub fn getText(self: *const Editor, allocator: std.mem.Allocator) ![]const u8 {
         var result = std.ArrayList(u8).init(allocator);
         defer result.deinit();
@@ -168,21 +179,29 @@ pub const Editor = struct {
         return result.toOwnedSlice();
     }
 
+    /// Sets the syntax highlighting language.
+    /// Returns `self` for method chaining.
     pub fn setLanguage(self: *Editor, lang: Language) *Editor {
         self.language = lang;
         return self;
     }
 
+    /// Sets the optional border block around the editor.
+    /// Returns `self` for method chaining.
     pub fn setBlock(self: *Editor, block: Block) *Editor {
         self.block = block;
         return self;
     }
 
+    /// Sets whether to display line numbers in the left gutter.
+    /// Returns `self` for method chaining.
     pub fn setShowLineNumbers(self: *Editor, show: bool) *Editor {
         self.show_line_numbers = show;
         return self;
     }
 
+    /// Inserts a character at the current cursor position.
+    /// Pushes the operation onto the undo stack and clears the redo stack.
     pub fn insertChar(self: *Editor, ch: u8) !void {
         const line_idx = self.cursor.line;
         if (line_idx >= self.lines.items.len) return;
@@ -216,6 +235,8 @@ pub const Editor = struct {
         self.cursor.col += 1;
     }
 
+    /// Deletes the character before the cursor (backspace).
+    /// Pushes the operation onto the undo stack and clears the redo stack.
     pub fn deleteChar(self: *Editor) !void {
         const line_idx = self.cursor.line;
         if (line_idx >= self.lines.items.len or self.cursor.col == 0) return;
@@ -247,6 +268,8 @@ pub const Editor = struct {
         self.cursor.col -= 1;
     }
 
+    /// Inserts a newline at the current cursor position, splitting the line.
+    /// Moves cursor to the beginning of the new line.
     pub fn insertNewline(self: *Editor) !void {
         const line_idx = self.cursor.line;
         if (line_idx >= self.lines.items.len) return;
@@ -265,6 +288,8 @@ pub const Editor = struct {
         self.cursor.col = 0;
     }
 
+    /// Undoes the last edit operation.
+    /// Moves the operation from the undo stack to the redo stack.
     pub fn undo(self: *Editor) !void {
         if (self.undo_stack.items.len == 0) return;
 
@@ -307,6 +332,8 @@ pub const Editor = struct {
         try self.redo_stack.append(edit);
     }
 
+    /// Redoes the last undone edit operation.
+    /// Moves the operation from the redo stack back to the undo stack.
     pub fn redo(self: *Editor) !void {
         if (self.redo_stack.items.len == 0) return;
 
@@ -349,6 +376,8 @@ pub const Editor = struct {
         try self.undo_stack.append(edit);
     }
 
+    /// Moves the cursor to the specified line and column.
+    /// Clamps the position to valid bounds within the document.
     pub fn moveCursor(self: *Editor, line: usize, col: usize) void {
         self.cursor.line = @min(line, self.lines.items.len - 1);
         const max_col = if (self.cursor.line < self.lines.items.len)
@@ -358,14 +387,18 @@ pub const Editor = struct {
         self.cursor.col = @min(col, max_col);
     }
 
+    /// Sets the current text selection between two positions.
     pub fn setSelection(self: *Editor, start: Position, end: Position) void {
         self.selection = Selection{ .start = start, .end = end };
     }
 
+    /// Clears the current text selection.
     pub fn clearSelection(self: *Editor) void {
         self.selection = null;
     }
 
+    /// Renders the editor to the buffer within the specified area.
+    /// Displays line numbers, syntax highlighting, selection, and cursor.
     pub fn render(self: *const Editor, buf: *Buffer, area: Rect) void {
         var render_area = area;
 

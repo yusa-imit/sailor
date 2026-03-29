@@ -170,6 +170,8 @@ const WidgetBox = struct {
     measure_fn: *const fn (*anyopaque, std.mem.Allocator, u16, u16) anyerror!Size,
     render_fn: *const fn (*anyopaque, *Buffer, Rect) anyerror!void,
 
+    /// Creates a type-erased widget box from a concrete widget instance.
+    /// The widget is cloned into the provided allocator.
     fn init(allocator: std.mem.Allocator, widget: anytype) !WidgetBox {
         const T = @TypeOf(widget);
         const ptr = try allocator.create(T);
@@ -178,6 +180,8 @@ const WidgetBox = struct {
         return .{
             .data = ptr,
             .measure_fn = struct {
+                /// Type-erased measure function that dispatches to the concrete widget's measure method.
+                /// If the widget doesn't implement measure, returns max dimensions.
                 fn measure(data: *anyopaque, alloc: std.mem.Allocator, max_w: u16, max_h: u16) !Size {
                     const self: *T = @ptrCast(@alignCast(data));
                     if (@hasDecl(T, "measure")) {
@@ -188,6 +192,8 @@ const WidgetBox = struct {
                 }
             }.measure,
             .render_fn = struct {
+                /// Type-erased render function that dispatches to the concrete widget's render method.
+                /// Handles both void and error-returning render implementations.
                 fn render(data: *anyopaque, buf: *Buffer, area: Rect) !void {
                     const self: *T = @ptrCast(@alignCast(data));
                     const ReturnType = @typeInfo(@TypeOf(T.render)).@"fn".return_type.?;
@@ -201,10 +207,14 @@ const WidgetBox = struct {
         };
     }
 
+    /// Measures the widget's preferred size given maximum constraints.
+    /// Dispatches through the type-erased measure function pointer.
     fn measure(self: WidgetBox, allocator: std.mem.Allocator, max_width: u16, max_height: u16) !Size {
         return try self.measure_fn(self.data, allocator, max_width, max_height);
     }
 
+    /// Renders the widget to the buffer within the specified area.
+    /// Dispatches through the type-erased render function pointer.
     fn render(self: WidgetBox, buf: *Buffer, area: Rect) !void {
         try self.render_fn(self.data, buf, area);
     }
