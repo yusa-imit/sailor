@@ -1,142 +1,143 @@
+//! Task List Example - Data Management Demo
+//!
+//! Demonstrates:
+//! - Data structure modeling
+//! - List widget with items
+//! - Selection highlighting
+//! - Task completion tracking
+//!
+//! Run with: zig build example-task_list
+
 const std = @import("std");
 const sailor = @import("sailor");
 
 const Buffer = sailor.tui.Buffer;
 const Block = sailor.tui.widgets.Block;
+const Paragraph = sailor.tui.widgets.Paragraph;
 const List = sailor.tui.widgets.List;
-const StatusBar = sailor.tui.widgets.StatusBar;
-const Gauge = sailor.tui.widgets.Gauge;
 const Rect = sailor.tui.Rect;
 const Style = sailor.tui.Style;
 const Color = sailor.tui.Color;
-const Constraint = sailor.tui.Constraint;
 const layout = sailor.tui.layout;
+
+const Task = struct {
+    title: []const u8,
+    done: bool,
+};
+
+const App = struct {
+    tasks: []const Task = &[_]Task{
+        .{ .title = "Learn Zig", .done = true },
+        .{ .title = "Build a TUI app with Sailor", .done = true },
+        .{ .title = "Read the docs", .done = false },
+        .{ .title = "Write more examples", .done = false },
+        .{ .title = "Deploy to production", .done = false },
+    },
+    selected: usize = 2,
+};
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
+    const app = App{};
+
+    // Get terminal size
     const term_size = try sailor.term.getSize();
     const width = @min(term_size.cols, 80);
     const height = @min(term_size.rows, 24);
 
+    // Create buffer
     var buffer = try Buffer.init(allocator, width, height);
     defer buffer.deinit();
 
     const area = Rect.new(0, 0, width, height);
 
-    // Main layout: progress bar + task list + status bar
-    const main_chunks = try layout.split(
-        allocator,
-        .vertical,
-        area,
-        &[_]Constraint{
-            .{ .length = 3 }, // Progress gauge
-            .{ .min = 1 }, // Task list
-            .{ .length = 1 }, // Status bar
-        },
-    );
-    defer allocator.free(main_chunks);
+    const chunks = layout.split(.vertical, &.{
+        .{ .length = 3 },
+        .{ .min = 8 },
+        .{ .length = 8 },
+    }, area);
 
-    // Task data
-    const tasks = [_]struct {
-        name: []const u8,
-        done: bool,
-    }{
-        .{ .name = "Design API", .done = true },
-        .{ .name = "Implement core modules", .done = true },
-        .{ .name = "Write comprehensive tests", .done = true },
-        .{ .name = "Add documentation", .done = true },
-        .{ .name = "Release v1.0", .done = true },
-        .{ .name = "Gather user feedback", .done = false },
-        .{ .name = "Plan v2.0 features", .done = false },
+    // Title
+    const title_style = Style{
+        .fg = Color{ .indexed = 14 },
+        .bold = true,
     };
-
-    // Calculate progress
-    var completed: usize = 0;
-    for (tasks) |task| {
-        if (task.done) completed += 1;
-    }
-    const ratio = @as(f64, @floatFromInt(completed)) / @as(f64, @floatFromInt(tasks.len));
-
-    // Progress gauge
-    var progress_label_buf: [64]u8 = undefined;
-    const progress_label = try std.fmt.bufPrint(&progress_label_buf, "{d}/{d} Tasks Complete ({d}%)", .{ completed, tasks.len, @as(usize, @intFromFloat(ratio * 100)) });
-
-    const gauge = Gauge{
-        .block = Block{
-            .title = "Project Progress",
-            .borders = .all,
-            .border_style = Style{ .fg = Color{ .indexed = 12 } },
-        },
-        .ratio = ratio,
-        .label = progress_label,
-        .filled_style = Style{
-            .fg = Color{ .indexed = 0 },
-            .bg = Color{ .indexed = 10 }, // Green
-        },
-    };
-    gauge.render(&buffer, main_chunks[0]);
-
-    // Task list with checkboxes
-    const list_block = Block{
-        .title = "Task List",
+    var title_block = Block{
+        .title = "Task List Manager",
         .borders = .all,
-        .border_style = Style{ .fg = Color{ .indexed = 14 } },
+        .border_style = title_style,
     };
+    title_block.render(&buffer, chunks[0]);
 
-    var items_buf: [tasks.len][]const u8 = undefined;
-    var item_bufs: [tasks.len][128]u8 = undefined;
-    for (tasks, 0..) |task, i| {
-        const checkbox = if (task.done) "[✓]" else "[ ]";
-        const style_char = if (task.done) "" else "";
-        items_buf[i] = try std.fmt.bufPrint(&item_bufs[i], "{s} {s}{s}", .{ checkbox, style_char, task.name });
+    // Task list
+    var task_block = Block{
+        .title = "Tasks",
+        .borders = .all,
+    };
+    task_block.render(&buffer, chunks[1]);
+
+    const task_area = task_block.innerArea(chunks[1]);
+
+    // Format task items
+    var items_buf: [10][256]u8 = undefined;
+    var items: [10][]const u8 = undefined;
+    for (app.tasks, 0..) |task, i| {
+        const marker = if (task.done) "[✓]" else "[ ]";
+        const prefix = if (i == app.selected) "> " else "  ";
+        items[i] = try std.fmt.bufPrint(&items_buf[i], "{s}{s} {s}", .{ prefix, marker, task.title });
     }
 
-    const list = List{
-        .items = &items_buf,
-        .selected = 0,
-        .block = list_block,
-        .selected_style = Style{
-            .fg = Color{ .indexed = 0 },
-            .bg = Color{ .indexed = 14 },
-        },
+    var task_list = List{
+        .items = items[0..app.tasks.len],
     };
-    list.render(&buffer, main_chunks[1]);
+    task_list.render(&buffer, task_area);
 
-    // Status bar
-    const Span = sailor.tui.Span;
-    var status_buf: [128]u8 = undefined;
-    const status_text = try std.fmt.bufPrint(&status_buf, " {d}% Complete | {d} tasks remaining ", .{
-        @as(usize, @intFromFloat(ratio * 100)),
-        tasks.len - completed,
+    // Stats and instructions
+    var info_block = Block{
+        .title = "Information",
+        .borders = .all,
+    };
+    info_block.render(&buffer, chunks[2]);
+
+    const info_area = info_block.innerArea(chunks[2]);
+
+    const completed = blk: {
+        var count: usize = 0;
+        for (app.tasks) |task| {
+            if (task.done) count += 1;
+        }
+        break :blk count;
+    };
+
+    var info_buf: [512]u8 = undefined;
+    const info_text = try std.fmt.bufPrint(&info_buf,
+        \\Progress: {d}/{d} tasks completed ({d}%)
+        \\Selected: {s}
+        \\
+        \\This example demonstrates:
+        \\  • Data modeling (Task struct)
+        \\  • Selection state (> marker)
+        \\  • List widget usage
+        \\  • Computed statistics
+    , .{
+        completed,
+        app.tasks.len,
+        (completed * 100) / app.tasks.len,
+        app.tasks[app.selected].title,
     });
 
-    const left_spans = [_]Span{Span.raw(status_text)};
-    const right_spans = [_]Span{Span.raw(" Sailor Task Manager Demo ")};
-
-    const status_bar = StatusBar{
-        .left = &left_spans,
-        .right = &right_spans,
-        .style = Style{
-            .fg = Color{ .indexed = 0 },
-            .bg = Color{ .indexed = 12 },
-        },
+    var info_para = Paragraph{
+        .text = info_text,
+        .alignment = .left,
     };
-    status_bar.render(&buffer, main_chunks[2]);
+    info_para.render(&buffer, info_area);
 
     // Render
-    var previous = try Buffer.init(allocator, width, height);
-    defer previous.deinit();
+    const stdout = std.io.getStdOut().writer();
+    try buffer.renderTo(stdout);
 
-    var output_buf: std.ArrayList(u8) = .{};
-    defer output_buf.deinit(allocator);
-    const writer = output_buf.writer(allocator);
-
-    const diff_ops = try sailor.tui.buffer.diff(allocator, previous, buffer);
-    defer allocator.free(diff_ops);
-    try sailor.tui.buffer.renderDiff(diff_ops, writer);
-
-    _ = try std.posix.write(std.posix.STDOUT_FILENO, output_buf.items);
+    std.debug.print("\n✓ Task list rendered successfully!\n", .{});
 }

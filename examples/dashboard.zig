@@ -1,153 +1,171 @@
+//! Dashboard Example - Multiple Widgets Demo
+//!
+//! Demonstrates:
+//! - Complex layouts (nested splits)
+//! - Gauge widgets for metrics
+//! - Multiple simultaneous widgets
+//! - Real-world dashboard patterns
+//!
+//! Run with: zig build example-dashboard
+
 const std = @import("std");
 const sailor = @import("sailor");
 
 const Buffer = sailor.tui.Buffer;
 const Block = sailor.tui.widgets.Block;
+const Paragraph = sailor.tui.widgets.Paragraph;
 const Gauge = sailor.tui.widgets.Gauge;
-const Sparkline = sailor.tui.widgets.Sparkline;
-const StatusBar = sailor.tui.widgets.StatusBar;
-const Tabs = sailor.tui.widgets.Tabs;
 const Rect = sailor.tui.Rect;
 const Style = sailor.tui.Style;
 const Color = sailor.tui.Color;
-const Span = sailor.tui.Span;
-const Constraint = sailor.tui.Constraint;
 const layout = sailor.tui.layout;
+
+const Stats = struct {
+    cpu: f32 = 45.3,
+    memory: f32 = 62.1,
+    disk: f32 = 78.9,
+    network_rx: u64 = 1024 * 512,
+    network_tx: u64 = 1024 * 256,
+    uptime_seconds: u64 = 3665, // 1h 1m 5s
+};
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const term_size = try sailor.term.getSize();
-    const width = @min(term_size.cols, 100);
-    const height = @min(term_size.rows, 30);
+    const stats = Stats{};
 
+    // Get terminal size
+    const term_size = try sailor.term.getSize();
+    const width = @min(term_size.cols, 80);
+    const height = @min(term_size.rows, 24);
+
+    // Create buffer
     var buffer = try Buffer.init(allocator, width, height);
     defer buffer.deinit();
 
     const area = Rect.new(0, 0, width, height);
 
     // Main layout
-    const main_chunks = try layout.split(
-        allocator,
-        .vertical,
-        area,
-        &[_]Constraint{
-            .{ .length = 3 }, // Title
-            .{ .length = 3 }, // Tabs
-            .{ .min = 1 }, // Content
-            .{ .length = 1 }, // Status
-        },
-    );
-    defer allocator.free(main_chunks);
+    const main_chunks = layout.split(.vertical, &.{
+        .{ .length = 3 },
+        .{ .min = 10 },
+    }, area);
 
-    // Title
-    const title_block = Block{
-        .title = "Sailor Dashboard - Multi-Widget Demo",
+    // Header
+    const header_style = Style{
+        .fg = Color{ .indexed = 14 },
+        .bold = true,
+    };
+    var header_block = Block{
+        .title = "System Dashboard",
         .borders = .all,
-        .border_style = Style{ .fg = Color{ .indexed = 14 } },
+        .border_style = header_style,
     };
-    title_block.render(&buffer, main_chunks[0]);
+    header_block.render(&buffer, main_chunks[0]);
 
-    // Tabs
-    const tab_names = [_][]const u8{ "Overview", "Processes", "Network" };
-    const tabs = Tabs{
-        .titles = &tab_names,
-        .selected = 0,
-        .block = Block{
-            .borders = .all,
-        },
-        .normal_style = Style{ .fg = Color{ .indexed = 7 } },
-        .selected_style = Style{
-            .fg = Color{ .indexed = 0 },
-            .bg = Color{ .indexed = 11 },
-            .bold = true,
-        },
-    };
-    tabs.render(&buffer, main_chunks[1]);
+    // Content: metrics (left) + info (right)
+    const content_chunks = layout.split(.horizontal, &.{
+        .{ .percentage = 50 },
+        .{ .percentage = 50 },
+    }, main_chunks[1]);
 
-    // Content - simple gauges
-    const content_chunks = try layout.split(
-        allocator,
-        .vertical,
-        main_chunks[2],
-        &[_]Constraint{
-            .{ .percentage = 25 },
-            .{ .percentage = 25 },
-            .{ .percentage = 25 },
-            .{ .percentage = 25 },
-        },
-    );
-    defer allocator.free(content_chunks);
+    // Left: metrics
+    const metric_chunks = layout.split(.vertical, &.{
+        .{ .length = 3 },
+        .{ .length = 3 },
+        .{ .length = 3 },
+        .{ .min = 3 },
+    }, content_chunks[0]);
 
     // CPU Gauge
-    const cpu_gauge = Gauge{
-        .block = Block{
-            .title = "CPU Usage",
-            .borders = .all,
+    var cpu_gauge = Gauge{
+        .percent = @intFromFloat(stats.cpu),
+        .label = "CPU",
+        .style = Style{
+            .fg = if (stats.cpu > 80) Color{ .indexed = 9 } else if (stats.cpu > 50) Color{ .indexed = 11 } else Color{ .indexed = 10 },
         },
-        .ratio = 45.0 / 100.0,
-        .filled_style = Style{ .fg = Color{ .indexed = 10 } },
     };
-    cpu_gauge.render(&buffer, content_chunks[0]);
+    cpu_gauge.render(&buffer, metric_chunks[0]);
 
     // Memory Gauge
-    const mem_gauge = Gauge{
-        .block = Block{
-            .title = "Memory Usage",
-            .borders = .all,
+    var memory_gauge = Gauge{
+        .percent = @intFromFloat(stats.memory),
+        .label = "Memory",
+        .style = Style{
+            .fg = if (stats.memory > 80) Color{ .indexed = 9 } else if (stats.memory > 50) Color{ .indexed = 11 } else Color{ .indexed = 10 },
         },
-        .ratio = 62.0 / 100.0,
-        .filled_style = Style{ .fg = Color{ .indexed = 11 } },
     };
-    mem_gauge.render(&buffer, content_chunks[1]);
+    memory_gauge.render(&buffer, metric_chunks[1]);
 
     // Disk Gauge
-    const disk_gauge = Gauge{
-        .block = Block{
-            .title = "Disk Usage",
-            .borders = .all,
-        },
-        .ratio = 78.0 / 100.0,
-        .filled_style = Style{ .fg = Color{ .indexed = 12 } },
-    };
-    disk_gauge.render(&buffer, content_chunks[2]);
-
-    // CPU Sparkline
-    const cpu_data = [_]u64{ 30, 35, 40, 38, 42, 45, 48, 50, 47, 45, 43, 45, 48, 52, 50, 48, 45, 43, 42, 40 };
-    const cpu_sparkline = Sparkline{
-        .block = Block{
-            .title = "CPU History",
-            .borders = .all,
-        },
-        .data = &cpu_data,
-        .style = Style{ .fg = Color{ .indexed = 10 } },
-    };
-    cpu_sparkline.render(&buffer, content_chunks[3]);
-
-    // Status bar
-    const status_spans = [_]Span{Span.raw(" Sailor Dashboard | Tab 1/3: Overview | Demonstrating multiple widgets ")};
-    const status_bar = StatusBar{
-        .left = &status_spans,
+    var disk_gauge = Gauge{
+        .percent = @intFromFloat(stats.disk),
+        .label = "Disk",
         .style = Style{
-            .fg = Color{ .indexed = 15 },
-            .bg = Color{ .indexed = 8 },
+            .fg = if (stats.disk > 80) Color{ .indexed = 9 } else if (stats.disk > 50) Color{ .indexed = 11 } else Color{ .indexed = 10 },
         },
     };
-    status_bar.render(&buffer, main_chunks[3]);
+    disk_gauge.render(&buffer, metric_chunks[2]);
+
+    // Network info
+    var network_block = Block{
+        .title = "Network",
+        .borders = .all,
+    };
+    network_block.render(&buffer, metric_chunks[3]);
+
+    const network_area = network_block.innerArea(metric_chunks[3]);
+    var network_buf: [256]u8 = undefined;
+    const network_text = try std.fmt.bufPrint(&network_buf, "RX: {d} KB\nTX: {d} KB", .{
+        stats.network_rx / 1024,
+        stats.network_tx / 1024,
+    });
+    var network_para = Paragraph{
+        .text = network_text,
+        .alignment = .left,
+    };
+    network_para.render(&buffer, network_area);
+
+    // Right: system info
+    var info_block = Block{
+        .title = "System Information",
+        .borders = .all,
+    };
+    info_block.render(&buffer, content_chunks[1]);
+
+    const info_area = info_block.innerArea(content_chunks[1]);
+    const hours = stats.uptime_seconds / 3600;
+    const minutes = (stats.uptime_seconds % 3600) / 60;
+    const seconds = stats.uptime_seconds % 60;
+
+    var info_buf: [512]u8 = undefined;
+    const info_text = try std.fmt.bufPrint(&info_buf,
+        \\Hostname: localhost
+        \\OS: Zig OS
+        \\Kernel: 5.15.0
+        \\Uptime: {d}h {d}m {d}s
+        \\
+        \\Processes: 245
+        \\Load Avg: 1.23, 0.98, 0.76
+        \\
+        \\This example demonstrates:
+        \\  • Nested layouts
+        \\  • Gauge widgets
+        \\  • Conditional coloring
+        \\  • Multiple widget types
+    , .{ hours, minutes, seconds });
+
+    var info_para = Paragraph{
+        .text = info_text,
+        .alignment = .left,
+    };
+    info_para.render(&buffer, info_area);
 
     // Render
-    var previous = try Buffer.init(allocator, width, height);
-    defer previous.deinit();
+    const stdout = std.io.getStdOut().writer();
+    try buffer.renderTo(stdout);
 
-    var output_buf: std.ArrayList(u8) = .{};
-    defer output_buf.deinit(allocator);
-    const writer = output_buf.writer(allocator);
-
-    const diff_ops = try sailor.tui.buffer.diff(allocator, previous, buffer);
-    defer allocator.free(diff_ops);
-    try sailor.tui.buffer.renderDiff(diff_ops, writer);
-
-    _ = try std.posix.write(std.posix.STDOUT_FILENO, output_buf.items);
+    std.debug.print("\n✓ Dashboard rendered successfully!\n", .{});
 }

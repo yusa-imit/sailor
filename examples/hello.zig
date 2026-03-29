@@ -1,3 +1,13 @@
+//! Hello World Example - Basic Sailor TUI Demo
+//!
+//! Demonstrates:
+//! - Buffer initialization
+//! - Layout system (vertical splits)
+//! - Block and Paragraph widgets
+//! - Styled text and borders
+//!
+//! Run with: zig build example-hello
+
 const std = @import("std");
 const sailor = @import("sailor");
 
@@ -7,8 +17,7 @@ const Paragraph = sailor.tui.widgets.Paragraph;
 const Rect = sailor.tui.Rect;
 const Style = sailor.tui.Style;
 const Color = sailor.tui.Color;
-const Line = sailor.tui.Line;
-const Span = sailor.tui.Span;
+const layout = sailor.tui.layout;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -24,64 +33,78 @@ pub fn main() !void {
     var buffer = try Buffer.init(allocator, width, height);
     defer buffer.deinit();
 
-    // Create a centered block
-    const block_width = 50;
-    const block_height = 5;
-    const x = (width -| block_width) / 2;
-    const y = (height -| block_height) / 2;
+    const area = Rect.new(0, 0, width, height);
 
-    const centered = Rect{
-        .x = x,
-        .y = y,
-        .width = block_width,
-        .height = block_height,
+    // Create layout
+    const chunks = layout.split(.vertical, &.{
+        .{ .length = 3 },
+        .{ .min = 8 },
+        .{ .length = 5 },
+    }, area);
+
+    // Title block
+    const title_style = Style{
+        .fg = Color{ .indexed = 14 }, // Cyan
+        .bold = true,
     };
 
-    // Create a styled block
-    const block = Block{
-        .title = "Hello, Sailor!",
+    var title_block = Block{
+        .title = "Welcome to Sailor TUI",
         .borders = .all,
-        .border_style = Style{
-            .fg = Color{ .indexed = 12 }, // Bright blue
-        },
+        .border_style = title_style,
+    };
+    title_block.render(&buffer, chunks[0]);
+
+    // Content paragraph
+    const content =
+        \\Sailor is a Zig TUI framework and CLI toolkit
+        \\providing everything you need to build modern
+        \\terminal applications.
+        \\
+        \\This example demonstrates:
+        \\  • Buffer initialization and rendering
+        \\  • Layout system with vertical splits
+        \\  • Styled text and borders
+        \\  • Widget rendering
+    ;
+
+    var content_block = Block{
+        .title = "About",
+        .borders = .all,
+    };
+    content_block.render(&buffer, chunks[1]);
+
+    const content_area = content_block.innerArea(chunks[1]);
+    var content_para = Paragraph{
+        .text = content,
+        .alignment = .left,
+    };
+    content_para.render(&buffer, content_area);
+
+    // Footer
+    const footer_style = Style{
+        .fg = Color{ .indexed = 10 }, // Green
     };
 
-    // Create content with styled text
-    const line1_spans = [_]Span{
-        Span.styled("Welcome to ", .{}),
-        Span.styled("Sailor", .{ .fg = Color{ .indexed = 14 } }), // Bright cyan
-        Span.styled(" TUI Framework!", .{}),
+    var footer_block = Block{
+        .title = "Get Started",
+        .borders = .all,
+        .border_style = footer_style,
     };
-    const line2_spans = [_]Span{Span.raw("")};
-    const line3_spans = [_]Span{Span.styled("A comprehensive TUI library for Zig", .{ .fg = Color{ .indexed = 8 } })};
+    footer_block.render(&buffer, chunks[2]);
 
-    var lines = [_]Line{
-        Line{ .spans = &line1_spans },
-        Line{ .spans = &line2_spans },
-        Line{ .spans = &line3_spans },
+    const footer_area = footer_block.innerArea(chunks[2]);
+    const footer_text = "Build with: zig build example-hello\n" ++
+        "View more examples: zig build example-counter";
+    var footer_para = Paragraph{
+        .text = footer_text,
+        .alignment = .center,
     };
+    footer_para.render(&buffer, footer_area);
 
-    const paragraph = Paragraph{
-        .block = block,
-        .lines = &lines,
-    };
+    // Render buffer to stdout
+    const stdout = std.io.getStdOut().writer();
+    try buffer.renderTo(stdout);
 
-    // Render to buffer
-    paragraph.render(&buffer, centered);
-
-    // Create empty previous buffer for diff
-    var previous = try Buffer.init(allocator, width, height);
-    defer previous.deinit();
-
-    // Compute diff and render to stdout
-    var output_buf: std.ArrayList(u8) = .{};
-    defer output_buf.deinit(allocator);
-    const writer = output_buf.writer(allocator);
-
-    const diff_ops = try sailor.tui.buffer.diff(allocator, previous, buffer);
-    defer allocator.free(diff_ops);
-    try sailor.tui.buffer.renderDiff(diff_ops, writer);
-
-    // Write to stdout using posix
-    _ = try std.posix.write(std.posix.STDOUT_FILENO, output_buf.items);
+    std.debug.print("\n✓ Sailor TUI rendering complete!\n", .{});
 }

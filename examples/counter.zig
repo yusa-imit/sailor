@@ -1,141 +1,138 @@
+//! Counter Example - State Management Demo
+//!
+//! Demonstrates:
+//! - Application state management
+//! - Dynamic content rendering
+//! - List widget for history
+//! - Conditional styling
+//!
+//! Run with: zig build example-counter
+
 const std = @import("std");
 const sailor = @import("sailor");
 
 const Buffer = sailor.tui.Buffer;
 const Block = sailor.tui.widgets.Block;
 const Paragraph = sailor.tui.widgets.Paragraph;
-const Gauge = sailor.tui.widgets.Gauge;
-const StatusBar = sailor.tui.widgets.StatusBar;
+const List = sailor.tui.widgets.List;
 const Rect = sailor.tui.Rect;
 const Style = sailor.tui.Style;
 const Color = sailor.tui.Color;
-const Line = sailor.tui.Line;
-const Span = sailor.tui.Span;
 const layout = sailor.tui.layout;
-const Constraint = sailor.tui.Constraint;
+
+const App = struct {
+    counter: i32 = 42,
+    step: i32 = 5,
+    history: [5]i32 = [_]i32{ 10, 20, 30, 35, 42 },
+};
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
+    const app = App{};
+
+    // Get terminal size
     const term_size = try sailor.term.getSize();
     const width = @min(term_size.cols, 80);
     const height = @min(term_size.rows, 24);
 
+    // Create buffer
     var buffer = try Buffer.init(allocator, width, height);
     defer buffer.deinit();
 
     const area = Rect.new(0, 0, width, height);
 
     // Layout
-    const chunks = try layout.split(
-        allocator,
-        .vertical,
-        area,
-        &[_]Constraint{
-            .{ .length = 3 },
-            .{ .min = 1 },
-            .{ .length = 1 },
-        },
-    );
-    defer allocator.free(chunks);
+    const chunks = layout.split(.vertical, &.{
+        .{ .length = 3 },
+        .{ .length = 5 },
+        .{ .min = 5 },
+        .{ .length = 8 },
+    }, area);
 
     // Title
-    const title_block = Block{
-        .title = "Counter Example",
+    const title_style = Style{
+        .fg = Color{ .indexed = 14 },
+        .bold = true,
+    };
+    var title_block = Block{
+        .title = "Counter Application",
         .borders = .all,
-        .border_style = Style{ .fg = Color{ .indexed = 13 } },
+        .border_style = title_style,
     };
     title_block.render(&buffer, chunks[0]);
 
-    // Content
-    const content_chunks = try layout.split(
-        allocator,
-        .vertical,
-        chunks[1],
-        &[_]Constraint{
-            .{ .percentage = 40 },
-            .{ .length = 5 },
-            .{ .percentage = 40 },
-        },
-    );
-    defer allocator.free(content_chunks);
-
     // Counter display
-    const counter_spans = [_]Span{Span.styled("42 / 100", .{
-        .fg = Color{ .indexed = 10 },
+    const counter_style = Style{
+        .fg = if (app.counter >= 0) Color{ .indexed = 10 } else Color{ .indexed = 9 },
         .bold = true,
-    })};
-    var counter_lines = [_]Line{
-        Line{ .spans = &counter_spans },
     };
+    var counter_block = Block{
+        .title = "Current Value",
+        .borders = .all,
+        .border_style = counter_style,
+    };
+    counter_block.render(&buffer, chunks[1]);
 
-    const counter_para = Paragraph{
-        .block = Block{
-            .title = "Current Value",
-            .borders = .all,
-        },
-        .lines = &counter_lines,
+    const counter_area = counter_block.innerArea(chunks[1]);
+    var counter_buf: [64]u8 = undefined;
+    const counter_text = try std.fmt.bufPrint(&counter_buf, "Value: {d} (step: {d})\nStatus: {s}", .{
+        app.counter,
+        app.step,
+        if (app.counter >= 0) "Positive" else "Negative",
+    });
+    var counter_para = Paragraph{
+        .text = counter_text,
         .alignment = .center,
+        .style = counter_style,
     };
-    counter_para.render(&buffer, content_chunks[0]);
+    counter_para.render(&buffer, counter_area);
 
-    // Gauge
-    const gauge = Gauge{
-        .block = Block{
-            .title = "Progress",
-            .borders = .all,
-        },
-        .ratio = 42.0 / 100.0,
-        .filled_style = Style{ .fg = Color{ .indexed = 11 } },
+    // History
+    var history_block = Block{
+        .title = "History (last 5 values)",
+        .borders = .all,
     };
-    gauge.render(&buffer, content_chunks[1]);
+    history_block.render(&buffer, chunks[2]);
+
+    const history_area = history_block.innerArea(chunks[2]);
+    var items_buf: [5][32]u8 = undefined;
+    var items: [5][]const u8 = undefined;
+    for (app.history, 0..) |val, i| {
+        items[i] = try std.fmt.bufPrint(&items_buf[i], "  {d}", .{val});
+    }
+    var history_list = List{
+        .items = &items,
+    };
+    history_list.render(&buffer, history_area);
 
     // Instructions
-    const instr1_spans = [_]Span{Span.styled("Keys:", .{ .bold = true })};
-    const instr2_spans = [_]Span{Span.raw("  +/-  : Increment/Decrement")};
-    const instr3_spans = [_]Span{Span.raw("  r    : Reset to 0")};
-    const instr4_spans = [_]Span{Span.raw("  m    : Set to maximum")};
-
-    var instr_lines = [_]Line{
-        Line{ .spans = &instr1_spans },
-        Line{ .spans = &instr2_spans },
-        Line{ .spans = &instr3_spans },
-        Line{ .spans = &instr4_spans },
+    var inst_block = Block{
+        .title = "About This Example",
+        .borders = .all,
     };
+    inst_block.render(&buffer, chunks[3]);
 
-    const instr_para = Paragraph{
-        .block = Block{
-            .title = "Instructions",
-            .borders = .all,
-        },
-        .lines = &instr_lines,
+    const inst_area = inst_block.innerArea(chunks[3]);
+    const inst_text =
+        \\This example shows state management patterns:
+        \\
+        \\  • App struct holding application state
+        \\  • Conditional styling (green/red based on value)
+        \\  • History tracking with List widget
+        \\  • Dynamic text formatting with bufPrint
+    ;
+    var inst_para = Paragraph{
+        .text = inst_text,
+        .alignment = .left,
     };
-    instr_para.render(&buffer, content_chunks[2]);
-
-    // Status bar
-    const status_spans = [_]Span{Span.raw(" Counter Demo | Step: 1 | Progress: 42% ")};
-    const status_bar = StatusBar{
-        .left = &status_spans,
-        .style = Style{
-            .fg = Color{ .indexed = 0 },
-            .bg = Color{ .indexed = 12 },
-        },
-    };
-    status_bar.render(&buffer, chunks[2]);
+    inst_para.render(&buffer, inst_area);
 
     // Render
-    var previous = try Buffer.init(allocator, width, height);
-    defer previous.deinit();
+    const stdout = std.io.getStdOut().writer();
+    try buffer.renderTo(stdout);
 
-    var output_buf: std.ArrayList(u8) = .{};
-    defer output_buf.deinit(allocator);
-    const writer = output_buf.writer(allocator);
-
-    const diff_ops = try sailor.tui.buffer.diff(allocator, previous, buffer);
-    defer allocator.free(diff_ops);
-    try sailor.tui.buffer.renderDiff(diff_ops, writer);
-
-    _ = try std.posix.write(std.posix.STDOUT_FILENO, output_buf.items);
+    std.debug.print("\n✓ Counter state rendered successfully!\n", .{});
 }
