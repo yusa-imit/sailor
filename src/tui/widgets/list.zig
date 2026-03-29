@@ -1,3 +1,23 @@
+//! List widget — scrollable item list with selection highlighting.
+//!
+//! List displays a scrollable collection of text items with optional selection
+//! highlighting. It's commonly used for menus, file pickers, and option lists.
+//!
+//! ## Features
+//! - Vertical scrolling for lists exceeding display area
+//! - Selection highlighting with customizable style
+//! - Highlight symbol (default: "> ") for selected item
+//! - Optional Block wrapper for borders and title
+//! - Automatic scroll-to-selected behavior
+//!
+//! ## Usage
+//! ```zig
+//! var list = List.init(&[_][]const u8{ "Item 1", "Item 2", "Item 3" });
+//! list.selected = 0; // Select first item
+//! list.selected_style = .{ .fg = .{ .basic = .cyan }, .bold = true };
+//! list.render(buf, area);
+//! ```
+
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;

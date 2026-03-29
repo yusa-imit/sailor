@@ -1,3 +1,27 @@
+//! Block widget — the foundation for bordered, titled containers.
+//!
+//! Block provides borders, titles, and padding for other widgets. It's the most
+//! commonly used widget for creating structured layouts with visual boundaries.
+//!
+//! ## Features
+//! - Configurable borders (top, right, bottom, left, or any combination)
+//! - Title positioning (top/bottom, left/center/right)
+//! - Multiple border styles (single, double, rounded, thick)
+//! - Padding control for inner content
+//! - Fluent builder API for easy configuration
+//!
+//! ## Usage
+//! ```zig
+//! const block = Block{
+//!     .borders = .all,
+//!     .border_set = BoxSet.rounded,
+//!     .title = "My Widget",
+//!     .title_position = .top_center,
+//! };
+//! block.render(buf, area);
+//! const inner = block.inner(area); // Get area for child content
+//! ```
+
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;

@@ -1,3 +1,27 @@
+//! StatusBar widget — horizontal information bar with left/center/right sections.
+//!
+//! StatusBar renders a single-line bar (typically at the bottom of the screen)
+//! with three alignment zones: left, center, and right. It's commonly used for
+//! displaying application state, mode indicators, and help text.
+//!
+//! ## Features
+//! - Three alignment zones (left, center, right)
+//! - Span-based styling for individual segments
+//! - Automatic layout with proper spacing
+//! - Full-width background color
+//! - Overflow handling (truncate if total width exceeds available space)
+//!
+//! ## Usage
+//! ```zig
+//! const status = StatusBar{
+//!     .left = &[_]Span{ Span.styled("NORMAL", .{ .fg = .{ .basic = .green } }) },
+//!     .center = &[_]Span{ Span.raw("file.txt") },
+//!     .right = &[_]Span{ Span.raw("Ln 10, Col 5") },
+//!     .style = .{ .bg = .{ .basic = .black } },
+//! };
+//! status.render(buf, area);
+//! ```
+
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;

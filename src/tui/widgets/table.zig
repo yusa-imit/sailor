@@ -1,3 +1,35 @@
+//! Table widget — structured data display with headers, rows, and column alignment.
+//!
+//! Table renders tabular data with automatic column width calculation, headers,
+//! row selection, and flexible alignment. It's ideal for displaying structured
+//! data like logs, database results, or configuration lists.
+//!
+//! ## Features
+//! - Column width constraints (fixed, percentage, min, max)
+//! - Header row with optional styling
+//! - Row selection highlighting
+//! - Column alignment (left, center, right)
+//! - Optional Block wrapper for borders and title
+//! - Vertical scrolling for large datasets
+//! - Automatic width distribution algorithm
+//!
+//! ## Usage
+//! ```zig
+//! const table = Table{
+//!     .headers = &[_][]const u8{ "Name", "Age", "City" },
+//!     .rows = &[_][]const []const u8{
+//!         &[_][]const u8{ "Alice", "30", "NYC" },
+//!         &[_][]const u8{ "Bob", "25", "LA" },
+//!     },
+//!     .widths = &[_]ColumnWidth{
+//!         .{ .percentage = 40 },
+//!         .{ .fixed = 10 },
+//!         .{ .min = 15 },
+//!     },
+//! };
+//! table.render(buf, area);
+//! ```
+
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;

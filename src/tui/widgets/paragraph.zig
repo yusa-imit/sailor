@@ -1,3 +1,30 @@
+//! Paragraph widget — multi-line text rendering with styling and alignment.
+//!
+//! Paragraph displays text content with support for word wrapping, alignment,
+//! and inline styling via Span/Line composition. It's the primary widget for
+//! displaying formatted text in TUI applications.
+//!
+//! ## Features
+//! - Multi-line text with automatic word/character wrapping
+//! - Alignment (left, center, right)
+//! - Inline styling via Span and Line
+//! - RTL (Right-to-Left) text support via bidirectional algorithm
+//! - Optional Block wrapper for borders and title
+//! - Vertical scrolling for content exceeding area height
+//!
+//! ## Usage
+//! ```zig
+//! const para = Paragraph{
+//!     .lines = &[_]Line{
+//!         Line.init(&[_]Span{Span.raw("Hello ")}, .{}),
+//!         Line.init(&[_]Span{Span.styled("World", .{ .fg = .{ .basic = .cyan } })}, .{}),
+//!     },
+//!     .alignment = .left,
+//!     .wrap = .word,
+//! };
+//! para.render(buf, area);
+//! ```
+
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;

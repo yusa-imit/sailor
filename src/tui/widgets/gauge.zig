@@ -1,3 +1,27 @@
+//! Gauge widget — progress bar with percentage display.
+//!
+//! Gauge renders a horizontal progress bar with customizable fill characters,
+//! colors, and optional label overlay. It's ideal for showing progress of
+//! long-running operations.
+//!
+//! ## Features
+//! - Configurable fill and empty characters
+//! - Ratio-based progress (0.0 to 1.0)
+//! - Optional label overlay (e.g., "50%")
+//! - Customizable filled/empty styles
+//! - Optional Block wrapper for borders and title
+//!
+//! ## Usage
+//! ```zig
+//! const gauge = Gauge{
+//!     .ratio = 0.65, // 65% complete
+//!     .label = "65%",
+//!     .filled_style = .{ .fg = .{ .basic = .green } },
+//!     .empty_style = .{ .fg = .{ .basic = .dark_gray } },
+//! };
+//! gauge.render(buf, area);
+//! ```
+
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;

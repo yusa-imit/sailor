@@ -1,3 +1,28 @@
+//! Input widget — single-line text input with cursor and placeholder.
+//!
+//! Input provides a basic text entry field with cursor rendering, placeholder
+//! text, and horizontal scrolling for long text. It's the foundation for forms,
+//! search boxes, and command input.
+//!
+//! ## Features
+//! - Cursor positioning and rendering
+//! - Placeholder text when empty
+//! - Horizontal scrolling for text exceeding width
+//! - Optional Block wrapper for borders and title
+//! - Password mode (planned)
+//! - Input validation hooks (via parent form)
+//!
+//! ## Usage
+//! ```zig
+//! var input = Input{
+//!     .value = "Initial text",
+//!     .cursor = 12, // Cursor at end
+//!     .placeholder = "Enter something...",
+//!     .style = .{ .fg = .{ .basic = .white } },
+//! };
+//! input.render(buf, area);
+//! ```
+
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;

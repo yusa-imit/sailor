@@ -1,3 +1,27 @@
+//! Tabs widget — horizontal navigation bar with selectable tabs.
+//!
+//! Tabs renders a horizontal list of clickable tab titles with highlighting
+//! for the active tab. It's commonly used for multi-panel interfaces and
+//! navigation between different views.
+//!
+//! ## Features
+//! - Configurable tab titles
+//! - Active tab highlighting
+//! - Customizable divider character
+//! - Optional Block wrapper for borders
+//! - Horizontal overflow handling (truncate with "...")
+//!
+//! ## Usage
+//! ```zig
+//! const tabs = Tabs{
+//!     .titles = &[_][]const u8{ "Home", "Settings", "About" },
+//!     .selected = 0, // "Home" is active
+//!     .selected_style = .{ .fg = .{ .basic = .cyan }, .bold = true },
+//!     .divider = " | ",
+//! };
+//! tabs.render(buf, area);
+//! ```
+
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;
