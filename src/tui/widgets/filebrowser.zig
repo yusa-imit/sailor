@@ -769,8 +769,19 @@ test "FileBrowser render with block" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
     try browser.render(&buffer, area);
 
-    // Just verify it doesn't crash
-    try testing.expect(true);
+    // Verify block borders are rendered (top-left corner)
+    const cell = buffer.get(0, 0);
+    try testing.expect(cell.char != ' '); // Border character rendered
+
+    // Verify title "Files" appears in buffer
+    var found_title = false;
+    for (0..buffer.height) |y| {
+        for (0..buffer.width) |x| {
+            const c = buffer.get(@intCast(x), @intCast(y));
+            if (c.char == 'F') found_title = true;
+        }
+    }
+    try testing.expect(found_title);
 }
 
 test "FileBrowser enter and parent directory" {
