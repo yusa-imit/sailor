@@ -26,6 +26,7 @@ pub const Field = struct {
     /// Allocator used for value (null if value is static/not owned)
     value_allocator: ?std.mem.Allocator = null,
 
+    /// Creates a new form field with the given label.
     pub fn init(label: []const u8) Field {
         return .{
             .label = label,
@@ -41,24 +42,28 @@ pub const Field = struct {
         }
     }
 
+    /// Returns a new field with the specified validator attached.
     pub fn withValidator(self: Field, validator: Validator) Field {
         var result = self;
         result.validator = validator;
         return result;
     }
 
+    /// Returns a new field marked as a password field (value will be masked).
     pub fn withPassword(self: Field) Field {
         var result = self;
         result.is_password = true;
         return result;
     }
 
+    /// Returns a new field with the specified maximum length constraint.
     pub fn withMaxLength(self: Field, max_length: usize) Field {
         var result = self;
         result.max_length = max_length;
         return result;
     }
 
+    /// Validates the field value using the attached validator. Returns true if valid.
     pub fn validate(self: *Field) bool {
         if (self.validator) |validator| {
             const result = validator(self.value);
@@ -95,6 +100,7 @@ pub const Form = struct {
     label_width: usize = 15,
     show_help: bool = true,
 
+    /// Creates a new form with the given fields.
     pub fn init(fields: []Field) Form {
         return .{ .fields = fields };
     }
@@ -106,36 +112,42 @@ pub const Form = struct {
         }
     }
 
+    /// Returns a new form with the specified border block.
     pub fn withBlock(self: Form, block: Block) Form {
         var result = self;
         result.block = block;
         return result;
     }
 
+    /// Returns a new form with the specified normal field style.
     pub fn withStyle(self: Form, style: Style) Form {
         var result = self;
         result.style = style;
         return result;
     }
 
+    /// Returns a new form with the specified focused field style.
     pub fn withFocusedStyle(self: Form, style: Style) Form {
         var result = self;
         result.focused_style = style;
         return result;
     }
 
+    /// Returns a new form with the specified error message style.
     pub fn withErrorStyle(self: Form, style: Style) Form {
         var result = self;
         result.error_style = style;
         return result;
     }
 
+    /// Returns a new form with the specified label column width.
     pub fn withLabelWidth(self: Form, width: usize) Form {
         var result = self;
         result.label_width = width;
         return result;
     }
 
+    /// Returns a new form with help text visibility set.
     pub fn withHelp(self: Form, show: bool) Form {
         var result = self;
         result.show_help = show;
@@ -249,6 +261,7 @@ pub const Form = struct {
         }
     }
 
+    /// Renders the form to the buffer in the given area.
     pub fn render(self: Form, buf: *Buffer, area: Rect) void {
         // Clear area with style
         for (0..area.height) |y| {
