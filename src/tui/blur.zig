@@ -35,6 +35,7 @@ pub const BlurEffect = struct {
     mode: BlurMode,
     intensity: u8, // 0-255
 
+    /// Create a new blur effect with the specified mode and intensity (0-255)
     pub fn init(mode: BlurMode, intensity: u8) BlurEffect {
         return .{
             .mode = mode,
@@ -42,7 +43,8 @@ pub const BlurEffect = struct {
         };
     }
 
-    /// Apply blur effect to a buffer region
+    /// Apply blur effect to the specified buffer region
+    /// Uses character-based rendering (box drawing, half blocks, shade chars, or Braille)
     pub fn apply(self: BlurEffect, buf: *Buffer, area: Rect) void {
         if (area.width == 0 or area.height == 0) return;
 
@@ -143,6 +145,7 @@ pub const TransparencyEffect = struct {
     mode: TransparencyMode,
     alpha: u8, // 0-255 (0 = fully transparent, 255 = opaque)
 
+    /// Create a new transparency effect with the specified mode and alpha (0=transparent, 255=opaque)
     pub fn init(mode: TransparencyMode, alpha: u8) TransparencyEffect {
         return .{
             .mode = mode,
@@ -150,7 +153,8 @@ pub const TransparencyEffect = struct {
         };
     }
 
-    /// Apply transparency effect to a buffer region
+    /// Apply transparency effect to the specified buffer region
+    /// Uses character fading, color dimming, or checkerboard patterns
     pub fn apply(self: TransparencyEffect, buf: *Buffer, area: Rect) void {
         if (area.width == 0 or area.height == 0) return;
 
@@ -220,7 +224,8 @@ pub const TransparencyEffect = struct {
         }
     }
 
-    /// Blend two colors based on alpha (simple mixing)
+    /// Blend two colors based on alpha value
+    /// Returns foreground color unless it's reset, in which case returns background
     pub fn blendColors(self: TransparencyEffect, fg: Color, bg: Color) Color {
         _ = self;
         // Simplified: return fg unless it's reset
@@ -235,6 +240,8 @@ pub const CompositeEffect = struct {
     blur: ?BlurEffect,
     transparency: ?TransparencyEffect,
 
+    /// Create a composite effect combining blur and transparency
+    /// Either effect can be null to apply only one
     pub fn init(blur: ?BlurEffect, transparency: ?TransparencyEffect) CompositeEffect {
         return .{
             .blur = blur,
@@ -242,6 +249,8 @@ pub const CompositeEffect = struct {
         };
     }
 
+    /// Apply composite effect to buffer region
+    /// Applies blur first, then transparency if both are present
     pub fn apply(self: CompositeEffect, buf: *Buffer, area: Rect) void {
         // Apply blur first, then transparency
         if (self.blur) |blur_effect| {

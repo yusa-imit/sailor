@@ -26,6 +26,8 @@ pub const KeyboardNavigator = struct {
         custom, // User-defined style
     };
 
+    /// Create a new keyboard navigator with default settings
+    /// Starts with outline focus indicator and visible focus enabled
     pub fn init(allocator: Allocator) KeyboardNavigator {
         return .{
             .allocator = allocator,
@@ -35,6 +37,7 @@ pub const KeyboardNavigator = struct {
         };
     }
 
+    /// Free all allocated resources including skip links
     pub fn deinit(self: *KeyboardNavigator) void {
         for (self.skip_links.items) |link| {
             self.allocator.free(link.name);
@@ -46,7 +49,8 @@ pub const KeyboardNavigator = struct {
         self.skip_links.deinit(self.allocator);
     }
 
-    /// Add a skip link (e.g., "Skip to main content")
+    /// Add a skip link for keyboard navigation (e.g., "Skip to main content")
+    /// Allows users to jump directly to specific sections using shortcuts
     pub fn addSkipLink(self: *KeyboardNavigator, name: []const u8, target_id: []const u8, shortcut: ?[]const u8) !void {
         const skip_link = SkipLink{
             .name = try self.allocator.dupe(u8, name),
@@ -56,12 +60,14 @@ pub const KeyboardNavigator = struct {
         try self.skip_links.append(self.allocator, skip_link);
     }
 
-    /// Get all skip links
+    /// Get all registered skip links
+    /// Returns a slice of all skip links added to this navigator
     pub fn getSkipLinks(self: *const KeyboardNavigator) []const SkipLink {
         return self.skip_links.items;
     }
 
-    /// Find skip link by shortcut
+    /// Find skip link by its keyboard shortcut string
+    /// Returns the skip link if found, null otherwise
     pub fn findSkipLinkByShortcut(self: *const KeyboardNavigator, shortcut: []const u8) ?SkipLink {
         for (self.skip_links.items) |link| {
             if (link.shortcut) |s| {
@@ -73,17 +79,20 @@ pub const KeyboardNavigator = struct {
         return null;
     }
 
-    /// Set focus indicator style
+    /// Set the visual style for focus indicators
+    /// Affects which box drawing characters are used to show focus
     pub fn setFocusIndicatorStyle(self: *KeyboardNavigator, style: FocusIndicatorStyle) void {
         self.focus_indicator_style = style;
     }
 
-    /// Enable or disable visible focus
+    /// Enable or disable visible focus indicators
+    /// When disabled, getFocusIndicator returns blank characters
     pub fn setVisibleFocus(self: *KeyboardNavigator, visible: bool) void {
         self.visible_focus = visible;
     }
 
-    /// Get focus indicator characters based on style
+    /// Get focus indicator characters based on current style setting
+    /// Returns box drawing characters for corners and edges
     pub fn getFocusIndicator(self: *const KeyboardNavigator) FocusIndicator {
         if (!self.visible_focus) {
             return .{
@@ -169,6 +178,7 @@ pub const NavigationHints = struct {
         };
     };
 
+    /// Create a new navigation hints collection
     pub fn init(allocator: Allocator) NavigationHints {
         return .{
             .allocator = allocator,
@@ -176,6 +186,7 @@ pub const NavigationHints = struct {
         };
     }
 
+    /// Free all allocated resources including hint strings
     pub fn deinit(self: *NavigationHints) void {
         for (self.hints.items) |hint| {
             self.allocator.free(hint.key);
@@ -184,7 +195,8 @@ pub const NavigationHints = struct {
         self.hints.deinit(self.allocator);
     }
 
-    /// Add a navigation hint
+    /// Add a navigation hint with key binding, description, and category
+    /// Key string describes the keyboard shortcut, category groups related hints
     pub fn addHint(self: *NavigationHints, key: []const u8, description: []const u8, category: Hint.Category) !void {
         const hint = Hint{
             .key = try self.allocator.dupe(u8, key),
@@ -194,7 +206,8 @@ pub const NavigationHints = struct {
         try self.hints.append(self.allocator, hint);
     }
 
-    /// Get hints by category
+    /// Get all hints for a specific category (navigation, focus, action, etc.)
+    /// Returns owned slice that caller must free
     pub fn getHintsByCategory(self: *const NavigationHints, allocator: Allocator, category: Hint.Category) ![]const Hint {
         var filtered: ArrayList(Hint) = .{};
         errdefer filtered.deinit(allocator);
@@ -208,7 +221,8 @@ pub const NavigationHints = struct {
         return filtered.toOwnedSlice(allocator);
     }
 
-    /// Generate standard navigation hints
+    /// Add standard navigation hints (Tab, Enter, arrows, etc.)
+    /// Populates common keyboard shortcuts for navigation, focus, editing, and help
     pub fn addStandardHints(self: *NavigationHints) !void {
         // Navigation
         try self.addHint("Tab", "Next focusable element", .focus);
@@ -236,7 +250,8 @@ pub const NavigationHints = struct {
         try self.addHint("?", "Show shortcuts", .help);
     }
 
-    /// Format hints as text
+    /// Format all hints as human-readable text grouped by category
+    /// Returns owned string that caller must free
     pub fn formatHints(self: *const NavigationHints, allocator: Allocator) ![]const u8 {
         var buf: ArrayList(u8) = .{};
         defer buf.deinit(allocator);

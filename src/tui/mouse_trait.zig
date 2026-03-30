@@ -26,7 +26,8 @@ pub const Clickable = struct {
     /// Returns true if click was handled
     on_click: *const fn (ctx: *anyopaque, event: MouseEvent) InteractionResult,
 
-    /// Check if point is inside clickable area
+    /// Check if point (x, y) is inside the clickable area
+    /// Returns true if the point is within the rectangle bounds
     pub fn contains(area: Rect, x: u16, y: u16) bool {
         return x >= area.x and
             x < area.x + area.width and
@@ -35,6 +36,8 @@ pub const Clickable = struct {
     }
 
     /// Handle mouse event for clickable widget
+    /// Checks if the event is a press/double_click inside the area and calls on_click callback
+    /// Returns .handled if click was processed, .ignored otherwise
     pub fn handleEvent(self: Clickable, ctx: *anyopaque, event: MouseEvent, area: Rect) InteractionResult {
         if (event.event_type != .press and event.event_type != .double_click) {
             return .ignored;
@@ -69,6 +72,7 @@ pub const Draggable = struct {
         last_y: u16 = 0,
         button: MouseButton = .none,
 
+        /// Start drag operation, recording initial position and button
         pub fn start(self: *DragState, event: MouseEvent) void {
             self.active = true;
             self.start_x = event.x;
@@ -78,16 +82,20 @@ pub const Draggable = struct {
             self.button = event.button;
         }
 
+        /// Update drag position with new coordinates
         pub fn update(self: *DragState, event: MouseEvent) void {
             self.last_x = event.x;
             self.last_y = event.y;
         }
 
+        /// End drag operation, clearing active state
         pub fn end(self: *DragState) void {
             self.active = false;
             self.button = .none;
         }
 
+        /// Get drag delta from start to current position
+        /// Returns struct with dx and dy fields representing pixel movement
         pub fn getDelta(self: DragState) struct { dx: i32, dy: i32 } {
             return .{
                 .dx = @as(i32, self.last_x) - @as(i32, self.start_x),
@@ -97,6 +105,8 @@ pub const Draggable = struct {
     };
 
     /// Handle mouse event for draggable widget
+    /// Manages press/drag/release lifecycle, calling appropriate callbacks
+    /// Returns .handled if drag was processed, .ignored otherwise
     pub fn handleEvent(
         self: Draggable,
         ctx: *anyopaque,
@@ -142,6 +152,8 @@ pub const Scrollable = struct {
     on_scroll: *const fn (ctx: *anyopaque, delta: i32, event: MouseEvent) InteractionResult,
 
     /// Handle mouse event for scrollable widget
+    /// Converts scroll_up/scroll_down events to delta values and calls on_scroll callback
+    /// Returns .handled if scroll was processed, .ignored otherwise
     pub fn handleEvent(self: Scrollable, ctx: *anyopaque, event: MouseEvent, area: Rect) InteractionResult {
         if (!Clickable.contains(area, event.x, event.y)) {
             return .ignored;
@@ -175,12 +187,15 @@ pub const Hoverable = struct {
         last_x: u16 = 0,
         last_y: u16 = 0,
 
+        /// Check if point (x, y) is inside the hover area
         pub fn isInside(area: Rect, x: u16, y: u16) bool {
             return Clickable.contains(area, x, y);
         }
     };
 
     /// Handle mouse event for hoverable widget
+    /// Tracks mouse enter/move/leave and calls appropriate callbacks
+    /// Returns .handled if hover state changed, .ignored otherwise
     pub fn handleEvent(
         self: Hoverable,
         ctx: *anyopaque,
@@ -233,6 +248,8 @@ pub const CompositeInteraction = struct {
     hover_state: Hoverable.HoverState = .{},
 
     /// Handle event with all enabled traits
+    /// Tries hoverable, draggable, clickable, and scrollable in priority order
+    /// Returns .handled if any trait processed the event, .ignored otherwise
     pub fn handleEvent(
         self: *CompositeInteraction,
         ctx: *anyopaque,

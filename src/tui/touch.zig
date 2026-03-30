@@ -7,6 +7,7 @@ pub const TouchPoint = struct {
     y: u16,
     pressure: f32 = 1.0, // 0.0-1.0 normalized pressure (future use)
 
+    /// Create a new touch point with the given id and position
     pub fn init(id: u32, x: u16, y: u16) TouchPoint {
         return .{ .id = id, .x = x, .y = y };
     }
@@ -32,6 +33,8 @@ pub const SwipeDirection = enum {
     up,
     down,
 
+    /// Determine swipe direction from delta coordinates
+    /// Returns the primary direction (largest delta) or null if no clear direction
     pub fn fromDelta(dx: i32, dy: i32) ?SwipeDirection {
         const abs_dx = if (dx < 0) -dx else dx;
         const abs_dy = if (dy < 0) -dy else dy;
@@ -65,6 +68,7 @@ pub const TouchGesture = union(GestureType) {
     pinch_in: PinchData,
     pinch_out: PinchData,
 
+    /// Get the gesture type from this union
     pub fn getType(self: TouchGesture) GestureType {
         return @as(GestureType, self);
     }
@@ -97,6 +101,7 @@ pub const TouchTracker = struct {
     swipe_distance_threshold: u16 = 3, // Minimum cells to detect swipe
     tap_move_tolerance: u16 = 1, // Max movement to still count as tap
 
+    /// Create a new touch tracker with default thresholds
     pub fn init() Self {
         return .{};
     }
@@ -109,7 +114,8 @@ pub const TouchTracker = struct {
         return self.active_touches[0..self.active_count];
     }
 
-    /// Add or update a touch point
+    /// Add or update a touch point when finger touches screen
+    /// Starts gesture tracking if first touch
     pub fn touchDown(self: *Self, point: TouchPoint, timestamp_ms: i64) void {
         // Check if this touch ID already exists (update)
         for (self.getSlice()) |*touch| {
@@ -140,7 +146,7 @@ pub const TouchTracker = struct {
         }
     }
 
-    /// Update existing touch point
+    /// Update existing touch point when finger moves on screen
     pub fn touchMove(self: *Self, point: TouchPoint) void {
         for (self.getSlice()) |*touch| {
             if (touch.id == point.id) {
@@ -150,7 +156,8 @@ pub const TouchTracker = struct {
         }
     }
 
-    /// Remove a touch point and detect gestures
+    /// Remove a touch point when finger lifts from screen
+    /// Returns detected gesture (tap, swipe, etc.) if last touch was released
     pub fn touchUp(self: *Self, point: TouchPoint, timestamp_ms: i64) ?TouchGesture {
         // Remove the touch from active list
         var found_index: ?usize = null;
@@ -182,7 +189,8 @@ pub const TouchTracker = struct {
         return null;
     }
 
-    /// Get current pinch gesture if in progress
+    /// Get current pinch gesture if two touches are active
+    /// Returns pinch_in if fingers moved closer, pinch_out if moved apart
     pub fn getPinchGesture(self: *Self) ?TouchGesture {
         if (self.active_count != 2) return null;
         if (self.initial_distance == null) return null;
@@ -216,7 +224,8 @@ pub const TouchTracker = struct {
         return null;
     }
 
-    /// Check for long press (call periodically)
+    /// Check for long press (call periodically during touch hold)
+    /// Returns long_press gesture if threshold duration exceeded
     pub fn checkLongPress(self: *Self, timestamp_ms: i64) ?TouchGesture {
         if (self.active_count != 1) return null;
         if (self.long_press_triggered) return null;
