@@ -27,6 +27,8 @@ pub const TokenType = enum {
     error_token,
     unknown,
 
+    /// Returns the default visual style for this token type.
+    /// Used for syntax highlighting when no custom theme is provided.
     pub fn defaultStyle(self: TokenType) Style {
         return switch (self) {
             .keyword => Style{ .fg = Color.magenta, .bold = true },
@@ -52,10 +54,12 @@ pub const Token = struct {
     start: usize,
     end: usize,
 
+    /// Returns the length of this token in bytes.
     pub fn length(self: Token) usize {
         return self.end - self.start;
     }
 
+    /// Extracts the text for this token from the original source.
     pub fn text(self: Token, source: []const u8) []const u8 {
         return source[self.start..self.end];
     }
@@ -71,6 +75,8 @@ pub const Language = enum {
     json,
     markdown,
 
+    /// Detects the language from a file extension.
+    /// Returns `.none` if the extension is not recognized.
     pub fn fromExtension(ext: []const u8) Language {
         if (std.mem.eql(u8, ext, ".zig")) return .zig;
         if (std.mem.eql(u8, ext, ".c") or std.mem.eql(u8, ext, ".h")) return .c;
@@ -88,6 +94,7 @@ pub const Lexer = struct {
     source: []const u8,
     pos: usize,
 
+    /// Initializes a lexer for the given language and source code.
     pub fn init(language: Language, source: []const u8) Lexer {
         return .{
             .language = language,
@@ -96,7 +103,8 @@ pub const Lexer = struct {
         };
     }
 
-    /// Tokenize entire source into a list
+    /// Tokenizes the entire source into a list of tokens.
+    /// Caller owns the returned slice.
     pub fn tokenize(self: *Lexer, allocator: std.mem.Allocator) ![]Token {
         var tokens = std.ArrayList(Token){};
         defer tokens.deinit(allocator);
@@ -110,7 +118,8 @@ pub const Lexer = struct {
         return tokens.toOwnedSlice(allocator);
     }
 
-    /// Get the next token
+    /// Returns the next token from the source and advances the position.
+    /// Returns a token with type `.unknown` when at end of source.
     pub fn nextToken(self: *Lexer) !Token {
         if (self.pos >= self.source.len) {
             return Token{ .type = .unknown, .start = self.pos, .end = self.pos };
@@ -658,6 +667,7 @@ pub const SyntaxTheme = struct {
     error_token: Style,
     unknown: Style,
 
+    /// Returns a syntax theme with default styles for all token types.
     pub fn default() SyntaxTheme {
         return .{
             .keyword = TokenType.keyword.defaultStyle(),
@@ -677,6 +687,7 @@ pub const SyntaxTheme = struct {
         };
     }
 
+    /// Returns the style for a given token type from this theme.
     pub fn getStyle(self: SyntaxTheme, token_type: TokenType) Style {
         return switch (token_type) {
             .keyword => self.keyword,
