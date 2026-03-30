@@ -13,6 +13,16 @@
 - **Last completed**: v1.26.0 → Testing & Quality Assurance (5/5, 100%) ✅
 
 ## Project Status
+✅ **Session 41** — FEATURE MODE: TUI Inspector Documentation (2026-03-30)
+  - **INSPECTOR MODULE COMPLETE**: Documented inspector.zig with comprehensive API docs
+  - Completed inspector.zig: 36 functions documented (lifecycle, widget/layout/event tracking, tree operations, analysis, output)
+  - Functions: init/deinit/enable/disable, recordWidget/Layout/Event, getWidgetTree/Depth/Siblings
+  - Also documented 6 nested struct methods: LayoutInfo, WidgetInfo, WidgetNode, LayoutViolation, FrameSnapshot
+  - Total documented this session: 36 functions (269 remaining)
+  - Cumulative: 239 functions documented across sessions 33-41
+  - All tests pass (3393 tests)
+  - Commits: eab5700 (inspector docs), efaba83 (milestone update)
+  - Next: Phase 6 Advanced Modules — audit.zig (20 fns), test_utils.zig (35 fns), style.zig (30 fns)
 ✅ **Session 40** — STABILIZATION MODE: Infrastructure Documentation (2026-03-30)
   - **PHASE 4 INFRASTRUCTURE COMPLETENESS**: Documented 3 infrastructure modules (46 functions)
   - Completed gamepad.zig: 20 functions (Button classification, AnalogStick ops, GamepadEvent constructors, GamepadState lifecycle, GamepadManager queries)
