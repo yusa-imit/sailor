@@ -15,44 +15,61 @@ pub const Checkbox = struct {
     focused_style: Style = .{ .bold = true },
     is_focused: bool = false,
 
+    /// Creates a new checkbox with the given label.
+    /// Default state: unchecked, unfocused, default styles.
     pub fn init(label: []const u8) Checkbox {
         return .{ .label = label };
     }
 
+    /// Sets the checked state of the checkbox.
+    /// Returns a new checkbox instance for method chaining.
     pub fn withChecked(self: Checkbox, checked: bool) Checkbox {
         var result = self;
         result.checked = checked;
         return result;
     }
 
+    /// Sets the default style applied when the checkbox is neither checked nor focused.
+    /// Returns a new checkbox instance for method chaining.
     pub fn withStyle(self: Checkbox, style: Style) Checkbox {
         var result = self;
         result.style = style;
         return result;
     }
 
+    /// Sets the style applied when the checkbox is checked.
+    /// Default: green foreground. Returns a new checkbox instance for method chaining.
     pub fn withCheckedStyle(self: Checkbox, style: Style) Checkbox {
         var result = self;
         result.checked_style = style;
         return result;
     }
 
+    /// Sets the style applied when the checkbox has focus.
+    /// Default: bold. Returns a new checkbox instance for method chaining.
     pub fn withFocusedStyle(self: Checkbox, style: Style) Checkbox {
         var result = self;
         result.focused_style = style;
         return result;
     }
 
+    /// Sets the focus state of the checkbox.
+    /// Used by CheckboxGroup to highlight the currently selected item.
+    /// Returns a new checkbox instance for method chaining.
     pub fn withFocus(self: Checkbox, focused: bool) Checkbox {
         var result = self;
         result.is_focused = focused;
         return result;
     }
 
+    /// Toggles the checkbox state between checked and unchecked.
     pub fn toggle(self: *Checkbox) void {
         self.checked = !self.checked;
     }
 
+    /// Renders the checkbox to the given buffer within the specified area.
+    /// Format: `[✓] Label` or `[ ] Label` depending on checked state.
+    /// Applies appropriate style based on focus and checked state.
     pub fn render(self: Checkbox, buf: *Buffer, area: Rect) void {
         if (area.width < 4 or area.height == 0) return;
 
@@ -106,22 +123,31 @@ pub const CheckboxGroup = struct {
     style: Style = .{},
     show_help: bool = true,
 
+    /// Creates a new checkbox group from a slice of checkboxes.
+    /// Focus starts on the first item. Help text is shown by default.
     pub fn init(items: []Checkbox) CheckboxGroup {
         return .{ .items = items };
     }
 
+    /// Sets an optional border block around the checkbox group.
+    /// Returns a new group instance for method chaining.
     pub fn withBlock(self: CheckboxGroup, block: Block) CheckboxGroup {
         var result = self;
         result.block = block;
         return result;
     }
 
+    /// Sets the default style for the checkbox group background.
+    /// Returns a new group instance for method chaining.
     pub fn withStyle(self: CheckboxGroup, style: Style) CheckboxGroup {
         var result = self;
         result.style = style;
         return result;
     }
 
+    /// Controls whether to display keyboard shortcut help text at the bottom.
+    /// Help text: "↑/↓: Navigate | Space: Toggle | A: All | N: None"
+    /// Returns a new group instance for method chaining.
     pub fn withHelp(self: CheckboxGroup, show: bool) CheckboxGroup {
         var result = self;
         result.show_help = show;
@@ -191,6 +217,9 @@ pub const CheckboxGroup = struct {
         }
     }
 
+    /// Renders the checkbox group to the given buffer within the specified area.
+    /// Displays all checkboxes vertically with optional border block and help text.
+    /// The focused checkbox is visually highlighted.
     pub fn render(self: CheckboxGroup, buf: *Buffer, area: Rect) void {
         // Clear area
         for (0..area.height) |y| {
