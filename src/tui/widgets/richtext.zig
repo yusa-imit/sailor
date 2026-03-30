@@ -61,6 +61,8 @@ pub const RichTextInput = struct {
         start: usize,
         end: usize,
 
+        /// Returns the selection with start <= end guaranteed.
+        /// Swaps start and end if they are reversed.
         pub fn normalized(self: Selection) Selection {
             return if (self.start <= self.end)
                 self
@@ -68,6 +70,7 @@ pub const RichTextInput = struct {
                 .{ .start = self.end, .end = self.start };
         }
 
+        /// Returns true if the selection has zero length (no characters selected).
         pub fn isEmpty(self: Selection) bool {
             return self.start == self.end;
         }
@@ -83,6 +86,7 @@ pub const RichTextInput = struct {
         objects, // 💡🔦🔌💻📱
         symbols, // ⭐✨💫⚡🔥
 
+        /// Returns the emoji list for this category (10 emojis).
         pub fn getEmojis(self: EmojiCategory) []const []const u8 {
             return switch (self) {
                 .smileys => &.{ "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇" },
@@ -96,6 +100,7 @@ pub const RichTextInput = struct {
             };
         }
 
+        /// Returns the display name of this category.
         pub fn name(self: EmojiCategory) []const u8 {
             return switch (self) {
                 .smileys => "Smileys",
@@ -109,6 +114,7 @@ pub const RichTextInput = struct {
             };
         }
 
+        /// Returns the next category in order (wraps around).
         pub fn next(self: EmojiCategory) EmojiCategory {
             return switch (self) {
                 .smileys => .gestures,
@@ -122,6 +128,7 @@ pub const RichTextInput = struct {
             };
         }
 
+        /// Returns the previous category in order (wraps around).
         pub fn prev(self: EmojiCategory) EmojiCategory {
             return switch (self) {
                 .smileys => .symbols,
@@ -136,6 +143,8 @@ pub const RichTextInput = struct {
         }
     };
 
+    /// Initializes a new RichTextInput widget with default settings.
+    /// Call deinit() when done to free resources.
     pub fn init(allocator: Allocator) RichTextInput {
         return .{
             .allocator = allocator,
@@ -154,10 +163,12 @@ pub const RichTextInput = struct {
         };
     }
 
+    /// Frees resources used by this widget.
     pub fn deinit(self: *RichTextInput) void {
         self.text.deinit();
     }
 
+    /// Replaces the entire text content and resets cursor/selection.
     pub fn setText(self: *RichTextInput, text: []const u8) !void {
         self.text.clearRetainingCapacity();
         try self.text.appendSlice(text);
@@ -165,53 +176,66 @@ pub const RichTextInput = struct {
         self.selection = null;
     }
 
+    /// Returns a copy of the current text content.
+    /// Caller owns the returned memory.
     pub fn getText(self: *const RichTextInput, allocator: Allocator) ![]const u8 {
         return allocator.dupe(u8, self.text.items);
     }
 
+    /// Sets the border block for this widget.
+    /// Returns self for method chaining.
     pub fn setBlock(self: *RichTextInput, block: Block) *RichTextInput {
         self.block = block;
         return self;
     }
 
+    /// Inserts a single character at the cursor position and advances cursor.
     pub fn insertChar(self: *RichTextInput, ch: u8) !void {
         try self.text.insert(self.cursor, ch);
         self.cursor += 1;
     }
 
+    /// Deletes the character before the cursor (backspace).
     pub fn deleteChar(self: *RichTextInput) void {
         if (self.cursor == 0 or self.text.items.len == 0) return;
         _ = self.text.orderedRemove(self.cursor - 1);
         self.cursor -= 1;
     }
 
+    /// Inserts a string at the cursor position and advances cursor.
     pub fn insertText(self: *RichTextInput, text: []const u8) !void {
         try self.text.insertSlice(self.cursor, text);
         self.cursor += text.len;
     }
 
+    /// Inserts an emoji string at the cursor position.
     pub fn insertEmoji(self: *RichTextInput, emoji: []const u8) !void {
         try self.insertText(emoji);
     }
 
+    /// Toggles the visibility of the emoji picker overlay.
     pub fn toggleEmojiPicker(self: *RichTextInput) void {
         self.emoji_picker_visible = !self.emoji_picker_visible;
     }
 
+    /// Toggles the visibility of the markdown preview pane.
     pub fn togglePreview(self: *RichTextInput) void {
         self.preview_visible = !self.preview_visible;
     }
 
+    /// Moves to the next emoji category and resets selection index.
     pub fn emojiCategoryNext(self: *RichTextInput) void {
         self.emoji_category = self.emoji_category.next();
         self.emoji_index = 0;
     }
 
+    /// Moves to the previous emoji category and resets selection index.
     pub fn emojiCategoryPrev(self: *RichTextInput) void {
         self.emoji_category = self.emoji_category.prev();
         self.emoji_index = 0;
     }
 
+    /// Selects the next emoji in the current category (if not at end).
     pub fn emojiSelectNext(self: *RichTextInput) void {
         const emojis = self.emoji_category.getEmojis();
         if (self.emoji_index + 1 < emojis.len) {
@@ -219,12 +243,14 @@ pub const RichTextInput = struct {
         }
     }
 
+    /// Selects the previous emoji in the current category (if not at start).
     pub fn emojiSelectPrev(self: *RichTextInput) void {
         if (self.emoji_index > 0) {
             self.emoji_index -= 1;
         }
     }
 
+    /// Returns the currently selected emoji, or null if invalid index.
     pub fn getSelectedEmoji(self: *const RichTextInput) ?[]const u8 {
         const emojis = self.emoji_category.getEmojis();
         if (self.emoji_index < emojis.len) {
@@ -238,14 +264,17 @@ pub const RichTextInput = struct {
         try self.wrapSelection("**", "**");
     }
 
+    /// Applies italic markdown formatting (*text*) around selection or cursor.
     pub fn applyItalic(self: *RichTextInput) !void {
         try self.wrapSelection("*", "*");
     }
 
+    /// Applies underline HTML tags (<u>text</u>) around selection or cursor.
     pub fn applyUnderline(self: *RichTextInput) !void {
         try self.wrapSelection("<u>", "</u>");
     }
 
+    /// Applies strikethrough markdown formatting (~~text~~) around selection or cursor.
     pub fn applyStrikethrough(self: *RichTextInput) !void {
         try self.wrapSelection("~~", "~~");
     }
@@ -268,6 +297,7 @@ pub const RichTextInput = struct {
         }
     }
 
+    /// Sets the selection range (clamped to text bounds).
     pub fn setSelection(self: *RichTextInput, start: usize, end: usize) void {
         self.selection = Selection{
             .start = @min(start, self.text.items.len),
@@ -275,10 +305,13 @@ pub const RichTextInput = struct {
         };
     }
 
+    /// Clears the current selection.
     pub fn clearSelection(self: *RichTextInput) void {
         self.selection = null;
     }
 
+    /// Moves the cursor by the given delta (negative = left, positive = right).
+    /// Clamps to text bounds.
     pub fn moveCursor(self: *RichTextInput, delta: i32) void {
         if (delta < 0) {
             self.cursor = self.cursor -| @as(usize, @intCast(-delta));
@@ -287,6 +320,8 @@ pub const RichTextInput = struct {
         }
     }
 
+    /// Renders the rich text input widget to the buffer.
+    /// Shows input field, toolbar, and optionally emoji picker or markdown preview.
     pub fn render(self: *const RichTextInput, buf: *Buffer, area: Rect) void {
         var render_area = area;
 
@@ -842,6 +877,7 @@ pub const RichText = struct {
         text: []const u8,
         spans: []const FormatSpan,
 
+        /// Frees the clipboard's text and span arrays.
         pub fn deinit(self: Clipboard, allocator: Allocator) void {
             allocator.free(self.text);
             allocator.free(self.spans);
