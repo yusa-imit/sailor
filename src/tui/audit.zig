@@ -40,6 +40,7 @@ pub const AuditLogger = struct {
             warning,
             critical,
 
+            /// Returns the severity as a short uppercase string.
             pub fn toStr(self: Severity) []const u8 {
                 return switch (self) {
                     .debug => "DEBUG",
@@ -57,6 +58,7 @@ pub const AuditLogger = struct {
         include_user_ids: ?[]const []const u8, // null = all users
         exclude_event_types: ?[]const AuditEntry.EventType, // null = no exclusions
 
+        /// Returns a default log filter with info-level severity.
         pub fn default() LogFilter {
             return .{
                 .min_severity = .info,
@@ -66,6 +68,7 @@ pub const AuditLogger = struct {
             };
         }
 
+        /// Returns a log filter that logs all events including debug level.
         pub fn allEvents() LogFilter {
             return .{
                 .min_severity = .debug,
@@ -76,6 +79,7 @@ pub const AuditLogger = struct {
         }
     };
 
+    /// Initializes an audit logger with the given session ID.
     pub fn init(allocator: Allocator, session_id: []const u8) !AuditLogger {
         return AuditLogger{
             .allocator = allocator,
@@ -87,6 +91,7 @@ pub const AuditLogger = struct {
         };
     }
 
+    /// Frees all resources owned by this audit logger.
     pub fn deinit(self: *AuditLogger) void {
         for (self.entries.items) |entry| {
             self.allocator.free(entry.details);
