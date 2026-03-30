@@ -21,6 +21,7 @@ pub const Button = enum {
     dpad_right,
     guide, // Xbox/PlayStation home button
 
+    /// Returns true if the button is a directional pad button
     pub fn isDirectional(self: Button) bool {
         return switch (self) {
             .dpad_up, .dpad_down, .dpad_left, .dpad_right => true,
@@ -28,6 +29,7 @@ pub const Button = enum {
         };
     }
 
+    /// Returns true if the button is a trigger (analog pressure-sensitive button)
     pub fn isTrigger(self: Button) bool {
         return switch (self) {
             .left_trigger, .right_trigger => true,
@@ -41,20 +43,24 @@ pub const AnalogStick = struct {
     x: f32, // -1.0 = left, 1.0 = right
     y: f32, // -1.0 = up, 1.0 = down
 
+    /// Returns a centered analog stick position (0, 0)
     pub fn zero() AnalogStick {
         return .{ .x = 0.0, .y = 0.0 };
     }
 
+    /// Calculates the magnitude (distance from center) of the analog stick position
     pub fn magnitude(self: AnalogStick) f32 {
         return @sqrt(self.x * self.x + self.y * self.y);
     }
 
+    /// Returns a normalized analog stick with magnitude 1.0 (preserving direction)
     pub fn normalized(self: AnalogStick) AnalogStick {
         const mag = self.magnitude();
         if (mag < 0.001) return AnalogStick.zero();
         return .{ .x = self.x / mag, .y = self.y / mag };
     }
 
+    /// Returns true if the analog stick is within the specified deadzone threshold
     pub fn withinDeadzone(self: AnalogStick, deadzone: f32) bool {
         return self.magnitude() < deadzone;
     }
@@ -81,6 +87,7 @@ pub const GamepadEvent = struct {
     right_trigger: f32 = 0.0, // 0.0 to 1.0
     timestamp: u64 = 0, // Milliseconds since epoch
 
+    /// Creates a button press event for the specified gamepad and button
     pub fn buttonPress(gamepad_id: u32, button: Button) GamepadEvent {
         return .{
             .event_type = .button_press,
@@ -90,6 +97,7 @@ pub const GamepadEvent = struct {
         };
     }
 
+    /// Creates a button release event for the specified gamepad and button
     pub fn buttonRelease(gamepad_id: u32, button: Button) GamepadEvent {
         return .{
             .event_type = .button_release,
@@ -99,6 +107,7 @@ pub const GamepadEvent = struct {
         };
     }
 
+    /// Creates an analog stick movement event with left and right stick positions
     pub fn analogMove(gamepad_id: u32, left: AnalogStick, right: AnalogStick) GamepadEvent {
         return .{
             .event_type = .analog_move,
@@ -109,6 +118,7 @@ pub const GamepadEvent = struct {
         };
     }
 
+    /// Creates a trigger movement event with left and right trigger pressure values (0.0 to 1.0)
     pub fn triggerMove(gamepad_id: u32, left_trig: f32, right_trig: f32) GamepadEvent {
         return .{
             .event_type = .trigger_move,
@@ -119,6 +129,7 @@ pub const GamepadEvent = struct {
         };
     }
 
+    /// Creates a gamepad connected event
     pub fn connected(gamepad_id: u32) GamepadEvent {
         return .{
             .event_type = .connected,
@@ -127,6 +138,7 @@ pub const GamepadEvent = struct {
         };
     }
 
+    /// Creates a gamepad disconnected event
     pub fn disconnected(gamepad_id: u32) GamepadEvent {
         return .{
             .event_type = .disconnected,
@@ -147,6 +159,7 @@ pub const GamepadState = struct {
     right_trigger: f32 = 0.0,
     deadzone: f32 = 0.15, // Default 15% deadzone
 
+    /// Initializes a new gamepad state tracker for the specified gamepad ID
     pub fn init(gamepad_id: u32) GamepadState {
         const buttons = std.EnumArray(Button, bool).initFill(false);
         return .{
@@ -155,10 +168,12 @@ pub const GamepadState = struct {
         };
     }
 
+    /// Returns true if the specified button is currently pressed
     pub fn isButtonPressed(self: GamepadState, button: Button) bool {
         return self.buttons.get(button);
     }
 
+    /// Updates the gamepad state based on the received event
     pub fn handleEvent(self: *GamepadState, event: GamepadEvent) void {
         switch (event.event_type) {
             .button_press => {
@@ -194,6 +209,7 @@ pub const GamepadState = struct {
         }
     }
 
+    /// Returns the left analog stick position with deadzone filtering applied
     pub fn getLeftStick(self: GamepadState) AnalogStick {
         if (self.left_stick.withinDeadzone(self.deadzone)) {
             return AnalogStick.zero();
@@ -201,6 +217,7 @@ pub const GamepadState = struct {
         return self.left_stick;
     }
 
+    /// Returns the right analog stick position with deadzone filtering applied
     pub fn getRightStick(self: GamepadState) AnalogStick {
         if (self.right_stick.withinDeadzone(self.deadzone)) {
             return AnalogStick.zero();
@@ -208,10 +225,12 @@ pub const GamepadState = struct {
         return self.right_stick;
     }
 
+    /// Returns the left trigger pressure value (0.0 to 1.0) with deadzone filtering applied
     pub fn getLeftTrigger(self: GamepadState) f32 {
         return if (self.left_trigger < self.deadzone) 0.0 else self.left_trigger;
     }
 
+    /// Returns the right trigger pressure value (0.0 to 1.0) with deadzone filtering applied
     pub fn getRightTrigger(self: GamepadState) f32 {
         return if (self.right_trigger < self.deadzone) 0.0 else self.right_trigger;
     }
@@ -223,6 +242,7 @@ pub const GamepadManager = struct {
     gamepads: std.AutoHashMap(u32, GamepadState),
     max_gamepads: u32 = 4,
 
+    /// Initializes a new gamepad manager with the specified allocator
     pub fn init(allocator: std.mem.Allocator) GamepadManager {
         return .{
             .allocator = allocator,
@@ -230,10 +250,12 @@ pub const GamepadManager = struct {
         };
     }
 
+    /// Deinitializes the gamepad manager and frees all resources
     pub fn deinit(self: *GamepadManager) void {
         self.gamepads.deinit();
     }
 
+    /// Processes a gamepad event and updates the corresponding gamepad state
     pub fn handleEvent(self: *GamepadManager, event: GamepadEvent) !void {
         if (event.event_type == .connected) {
             if (self.gamepads.count() >= self.max_gamepads) return error.MaxGamepadsReached;
@@ -249,10 +271,12 @@ pub const GamepadManager = struct {
         }
     }
 
+    /// Returns a mutable pointer to the gamepad state for the specified ID, or null if not connected
     pub fn getGamepad(self: GamepadManager, gamepad_id: u32) ?*GamepadState {
         return self.gamepads.getPtr(gamepad_id);
     }
 
+    /// Returns true if the gamepad with the specified ID is connected
     pub fn isConnected(self: GamepadManager, gamepad_id: u32) bool {
         if (self.gamepads.get(gamepad_id)) |state| {
             return state.connected;
@@ -260,10 +284,12 @@ pub const GamepadManager = struct {
         return false;
     }
 
+    /// Returns the number of currently connected gamepads
     pub fn getConnectedCount(self: GamepadManager) usize {
         return self.gamepads.count();
     }
 
+    /// Returns the ID of the first connected gamepad, or null if no gamepads are connected
     pub fn getFirstConnected(self: GamepadManager) ?u32 {
         var iter = self.gamepads.keyIterator();
         if (iter.next()) |key| {
