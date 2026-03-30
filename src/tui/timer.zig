@@ -100,19 +100,23 @@ pub const Timer = struct {
         }
     }
 
+    /// Returns true if the timer has reached its delay threshold (false if cancelled)
     pub fn isExpired(self: Timer) bool {
         if (self.cancelled) return false;
         return self.elapsed_ms >= self.delay_ms;
     }
 
+    /// Returns true if the timer has been cancelled
     pub fn isCancelled(self: Timer) bool {
         return self.cancelled;
     }
 
+    /// Cancels the timer, preventing further updates and callbacks
     pub fn cancel(self: *Timer) void {
         self.cancelled = true;
     }
 
+    /// Resets the timer to its initial state (clears elapsed time, cancelled, paused, and fired flags)
     pub fn reset(self: *Timer) void {
         self.elapsed_ms = 0;
         self.cancelled = false;
@@ -120,18 +124,22 @@ pub const Timer = struct {
         self.fired = false;
     }
 
+    /// Pauses the timer, preventing elapsed time from advancing during updates
     pub fn pause(self: *Timer) void {
         self.paused = true;
     }
 
+    /// Resumes a paused timer, allowing elapsed time to advance again
     pub fn unpause(self: *Timer) void {
         self.paused = false;
     }
 
+    /// Returns true if the timer is currently paused
     pub fn isPaused(self: Timer) bool {
         return self.paused;
     }
 
+    /// Sets the time scale multiplier for this timer (e.g., 0.5 = half speed, 2.0 = double speed)
     pub fn setTimeScale(self: *Timer, scale: f32) void {
         self.time_scale = scale;
     }
@@ -142,6 +150,7 @@ pub const TimerManager = struct {
     timers: std.ArrayList(Timer),
     allocator: Allocator,
 
+    /// Initializes a new timer manager with the specified allocator
     pub fn init(allocator: Allocator) TimerManager {
         return .{
             .timers = .{},
@@ -149,16 +158,19 @@ pub const TimerManager = struct {
         };
     }
 
+    /// Deinitializes the timer manager and frees all resources
     pub fn deinit(self: *TimerManager) void {
         self.timers.deinit(self.allocator);
     }
 
+    /// Adds a timer to the manager and returns its unique ID
     pub fn addTimer(self: *TimerManager, timer: Timer) !usize {
         const id = self.timers.items.len;
         try self.timers.append(self.allocator, timer);
         return id;
     }
 
+    /// Updates all managed timers by the specified delta, firing callbacks as needed
     pub fn updateAll(self: *TimerManager, delta_ms: u64) !void {
         const Context = struct {
             pub fn lessThan(_: void, a: Timer, b: Timer) bool {
@@ -176,6 +188,7 @@ pub const TimerManager = struct {
         }
     }
 
+    /// Removes all cancelled timers and expired one-shot timers from the manager
     pub fn removeCompleted(self: *TimerManager) void {
         var i: usize = 0;
         while (i < self.timers.items.len) {
@@ -188,6 +201,7 @@ pub const TimerManager = struct {
         }
     }
 
+    /// Returns the count of active timers (excludes cancelled and expired one-shot timers)
     pub fn activeCount(self: TimerManager) usize {
         var count: usize = 0;
         for (self.timers.items) |timer| {
@@ -200,17 +214,20 @@ pub const TimerManager = struct {
         return count;
     }
 
+    /// Cancels the timer with the specified ID (safe to call with invalid ID)
     pub fn cancelTimer(self: *TimerManager, id: usize) void {
         if (id < self.timers.items.len) {
             self.timers.items[id].cancel();
         }
     }
 
+    /// Returns true if the timer with the specified ID has expired (returns false for invalid ID)
     pub fn isExpired(self: TimerManager, id: usize) bool {
         if (id >= self.timers.items.len) return false;
         return self.timers.items[id].isExpired();
     }
 
+    /// Returns true if the timer with the specified ID has been cancelled (returns false for invalid ID)
     pub fn isCancelled(self: TimerManager, id: usize) bool {
         if (id >= self.timers.items.len) return false;
         return self.timers.items[id].isCancelled();
