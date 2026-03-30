@@ -17,10 +17,15 @@ pub const RadioGroup = struct {
     focused_style: Style = .{ .bold = true, .reversed = true },
     show_help: bool = true,
 
+    /// Creates a new radio group from a slice of item labels.
+    /// No item is selected initially. Focus starts on the first item.
     pub fn init(items: []const []const u8) RadioGroup {
         return .{ .items = items };
     }
 
+    /// Sets the initially selected item by index.
+    /// If index is out of bounds, no selection is made.
+    /// Returns a new group instance for method chaining.
     pub fn withSelected(self: RadioGroup, index: usize) RadioGroup {
         var result = self;
         if (index < result.items.len) {
@@ -29,30 +34,41 @@ pub const RadioGroup = struct {
         return result;
     }
 
+    /// Sets an optional border block around the radio group.
+    /// Returns a new group instance for method chaining.
     pub fn withBlock(self: RadioGroup, block: Block) RadioGroup {
         var result = self;
         result.block = block;
         return result;
     }
 
+    /// Sets the default style for unselected, unfocused items.
+    /// Returns a new group instance for method chaining.
     pub fn withStyle(self: RadioGroup, style: Style) RadioGroup {
         var result = self;
         result.style = style;
         return result;
     }
 
+    /// Sets the style applied to the selected item.
+    /// Default: green foreground. Returns a new group instance for method chaining.
     pub fn withSelectedStyle(self: RadioGroup, style: Style) RadioGroup {
         var result = self;
         result.selected_style = style;
         return result;
     }
 
+    /// Sets the style applied to the focused item.
+    /// Default: bold + reversed. Returns a new group instance for method chaining.
     pub fn withFocusedStyle(self: RadioGroup, style: Style) RadioGroup {
         var result = self;
         result.focused_style = style;
         return result;
     }
 
+    /// Controls whether to display keyboard shortcut help text at the bottom.
+    /// Help text: "↑/↓: Navigate | Enter/Space: Select | Esc: Clear"
+    /// Returns a new group instance for method chaining.
     pub fn withHelp(self: RadioGroup, show: bool) RadioGroup {
         var result = self;
         result.show_help = show;
@@ -118,6 +134,9 @@ pub const RadioGroup = struct {
         self.selected = null;
     }
 
+    /// Renders the radio group to the given buffer within the specified area.
+    /// Displays all items vertically with radio indicators (◉ for selected, ○ for unselected).
+    /// The focused item is visually highlighted. Optional border block and help text are rendered.
     pub fn render(self: RadioGroup, buf: *Buffer, area: Rect) void {
         // Clear area
         for (0..area.height) |y| {
