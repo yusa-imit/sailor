@@ -20,6 +20,9 @@ pub const Select = struct {
     scroll_offset: usize = 0,
     show_help: bool = true,
 
+    /// Creates a new select widget with the given items and mode.
+    /// Allocates a selection state array. Must be freed with `.deinit()`.
+    /// `multi`: true for multi-select (checkboxes), false for single-select (radio buttons).
     pub fn init(allocator: std.mem.Allocator, items: []const []const u8, multi: bool) !Select {
         const selected = try allocator.alloc(bool, items.len);
         @memset(selected, false);
@@ -30,40 +33,55 @@ pub const Select = struct {
         };
     }
 
+    /// Frees the internal selection state array.
     pub fn deinit(self: *Select, allocator: std.mem.Allocator) void {
         allocator.free(self.selected);
     }
 
+    /// Sets an optional border block around the select widget.
+    /// Returns a new select instance for method chaining.
     pub fn withBlock(self: Select, block: Block) Select {
         var result = self;
         result.block = block;
         return result;
     }
 
+    /// Sets the default style for unhighlighted, unselected items.
+    /// Returns a new select instance for method chaining.
     pub fn withStyle(self: Select, style: Style) Select {
         var result = self;
         result.style = style;
         return result;
     }
 
+    /// Sets the style applied to the currently highlighted item.
+    /// Default: bold + reversed. Returns a new select instance for method chaining.
     pub fn withHighlightStyle(self: Select, style: Style) Select {
         var result = self;
         result.highlight_style = style;
         return result;
     }
 
+    /// Sets the style applied to selected items (when not highlighted).
+    /// Default: green foreground. Returns a new select instance for method chaining.
     pub fn withSelectedStyle(self: Select, style: Style) Select {
         var result = self;
         result.selected_style = style;
         return result;
     }
 
+    /// Sets the maximum number of visible items before scrolling.
+    /// If not set, all items are visible (no scrolling).
+    /// Returns a new select instance for method chaining.
     pub fn withMaxVisible(self: Select, max: usize) Select {
         var result = self;
         result.max_visible = max;
         return result;
     }
 
+    /// Controls whether to display keyboard shortcut help text at the bottom.
+    /// Help text varies by mode (multi-select vs single-select).
+    /// Returns a new select instance for method chaining.
     pub fn withHelp(self: Select, show: bool) Select {
         var result = self;
         result.show_help = show;
@@ -142,6 +160,9 @@ pub const Select = struct {
         }
     }
 
+    /// Renders the select widget to the given buffer within the specified area.
+    /// Displays items with selection indicators (checkboxes for multi-select, radio buttons for single-select).
+    /// Supports scrolling when items exceed max visible count. Highlighted item is visually distinct.
     pub fn render(self: Select, buf: *Buffer, area: Rect) void {
         // Clear area
         for (0..area.height) |y| {
