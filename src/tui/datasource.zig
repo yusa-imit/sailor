@@ -167,10 +167,12 @@ pub fn SliceItemDataSource(comptime T: type) type {
 
         items: []const T,
 
+        /// Initializes a slice-backed item data source.
         pub fn init(items: []const T) Self {
             return .{ .items = items };
         }
 
+        /// Returns the ItemDataSource interface for this slice.
         pub fn dataSource(self: *Self) ItemDataSource(T) {
             return .{
                 .fetchFn = fetchFn,
@@ -200,10 +202,12 @@ pub fn SliceTableDataSource(comptime T: type) type {
 
         rows: []const []const T,
 
+        /// Initializes a slice-backed table data source.
         pub fn init(rows: []const []const T) Self {
             return .{ .rows = rows };
         }
 
+        /// Returns the TableDataSource interface for this 2D slice.
         pub fn dataSource(self: *Self) TableDataSource(T) {
             return .{
                 .fetchCellFn = fetchCellFn,
@@ -248,10 +252,12 @@ pub fn SliceLineDataSource(comptime WriterType: type) type {
 
         lines: []const []const u8,
 
+        /// Initializes a slice-backed line data source.
         pub fn init(lines: []const []const u8) Self {
             return .{ .lines = lines };
         }
 
+        /// Returns the LineDataSource interface for this slice of strings.
         pub fn dataSource(self: *Self) LineDataSource(WriterType) {
             return .{
                 .fetchLineFn = fetchLineFn,
