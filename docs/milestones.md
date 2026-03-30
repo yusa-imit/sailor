@@ -14,7 +14,7 @@
 **Theme**: Improve developer experience with comprehensive docs and examples
 **Target**: 2026-04 (1-2 weeks)
 **Checklist**:
-- [ ] API documentation review (all pub fns have doc comments) — IN PROGRESS (30 fns documented, 305 remaining)
+- [ ] API documentation review (all pub fns have doc comments) — IN PROGRESS (66 fns documented, 269 remaining)
 - [x] Add 5 new example apps demonstrating real-world patterns — COMPLETE (hello, counter, dashboard, task_list, layout_showcase)
 - [ ] Getting started guide for each module (term, color, arg, tui, widgets)
 - [ ] Troubleshooting guide (common errors, solutions)
