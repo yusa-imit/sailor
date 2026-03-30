@@ -68,6 +68,7 @@ pub const LayoutInfo = struct {
     allocator: Allocator,
     constraint_list: ArrayList(ConstraintRecord),
 
+    /// Free constraint list memory. Must be called to prevent leaks.
     pub fn deinit(self: *LayoutInfo) void {
         self.constraint_list.deinit(self.allocator);
     }
@@ -86,6 +87,7 @@ pub const WidgetInfo = struct {
     name_owned: []u8,
     child_list: ArrayList(u32),
 
+    /// Free all widget info memory including name, children, and properties.
     pub fn deinit(self: *WidgetInfo) void {
         self.allocator.free(self.name_owned);
         self.child_list.deinit(self.allocator);
@@ -97,6 +99,7 @@ pub const WidgetInfo = struct {
         self.properties.deinit();
     }
 
+    /// Retrieve a custom property value by key. Returns null if not found.
     pub fn getProperty(self: *const WidgetInfo, key: []const u8) ?[]const u8 {
         return self.properties.get(key);
     }
@@ -112,6 +115,7 @@ pub const WidgetNode = struct {
     allocator: Allocator,
     child_ptrs: ArrayList(*WidgetNode),
 
+    /// Recursively free this node and all child nodes.
     pub fn deinit(self: *WidgetNode, allocator: Allocator) void {
         for (self.child_ptrs.items) |child| {
             child.deinit(allocator);
@@ -131,6 +135,7 @@ pub const LayoutViolation = struct {
     violation_type_owned: []u8,
     description_owned: []u8,
 
+    /// Free violation type and description strings.
     pub fn deinit(self: *LayoutViolation) void {
         self.allocator.free(self.violation_type_owned);
         self.allocator.free(self.description_owned);
@@ -145,6 +150,7 @@ pub const FrameSnapshot = struct {
     allocator: Allocator,
     widget_id_list: ArrayList(u32),
 
+    /// Free the widget ID list.
     pub fn deinit(self: *FrameSnapshot) void {
         self.widget_id_list.deinit(self.allocator);
     }
@@ -175,7 +181,9 @@ pub const Inspector = struct {
     current_frame_widgets: ArrayList(u32),
     frame_started: bool,
 
-    /// Initialize inspector
+    /// Initialize a new inspector instance.
+    /// The inspector starts disabled; call `enable()` to activate tracking.
+    /// Returns error.OutOfMemory if allocation fails.
     pub fn init(allocator: Allocator) !Inspector {
         return Inspector{
             .allocator = allocator,
@@ -192,7 +200,8 @@ pub const Inspector = struct {
         };
     }
 
-    /// Clean up all resources
+    /// Free all resources including widgets, layouts, events, and frame snapshots.
+    /// Must be called to prevent memory leaks.
     pub fn deinit(self: *Inspector) void {
         // Clean up widgets
         var widget_it = self.widgets.iterator();
@@ -220,22 +229,27 @@ pub const Inspector = struct {
         self.current_frame_widgets.deinit(self.allocator);
     }
 
-    /// Enable inspector
+    /// Enable widget and event tracking.
+    /// When enabled, all record* and track* calls will collect data.
     pub fn enable(self: *Inspector) void {
         self.enabled = true;
     }
 
-    /// Disable inspector
+    /// Disable widget and event tracking.
+    /// When disabled, record* and track* calls become no-ops.
     pub fn disable(self: *Inspector) void {
         self.enabled = false;
     }
 
-    /// Check if inspector is enabled
+    /// Check whether the inspector is currently tracking widgets and events.
+    /// Returns true if enabled, false otherwise.
     pub fn isEnabled(self: *const Inspector) bool {
         return self.enabled;
     }
 
-    /// Record a widget (returns widget ID)
+    /// Record a widget with no parent (top-level widget).
+    /// Returns a unique widget ID for later reference, or 0 if disabled or allocation fails.
+    /// The widget will be tracked in the current frame.
     pub fn recordWidget(self: *Inspector, name: []const u8, area: Rect) u32 {
         if (!self.enabled) return 0;
 
@@ -263,7 +277,9 @@ pub const Inspector = struct {
         return widget_id;
     }
 
-    /// Record a widget with parent (returns widget ID)
+    /// Record a widget as a child of another widget.
+    /// Returns a unique widget ID or 0 if disabled/allocation fails.
+    /// The parent's children list will be updated to include this widget.
     pub fn recordWidgetWithParent(self: *Inspector, name: []const u8, area: Rect, parent_id: u32) u32 {
         if (!self.enabled) return 0;
 
@@ -284,7 +300,9 @@ pub const Inspector = struct {
         return widget_id;
     }
 
-    /// Set a custom property on a widget
+    /// Attach a custom key-value property to a widget.
+    /// Both key and value are duplicated. If the key already exists, the old value is freed.
+    /// Returns error.WidgetNotFound if widget_id doesn't exist.
     pub fn setWidgetProperty(self: *Inspector, widget_id: u32, key: []const u8, value: []const u8) !void {
         if (!self.enabled) return;
 
@@ -305,7 +323,9 @@ pub const Inspector = struct {
         try widget.properties.put(key_owned, value_owned);
     }
 
-    /// Record layout constraint
+    /// Record a layout constraint applied to a widget.
+    /// Multiple constraints can be recorded for the same widget.
+    /// Updates available_width or available_height based on direction.
     pub fn recordConstraint(self: *Inspector, widget_id: u32, constraint: Constraint, direction: Direction, available: u16) void {
         if (!self.enabled) return;
 
@@ -340,7 +360,9 @@ pub const Inspector = struct {
         }
     }
 
-    /// Record final calculated layout (accepts either widget_id or widget name)
+    /// Record the final calculated area for a widget after layout resolution.
+    /// Accepts either a u32 widget ID or a string widget name.
+    /// If the widget has no layout info yet, creates a new entry.
     pub fn recordLayoutCalculation(self: *Inspector, widget_id_or_name: anytype, area: Rect) void {
         if (!self.enabled) return;
 
@@ -377,7 +399,9 @@ pub const Inspector = struct {
         layout.calculated_area = area;
     }
 
-    /// Record an event
+    /// Record a terminal event (keyboard, mouse, resize).
+    /// Events are timestamped and limited by max_events setting.
+    /// Oldest events are automatically pruned when the limit is exceeded.
     pub fn recordEvent(self: *Inspector, data: EventData) void {
         if (!self.enabled) return;
 
@@ -406,22 +430,26 @@ pub const Inspector = struct {
         }
     }
 
-    /// Get widget information
+    /// Retrieve widget information by ID.
+    /// Returns null if the widget doesn't exist.
     pub fn getWidgetInfo(self: *const Inspector, widget_id: u32) ?*const WidgetInfo {
         return self.widgets.getPtr(widget_id);
     }
 
-    /// Get layout information
+    /// Retrieve layout information by widget ID.
+    /// Returns null if no layout data has been recorded for this widget.
     pub fn getLayoutInfo(self: *const Inspector, widget_id: u32) ?*const LayoutInfo {
         return self.layouts.getPtr(widget_id);
     }
 
-    /// Get widget count
+    /// Get the total number of widgets currently tracked.
     pub fn getWidgetCount(self: *const Inspector) usize {
         return self.widgets.count();
     }
 
-    /// Get widget tree (returns root widget node if exists)
+    /// Build and return the widget tree starting from the root widget.
+    /// Returns null if no root widget exists (widget with parent_id == null).
+    /// Caller must call deinit() on the returned node to free memory.
     pub fn getWidgetTree(self: *const Inspector) ?*const WidgetNode {
         // Find root widget (widget with no parent)
         for (self.widget_order.items) |widget_id| {
@@ -460,7 +488,8 @@ pub const Inspector = struct {
         return node;
     }
 
-    /// Get widget depth in tree
+    /// Calculate the depth of a widget in the hierarchy tree.
+    /// Root widgets have depth 0, their children have depth 1, etc.
     pub fn getWidgetDepth(self: *const Inspector, widget_id: u32) usize {
         var depth: usize = 0;
         var current_id = widget_id;
@@ -477,7 +506,9 @@ pub const Inspector = struct {
         return depth;
     }
 
-    /// Get widget siblings (caller must deinit the returned ArrayList)
+    /// Get all sibling widget IDs (widgets sharing the same parent).
+    /// Returns an empty list if the widget has no siblings or no parent.
+    /// Caller must call deinit() on the returned ArrayList.
     pub fn getSiblings(self: *const Inspector, allocator: Allocator, widget_id: u32) !ArrayList(u32) {
         var siblings = ArrayList(u32){};
         errdefer siblings.deinit(allocator);
@@ -496,12 +527,14 @@ pub const Inspector = struct {
         return siblings;
     }
 
-    /// Get all events
+    /// Get all recorded events in chronological order.
+    /// The returned slice is valid until the next event is recorded or clearEvents() is called.
     pub fn getEvents(self: *const Inspector) []const EventRecord {
         return self.events.items;
     }
 
-    /// Get events filtered by type (caller must free the returned slice)
+    /// Get events filtered by type (keyboard, mouse_move, etc.).
+    /// Caller must free the returned slice using the inspector's allocator.
     pub fn getEventsByType(self: *const Inspector, event_type: EventType) ![]const EventRecord {
         var filtered = ArrayList(EventRecord){};
         errdefer filtered.deinit(self.allocator);
@@ -513,17 +546,20 @@ pub const Inspector = struct {
         return try filtered.toOwnedSlice(self.allocator);
     }
 
-    /// Set maximum event history size
+    /// Set the maximum number of events to keep in history.
+    /// When exceeded, oldest events are automatically pruned.
+    /// Default is 1000 events.
     pub fn setMaxEvents(self: *Inspector, max: usize) void {
         self.max_events = max;
     }
 
-    /// Clear event history
+    /// Clear all recorded events while retaining allocated capacity.
     pub fn clearEvents(self: *Inspector) void {
         self.events.clearRetainingCapacity();
     }
 
-    /// Detect layout violations (caller must deinit the returned ArrayList and free each violation's strings)
+    /// Detect layout violations such as widgets overflowing parent bounds.
+    /// Returns a list of violations; caller must deinit() the ArrayList and each violation's deinit().
     pub fn detectLayoutViolations(self: *const Inspector, allocator: Allocator) !ArrayList(LayoutViolation) {
         var violations = ArrayList(LayoutViolation){};
         errdefer {
@@ -572,7 +608,8 @@ pub const Inspector = struct {
         return violations;
     }
 
-    /// Begin a new frame
+    /// Begin a new rendering frame.
+    /// Clears current frame widget list and optionally clears previous frame data.
     pub fn beginFrame(self: *Inspector) void {
         if (!self.enabled) return;
 
@@ -598,7 +635,8 @@ pub const Inspector = struct {
         self.frame_started = true;
     }
 
-    /// End current frame
+    /// End the current rendering frame.
+    /// Saves a snapshot of widgets rendered in this frame for historical tracking.
     pub fn endFrame(self: *Inspector) void {
         if (!self.enabled) return;
         if (!self.frame_started) return;
@@ -620,12 +658,13 @@ pub const Inspector = struct {
         self.frame_started = false;
     }
 
-    /// Get frame count
+    /// Get the total number of frames recorded.
     pub fn getFrameCount(self: *const Inspector) usize {
         return self.frames.items.len;
     }
 
-    /// Get widgets from a specific frame
+    /// Get widget IDs rendered in a specific frame.
+    /// Returns an empty slice if frame_index is out of range.
     pub fn getFrameWidgets(self: *const Inspector, frame_index: usize) []const u32 {
         if (frame_index >= self.frames.items.len) return &[_]u32{};
         return self.frames.items[frame_index].widget_ids;
@@ -635,7 +674,8 @@ pub const Inspector = struct {
     // Writer-based output methods
     // ========================================================================
 
-    /// Write widget tree to writer
+    /// Write the widget hierarchy tree to the given writer in human-readable format.
+    /// Shows widget names, dimensions, positions, and IDs with indentation for hierarchy.
     pub fn writeWidgetTree(self: *const Inspector, writer: anytype) !void {
         if (self.getWidgetCount() == 0) {
             try writer.writeAll("(empty widget tree)\n");
@@ -676,7 +716,8 @@ pub const Inspector = struct {
         }
     }
 
-    /// Write layout information to writer
+    /// Write detailed layout information for all widgets to the given writer.
+    /// Includes areas, available dimensions, calculated dimensions, and constraints.
     pub fn writeLayoutInfo(self: *const Inspector, writer: anytype) !void {
         try writer.writeAll("=== Layout Information ===\n");
 
@@ -717,7 +758,8 @@ pub const Inspector = struct {
         }
     }
 
-    /// Write event log to writer
+    /// Write all recorded events to the given writer in chronological order.
+    /// Each event includes timestamp and event-specific details.
     pub fn writeEventLog(self: *const Inspector, writer: anytype) !void {
         try writer.writeAll("=== Event Log ===\n");
 
@@ -738,7 +780,8 @@ pub const Inspector = struct {
         }
     }
 
-    /// Write inspector data as JSON
+    /// Write all inspector data (widgets, events) as JSON to the given writer.
+    /// Useful for external analysis tools or serializing inspector state.
     pub fn writeJSON(self: *const Inspector, writer: anytype) !void {
         try writer.writeAll("{");
 
