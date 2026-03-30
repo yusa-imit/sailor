@@ -286,17 +286,20 @@ pub const TermInfo = struct {
         return result;
     }
 
+    /// Frees all allocated resources for this TermInfo instance
     pub fn deinit(self: *const TermInfo) void {
         self.allocator.free(self.name);
         self.allocator.free(self.data);
     }
 
     // Boolean capability access
+    /// Returns the boolean capability at the specified index (false if index out of bounds)
     pub fn getBoolByIndex(self: TermInfo, index: usize) bool {
         if (index >= self.bool_count) return false;
         return self.booleans[index] != 0;
     }
 
+    /// Returns the boolean capability with the specified name (e.g., "bce" for back_color_erase)
     pub fn getBool(self: TermInfo, name: []const u8) Error!bool {
         const index = boolCapabilityIndex(name) orelse return error.CapabilityNotFound;
         if (index >= self.bool_count) return error.CapabilityNotFound;
@@ -304,6 +307,7 @@ pub const TermInfo = struct {
     }
 
     // Numeric capability access
+    /// Returns the numeric capability at the specified index (null if index out of bounds or value is -1)
     pub fn getNumByIndex(self: TermInfo, index: usize) ?i16 {
         if (index >= self.num_count) return null;
         const value = self.numbers[index];
@@ -311,6 +315,7 @@ pub const TermInfo = struct {
         return value;
     }
 
+    /// Returns the numeric capability with the specified name (e.g., "cols" for columns)
     pub fn getNum(self: TermInfo, name: []const u8) Error!i16 {
         const index = numCapabilityIndex(name) orelse return error.CapabilityNotFound;
         if (index >= self.num_count) return error.CapabilityNotFound;
@@ -320,6 +325,7 @@ pub const TermInfo = struct {
     }
 
     // String capability access
+    /// Returns the string capability at the specified index (null if index out of bounds or offset is -1)
     pub fn getStrByIndex(self: TermInfo, index: usize) ?[]const u8 {
         if (index >= self.str_count) return null;
         const offset = self.string_offsets[index];
@@ -333,6 +339,7 @@ pub const TermInfo = struct {
         return self.string_table[start..end];
     }
 
+    /// Returns the string capability with the specified name (e.g., "clear" for clear_screen)
     pub fn getString(self: TermInfo, name: []const u8) Error![]const u8 {
         const index = strCapabilityIndex(name) orelse return error.CapabilityNotFound;
         if (index >= self.str_count) return error.CapabilityNotFound;
@@ -347,10 +354,12 @@ pub const TermInfo = struct {
     }
 
     // Common capability helpers
+    /// Returns true if the terminal supports color output (color count > 0)
     pub fn supportsColors(self: TermInfo) bool {
         return self.getColorCount() > 0;
     }
 
+    /// Returns the maximum number of colors supported by the terminal (0 if not supported)
     pub fn getColorCount(self: TermInfo) u32 {
         const colors_idx = numCapabilityIndex("colors") orelse return 0;
         if (colors_idx >= self.num_count) return 0;
@@ -359,18 +368,21 @@ pub const TermInfo = struct {
         return @intCast(value);
     }
 
+    /// Returns true if the terminal supports Sixel graphics protocol
     pub fn supportsSixel(self: TermInfo) bool {
         // Check for Sixel string capability (not in our test data)
         _ = self;
         return false;
     }
 
+    /// Returns true if the terminal supports Kitty graphics protocol
     pub fn supportsKitty(self: TermInfo) bool {
         // Check for Kitty graphics protocol (not in our test data)
         _ = self;
         return false;
     }
 
+    /// Returns true if the terminal supports SGR mouse tracking mode
     pub fn supportsMouseSGR(self: TermInfo) bool {
         // Check for SGR mouse tracking (not in our test data)
         _ = self;
