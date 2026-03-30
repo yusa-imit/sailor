@@ -50,6 +50,9 @@ pub const Autocomplete = struct {
 
     pub const ProviderFn = fn (input: []const u8, allocator: Allocator) anyerror![]const []const u8;
 
+    /// Initializes an Autocomplete widget with default settings.
+    /// The returned instance must be freed with `.deinit()`.
+    /// Default configuration: 10 max visible items, black-on-white highlight style.
     pub fn init(allocator: Allocator) Autocomplete {
         return .{
             .allocator = allocator,
@@ -65,30 +68,44 @@ pub const Autocomplete = struct {
         };
     }
 
+    /// Frees resources associated with this autocomplete widget.
+    /// Clears the internal suggestions list.
     pub fn deinit(self: *Autocomplete) void {
         self.suggestions.deinit();
     }
 
+    /// Sets the optional border block around the autocomplete list.
+    /// Returns `self` for method chaining.
     pub fn setBlock(self: *Autocomplete, block: Block) *Autocomplete {
         self.block = block;
         return self;
     }
 
+    /// Sets the maximum number of visible suggestions in the list.
+    /// If more suggestions exist, the list will scroll.
+    /// Returns `self` for method chaining.
     pub fn setMaxVisible(self: *Autocomplete, max: usize) *Autocomplete {
         self.max_visible = max;
         return self;
     }
 
+    /// Sets the style applied to the currently selected suggestion.
+    /// Returns `self` for method chaining.
     pub fn setHighlightStyle(self: *Autocomplete, style: Style) *Autocomplete {
         self.highlight_style = style;
         return self;
     }
 
+    /// Sets the style applied to non-selected suggestions.
+    /// Returns `self` for method chaining.
     pub fn setNormalStyle(self: *Autocomplete, style: Style) *Autocomplete {
         self.normal_style = style;
         return self;
     }
 
+    /// Sets the dynamic suggestion provider function.
+    /// The provider is called automatically when input changes via `setInput()`.
+    /// Returns `self` for method chaining.
     pub fn setProvider(self: *Autocomplete, provider: *const ProviderFn) *Autocomplete {
         self.provider = provider;
         return self;
@@ -123,6 +140,9 @@ pub const Autocomplete = struct {
         }
     }
 
+    /// Moves selection down to the next suggestion.
+    /// If at the end of the list, selection remains on the last item.
+    /// Automatically adjusts scroll offset to keep selection visible.
     pub fn selectNext(self: *Autocomplete) void {
         if (self.suggestions.items.len == 0) return;
         if (self.selected_index + 1 < self.suggestions.items.len) {
@@ -134,6 +154,9 @@ pub const Autocomplete = struct {
         }
     }
 
+    /// Moves selection up to the previous suggestion.
+    /// If at the beginning of the list, selection remains on the first item.
+    /// Automatically adjusts scroll offset to keep selection visible.
     pub fn selectPrev(self: *Autocomplete) void {
         if (self.suggestions.items.len == 0) return;
         if (self.selected_index > 0) {
@@ -145,11 +168,13 @@ pub const Autocomplete = struct {
         }
     }
 
+    /// Jumps selection to the first suggestion and resets scroll to the top.
     pub fn selectFirst(self: *Autocomplete) void {
         self.selected_index = 0;
         self.scroll_offset = 0;
     }
 
+    /// Jumps selection to the last suggestion and adjusts scroll to make it visible.
     pub fn selectLast(self: *Autocomplete) void {
         if (self.suggestions.items.len == 0) return;
         self.selected_index = self.suggestions.items.len - 1;
@@ -158,16 +183,21 @@ pub const Autocomplete = struct {
         }
     }
 
+    /// Returns the text of the currently selected suggestion, or `null` if no suggestions exist.
     pub fn getSelected(self: *const Autocomplete) ?[]const u8 {
         if (self.suggestions.items.len == 0) return null;
         if (self.selected_index >= self.suggestions.items.len) return null;
         return self.suggestions.items[self.selected_index].text;
     }
 
+    /// Returns the total number of suggestions currently available.
     pub fn getSuggestionCount(self: *const Autocomplete) usize {
         return self.suggestions.items.len;
     }
 
+    /// Renders the autocomplete suggestion list to the given buffer within the specified area.
+    /// Displays suggestions with fuzzy match scoring, highlights the selected item,
+    /// and supports scrolling when suggestions exceed max visible count.
     pub fn render(self: *const Autocomplete, buf: *Buffer, area: Rect) void {
         const inner = if (self.block) |b| b.inner(area) else area;
 
