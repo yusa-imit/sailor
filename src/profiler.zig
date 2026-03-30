@@ -12,10 +12,12 @@ pub const RenderProfile = struct {
     duration_ns: u64,
     timestamp: i128,
 
+    /// Returns the duration in milliseconds.
     pub fn durationMs(self: RenderProfile) f64 {
         return @as(f64, @floatFromInt(self.duration_ns)) / 1_000_000.0;
     }
 
+    /// Returns the duration in microseconds.
     pub fn durationUs(self: RenderProfile) f64 {
         return @as(f64, @floatFromInt(self.duration_ns)) / 1_000.0;
     }
@@ -167,18 +169,22 @@ pub const Stats = struct {
     max_ns: u64,
     total_ns: u64,
 
+    /// Returns the average duration in milliseconds.
     pub fn avgMs(self: Stats) f64 {
         return @as(f64, @floatFromInt(self.avg_ns)) / 1_000_000.0;
     }
 
+    /// Returns the minimum duration in milliseconds.
     pub fn minMs(self: Stats) f64 {
         return @as(f64, @floatFromInt(self.min_ns)) / 1_000_000.0;
     }
 
+    /// Returns the maximum duration in milliseconds.
     pub fn maxMs(self: Stats) f64 {
         return @as(f64, @floatFromInt(self.max_ns)) / 1_000_000.0;
     }
 
+    /// Returns the total duration in milliseconds.
     pub fn totalMs(self: Stats) f64 {
         return @as(f64, @floatFromInt(self.total_ns)) / 1_000_000.0;
     }
@@ -190,6 +196,8 @@ pub const ProfileGuard = struct {
     widget_name: []const u8,
     start_time: i128,
 
+    /// Ends profiling and records the duration.
+    /// Call this when the profiled operation completes.
     pub fn end(self: ProfileGuard) !void {
         const end_time = std.time.nanoTimestamp();
         const duration_ns: u64 = @intCast(end_time - self.start_time);
