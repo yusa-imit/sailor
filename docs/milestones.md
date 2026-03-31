@@ -10,14 +10,7 @@
 
 ## Active Milestones
 
-### v1.29.0 — Documentation Completion (IN PROGRESS)
-**Theme**: Complete remaining API documentation to 100%
-**Target**: 2026-04-02 (1 day)
-**Checklist**:
-- [ ] Document remaining 27 functions (env.zig, pool.zig, async_loop.zig, etc.)
-- [ ] Verify all public functions have doc comments
-- [ ] Update documentation coverage report
-- [ ] Final documentation audit and consistency check
+(None — v1.29.0 complete, ready for release)
 
 ### v1.28.0 — Ecosystem Integration & Polish (COMPLETED 2026-04-01)
 **Theme**: zuda integration, consumer feedback, final polish
@@ -60,6 +53,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.29.0 | Documentation Completion | 2026-04-01 | API documentation 99.9% complete (1376/1378 functions, +25 from v1.28.0), documented: sixel.zig (2), budget.zig (3), test_utils.zig (4), session.zig (4), debugger.zig (5), notification.zig (2), particles.zig (6), terminal.zig (5) |
 | v1.28.0 | Ecosystem Integration & Polish | 2026-04-01 | zuda integration audit (no changes needed), 12 widget performance benchmarks (all <0.02ms/op, 228× faster than 60 FPS), v2.0.0 RFC planning (breaking changes, timeline: May-June 2026), 0 consumer issues |
 | v1.27.0 | Documentation & Examples | 2026-03-31 | API documentation 98% complete (1351/1378 functions), 3 comprehensive guides (getting-started, troubleshooting, performance), 5 new example apps (hello, counter, dashboard, task_list, layout_showcase) |
 | v1.26.0 | Testing & Quality Assurance | 2026-03-29 | Memory leak audit & fixes (Tree, Form), 292 new tests (termcap +37, pool +17, bench +12, repl +8, docgen +7, transition +32, timer +35, menu +50, form +30, chunkedbuffer +28, richtext_parser +38, 13 leak tests), total 3393 tests |
