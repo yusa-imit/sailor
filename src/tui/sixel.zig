@@ -17,10 +17,29 @@ pub const SixelImage = struct {
         b: u8,
         a: u8 = 255, // Alpha channel (0=transparent, 255=opaque)
 
+        /// Creates a Color from RGB components with opaque alpha (255).
+        ///
+        /// Args:
+        ///   r: Red channel (0-255)
+        ///   g: Green channel (0-255)
+        ///   b: Blue channel (0-255)
+        ///
+        /// Returns:
+        ///   Color with full opacity
         pub fn fromRgb(r: u8, g: u8, b: u8) Color {
             return .{ .r = r, .g = g, .b = b };
         }
 
+        /// Creates a Color from RGBA components including transparency.
+        ///
+        /// Args:
+        ///   r: Red channel (0-255)
+        ///   g: Green channel (0-255)
+        ///   b: Blue channel (0-255)
+        ///   a: Alpha channel (0=transparent, 255=opaque)
+        ///
+        /// Returns:
+        ///   Color with specified opacity
         pub fn fromRgba(r: u8, g: u8, b: u8, a: u8) Color {
             return .{ .r = r, .g = g, .b = b, .a = a };
         }

@@ -22,6 +22,13 @@ pub const RenderBudget = struct {
         avg_frame_ns: u64 = 0,
         _sum_ns: u64 = 0,
 
+        /// Records a completed frame and updates statistics.
+        ///
+        /// Updates min/max/avg frame times based on the provided duration.
+        /// Call this after each frame completes to track performance metrics.
+        ///
+        /// Args:
+        ///   frame_time_ns: Frame duration in nanoseconds
         pub fn recordFrame(self: *Stats, frame_time_ns: u64) void {
             self.total_frames += 1;
             self._sum_ns += frame_time_ns;
@@ -30,10 +37,21 @@ pub const RenderBudget = struct {
             self.max_frame_ns = @max(self.max_frame_ns, frame_time_ns);
         }
 
+        /// Records a skipped frame in the statistics.
+        ///
+        /// Call when a frame is intentionally skipped due to budget constraints.
+        /// Increments the skipped_frames counter for monitoring.
         pub fn recordSkip(self: *Stats) void {
             self.skipped_frames += 1;
         }
 
+        /// Calculates the current average frames per second.
+        ///
+        /// Based on the average frame time across all recorded frames.
+        /// Returns 0.0 if no frames have been recorded yet.
+        ///
+        /// Returns:
+        ///   Average FPS as a floating-point value
         pub fn fps(self: Stats) f64 {
             if (self.avg_frame_ns == 0) return 0.0;
             return 1_000_000_000.0 / @as(f64, @floatFromInt(self.avg_frame_ns));
