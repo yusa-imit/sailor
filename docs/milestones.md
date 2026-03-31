@@ -4,13 +4,20 @@
 
 - **Latest release**: v1.28.0 (2026-04-01) — Ecosystem Integration & Polish
 - **Latest minor**: v1.28.0 (2026-04-01) — Ecosystem Integration & Polish
-- **Next milestone**: TBD (awaiting v2.0.0 RFC feedback or new feature requests)
-- **Active milestones**: 0
+- **Next milestone**: v1.29.0 — Documentation Completion
+- **Active milestones**: 1
 - **Blockers**: None
 
 ## Active Milestones
 
-(None — v1.28.0 complete, awaiting v2.0.0 approval)
+### v1.29.0 — Documentation Completion (IN PROGRESS)
+**Theme**: Complete remaining API documentation to 100%
+**Target**: 2026-04-02 (1 day)
+**Checklist**:
+- [ ] Document remaining 27 functions (env.zig, pool.zig, async_loop.zig, etc.)
+- [ ] Verify all public functions have doc comments
+- [ ] Update documentation coverage report
+- [ ] Final documentation audit and consistency check
 
 ### v1.28.0 — Ecosystem Integration & Polish (COMPLETED 2026-04-01)
 **Theme**: zuda integration, consumer feedback, final polish
