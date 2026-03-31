@@ -28,6 +28,7 @@ pub const ThemeEditor = struct {
     /// Optional block for border/title
     block: ?Block = null,
 
+    /// Create theme editor for modifying a theme's colors interactively.
     pub fn init(theme: Theme) ThemeEditor {
         return .{ .theme = theme };
     }

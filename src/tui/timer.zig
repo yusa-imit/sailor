@@ -245,6 +245,7 @@ const CallbackContext = struct {
     fired_count: u32 = 0,
     last_elapsed_ms: u64 = 0,
 
+    /// Test callback that records fire count and elapsed time.
     pub fn callback(ctx: *anyopaque, elapsed_ms: u64) void {
         const self: *CallbackContext = @ptrCast(@alignCast(ctx));
         self.fired_count += 1;

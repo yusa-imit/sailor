@@ -28,6 +28,7 @@ pub const BreakOptions = struct {
 pub const LineBreaker = struct {
     allocator: Allocator,
 
+    /// Initialize line breaker with allocator for managing broken lines.
     pub fn init(allocator: Allocator) LineBreaker {
         return .{ .allocator = allocator };
     }

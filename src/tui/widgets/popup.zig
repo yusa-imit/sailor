@@ -64,6 +64,7 @@ pub const Popup = struct {
     /// Style for the popup
     style: Style,
 
+    /// Create centered popup with text content (50% x, 50% y, auto-size).
     pub fn init(content: []const u8) Popup {
         return Popup{
             .content = content,

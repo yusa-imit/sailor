@@ -5,6 +5,7 @@ pub const ValidationResult = union(enum) {
     valid,
     invalid: []const u8, // error message
 
+    /// Check if validation result is valid (no errors).
     pub fn isValid(self: ValidationResult) bool {
         return self == .valid;
     }

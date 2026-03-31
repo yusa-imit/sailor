@@ -24,6 +24,7 @@ pub const CompletionPopup = struct {
     /// Position relative to cursor (x, y offset)
     position: struct { x: i16 = 0, y: i16 = 1 } = .{},
 
+    /// Create completion popup with items to display.
     pub fn init(items: []const CompletionItem) CompletionPopup {
         return .{
             .items = items,

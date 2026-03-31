@@ -78,6 +78,7 @@ pub const Canvas = struct {
         };
     }
 
+    /// Free canvas dot buffer.
     pub fn deinit(self: *Canvas) void {
         self.allocator.free(self.dots);
     }

@@ -65,6 +65,7 @@ pub const Dialog = struct {
     /// Height of the dialog (in cells, 0 = auto-size)
     height: u16,
 
+    /// Create dialog with title, message, and button labels.
     pub fn init(title: []const u8, message: []const u8, buttons: []const []const u8) Dialog {
         return Dialog{
             .title = title,
