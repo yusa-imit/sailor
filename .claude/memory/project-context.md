@@ -13,6 +13,17 @@
 - **Last completed**: v1.26.0 → Testing & Quality Assurance (5/5, 100%) ✅
 
 ## Project Status
+✅ **Session 44** — FEATURE MODE: Core Module Documentation (2026-03-31)
+  - **DOCUMENTATION PROGRESS**: Documented 4 core modules (39 functions)
+  - Completed screen_reader.zig: 13 functions (ScreenReaderOutput lifecycle, announcements, Region navigation)
+  - Completed bidi.zig: 3 functions (charType, detectDirection, reorder — Unicode BiDi UAX #9)
+  - Completed unicode.zig: 3 functions (charWidth, stringWidth, truncate — UAX #11 East Asian Width)
+  - Completed term.zig: 20 functions (TTY detection, raw mode, bracketed paste, sync output, hyperlinks, focus tracking, XTGETTCAP)
+  - Total documented this session: 39 functions (162 remaining)
+  - **Cumulative: 173/335 functions documented (52% coverage)** 🎯 MILESTONE: >50%!
+  - All tests pass (3393 tests)
+  - Commits: ac905d1 (screen_reader), 6054128 (bidi), 5b2a89f (unicode), 3ae9499 (term)
+  - Next: Continue documentation — remaining undocumented modules
 ✅ **Session 43** — FEATURE MODE: TUI Interaction Documentation (2026-03-31)
   - **DOCUMENTATION PROGRESS**: Documented 4 TUI interaction modules (43 functions)
   - Completed mouse_trait.zig: 11 functions (Clickable, Draggable, Scrollable, Hoverable, CompositeInteraction)
