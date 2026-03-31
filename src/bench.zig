@@ -13,6 +13,8 @@ pub const BenchResult = struct {
     avg_ns: u64,
     ops_per_sec: f64,
 
+    /// Format benchmark result for display.
+    /// Writes result as: name | iterations | avg ns/op | ops/sec
     pub fn format(
         self: BenchResult,
         comptime _: []const u8,

@@ -63,6 +63,8 @@ pub const SimpleErrorMsg = struct {
     line: u32,
     context: []const u8,
 
+    /// Create a simple error message with file, line, and context.
+    /// Use `here()` to automatically capture @src() location.
     pub fn init(file: []const u8, line: u32, context: []const u8) SimpleErrorMsg {
         return .{
             .file = file,

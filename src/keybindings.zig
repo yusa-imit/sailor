@@ -52,6 +52,8 @@ pub const KeyBindings = struct {
     bindings: std.ArrayList(Binding),
     allocator: std.mem.Allocator,
 
+    /// Initialize an empty keybindings registry.
+    /// Call deinit() to free the bindings list.
     pub fn init(allocator: std.mem.Allocator) KeyBindings {
         return .{
             .allocator = allocator,
@@ -59,6 +61,7 @@ pub const KeyBindings = struct {
         };
     }
 
+    /// Free the bindings list.
     pub fn deinit(self: *KeyBindings) void {
         self.bindings.deinit(self.allocator);
     }

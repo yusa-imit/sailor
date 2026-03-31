@@ -101,6 +101,8 @@ pub const HintBuilder = struct {
     parts: std.ArrayList([]const u8),
     allocated_parts: std.ArrayList([]const u8),
 
+    /// Initialize a new hint builder.
+    /// Call deinit() to free allocated announcement parts.
     pub fn init(allocator: std.mem.Allocator) HintBuilder {
         return .{
             .allocator = allocator,
@@ -109,6 +111,7 @@ pub const HintBuilder = struct {
         };
     }
 
+    /// Free all allocated announcement parts and builder resources.
     pub fn deinit(self: *HintBuilder) void {
         for (self.allocated_parts.items) |part| {
             self.allocator.free(part);

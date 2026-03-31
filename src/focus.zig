@@ -61,6 +61,8 @@ pub const FocusManager = struct {
     /// Whether focus wraps around (last -> first)
     wrap: bool = true,
 
+    /// Initialize focus manager with no widgets focused.
+    /// Call deinit() to free the focus order list.
     pub fn init(allocator: std.mem.Allocator) FocusManager {
         return .{
             .allocator = allocator,
@@ -68,6 +70,7 @@ pub const FocusManager = struct {
         };
     }
 
+    /// Free the focus order list.
     pub fn deinit(self: *FocusManager) void {
         self.order.deinit(self.allocator);
     }
