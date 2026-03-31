@@ -18,7 +18,7 @@
 - [x] Replace custom implementations with zuda imports where applicable — N/A (no replacements needed, see audit)
 - [x] Address any open consumer issues (from:zr, from:zoltraak, from:silica) — 0 open issues (Session 48)
 - [x] Performance benchmarking across all widgets — docs/benchmark-report.md (Session 48, 12 widgets benchmarked, all <0.02ms/op)
-- [ ] Release v2.0.0 planning document (breaking changes, major features)
+- [x] Release v2.0.0 planning document (breaking changes, major features) — docs/v2.0.0-planning.md (Session 48, DRAFT RFC)
 
 ### v1.22.0 — Rich Text & Formatting (COMPLETED 2026-03-26)
 **Theme**: Advanced text rendering and inline formatting
