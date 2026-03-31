@@ -5,14 +5,26 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.27.0** 🎉 (2026-03-31)
-- Previous versions: v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.28.0** 🎉 (2026-04-01)
+- Previous versions: v1.27.0, v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: v1.28.0 → Ecosystem Integration & Polish (0/5, 0%)
-- **Last completed**: v1.27.0 → Documentation & Examples (5/5, 100%) ✅
+- **Active milestone**: None (awaiting v2.0.0 RFC approval or new feature requests)
+- **Last completed**: v1.28.0 → Ecosystem Integration & Polish (5/5, 100%) ✅
 
 ## Project Status
+✅ **Session 48** — FEATURE MODE + RELEASE: v1.28.0 Released (2026-04-01)
+  - **MILESTONE v1.28.0 COMPLETE & RELEASED**: Ecosystem Integration & Polish milestone finished
+  - zuda integration audit: 0 replacements needed — all implementations TUI-optimized (docs/zuda-audit.md)
+  - Performance benchmarking: 12 core widgets benchmarked, ALL <0.02ms/op (50,000+ ops/sec)
+  - Typical app: 228× faster than 60 FPS requirement (docs/benchmark-report.md)
+  - v2.0.0 planning RFC: Breaking changes, timeline May-June 2026 (docs/v2.0.0-planning.md)
+  - Consumer issues: 0 open bugs
+  - **Release executed**: v1.28.0 tag created, GitHub release published
+  - Migration issues filed: zr#41, zoltraak#18, silica#27
+  - Discord notification sent
+  - Release: https://github.com/yusa-imit/sailor/releases/tag/v1.28.0
+  - Next: Await v2.0.0 RFC approval or handle new feature requests / bug reports
 ✅ **Session 47** — FEATURE MODE + RELEASE: v1.27.0 Released (2026-03-31)
   - **MILESTONE v1.27.0 COMPLETE & RELEASED**: Documentation & Examples milestone finished
   - API documentation: 1351/1378 functions documented (98.0% coverage) — 28 functions added this session

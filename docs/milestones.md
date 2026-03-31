@@ -2,23 +2,24 @@
 
 ## Current Status
 
-- **Latest release**: v1.27.0 (2026-03-31) — Documentation & Examples
-- **Latest minor**: v1.27.0 (2026-03-31) — Documentation & Examples
-- **Next milestone**: v1.28.0 (Ecosystem Integration & Polish)
-- **Active milestones**: 1 (v1.28.0)
+- **Latest release**: v1.28.0 (2026-04-01) — Ecosystem Integration & Polish
+- **Latest minor**: v1.28.0 (2026-04-01) — Ecosystem Integration & Polish
+- **Next milestone**: TBD (awaiting v2.0.0 RFC feedback or new feature requests)
+- **Active milestones**: 0
 - **Blockers**: None
 
 ## Active Milestones
 
-### v1.28.0 — Ecosystem Integration & Polish
+(None — v1.28.0 complete, awaiting v2.0.0 approval)
+
+### v1.28.0 — Ecosystem Integration & Polish (COMPLETED 2026-04-01)
 **Theme**: zuda integration, consumer feedback, final polish
-**Target**: 2026-04 (1-2 weeks)
 **Checklist**:
-- [x] Audit for zuda-compatible algorithms (sorting, searching, hashing) — docs/zuda-audit.md (Session 48)
-- [x] Replace custom implementations with zuda imports where applicable — N/A (no replacements needed, see audit)
-- [x] Address any open consumer issues (from:zr, from:zoltraak, from:silica) — 0 open issues (Session 48)
-- [x] Performance benchmarking across all widgets — docs/benchmark-report.md (Session 48, 12 widgets benchmarked, all <0.02ms/op)
-- [x] Release v2.0.0 planning document (breaking changes, major features) — docs/v2.0.0-planning.md (Session 48, DRAFT RFC)
+- [x] Audit for zuda-compatible algorithms (sorting, searching, hashing) — docs/zuda-audit.md
+- [x] Replace custom implementations with zuda imports where applicable — N/A (no replacements needed)
+- [x] Address any open consumer issues (from:zr, from:zoltraak, from:silica) — 0 open issues
+- [x] Performance benchmarking across all widgets — docs/benchmark-report.md (12 widgets, all <0.02ms/op)
+- [x] Release v2.0.0 planning document — docs/v2.0.0-planning.md (DRAFT RFC)
 
 ### v1.22.0 — Rich Text & Formatting (COMPLETED 2026-03-26)
 **Theme**: Advanced text rendering and inline formatting
@@ -52,6 +53,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.28.0 | Ecosystem Integration & Polish | 2026-04-01 | zuda integration audit (no changes needed), 12 widget performance benchmarks (all <0.02ms/op, 228× faster than 60 FPS), v2.0.0 RFC planning (breaking changes, timeline: May-June 2026), 0 consumer issues |
 | v1.27.0 | Documentation & Examples | 2026-03-31 | API documentation 98% complete (1351/1378 functions), 3 comprehensive guides (getting-started, troubleshooting, performance), 5 new example apps (hello, counter, dashboard, task_list, layout_showcase) |
 | v1.26.0 | Testing & Quality Assurance | 2026-03-29 | Memory leak audit & fixes (Tree, Form), 292 new tests (termcap +37, pool +17, bench +12, repl +8, docgen +7, transition +32, timer +35, menu +50, form +30, chunkedbuffer +28, richtext_parser +38, 13 leak tests), total 3393 tests |
 | v1.25.0 | Form & Validation | 2026-03-28 | Form widget, 15+ validators (basic, numeric, pattern), input masks (SSN, phone, date), inline error display, field focus navigation, form_demo.zig example |
