@@ -29,6 +29,9 @@ pub const ScreenReaderOutput = struct {
         auto,
     };
 
+    /// Initialize screen reader output with auto-detection.
+    /// Detects if a screen reader is active via environment variables.
+    /// Default: normal verbosity, auto output mode.
     pub fn init(allocator: Allocator) ScreenReaderOutput {
         return .{
             .allocator = allocator,
@@ -38,7 +41,9 @@ pub const ScreenReaderOutput = struct {
         };
     }
 
-    /// Detect if a screen reader is active in the terminal
+    /// Detect if a screen reader is active in the terminal.
+    /// Checks environment variables: SCREEN_READER, NVDA, JAWS, ORCA, VOICEOVER.
+    /// Returns true if any of these are set.
     pub fn detectScreenReader() bool {
         // Check for screen reader environment variables
         const screen_reader_vars = [_][]const u8{
@@ -58,22 +63,34 @@ pub const ScreenReaderOutput = struct {
         return false;
     }
 
-    /// Enable or disable screen reader output
+    /// Enable or disable screen reader output.
+    /// When disabled, all announce methods become no-ops.
+    /// Use this to toggle accessibility features at runtime.
     pub fn setEnabled(self: *ScreenReaderOutput, enabled: bool) void {
         self.enabled = enabled;
     }
 
-    /// Set verbosity level
+    /// Set verbosity level for announcements.
+    /// - quiet: Only essential announcements (errors, assertive messages)
+    /// - normal: Standard output (default)
+    /// - verbose: Detailed descriptions including help text and shortcuts
     pub fn setVerbosity(self: *ScreenReaderOutput, verbosity: Verbosity) void {
         self.verbosity = verbosity;
     }
 
-    /// Set output mode
+    /// Set output mode for announcements.
+    /// - osc8: OSC 8 hyperlink sequences with priority parameters
+    /// - aria_text: Plain text with [priority] prefixes
+    /// - json: Structured JSON output for external tools
+    /// - auto: Detect based on terminal capabilities (defaults to aria_text)
     pub fn setOutputMode(self: *ScreenReaderOutput, mode: OutputMode) void {
         self.output_mode = mode;
     }
 
-    /// Announce a message to the screen reader
+    /// Announce a message to the screen reader with specified priority.
+    /// Output format depends on output_mode setting.
+    /// Respects verbosity level: quiet priority skipped in quiet mode.
+    /// No-op if disabled.
     pub fn announce(self: *ScreenReaderOutput, writer: anytype, message: []const u8, priority: AnnouncePriority) !void {
         if (!self.enabled) return;
 
@@ -126,7 +143,10 @@ pub const ScreenReaderOutput = struct {
         });
     }
 
-    /// Announce widget metadata
+    /// Announce widget metadata to screen reader.
+    /// Generates semantic hint from accessibility metadata (role, label, state).
+    /// Priority derived from metadata.live property.
+    /// No-op if disabled.
     pub fn announceWidget(self: *ScreenReaderOutput, writer: anytype, metadata: Metadata) !void {
         if (!self.enabled) return;
 
@@ -142,7 +162,9 @@ pub const ScreenReaderOutput = struct {
         try self.announce(writer, hint, priority);
     }
 
-    /// Announce navigation event
+    /// Announce navigation event between UI locations.
+    /// Format: "Navigated from {from} to {to}" or "Navigated to {to}" if from is null.
+    /// Always polite priority. No-op if disabled.
     pub fn announceNavigation(self: *ScreenReaderOutput, writer: anytype, from: ?[]const u8, to: []const u8) !void {
         if (!self.enabled) return;
 
@@ -155,7 +177,10 @@ pub const ScreenReaderOutput = struct {
         try self.announce(writer, message, .polite);
     }
 
-    /// Announce error
+    /// Announce error message with assertive priority.
+    /// Format: "Error: {error_msg}".
+    /// High priority to interrupt current screen reader output.
+    /// No-op if disabled.
     pub fn announceError(self: *ScreenReaderOutput, writer: anytype, error_msg: []const u8) !void {
         if (!self.enabled) return;
 
@@ -165,7 +190,10 @@ pub const ScreenReaderOutput = struct {
         try self.announce(writer, message, .assertive);
     }
 
-    /// Announce success
+    /// Announce success message with polite priority.
+    /// Format: "Success: {success_msg}".
+    /// Normal priority, won't interrupt current output.
+    /// No-op if disabled.
     pub fn announceSuccess(self: *ScreenReaderOutput, writer: anytype, success_msg: []const u8) !void {
         if (!self.enabled) return;
 
@@ -175,7 +203,10 @@ pub const ScreenReaderOutput = struct {
         try self.announce(writer, message, .polite);
     }
 
-    /// Announce keyboard shortcut hint
+    /// Announce keyboard shortcut hint with quiet priority.
+    /// Format: "Press {key} to {action}".
+    /// Skipped in quiet verbosity mode.
+    /// No-op if disabled.
     pub fn announceShortcut(self: *ScreenReaderOutput, writer: anytype, key: []const u8, action: []const u8) !void {
         if (!self.enabled) return;
         if (self.verbosity == .quiet) return; // Skip shortcuts in quiet mode
@@ -186,7 +217,10 @@ pub const ScreenReaderOutput = struct {
         try self.announce(writer, message, .quiet);
     }
 
-    /// Announce context-sensitive help
+    /// Announce context-sensitive help text.
+    /// Only announces in verbose verbosity mode.
+    /// Use for detailed usage instructions and hints.
+    /// No-op if disabled or not in verbose mode.
     pub fn announceHelp(self: *ScreenReaderOutput, writer: anytype, help_text: []const u8) !void {
         if (!self.enabled) return;
         if (self.verbosity != .verbose) return; // Only in verbose mode
@@ -206,7 +240,10 @@ pub const Region = struct {
         shortcut: ?[]const u8 = null,
     };
 
-    /// Generate region announcement
+    /// Generate region announcement text.
+    /// Format: "Region: {name}, {role}, Landmarks: {landmark1} ({shortcut}), ..."
+    /// Returns owned slice that caller must free.
+    /// Used for screen reader navigation between UI regions.
     pub fn announce(self: Region, allocator: Allocator) ![]const u8 {
         var buf: std.ArrayList(u8) = .{};
         defer buf.deinit(allocator);
