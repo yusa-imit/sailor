@@ -34,20 +34,16 @@ pub const Size = struct {
 };
 
 /// Check if a file descriptor is a TTY (terminal device).
-/// Accepts standard FD integers (0=stdin, 1=stdout, 2=stderr).
+/// On Unix: accepts fd integers (0=stdin, 1=stdout, 2=stderr)
+/// On Windows: accepts HANDLE (*anyopaque)
 /// Returns true if the FD is connected to a terminal, false otherwise.
 /// Cross-platform: uses isatty() on Unix, GetConsoleMode() on Windows.
-pub fn isatty(fd: i32) bool {
+pub fn isatty(fd: anytype) bool {
     return switch (builtin.os.tag) {
         .linux, .macos => posix.isatty(fd),
         .windows => blk: {
-            const handle = std.os.windows.GetStdHandle(@intCast(switch (fd) {
-                0 => std.os.windows.STD_INPUT_HANDLE,
-                1 => std.os.windows.STD_OUTPUT_HANDLE,
-                2 => std.os.windows.STD_ERROR_HANDLE,
-                else => return false,
-            })) catch return false;
-
+            // On Windows, fd is already a HANDLE (*anyopaque)
+            const handle: std.os.windows.HANDLE = @ptrCast(fd);
             var mode: std.os.windows.DWORD = undefined;
             break :blk std.os.windows.kernel32.GetConsoleMode(handle, &mode) != 0;
         },
@@ -184,12 +180,8 @@ pub const RawMode = struct {
         }
 
         const windows = std.os.windows;
-        const handle = windows.GetStdHandle(switch (fd) {
-            0 => windows.STD_INPUT_HANDLE,
-            1 => windows.STD_OUTPUT_HANDLE,
-            2 => windows.STD_ERROR_HANDLE,
-            else => return Error.NotATty,
-        }) catch return Error.NotATty;
+        // On Windows, fd is already a handle (*anyopaque)
+        const handle: windows.HANDLE = @ptrCast(fd);
 
         var original: windows.DWORD = undefined;
         if (windows.kernel32.GetConsoleMode(handle, &original) == 0) {
@@ -228,13 +220,8 @@ pub const RawMode = struct {
 
     fn deinitWindows(self: *RawMode) void {
         const windows = std.os.windows;
-        const handle = windows.GetStdHandle(switch (self.fd) {
-            0 => windows.STD_INPUT_HANDLE,
-            1 => windows.STD_OUTPUT_HANDLE,
-            2 => windows.STD_ERROR_HANDLE,
-            else => return,
-        }) catch return;
-
+        // On Windows, fd is already a handle (*anyopaque)
+        const handle: windows.HANDLE = @ptrCast(self.fd);
         _ = windows.kernel32.SetConsoleMode(handle, self.original);
     }
 };
@@ -406,12 +393,12 @@ fn readByteWindows(timeout_ms: u32) !?u8 {
     const windows = std.os.windows;
     const handle = try windows.GetStdHandle(windows.STD_INPUT_HANDLE);
 
-    const wait_result = windows.WaitForSingleObject(handle, timeout_ms);
-    if (wait_result == windows.WAIT_TIMEOUT) {
+    const wait_result = try windows.WaitForSingleObject(handle, timeout_ms);
+    if (wait_result == windows.WAIT_OBJECT_0) {
+        // Handle is signaled, proceed to read
+    } else {
+        // Timeout or other wait result
         return null;
-    }
-    if (wait_result != windows.WAIT_OBJECT_0) {
-        return error.Unexpected;
     }
 
     var buf: [1]u8 = undefined;
@@ -576,14 +563,21 @@ pub fn queryTerminalCapability(
     capability_name: []const u8,
     timeout_ms: u32,
 ) ![]u8 {
-    // Check if this is a mock terminal (fd == 42)
-    if (fd == 42) {
-        return queryTerminalCapabilityMock(allocator, capability_name);
-    }
-
-    // Windows doesn't support XTGETTCAP (it's a Unix VT100 feature)
+    // Check if this is a mock terminal
+    // On Unix: fd == 42, on Windows: fd is MockTerminal address
     if (builtin.os.tag == .windows) {
+        // On Windows, check if global_mock_terminal is set and fd matches its address
+        if (global_mock_terminal) |mock| {
+            if (@intFromPtr(fd) == @intFromPtr(mock)) {
+                return queryTerminalCapabilityMock(allocator, capability_name);
+            }
+        }
         return error.UnsupportedPlatform;
+    } else {
+        // On Unix, check sentinel value
+        if (fd == 42) {
+            return queryTerminalCapabilityMock(allocator, capability_name);
+        }
     }
 
     // Build and send query
@@ -769,10 +763,15 @@ pub const MockTerminal = struct {
 
     /// Returns a mock file descriptor for testing.
     pub fn fd(self: *MockTerminal) posix.fd_t {
-        _ = self;
         // Return a fake fd that won't conflict with real fds
         // We'll intercept the read/write calls in queryTerminalCapability
-        return 42;
+        if (builtin.os.tag == .windows) {
+            // On Windows, fd_t is *anyopaque - use the mock object's address as a unique handle
+            return @ptrCast(self);
+        } else {
+            // On Unix, fd_t is i32 - use a sentinel value
+            return 42;
+        }
     }
 };
 
@@ -798,7 +797,11 @@ test "getSize returns reasonable dimensions" {
 }
 
 test "RawMode.enter on invalid fd fails" {
-    const result = RawMode.enter(9999);
+    const invalid_fd: posix.fd_t = if (builtin.os.tag == .windows)
+        @ptrFromInt(0xDEADBEEF) // Invalid handle on Windows
+    else
+        9999; // Invalid fd on Unix
+    const result = RawMode.enter(invalid_fd);
     try std.testing.expectError(Error.NotATty, result);
 }
 

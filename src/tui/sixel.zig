@@ -1,6 +1,7 @@
 /// Sixel graphics protocol support for inline images in compatible terminals
 /// Implements DEC Sixel graphics specification for rendering raster images
 const std = @import("std");
+const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
 const Writer = std.io.Writer;
 
@@ -218,6 +219,10 @@ pub fn detectSixelSupport() bool {
     }
 
     // Fallback: Check TERM environment variable for known Sixel-capable terminals
+    if (builtin.os.tag == .windows) {
+        return false; // Windows doesn't use TERM env var
+    }
+
     const term = std.posix.getenv("TERM") orelse return false;
 
     const sixel_terms = [_][]const u8{

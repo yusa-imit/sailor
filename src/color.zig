@@ -22,10 +22,22 @@ pub const ColorLevel = enum {
     extended,  // 256 colors
     truecolor, // 24-bit RGB
 
+    /// Cross-platform environment variable getter (internal helper)
+    fn getEnvVar(key: []const u8) ?[]const u8 {
+        if (builtin.os.tag == .windows) {
+            // On Windows, env vars are UTF-16, std.posix.getenv is unavailable
+            // Return null - Windows doesn't typically use TERM/COLORTERM env vars anyway
+            // Note: key parameter unused on Windows but needed for Unix
+            return null;
+        } else {
+            return std.posix.getenv(key);
+        }
+    }
+
     /// Detect color support from environment
     pub fn detect() ColorLevel {
         // Check NO_COLOR first (https://no-color.org/)
-        if (std.posix.getenv("NO_COLOR")) |val| {
+        if (getEnvVar("NO_COLOR")) |val| {
             if (val.len > 0) return .none;
         }
 
@@ -35,14 +47,14 @@ pub const ColorLevel = enum {
         }
 
         // Check COLORTERM for truecolor
-        if (std.posix.getenv("COLORTERM")) |val| {
+        if (getEnvVar("COLORTERM")) |val| {
             if (std.mem.eql(u8, val, "truecolor") or std.mem.eql(u8, val, "24bit")) {
                 return .truecolor;
             }
         }
 
         // Check TERM for color capabilities
-        if (std.posix.getenv("TERM")) |term_val| {
+        if (getEnvVar("TERM")) |term_val| {
             if (std.mem.indexOf(u8, term_val, "256color")) |_| {
                 return .extended;
             }
