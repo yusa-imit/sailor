@@ -22,7 +22,10 @@ pub const Bidi = struct {
         ON, // Other Neutral
     };
 
-    /// Get directionality type of a codepoint
+    /// Get directionality type of a Unicode codepoint.
+    /// Implements simplified UAX #9 character classification.
+    /// Supports: Latin (L), Hebrew/Arabic (R), digits (EN), whitespace (WS), other (ON).
+    /// Returns the character's bidirectional type for text reordering.
     pub fn charType(codepoint: u21) CharType {
         // Latin (U+0041-U+005A, U+0061-U+007A)
         if ((codepoint >= 0x0041 and codepoint <= 0x005A) or
@@ -85,7 +88,10 @@ pub const Bidi = struct {
         return .ON;
     }
 
-    /// Detect base direction from text content
+    /// Detect base direction from text content.
+    /// Scans for first strong directional character (L/EN → ltr, R/AN → rtl).
+    /// Returns ltr if no strong directional characters found.
+    /// Use with .auto direction mode for automatic text handling.
     pub fn detectDirection(str: []const u8) Direction {
         var i: usize = 0;
 
@@ -118,11 +124,15 @@ pub const Bidi = struct {
 
     /// Reorder visual string for RTL rendering in terminal.
     /// Returns a newly allocated string with characters in visual order.
+    /// Caller must free the returned slice.
     ///
     /// Simplified algorithm:
-    /// 1. Split into runs of same directionality
-    /// 2. Reverse RTL runs
-    /// 3. Concatenate in logical order for RTL base direction
+    /// - LTR: Return copy as-is
+    /// - RTL: Reverse entire codepoint sequence (simplified UAX #9)
+    /// - auto: Auto-detect direction then apply appropriate reordering
+    ///
+    /// Note: This is a simplified implementation for terminal rendering.
+    /// Full UAX #9 handles mixed LTR/RTL runs, neutral characters, and brackets.
     pub fn reorder(allocator: Allocator, str: []const u8, base_dir: Direction) ![]u8 {
         // Resolve base direction
         const dir = if (base_dir == .auto) detectDirection(str) else base_dir;
