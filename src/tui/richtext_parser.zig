@@ -29,10 +29,12 @@ const LineBuilder = style_mod.LineBuilder;
 pub const RichTextParser = struct {
     allocator: Allocator,
 
+    /// Initialize markdown-to-styled-text parser.
     pub fn init(allocator: Allocator) RichTextParser {
         return .{ .allocator = allocator };
     }
 
+    /// Free resources (currently a no-op as parser is stateless).
     pub fn deinit(self: *RichTextParser) void {
         _ = self; // Parser doesn't own persistent state
     }

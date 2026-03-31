@@ -42,12 +42,14 @@ pub const InputMap = struct {
     touch_swipe_up: ?KeyEvent = null,
     touch_swipe_down: ?KeyEvent = null,
 
+    /// Initialize input mapper with default mappings (null = unmapped).
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
             .allocator = allocator,
         };
     }
 
+    /// Free resources (currently a no-op as no allocations are made).
     pub fn deinit(self: *Self) void {
         _ = self; // No dynamic allocations to free currently
     }

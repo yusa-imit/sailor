@@ -84,10 +84,12 @@ pub const KittyEncoder = struct {
     /// Maximum chunk size for base64 data (4096 bytes recommended by spec)
     chunk_size: usize = 4096,
 
+    /// Initialize Kitty graphics encoder with allocator.
     pub fn init(allocator: Allocator) KittyEncoder {
         return .{ .allocator = allocator };
     }
 
+    /// Free resources (currently a no-op).
     pub fn deinit(_: *KittyEncoder) void {
         // No state to clean up currently
     }

@@ -56,6 +56,7 @@ pub const LayoutCache = struct {
     frame_counter: u64,
     max_entries: usize,
 
+    /// Initialize layout cache with LRU eviction at max_entries limit.
     pub fn init(allocator: std.mem.Allocator, max_entries: usize) LayoutCache {
         return .{
             .allocator = allocator,
@@ -65,6 +66,7 @@ pub const LayoutCache = struct {
         };
     }
 
+    /// Free all cached layout results and the cache map.
     pub fn deinit(self: *LayoutCache) void {
         var it = self.cache.iterator();
         while (it.next()) |entry| {

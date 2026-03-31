@@ -26,6 +26,7 @@ pub const OverlayManager = struct {
     overlays: std.ArrayList(Overlay),
     allocator: Allocator,
 
+    /// Initialize overlay manager with empty overlay list.
     pub fn init(allocator: Allocator) OverlayManager {
         return .{
             .overlays = std.ArrayList(Overlay){},
@@ -33,6 +34,7 @@ pub const OverlayManager = struct {
         };
     }
 
+    /// Free the overlay list.
     pub fn deinit(self: *OverlayManager) void {
         self.overlays.deinit(self.allocator);
     }
