@@ -35,15 +35,27 @@ pub const Size = struct {
 
 /// Check if a file descriptor is a TTY (terminal device).
 /// On Unix: accepts fd integers (0=stdin, 1=stdout, 2=stderr)
-/// On Windows: accepts HANDLE (*anyopaque)
+/// On Windows: accepts HANDLE (*anyopaque) or integer (0, 1, 2)
 /// Returns true if the FD is connected to a terminal, false otherwise.
 /// Cross-platform: uses isatty() on Unix, GetConsoleMode() on Windows.
 pub fn isatty(fd: anytype) bool {
     return switch (builtin.os.tag) {
         .linux, .macos => posix.isatty(fd),
         .windows => blk: {
-            // On Windows, fd is already a HANDLE (*anyopaque)
-            const handle: std.os.windows.HANDLE = @ptrCast(fd);
+            const FdType = @TypeOf(fd);
+            const handle: std.os.windows.HANDLE = if (FdType == comptime_int or FdType == i32) blk2: {
+                // Integer fd (0, 1, 2) - convert to standard handle
+                const std_handle: std.os.windows.DWORD = switch (fd) {
+                    0 => std.os.windows.STD_INPUT_HANDLE,
+                    1 => std.os.windows.STD_OUTPUT_HANDLE,
+                    2 => std.os.windows.STD_ERROR_HANDLE,
+                    else => return false,
+                };
+                break :blk2 std.os.windows.GetStdHandle(std_handle) catch return false;
+            } else blk2: {
+                // Already a HANDLE (*anyopaque)
+                break :blk2 @ptrCast(fd);
+            };
             var mode: std.os.windows.DWORD = undefined;
             break :blk std.os.windows.kernel32.GetConsoleMode(handle, &mode) != 0;
         },
