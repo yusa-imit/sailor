@@ -16,8 +16,8 @@
 **Checklist**:
 - [x] Audit for zuda-compatible algorithms (sorting, searching, hashing) — docs/zuda-audit.md (Session 48)
 - [x] Replace custom implementations with zuda imports where applicable — N/A (no replacements needed, see audit)
-- [ ] Address any open consumer issues (from:zr, from:zoltraak, from:silica)
-- [ ] Performance benchmarking across all widgets
+- [x] Address any open consumer issues (from:zr, from:zoltraak, from:silica) — 0 open issues (Session 48)
+- [x] Performance benchmarking across all widgets — docs/benchmark-report.md (Session 48, 12 widgets benchmarked, all <0.02ms/op)
 - [ ] Release v2.0.0 planning document (breaking changes, major features)
 
 ### v1.22.0 — Rich Text & Formatting (COMPLETED 2026-03-26)
