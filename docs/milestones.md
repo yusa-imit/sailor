@@ -14,8 +14,8 @@
 **Theme**: zuda integration, consumer feedback, final polish
 **Target**: 2026-04 (1-2 weeks)
 **Checklist**:
-- [ ] Audit for zuda-compatible algorithms (sorting, searching, hashing)
-- [ ] Replace custom implementations with zuda imports where applicable
+- [x] Audit for zuda-compatible algorithms (sorting, searching, hashing) — docs/zuda-audit.md (Session 48)
+- [x] Replace custom implementations with zuda imports where applicable — N/A (no replacements needed, see audit)
 - [ ] Address any open consumer issues (from:zr, from:zoltraak, from:silica)
 - [ ] Performance benchmarking across all widgets
 - [ ] Release v2.0.0 planning document (breaking changes, major features)
