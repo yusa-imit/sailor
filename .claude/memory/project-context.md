@@ -9,10 +9,19 @@
 - Previous versions: v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: v1.27.0 → Documentation & Examples (2/5, 40%)
+- **Active milestone**: v1.27.0 → Documentation & Examples (4/5, 80%)
 - **Last completed**: v1.26.0 → Testing & Quality Assurance (5/5, 100%) ✅
 
 ## Project Status
+✅ **Session 46** — FEATURE MODE: Documentation Guides Complete (2026-03-31)
+  - **MAJOR DOCUMENTATION MILESTONE**: 3 comprehensive guides added (getting-started, troubleshooting, performance)
+  - docs/getting-started.md: 380 lines — Installation, quick start for all modules, TUI framework intro, 30+ widgets overview
+  - docs/troubleshooting.md: 450 lines — Build/runtime/TUI/memory/performance issues, platform-specific fixes, debug tips
+  - docs/performance.md: 480 lines — Rendering/memory/event optimization, widget-specific tips, benchmarking, perf targets
+  - **v1.27.0 milestone progress: 4/5 tasks complete (80%)**
+  - Remaining task: API documentation review (173/335 functions documented, 52%)
+  - Commits: ec1f400 (3 guides), 43ed681 (milestone update)
+  - Next: Continue API documentation or proceed to v1.28.0 tasks (zuda integration)
 ✅ **Session 45** — STABILIZATION MODE: Windows CI Fixes (2026-03-31)
   - **CRITICAL BUG FIXES**: Fixed comprehensive Windows compilation failures
   - Issue #1: Windows build.exe FileNotFound — added cache clean step in CI
