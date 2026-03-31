@@ -40,7 +40,10 @@ pub const UnicodeWidth = struct {
         return 1;
     }
 
-    /// Calculate total display width of a UTF-8 string.
+    /// Calculate total display width of a UTF-8 string in terminal cells.
+    /// Sums character widths for all codepoints in the string.
+    /// Handles CJK (2 cells), emoji (2 cells), combining marks (0 cells).
+    /// Returns total number of terminal columns needed to display the string.
     pub fn stringWidth(str: []const u8) usize {
         var total: usize = 0;
         var i: usize = 0;
@@ -65,6 +68,9 @@ pub const UnicodeWidth = struct {
 
     /// Truncate string to fit within max_width terminal cells.
     /// Returns the byte index where truncation should occur.
+    /// Ensures wide characters (CJK, emoji) are not split mid-character.
+    /// Use this for text fitting in fixed-width terminal areas.
+    /// Example: truncate("Hello 你好", 7) → byte index of end of "Hello 你" (9)
     pub fn truncate(str: []const u8, max_width: usize) usize {
         var width: usize = 0;
         var i: usize = 0;
