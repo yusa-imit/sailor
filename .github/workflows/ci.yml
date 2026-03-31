@@ -46,6 +46,17 @@ jobs:
         with:
           version: 0.15.2
 
+      - name: Clean Cache (Windows workaround)
+        if: matrix.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (Test-Path .zig-cache) {
+            Remove-Item -Path .zig-cache -Recurse -Force -ErrorAction SilentlyContinue
+          }
+          if (Test-Path zig-out) {
+            Remove-Item -Path zig-out -Recurse -Force -ErrorAction SilentlyContinue
+          }
+
       - name: Build
         run: zig build
 
