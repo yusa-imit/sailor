@@ -14,11 +14,11 @@
 **Theme**: Improve developer experience with comprehensive docs and examples
 **Target**: 2026-04 (1-2 weeks)
 **Checklist**:
-- [ ] API documentation review (all pub fns have doc comments) — IN PROGRESS (91 fns documented, 244 remaining)
+- [ ] API documentation review (all pub fns have doc comments) — IN PROGRESS (173 fns documented, 162 remaining)
 - [x] Add 5 new example apps demonstrating real-world patterns — COMPLETE (hello, counter, dashboard, task_list, layout_showcase)
-- [ ] Getting started guide for each module (term, color, arg, tui, widgets)
-- [ ] Troubleshooting guide (common errors, solutions)
-- [ ] Performance tuning guide (when to use lazy rendering, buffer pooling)
+- [x] Getting started guide for each module (term, color, arg, tui, widgets) — COMPLETE (docs/getting-started.md)
+- [x] Troubleshooting guide (common errors, solutions) — COMPLETE (docs/troubleshooting.md)
+- [x] Performance tuning guide (when to use lazy rendering, buffer pooling) — COMPLETE (docs/performance.md)
 
 ### v1.28.0 — Ecosystem Integration & Polish
 **Theme**: zuda integration, consumer feedback, final polish
