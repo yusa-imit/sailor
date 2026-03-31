@@ -29,6 +29,19 @@ pub const Particle = struct {
     color: Color,
     opacity: u8, // 0-255
 
+    /// Initialize a new particle with position, velocity, and appearance.
+    ///
+    /// Particle starts at full opacity (255) and fades over its lifetime.
+    ///
+    /// Args:
+    ///   x, y: Initial position (floating point for sub-cell precision)
+    ///   vx, vy: Velocity components (cells per update)
+    ///   lifetime: Number of update frames before particle expires
+    ///   char: Unicode character to render
+    ///   color: Particle color
+    ///
+    /// Returns:
+    ///   Initialized Particle ready for simulation
     pub fn init(x: f32, y: f32, vx: f32, vy: f32, lifetime: u32, char: u21, color: Color) Particle {
         return .{
             .x = x,
@@ -43,6 +56,16 @@ pub const Particle = struct {
         };
     }
 
+    /// Update particle physics and lifetime.
+    ///
+    /// Applies velocity, gravity, and fades opacity based on remaining lifetime.
+    /// Particle is marked dead when lifetime reaches 0.
+    ///
+    /// Args:
+    ///   gravity: Gravity acceleration applied to vy each frame
+    ///
+    /// Returns:
+    ///   true if particle is still alive, false if expired (should be removed)
     pub fn update(self: *Particle, gravity: f32) bool {
         // Already dead - remove on next update
         if (self.lifetime == 0) return false;
@@ -72,6 +95,18 @@ pub const ParticleSystem = struct {
     allocator: std.mem.Allocator,
     rng: std.Random.DefaultPrng,
 
+    /// Initialize a new particle system for the specified particle type.
+    ///
+    /// Creates an empty system with default physics settings:
+    /// - Gravity: 0.1 (downward acceleration)
+    /// - Spawn rate: 5 particles per spawn() call
+    ///
+    /// Args:
+    ///   allocator: Memory allocator for particle storage
+    ///   particle_type: Type of particles to emit (confetti, sparkles, etc.)
+    ///
+    /// Returns:
+    ///   Initialized ParticleSystem with empty particle list
     pub fn init(allocator: std.mem.Allocator, particle_type: ParticleType) !ParticleSystem {
         const rng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp()));
         return .{
@@ -84,14 +119,28 @@ pub const ParticleSystem = struct {
         };
     }
 
+    /// Deinitialize the particle system and free all particles.
+    ///
+    /// Must be called to prevent memory leaks.
+    /// After this call, the system cannot be used.
     pub fn deinit(self: *ParticleSystem) void {
         self.particles.deinit(self.allocator);
     }
 
+    /// Set the gravity acceleration applied to particles each frame.
+    ///
+    /// Positive values pull particles downward, negative values upward.
+    ///
+    /// Args:
+    ///   gravity: Acceleration in cells per frame squared (default: 0.1)
     pub fn setGravity(self: *ParticleSystem, gravity: f32) void {
         self.gravity = gravity;
     }
 
+    /// Set the number of particles created per spawn() call.
+    ///
+    /// Args:
+    ///   rate: Particles to create (default: 5)
     pub fn setSpawnRate(self: *ParticleSystem, rate: u32) void {
         self.spawn_rate = rate;
     }

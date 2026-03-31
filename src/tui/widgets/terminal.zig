@@ -48,6 +48,10 @@ pub const TerminalWidget = struct {
         };
     }
 
+    /// Deinitialize the terminal widget and free all line buffers.
+    ///
+    /// Must be called to prevent memory leaks.
+    /// Frees all stored lines in the scrollback buffer.
     pub fn deinit(self: *TerminalWidget) void {
         for (self.lines.items) |line| {
             self.allocator.free(line);
@@ -55,24 +59,52 @@ pub const TerminalWidget = struct {
         self.lines.deinit(self.allocator);
     }
 
+    /// Set the border block for this terminal (builder pattern).
+    ///
+    /// Args:
+    ///   new_block: Block configuration for borders and title
+    ///
+    /// Returns:
+    ///   Modified TerminalWidget (copy-on-write)
     pub fn withBlock(self: TerminalWidget, new_block: Block) TerminalWidget {
         var result = self;
         result.block = new_block;
         return result;
     }
 
+    /// Set the title displayed in the border (builder pattern).
+    ///
+    /// Args:
+    ///   title: Title string (not copied, must remain valid)
+    ///
+    /// Returns:
+    ///   Modified TerminalWidget
     pub fn withTitle(self: TerminalWidget, title: []const u8) TerminalWidget {
         var result = self;
         result.title = title;
         return result;
     }
 
+    /// Set the maximum scrollback buffer size (builder pattern).
+    ///
+    /// Args:
+    ///   max: Maximum number of lines to retain (older lines are discarded)
+    ///
+    /// Returns:
+    ///   Modified TerminalWidget
     pub fn withMaxLines(self: TerminalWidget, max: usize) TerminalWidget {
         var result = self;
         result.max_lines = max;
         return result;
     }
 
+    /// Set the terminal dimensions (builder pattern).
+    ///
+    /// Args:
+    ///   width, height: Virtual terminal size in characters
+    ///
+    /// Returns:
+    ///   Modified TerminalWidget
     pub fn withSize(self: TerminalWidget, width: u16, height: u16) TerminalWidget {
         var result = self;
         result.width = width;

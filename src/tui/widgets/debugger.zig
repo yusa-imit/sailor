@@ -14,6 +14,15 @@ pub const WidgetNode = struct {
     children: std.ArrayList(WidgetNode),
     metadata: ?[]const u8 = null,
 
+    /// Initialize a new widget tree node.
+    ///
+    /// Args:
+    ///   allocator: Memory allocator for children list
+    ///   name: Widget name for display
+    ///   area: Layout bounds of the widget
+    ///
+    /// Returns:
+    ///   Initialized WidgetNode with empty children list
     pub fn init(allocator: std.mem.Allocator, name: []const u8, area: Rect) WidgetNode {
         return .{
             .name = name,
@@ -22,6 +31,10 @@ pub const WidgetNode = struct {
         };
     }
 
+    /// Deinitialize the node and recursively free all children.
+    ///
+    /// Must be called to prevent memory leaks.
+    /// Recursively deinitializes all child nodes first.
     pub fn deinit(self: *WidgetNode) void {
         for (self.children.items) |*child| {
             child.deinit();
@@ -29,6 +42,13 @@ pub const WidgetNode = struct {
         self.children.deinit();
     }
 
+    /// Add a child node to this widget's children list.
+    ///
+    /// Args:
+    ///   child: WidgetNode to add as a child
+    ///
+    /// Returns:
+    ///   Error if allocation fails
     pub fn addChild(self: *WidgetNode, child: WidgetNode) !void {
         try self.children.append(child);
     }
@@ -51,12 +71,26 @@ pub const WidgetDebugger = struct {
     highlight_selected: bool = true,
     allocator: std.mem.Allocator,
 
+    /// Initialize a new widget debugger.
+    ///
+    /// Creates a debugger with no tree loaded (root = null).
+    /// Call setTree() to begin inspecting a widget hierarchy.
+    ///
+    /// Args:
+    ///   allocator: Memory allocator for tree storage
+    ///
+    /// Returns:
+    ///   Initialized WidgetDebugger in 'both' display mode
     pub fn init(allocator: std.mem.Allocator) WidgetDebugger {
         return .{
             .allocator = allocator,
         };
     }
 
+    /// Deinitialize the debugger and free the widget tree.
+    ///
+    /// Must be called to prevent memory leaks.
+    /// Recursively frees all nodes in the tree if one is loaded.
     pub fn deinit(self: *WidgetDebugger) void {
         if (self.root) |*root| {
             root.deinit();

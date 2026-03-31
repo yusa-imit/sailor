@@ -13,6 +13,10 @@ pub const Level = enum {
     warning,
     error_,
 
+    /// Returns the Unicode icon character for this notification level.
+    ///
+    /// Returns:
+    ///   'ℹ' for info, '✓' for success, '⚠' for warning, '✗' for error
     pub fn icon(self: Level) u21 {
         return switch (self) {
             .info => 'ℹ',
@@ -22,6 +26,12 @@ pub const Level = enum {
         };
     }
 
+    /// Returns the default style for this notification level.
+    ///
+    /// Colors: Blue (info), Green (success), Yellow (warning), Red (error)
+    ///
+    /// Returns:
+    ///   Style with appropriate foreground color
     pub fn style(self: Level) Style {
         return switch (self) {
             .info => Style{ .fg = .{ .indexed = 12 } }, // Blue
