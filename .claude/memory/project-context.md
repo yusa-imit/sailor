@@ -5,14 +5,29 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.28.0** 🎉 (2026-04-01)
-- Previous versions: v1.27.0, v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.29.0** 🎉 (2026-04-01)
+- Previous versions: v1.28.0, v1.27.0, v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
 - **Active milestone**: None (awaiting v2.0.0 RFC approval or new feature requests)
-- **Last completed**: v1.28.0 → Ecosystem Integration & Polish (5/5, 100%) ✅
+- **Last completed**: v1.29.0 → Documentation Completion (4/4, 100%) ✅
 
 ## Project Status
+✅ **Session 49** — FEATURE MODE + RELEASE: v1.29.0 Released (2026-04-01)
+  - **MILESTONE v1.29.0 COMPLETE & RELEASED**: Documentation Completion milestone finished
+  - API documentation: 1376/1378 functions documented (99.9% coverage) — 31 functions added this session
+  - 3 batches of documentation commits:
+    - Batch 1: sixel.zig (2), budget.zig (3) — 5f99c92
+    - Batch 2: test_utils.zig (4), session.zig (4) — a46dd68
+    - Batch 3: debugger.zig (5), notification.zig (2), particles.zig (6), terminal.zig (5) — cd4449d
+  - All non-test public functions have comprehensive doc comments
+  - Documentation-only release (zero breaking changes)
+  - All tests pass (3393 tests) — no regressions
+  - **Release executed**: v1.29.0 tag created, GitHub release published
+  - Migration issues filed: zr#42, zoltraak#19, silica#28
+  - Discord notification sent
+  - Release: https://github.com/yusa-imit/sailor/releases/tag/v1.29.0
+  - Next: Await v2.0.0 RFC approval or handle new feature requests / bug reports
 ✅ **Session 48** — FEATURE MODE + RELEASE: v1.28.0 Released (2026-04-01)
   - **MILESTONE v1.28.0 COMPLETE & RELEASED**: Ecosystem Integration & Polish milestone finished
   - zuda integration audit: 0 replacements needed — all implementations TUI-optimized (docs/zuda-audit.md)

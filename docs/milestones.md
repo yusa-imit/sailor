@@ -2,15 +2,15 @@
 
 ## Current Status
 
-- **Latest release**: v1.28.0 (2026-04-01) — Ecosystem Integration & Polish
-- **Latest minor**: v1.28.0 (2026-04-01) — Ecosystem Integration & Polish
-- **Next milestone**: v1.29.0 — Documentation Completion
-- **Active milestones**: 1
+- **Latest release**: v1.29.0 (2026-04-01) — Documentation Completion
+- **Latest minor**: v1.29.0 (2026-04-01) — Documentation Completion
+- **Next milestone**: TBD (awaiting v2.0.0 RFC approval or new feature requests)
+- **Active milestones**: 0
 - **Blockers**: None
 
 ## Active Milestones
 
-(None — v1.29.0 complete, ready for release)
+(None — v1.29.0 released, awaiting v2.0.0 approval)
 
 ### v1.28.0 — Ecosystem Integration & Polish (COMPLETED 2026-04-01)
 **Theme**: zuda integration, consumer feedback, final polish
