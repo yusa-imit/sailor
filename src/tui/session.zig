@@ -16,6 +16,16 @@ pub const SessionRecorder = struct {
         event: Event,
     };
 
+    /// Initialize a new session recorder.
+    ///
+    /// Creates a recorder in stopped state (not recording).
+    /// Call startRecording() to begin capturing events.
+    ///
+    /// Args:
+    ///   allocator: Memory allocator for event storage
+    ///
+    /// Returns:
+    ///   Initialized SessionRecorder
     pub fn init(allocator: Allocator) !SessionRecorder {
         return SessionRecorder{
             .allocator = allocator,
@@ -25,6 +35,10 @@ pub const SessionRecorder = struct {
         };
     }
 
+    /// Deinitialize the recorder and free all captured events.
+    ///
+    /// Must be called to prevent memory leaks.
+    /// After this call, the recorder cannot be used.
     pub fn deinit(self: *SessionRecorder) void {
         self.events.deinit(self.allocator);
     }
@@ -180,6 +194,16 @@ pub const SessionPlayer = struct {
     is_playing: bool,
     speed_multiplier: f32, // 1.0 = normal, 2.0 = 2x speed, 0.5 = half speed
 
+    /// Initialize a new session player from a recorded session.
+    ///
+    /// The player starts in stopped state. Call startPlayback() to begin.
+    /// Speed can be adjusted via speed_multiplier field (default 1.0).
+    ///
+    /// Args:
+    ///   recorder: SessionRecorder containing captured events
+    ///
+    /// Returns:
+    ///   SessionPlayer ready for playback
     pub fn init(recorder: SessionRecorder) SessionPlayer {
         return SessionPlayer{
             .recorder = recorder,
@@ -190,6 +214,10 @@ pub const SessionPlayer = struct {
         };
     }
 
+    /// Deinitialize the player and free all recorded events.
+    ///
+    /// Must be called to prevent memory leaks.
+    /// After this call, the player cannot be used.
     pub fn deinit(self: *SessionPlayer) void {
         self.recorder.deinit();
     }

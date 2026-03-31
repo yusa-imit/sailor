@@ -182,19 +182,22 @@ pub const EventSimulator = struct {
         try self.terminal.pushEvent(.{ .key = .{ .code = .esc } });
     }
 
-    /// Simulate pressing arrow keys
+    /// Simulate pressing Up arrow key
     pub fn pressUp(self: *EventSimulator) !void {
         try self.terminal.pushEvent(.{ .key = .{ .code = .up } });
     }
 
+    /// Simulate pressing Down arrow key
     pub fn pressDown(self: *EventSimulator) !void {
         try self.terminal.pushEvent(.{ .key = .{ .code = .down } });
     }
 
+    /// Simulate pressing Left arrow key
     pub fn pressLeft(self: *EventSimulator) !void {
         try self.terminal.pushEvent(.{ .key = .{ .code = .left } });
     }
 
+    /// Simulate pressing Right arrow key
     pub fn pressRight(self: *EventSimulator) !void {
         try self.terminal.pushEvent(.{ .key = .{ .code = .right } });
     }
