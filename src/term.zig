@@ -33,8 +33,10 @@ pub const Size = struct {
     rows: u16,
 };
 
-/// Check if a file descriptor is a TTY
-/// Accepts standard FD integers (0=stdin, 1=stdout, 2=stderr)
+/// Check if a file descriptor is a TTY (terminal device).
+/// Accepts standard FD integers (0=stdin, 1=stdout, 2=stderr).
+/// Returns true if the FD is connected to a terminal, false otherwise.
+/// Cross-platform: uses isatty() on Unix, GetConsoleMode() on Windows.
 pub fn isatty(fd: i32) bool {
     return switch (builtin.os.tag) {
         .linux, .macos => posix.isatty(fd),
@@ -53,7 +55,10 @@ pub fn isatty(fd: i32) bool {
     };
 }
 
-/// Get terminal size
+/// Get terminal size in columns and rows.
+/// Queries the terminal via TIOCGWINSZ ioctl (Unix) or GetConsoleScreenBufferInfo (Windows).
+/// Returns Error.TerminalSizeUnavailable if not a TTY or dimensions are invalid.
+/// Validates dimensions are non-zero and < 10000.
 pub fn getSize() Error!Size {
     if (builtin.os.tag == .windows) {
         return getSizeWindows();
@@ -113,7 +118,10 @@ pub const RawMode = struct {
     original: if (builtin.os.tag == .windows) std.os.windows.DWORD else posix.termios,
     fd: posix.fd_t,
 
-    /// Enter raw mode on the given file descriptor
+    /// Enter raw mode on the given file descriptor.
+    /// Raw mode disables: canonical input, echo, signals, line editing.
+    /// Returns RAII guard that automatically restores original mode on deinit.
+    /// Returns Error.NotATty if fd is not a terminal.
     pub fn enter(fd: posix.fd_t) Error!RawMode {
         if (!isatty(fd)) {
             return Error.NotATty;
@@ -203,7 +211,9 @@ pub const RawMode = struct {
         };
     }
 
-    /// Restore original terminal mode
+    /// Restore original terminal mode.
+    /// Automatically called by defer pattern.
+    /// Safe to call multiple times (idempotent).
     pub fn deinit(self: *RawMode) void {
         if (builtin.os.tag == .windows) {
             self.deinitWindows();
@@ -234,8 +244,10 @@ pub const RawMode = struct {
 pub const BracketedPaste = struct {
     writer: std.io.AnyWriter,
 
-    /// Enable bracketed paste mode
-    /// Sends CSI ? 2004 h sequence to the terminal
+    /// Enable bracketed paste mode.
+    /// Sends CSI ? 2004 h sequence to the terminal.
+    /// Pasted content will be wrapped with ESC[200~ (start) and ESC[201~ (end).
+    /// Returns RAII guard that disables on deinit.
     pub fn enable(writer: std.io.AnyWriter) !BracketedPaste {
         try writer.writeAll("\x1b[?2004h");
         return BracketedPaste{ .writer = writer };
@@ -254,8 +266,10 @@ pub const BracketedPaste = struct {
 pub const SynchronizedOutput = struct {
     writer: std.io.AnyWriter,
 
-    /// Begin synchronized output mode
-    /// Sends CSI ? 2026 h sequence to the terminal
+    /// Begin synchronized output mode (DEC private mode 2026).
+    /// Sends CSI ? 2026 h sequence to the terminal.
+    /// Terminal batches output until end() is called, eliminating tearing.
+    /// Returns guard that automatically ends synchronized mode on deinit.
     pub fn begin(writer: std.io.AnyWriter) !SynchronizedOutput {
         try writer.writeAll("\x1b[?2026h");
         return SynchronizedOutput{ .writer = writer };
@@ -268,10 +282,11 @@ pub const SynchronizedOutput = struct {
     }
 };
 
-/// Write a hyperlink using OSC 8 escape sequence
+/// Write a hyperlink using OSC 8 escape sequence.
 /// Terminals supporting this will render clickable URLs.
-/// Format: ESC ] 8 ; params ; url ST text ESC ] 8 ; ; ST
-/// where ST = ESC \ (String Terminator)
+/// Format: ESC ] 8 ; ; url ST text ESC ] 8 ; ; ST
+/// where ST = ESC \ (String Terminator).
+/// Use writeHyperlinkWithParams for id/custom parameters.
 pub fn writeHyperlink(writer: std.io.AnyWriter, url: []const u8, text: []const u8) !void {
     // Start hyperlink: OSC 8 ; ; url ST
     try writer.writeAll("\x1b]8;;");
@@ -285,7 +300,10 @@ pub fn writeHyperlink(writer: std.io.AnyWriter, url: []const u8, text: []const u
     try writer.writeAll("\x1b]8;;\x1b\\");
 }
 
-/// Write a hyperlink with optional parameters (e.g., "id=abc123")
+/// Write a hyperlink with optional parameters (e.g., "id=abc123").
+/// Format: ESC ] 8 ; params ; url ST text ESC ] 8 ; ; ST.
+/// Common params: "id=xyz" for linking related hyperlinks.
+/// Use empty string for params if not needed.
 pub fn writeHyperlinkWithParams(writer: std.io.AnyWriter, params: []const u8, url: []const u8, text: []const u8) !void {
     // Start hyperlink: OSC 8 ; params ; url ST
     try writer.writeAll("\x1b]8;");
@@ -307,8 +325,10 @@ pub fn writeHyperlinkWithParams(writer: std.io.AnyWriter, params: []const u8, ur
 pub const FocusTracking = struct {
     writer: std.io.AnyWriter,
 
-    /// Enable focus tracking
-    /// Sends CSI ? 1004 h sequence to the terminal
+    /// Enable focus tracking (DEC private mode 1004).
+    /// Sends CSI ? 1004 h sequence to the terminal.
+    /// Terminal will send ESC[I on focus in, ESC[O on focus out.
+    /// Returns guard that disables on deinit.
     pub fn enable(writer: std.io.AnyWriter) !FocusTracking {
         try writer.writeAll("\x1b[?1004h");
         return FocusTracking{ .writer = writer };
@@ -321,28 +341,38 @@ pub const FocusTracking = struct {
     }
 };
 
-/// Check if buffer contains focus in event (ESC [ I)
+/// Check if buffer contains focus in event (ESC [ I).
+/// Use with FocusTracking.enable() to detect terminal gaining focus.
+/// Returns true if the escape sequence is found anywhere in buffer.
 pub fn isFocusIn(buf: []const u8) bool {
     return std.mem.indexOf(u8, buf, "\x1b[I") != null;
 }
 
-/// Check if buffer contains focus out event (ESC [ O)
+/// Check if buffer contains focus out event (ESC [ O).
+/// Use with FocusTracking.enable() to detect terminal losing focus.
+/// Returns true if the escape sequence is found anywhere in buffer.
 pub fn isFocusOut(buf: []const u8) bool {
     return std.mem.indexOf(u8, buf, "\x1b[O") != null;
 }
 
-/// Check if buffer contains paste start marker (ESC [ 200 ~)
+/// Check if buffer contains paste start marker (ESC [ 200 ~).
+/// Use with BracketedPaste.enable() to detect start of pasted content.
+/// Returns true if the escape sequence is found anywhere in buffer.
 pub fn isPasteStart(buf: []const u8) bool {
     return std.mem.indexOf(u8, buf, "\x1b[200~") != null;
 }
 
-/// Check if buffer contains paste end marker (ESC [ 201 ~)
+/// Check if buffer contains paste end marker (ESC [ 201 ~).
+/// Use with BracketedPaste.enable() to detect end of pasted content.
+/// Returns true if the escape sequence is found anywhere in buffer.
 pub fn isPasteEnd(buf: []const u8) bool {
     return std.mem.indexOf(u8, buf, "\x1b[201~") != null;
 }
 
-/// Read a single byte from stdin with timeout (in milliseconds)
-/// Returns null if timeout expires
+/// Read a single byte from stdin with timeout (in milliseconds).
+/// Returns null if timeout expires, byte value if available.
+/// Cross-platform: uses poll() on Unix, WaitForSingleObject() on Windows.
+/// Use in raw mode for non-blocking input with timeout.
 pub fn readByte(timeout_ms: u32) !?u8 {
     if (builtin.os.tag == .windows) {
         return readByteWindows(timeout_ms);
@@ -411,7 +441,10 @@ pub const XtgettcapResult = struct {
     value: ?[]u8,
 };
 
-/// Convert ASCII string to hex string (e.g., "Sixel" → "5369786c")
+/// Convert ASCII string to hex string (e.g., "Sixel" → "5369786c").
+/// Returns newly allocated hex-encoded string.
+/// Caller must free the returned slice.
+/// Used for XTGETTCAP terminal capability queries.
 pub fn hexEncode(allocator: std.mem.Allocator, string: []const u8) ![]u8 {
     if (string.len == 0) {
         return try allocator.alloc(u8, 0);
@@ -429,8 +462,11 @@ pub fn hexEncode(allocator: std.mem.Allocator, string: []const u8) ![]u8 {
     return result;
 }
 
-/// Convert hex string to ASCII string (e.g., "5369786c" → "Sixel")
-/// Returns error.InvalidHexString if the input is not valid hex (odd length or invalid chars)
+/// Convert hex string to ASCII string (e.g., "5369786c" → "Sixel").
+/// Returns newly allocated decoded string.
+/// Caller must free the returned slice.
+/// Returns error.InvalidHexString if input is not valid hex (odd length or invalid chars).
+/// Used for parsing XTGETTCAP terminal capability responses.
 pub fn hexDecode(allocator: std.mem.Allocator, hex_string: []const u8) ![]u8 {
     if (hex_string.len % 2 != 0) {
         return error.InvalidHexString;
@@ -462,6 +498,9 @@ fn hexCharToNibble(c: u8) !u4 {
 }
 
 /// Build XTGETTCAP query sequence: ESC P + q <hex-encoded-name> ESC \
+/// Writes DCS (Device Control String) query to writer.
+/// capability_name examples: "Sixel", "Tc" (true color), "RGB".
+/// Terminal responds with DCS {0|1} + r sequence (parse with parseXtgettcapResponse).
 pub fn buildXtgettcapQuery(writer: anytype, allocator: std.mem.Allocator, capability_name: []const u8) !void {
     const hex_name = try hexEncode(allocator, capability_name);
     defer allocator.free(hex_name);
@@ -472,9 +511,11 @@ pub fn buildXtgettcapQuery(writer: anytype, allocator: std.mem.Allocator, capabi
     try writer.writeAll("\x1b\\");
 }
 
-/// Parse XTGETTCAP response
+/// Parse XTGETTCAP response from terminal.
 /// Success: ESC P 1 + r <hex-name> = <hex-value> ESC \
 /// Not supported: ESC P 0 + r <hex-name> ESC \
+/// Returns XtgettcapResult with supported flag and decoded value.
+/// Caller must free result.value if non-null.
 pub fn parseXtgettcapResponse(allocator: std.mem.Allocator, response: []const u8) !XtgettcapResult {
     // Find DCS prefix: ESC P
     const dcs_start = std.mem.indexOf(u8, response, "\x1bP") orelse return error.InvalidResponse;
@@ -524,8 +565,11 @@ pub fn parseXtgettcapResponse(allocator: std.mem.Allocator, response: []const u8
     }
 }
 
-/// Query terminal capability using XTGETTCAP protocol
-/// Returns the decoded value if supported, or error.CapabilityNotSupported
+/// Query terminal capability using XTGETTCAP protocol.
+/// Sends query to terminal, waits for response with timeout.
+/// Returns the decoded value if supported, or error.CapabilityNotSupported.
+/// Caller must free the returned slice.
+/// Not supported on Windows (Unix VT100 feature only).
 pub fn queryTerminalCapability(
     allocator: std.mem.Allocator,
     fd: posix.fd_t,
@@ -664,8 +708,10 @@ fn queryTerminalCapabilityMock(allocator: std.mem.Allocator, capability_name: []
     }
 }
 
-/// Check if terminal has a capability (boolean wrapper)
-/// Returns false if capability is not supported or query times out
+/// Check if terminal has a capability (boolean wrapper around queryTerminalCapability).
+/// Returns true if capability is supported, false if not supported or query times out.
+/// Automatically frees query result value. Use queryTerminalCapability to get actual value.
+/// Returns error only on unexpected failures (not timeout/unsupported).
 pub fn hasCapability(
     allocator: std.mem.Allocator,
     fd: posix.fd_t,
