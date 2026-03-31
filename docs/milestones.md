@@ -2,24 +2,13 @@
 
 ## Current Status
 
-- **Latest release**: v1.26.0 (2026-03-29) — Testing & Quality Assurance
-- **Latest minor**: v1.26.0 (2026-03-29) — Testing & Quality Assurance
-- **Next milestone**: v1.27.0 (Documentation & Examples)
-- **Active milestones**: 2 (v1.27.0, v1.28.0)
+- **Latest release**: v1.27.0 (2026-03-31) — Documentation & Examples
+- **Latest minor**: v1.27.0 (2026-03-31) — Documentation & Examples
+- **Next milestone**: v1.28.0 (Ecosystem Integration & Polish)
+- **Active milestones**: 1 (v1.28.0)
 - **Blockers**: None
 
 ## Active Milestones
-
-### v1.27.0 — Documentation & Examples ✅ **READY FOR RELEASE**
-**Theme**: Improve developer experience with comprehensive docs and examples
-**Target**: 2026-04 (1-2 weeks)
-**Status**: **COMPLETE** — All checklist items finished (Session 47)
-**Checklist**:
-- [x] API documentation review (all pub fns have doc comments) — COMPLETE (1351/1378 fns documented, 98.0% coverage)
-- [x] Add 5 new example apps demonstrating real-world patterns — COMPLETE (hello, counter, dashboard, task_list, layout_showcase)
-- [x] Getting started guide for each module (term, color, arg, tui, widgets) — COMPLETE (docs/getting-started.md)
-- [x] Troubleshooting guide (common errors, solutions) — COMPLETE (docs/troubleshooting.md)
-- [x] Performance tuning guide (when to use lazy rendering, buffer pooling) — COMPLETE (docs/performance.md)
 
 ### v1.28.0 — Ecosystem Integration & Polish
 **Theme**: zuda integration, consumer feedback, final polish
@@ -63,6 +52,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.27.0 | Documentation & Examples | 2026-03-31 | API documentation 98% complete (1351/1378 functions), 3 comprehensive guides (getting-started, troubleshooting, performance), 5 new example apps (hello, counter, dashboard, task_list, layout_showcase) |
 | v1.26.0 | Testing & Quality Assurance | 2026-03-29 | Memory leak audit & fixes (Tree, Form), 292 new tests (termcap +37, pool +17, bench +12, repl +8, docgen +7, transition +32, timer +35, menu +50, form +30, chunkedbuffer +28, richtext_parser +38, 13 leak tests), total 3393 tests |
 | v1.25.0 | Form & Validation | 2026-03-28 | Form widget, 15+ validators (basic, numeric, pattern), input masks (SSN, phone, date), inline error display, field focus navigation, form_demo.zig example |
 | v1.24.0 | Animation & Transitions | 2026-03-27 | Animation trait, transition helpers (fade, slide, expand), Timer system, 22 easing functions (cubic, elastic, bounce, back, circ, expo), animation_demo.zig |
