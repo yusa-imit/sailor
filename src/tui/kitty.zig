@@ -214,7 +214,12 @@ pub fn detectKittySupport() bool {
 
     // Query "TN" (terminal name) capability with 100ms timeout
     // Kitty terminals typically identify as "xterm-kitty"
-    if (term_mod.queryTerminalCapability(allocator, std.posix.STDOUT_FILENO, "TN", 100)) |value| {
+    const stdout_fd: std.posix.fd_t = if (builtin.os.tag == .windows)
+        @ptrCast(try std.os.windows.GetStdHandle(std.os.windows.STD_OUTPUT_HANDLE))
+    else
+        std.posix.STDOUT_FILENO;
+
+    if (term_mod.queryTerminalCapability(allocator, stdout_fd, "TN", 100)) |value| {
         defer allocator.free(value);
         const has_kitty = std.mem.indexOf(u8, value, "kitty") != null;
         if (has_kitty) return true;

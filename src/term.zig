@@ -18,6 +18,10 @@ const posix = std.posix;
 const os = std.os;
 const io = std.io;
 
+// Windows console mode flags (missing from std.os.windows)
+const ENABLE_ECHO_INPUT: std.os.windows.DWORD = 0x0004;
+const ENABLE_LINE_INPUT: std.os.windows.DWORD = 0x0002;
+
 pub const Error = error{
     NotATty,
     UnsupportedPlatform,
@@ -202,7 +206,7 @@ pub const RawMode = struct {
 
         // Disable line input and echo
         var mode = original;
-        mode &= ~@as(windows.DWORD, windows.ENABLE_ECHO_INPUT | windows.ENABLE_LINE_INPUT);
+        mode &= ~@as(windows.DWORD, ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
         mode |= windows.ENABLE_VIRTUAL_TERMINAL_INPUT;
 
         if (windows.kernel32.SetConsoleMode(handle, mode) == 0) {
@@ -405,7 +409,7 @@ fn readByteWindows(timeout_ms: u32) !?u8 {
     const windows = std.os.windows;
     const handle = try windows.GetStdHandle(windows.STD_INPUT_HANDLE);
 
-    const wait_result = try windows.WaitForSingleObject(handle, timeout_ms);
+    const wait_result = windows.WaitForSingleObject(handle, timeout_ms);
     if (wait_result == windows.WAIT_OBJECT_0) {
         // Handle is signaled, proceed to read
     } else {

@@ -231,7 +231,12 @@ pub fn detectSixelSupport() bool {
     const allocator = gpa.allocator();
 
     // Query "Sixel" capability with 100ms timeout
-    if (term_mod.hasCapability(allocator, std.posix.STDOUT_FILENO, "Sixel", 100)) |has_sixel| {
+    const stdout_fd: std.posix.fd_t = if (builtin.os.tag == .windows)
+        @ptrCast(try std.os.windows.GetStdHandle(std.os.windows.STD_OUTPUT_HANDLE))
+    else
+        std.posix.STDOUT_FILENO;
+
+    if (term_mod.hasCapability(allocator, stdout_fd, "Sixel", 100)) |has_sixel| {
         if (has_sixel) return true;
     } else |_| {
         // XTGETTCAP failed (not a TTY, unsupported platform, etc.) - fall back to env vars
