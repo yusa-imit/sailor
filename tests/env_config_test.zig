@@ -17,14 +17,26 @@ const builtin = @import("builtin");
 // ============================================================================
 
 // Platform-specific C library bindings
-// Separate declarations to avoid linker seeing unused extern symbols
-const c = if (builtin.os.tag == .windows) struct {
+// Only declare the platform-specific functions to avoid linker seeing unused symbols
+const is_windows = builtin.os.tag == .windows;
+
+// Windows-only externs (only evaluated on Windows)
+const _putenv_s = if (is_windows) struct {
     extern "c" fn _putenv_s(key: [*:0]const u8, value: [*:0]const u8) c_int;
+}._putenv_s else {};
+
+const _putenv = if (is_windows) struct {
     extern "c" fn _putenv(envstring: [*:0]const u8) c_int;
-} else struct {
+}._putenv else {};
+
+// POSIX-only externs (only evaluated on POSIX)
+const setenv = if (!is_windows) struct {
     extern "c" fn setenv(key: [*:0]const u8, value: [*:0]const u8, overwrite: c_int) c_int;
+}.setenv else {};
+
+const unsetenv = if (!is_windows) struct {
     extern "c" fn unsetenv(key: [*:0]const u8) c_int;
-};
+}.unsetenv else {};
 
 /// Wrapper around C setenv with Zig slices
 fn env_setenv(key: []const u8, value: []const u8, overwrite: bool) !void {
@@ -41,9 +53,9 @@ fn env_setenv(key: []const u8, value: []const u8, overwrite: bool) !void {
     value_buf[value.len] = 0;
 
     const rc = if (builtin.os.tag == .windows)
-        c._putenv_s(@ptrCast(&key_buf), @ptrCast(&value_buf))
+        _putenv_s(@ptrCast(&key_buf), @ptrCast(&value_buf))
     else
-        c.setenv(@ptrCast(&key_buf), @ptrCast(&value_buf), if (overwrite) 1 else 0);
+        setenv(@ptrCast(&key_buf), @ptrCast(&value_buf), if (overwrite) 1 else 0);
 
     if (rc != 0) return error.SetenvFailed;
 }
@@ -58,14 +70,14 @@ fn env_unsetenv(key: []const u8) !void {
         @memcpy(key_buf[0..key.len], key);
         key_buf[key.len] = '=';
         key_buf[key.len + 1] = 0;
-        const rc = c._putenv(@ptrCast(&key_buf));
+        const rc = _putenv(@ptrCast(&key_buf));
         if (rc != 0) return error.UnsetenvFailed;
     } else {
         // POSIX: unsetenv("KEY")
         if (key.len >= key_buf.len) return error.KeyTooLong;
         @memcpy(key_buf[0..key.len], key);
         key_buf[key.len] = 0;
-        const rc = c.unsetenv(@ptrCast(&key_buf));
+        const rc = unsetenv(@ptrCast(&key_buf));
         if (rc != 0) return error.UnsetenvFailed;
     }
 }
