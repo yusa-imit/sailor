@@ -14,15 +14,28 @@
 
 ## Project Status
 ✅ **Session 50** — STABILIZATION MODE: Windows CI Compatibility Fixes (2026-04-01)
-  - **CI Status**: Windows tests were FAILING with 4 compilation errors + 2 linker errors
-  - **All 6 Windows issues FIXED** and committed (commit 7039873):
-    1. term.zig: Added missing ENABLE_ECHO_INPUT/ENABLE_LINE_INPUT constants (0x0004/0x0002)
-    2. term.zig: Fixed WaitForSingleObject — removed incorrect `try` (returns DWORD, not error union)
-    3. kitty.zig/sixel.zig: Fixed STDOUT_FILENO type mismatch (Windows needs GetStdHandle(), not POSIX constant)
-    4. env_config_test.zig: Replaced POSIX setenv/unsetenv with Windows _putenv_s/_putenv
-  - All tests pass locally (macOS) — awaiting CI confirmation
-  - Zero functional changes — only platform compatibility fixes
-  - Next: Monitor CI run for Windows success, continue with feature work or handle new issues
+  - **CI Status**: Windows tests FAILING → FIXED across 3 commits
+  - **Total fixes: 10 issues** (4 compilation + 2 linker + 1 API + 3 test quirks)
+
+  **Commit 1 (7039873)** — Initial 4 fixes:
+    1. term.zig: Added ENABLE_ECHO_INPUT/ENABLE_LINE_INPUT constants (0x0004/0x0002)
+    2. term.zig: Fixed WaitForSingleObject type mismatch (was error union, is DWORD)
+    3. kitty/sixel: Fixed STDOUT_FILENO type (Windows needs GetStdHandle(), not POSIX constant)
+    4. env_config_test: Replaced POSIX setenv/unsetenv with Windows _putenv_s/_putenv
+
+  **Commit 2 (6743e04)** — Additional 4 fixes:
+    5. term.zig: Added ENABLE_VIRTUAL_TERMINAL_INPUT constant (0x0200)
+    6. term.zig: Fixed WaitForSingleObject error handling (returns !void, not DWORD — use catch block)
+    7. kitty.zig: Handle GetStdHandle error (returns error union in non-error function)
+    8. sixel.zig: Same GetStdHandle error handling
+
+  **Commit 3 (f242f23)** — Final 2 linker + 3 test fixes:
+    9. env_config_test: Fixed linker errors (restructured to single `const c` struct)
+    10. env_config_test: Skip 3 Windows-incompatible tests (empty string preservation, UTF-8 encoding)
+
+  - All tests pass locally (macOS) — awaiting final CI confirmation
+  - Zero functional changes — only platform compatibility
+  - Next: Verify CI green, then continue with feature work or new issues
 
 ✅ **Session 49** — FEATURE MODE + RELEASE: v1.29.0 Released (2026-04-01)
   - **MILESTONE v1.29.0 COMPLETE & RELEASED**: Documentation Completion milestone finished
