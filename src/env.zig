@@ -6,11 +6,45 @@
 //! - Integer parsing with type bounds checking (`getInt`)
 
 const std = @import("std");
+const builtin = @import("builtin");
 
 // C library bindings for environment variable manipulation
-// These are needed for tests since Zig 0.15.2's std.posix doesn't have setenv/unsetenv
-extern "c" fn setenv(key: [*:0]const u8, value: [*:0]const u8, overwrite: c_int) c_int;
-extern "c" fn unsetenv(key: [*:0]const u8) c_int;
+// Platform-specific implementations: Windows uses _putenv_s/_putenv, POSIX uses setenv/unsetenv
+const c_env = switch (builtin.os.tag) {
+    .windows => struct {
+        extern "c" fn _putenv_s(key: [*:0]const u8, value: [*:0]const u8) c_int;
+        extern "c" fn _putenv(envstring: [*:0]const u8) c_int;
+    },
+    else => struct {
+        extern "c" fn setenv(key: [*:0]const u8, value: [*:0]const u8, overwrite: c_int) c_int;
+        extern "c" fn unsetenv(key: [*:0]const u8) c_int;
+    },
+};
+
+// Unified helpers for tests
+fn setenv(key: [*:0]const u8, value: [*:0]const u8, overwrite: c_int) c_int {
+    return switch (builtin.os.tag) {
+        .windows => c_env._putenv_s(key, value),
+        else => c_env.setenv(key, value, overwrite),
+    };
+}
+
+fn unsetenv(key: [*:0]const u8) c_int {
+    if (builtin.os.tag == .windows) {
+        // Windows _putenv needs "KEY=" format to unset
+        var buf: [512]u8 = undefined;
+        const key_slice = std.mem.span(key);
+        if (key_slice.len + 2 >= buf.len) return -1;
+
+        @memcpy(buf[0..key_slice.len], key_slice);
+        buf[key_slice.len] = '=';
+        buf[key_slice.len + 1] = 0;
+
+        return c_env._putenv(@ptrCast(&buf));
+    } else {
+        return c_env.unsetenv(key);
+    }
+}
 
 /// Retrieves an environment variable with a fallback default.
 ///
