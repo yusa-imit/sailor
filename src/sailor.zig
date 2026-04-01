@@ -60,6 +60,10 @@ pub const docgen = @import("docgen.zig");
 // v1.20.0 — Quality & Completeness
 pub const error_context = @import("error_context.zig");
 
+// v1.30.0 — Error Handling & Debugging Enhancements
+pub const debug_log = @import("debug_log.zig");
+pub const stack_trace = @import("stack_trace.zig");
+
 // v1.23.0 — Plugin Architecture & Extensibility
 pub const ThemeLoader = @import("tui/theme_loader.zig").ThemeLoader;
 
