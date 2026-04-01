@@ -11,6 +11,7 @@ pub const RenderProfile = struct {
     widget_name: []const u8,
     duration_ns: u64,
     timestamp: i128,
+    is_cache_hit: bool = false,
 
     /// Returns the duration in milliseconds.
     pub fn durationMs(self: RenderProfile) f64 {
@@ -23,6 +24,37 @@ pub const RenderProfile = struct {
     }
 };
 
+/// Represents a nested profiling scope for flame graph visualization
+pub const ProfilerFrame = struct {
+    name: []const u8,
+    self_time_ns: u64, // Exclusive time (excluding children)
+    total_time_ns: u64, // Inclusive time (including children)
+    children: []ProfilerFrame,
+
+    /// Recursively free all children
+    pub fn deinitRecursive(self: *ProfilerFrame, allocator: Allocator) void {
+        for (self.children) |*child| {
+            child.deinitRecursive(allocator);
+        }
+        allocator.free(self.children);
+    }
+};
+
+/// Extended metrics for a widget's render performance
+pub const WidgetMetrics = struct {
+    render_count: usize,
+    cache_hits: usize,
+    cache_misses: usize,
+    avg_duration_ns: u64,
+
+    /// Calculate cache hit rate (0.0 to 1.0)
+    pub fn cacheHitRate(self: WidgetMetrics) f64 {
+        const total = self.cache_hits + self.cache_misses;
+        if (total == 0) return 0.0;
+        return @as(f64, @floatFromInt(self.cache_hits)) / @as(f64, @floatFromInt(total));
+    }
+};
+
 /// Profiler that tracks widget render times and detects bottlenecks
 pub const Profiler = struct {
     allocator: Allocator,
@@ -30,7 +62,45 @@ pub const Profiler = struct {
     current_frame: u64,
     threshold_ms: f64, // Bottleneck threshold in milliseconds
 
+    // Flame graph support
+    scope_stack: std.ArrayList(ScopeEntry),
+    root_scopes: std.ArrayList(ScopeEntry),
+
     const Self = @This();
+
+    const ScopeEntry = struct {
+        name: []const u8,
+        start_time: i128,
+        end_time: i128 = 0,
+        children: std.ArrayList(ScopeEntry),
+
+        fn deinit(self: *ScopeEntry, allocator: Allocator) void {
+            for (self.children.items) |*child| {
+                child.deinit(allocator);
+            }
+            self.children.deinit(allocator);
+        }
+
+        fn totalTime(self: *const ScopeEntry) u64 {
+            if (self.end_time == 0) return 0;
+            return @intCast(self.end_time - self.start_time);
+        }
+
+        fn childrenTime(self: *const ScopeEntry) u64 {
+            var total: u64 = 0;
+            for (self.children.items) |*child| {
+                total += child.totalTime();
+            }
+            return total;
+        }
+
+        fn selfTime(self: *const ScopeEntry) u64 {
+            const total = self.totalTime();
+            const children = self.childrenTime();
+            if (total > children) return total - children;
+            return 0;
+        }
+    };
 
     /// Initialize a new profiler
     pub fn init(allocator: Allocator, threshold_ms: f64) !Self {
@@ -39,12 +109,22 @@ pub const Profiler = struct {
             .profiles = .{},
             .current_frame = 0,
             .threshold_ms = threshold_ms,
+            .scope_stack = .{},
+            .root_scopes = .{},
         };
     }
 
     /// Deinitialize and free resources
     pub fn deinit(self: *Self) void {
         self.profiles.deinit(self.allocator);
+        for (self.scope_stack.items) |*scope| {
+            scope.deinit(self.allocator);
+        }
+        self.scope_stack.deinit(self.allocator);
+        for (self.root_scopes.items) |*scope| {
+            scope.deinit(self.allocator);
+        }
+        self.root_scopes.deinit(self.allocator);
     }
 
     /// Start profiling a widget render
@@ -62,6 +142,17 @@ pub const Profiler = struct {
             .widget_name = widget_name,
             .duration_ns = duration_ns,
             .timestamp = std.time.milliTimestamp(),
+            .is_cache_hit = false,
+        });
+    }
+
+    /// Record a completed profile entry with cache information
+    pub fn recordWithCache(self: *Self, widget_name: []const u8, duration_ns: u64, is_cache_hit: bool) !void {
+        try self.profiles.append(self.allocator, .{
+            .widget_name = widget_name,
+            .duration_ns = duration_ns,
+            .timestamp = std.time.milliTimestamp(),
+            .is_cache_hit = is_cache_hit,
         });
     }
 
@@ -158,6 +249,112 @@ pub const Profiler = struct {
             total += profile.duration_ns;
         }
         return total;
+    }
+
+    // ========================================================================
+    // Flame Graph Support (v1.31.0)
+    // ========================================================================
+
+    /// Begin a new profiling scope for flame graph
+    pub fn beginScope(self: *Self, name: []const u8) !void {
+        const entry = ScopeEntry{
+            .name = name,
+            .start_time = std.time.nanoTimestamp(),
+            .children = .{},
+        };
+        try self.scope_stack.append(self.allocator, entry);
+    }
+
+    /// End the current profiling scope
+    pub fn endScope(self: *Self) !void {
+        if (self.scope_stack.items.len == 0) {
+            return error.NoScopeToEnd;
+        }
+
+        const last_idx = self.scope_stack.items.len - 1;
+        self.scope_stack.items[last_idx].end_time = std.time.nanoTimestamp();
+
+        const scope = self.scope_stack.orderedRemove(last_idx);
+
+        if (self.scope_stack.items.len == 0) {
+            // This is a root scope
+            try self.root_scopes.append(self.allocator, scope);
+        } else {
+            // Add to parent's children
+            var parent = &self.scope_stack.items[self.scope_stack.items.len - 1];
+            try parent.children.append(self.allocator, scope);
+        }
+    }
+
+    /// Export flame graph data
+    pub fn flameGraphData(self: *Self, allocator: Allocator) ![]ProfilerFrame {
+        var frames: std.ArrayList(ProfilerFrame) = .{};
+        errdefer {
+            for (frames.items) |*frame| {
+                frame.deinitRecursive(allocator);
+            }
+            frames.deinit(allocator);
+        }
+
+        for (self.root_scopes.items) |*scope| {
+            try frames.append(allocator, try scopeToFrame(allocator, scope));
+        }
+
+        return frames.toOwnedSlice(allocator);
+    }
+
+    fn scopeToFrame(allocator: Allocator, scope: *const ScopeEntry) !ProfilerFrame {
+        var children: std.ArrayList(ProfilerFrame) = .{};
+        errdefer {
+            for (children.items) |*child| {
+                child.deinitRecursive(allocator);
+            }
+            children.deinit(allocator);
+        }
+
+        for (scope.children.items) |*child| {
+            try children.append(allocator, try scopeToFrame(allocator, child));
+        }
+
+        return ProfilerFrame{
+            .name = scope.name,
+            .self_time_ns = scope.selfTime(),
+            .total_time_ns = scope.totalTime(),
+            .children = try children.toOwnedSlice(allocator),
+        };
+    }
+
+    // ========================================================================
+    // Extended Widget Metrics (v1.31.0)
+    // ========================================================================
+
+    /// Get extended metrics for a specific widget
+    pub fn getWidgetMetrics(self: *Self, widget_name: []const u8) !WidgetMetrics {
+        var render_count: usize = 0;
+        var cache_hits: usize = 0;
+        var cache_misses: usize = 0;
+        var total_duration: u64 = 0;
+
+        for (self.profiles.items) |profile| {
+            if (std.mem.eql(u8, profile.widget_name, widget_name)) {
+                render_count += 1;
+                total_duration += profile.duration_ns;
+                if (profile.is_cache_hit) {
+                    cache_hits += 1;
+                } else {
+                    cache_misses += 1;
+                }
+            }
+        }
+
+        const avg_duration = if (render_count > 0) total_duration / render_count else 0;
+
+        return WidgetMetrics{
+            .render_count = render_count,
+            .cache_hits = cache_hits,
+            .cache_misses = cache_misses,
+            .avg_duration_ns = avg_duration,
+        };
     }
 };
 
@@ -382,4 +579,149 @@ test "multiple widgets same frame" {
     const button_stats = profiler.getStats("button");
     try testing.expectEqual(@as(usize, 2), button_stats.count);
     try testing.expectEqual(@as(u64, 1_250_000), button_stats.avg_ns); // (1+1.5)/2
+}
+
+// ============================================================================
+// v1.31.0 Enhancement Tests — Flame Graph & Extended Metrics
+// ============================================================================
+
+test "flame graph nested scopes track hierarchy" {
+    const allocator = testing.allocator;
+    var profiler = try Profiler.init(allocator, 16.0);
+    defer profiler.deinit();
+
+    // Nested profiling: root -> child1 -> grandchild
+    try profiler.beginScope("root");
+    std.Thread.sleep(1_000_000); // 1ms
+    try profiler.beginScope("child1");
+    std.Thread.sleep(500_000); // 0.5ms
+    try profiler.beginScope("grandchild");
+    std.Thread.sleep(200_000); // 0.2ms
+    try profiler.endScope(); // grandchild
+    try profiler.endScope(); // child1
+    try profiler.beginScope("child2");
+    std.Thread.sleep(300_000); // 0.3ms
+    try profiler.endScope(); // child2
+    try profiler.endScope(); // root
+
+    const flame_data = try profiler.flameGraphData(allocator);
+    defer {
+        for (flame_data) |*frame| {
+            var mutable_frame = frame.*;
+            mutable_frame.deinitRecursive(allocator);
+        }
+        allocator.free(flame_data);
+    }
+
+    // Should have root with 2 children, child1 with 1 child
+    try testing.expectEqual(@as(usize, 1), flame_data.len); // 1 root
+    try testing.expect(std.mem.eql(u8, "root", flame_data[0].name));
+    try testing.expectEqual(@as(usize, 2), flame_data[0].children.len); // child1, child2
+    try testing.expect(flame_data[0].total_time_ns > 2_000_000); // > 2ms inclusive
+    try testing.expect(flame_data[0].children[0].children.len == 1); // child1 has grandchild
+}
+
+test "flame graph self time excludes children" {
+    const allocator = testing.allocator;
+    var profiler = try Profiler.init(allocator, 16.0);
+    defer profiler.deinit();
+
+    try profiler.beginScope("parent");
+    std.Thread.sleep(1_000_000); // 1ms self
+    try profiler.beginScope("child");
+    std.Thread.sleep(500_000); // 0.5ms child
+    try profiler.endScope();
+    std.Thread.sleep(500_000); // 0.5ms more self
+    try profiler.endScope();
+
+    const flame_data = try profiler.flameGraphData(allocator);
+    defer {
+        for (flame_data) |*frame| {
+            var mutable_frame = frame.*;
+            mutable_frame.deinitRecursive(allocator);
+        }
+        allocator.free(flame_data);
+    }
+
+    const parent = flame_data[0];
+    // self_time should be ~1.5ms (total 2ms - child 0.5ms)
+    try testing.expect(parent.self_time_ns < parent.total_time_ns);
+    try testing.expect(parent.self_time_ns >= 1_000_000); // at least 1ms self
+    try testing.expect(parent.total_time_ns >= 2_000_000); // at least 2ms total
+}
+
+test "flame graph multiple sibling scopes" {
+    const allocator = testing.allocator;
+    var profiler = try Profiler.init(allocator, 16.0);
+    defer profiler.deinit();
+
+    try profiler.beginScope("root");
+    try profiler.beginScope("sibling1");
+    std.Thread.sleep(100_000);
+    try profiler.endScope();
+    try profiler.beginScope("sibling2");
+    std.Thread.sleep(200_000);
+    try profiler.endScope();
+    try profiler.beginScope("sibling3");
+    std.Thread.sleep(150_000);
+    try profiler.endScope();
+    try profiler.endScope();
+
+    const flame_data = try profiler.flameGraphData(allocator);
+    defer {
+        for (flame_data) |*frame| {
+            var mutable_frame = frame.*;
+            mutable_frame.deinitRecursive(allocator);
+        }
+        allocator.free(flame_data);
+    }
+
+    try testing.expectEqual(@as(usize, 3), flame_data[0].children.len);
+    try testing.expect(std.mem.eql(u8, "sibling1", flame_data[0].children[0].name));
+    try testing.expect(std.mem.eql(u8, "sibling2", flame_data[0].children[1].name));
+    try testing.expect(std.mem.eql(u8, "sibling3", flame_data[0].children[2].name));
+}
+
+test "flame graph error on unmatched endScope" {
+    const allocator = testing.allocator;
+    var profiler = try Profiler.init(allocator, 16.0);
+    defer profiler.deinit();
+
+    const result = profiler.endScope();
+    try testing.expectError(error.NoScopeToEnd, result);
+}
+
+test "extended widget metrics track render count" {
+    const allocator = testing.allocator;
+    var profiler = try Profiler.init(allocator, 16.0);
+    defer profiler.deinit();
+
+    // Simulate 3 renders of button widget
+    try profiler.record("button", 1_000_000);
+    try profiler.record("button", 1_200_000);
+    try profiler.record("button", 900_000);
+
+    const metrics = try profiler.getWidgetMetrics("button");
+    try testing.expectEqual(@as(usize, 3), metrics.render_count);
+    try testing.expectEqual(@as(u64, 1_033_333), metrics.avg_duration_ns); // (1.0 + 1.2 + 0.9) / 3
+}
+
+test "extended widget metrics track cache hits and misses" {
+    const allocator = testing.allocator;
+    var profiler = try Profiler.init(allocator, 16.0);
+    defer profiler.deinit();
+
+    // Record widget with cache hits/misses
+    try profiler.recordWithCache("table", 2_000_000, true); // cache hit
+    try profiler.recordWithCache("table", 5_000_000, false); // cache miss
+    try profiler.recordWithCache("table", 2_100_000, true); // cache hit
+
+    const metrics = try profiler.getWidgetMetrics("table");
+    try testing.expectEqual(@as(usize, 3), metrics.render_count);
+    try testing.expectEqual(@as(usize, 2), metrics.cache_hits);
+    try testing.expectEqual(@as(usize, 1), metrics.cache_misses);
+
+    // Cache hit rate should be ~66.67%
+    const hit_rate = metrics.cacheHitRate();
+    try testing.expectApproxEqAbs(@as(f64, 0.6667), hit_rate, 0.01);
 }
