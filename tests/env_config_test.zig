@@ -16,26 +16,15 @@ const builtin = @import("builtin");
 // Environment Variable Helpers
 // ============================================================================
 
-// C library bindings for setting/unsetting environment variables
-// POSIX: setenv/unsetenv
-// Windows: _putenv_s/_putenv
-const setenv = if (builtin.os.tag == .windows)
-    struct {
-        extern "c" fn _putenv_s(key: [*:0]const u8, value: [*:0]const u8) c_int;
-    }._putenv_s
-else
-    struct {
-        extern "c" fn setenv(key: [*:0]const u8, value: [*:0]const u8, overwrite: c_int) c_int;
-    }.setenv;
-
-const unsetenv = if (builtin.os.tag == .windows)
-    struct {
-        extern "c" fn _putenv(envstring: [*:0]const u8) c_int;
-    }._putenv
-else
-    struct {
-        extern "c" fn unsetenv(key: [*:0]const u8) c_int;
-    }.unsetenv;
+// Platform-specific C library bindings
+// Separate declarations to avoid linker seeing unused extern symbols
+const c = if (builtin.os.tag == .windows) struct {
+    extern "c" fn _putenv_s(key: [*:0]const u8, value: [*:0]const u8) c_int;
+    extern "c" fn _putenv(envstring: [*:0]const u8) c_int;
+} else struct {
+    extern "c" fn setenv(key: [*:0]const u8, value: [*:0]const u8, overwrite: c_int) c_int;
+    extern "c" fn unsetenv(key: [*:0]const u8) c_int;
+};
 
 /// Wrapper around C setenv with Zig slices
 fn env_setenv(key: []const u8, value: []const u8, overwrite: bool) !void {
@@ -52,9 +41,9 @@ fn env_setenv(key: []const u8, value: []const u8, overwrite: bool) !void {
     value_buf[value.len] = 0;
 
     const rc = if (builtin.os.tag == .windows)
-        setenv(@ptrCast(&key_buf), @ptrCast(&value_buf))
+        c._putenv_s(@ptrCast(&key_buf), @ptrCast(&value_buf))
     else
-        setenv(@ptrCast(&key_buf), @ptrCast(&value_buf), if (overwrite) 1 else 0);
+        c.setenv(@ptrCast(&key_buf), @ptrCast(&value_buf), if (overwrite) 1 else 0);
 
     if (rc != 0) return error.SetenvFailed;
 }
@@ -69,14 +58,14 @@ fn env_unsetenv(key: []const u8) !void {
         @memcpy(key_buf[0..key.len], key);
         key_buf[key.len] = '=';
         key_buf[key.len + 1] = 0;
-        const rc = unsetenv(@ptrCast(&key_buf));
+        const rc = c._putenv(@ptrCast(&key_buf));
         if (rc != 0) return error.UnsetenvFailed;
     } else {
         // POSIX: unsetenv("KEY")
         if (key.len >= key_buf.len) return error.KeyTooLong;
         @memcpy(key_buf[0..key.len], key);
         key_buf[key.len] = 0;
-        const rc = unsetenv(@ptrCast(&key_buf));
+        const rc = c.unsetenv(@ptrCast(&key_buf));
         if (rc != 0) return error.UnsetenvFailed;
     }
 }
@@ -138,6 +127,9 @@ test "env.get returns default when env var is not set" {
 }
 
 test "env.get returns empty string when env var is empty" {
+    // Windows doesn't preserve empty env vars (unsets them instead)
+    if (builtin.os.tag == .windows) return error.SkipZigTest;
+
     const allocator = std.testing.allocator;
 
     try env_setenv("EMPTY_VAR", "", true);
@@ -177,6 +169,9 @@ test "env.get handles special characters in env var" {
 }
 
 test "env.get handles unicode in env var" {
+    // Windows uses UTF-16 for env vars, may not preserve UTF-8 correctly
+    if (builtin.os.tag == .windows) return error.SkipZigTest;
+
     const allocator = std.testing.allocator;
     const unicode_value = "hello 世界 🚀";
 
@@ -292,6 +287,9 @@ test "env.getBool treats invalid value as false" {
 }
 
 test "env.getBool handles empty string as false" {
+    // Windows doesn't preserve empty env vars
+    if (builtin.os.tag == .windows) return error.SkipZigTest;
+
     try env_setenv("BOOL_TEST", "", true);
     defer _ = env_unsetenv("BOOL_TEST") catch {};
 
