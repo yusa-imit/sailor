@@ -17,26 +17,31 @@ const builtin = @import("builtin");
 // ============================================================================
 
 // Platform-specific C library bindings
-// Only declare the platform-specific functions to avoid linker seeing unused symbols
-const is_windows = builtin.os.tag == .windows;
+// Conditional compilation to completely exclude unused externs from the build
+const c_env = switch (builtin.os.tag) {
+    .windows => struct {
+        extern "c" fn _putenv_s(key: [*:0]const u8, value: [*:0]const u8) c_int;
+        extern "c" fn _putenv(envstring: [*:0]const u8) c_int;
 
-// Windows-only externs (only evaluated on Windows)
-const _putenv_s = if (is_windows) struct {
-    extern "c" fn _putenv_s(key: [*:0]const u8, value: [*:0]const u8) c_int;
-}._putenv_s else {};
+        pub inline fn set_env(key: [*:0]const u8, value: [*:0]const u8, _: c_int) c_int {
+            return _putenv_s(key, value);
+        }
+        pub inline fn unset_env(envstring: [*:0]const u8) c_int {
+            return _putenv(envstring);
+        }
+    },
+    else => struct {
+        extern "c" fn setenv(key: [*:0]const u8, value: [*:0]const u8, overwrite: c_int) c_int;
+        extern "c" fn unsetenv(key: [*:0]const u8) c_int;
 
-const _putenv = if (is_windows) struct {
-    extern "c" fn _putenv(envstring: [*:0]const u8) c_int;
-}._putenv else {};
-
-// POSIX-only externs (only evaluated on POSIX)
-const setenv = if (!is_windows) struct {
-    extern "c" fn setenv(key: [*:0]const u8, value: [*:0]const u8, overwrite: c_int) c_int;
-}.setenv else {};
-
-const unsetenv = if (!is_windows) struct {
-    extern "c" fn unsetenv(key: [*:0]const u8) c_int;
-}.unsetenv else {};
+        pub inline fn set_env(key: [*:0]const u8, value: [*:0]const u8, overwrite: c_int) c_int {
+            return setenv(key, value, overwrite);
+        }
+        pub inline fn unset_env(key: [*:0]const u8) c_int {
+            return unsetenv(key);
+        }
+    },
+};
 
 /// Wrapper around C setenv with Zig slices
 fn env_setenv(key: []const u8, value: []const u8, overwrite: bool) !void {
@@ -52,10 +57,7 @@ fn env_setenv(key: []const u8, value: []const u8, overwrite: bool) !void {
     @memcpy(value_buf[0..value.len], value);
     value_buf[value.len] = 0;
 
-    const rc = if (builtin.os.tag == .windows)
-        _putenv_s(@ptrCast(&key_buf), @ptrCast(&value_buf))
-    else
-        setenv(@ptrCast(&key_buf), @ptrCast(&value_buf), if (overwrite) 1 else 0);
+    const rc = c_env.set_env(@ptrCast(&key_buf), @ptrCast(&value_buf), if (overwrite) 1 else 0);
 
     if (rc != 0) return error.SetenvFailed;
 }
@@ -64,22 +66,20 @@ fn env_setenv(key: []const u8, value: []const u8, overwrite: bool) !void {
 fn env_unsetenv(key: []const u8) !void {
     var key_buf: [512]u8 = undefined;
 
+    // Windows needs "KEY=" format, POSIX just "KEY"
     if (builtin.os.tag == .windows) {
-        // Windows: _putenv("KEY=") to unset
         if (key.len + 2 >= key_buf.len) return error.KeyTooLong;
         @memcpy(key_buf[0..key.len], key);
         key_buf[key.len] = '=';
         key_buf[key.len + 1] = 0;
-        const rc = _putenv(@ptrCast(&key_buf));
-        if (rc != 0) return error.UnsetenvFailed;
     } else {
-        // POSIX: unsetenv("KEY")
         if (key.len >= key_buf.len) return error.KeyTooLong;
         @memcpy(key_buf[0..key.len], key);
         key_buf[key.len] = 0;
-        const rc = unsetenv(@ptrCast(&key_buf));
-        if (rc != 0) return error.UnsetenvFailed;
     }
+
+    const rc = c_env.unset_env(@ptrCast(&key_buf));
+    if (rc != 0) return error.UnsetenvFailed;
 }
 
 // ============================================================================
