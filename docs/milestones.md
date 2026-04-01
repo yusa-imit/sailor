@@ -4,13 +4,47 @@
 
 - **Latest release**: v1.29.0 (2026-04-01) — Documentation Completion
 - **Latest minor**: v1.29.0 (2026-04-01) — Documentation Completion
-- **Next milestone**: TBD (awaiting v2.0.0 RFC approval or new feature requests)
-- **Active milestones**: 0
+- **Next milestone**: v1.30.0 — Error Handling & Debugging Enhancements
+- **Active milestones**: 3 (v1.30.0, v1.31.0, v1.32.0)
 - **Blockers**: None
 
 ## Active Milestones
 
-(None — v1.29.0 released, awaiting v2.0.0 approval)
+### v1.30.0 — Error Handling & Debugging Enhancements (NEW)
+**Theme**: Improve error messages, diagnostics, and debugging experience
+**Target**: 2026-04 (1 week)
+**Rationale**: Better developer experience for consumer projects during v2.0 planning phase
+**Checklist**:
+- [ ] Enhanced error context - structured error reporting with source locations
+- [ ] Error message formatting - consistent, helpful error messages across all modules
+- [ ] Debug logging system - conditional debug output (env-based)
+- [ ] Stack trace helpers - better panic messages with context
+- [ ] Validation utilities - pre-condition/post-condition helpers for internal APIs
+- [ ] Error recovery examples - demonstrate error handling patterns
+
+### v1.31.0 — Performance Profiling & Optimization Tools (NEW)
+**Theme**: Built-in profiling and performance analysis
+**Target**: 2026-04 (1-2 weeks)
+**Rationale**: Help consumer projects identify bottlenecks in their TUI apps
+**Checklist**:
+- [ ] Render profiler enhancements - per-widget timing, flame graphs
+- [ ] Memory allocation tracker - identify allocation hot spots
+- [ ] Event loop profiler - measure event processing latency
+- [ ] Widget performance metrics - render count, cache hit rates
+- [ ] Profiling examples - profile_demo.zig with real-world scenarios
+- [ ] Optimization guide - docs/optimization.md with profiling best practices
+
+### v1.32.0 — Advanced Layout Features (NEW)
+**Theme**: Enhanced layout capabilities for complex UIs
+**Target**: 2026-04 (1-2 weeks)
+**Rationale**: Address common consumer project layout pain points
+**Checklist**:
+- [ ] Nested Grid layouts - grid-within-grid support with auto-sizing
+- [ ] Aspect ratio constraints - maintain widget aspect ratios during resize
+- [ ] Min/max size propagation - layout solver respects nested constraints
+- [ ] Auto-margin/padding - smart spacing between widgets
+- [ ] Layout debugging - visual layout tree inspector
+- [ ] Complex layout examples - dashboard_advanced.zig with nested layouts
 
 ### v1.28.0 — Ecosystem Integration & Polish (COMPLETED 2026-04-01)
 **Theme**: zuda integration, consumer feedback, final polish
