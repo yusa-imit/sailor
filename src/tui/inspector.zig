@@ -829,3 +829,500 @@ pub const Inspector = struct {
         try writer.writeAll("}");
     }
 };
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "Inspector.init and deinit" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    try std.testing.expect(!inspector.isEnabled());
+    try std.testing.expectEqual(@as(usize, 0), inspector.getWidgetCount());
+}
+
+test "Inspector.enable and disable" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    try std.testing.expect(!inspector.isEnabled());
+
+    inspector.enable();
+    try std.testing.expect(inspector.isEnabled());
+
+    inspector.disable();
+    try std.testing.expect(!inspector.isEnabled());
+}
+
+test "Inspector.recordWidget creates widget with unique ID" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const area = Rect{ .x = 10, .y = 20, .width = 100, .height = 50 };
+    const id1 = inspector.recordWidget("test_widget", area);
+    const id2 = inspector.recordWidget("another_widget", area);
+
+    try std.testing.expect(id1 > 0);
+    try std.testing.expect(id2 > 0);
+    try std.testing.expect(id1 != id2);
+    try std.testing.expectEqual(@as(usize, 2), inspector.getWidgetCount());
+}
+
+test "Inspector.recordWidget returns 0 when disabled" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    const id = inspector.recordWidget("disabled_widget", area);
+
+    try std.testing.expectEqual(@as(u32, 0), id);
+    try std.testing.expectEqual(@as(usize, 0), inspector.getWidgetCount());
+}
+
+test "Inspector.recordWidgetWithParent establishes parent-child relationship" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const parent_area = Rect{ .x = 0, .y = 0, .width = 200, .height = 100 };
+    const child_area = Rect{ .x = 10, .y = 10, .width = 50, .height = 30 };
+
+    const parent_id = inspector.recordWidget("parent", parent_area);
+    const child_id = inspector.recordWidgetWithParent("child", child_area, parent_id);
+
+    const child_info = inspector.getWidgetInfo(child_id).?;
+    try std.testing.expectEqual(parent_id, child_info.parent_id.?);
+
+    const parent_info = inspector.getWidgetInfo(parent_id).?;
+    try std.testing.expectEqual(@as(usize, 1), parent_info.children.len);
+    try std.testing.expectEqual(child_id, parent_info.children[0]);
+}
+
+test "Inspector.setWidgetProperty stores and retrieves properties" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
+    const id = inspector.recordWidget("test", area);
+
+    try inspector.setWidgetProperty(id, "color", "blue");
+    try inspector.setWidgetProperty(id, "visible", "true");
+
+    const info = inspector.getWidgetInfo(id).?;
+    try std.testing.expectEqualStrings("blue", info.getProperty("color").?);
+    try std.testing.expectEqualStrings("true", info.getProperty("visible").?);
+    try std.testing.expect(info.getProperty("nonexistent") == null);
+}
+
+test "Inspector.setWidgetProperty replaces existing value" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
+    const id = inspector.recordWidget("test", area);
+
+    try inspector.setWidgetProperty(id, "status", "active");
+    try inspector.setWidgetProperty(id, "status", "inactive");
+
+    const info = inspector.getWidgetInfo(id).?;
+    try std.testing.expectEqualStrings("inactive", info.getProperty("status").?);
+}
+
+test "Inspector.setWidgetProperty returns error for invalid widget ID" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const result = inspector.setWidgetProperty(999, "key", "value");
+    try std.testing.expectError(error.WidgetNotFound, result);
+}
+
+test "Inspector.recordConstraint stores constraint information" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
+    const id = inspector.recordWidget("test", area);
+
+    const constraint = Constraint{ .length = 80 };
+    inspector.recordConstraint(id, constraint, .horizontal, 100);
+
+    const layout = inspector.getLayoutInfo(id).?;
+    try std.testing.expectEqual(@as(usize, 1), layout.constraints.len);
+    try std.testing.expectEqual(@as(u16, 100), layout.available_width);
+    try std.testing.expectEqual(@as(u16, 0), layout.available_height);
+}
+
+test "Inspector.recordLayoutCalculation stores calculated area" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
+    const id = inspector.recordWidget("test", area);
+
+    const calculated = Rect{ .x = 5, .y = 10, .width = 80, .height = 40 };
+    inspector.recordLayoutCalculation(id, calculated);
+
+    const layout = inspector.getLayoutInfo(id).?;
+    try std.testing.expectEqual(calculated, layout.calculated_area);
+}
+
+test "Inspector.recordLayoutCalculation by widget name" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
+    _ = inspector.recordWidget("named_widget", area);
+
+    const calculated = Rect{ .x = 10, .y = 20, .width = 60, .height = 30 };
+    inspector.recordLayoutCalculation("named_widget", calculated);
+
+    // Verify by finding widget manually
+    for (inspector.widget_order.items) |id| {
+        const widget = inspector.widgets.get(id).?;
+        if (std.mem.eql(u8, widget.name, "named_widget")) {
+            const layout = inspector.getLayoutInfo(id).?;
+            try std.testing.expectEqual(calculated, layout.calculated_area);
+            return;
+        }
+    }
+    try std.testing.expect(false); // Widget not found
+}
+
+test "Inspector.recordEvent stores events with timestamp" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const event1 = EventData{ .keyboard = 'a' };
+    const event2 = EventData{ .mouse_move = .{ .x = 10, .y = 20 } };
+
+    inspector.recordEvent(event1);
+    inspector.recordEvent(event2);
+
+    const events = inspector.getEvents();
+    try std.testing.expectEqual(@as(usize, 2), events.len);
+    try std.testing.expectEqual(EventType.keyboard, events[0].event_type);
+    try std.testing.expectEqual(EventType.mouse_move, events[1].event_type);
+}
+
+test "Inspector.recordEvent prunes old events when max_events exceeded" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+    inspector.setMaxEvents(5);
+
+    var i: u8 = 0;
+    while (i < 10) : (i += 1) {
+        inspector.recordEvent(EventData{ .keyboard = i });
+    }
+
+    const events = inspector.getEvents();
+    try std.testing.expectEqual(@as(usize, 5), events.len);
+    try std.testing.expectEqual(@as(u8, 5), events[0].data.keyboard); // Oldest kept
+    try std.testing.expectEqual(@as(u8, 9), events[4].data.keyboard); // Newest
+}
+
+test "Inspector.getEventsByType filters events correctly" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    inspector.recordEvent(EventData{ .keyboard = 'a' });
+    inspector.recordEvent(EventData{ .mouse_move = .{ .x = 10, .y = 20 } });
+    inspector.recordEvent(EventData{ .keyboard = 'b' });
+    inspector.recordEvent(EventData{ .resize = .{ .cols = 80, .rows = 24 } });
+
+    const keyboard_events = try inspector.getEventsByType(.keyboard);
+    defer allocator.free(keyboard_events);
+
+    try std.testing.expectEqual(@as(usize, 2), keyboard_events.len);
+    try std.testing.expectEqual(@as(u8, 'a'), keyboard_events[0].data.keyboard);
+    try std.testing.expectEqual(@as(u8, 'b'), keyboard_events[1].data.keyboard);
+}
+
+test "Inspector.clearEvents removes all events" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    inspector.recordEvent(EventData{ .keyboard = 'a' });
+    inspector.recordEvent(EventData{ .keyboard = 'b' });
+
+    try std.testing.expectEqual(@as(usize, 2), inspector.getEvents().len);
+
+    inspector.clearEvents();
+    try std.testing.expectEqual(@as(usize, 0), inspector.getEvents().len);
+}
+
+test "Inspector.getWidgetDepth calculates hierarchy depth" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
+    const root = inspector.recordWidget("root", area);
+    const child = inspector.recordWidgetWithParent("child", area, root);
+    const grandchild = inspector.recordWidgetWithParent("grandchild", area, child);
+
+    try std.testing.expectEqual(@as(usize, 0), inspector.getWidgetDepth(root));
+    try std.testing.expectEqual(@as(usize, 1), inspector.getWidgetDepth(child));
+    try std.testing.expectEqual(@as(usize, 2), inspector.getWidgetDepth(grandchild));
+}
+
+test "Inspector.getSiblings returns sibling widget IDs" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
+    const parent = inspector.recordWidget("parent", area);
+    const child1 = inspector.recordWidgetWithParent("child1", area, parent);
+    const child2 = inspector.recordWidgetWithParent("child2", area, parent);
+    const child3 = inspector.recordWidgetWithParent("child3", area, parent);
+
+    var siblings = try inspector.getSiblings(allocator, child2);
+    defer siblings.deinit(allocator);
+
+    try std.testing.expectEqual(@as(usize, 2), siblings.items.len);
+    try std.testing.expect(std.mem.indexOfScalar(u32, siblings.items, child1) != null);
+    try std.testing.expect(std.mem.indexOfScalar(u32, siblings.items, child3) != null);
+    try std.testing.expect(std.mem.indexOfScalar(u32, siblings.items, child2) == null);
+}
+
+test "Inspector.detectLayoutViolations detects overflow" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const parent_area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
+    const overflow_area = Rect{ .x = 50, .y = 50, .width = 100, .height = 100 }; // Extends beyond parent
+
+    const parent = inspector.recordWidget("parent", parent_area);
+    _ = inspector.recordWidgetWithParent("overflow_child", overflow_area, parent);
+
+    var violations = try inspector.detectLayoutViolations(allocator);
+    defer {
+        for (violations.items) |*v| {
+            v.deinit();
+        }
+        violations.deinit(allocator);
+    }
+
+    try std.testing.expectEqual(@as(usize, 1), violations.items.len);
+    try std.testing.expectEqualStrings("overflow", violations.items[0].violation_type);
+}
+
+test "Inspector.beginFrame and endFrame manage frame snapshots" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
+
+    // Frame 1
+    inspector.beginFrame();
+    const id1 = inspector.recordWidget("widget1", area);
+    inspector.endFrame();
+
+    // Frame 2
+    inspector.beginFrame();
+    const id2 = inspector.recordWidget("widget2", area);
+    inspector.endFrame();
+
+    try std.testing.expectEqual(@as(usize, 2), inspector.getFrameCount());
+
+    const frame0_widgets = inspector.getFrameWidgets(0);
+    try std.testing.expectEqual(@as(usize, 1), frame0_widgets.len);
+    try std.testing.expectEqual(id1, frame0_widgets[0]);
+
+    const frame1_widgets = inspector.getFrameWidgets(1);
+    try std.testing.expectEqual(@as(usize, 1), frame1_widgets.len);
+    try std.testing.expectEqual(id2, frame1_widgets[0]);
+}
+
+test "Inspector.getFrameWidgets returns empty for invalid index" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const widgets = inspector.getFrameWidgets(999);
+    try std.testing.expectEqual(@as(usize, 0), widgets.len);
+}
+
+test "Inspector.writeWidgetTree outputs empty tree message" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    var buf = ArrayList(u8){};
+    defer buf.deinit(allocator);
+
+    try inspector.writeWidgetTree(buf.writer(allocator));
+    try std.testing.expectEqualStrings("(empty widget tree)\n", buf.items);
+}
+
+test "Inspector.writeWidgetTree outputs hierarchy" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const area = Rect{ .x = 10, .y = 20, .width = 100, .height = 50 };
+    const parent = inspector.recordWidget("parent", area);
+    _ = inspector.recordWidgetWithParent("child", area, parent);
+
+    var buf = ArrayList(u8){};
+    defer buf.deinit(allocator);
+
+    try inspector.writeWidgetTree(buf.writer(allocator));
+
+    try std.testing.expect(std.mem.indexOf(u8, buf.items, "parent") != null);
+    try std.testing.expect(std.mem.indexOf(u8, buf.items, "child") != null);
+    try std.testing.expect(std.mem.indexOf(u8, buf.items, "100x50") != null);
+}
+
+test "Inspector.writeLayoutInfo outputs layout details" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
+    const id = inspector.recordWidget("test_widget", area);
+
+    const constraint = Constraint{ .percentage = 50 };
+    inspector.recordConstraint(id, constraint, .horizontal, 200);
+
+    var buf = ArrayList(u8){};
+    defer buf.deinit(allocator);
+
+    try inspector.writeLayoutInfo(buf.writer(allocator));
+
+    try std.testing.expect(std.mem.indexOf(u8, buf.items, "test_widget") != null);
+    try std.testing.expect(std.mem.indexOf(u8, buf.items, "percentage(50%)") != null);
+    try std.testing.expect(std.mem.indexOf(u8, buf.items, "available=200") != null);
+}
+
+test "Inspector.writeEventLog outputs events" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    inspector.recordEvent(EventData{ .keyboard = 'x' });
+    inspector.recordEvent(EventData{ .mouse_click = .{ .x = 50, .y = 30, .button = .left } });
+
+    var buf = ArrayList(u8){};
+    defer buf.deinit(allocator);
+
+    try inspector.writeEventLog(buf.writer(allocator));
+
+    try std.testing.expect(std.mem.indexOf(u8, buf.items, "keyboard") != null);
+    try std.testing.expect(std.mem.indexOf(u8, buf.items, "mouse click") != null);
+    try std.testing.expect(std.mem.indexOf(u8, buf.items, "left") != null);
+}
+
+test "Inspector.writeJSON outputs valid JSON structure" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const area = Rect{ .x = 10, .y = 20, .width = 100, .height = 50 };
+    _ = inspector.recordWidget("widget1", area);
+
+    inspector.recordEvent(EventData{ .keyboard = 'a' });
+
+    var buf = ArrayList(u8){};
+    defer buf.deinit(allocator);
+
+    try inspector.writeJSON(buf.writer(allocator));
+
+    // Basic JSON structure validation
+    try std.testing.expect(std.mem.startsWith(u8, buf.items, "{"));
+    try std.testing.expect(std.mem.endsWith(u8, buf.items, "}"));
+    try std.testing.expect(std.mem.indexOf(u8, buf.items, "\"widgets\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, buf.items, "\"events\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, buf.items, "widget1") != null);
+}
+
+test "Inspector.getWidgetTree builds tree structure" {
+    const allocator = std.testing.allocator;
+    var inspector = try Inspector.init(allocator);
+    defer inspector.deinit();
+
+    inspector.enable();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
+    const root = inspector.recordWidget("root", area);
+    const child1 = inspector.recordWidgetWithParent("child1", area, root);
+    _ = inspector.recordWidgetWithParent("child2", area, root);
+
+    const tree = inspector.getWidgetTree();
+    try std.testing.expect(tree != null);
+
+    const root_node = tree.?;
+    defer {
+        const mutable_node = @constCast(root_node);
+        mutable_node.deinit(allocator);
+        allocator.destroy(mutable_node);
+    }
+
+    try std.testing.expectEqualStrings("root", root_node.name);
+    try std.testing.expectEqual(@as(usize, 2), root_node.children.len);
+
+    // Verify children IDs
+    const child1_found = for (root_node.children) |child| {
+        if (child.id == child1) break true;
+    } else false;
+    try std.testing.expect(child1_found);
+}
