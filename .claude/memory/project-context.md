@@ -5,14 +5,35 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.30.0** 🎉 (2026-04-01)
-- Previous versions: v1.29.0, v1.28.0, v1.27.0, v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.30.1** 🎉 (2026-04-01 — patch release)
+- Previous versions: v1.30.0, v1.29.0, v1.28.0, v1.27.0, v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
 - **Active milestone**: v1.31.0 — Performance Profiling & Optimization Tools
 - **Last completed**: v1.30.0 → Error Handling & Debugging Enhancements (6/6, 100%) ✅
 
 ## Project Status
+✅ **Session 53** — FEATURE MODE (pivoted to bugfix): v1.30.1 Patch Release (2026-04-01)
+  - **Mode**: FEATURE (session 53, 53 % 5 != 0)
+  - **Pivoted to critical bug**: zr reported #14 — std.BoundedArray breaks Zig 0.15
+  - **Root cause**: tree.zig used deprecated std.BoundedArray (removed in Zig 0.14+)
+  - **Impact**: Consumer projects (zr) couldn't migrate from v1.25.0 → v1.30.0
+
+  **Fix (commit 9f5b410)**:
+    - Replaced `std.BoundedArray(FlatNode, 256)` with `std.BoundedArrayAligned(FlatNode, null, 256)`
+    - Updated both function signature (line 145) and usage (line 170)
+    - Zero functional changes — API-compatible drop-in replacement
+    - All tests pass (3405 tests, 0 failures)
+
+  **Patch release v1.30.1**:
+    - Tag created: v1.30.1 (commit 9f5b410)
+    - GitHub release: https://github.com/yusa-imit/sailor/releases/tag/v1.30.1
+    - Migration issues: zr#44, zoltraak#21, silica#30
+    - Discord notification sent
+    - Issue #14 closed with fix details
+
+  **Outcome**: Restores Zig 0.15 compatibility, unblocks consumer migrations
+
 ✅ **Session 52** — FEATURE MODE: v1.30.0 Complete & Released (2026-04-01)
   - **Mode**: FEATURE (session 52, 52 % 5 != 0)
   - **Milestone established**: Created v1.30.0-v1.32.0 after v1.29.0 completion
