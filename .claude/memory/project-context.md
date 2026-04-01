@@ -13,6 +13,23 @@
 - **Last completed**: v1.30.0 → Error Handling & Debugging Enhancements (6/6, 100%) ✅
 
 ## Project Status
+✅ **Session 54** — FEATURE MODE: v1.31.0 Implementation Started (2026-04-02)
+  - **Mode**: FEATURE (session 54, 54 % 5 != 0)
+  - **Milestone**: v1.31.0 — Performance Profiling & Optimization Tools (1/6 complete)
+  - **Implemented**: Render profiler enhancements (flame graph + extended metrics)
+
+  **Feature (commit 65b3c1b)**:
+    - **Flame Graph Support**: ProfilerFrame struct with hierarchical timing (self_time_ns, total_time_ns, children)
+    - beginScope(name) / endScope() RAII-style nested profiling
+    - flameGraphData(allocator) exports visualization data
+    - Error handling: error.NoScopeToEnd for unmatched scopes
+    - **Extended Widget Metrics**: WidgetMetrics (render_count, cache_hits/misses, avg_duration_ns, cacheHitRate())
+    - recordWithCache() for cache performance tracking
+    - getWidgetMetrics(widget_name) aggregates metrics
+
+  **Testing**: +6 tests (total 18 profiler tests, 3411 overall), all pass, 0 leaks
+  **Next**: v1.31.0 items 2-6 (memory tracker, event loop profiler, examples, docs)
+
 ✅ **Session 53** — FEATURE MODE (pivoted to bugfix): v1.30.1 Patch Release (2026-04-01)
   - **Mode**: FEATURE (session 53, 53 % 5 != 0)
   - **Pivoted to critical bug**: zr reported #14 — std.BoundedArray breaks Zig 0.15
