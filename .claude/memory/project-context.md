@@ -13,6 +13,26 @@
 - **Last completed**: v1.29.0 → Documentation Completion (4/4, 100%) ✅
 
 ## Project Status
+✅ **Session 51** — FEATURE MODE (pivoted to bugfix): Windows env.zig Linker Fix (2026-04-01)
+  - **Mode**: FEATURE (session 51, 51 % 5 != 0)
+  - **Pivoted to bug fix**: CI check revealed Windows tests FAILING (not cancelled)
+  - **Root cause**: src/env.zig tests use POSIX setenv/unsetenv (don't exist on Windows)
+  - **Impact**: 31 test cases failed to link with "undefined symbol: setenv/unsetenv"
+
+  **Fix (commit 77111fb)**:
+    - Applied same pattern from env_config_test.zig (Session 50)
+    - Platform-specific c_env struct: Windows (_putenv_s/_putenv) vs POSIX (setenv/unsetenv)
+    - Unified wrapper functions handle platform differences
+    - Windows unsetenv: Format key as "KEY=" before calling _putenv()
+    - All 31 tests now compile on both platforms
+
+  **Testing**:
+    - macOS local: ✅ All tests pass (3393 tests, 0 failures)
+    - Windows CI: ⏳ In progress (awaiting verification)
+    - Cross-compile x86_64-windows-msvc: ✅ Builds successfully
+
+  **Outcome**: Windows CI should now be green (final verification pending)
+
 ✅ **Session 50** — STABILIZATION MODE: Windows CI Compatibility Fixes (2026-04-01)
   - **CI Status**: Windows tests FAILING → FIXED across 3 commits
   - **Total fixes: 10 issues** (4 compilation + 2 linker + 1 API + 3 test quirks)
