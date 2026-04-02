@@ -5,14 +5,63 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.30.2** 🎉 (2026-04-02 — critical patch release)
-- Previous versions: v1.30.0, v1.29.0, v1.28.0, v1.27.0, v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.31.0** 🎉 (2026-04-02 — performance profiling & optimization tools)
+- Previous versions: v1.30.2, v1.30.0, v1.29.0, v1.28.0, v1.27.0, v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1, v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: v1.31.0 — Performance Profiling & Optimization Tools
-- **Last completed**: v1.30.0 → Error Handling & Debugging Enhancements (6/6, 100%) ✅
+- **Active milestone**: v1.32.0 — Advanced Layout Features
+- **Last completed**: v1.31.0 → Performance Profiling & Optimization Tools (6/6, 100%) ✅
 
 ## Project Status
+✅ **Session 57** — FEATURE MODE: v1.31.0 Complete & Released (2026-04-02)
+  - **Mode**: FEATURE (session 57, 57 % 5 != 0)
+  - **Milestone**: v1.31.0 — Performance Profiling & Optimization Tools (6/6, 100%)
+  - **Achievement**: Full milestone implemented and released in single session
+
+  **Features Implemented**:
+    1. ✅ Memory allocation tracker (AllocEvent, AllocStats, MemoryTracker)
+       - Hot spot analysis (getHotSpots)
+       - Leak detection (detectLeaks, hasLeak, leakCount)
+       - Peak tracking (totalPeakAllocated)
+       - Enable/disable, reset functionality
+    2. ✅ Event loop profiler (EventProcessingRecord, EventLoopStats, EventLoopProfiler)
+       - Latency tracking with RAII EventGuard
+       - Percentile analysis (p95, p99)
+       - Slow event detection (detectSlowEvents)
+       - Queue depth monitoring (avg_queue_depth)
+    3. ✅ Profiling demo example (examples/profile_demo.zig)
+       - Flame graph demonstration
+       - Memory hot spot tracking
+       - Event latency profiling
+       - Widget cache metrics
+    4. ✅ Optimization guide (docs/optimization.md)
+       - Profiling tools overview
+       - Render/memory/event optimization techniques
+       - Common bottlenecks identification
+       - Best practices (budgets, automation, iterative workflow)
+
+  **Testing**: +26 new tests (10 memory tracker + 10 event loop + 6 from session 54)
+    - Total profiler tests: 38 (was 12)
+    - All tests pass (3437 total, 100% pass rate)
+    - Cross-compilation: 6/6 targets successful
+
+  **Release v1.31.0** (autonomous):
+    - Version bumped: build.zig.zon (1.30.0 → 1.31.0)
+    - Tag created and pushed: v1.31.0
+    - GitHub Release: https://github.com/yusa-imit/sailor/releases/tag/v1.31.0
+    - Migration issues: zr#46, zoltraak#23, silica#32
+    - Discord notification sent
+    - Breaking changes: None (fully backward compatible)
+
+  **Implementation Commits**:
+    - 71b6769: feat(profiler): add memory allocation tracker (+10 tests)
+    - 7a5d4dd: feat(profiler): add event loop profiler for latency tracking (+10 tests)
+    - e008793: feat(examples): add profiling demo showcasing v1.31.0 features
+    - 0718ed6: docs: add comprehensive optimization guide for v1.31.0
+    - cd1b05b: chore: bump version to v1.31.0
+
+  **Next**: v1.32.0 — Advanced Layout Features (0/6, 0%)
+
 ✅ **Session 56** — FEATURE MODE (pivoted to bugfix): v1.30.2 Critical Patch Release (2026-04-02)
   - **Mode**: FEATURE (session 56, 56 % 5 != 0)
   - **Pivoted to critical bug**: zr reported #15 — BoundedArrayAligned breaks Zig 0.15.2
