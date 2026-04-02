@@ -17,7 +17,7 @@
 **Checklist**:
 - [x] Nested Grid layouts - grid-within-grid support with auto-sizing (Session 58: +9 tests, composition pattern, 3446 total tests)
 - [x] Aspect ratio constraints - maintain widget aspect ratios during resize (Session 58: Constraint.aspect_ratio, Rect.withAspectRatio(), +20 tests, 3466 total tests)
-- [ ] Min/max size propagation - layout solver respects nested constraints
+- [x] Min/max size propagation - layout solver respects nested constraints (Session 59: 4 enforcement strategies, +12 tests, 3478 total tests)
 - [ ] Auto-margin/padding - smart spacing between widgets
 - [ ] Layout debugging - visual layout tree inspector
 - [ ] Complex layout examples - dashboard_advanced.zig with nested layouts
