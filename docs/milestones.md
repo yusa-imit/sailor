@@ -2,39 +2,15 @@
 
 ## Current Status
 
-- **Latest release**: v1.30.0 (2026-04-01) — Error Handling & Debugging Enhancements
-- **Latest minor**: v1.30.0 (2026-04-01) — Error Handling & Debugging Enhancements
-- **Next milestone**: v1.31.0 — Performance Profiling & Optimization Tools
-- **Active milestones**: 2 (v1.31.0, v1.32.0)
+- **Latest release**: v1.31.0 (2026-04-02) — Performance Profiling & Optimization Tools
+- **Latest minor**: v1.31.0 (2026-04-02) — Performance Profiling & Optimization Tools
+- **Next milestone**: v1.32.0 — Advanced Layout Features
+- **Active milestones**: 1 (v1.32.0)
 - **Blockers**: None
 
 ## Active Milestones
 
-### v1.30.0 — Error Handling & Debugging Enhancements (COMPLETED 2026-04-01)
-**Theme**: Improve error messages, diagnostics, and debugging experience
-**Target**: 2026-04 (1 week)
-**Rationale**: Better developer experience for consumer projects during v2.0 planning phase
-**Checklist**:
-- [x] Enhanced error context - structured error reporting with source locations (error_context.zig)
-- [x] Error message formatting - consistent, helpful error messages across all modules
-- [x] Debug logging system - conditional debug output (env-based) (debug_log.zig, 13 tests)
-- [x] Stack trace helpers - better panic messages with context (stack_trace.zig, 10 tests)
-- [x] Validation utilities - pre-condition/post-condition helpers for internal APIs (validators.zig)
-- [x] Error recovery examples - demonstrate error handling patterns (error_handling_demo.zig)
-
-### v1.31.0 — Performance Profiling & Optimization Tools (COMPLETED 2026-04-02)
-**Theme**: Built-in profiling and performance analysis
-**Target**: 2026-04 (1-2 weeks)
-**Rationale**: Help consumer projects identify bottlenecks in their TUI apps
-**Checklist**:
-- [x] Render profiler enhancements - per-widget timing, flame graphs (Session 54: ProfilerFrame, beginScope/endScope, flameGraphData, +6 tests)
-- [x] Memory allocation tracker - identify allocation hot spots (Session 57: MemoryTracker, AllocStats, hot spots, leak detection, +10 tests)
-- [x] Event loop profiler - measure event processing latency (Session 57: EventLoopProfiler, EventLoopStats, percentiles p95/p99, slow event detection, +10 tests)
-- [x] Widget performance metrics - render count, cache hit rates (Session 54: WidgetMetrics, getWidgetMetrics, cacheHitRate)
-- [x] Profiling examples - profile_demo.zig with real-world scenarios (Session 57: flame graphs, memory hot spots, event latency, cache metrics)
-- [x] Optimization guide - docs/optimization.md with profiling best practices (Session 57: comprehensive guide with code examples, budgets, workflows)
-
-### v1.32.0 — Advanced Layout Features (NEW)
+### v1.32.0 — Advanced Layout Features
 **Theme**: Enhanced layout capabilities for complex UIs
 **Target**: 2026-04 (1-2 weeks)
 **Rationale**: Address common consumer project layout pain points
@@ -87,6 +63,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.31.0 | Performance Profiling & Optimization Tools | 2026-04-02 | Render profiler enhancements (flame graphs, beginScope/endScope, +6 tests), Memory allocation tracker (hot spots, leak detection, +10 tests), Event loop profiler (latency, percentiles p95/p99, +10 tests), Widget performance metrics (cache hit rates), Profiling demo (profile_demo.zig), Optimization guide (docs/optimization.md) — 3437 total tests, 0 breaking changes |
 | v1.30.0 | Error Handling & Debugging Enhancements | 2026-04-01 | Debug logging system (debug_log.zig, SAILOR_DEBUG env var, 13 tests), stack trace helpers (stack_trace.zig, assert/require/ensure, 10 tests), error recovery examples (error_handling_demo.zig), enhanced error context (error_context.zig), validators (validators.zig) — 3405 total tests, 0 breaking changes |
 | v1.29.0 | Documentation Completion | 2026-04-01 | API documentation 99.9% complete (1376/1378 functions, +25 from v1.28.0), documented: sixel.zig (2), budget.zig (3), test_utils.zig (4), session.zig (4), debugger.zig (5), notification.zig (2), particles.zig (6), terminal.zig (5) |
 | v1.28.0 | Ecosystem Integration & Polish | 2026-04-01 | zuda integration audit (no changes needed), 12 widget performance benchmarks (all <0.02ms/op, 228× faster than 60 FPS), v2.0.0 RFC planning (breaking changes, timeline: May-June 2026), 0 consumer issues |
