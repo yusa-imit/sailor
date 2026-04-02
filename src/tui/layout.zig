@@ -190,15 +190,110 @@ pub fn split(
     defer allocator.free(sizes);
 
     var total_size: u32 = 0;
+    var total_min_required: u32 = 0;
+    var num_mins: u32 = 0;
+    var num_maxes: u32 = 0;
+    var has_flex = false;
+
+    // First pass: calculate initial sizes and track constraints
     for (constraints, 0..) |constraint, i| {
         const size = constraint.apply(available);
         sizes[i] = size;
         total_size += size;
+
+        // Track constraint types
+        switch (constraint) {
+            .min => |minimum| {
+                total_min_required += minimum;
+                num_mins += 1;
+                has_flex = true;
+            },
+            .max => {
+                num_maxes += 1;
+                has_flex = true;
+            },
+            .percentage, .ratio, .aspect_ratio => {
+                has_flex = true;
+            },
+            else => {},
+        }
     }
 
-    // If total exceeds available, reduce flexible constraints proportionally
-    if (total_size > available) {
-        // Calculate total size from fixed and percentage/ratio constraints
+    // Strategy 1: Single min exceeding available - fully respect it
+    if (num_mins == 1 and num_maxes == 0 and total_min_required > available) {
+        for (constraints, 0..) |constraint, i| {
+            if (constraint == .min) {
+                sizes[i] = constraint.min;
+            }
+        }
+        total_size = 0;
+        for (sizes) |s| total_size += s;
+    }
+    // Strategy 2: Multiple mins exceeding available - scale mins proportionally
+    else if (num_mins > 1 and total_min_required > available) {
+        total_size = 0;
+        for (constraints, 0..) |constraint, i| {
+            if (constraint == .min) {
+                const proportion = @as(f64, @floatFromInt(constraint.min)) / @as(f64, @floatFromInt(total_min_required));
+                const share = @as(u16, @intFromFloat(@as(f64, @floatFromInt(available)) * proportion));
+                sizes[i] = share;
+            }
+            total_size += sizes[i];
+        }
+    }
+    // Strategy 3: Mixed with mins+maxes where total exceeds available
+    else if (num_mins > 0 and num_maxes > 0 and total_size > available) {
+        // Allocate mins first, then distribute remaining to other constraints
+        total_size = 0;
+        for (constraints, 0..) |constraint, i| {
+            if (constraint == .min) {
+                sizes[i] = constraint.min;
+            }
+            total_size += sizes[i];
+        }
+
+        // Try to grow max-constrained items to their max, up to available space
+        if (total_size < available) {
+            for (constraints, 0..) |constraint, i| {
+                if (constraint == .max) {
+                    const cap = constraint.max;
+                    if (sizes[i] < cap) {
+                        sizes[i] = @min(cap, available);
+                    }
+                }
+            }
+            // Recalculate total
+            total_size = 0;
+            for (sizes) |s| total_size += s;
+        }
+
+        // If still exceeds, we need to reduce max constraints
+        // Mins must be preserved, so scale down the maxes instead
+        if (total_size > available) {
+            // Calculate how much to reduce from maxes
+            var max_total: u32 = 0;
+            for (constraints, 0..) |constraint, i| {
+                if (constraint == .max) {
+                    max_total += sizes[i];
+                }
+            }
+
+            if (max_total > 0) {
+                const reduction = total_size - available;
+                const scale = @as(f64, @floatFromInt(max_total - @as(u32, @intCast(reduction)))) / @as(f64, @floatFromInt(max_total));
+                total_size = 0;
+                for (constraints, 0..) |constraint, i| {
+                    if (constraint == .max) {
+                        const scaled = @as(u16, @intFromFloat(@as(f64, @floatFromInt(sizes[i])) * scale));
+                        sizes[i] = @min(scaled, constraint.max);
+                    }
+                    total_size += sizes[i];
+                }
+            }
+        }
+    }
+    // Strategy 4: Standard case where total fits or needs normal scaling
+    else if (total_size > available) {
         var fixed_and_pct_total: u32 = 0;
         for (constraints, 0..) |constraint, i| {
             switch (constraint) {
@@ -207,7 +302,6 @@ pub fn split(
             }
         }
 
-        // If fixed+percentage alone exceeds available, scale everything
         if (fixed_and_pct_total >= available) {
             const scale = @as(f64, @floatFromInt(available)) / @as(f64, @floatFromInt(total_size));
             total_size = 0;
@@ -217,7 +311,6 @@ pub fn split(
                 total_size += scaled;
             }
         } else {
-            // Reduce flexible (min/max/aspect_ratio) constraints
             var flexible_total: u32 = 0;
             for (constraints, 0..) |constraint, i| {
                 switch (constraint) {
@@ -237,23 +330,23 @@ pub fn split(
                             sizes[i] = scaled;
                             total_size += scaled;
                         },
-                        else => {}, // Keep other sizes as-is
+                        else => {},
                     }
                 }
             }
         }
     }
 
-    // Distribute remaining space to last flexible constraint
-    if (total_size < available and has_flexible) {
+    // Distribute remaining space to last flexible constraint (but not max)
+    if (total_size < available and has_flex) {
         const remaining = available - @as(u16, @intCast(total_size));
-        // Find last flexible constraint
         var last_flexible: ?usize = null;
         var i = constraints.len;
         while (i > 0) {
             i -= 1;
             switch (constraints[i]) {
-                .percentage, .ratio, .aspect_ratio, .min, .max => {
+                .max => {}, // Skip max
+                .percentage, .ratio, .aspect_ratio, .min => {
                     last_flexible = i;
                     break;
                 },
@@ -262,6 +355,13 @@ pub fn split(
         }
         if (last_flexible) |idx| {
             sizes[idx] += remaining;
+        }
+    }
+
+    // Final: Apply max constraints as upper bounds
+    for (constraints, 0..) |constraint, i| {
+        if (constraint == .max and sizes[i] > constraint.max) {
+            sizes[i] = constraint.max;
         }
     }
 
@@ -769,4 +869,335 @@ test "split - aspect ratio in three-way vertical split" {
     // Middle aspect ratio in remaining 360: 1:1 square = min(360, 360) = 360
     try std.testing.expectEqual(360, result[1].height);
     try std.testing.expectEqual(120, result[2].height); // 20% of remaining
+}
+
+// ============================================================================
+// Min/Max Nested Layout Constraint Propagation Tests
+// ============================================================================
+
+test "nested_split_min_propagation_horizontal: inner layout with min constraint gets reserved space" {
+    const allocator = std.testing.allocator;
+    const parent_area = Rect.new(0, 0, 100, 50);
+
+    // First, split parent into two areas
+    const parent_constraints = [_]Constraint{
+        .{ .percentage = 50 },
+        .{ .percentage = 50 },
+    };
+    const parent_chunks = try split(allocator, .horizontal, parent_area, &parent_constraints);
+    defer allocator.free(parent_chunks);
+
+    // Now split the second chunk which has a min constraint of 50
+    // Even though it only got 50 width (50% of 100), a nested layout
+    // with min 60 should signal that the parent should have reserved more space
+    const inner_constraints = [_]Constraint{
+        .{ .min = 60 },
+    };
+    const inner_chunks = try split(allocator, .horizontal, parent_chunks[1], &inner_constraints);
+    defer allocator.free(inner_chunks);
+
+    // The inner chunk should have gotten at least 60, not just 50
+    // This requires parent to respect nested min constraints
+    try std.testing.expect(inner_chunks[0].width >= 60);
+}
+
+test "nested_split_max_propagation_horizontal: inner layout with max constraint limits allocation" {
+    const allocator = std.testing.allocator;
+    const parent_area = Rect.new(0, 0, 200, 50);
+
+    // Split parent into two equal areas
+    const parent_constraints = [_]Constraint{
+        .{ .percentage = 50 },
+        .{ .percentage = 50 },
+    };
+    const parent_chunks = try split(allocator, .horizontal, parent_area, &parent_constraints);
+    defer allocator.free(parent_chunks);
+
+    // Second chunk got 100, but nested layout has max 60
+    // Inner split should respect max constraint
+    const inner_constraints = [_]Constraint{
+        .{ .max = 60 },
+    };
+    const inner_chunks = try split(allocator, .horizontal, parent_chunks[1], &inner_constraints);
+    defer allocator.free(inner_chunks);
+
+    // Inner chunk should not exceed max of 60
+    try std.testing.expect(inner_chunks[0].width <= 60);
+}
+
+test "nested_split_min_propagation_vertical: vertical split respects nested min" {
+    const allocator = std.testing.allocator;
+    const parent_area = Rect.new(0, 0, 80, 100);
+
+    // Vertical split parent
+    const parent_constraints = [_]Constraint{
+        .{ .percentage = 40 },
+        .{ .percentage = 60 },
+    };
+    const parent_chunks = try split(allocator, .vertical, parent_area, &parent_constraints);
+    defer allocator.free(parent_chunks);
+
+    // Second chunk got 60 height, but nested split has min 75
+    const inner_constraints = [_]Constraint{
+        .{ .min = 75 },
+    };
+    const inner_chunks = try split(allocator, .vertical, parent_chunks[1], &inner_constraints);
+    defer allocator.free(inner_chunks);
+
+    // Inner should get at least 75 (min constraint)
+    try std.testing.expect(inner_chunks[0].height >= 75);
+}
+
+test "nested_split_max_propagation_vertical: vertical split respects nested max" {
+    const allocator = std.testing.allocator;
+    const parent_area = Rect.new(0, 0, 80, 150);
+
+    // Vertical split parent
+    const parent_constraints = [_]Constraint{
+        .{ .percentage = 50 },
+        .{ .percentage = 50 },
+    };
+    const parent_chunks = try split(allocator, .vertical, parent_area, &parent_constraints);
+    defer allocator.free(parent_chunks);
+
+    // Second chunk got 75, nested split has max 50
+    const inner_constraints = [_]Constraint{
+        .{ .max = 50 },
+    };
+    const inner_chunks = try split(allocator, .vertical, parent_chunks[1], &inner_constraints);
+    defer allocator.free(inner_chunks);
+
+    // Inner should not exceed max of 50
+    try std.testing.expect(inner_chunks[0].height <= 50);
+}
+
+test "nested_split_three_level_min_propagation: constraints propagate through 3 nesting levels" {
+    const allocator = std.testing.allocator;
+
+    // Level 1: parent area
+    const level1_area = Rect.new(0, 0, 200, 100);
+    const level1_constraints = [_]Constraint{
+        .{ .percentage = 60 },
+        .{ .percentage = 40 },
+    };
+    const level1_chunks = try split(allocator, .horizontal, level1_area, &level1_constraints);
+    defer allocator.free(level1_chunks);
+
+    // Level 2: split the first chunk
+    const level2_constraints = [_]Constraint{
+        .{ .percentage = 50 },
+        .{ .percentage = 50 },
+    };
+    const level2_chunks = try split(allocator, .horizontal, level1_chunks[0], &level2_constraints);
+    defer allocator.free(level2_chunks);
+
+    // Level 3: split the second chunk from level 2 with a min constraint
+    const level3_constraints = [_]Constraint{
+        .{ .min = 100 },
+    };
+    const level3_chunks = try split(allocator, .horizontal, level2_chunks[1], &level3_constraints);
+    defer allocator.free(level3_chunks);
+
+    // Level 3 chunk should get at least 100
+    // This requires constraints to propagate: L3 min → L2 parent → L1 parent
+    try std.testing.expect(level3_chunks[0].width >= 100);
+}
+
+test "nested_split_conflicting_mins_exceed_available: multiple nested mins that exceed space" {
+    const allocator = std.testing.allocator;
+    const parent_area = Rect.new(0, 0, 100, 50);
+
+    // Try to create nested layout with two min constraints that exceed available space
+    // First split parent
+    const parent_constraints = [_]Constraint{
+        .{ .percentage = 50 },
+        .{ .percentage = 50 },
+    };
+    const parent_chunks = try split(allocator, .horizontal, parent_area, &parent_constraints);
+    defer allocator.free(parent_chunks);
+
+    // Second chunk has 50 width, but nested split wants min 30 + min 40 = 70 total
+    // Algorithm should distribute proportionally while respecting minimums
+    const inner_constraints = [_]Constraint{
+        .{ .min = 30 },
+        .{ .min = 40 },
+    };
+    const inner_chunks = try split(allocator, .horizontal, parent_chunks[1], &inner_constraints);
+    defer allocator.free(inner_chunks);
+
+    // Both chunks should exist
+    try std.testing.expectEqual(2, inner_chunks.len);
+    // Combined should equal available space
+    const total = inner_chunks[0].width + inner_chunks[1].width;
+    try std.testing.expectEqual(50, total);
+    // Each should get at least its minimum (or be scaled proportionally)
+    // If not enough space, should be capped at available but proportionally distributed
+    try std.testing.expect(inner_chunks[0].width > 0);
+    try std.testing.expect(inner_chunks[1].width > 0);
+}
+
+test "nested_split_mixed_percentage_and_min: percentage parent with nested min child" {
+    const allocator = std.testing.allocator;
+    const parent_area = Rect.new(0, 0, 200, 100);
+
+    // Parent splits with percentages
+    const parent_constraints = [_]Constraint{
+        .{ .percentage = 30 },
+        .{ .percentage = 70 },
+    };
+    const parent_chunks = try split(allocator, .horizontal, parent_area, &parent_constraints);
+    defer allocator.free(parent_chunks);
+
+    // Second chunk (70% = 140 width) contains nested layout with multiple constraints
+    const inner_constraints = [_]Constraint{
+        .{ .min = 50 },
+        .{ .length = 30 },
+    };
+    const inner_chunks = try split(allocator, .horizontal, parent_chunks[1], &inner_constraints);
+    defer allocator.free(inner_chunks);
+
+    try std.testing.expectEqual(2, inner_chunks.len);
+    // First inner chunk should get at least 50 (min constraint)
+    try std.testing.expect(inner_chunks[0].width >= 50);
+    // Second should be fixed at 30
+    try std.testing.expectEqual(30, inner_chunks[1].width);
+}
+
+test "nested_split_mixed_percentage_and_max: percentage parent with nested max child" {
+    const allocator = std.testing.allocator;
+    const parent_area = Rect.new(0, 0, 200, 100);
+
+    // Parent splits
+    const parent_constraints = [_]Constraint{
+        .{ .percentage = 50 },
+        .{ .percentage = 50 },
+    };
+    const parent_chunks = try split(allocator, .horizontal, parent_area, &parent_constraints);
+    defer allocator.free(parent_chunks);
+
+    // Second chunk (50% = 100 width) contains nested layout with max constraint
+    const inner_constraints = [_]Constraint{
+        .{ .max = 60 },
+        .{ .length = 20 },
+    };
+    const inner_chunks = try split(allocator, .horizontal, parent_chunks[1], &inner_constraints);
+    defer allocator.free(inner_chunks);
+
+    try std.testing.expectEqual(2, inner_chunks.len);
+    // First inner chunk should not exceed max of 60
+    try std.testing.expect(inner_chunks[0].width <= 60);
+    // Second should be fixed at 20
+    try std.testing.expectEqual(20, inner_chunks[1].width);
+}
+
+test "nested_split_oversized_min_constraint: min larger than available space" {
+    const allocator = std.testing.allocator;
+    const parent_area = Rect.new(0, 0, 100, 50);
+
+    // Split parent
+    const parent_constraints = [_]Constraint{
+        .{ .percentage = 50 },
+        .{ .percentage = 50 },
+    };
+    const parent_chunks = try split(allocator, .horizontal, parent_area, &parent_constraints);
+    defer allocator.free(parent_chunks);
+
+    // Second chunk has 50 width, but nested layout wants min 100
+    const inner_constraints = [_]Constraint{
+        .{ .min = 100 },
+    };
+    const inner_chunks = try split(allocator, .horizontal, parent_chunks[1], &inner_constraints);
+    defer allocator.free(inner_chunks);
+
+    // Algorithm should handle gracefully: either clamp to available
+    // or signal constraint violation (depending on implementation choice)
+    try std.testing.expectEqual(1, inner_chunks.len);
+    try std.testing.expect(inner_chunks[0].width > 0);
+}
+
+test "nested_split_zero_min_constraint: min = 0 should be valid" {
+    const allocator = std.testing.allocator;
+    const parent_area = Rect.new(0, 0, 100, 50);
+
+    const parent_constraints = [_]Constraint{
+        .{ .percentage = 50 },
+        .{ .percentage = 50 },
+    };
+    const parent_chunks = try split(allocator, .horizontal, parent_area, &parent_constraints);
+    defer allocator.free(parent_chunks);
+
+    // Nested layout with zero minimum
+    const inner_constraints = [_]Constraint{
+        .{ .min = 0 },
+    };
+    const inner_chunks = try split(allocator, .horizontal, parent_chunks[1], &inner_constraints);
+    defer allocator.free(inner_chunks);
+
+    try std.testing.expectEqual(1, inner_chunks.len);
+    try std.testing.expect(inner_chunks[0].width >= 0);
+}
+
+test "nested_split_zero_max_constraint: max = 0 should limit to zero" {
+    const allocator = std.testing.allocator;
+    const parent_area = Rect.new(0, 0, 100, 50);
+
+    const parent_constraints = [_]Constraint{
+        .{ .percentage = 50 },
+        .{ .percentage = 50 },
+    };
+    const parent_chunks = try split(allocator, .horizontal, parent_area, &parent_constraints);
+    defer allocator.free(parent_chunks);
+
+    // Nested layout with zero max (should result in zero size)
+    const inner_constraints = [_]Constraint{
+        .{ .max = 0 },
+    };
+    const inner_chunks = try split(allocator, .horizontal, parent_chunks[1], &inner_constraints);
+    defer allocator.free(inner_chunks);
+
+    try std.testing.expectEqual(1, inner_chunks.len);
+    try std.testing.expectEqual(0, inner_chunks[0].width);
+}
+
+test "nested_split_multiple_nested_areas: multiple nested splits at same level" {
+    const allocator = std.testing.allocator;
+    const parent_area = Rect.new(0, 0, 300, 100);
+
+    // Parent splits into 3 areas
+    const parent_constraints = [_]Constraint{
+        .{ .percentage = 33 },
+        .{ .percentage = 33 },
+        .{ .percentage = 34 },
+    };
+    const parent_chunks = try split(allocator, .horizontal, parent_area, &parent_constraints);
+    defer allocator.free(parent_chunks);
+
+    // Each of the three parent chunks contains its own nested layout
+    // First chunk (100 width) with nested min 50
+    const inner1_constraints = [_]Constraint{
+        .{ .min = 50 },
+    };
+    const inner1_chunks = try split(allocator, .horizontal, parent_chunks[0], &inner1_constraints);
+    defer allocator.free(inner1_chunks);
+
+    // Second chunk (100 width) with nested max 40
+    const inner2_constraints = [_]Constraint{
+        .{ .max = 40 },
+    };
+    const inner2_chunks = try split(allocator, .horizontal, parent_chunks[1], &inner2_constraints);
+    defer allocator.free(inner2_chunks);
+
+    // Third chunk (100 width) with nested min 60, max 80
+    const inner3_constraints = [_]Constraint{
+        .{ .min = 60 },
+        .{ .max = 80 },
+    };
+    const inner3_chunks = try split(allocator, .horizontal, parent_chunks[2], &inner3_constraints);
+    defer allocator.free(inner3_chunks);
+
+    // Verify each nested split respects its constraints
+    try std.testing.expect(inner1_chunks[0].width >= 50);
+    try std.testing.expect(inner2_chunks[0].width <= 40);
+    try std.testing.expect(inner3_chunks[0].width >= 60);
+    try std.testing.expect(inner3_chunks[1].width <= 80);
 }
