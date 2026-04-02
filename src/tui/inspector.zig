@@ -749,6 +749,7 @@ pub const Inspector = struct {
                             .min => |min| try writer.print("min({})", .{min}),
                             .max => |max| try writer.print("max({})", .{max}),
                             .ratio => |r| try writer.print("ratio({}/{})", .{ r.num, r.denom }),
+                            .aspect_ratio => |ar| try writer.print("aspect_ratio({}:{})", .{ ar.width, ar.height }),
                         }
 
                         try writer.print(" available={}\n", .{constraint.available});
