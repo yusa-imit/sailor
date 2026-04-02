@@ -1201,3 +1201,101 @@ test "nested_split_multiple_nested_areas: multiple nested splits at same level" 
     try std.testing.expect(inner3_chunks[0].width >= 60);
     try std.testing.expect(inner3_chunks[1].width <= 80);
 }
+
+test "split - stress test with many constraints (100)" {
+    const allocator = std.testing.allocator;
+    const area = Rect.new(0, 0, 1000, 100);
+
+    // Create 100 constraints (all equal percentages)
+    var constraints: [100]Constraint = undefined;
+    for (&constraints) |*c| {
+        c.* = .{ .percentage = 1 };
+    }
+
+    const chunks = try split(allocator, .horizontal, area, &constraints);
+    defer allocator.free(chunks);
+
+    // Verify we got 100 chunks
+    try std.testing.expectEqual(100, chunks.len);
+
+    // Verify total width equals or is close to available (accounting for integer division)
+    var total_width: u32 = 0;
+    for (chunks) |chunk| {
+        total_width += chunk.width;
+    }
+    try std.testing.expect(total_width >= area.width - 10); // Allow small rounding difference
+    try std.testing.expect(total_width <= area.width);
+
+    // Verify all chunks are within the parent area bounds
+    for (chunks) |chunk| {
+        try std.testing.expect(chunk.x >= area.x);
+        try std.testing.expect(chunk.x + chunk.width <= area.x + area.width);
+        try std.testing.expectEqual(area.y, chunk.y);
+        try std.testing.expectEqual(area.height, chunk.height);
+    }
+
+    // Verify chunks are adjacent (no gaps or overlaps)
+    for (chunks[0 .. chunks.len - 1], chunks[1..]) |curr, next| {
+        try std.testing.expectEqual(curr.x + curr.width, next.x);
+    }
+}
+
+test "split - stress test with many min constraints" {
+    const allocator = std.testing.allocator;
+    const area = Rect.new(0, 0, 500, 100);
+
+    // Create 50 constraints with min=5 each (total min = 250)
+    var constraints: [50]Constraint = undefined;
+    for (&constraints) |*c| {
+        c.* = .{ .min = 5 };
+    }
+
+    const chunks = try split(allocator, .horizontal, area, &constraints);
+    defer allocator.free(chunks);
+
+    try std.testing.expectEqual(50, chunks.len);
+
+    // Verify total width equals available (all mins can be satisfied)
+    var total_width: u32 = 0;
+    for (chunks) |chunk| {
+        total_width += chunk.width;
+    }
+    try std.testing.expectEqual(area.width, total_width);
+
+    // Verify all chunks meet their minimum
+    for (chunks) |chunk| {
+        try std.testing.expect(chunk.width >= 5);
+    }
+}
+
+test "split - stress test with exceeding min constraints" {
+    const allocator = std.testing.allocator;
+    const area = Rect.new(0, 0, 300, 100);
+
+    // Create 50 constraints with min=10 each (total min = 500 > 300 available)
+    var constraints: [50]Constraint = undefined;
+    for (&constraints) |*c| {
+        c.* = .{ .min = 10 };
+    }
+
+    const chunks = try split(allocator, .horizontal, area, &constraints);
+    defer allocator.free(chunks);
+
+    try std.testing.expectEqual(50, chunks.len);
+
+    // When mins exceed available, they should be scaled proportionally
+    // Each should get approximately 6 pixels (300 / 50)
+    var total_width: u32 = 0;
+    for (chunks) |chunk| {
+        total_width += chunk.width;
+    }
+    try std.testing.expectEqual(area.width, total_width);
+
+    // All chunks should have roughly equal width (proportional distribution)
+    const expected_avg = area.width / chunks.len; // 6 pixels
+    for (chunks) |chunk| {
+        // Allow ±2 pixels variance for rounding
+        try std.testing.expect(chunk.width >= expected_avg - 2);
+        try std.testing.expect(chunk.width <= expected_avg + 2);
+    }
+}
