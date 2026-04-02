@@ -597,3 +597,457 @@ test "Grid.calculatePositions" {
     try std.testing.expectEqual(45, positions[1]); // 10 + 30 + 5
     try std.testing.expectEqual(90, positions[2]); // 45 + 40 + 5
 }
+
+// ============================================================================
+// Nested Grid Tests
+// ============================================================================
+
+test "nested grid - basic 2x2 outer with 2x2 inner" {
+    const allocator = std.testing.allocator;
+
+    // Outer 2x2 grid
+    const outer_grid = Grid{
+        .rows = &[_]Track{ .{ .fixed = 50 }, .{ .fixed = 50 } },
+        .cols = &[_]Track{ .{ .fixed = 50 }, .{ .fixed = 50 } },
+    };
+
+    const outer_area = Rect.new(0, 0, 100, 100);
+    const outer_items = [_]GridItem{
+        .{ .row = 1, .col = 1 }, // Will contain inner grid
+        .{ .row = 1, .col = 2 },
+        .{ .row = 2, .col = 1 },
+        .{ .row = 2, .col = 2 },
+    };
+
+    const outer_result = try outer_grid.layout(allocator, outer_area, &outer_items);
+    defer allocator.free(outer_result);
+
+    try std.testing.expectEqual(4, outer_result.len);
+
+    // Cell [0,0] (top-left) has rect (0, 0, 50, 50)
+    const nested_cell = outer_result[0];
+    try std.testing.expectEqual(0, nested_cell.x);
+    try std.testing.expectEqual(0, nested_cell.y);
+    try std.testing.expectEqual(50, nested_cell.width);
+    try std.testing.expectEqual(50, nested_cell.height);
+
+    // Layout inner 2x2 grid in the cell's rect
+    const inner_grid = Grid{
+        .rows = &[_]Track{ .{ .fixed = 25 }, .{ .fixed = 25 } },
+        .cols = &[_]Track{ .{ .fixed = 25 }, .{ .fixed = 25 } },
+    };
+
+    const inner_items = [_]GridItem{
+        .{ .row = 1, .col = 1 },
+        .{ .row = 1, .col = 2 },
+        .{ .row = 2, .col = 1 },
+        .{ .row = 2, .col = 2 },
+    };
+
+    const inner_result = try inner_grid.layout(allocator, nested_cell, &inner_items);
+    defer allocator.free(inner_result);
+
+    try std.testing.expectEqual(4, inner_result.len);
+
+    // Verify inner grid fills the parent cell
+    // Inner cell [0,0] should be at absolute position (0, 0)
+    try std.testing.expectEqual(0, inner_result[0].x);
+    try std.testing.expectEqual(0, inner_result[0].y);
+    try std.testing.expectEqual(25, inner_result[0].width);
+    try std.testing.expectEqual(25, inner_result[0].height);
+
+    // Inner cell [0,1] should be at absolute position (25, 0)
+    try std.testing.expectEqual(25, inner_result[1].x);
+    try std.testing.expectEqual(0, inner_result[1].y);
+
+    // Inner cell [1,0] should be at absolute position (0, 25)
+    try std.testing.expectEqual(0, inner_result[2].x);
+    try std.testing.expectEqual(25, inner_result[2].y);
+}
+
+test "nested grid - auto-sizing inner grid content" {
+    const allocator = std.testing.allocator;
+
+    // Outer grid with flexible track
+    const outer_grid = Grid{
+        .rows = &[_]Track{ .{ .fr = 1 } },
+        .cols = &[_]Track{ .{ .fr = 1 } },
+    };
+
+    const outer_area = Rect.new(0, 0, 100, 100);
+    const outer_items = [_]GridItem{
+        .{ .row = 1, .col = 1 },
+    };
+
+    const outer_result = try outer_grid.layout(allocator, outer_area, &outer_items);
+    defer allocator.free(outer_result);
+
+    // Cell should fill the entire area
+    const nested_cell = outer_result[0];
+    try std.testing.expectEqual(100, nested_cell.width);
+    try std.testing.expectEqual(100, nested_cell.height);
+
+    // Inner grid with auto tracks should fill the cell
+    const inner_grid = Grid{
+        .rows = &[_]Track{ .auto, .auto },
+        .cols = &[_]Track{ .auto, .auto },
+    };
+
+    const inner_items = [_]GridItem{
+        .{ .row = 1, .col = 1 },
+        .{ .row = 1, .col = 2 },
+        .{ .row = 2, .col = 1 },
+        .{ .row = 2, .col = 2 },
+    };
+
+    const inner_result = try inner_grid.layout(allocator, nested_cell, &inner_items);
+    defer allocator.free(inner_result);
+
+    // Auto tracks should distribute space equally
+    // 100 / 2 = 50 per column
+    try std.testing.expectEqual(50, inner_result[0].width);
+    try std.testing.expectEqual(50, inner_result[0].height);
+    try std.testing.expectEqual(50, inner_result[1].width);
+    try std.testing.expectEqual(50, inner_result[2].height);
+}
+
+test "nested grid - multiple nested grids in different cells" {
+    const allocator = std.testing.allocator;
+
+    // Outer 2x2 grid
+    const outer_grid = Grid{
+        .rows = &[_]Track{ .{ .fixed = 60 }, .{ .fixed = 60 } },
+        .cols = &[_]Track{ .{ .fixed = 60 }, .{ .fixed = 60 } },
+        .col_gap = 10,
+        .row_gap = 10,
+    };
+
+    const outer_area = Rect.new(0, 0, 130, 130);
+    const outer_items = [_]GridItem{
+        .{ .row = 1, .col = 1 }, // Top-left: will have nested grid
+        .{ .row = 1, .col = 2 }, // Top-right: will have different nested grid
+        .{ .row = 2, .col = 1 }, // Bottom-left: regular item
+        .{ .row = 2, .col = 2 }, // Bottom-right: will have another nested grid
+    };
+
+    const outer_result = try outer_grid.layout(allocator, outer_area, &outer_items);
+    defer allocator.free(outer_result);
+
+    try std.testing.expectEqual(4, outer_result.len);
+
+    // Verify positions with gaps
+    // Cell [0,0]: (0, 0, 60, 60)
+    try std.testing.expectEqual(0, outer_result[0].x);
+    try std.testing.expectEqual(0, outer_result[0].y);
+    try std.testing.expectEqual(60, outer_result[0].width);
+    try std.testing.expectEqual(60, outer_result[0].height);
+
+    // Cell [0,1]: (70, 0, 60, 60) — shifted by col_gap
+    try std.testing.expectEqual(70, outer_result[1].x);
+    try std.testing.expectEqual(0, outer_result[1].y);
+
+    // Cell [1,0]: (0, 70, 60, 60) — shifted by row_gap
+    try std.testing.expectEqual(0, outer_result[2].x);
+    try std.testing.expectEqual(70, outer_result[2].y);
+
+    // Cell [1,1]: (70, 70, 60, 60)
+    try std.testing.expectEqual(70, outer_result[3].x);
+    try std.testing.expectEqual(70, outer_result[3].y);
+
+    // Layout nested grid in top-left cell
+    const inner_grid_tl = Grid{
+        .rows = &[_]Track{ .{ .fixed = 30 } },
+        .cols = &[_]Track{ .{ .fixed = 30 } },
+    };
+
+    const inner_items_tl = [_]GridItem{
+        .{ .row = 1, .col = 1 },
+    };
+
+    const inner_result_tl = try inner_grid_tl.layout(allocator, outer_result[0], &inner_items_tl);
+    defer allocator.free(inner_result_tl);
+
+    // Top-left nested grid cell should be within the parent cell bounds
+    try std.testing.expectEqual(30, inner_result_tl[0].width);
+    try std.testing.expectEqual(30, inner_result_tl[0].height);
+
+    // Layout different nested grid in top-right cell
+    const inner_grid_tr = Grid{
+        .rows = &[_]Track{ .{ .fixed = 20 }, .{ .fixed = 20 } },
+        .cols = &[_]Track{ .{ .fixed = 20 }, .{ .fixed = 20 } },
+    };
+
+    const inner_items_tr = [_]GridItem{
+        .{ .row = 1, .col = 1 },
+        .{ .row = 1, .col = 2 },
+        .{ .row = 2, .col = 1 },
+        .{ .row = 2, .col = 2 },
+    };
+
+    const inner_result_tr = try inner_grid_tr.layout(allocator, outer_result[1], &inner_items_tr);
+    defer allocator.free(inner_result_tr);
+
+    try std.testing.expectEqual(4, inner_result_tr.len);
+    try std.testing.expectEqual(20, inner_result_tr[0].width);
+    try std.testing.expectEqual(20, inner_result_tr[1].width);
+}
+
+test "nested grid - deep nesting (3 levels)" {
+    const allocator = std.testing.allocator;
+
+    // Level 1: Outer grid (1x1)
+    const level1_grid = Grid{
+        .rows = &[_]Track{ .{ .fixed = 100 } },
+        .cols = &[_]Track{ .{ .fixed = 100 } },
+    };
+
+    const level1_area = Rect.new(0, 0, 100, 100);
+    const level1_items = [_]GridItem{
+        .{ .row = 1, .col = 1 },
+    };
+
+    const level1_result = try level1_grid.layout(allocator, level1_area, &level1_items);
+    defer allocator.free(level1_result);
+
+    const level1_cell = level1_result[0];
+    try std.testing.expectEqual(100, level1_cell.width);
+    try std.testing.expectEqual(100, level1_cell.height);
+
+    // Level 2: Middle grid (1x1) inside Level 1's cell
+    const level2_grid = Grid{
+        .rows = &[_]Track{ .{ .fixed = 50 } },
+        .cols = &[_]Track{ .{ .fixed = 50 } },
+    };
+
+    const level2_items = [_]GridItem{
+        .{ .row = 1, .col = 1 },
+    };
+
+    const level2_result = try level2_grid.layout(allocator, level1_cell, &level2_items);
+    defer allocator.free(level2_result);
+
+    const level2_cell = level2_result[0];
+    try std.testing.expectEqual(50, level2_cell.width);
+    try std.testing.expectEqual(50, level2_cell.height);
+
+    // Level 3: Inner grid (1x1) inside Level 2's cell
+    const level3_grid = Grid{
+        .rows = &[_]Track{ .{ .fixed = 25 } },
+        .cols = &[_]Track{ .{ .fixed = 25 } },
+    };
+
+    const level3_items = [_]GridItem{
+        .{ .row = 1, .col = 1 },
+    };
+
+    const level3_result = try level3_grid.layout(allocator, level2_cell, &level3_items);
+    defer allocator.free(level3_result);
+
+    // Innermost cell should be correctly positioned and sized
+    try std.testing.expectEqual(0, level3_result[0].x);
+    try std.testing.expectEqual(0, level3_result[0].y);
+    try std.testing.expectEqual(25, level3_result[0].width);
+    try std.testing.expectEqual(25, level3_result[0].height);
+}
+
+test "nested grid - empty nested grid" {
+    const allocator = std.testing.allocator;
+
+    // Outer grid
+    const outer_grid = Grid{
+        .rows = &[_]Track{ .{ .fixed = 50 } },
+        .cols = &[_]Track{ .{ .fixed = 50 } },
+    };
+
+    const outer_area = Rect.new(0, 0, 50, 50);
+    const outer_items = [_]GridItem{
+        .{ .row = 1, .col = 1 },
+    };
+
+    const outer_result = try outer_grid.layout(allocator, outer_area, &outer_items);
+    defer allocator.free(outer_result);
+
+    const nested_cell = outer_result[0];
+
+    // Layout empty inner grid in the cell
+    const inner_grid = Grid{
+        .rows = &[_]Track{ .{ .fixed = 25 } },
+        .cols = &[_]Track{ .{ .fixed = 25 } },
+    };
+
+    const inner_items = [_]GridItem{};
+
+    const inner_result = try inner_grid.layout(allocator, nested_cell, &inner_items);
+    defer allocator.free(inner_result);
+
+    // Empty inner grid should return empty result
+    try std.testing.expectEqual(0, inner_result.len);
+}
+
+test "nested grid - oversized nested grid content" {
+    const allocator = std.testing.allocator;
+
+    // Outer grid with small cell
+    const outer_grid = Grid{
+        .rows = &[_]Track{ .{ .fixed = 50 } },
+        .cols = &[_]Track{ .{ .fixed = 50 } },
+    };
+
+    const outer_area = Rect.new(0, 0, 50, 50);
+    const outer_items = [_]GridItem{
+        .{ .row = 1, .col = 1 },
+    };
+
+    const outer_result = try outer_grid.layout(allocator, outer_area, &outer_items);
+    defer allocator.free(outer_result);
+
+    const nested_cell = outer_result[0];
+    try std.testing.expectEqual(50, nested_cell.width);
+    try std.testing.expectEqual(50, nested_cell.height);
+
+    // Inner grid with large fixed tracks (100 each)
+    // Should be clamped to available space (50x50)
+    const inner_grid = Grid{
+        .rows = &[_]Track{ .{ .fixed = 100 } },
+        .cols = &[_]Track{ .{ .fixed = 100 } },
+    };
+
+    const inner_items = [_]GridItem{
+        .{ .row = 1, .col = 1 },
+    };
+
+    const inner_result = try inner_grid.layout(allocator, nested_cell, &inner_items);
+    defer allocator.free(inner_result);
+
+    // Fixed track clamped to available space
+    try std.testing.expectEqual(50, inner_result[0].width);
+    try std.testing.expectEqual(50, inner_result[0].height);
+}
+
+test "nested grid - with gaps and span" {
+    const allocator = std.testing.allocator;
+
+    // Outer grid
+    const outer_grid = Grid{
+        .rows = &[_]Track{ .{ .fixed = 100 } },
+        .cols = &[_]Track{ .{ .fixed = 100 } },
+        .col_gap = 5,
+        .row_gap = 5,
+    };
+
+    const outer_area = Rect.new(0, 0, 100, 100);
+    const outer_items = [_]GridItem{
+        .{ .row = 1, .col = 1 },
+    };
+
+    const outer_result = try outer_grid.layout(allocator, outer_area, &outer_items);
+    defer allocator.free(outer_result);
+
+    const nested_cell = outer_result[0];
+
+    // Inner grid with multiple columns, some spanned
+    const inner_grid = Grid{
+        .rows = &[_]Track{ .{ .fixed = 30 }, .{ .fixed = 30 } },
+        .cols = &[_]Track{ .{ .fixed = 30 }, .{ .fixed = 30 } },
+        .col_gap = 5,
+        .row_gap = 5,
+    };
+
+    const inner_items = [_]GridItem{
+        .{ .row = 1, .col = 1, .col_span = 2 }, // Spans 2 columns
+        .{ .row = 2, .col = 1 },
+        .{ .row = 2, .col = 2 },
+    };
+
+    const inner_result = try inner_grid.layout(allocator, nested_cell, &inner_items);
+    defer allocator.free(inner_result);
+
+    // First item spans 2 columns: 30 + 5 (gap) + 30 = 65
+    try std.testing.expectEqual(65, inner_result[0].width);
+}
+
+test "nested grid - inner grid with fr units" {
+    const allocator = std.testing.allocator;
+
+    // Outer grid
+    const outer_grid = Grid{
+        .rows = &[_]Track{ .{ .fixed = 100 } },
+        .cols = &[_]Track{ .{ .fixed = 100 } },
+    };
+
+    const outer_area = Rect.new(0, 0, 100, 100);
+    const outer_items = [_]GridItem{
+        .{ .row = 1, .col = 1 },
+    };
+
+    const outer_result = try outer_grid.layout(allocator, outer_area, &outer_items);
+    defer allocator.free(outer_result);
+
+    const nested_cell = outer_result[0];
+    try std.testing.expectEqual(100, nested_cell.width);
+
+    // Inner grid with fr units should distribute the parent cell space
+    const inner_grid = Grid{
+        .rows = &[_]Track{ .{ .fixed = 50 } },
+        .cols = &[_]Track{ .{ .fr = 1 }, .{ .fr = 2 }, .{ .fr = 1 } },
+    };
+
+    const inner_items = [_]GridItem{
+        .{ .row = 1, .col = 1 },
+        .{ .row = 1, .col = 2 },
+        .{ .row = 1, .col = 3 },
+    };
+
+    const inner_result = try inner_grid.layout(allocator, nested_cell, &inner_items);
+    defer allocator.free(inner_result);
+
+    // Total fr: 4, available: 100
+    // Col 1: 1fr = 25, Col 2: 2fr = 50, Col 3: 1fr = 25
+    try std.testing.expectEqual(25, inner_result[0].width);
+    try std.testing.expectEqual(50, inner_result[1].width);
+    try std.testing.expectEqual(25, inner_result[2].width);
+}
+
+test "nested grid - inner grid respects cell boundaries with padding" {
+    const allocator = std.testing.allocator;
+
+    // Outer grid
+    const outer_grid = Grid{
+        .rows = &[_]Track{ .{ .fixed = 100 } },
+        .cols = &[_]Track{ .{ .fixed = 100 } },
+    };
+
+    const outer_area = Rect.new(10, 20, 100, 100);
+    const outer_items = [_]GridItem{
+        .{ .row = 1, .col = 1 },
+    };
+
+    const outer_result = try outer_grid.layout(allocator, outer_area, &outer_items);
+    defer allocator.free(outer_result);
+
+    const nested_cell = outer_result[0];
+    // Cell should be offset by outer area position
+    try std.testing.expectEqual(10, nested_cell.x);
+    try std.testing.expectEqual(20, nested_cell.y);
+    try std.testing.expectEqual(100, nested_cell.width);
+    try std.testing.expectEqual(100, nested_cell.height);
+
+    // Inner grid should be positioned relative to the cell
+    const inner_grid = Grid{
+        .rows = &[_]Track{ .{ .fixed = 50 } },
+        .cols = &[_]Track{ .{ .fixed = 50 } },
+    };
+
+    const inner_items = [_]GridItem{
+        .{ .row = 1, .col = 1 },
+    };
+
+    const inner_result = try inner_grid.layout(allocator, nested_cell, &inner_items);
+    defer allocator.free(inner_result);
+
+    // Inner grid positions are relative to nested_cell, not the outer area
+    try std.testing.expectEqual(10, inner_result[0].x);
+    try std.testing.expectEqual(20, inner_result[0].y);
+    try std.testing.expectEqual(50, inner_result[0].width);
+    try std.testing.expectEqual(50, inner_result[0].height);
+}
