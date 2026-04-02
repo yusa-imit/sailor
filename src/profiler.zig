@@ -725,3 +725,432 @@ test "extended widget metrics track cache hits and misses" {
     const hit_rate = metrics.cacheHitRate();
     try testing.expectApproxEqAbs(@as(f64, 0.6667), hit_rate, 0.01);
 }
+
+// ============================================================================
+// v1.31.0 Memory Allocation Tracker
+// ============================================================================
+
+/// Memory allocation event for tracking hot spots
+pub const AllocEvent = struct {
+    location: []const u8, // Call site identifier (widget name, function, etc.)
+    size: usize, // Allocation size in bytes
+    timestamp: i128,
+    allocation_type: AllocType,
+
+    pub const AllocType = enum {
+        allocate,
+        free,
+        resize,
+    };
+};
+
+/// Statistics for memory allocations at a specific location
+pub const AllocStats = struct {
+    location: []const u8,
+    total_allocated: usize, // Total bytes allocated
+    total_freed: usize, // Total bytes freed
+    peak_allocated: usize, // Peak concurrent allocation
+    alloc_count: usize, // Number of allocations
+    free_count: usize, // Number of frees
+    avg_alloc_size: usize, // Average allocation size
+
+    /// Net allocated bytes (allocated - freed)
+    pub fn netAllocated(self: AllocStats) isize {
+        return @as(isize, @intCast(self.total_allocated)) - @as(isize, @intCast(self.total_freed));
+    }
+
+    /// Potential leak detection (alloc_count > free_count)
+    pub fn hasLeak(self: AllocStats) bool {
+        return self.alloc_count > self.free_count;
+    }
+
+    /// Leak count (unfreed allocations)
+    pub fn leakCount(self: AllocStats) usize {
+        if (self.alloc_count > self.free_count) {
+            return self.alloc_count - self.free_count;
+        }
+        return 0;
+    }
+};
+
+/// Memory allocation tracker for identifying hot spots and leaks
+pub const MemoryTracker = struct {
+    allocator: Allocator,
+    events: std.ArrayList(AllocEvent),
+    current_allocated: std.StringHashMap(usize), // location -> bytes
+    peak_allocated: std.StringHashMap(usize), // location -> peak bytes
+    enabled: bool,
+
+    const Self = @This();
+
+    /// Initialize memory tracker
+    pub fn init(allocator: Allocator) !Self {
+        return Self{
+            .allocator = allocator,
+            .events = .{},
+            .current_allocated = std.StringHashMap(usize).init(allocator),
+            .peak_allocated = std.StringHashMap(usize).init(allocator),
+            .enabled = true,
+        };
+    }
+
+    /// Deinitialize and free resources
+    pub fn deinit(self: *Self) void {
+        self.events.deinit(self.allocator);
+        self.current_allocated.deinit();
+        self.peak_allocated.deinit();
+    }
+
+    /// Record an allocation event
+    pub fn recordAlloc(self: *Self, location: []const u8, size: usize) !void {
+        if (!self.enabled) return;
+
+        try self.events.append(self.allocator, .{
+            .location = location,
+            .size = size,
+            .timestamp = std.time.nanoTimestamp(),
+            .allocation_type = .allocate,
+        });
+
+        // Update current allocated
+        const current = self.current_allocated.get(location) orelse 0;
+        const new_current = current + size;
+        try self.current_allocated.put(location, new_current);
+
+        // Update peak if needed
+        const peak = self.peak_allocated.get(location) orelse 0;
+        if (new_current > peak) {
+            try self.peak_allocated.put(location, new_current);
+        }
+    }
+
+    /// Record a free event
+    pub fn recordFree(self: *Self, location: []const u8, size: usize) !void {
+        if (!self.enabled) return;
+
+        try self.events.append(self.allocator, .{
+            .location = location,
+            .size = size,
+            .timestamp = std.time.nanoTimestamp(),
+            .allocation_type = .free,
+        });
+
+        // Update current allocated
+        const current = self.current_allocated.get(location) orelse 0;
+        if (current >= size) {
+            try self.current_allocated.put(location, current - size);
+        }
+    }
+
+    /// Record a resize event
+    pub fn recordResize(self: *Self, location: []const u8, old_size: usize, new_size: usize) !void {
+        if (!self.enabled) return;
+
+        try self.events.append(self.allocator, .{
+            .location = location,
+            .size = new_size,
+            .timestamp = std.time.nanoTimestamp(),
+            .allocation_type = .resize,
+        });
+
+        // Update current allocated (net change)
+        const current = self.current_allocated.get(location) orelse 0;
+        const net_change = if (new_size > old_size) new_size - old_size else 0;
+        const new_current = current + net_change;
+        try self.current_allocated.put(location, new_current);
+
+        // Update peak if needed
+        const peak = self.peak_allocated.get(location) orelse 0;
+        if (new_current > peak) {
+            try self.peak_allocated.put(location, new_current);
+        }
+    }
+
+    /// Get allocation statistics for a specific location
+    pub fn getStats(self: *Self, location: []const u8) !AllocStats {
+        var total_allocated: usize = 0;
+        var total_freed: usize = 0;
+        var alloc_count: usize = 0;
+        var free_count: usize = 0;
+
+        for (self.events.items) |event| {
+            if (!std.mem.eql(u8, event.location, location)) continue;
+
+            switch (event.allocation_type) {
+                .allocate => {
+                    total_allocated += event.size;
+                    alloc_count += 1;
+                },
+                .free => {
+                    total_freed += event.size;
+                    free_count += 1;
+                },
+                .resize => {
+                    // Resize counts as both alloc and free
+                    alloc_count += 1;
+                },
+            }
+        }
+
+        const avg_alloc_size = if (alloc_count > 0) total_allocated / alloc_count else 0;
+        const peak = self.peak_allocated.get(location) orelse 0;
+
+        return AllocStats{
+            .location = location,
+            .total_allocated = total_allocated,
+            .total_freed = total_freed,
+            .peak_allocated = peak,
+            .alloc_count = alloc_count,
+            .free_count = free_count,
+            .avg_alloc_size = avg_alloc_size,
+        };
+    }
+
+    /// Get top N allocation hot spots by total bytes allocated
+    pub fn getHotSpots(self: *Self, allocator: Allocator, top_n: usize) ![]AllocStats {
+        var location_map = std.StringHashMap(void).init(allocator);
+        defer location_map.deinit();
+
+        // Collect unique locations
+        for (self.events.items) |event| {
+            try location_map.put(event.location, {});
+        }
+
+        // Get stats for each location
+        var all_stats = try std.ArrayList(AllocStats).initCapacity(allocator, location_map.count());
+        defer all_stats.deinit(allocator);
+
+        var iter = location_map.keyIterator();
+        while (iter.next()) |location| {
+            const stats = try self.getStats(location.*);
+            try all_stats.append(allocator, stats);
+        }
+
+        // Sort by total_allocated descending
+        const items = all_stats.items;
+        std.mem.sort(AllocStats, items, {}, struct {
+            fn lessThan(_: void, a: AllocStats, b: AllocStats) bool {
+                return a.total_allocated > b.total_allocated;
+            }
+        }.lessThan);
+
+        // Return top N
+        const count = @min(top_n, items.len);
+        const result = try allocator.alloc(AllocStats, count);
+        @memcpy(result, items[0..count]);
+        return result;
+    }
+
+    /// Detect potential memory leaks (allocations without corresponding frees)
+    pub fn detectLeaks(self: *Self, allocator: Allocator) ![]AllocStats {
+        var location_map = std.StringHashMap(void).init(allocator);
+        defer location_map.deinit();
+
+        // Collect unique locations
+        for (self.events.items) |event| {
+            try location_map.put(event.location, {});
+        }
+
+        // Check each location for leaks
+        var leaks: std.ArrayList(AllocStats) = .{};
+        errdefer leaks.deinit(allocator);
+
+        var iter = location_map.keyIterator();
+        while (iter.next()) |location| {
+            const stats = try self.getStats(location.*);
+            if (stats.hasLeak()) {
+                try leaks.append(allocator, stats);
+            }
+        }
+
+        return leaks.toOwnedSlice(allocator);
+    }
+
+    /// Get total bytes currently allocated across all locations
+    pub fn totalCurrentAllocated(self: *Self) usize {
+        var total: usize = 0;
+        var iter = self.current_allocated.valueIterator();
+        while (iter.next()) |bytes| {
+            total += bytes.*;
+        }
+        return total;
+    }
+
+    /// Get peak total allocated across all locations
+    pub fn totalPeakAllocated(self: *Self) usize {
+        var total: usize = 0;
+        var iter = self.peak_allocated.valueIterator();
+        while (iter.next()) |bytes| {
+            total += bytes.*;
+        }
+        return total;
+    }
+
+    /// Reset all tracking data
+    pub fn reset(self: *Self) void {
+        self.events.clearRetainingCapacity();
+        self.current_allocated.clearRetainingCapacity();
+        self.peak_allocated.clearRetainingCapacity();
+    }
+
+    /// Enable tracking
+    pub fn enable(self: *Self) void {
+        self.enabled = true;
+    }
+
+    /// Disable tracking
+    pub fn disable(self: *Self) void {
+        self.enabled = false;
+    }
+};
+
+// ============================================================================
+// Memory Tracker Tests
+// ============================================================================
+
+test "memory tracker init and deinit" {
+    const allocator = testing.allocator;
+    var tracker = try MemoryTracker.init(allocator);
+    defer tracker.deinit();
+
+    try testing.expect(tracker.enabled);
+    try testing.expectEqual(@as(usize, 0), tracker.events.items.len);
+}
+
+test "memory tracker records allocations" {
+    const allocator = testing.allocator;
+    var tracker = try MemoryTracker.init(allocator);
+    defer tracker.deinit();
+
+    try tracker.recordAlloc("widget_render", 1024);
+    try tracker.recordAlloc("widget_render", 512);
+    try tracker.recordAlloc("event_loop", 2048);
+
+    try testing.expectEqual(@as(usize, 3), tracker.events.items.len);
+    try testing.expectEqual(@as(usize, 1024), tracker.events.items[0].size);
+}
+
+test "memory tracker calculates stats correctly" {
+    const allocator = testing.allocator;
+    var tracker = try MemoryTracker.init(allocator);
+    defer tracker.deinit();
+
+    try tracker.recordAlloc("button", 1000);
+    try tracker.recordAlloc("button", 2000);
+    try tracker.recordFree("button", 1000);
+
+    const stats = try tracker.getStats("button");
+    try testing.expectEqual(@as(usize, 3000), stats.total_allocated);
+    try testing.expectEqual(@as(usize, 1000), stats.total_freed);
+    try testing.expectEqual(@as(usize, 2), stats.alloc_count);
+    try testing.expectEqual(@as(usize, 1), stats.free_count);
+    try testing.expectEqual(@as(usize, 1500), stats.avg_alloc_size); // 3000/2
+}
+
+test "memory tracker tracks peak allocation" {
+    const allocator = testing.allocator;
+    var tracker = try MemoryTracker.init(allocator);
+    defer tracker.deinit();
+
+    try tracker.recordAlloc("table", 1000);
+    try tracker.recordAlloc("table", 2000); // peak = 3000
+    try tracker.recordFree("table", 1000); // current = 2000
+
+    const stats = try tracker.getStats("table");
+    try testing.expectEqual(@as(usize, 3000), stats.peak_allocated);
+}
+
+test "memory tracker detects leaks" {
+    const allocator = testing.allocator;
+    var tracker = try MemoryTracker.init(allocator);
+    defer tracker.deinit();
+
+    // No leak
+    try tracker.recordAlloc("safe", 1000);
+    try tracker.recordFree("safe", 1000);
+
+    // Has leak
+    try tracker.recordAlloc("leaky", 2000);
+    try tracker.recordAlloc("leaky", 1000);
+    try tracker.recordFree("leaky", 1000);
+
+    const leaks = try tracker.detectLeaks(allocator);
+    defer allocator.free(leaks);
+
+    try testing.expectEqual(@as(usize, 1), leaks.len);
+    try testing.expect(std.mem.eql(u8, "leaky", leaks[0].location));
+    try testing.expectEqual(@as(usize, 1), leaks[0].leakCount());
+}
+
+test "memory tracker hot spots sorted by total allocated" {
+    const allocator = testing.allocator;
+    var tracker = try MemoryTracker.init(allocator);
+    defer tracker.deinit();
+
+    try tracker.recordAlloc("small", 100);
+    try tracker.recordAlloc("large", 10000);
+    try tracker.recordAlloc("medium", 1000);
+
+    const hot_spots = try tracker.getHotSpots(allocator, 3);
+    defer allocator.free(hot_spots);
+
+    try testing.expectEqual(@as(usize, 3), hot_spots.len);
+    try testing.expect(std.mem.eql(u8, "large", hot_spots[0].location));
+    try testing.expect(std.mem.eql(u8, "medium", hot_spots[1].location));
+    try testing.expect(std.mem.eql(u8, "small", hot_spots[2].location));
+}
+
+test "memory tracker resize updates correctly" {
+    const allocator = testing.allocator;
+    var tracker = try MemoryTracker.init(allocator);
+    defer tracker.deinit();
+
+    try tracker.recordAlloc("buffer", 1000);
+    try tracker.recordResize("buffer", 1000, 2000); // Grow by 1000
+
+    const stats = try tracker.getStats("buffer");
+    try testing.expectEqual(@as(usize, 1000), stats.total_allocated); // Original alloc
+    try testing.expectEqual(@as(usize, 2), stats.alloc_count); // alloc + resize
+}
+
+test "memory tracker total allocated" {
+    const allocator = testing.allocator;
+    var tracker = try MemoryTracker.init(allocator);
+    defer tracker.deinit();
+
+    try tracker.recordAlloc("a", 1000);
+    try tracker.recordAlloc("b", 2000);
+    try tracker.recordAlloc("c", 500);
+
+    const total = tracker.totalCurrentAllocated();
+    try testing.expectEqual(@as(usize, 3500), total);
+}
+
+test "memory tracker enable/disable" {
+    const allocator = testing.allocator;
+    var tracker = try MemoryTracker.init(allocator);
+    defer tracker.deinit();
+
+    try tracker.recordAlloc("test", 1000);
+    try testing.expectEqual(@as(usize, 1), tracker.events.items.len);
+
+    tracker.disable();
+    try tracker.recordAlloc("test", 2000);
+    try testing.expectEqual(@as(usize, 1), tracker.events.items.len); // Not recorded
+
+    tracker.enable();
+    try tracker.recordAlloc("test", 3000);
+    try testing.expectEqual(@as(usize, 2), tracker.events.items.len); // Recorded
+}
+
+test "memory tracker reset clears all data" {
+    const allocator = testing.allocator;
+    var tracker = try MemoryTracker.init(allocator);
+    defer tracker.deinit();
+
+    try tracker.recordAlloc("test", 1000);
+    tracker.reset();
+
+    try testing.expectEqual(@as(usize, 0), tracker.events.items.len);
+    try testing.expectEqual(@as(usize, 0), tracker.totalCurrentAllocated());
+}
