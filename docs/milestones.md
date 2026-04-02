@@ -22,15 +22,15 @@
 - [x] Validation utilities - pre-condition/post-condition helpers for internal APIs (validators.zig)
 - [x] Error recovery examples - demonstrate error handling patterns (error_handling_demo.zig)
 
-### v1.31.0 — Performance Profiling & Optimization Tools (NEW)
+### v1.31.0 — Performance Profiling & Optimization Tools (IN PROGRESS)
 **Theme**: Built-in profiling and performance analysis
 **Target**: 2026-04 (1-2 weeks)
 **Rationale**: Help consumer projects identify bottlenecks in their TUI apps
 **Checklist**:
-- [ ] Render profiler enhancements - per-widget timing, flame graphs
-- [ ] Memory allocation tracker - identify allocation hot spots
+- [x] Render profiler enhancements - per-widget timing, flame graphs (Session 54: ProfilerFrame, beginScope/endScope, flameGraphData, +6 tests)
+- [x] Memory allocation tracker - identify allocation hot spots (Session 57: MemoryTracker, AllocStats, hot spots, leak detection, +10 tests)
 - [ ] Event loop profiler - measure event processing latency
-- [ ] Widget performance metrics - render count, cache hit rates
+- [x] Widget performance metrics - render count, cache hit rates (Session 54: WidgetMetrics, getWidgetMetrics, cacheHitRate)
 - [ ] Profiling examples - profile_demo.zig with real-world scenarios
 - [ ] Optimization guide - docs/optimization.md with profiling best practices
 

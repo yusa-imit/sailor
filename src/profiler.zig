@@ -1154,3 +1154,366 @@ test "memory tracker reset clears all data" {
     try testing.expectEqual(@as(usize, 0), tracker.events.items.len);
     try testing.expectEqual(@as(usize, 0), tracker.totalCurrentAllocated());
 }
+
+// ============================================================================
+// v1.31.0 Event Loop Profiler
+// ============================================================================
+
+/// Event processing record for latency tracking
+pub const EventProcessingRecord = struct {
+    event_type: []const u8, // "key", "mouse", "resize", "gamepad", etc.
+    processing_time_ns: u64,
+    timestamp: i128,
+    queue_depth: usize, // Events in queue when this was processed
+
+    /// Returns processing time in milliseconds
+    pub fn processingTimeMs(self: EventProcessingRecord) f64 {
+        return @as(f64, @floatFromInt(self.processing_time_ns)) / 1_000_000.0;
+    }
+
+    /// Returns processing time in microseconds
+    pub fn processingTimeUs(self: EventProcessingRecord) f64 {
+        return @as(f64, @floatFromInt(self.processing_time_ns)) / 1_000.0;
+    }
+};
+
+/// Event loop performance statistics
+pub const EventLoopStats = struct {
+    event_type: []const u8,
+    total_events: usize,
+    avg_latency_ns: u64,
+    min_latency_ns: u64,
+    max_latency_ns: u64,
+    p95_latency_ns: u64, // 95th percentile
+    p99_latency_ns: u64, // 99th percentile
+    avg_queue_depth: f64,
+
+    /// Returns average latency in milliseconds
+    pub fn avgLatencyMs(self: EventLoopStats) f64 {
+        return @as(f64, @floatFromInt(self.avg_latency_ns)) / 1_000_000.0;
+    }
+
+    /// Returns p95 latency in milliseconds
+    pub fn p95LatencyMs(self: EventLoopStats) f64 {
+        return @as(f64, @floatFromInt(self.p95_latency_ns)) / 1_000_000.0;
+    }
+
+    /// Returns p99 latency in milliseconds
+    pub fn p99LatencyMs(self: EventLoopStats) f64 {
+        return @as(f64, @floatFromInt(self.p99_latency_ns)) / 1_000_000.0;
+    }
+};
+
+/// Event loop profiler for measuring event processing latency
+pub const EventLoopProfiler = struct {
+    allocator: Allocator,
+    records: std.ArrayList(EventProcessingRecord),
+    enabled: bool,
+    latency_threshold_ms: f64, // Warn if event processing exceeds this
+
+    const Self = @This();
+
+    /// Initialize event loop profiler
+    pub fn init(allocator: Allocator, latency_threshold_ms: f64) !Self {
+        return Self{
+            .allocator = allocator,
+            .records = .{},
+            .enabled = true,
+            .latency_threshold_ms = latency_threshold_ms,
+        };
+    }
+
+    /// Deinitialize and free resources
+    pub fn deinit(self: *Self) void {
+        self.records.deinit(self.allocator);
+    }
+
+    /// Start timing an event processing
+    pub fn startEvent(self: *Self, event_type: []const u8, queue_depth: usize) EventGuard {
+        return EventGuard{
+            .profiler = self,
+            .event_type = event_type,
+            .queue_depth = queue_depth,
+            .start_time = std.time.nanoTimestamp(),
+        };
+    }
+
+    /// Record a completed event processing
+    fn recordEvent(self: *Self, event_type: []const u8, processing_time_ns: u64, queue_depth: usize) !void {
+        if (!self.enabled) return;
+
+        try self.records.append(self.allocator, .{
+            .event_type = event_type,
+            .processing_time_ns = processing_time_ns,
+            .timestamp = std.time.nanoTimestamp(),
+            .queue_depth = queue_depth,
+        });
+    }
+
+    /// Get statistics for a specific event type
+    pub fn getStats(self: *Self, event_type: []const u8) !EventLoopStats {
+        var latencies: std.ArrayList(u64) = .{};
+        defer latencies.deinit(self.allocator);
+
+        var total_queue_depth: usize = 0;
+        var min_latency: u64 = std.math.maxInt(u64);
+        var max_latency: u64 = 0;
+        var total_latency: u64 = 0;
+
+        for (self.records.items) |record| {
+            if (!std.mem.eql(u8, record.event_type, event_type)) continue;
+
+            try latencies.append(self.allocator, record.processing_time_ns);
+            total_latency += record.processing_time_ns;
+            total_queue_depth += record.queue_depth;
+
+            if (record.processing_time_ns < min_latency) min_latency = record.processing_time_ns;
+            if (record.processing_time_ns > max_latency) max_latency = record.processing_time_ns;
+        }
+
+        const count = latencies.items.len;
+        if (count == 0) {
+            return EventLoopStats{
+                .event_type = event_type,
+                .total_events = 0,
+                .avg_latency_ns = 0,
+                .min_latency_ns = 0,
+                .max_latency_ns = 0,
+                .p95_latency_ns = 0,
+                .p99_latency_ns = 0,
+                .avg_queue_depth = 0.0,
+            };
+        }
+
+        // Sort for percentile calculation
+        std.mem.sort(u64, latencies.items, {}, std.sort.asc(u64));
+
+        const avg_latency = total_latency / count;
+        const avg_queue = @as(f64, @floatFromInt(total_queue_depth)) / @as(f64, @floatFromInt(count));
+        const p95_idx = @min((count * 95) / 100, count - 1);
+        const p99_idx = @min((count * 99) / 100, count - 1);
+
+        return EventLoopStats{
+            .event_type = event_type,
+            .total_events = count,
+            .avg_latency_ns = avg_latency,
+            .min_latency_ns = min_latency,
+            .max_latency_ns = max_latency,
+            .p95_latency_ns = latencies.items[p95_idx],
+            .p99_latency_ns = latencies.items[p99_idx],
+            .avg_queue_depth = avg_queue,
+        };
+    }
+
+    /// Get all event types that exceed latency threshold
+    pub fn detectSlowEvents(self: *Self, allocator: Allocator) ![]EventProcessingRecord {
+        var slow_events: std.ArrayList(EventProcessingRecord) = .{};
+        errdefer slow_events.deinit(allocator);
+
+        const threshold_ns: u64 = @intFromFloat(self.latency_threshold_ms * 1_000_000.0);
+
+        for (self.records.items) |record| {
+            if (record.processing_time_ns > threshold_ns) {
+                try slow_events.append(allocator, record);
+            }
+        }
+
+        return slow_events.toOwnedSlice(allocator);
+    }
+
+    /// Get average latency across all event types
+    pub fn overallAverageLatency(self: *Self) u64 {
+        if (self.records.items.len == 0) return 0;
+
+        var total: u64 = 0;
+        for (self.records.items) |record| {
+            total += record.processing_time_ns;
+        }
+
+        return total / self.records.items.len;
+    }
+
+    /// Reset all tracking data
+    pub fn reset(self: *Self) void {
+        self.records.clearRetainingCapacity();
+    }
+
+    /// Enable profiling
+    pub fn enable(self: *Self) void {
+        self.enabled = true;
+    }
+
+    /// Disable profiling
+    pub fn disable(self: *Self) void {
+        self.enabled = false;
+    }
+};
+
+/// RAII guard for automatic event processing timing
+pub const EventGuard = struct {
+    profiler: *EventLoopProfiler,
+    event_type: []const u8,
+    queue_depth: usize,
+    start_time: i128,
+
+    /// Ends event timing and records the latency
+    pub fn end(self: EventGuard) !void {
+        const end_time = std.time.nanoTimestamp();
+        const duration_ns: u64 = @intCast(end_time - self.start_time);
+        try self.profiler.recordEvent(self.event_type, duration_ns, self.queue_depth);
+    }
+};
+
+// ============================================================================
+// Event Loop Profiler Tests
+// ============================================================================
+
+test "event loop profiler init and deinit" {
+    const allocator = testing.allocator;
+    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    defer profiler.deinit();
+
+    try testing.expect(profiler.enabled);
+    try testing.expectEqual(@as(f64, 16.0), profiler.latency_threshold_ms);
+}
+
+test "event loop profiler records events" {
+    const allocator = testing.allocator;
+    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    defer profiler.deinit();
+
+    {
+        var guard = profiler.startEvent("key", 0);
+        std.Thread.sleep(1_000_000); // 1ms
+        try guard.end();
+    }
+
+    try testing.expectEqual(@as(usize, 1), profiler.records.items.len);
+    try testing.expect(std.mem.eql(u8, "key", profiler.records.items[0].event_type));
+    try testing.expect(profiler.records.items[0].processing_time_ns > 0);
+}
+
+test "event loop profiler calculates stats" {
+    const allocator = testing.allocator;
+    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    defer profiler.deinit();
+
+    // Simulate multiple key events with known latencies
+    try profiler.recordEvent("key", 1_000_000, 0); // 1ms
+    try profiler.recordEvent("key", 2_000_000, 1); // 2ms
+    try profiler.recordEvent("key", 3_000_000, 2); // 3ms
+    try profiler.recordEvent("mouse", 5_000_000, 0); // 5ms (different type)
+
+    const stats = try profiler.getStats("key");
+    try testing.expectEqual(@as(usize, 3), stats.total_events);
+    try testing.expectEqual(@as(u64, 2_000_000), stats.avg_latency_ns); // (1+2+3)/3 = 2ms
+    try testing.expectEqual(@as(u64, 1_000_000), stats.min_latency_ns);
+    try testing.expectEqual(@as(u64, 3_000_000), stats.max_latency_ns);
+    try testing.expectApproxEqAbs(@as(f64, 1.0), stats.avg_queue_depth, 0.1); // (0+1+2)/3 = 1.0
+}
+
+test "event loop profiler percentiles" {
+    const allocator = testing.allocator;
+    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    defer profiler.deinit();
+
+    // 100 events with latencies 0ms to 99ms
+    var i: usize = 0;
+    while (i < 100) : (i += 1) {
+        const latency_ns: u64 = i * 1_000_000; // i milliseconds
+        try profiler.recordEvent("test", latency_ns, 0);
+    }
+
+    const stats = try profiler.getStats("test");
+    try testing.expectEqual(@as(usize, 100), stats.total_events);
+
+    // p95 should be around 95ms
+    const p95_ms = stats.p95LatencyMs();
+    try testing.expect(p95_ms >= 94.0 and p95_ms <= 95.0);
+
+    // p99 should be around 99ms
+    const p99_ms = stats.p99LatencyMs();
+    try testing.expect(p99_ms >= 98.0 and p99_ms <= 99.0);
+}
+
+test "event loop profiler detects slow events" {
+    const allocator = testing.allocator;
+    var profiler = try EventLoopProfiler.init(allocator, 10.0); // 10ms threshold
+    defer profiler.deinit();
+
+    try profiler.recordEvent("fast", 5_000_000, 0); // 5ms (OK)
+    try profiler.recordEvent("slow1", 15_000_000, 0); // 15ms (SLOW)
+    try profiler.recordEvent("slow2", 20_000_000, 0); // 20ms (SLOW)
+
+    const slow = try profiler.detectSlowEvents(allocator);
+    defer allocator.free(slow);
+
+    try testing.expectEqual(@as(usize, 2), slow.len);
+    try testing.expect(std.mem.eql(u8, "slow1", slow[0].event_type));
+    try testing.expect(std.mem.eql(u8, "slow2", slow[1].event_type));
+}
+
+test "event loop profiler overall average" {
+    const allocator = testing.allocator;
+    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    defer profiler.deinit();
+
+    try profiler.recordEvent("key", 2_000_000, 0); // 2ms
+    try profiler.recordEvent("mouse", 4_000_000, 0); // 4ms
+    try profiler.recordEvent("resize", 6_000_000, 0); // 6ms
+
+    const avg = profiler.overallAverageLatency();
+    try testing.expectEqual(@as(u64, 4_000_000), avg); // (2+4+6)/3 = 4ms
+}
+
+test "event loop profiler reset" {
+    const allocator = testing.allocator;
+    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    defer profiler.deinit();
+
+    try profiler.recordEvent("test", 1_000_000, 0);
+    try testing.expectEqual(@as(usize, 1), profiler.records.items.len);
+
+    profiler.reset();
+    try testing.expectEqual(@as(usize, 0), profiler.records.items.len);
+}
+
+test "event loop profiler enable/disable" {
+    const allocator = testing.allocator;
+    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    defer profiler.deinit();
+
+    try profiler.recordEvent("test", 1_000_000, 0);
+    try testing.expectEqual(@as(usize, 1), profiler.records.items.len);
+
+    profiler.disable();
+    try profiler.recordEvent("test", 2_000_000, 0);
+    try testing.expectEqual(@as(usize, 1), profiler.records.items.len); // Not recorded
+
+    profiler.enable();
+    try profiler.recordEvent("test", 3_000_000, 0);
+    try testing.expectEqual(@as(usize, 2), profiler.records.items.len); // Recorded
+}
+
+test "event loop profiler empty stats" {
+    const allocator = testing.allocator;
+    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    defer profiler.deinit();
+
+    const stats = try profiler.getStats("nonexistent");
+    try testing.expectEqual(@as(usize, 0), stats.total_events);
+    try testing.expectEqual(@as(u64, 0), stats.avg_latency_ns);
+}
+
+test "event loop profiler queue depth tracking" {
+    const allocator = testing.allocator;
+    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    defer profiler.deinit();
+
+    try profiler.recordEvent("key", 1_000_000, 5); // Queue depth 5
+    try profiler.recordEvent("key", 1_000_000, 3); // Queue depth 3
+    try profiler.recordEvent("key", 1_000_000, 0); // Queue depth 0
+
+    const stats = try profiler.getStats("key");
+    try testing.expectApproxEqAbs(@as(f64, 2.666), stats.avg_queue_depth, 0.01); // (5+3+0)/3
+}
