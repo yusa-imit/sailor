@@ -469,6 +469,7 @@ pub fn build(b: *std.Build) void {
         .{ .name = "animation_demo", .source = "examples/animation_demo.zig", .description = "Animation & transitions demo — easing functions, timers, color animation (v1.24.0)" },
         .{ .name = "form_demo", .source = "examples/form_demo.zig", .description = "Form & validation demo — registration/login with validators (v1.25.0)" },
         .{ .name = "error_handling", .source = "examples/error_handling_demo.zig", .description = "Error handling demo — structured errors, debug logging, recovery strategies (v1.30.0)" },
+        .{ .name = "profile_demo", .source = "examples/profile_demo.zig", .description = "Profiling demo — render profiler, memory tracker, event loop profiler, widget metrics (v1.31.0)" },
     };
 
     inline for (examples) |example| {
