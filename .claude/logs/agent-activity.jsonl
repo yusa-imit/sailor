@@ -18,3 +18,5 @@
 {"timestamp":"2026-03-28T09:15:00Z","action":"subagent","agent_type":"test-writer","task":"Add 30 edge case tests for form.zig","project":"sailor"}
 {"timestamp":"2026-03-28T09:30:00Z","action":"subagent","agent_type":"test-writer","task":"Add 28 edge case tests for chunkedbuffer.zig","project":"sailor"}
 {"timestamp":"2026-03-28T09:45:00Z","action":"subagent","agent_type":"test-writer","task":"Add 38 edge case tests for richtext_parser.zig","project":"sailor"}
+{"timestamp":"2026-04-02T13:15:00Z","action":"subagent","agent_type":"test-writer","task":"Write tests for min/max propagation","project":"sailor"}
+{"timestamp":"2026-04-02T14:00:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement min/max size propagation","project":"sailor"}
