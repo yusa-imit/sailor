@@ -5,7 +5,7 @@
 - **Latest release**: v1.31.0 (2026-04-02) — Performance Profiling & Optimization Tools
 - **Latest minor**: v1.31.0 (2026-04-02) — Performance Profiling & Optimization Tools
 - **Next milestone**: v1.32.0 — Advanced Layout Features
-- **Active milestones**: 1 (v1.32.0)
+- **Active milestones**: 2 (v1.32.0, v1.33.0)
 - **Blockers**: None
 
 ## Active Milestones
@@ -21,6 +21,18 @@
 - [ ] Auto-margin/padding - smart spacing between widgets
 - [ ] Layout debugging - visual layout tree inspector
 - [ ] Complex layout examples - dashboard_advanced.zig with nested layouts
+
+### v1.33.0 — Specialized Widgets & Components
+**Theme**: Expand widget library with specialized components for common use cases
+**Target**: 2026-04 (1-2 weeks)
+**Rationale**: Consumer projects need domain-specific widgets (logs, metrics, config panels)
+**Checklist**:
+- [ ] LogViewer widget - scrollable log display with filtering and search
+- [ ] MetricsPanel widget - real-time metrics display with thresholds
+- [ ] ConfigEditor widget - hierarchical config editing (JSON/TOML)
+- [ ] SplitPane widget - resizable panes with drag handles
+- [ ] Breadcrumb widget - navigation breadcrumb trail
+- [ ] Tooltip widget - contextual help tooltips
 
 ### v1.28.0 — Ecosystem Integration & Polish (COMPLETED 2026-04-01)
 **Theme**: zuda integration, consumer feedback, final polish
