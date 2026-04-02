@@ -746,8 +746,10 @@ test "Rect.withAspectRatio - common mobile aspect ratios" {
     // iPhone 14 Pro: 1170 x 2532 = 9:19.6 (roughly 9:20)
     const area = Rect.new(0, 0, 1170, 2532);
     const constrained = area.withAspectRatio(.{ .width = 9, .height = 20 });
-    try std.testing.expectEqual(1170, constrained.width);
-    try std.testing.expectEqual(2600, constrained.height); // 1170 * 20 / 9 = 2600
+    // Height-constrained: 2532 is available height
+    // Width = 2532 * 9 / 20 = 1139
+    try std.testing.expectEqual(1139, constrained.width);
+    try std.testing.expectEqual(2532, constrained.height);
 }
 
 test "split - aspect ratio in three-way vertical split" {
