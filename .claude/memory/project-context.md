@@ -9,14 +9,14 @@
 - Previous versions: v1.30.2, v1.30.0, v1.29.0, v1.28.0, v1.27.0, v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1, v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestones**: v1.32.0 (2/6), v1.33.0 (0/6)
+- **Active milestones**: v1.32.0 (3/6), v1.33.0 (0/6)
 - **Last completed**: v1.31.0 → Performance Profiling & Optimization Tools (6/6, 100%) ✅
 
 ## Project Status
-✅ **Session 58** — FEATURE MODE: v1.32.0 Progress (2026-04-02)
-  - **Mode**: FEATURE (session 58, 58 % 5 != 0)
-  - **Milestone**: v1.32.0 — Advanced Layout Features (2/6, 33%)
-  - **Achievement**: Nested grids + aspect ratio constraints implemented
+✅ **Session 59** — FEATURE MODE: v1.32.0 Progress (2026-04-02)
+  - **Mode**: FEATURE (session 59, 59 % 5 != 0)
+  - **Milestone**: v1.32.0 — Advanced Layout Features (3/6, 50%)
+  - **Achievement**: Min/max constraint enforcement in nested layouts
 
   **Features Implemented**:
     1. ✅ Nested Grid layouts (Session 58)
@@ -29,12 +29,33 @@
        - Rect.withAspectRatio() helper
        - Width/height constraint detection
        - +20 comprehensive tests
-    3. ⏳ Min/max size propagation (pending)
+    3. ✅ Min/max size propagation (Session 59)
+       - 4 enforcement strategies in split() function
+       - Single min exceeding available: fully respected
+       - Multiple conflicting mins: proportional distribution
+       - Mixed min+max constraints: min preserved, max scaled
+       - Handles nested layouts correctly
+       - +12 comprehensive tests
     4. ⏳ Auto-margin/padding (pending)
     5. ⏳ Layout debugging (pending)
     6. ⏳ Complex layout examples (pending)
 
-  **New milestone established**: v1.33.0 — Specialized Widgets & Components
+  **Testing**: +12 new tests (min/max propagation)
+    - Total tests: 3478 (was 3466)
+    - All tests pass (100% pass rate)
+
+  **Implementation Details**:
+    - Rewrote split() function with 4-strategy constraint enforcement
+    - Strategy 1: Single min > available → respect min fully
+    - Strategy 2: Multiple mins > available → proportional scaling
+    - Strategy 3: Mixed min+max → allocate mins first, scale maxes
+    - Strategy 4: Standard case → original logic (backward compatible)
+    - Handles zero constraints, oversized constraints, deep nesting
+
+✅ **Session 58** — FEATURE MODE: v1.32.0 Progress (2026-04-02)
+  - **Mode**: FEATURE (session 58, 58 % 5 != 0)
+  - **Milestone**: v1.32.0 — Advanced Layout Features (2/6, 33%)
+  - **Achievement**: Nested grids + aspect ratio constraints implemented
 
   **Testing**: +29 new tests (9 nested grid + 20 aspect ratio)
     - Total tests: 3466 (was 3437)
