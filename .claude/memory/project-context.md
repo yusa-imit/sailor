@@ -5,7 +5,7 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.30.1** 🎉 (2026-04-01 — patch release)
+- **Current version: v1.30.2** 🎉 (2026-04-02 — critical patch release)
 - Previous versions: v1.30.0, v1.29.0, v1.28.0, v1.27.0, v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1 (patch), v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
@@ -13,6 +13,27 @@
 - **Last completed**: v1.30.0 → Error Handling & Debugging Enhancements (6/6, 100%) ✅
 
 ## Project Status
+✅ **Session 56** — FEATURE MODE (pivoted to bugfix): v1.30.2 Critical Patch Release (2026-04-02)
+  - **Mode**: FEATURE (session 56, 56 % 5 != 0)
+  - **Pivoted to critical bug**: zr reported #15 — BoundedArrayAligned breaks Zig 0.15.2
+  - **Issue**: v1.30.1 attempted fix using BoundedArrayAligned which also doesn't exist in Zig 0.15
+  - **Root Cause**: Both std.BoundedArray AND std.BoundedArrayAligned removed in Zig 0.15
+
+  **Fix (commit 5f7f362)**:
+    - **tree.zig**: Replaced BoundedArrayAligned with manual FlatList struct
+    - FlatList: stack-allocated buffer[256] + manual length tracking
+    - Maintains same 256-node limit and performance characteristics
+    - Fully compatible with Zig 0.15.2, no stdlib dependency on removed types
+
+  **Release v1.30.2**:
+    - Tagged and pushed: https://github.com/yusa-imit/sailor/releases/tag/v1.30.2
+    - Migration issues created: zr #45, zoltraak #22, silica #31
+    - Issue #15 closed with resolution
+    - **Impact**: UNBLOCKS zr from upgrading to sailor v1.26.0+
+
+  **Testing**: All 3437 tests pass, cross-compilation verified
+  **Next**: Return to v1.31.0 milestone implementation
+
 ✅ **Session 55** — STABILIZATION MODE: Test Coverage Enhancement (2026-04-02)
   - **Mode**: STABILIZATION (session 55, 55 % 5 == 0)
   - **Focus**: Test coverage audit and cross-platform verification
