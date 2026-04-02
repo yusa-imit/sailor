@@ -142,10 +142,28 @@ pub const Tree = struct {
         depth: u16,
     };
 
-    fn flattenNodesStack(nodes: []const TreeNode, depth: u16, out: *std.BoundedArrayAligned(FlatNode, null, 256)) !void {
+    const FlatList = struct {
+        buffer: [256]FlatNode,
+        len: usize,
+
+        fn init() FlatList {
+            return .{ .buffer = undefined, .len = 0 };
+        }
+
+        fn append(self: *FlatList, item: FlatNode) !void {
+            if (self.len >= 256) return error.TooManyNodes;
+            self.buffer[self.len] = item;
+            self.len += 1;
+        }
+
+        fn slice(self: *const FlatList) []const FlatNode {
+            return self.buffer[0..self.len];
+        }
+    };
+
+    fn flattenNodesStack(nodes: []const TreeNode, depth: u16, out: *FlatList) !void {
         for (nodes) |*node| {
-            if (out.len >= 256) return error.TooManyNodes;
-            out.appendAssumeCapacity(.{ .node = node, .depth = depth });
+            try out.append(.{ .node = node, .depth = depth });
             if (!node.isLeaf() and node.expanded) {
                 try flattenNodesStack(node.children, depth + 1, out);
             }
@@ -167,7 +185,7 @@ pub const Tree = struct {
         if (inner_area.width == 0 or inner_area.height == 0) return;
 
         // Flatten visible nodes using stack-allocated buffer
-        var flat_list = std.BoundedArrayAligned(FlatNode, null, 256).init(0) catch unreachable;
+        var flat_list = FlatList.init();
         flattenNodesStack(self.nodes, 0, &flat_list) catch return;
 
         const flat_nodes = flat_list.slice();
