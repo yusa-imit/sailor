@@ -224,6 +224,9 @@ pub const widgets = struct {
     pub const Breadcrumb = @import("widgets/breadcrumb.zig").Breadcrumb;
     pub const TruncationMode = @import("widgets/breadcrumb.zig").TruncationMode;
     pub const BreadcrumbItem = @import("widgets/breadcrumb.zig").Item;
+    pub const Tooltip = @import("widgets/tooltip.zig").Tooltip;
+    pub const TooltipPosition = @import("widgets/tooltip.zig").Position;
+    pub const TooltipTrigger = @import("widgets/tooltip.zig").Trigger;
 };
 
 // Export commonly used types
@@ -925,4 +928,5 @@ test {
     _ = @import("widgets/paragraph.zig");
     _ = @import("widgets/list.zig");
     _ = @import("widgets/table.zig");
+    _ = @import("widgets/tooltip.zig");
 }
