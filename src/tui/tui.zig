@@ -210,6 +210,13 @@ pub const widgets = struct {
 
     // v1.21.0+ widgets (Large Dataset Efficiency)
     pub const ChunkedBuffer = @import("widgets/chunkedbuffer.zig").ChunkedBuffer;
+
+    // v1.33.0+ widgets (Specialized Widgets & Components)
+    pub const MetricsPanel = @import("widgets/metricspanel.zig").MetricsPanel;
+    pub const Metric = @import("widgets/metricspanel.zig").Metric;
+    pub const MetricType = @import("widgets/metricspanel.zig").MetricType;
+    pub const ThresholdStatus = @import("widgets/metricspanel.zig").ThresholdStatus;
+    pub const Thresholds = @import("widgets/metricspanel.zig").Thresholds;
 };
 
 // Export commonly used types
