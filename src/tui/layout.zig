@@ -96,6 +96,80 @@ pub const Rect = struct {
             );
         }
     }
+
+    /// Apply margin to rectangle, shrinking it inward
+    /// Returns a new rectangle with margin applied on all sides
+    /// Handles underflow by returning zero dimensions if margin exceeds size
+    pub fn withMargin(self: Rect, margin: Margin) Rect {
+        // Calculate total horizontal and vertical margins
+        const horizontal_margin = @as(u32, margin.left) + @as(u32, margin.right);
+        const vertical_margin = @as(u32, margin.top) + @as(u32, margin.bottom);
+
+        // Check for underflow - if margin exceeds dimension, return zero dimension
+        const new_width = if (horizontal_margin >= self.width) 0 else self.width - @as(u16, @intCast(horizontal_margin));
+        const new_height = if (vertical_margin >= self.height) 0 else self.height - @as(u16, @intCast(vertical_margin));
+
+        // Calculate new position (moved inward by margin)
+        const new_x = self.x + margin.left;
+        const new_y = self.y + margin.top;
+
+        return Rect.new(new_x, new_y, new_width, new_height);
+    }
+
+    /// Apply padding to rectangle, shrinking it inward
+    /// Returns a new rectangle with padding applied on all sides
+    /// Handles underflow by returning zero dimensions if padding exceeds size
+    pub fn withPadding(self: Rect, padding: Padding) Rect {
+        // Calculate total horizontal and vertical padding
+        const horizontal_padding = @as(u32, padding.left) + @as(u32, padding.right);
+        const vertical_padding = @as(u32, padding.top) + @as(u32, padding.bottom);
+
+        // Check for underflow - if padding exceeds dimension, return zero dimension
+        const new_width = if (horizontal_padding >= self.width) 0 else self.width - @as(u16, @intCast(horizontal_padding));
+        const new_height = if (vertical_padding >= self.height) 0 else self.height - @as(u16, @intCast(vertical_padding));
+
+        // Calculate new position (moved inward by padding)
+        const new_x = self.x + padding.left;
+        const new_y = self.y + padding.top;
+
+        return Rect.new(new_x, new_y, new_width, new_height);
+    }
+};
+
+/// Margin spacing around a rectangle
+pub const Margin = struct {
+    top: u16,
+    right: u16,
+    bottom: u16,
+    left: u16,
+
+    /// Create uniform margin on all sides
+    pub fn all(n: u16) Margin {
+        return .{ .top = n, .right = n, .bottom = n, .left = n };
+    }
+
+    /// Create symmetric margin (vertical and horizontal)
+    pub fn symmetric(vertical: u16, horizontal: u16) Margin {
+        return .{ .top = vertical, .right = horizontal, .bottom = vertical, .left = horizontal };
+    }
+};
+
+/// Padding spacing inside a rectangle
+pub const Padding = struct {
+    top: u16,
+    right: u16,
+    bottom: u16,
+    left: u16,
+
+    /// Create uniform padding on all sides
+    pub fn all(n: u16) Padding {
+        return .{ .top = n, .right = n, .bottom = n, .left = n };
+    }
+
+    /// Create symmetric padding (vertical and horizontal)
+    pub fn symmetric(vertical: u16, horizontal: u16) Padding {
+        return .{ .top = vertical, .right = horizontal, .bottom = vertical, .left = horizontal };
+    }
 };
 
 /// Layout direction
@@ -1298,4 +1372,357 @@ test "split - stress test with exceeding min constraints" {
         try std.testing.expect(chunk.width >= expected_avg - 2);
         try std.testing.expect(chunk.width <= expected_avg + 2);
     }
+}
+
+// ============================================================================
+// Margin and Padding Tests
+// ============================================================================
+
+test "Margin creation - individual sides" {
+    const m = Margin{ .top = 1, .right = 2, .bottom = 3, .left = 4 };
+    try std.testing.expectEqual(@as(u16, 1), m.top);
+    try std.testing.expectEqual(@as(u16, 2), m.right);
+    try std.testing.expectEqual(@as(u16, 3), m.bottom);
+    try std.testing.expectEqual(@as(u16, 4), m.left);
+}
+
+test "Margin.all - creates uniform margin" {
+    const m = Margin.all(5);
+    try std.testing.expectEqual(@as(u16, 5), m.top);
+    try std.testing.expectEqual(@as(u16, 5), m.right);
+    try std.testing.expectEqual(@as(u16, 5), m.bottom);
+    try std.testing.expectEqual(@as(u16, 5), m.left);
+}
+
+test "Margin.all - zero margin" {
+    const m = Margin.all(0);
+    try std.testing.expectEqual(@as(u16, 0), m.top);
+    try std.testing.expectEqual(@as(u16, 0), m.right);
+    try std.testing.expectEqual(@as(u16, 0), m.bottom);
+    try std.testing.expectEqual(@as(u16, 0), m.left);
+}
+
+test "Margin.symmetric - vertical and horizontal" {
+    const m = Margin.symmetric(10, 20);
+    try std.testing.expectEqual(@as(u16, 10), m.top);
+    try std.testing.expectEqual(@as(u16, 20), m.right);
+    try std.testing.expectEqual(@as(u16, 10), m.bottom);
+    try std.testing.expectEqual(@as(u16, 20), m.left);
+}
+
+test "Margin.symmetric - equal vertical and horizontal" {
+    const m = Margin.symmetric(15, 15);
+    try std.testing.expectEqual(@as(u16, 15), m.top);
+    try std.testing.expectEqual(@as(u16, 15), m.right);
+    try std.testing.expectEqual(@as(u16, 15), m.bottom);
+    try std.testing.expectEqual(@as(u16, 15), m.left);
+}
+
+test "Margin.symmetric - zero values" {
+    const m = Margin.symmetric(0, 0);
+    try std.testing.expectEqual(@as(u16, 0), m.top);
+    try std.testing.expectEqual(@as(u16, 0), m.right);
+    try std.testing.expectEqual(@as(u16, 0), m.bottom);
+    try std.testing.expectEqual(@as(u16, 0), m.left);
+}
+
+test "Padding creation - individual sides" {
+    const p = Padding{ .top = 5, .right = 10, .bottom = 15, .left = 20 };
+    try std.testing.expectEqual(@as(u16, 5), p.top);
+    try std.testing.expectEqual(@as(u16, 10), p.right);
+    try std.testing.expectEqual(@as(u16, 15), p.bottom);
+    try std.testing.expectEqual(@as(u16, 20), p.left);
+}
+
+test "Padding.all - creates uniform padding" {
+    const p = Padding.all(8);
+    try std.testing.expectEqual(@as(u16, 8), p.top);
+    try std.testing.expectEqual(@as(u16, 8), p.right);
+    try std.testing.expectEqual(@as(u16, 8), p.bottom);
+    try std.testing.expectEqual(@as(u16, 8), p.left);
+}
+
+test "Padding.all - zero padding" {
+    const p = Padding.all(0);
+    try std.testing.expectEqual(@as(u16, 0), p.top);
+    try std.testing.expectEqual(@as(u16, 0), p.right);
+    try std.testing.expectEqual(@as(u16, 0), p.bottom);
+    try std.testing.expectEqual(@as(u16, 0), p.left);
+}
+
+test "Padding.symmetric - vertical and horizontal" {
+    const p = Padding.symmetric(5, 10);
+    try std.testing.expectEqual(@as(u16, 5), p.top);
+    try std.testing.expectEqual(@as(u16, 10), p.right);
+    try std.testing.expectEqual(@as(u16, 5), p.bottom);
+    try std.testing.expectEqual(@as(u16, 10), p.left);
+}
+
+test "Padding.symmetric - equal vertical and horizontal" {
+    const p = Padding.symmetric(12, 12);
+    try std.testing.expectEqual(@as(u16, 12), p.top);
+    try std.testing.expectEqual(@as(u16, 12), p.right);
+    try std.testing.expectEqual(@as(u16, 12), p.bottom);
+    try std.testing.expectEqual(@as(u16, 12), p.left);
+}
+
+test "Rect.withMargin - uniform margin shrinks rect correctly" {
+    const r = Rect.new(10, 10, 100, 50);
+    const m = Margin.all(5);
+    const result = r.withMargin(m);
+
+    try std.testing.expectEqual(@as(u16, 15), result.x); // 10 + 5 left margin
+    try std.testing.expectEqual(@as(u16, 15), result.y); // 10 + 5 top margin
+    try std.testing.expectEqual(@as(u16, 90), result.width); // 100 - 5 left - 5 right
+    try std.testing.expectEqual(@as(u16, 40), result.height); // 50 - 5 top - 5 bottom
+}
+
+test "Rect.withMargin - asymmetric margin" {
+    const r = Rect.new(0, 0, 100, 100);
+    const m = Margin{ .top = 10, .right = 5, .bottom = 15, .left = 20 };
+    const result = r.withMargin(m);
+
+    try std.testing.expectEqual(@as(u16, 20), result.x); // 0 + 20 left margin
+    try std.testing.expectEqual(@as(u16, 10), result.y); // 0 + 10 top margin
+    try std.testing.expectEqual(@as(u16, 75), result.width); // 100 - 20 left - 5 right
+    try std.testing.expectEqual(@as(u16, 75), result.height); // 100 - 10 top - 15 bottom
+}
+
+test "Rect.withMargin - zero margin does not change rect" {
+    const r = Rect.new(10, 20, 80, 60);
+    const m = Margin.all(0);
+    const result = r.withMargin(m);
+
+    try std.testing.expectEqual(r.x, result.x);
+    try std.testing.expectEqual(r.y, result.y);
+    try std.testing.expectEqual(r.width, result.width);
+    try std.testing.expectEqual(r.height, result.height);
+}
+
+test "Rect.withMargin - margin exceeds width returns zero-width rect" {
+    const r = Rect.new(0, 0, 10, 50);
+    const m = Margin{ .top = 5, .right = 10, .bottom = 5, .left = 10 };
+    const result = r.withMargin(m);
+
+    try std.testing.expectEqual(@as(u16, 10), result.x); // left margin still applied
+    try std.testing.expectEqual(@as(u16, 5), result.y); // top margin still applied
+    try std.testing.expectEqual(@as(u16, 0), result.width); // 10 - 10 - 10 = -10 → 0
+    try std.testing.expectEqual(@as(u16, 40), result.height); // height unaffected
+}
+
+test "Rect.withMargin - margin exceeds height returns zero-height rect" {
+    const r = Rect.new(0, 0, 50, 10);
+    const m = Margin{ .top = 10, .right = 5, .bottom = 10, .left = 5 };
+    const result = r.withMargin(m);
+
+    try std.testing.expectEqual(@as(u16, 5), result.x);
+    try std.testing.expectEqual(@as(u16, 10), result.y);
+    try std.testing.expectEqual(@as(u16, 40), result.width); // width unaffected
+    try std.testing.expectEqual(@as(u16, 0), result.height); // 10 - 10 - 10 = -10 → 0
+}
+
+test "Rect.withMargin - margin exceeds both dimensions" {
+    const r = Rect.new(5, 5, 10, 10);
+    const m = Margin.all(20);
+    const result = r.withMargin(m);
+
+    try std.testing.expectEqual(@as(u16, 25), result.x); // 5 + 20
+    try std.testing.expectEqual(@as(u16, 25), result.y); // 5 + 20
+    try std.testing.expectEqual(@as(u16, 0), result.width); // 10 - 40 → 0
+    try std.testing.expectEqual(@as(u16, 0), result.height); // 10 - 40 → 0
+}
+
+test "Rect.withMargin - large rect with small margin" {
+    const r = Rect.new(100, 200, 1920, 1080);
+    const m = Margin.all(1);
+    const result = r.withMargin(m);
+
+    try std.testing.expectEqual(@as(u16, 101), result.x);
+    try std.testing.expectEqual(@as(u16, 201), result.y);
+    try std.testing.expectEqual(@as(u16, 1918), result.width);
+    try std.testing.expectEqual(@as(u16, 1078), result.height);
+}
+
+test "Rect.withPadding - uniform padding shrinks rect correctly" {
+    const r = Rect.new(10, 10, 100, 50);
+    const p = Padding.all(5);
+    const result = r.withPadding(p);
+
+    try std.testing.expectEqual(@as(u16, 15), result.x); // 10 + 5 left padding
+    try std.testing.expectEqual(@as(u16, 15), result.y); // 10 + 5 top padding
+    try std.testing.expectEqual(@as(u16, 90), result.width); // 100 - 5 left - 5 right
+    try std.testing.expectEqual(@as(u16, 40), result.height); // 50 - 5 top - 5 bottom
+}
+
+test "Rect.withPadding - asymmetric padding" {
+    const r = Rect.new(0, 0, 100, 100);
+    const p = Padding{ .top = 2, .right = 4, .bottom = 6, .left = 8 };
+    const result = r.withPadding(p);
+
+    try std.testing.expectEqual(@as(u16, 8), result.x); // 0 + 8 left padding
+    try std.testing.expectEqual(@as(u16, 2), result.y); // 0 + 2 top padding
+    try std.testing.expectEqual(@as(u16, 88), result.width); // 100 - 8 left - 4 right
+    try std.testing.expectEqual(@as(u16, 92), result.height); // 100 - 2 top - 6 bottom
+}
+
+test "Rect.withPadding - zero padding does not change rect" {
+    const r = Rect.new(50, 50, 200, 150);
+    const p = Padding.all(0);
+    const result = r.withPadding(p);
+
+    try std.testing.expectEqual(r.x, result.x);
+    try std.testing.expectEqual(r.y, result.y);
+    try std.testing.expectEqual(r.width, result.width);
+    try std.testing.expectEqual(r.height, result.height);
+}
+
+test "Rect.withPadding - padding exceeds width returns zero-width rect" {
+    const r = Rect.new(0, 0, 20, 50);
+    const p = Padding{ .top = 5, .right = 15, .bottom = 5, .left = 15 };
+    const result = r.withPadding(p);
+
+    try std.testing.expectEqual(@as(u16, 15), result.x);
+    try std.testing.expectEqual(@as(u16, 5), result.y);
+    try std.testing.expectEqual(@as(u16, 0), result.width); // 20 - 15 - 15 = -10 → 0
+    try std.testing.expectEqual(@as(u16, 40), result.height);
+}
+
+test "Rect.withPadding - padding exceeds height returns zero-height rect" {
+    const r = Rect.new(0, 0, 50, 20);
+    const p = Padding{ .top = 15, .right = 5, .bottom = 15, .left = 5 };
+    const result = r.withPadding(p);
+
+    try std.testing.expectEqual(@as(u16, 5), result.x);
+    try std.testing.expectEqual(@as(u16, 15), result.y);
+    try std.testing.expectEqual(@as(u16, 40), result.width);
+    try std.testing.expectEqual(@as(u16, 0), result.height); // 20 - 15 - 15 = -10 → 0
+}
+
+test "Rect.withPadding - padding exceeds both dimensions" {
+    const r = Rect.new(0, 0, 5, 5);
+    const p = Padding.all(10);
+    const result = r.withPadding(p);
+
+    try std.testing.expectEqual(@as(u16, 10), result.x);
+    try std.testing.expectEqual(@as(u16, 10), result.y);
+    try std.testing.expectEqual(@as(u16, 0), result.width); // 5 - 20 → 0
+    try std.testing.expectEqual(@as(u16, 0), result.height); // 5 - 20 → 0
+}
+
+test "Margin and Padding combined - margin then padding" {
+    const r = Rect.new(0, 0, 100, 100);
+    const m = Margin.all(10);
+    const p = Padding.all(5);
+
+    const with_margin = r.withMargin(m);
+    const with_both = with_margin.withPadding(p);
+
+    try std.testing.expectEqual(@as(u16, 15), with_both.x); // 0 + 10 margin + 5 padding
+    try std.testing.expectEqual(@as(u16, 15), with_both.y);
+    try std.testing.expectEqual(@as(u16, 70), with_both.width); // 100 - 20 margin - 10 padding
+    try std.testing.expectEqual(@as(u16, 70), with_both.height);
+}
+
+test "Margin and Padding combined - padding then margin" {
+    const r = Rect.new(0, 0, 100, 100);
+    const m = Margin.all(10);
+    const p = Padding.all(5);
+
+    const with_padding = r.withPadding(p);
+    const with_both = with_padding.withMargin(m);
+
+    try std.testing.expectEqual(@as(u16, 15), with_both.x); // 0 + 5 padding + 10 margin
+    try std.testing.expectEqual(@as(u16, 15), with_both.y);
+    try std.testing.expectEqual(@as(u16, 70), with_both.width); // 100 - 10 padding - 20 margin
+    try std.testing.expectEqual(@as(u16, 70), with_both.height);
+}
+
+test "Rect.withMargin - edge case one pixel rect" {
+    const r = Rect.new(50, 50, 1, 1);
+    const m = Margin.all(1);
+    const result = r.withMargin(m);
+
+    try std.testing.expectEqual(@as(u16, 51), result.x);
+    try std.testing.expectEqual(@as(u16, 51), result.y);
+    try std.testing.expectEqual(@as(u16, 0), result.width); // 1 - 2 → 0
+    try std.testing.expectEqual(@as(u16, 0), result.height); // 1 - 2 → 0
+}
+
+test "Rect.withPadding - edge case one pixel rect" {
+    const r = Rect.new(100, 100, 1, 1);
+    const p = Padding.all(1);
+    const result = r.withPadding(p);
+
+    try std.testing.expectEqual(@as(u16, 101), result.x);
+    try std.testing.expectEqual(@as(u16, 101), result.y);
+    try std.testing.expectEqual(@as(u16, 0), result.width); // 1 - 2 → 0
+    try std.testing.expectEqual(@as(u16, 0), result.height); // 1 - 2 → 0
+}
+
+test "Margin.symmetric - only vertical" {
+    const m = Margin.symmetric(20, 0);
+    try std.testing.expectEqual(@as(u16, 20), m.top);
+    try std.testing.expectEqual(@as(u16, 0), m.right);
+    try std.testing.expectEqual(@as(u16, 20), m.bottom);
+    try std.testing.expectEqual(@as(u16, 0), m.left);
+}
+
+test "Margin.symmetric - only horizontal" {
+    const m = Margin.symmetric(0, 30);
+    try std.testing.expectEqual(@as(u16, 0), m.top);
+    try std.testing.expectEqual(@as(u16, 30), m.right);
+    try std.testing.expectEqual(@as(u16, 0), m.bottom);
+    try std.testing.expectEqual(@as(u16, 30), m.left);
+}
+
+test "Padding.symmetric - only vertical" {
+    const p = Padding.symmetric(15, 0);
+    try std.testing.expectEqual(@as(u16, 15), p.top);
+    try std.testing.expectEqual(@as(u16, 0), p.right);
+    try std.testing.expectEqual(@as(u16, 15), p.bottom);
+    try std.testing.expectEqual(@as(u16, 0), p.left);
+}
+
+test "Padding.symmetric - only horizontal" {
+    const p = Padding.symmetric(0, 25);
+    try std.testing.expectEqual(@as(u16, 0), p.top);
+    try std.testing.expectEqual(@as(u16, 25), p.right);
+    try std.testing.expectEqual(@as(u16, 0), p.bottom);
+    try std.testing.expectEqual(@as(u16, 25), p.left);
+}
+
+test "Rect.withMargin - underflow protection width" {
+    const r = Rect.new(0, 0, 5, 100);
+    const m = Margin{ .top = 0, .right = 3, .bottom = 0, .left = 3 };
+    const result = r.withMargin(m);
+
+    // left + right = 6 > width 5, should return 0 width
+    try std.testing.expectEqual(@as(u16, 0), result.width);
+}
+
+test "Rect.withMargin - underflow protection height" {
+    const r = Rect.new(0, 0, 100, 5);
+    const m = Margin{ .top = 3, .right = 0, .bottom = 3, .left = 0 };
+    const result = r.withMargin(m);
+
+    // top + bottom = 6 > height 5, should return 0 height
+    try std.testing.expectEqual(@as(u16, 0), result.height);
+}
+
+test "Rect.withPadding - underflow protection width" {
+    const r = Rect.new(0, 0, 8, 100);
+    const p = Padding{ .top = 0, .right = 5, .bottom = 0, .left = 5 };
+    const result = r.withPadding(p);
+
+    // left + right = 10 > width 8, should return 0 width
+    try std.testing.expectEqual(@as(u16, 0), result.width);
+}
+
+test "Rect.withPadding - underflow protection height" {
+    const r = Rect.new(0, 0, 100, 8);
+    const p = Padding{ .top = 5, .right = 0, .bottom = 5, .left = 0 };
+    const result = r.withPadding(p);
+
+    // top + bottom = 10 > height 8, should return 0 height
+    try std.testing.expectEqual(@as(u16, 0), result.height);
 }
