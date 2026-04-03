@@ -20,7 +20,7 @@
 - [x] ConfigEditor widget - hierarchical config editing (JSON/TOML) (Session 62: +45 tests, tree view, 6 value types, expand/collapse)
 - [x] SplitPane widget - resizable panes with drag handles (Session 62: +36 tests, h/v splits, min/max constraints, visual divider)
 - [x] Breadcrumb widget - navigation breadcrumb trail (Session 63: +51 tests, 3 truncation modes, custom separators, highlighting)
-- [ ] Tooltip widget - contextual help tooltips
+- [x] Tooltip widget - contextual help tooltips (Session 64: +53 tests, 5 positioning strategies, arrow indicators, boundary detection)
 
 ### v1.34.0 — Terminal Clipboard & System Integration
 **Theme**: Enhance terminal integration with system clipboard and OS features
