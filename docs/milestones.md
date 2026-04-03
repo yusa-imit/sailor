@@ -5,7 +5,7 @@
 - **Latest release**: v1.32.0 (2026-04-03) — Advanced Layout Features
 - **Latest minor**: v1.32.0 (2026-04-03) — Advanced Layout Features
 - **Next milestone**: v1.33.0 — Specialized Widgets & Components
-- **Active milestones**: 1 (v1.33.0)
+- **Active milestones**: 2 (v1.33.0, v1.34.0)
 - **Blockers**: None
 
 ## Active Milestones
@@ -21,6 +21,18 @@
 - [ ] SplitPane widget - resizable panes with drag handles
 - [ ] Breadcrumb widget - navigation breadcrumb trail
 - [ ] Tooltip widget - contextual help tooltips
+
+### v1.34.0 — Terminal Clipboard & System Integration
+**Theme**: Enhance terminal integration with system clipboard and OS features
+**Target**: 2026-04 (1-2 weeks)
+**Rationale**: Widget copy/paste workflows need clipboard access; terminal emulator feature detection improves UX
+**Checklist**:
+- [ ] Clipboard API - read/write system clipboard via OSC 52 escape sequences
+- [ ] Terminal emulator detection - identify terminal type (xterm, kitty, iTerm2, Windows Terminal)
+- [ ] Feature capability query - runtime detection of terminal features (truecolor, mouse, clipboard)
+- [ ] Paste bracketing enhancements - improved multi-line paste handling
+- [ ] Clipboard widget mixin - add copy/paste to any widget
+- [ ] Example: clipboard_demo.zig - demonstrate clipboard operations
 
 ### v1.28.0 — Ecosystem Integration & Polish (COMPLETED 2026-04-01)
 **Theme**: zuda integration, consumer feedback, final polish
