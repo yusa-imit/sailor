@@ -462,6 +462,7 @@ pub fn build(b: *std.Build) void {
         .{ .name = "hello", .source = "examples/hello.zig", .description = "Build and run hello example" },
         .{ .name = "counter", .source = "examples/counter.zig", .description = "Build and run counter example" },
         .{ .name = "dashboard", .source = "examples/dashboard.zig", .description = "Build and run dashboard example" },
+        .{ .name = "dashboard-advanced", .source = "examples/dashboard_advanced.zig", .description = "Build and run advanced dashboard (v1.32.0 features: nested grids, aspect ratios, margins, debugging)" },
         .{ .name = "task_list", .source = "examples/task_list.zig", .description = "Build and run task list example" },
         .{ .name = "layout_showcase", .source = "examples/layout_showcase.zig", .description = "Build and run layout showcase (v1.2.0 features)" },
         .{ .name = "widget_gallery", .source = "examples/widget_gallery.zig", .description = "Interactive widget gallery with code examples (v1.18.0)" },
