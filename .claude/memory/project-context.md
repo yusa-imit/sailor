@@ -5,14 +5,53 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.31.0** 🎉 (2026-04-02 — performance profiling & optimization tools)
-- Previous versions: v1.30.2, v1.30.0, v1.29.0, v1.28.0, v1.27.0, v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1, v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.32.0** 🎉 (2026-04-03 — advanced layout features)
+- Previous versions: v1.31.0, v1.30.2, v1.30.0, v1.29.0, v1.28.0, v1.27.0, v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1, v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestones**: v1.32.0 (3/6), v1.33.0 (0/6)
-- **Last completed**: v1.31.0 → Performance Profiling & Optimization Tools (6/6, 100%) ✅
+- **Active milestone**: v1.33.0 (5/6 complete — 83%)
+- **Last completed**: v1.32.0 → Advanced Layout Features (6/6, 100%) ✅
 
 ## Project Status
+✅ **Session 63** — FEATURE MODE: Breadcrumb Widget Implementation (2026-04-04)
+  - **Mode**: FEATURE (session 63, 63 % 5 != 0)
+  - **Focus**: Implement Breadcrumb widget for v1.33.0 milestone
+  - **Achievement**: Breadcrumb widget with 51 comprehensive tests
+
+  **Implementation Details**:
+    1. ✅ Breadcrumb Widget Complete
+       - Navigation breadcrumb trail showing hierarchical paths
+       - Customizable separator (>, /, →, •, etc.)
+       - Three truncation modes: none, show_last_n, ellipsis_middle
+       - Current item highlighting (configurable index or last item)
+       - Unicode separator and item name support
+       - Optional Block wrapper for borders/title
+       - Builder pattern API (withSeparator, withTruncation, etc.)
+    2. ✅ Zero-Allocation Rendering
+       - Static buffer for visible items (128 item limit)
+       - No heap allocations during render
+       - Graceful overflow handling
+    3. ✅ Comprehensive Testing
+       - 51 tests covering all features
+       - Edge cases: zero dimensions, empty items, out-of-bounds index
+       - Unicode handling tests
+       - All truncation modes verified
+       - Memory leak prevention verified
+
+  **Testing**: +51 new tests
+    - Total tests: 2710/2740 passed (30 skipped)
+    - Build: 77/77 steps succeeded
+    - Test coverage: initialization, builder methods, truncation, rendering, edge cases
+
+  **Milestone Progress**:
+    - v1.33.0: 5/6 complete (83%)
+    - Remaining: Tooltip widget
+
+  **Commits**:
+    - feat(widgets): implement Breadcrumb widget (+51 tests)
+    - chore: update milestone progress for v1.33.0
+    - chore: update milestone progress and session log
+
 ✅ **Session 60** — STABILIZATION MODE: Test Coverage & Quality (2026-04-03)
   - **Mode**: STABILIZATION (session 60, 60 % 5 == 0)
   - **Focus**: Test coverage, CI verification, cross-platform validation
