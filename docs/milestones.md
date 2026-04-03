@@ -2,25 +2,13 @@
 
 ## Current Status
 
-- **Latest release**: v1.31.0 (2026-04-02) — Performance Profiling & Optimization Tools
-- **Latest minor**: v1.31.0 (2026-04-02) — Performance Profiling & Optimization Tools
-- **Next milestone**: v1.32.0 — Advanced Layout Features
-- **Active milestones**: 2 (v1.32.0, v1.33.0)
+- **Latest release**: v1.32.0 (2026-04-03) — Advanced Layout Features
+- **Latest minor**: v1.32.0 (2026-04-03) — Advanced Layout Features
+- **Next milestone**: v1.33.0 — Specialized Widgets & Components
+- **Active milestones**: 1 (v1.33.0)
 - **Blockers**: None
 
 ## Active Milestones
-
-### v1.32.0 — Advanced Layout Features
-**Theme**: Enhanced layout capabilities for complex UIs
-**Target**: 2026-04 (1-2 weeks)
-**Rationale**: Address common consumer project layout pain points
-**Checklist**:
-- [x] Nested Grid layouts - grid-within-grid support with auto-sizing (Session 58: +9 tests, composition pattern, 3446 total tests)
-- [x] Aspect ratio constraints - maintain widget aspect ratios during resize (Session 58: Constraint.aspect_ratio, Rect.withAspectRatio(), +20 tests, 3466 total tests)
-- [x] Min/max size propagation - layout solver respects nested constraints (Session 59: 4 enforcement strategies, +12 tests, 3478 total tests)
-- [ ] Auto-margin/padding - smart spacing between widgets
-- [ ] Layout debugging - visual layout tree inspector
-- [ ] Complex layout examples - dashboard_advanced.zig with nested layouts
 
 ### v1.33.0 — Specialized Widgets & Components
 **Theme**: Expand widget library with specialized components for common use cases
@@ -75,6 +63,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.32.0 | Advanced Layout Features | 2026-04-03 | Nested Grid layouts (grid-within-grid, auto-sizing), Aspect ratio constraints (maintain 16:9/4:3 proportions), Min/max size propagation (4 enforcement strategies), Auto-margin/padding (symmetric/all helpers, underflow protection), Layout debugging inspector (tree visualization, splitDebug/print), dashboard_advanced.zig example — 3478 total tests (+91), 0 breaking changes |
 | v1.31.0 | Performance Profiling & Optimization Tools | 2026-04-02 | Render profiler enhancements (flame graphs, beginScope/endScope, +6 tests), Memory allocation tracker (hot spots, leak detection, +10 tests), Event loop profiler (latency, percentiles p95/p99, +10 tests), Widget performance metrics (cache hit rates), Profiling demo (profile_demo.zig), Optimization guide (docs/optimization.md) — 3437 total tests, 0 breaking changes |
 | v1.30.0 | Error Handling & Debugging Enhancements | 2026-04-01 | Debug logging system (debug_log.zig, SAILOR_DEBUG env var, 13 tests), stack trace helpers (stack_trace.zig, assert/require/ensure, 10 tests), error recovery examples (error_handling_demo.zig), enhanced error context (error_context.zig), validators (validators.zig) — 3405 total tests, 0 breaking changes |
 | v1.29.0 | Documentation Completion | 2026-04-01 | API documentation 99.9% complete (1376/1378 functions, +25 from v1.28.0), documented: sixel.zig (2), budget.zig (3), test_utils.zig (4), session.zig (4), debugger.zig (5), notification.zig (2), particles.zig (6), terminal.zig (5) |
