@@ -217,6 +217,9 @@ pub const widgets = struct {
     pub const MetricType = @import("widgets/metricspanel.zig").MetricType;
     pub const ThresholdStatus = @import("widgets/metricspanel.zig").ThresholdStatus;
     pub const Thresholds = @import("widgets/metricspanel.zig").Thresholds;
+    pub const ConfigEditor = @import("widgets/configeditor.zig").ConfigEditor;
+    pub const ConfigNode = @import("widgets/configeditor.zig").ConfigNode;
+    pub const ValueType = @import("widgets/configeditor.zig").ValueType;
 };
 
 // Export commonly used types
