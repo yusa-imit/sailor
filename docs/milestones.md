@@ -15,10 +15,10 @@
 **Target**: 2026-04 (1-2 weeks)
 **Rationale**: Consumer projects need domain-specific widgets (logs, metrics, config panels)
 **Checklist**:
-- [ ] LogViewer widget - scrollable log display with filtering and search
-- [ ] MetricsPanel widget - real-time metrics display with thresholds
-- [ ] ConfigEditor widget - hierarchical config editing (JSON/TOML)
-- [ ] SplitPane widget - resizable panes with drag handles
+- [x] LogViewer widget - scrollable log display with filtering and search (pre-existing from v1.8.0)
+- [x] MetricsPanel widget - real-time metrics display with thresholds (Session 62: +34 tests, gauge/counter/rate types, 3 layout modes, sparklines)
+- [x] ConfigEditor widget - hierarchical config editing (JSON/TOML) (Session 62: +45 tests, tree view, 6 value types, expand/collapse)
+- [x] SplitPane widget - resizable panes with drag handles (Session 62: +36 tests, h/v splits, min/max constraints, visual divider)
 - [ ] Breadcrumb widget - navigation breadcrumb trail
 - [ ] Tooltip widget - contextual help tooltips
 

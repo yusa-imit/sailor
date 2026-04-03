@@ -1,5 +1,44 @@
 # Sailor Code Patterns
 
+## Widget Testing Pattern (TDD)
+```zig
+// PATTERN: Test interface and behavior BEFORE implementation
+// 1. Create widget struct with stub render() method
+// 2. Write comprehensive tests covering:
+//    - Initialization with default config
+//    - Builder methods (withX pattern)
+//    - Threshold/status evaluation (pure functions first)
+//    - Edge cases (zero dimensions, negative values, overflow)
+//    - Memory safety (allocator usage, no leaks)
+//    - Rendering (stub initially, assert cells after implementation)
+// 3. Run tests (should compile, pass with stub)
+// 4. Implement render() logic to make meaningful assertions pass
+
+// Example: MetricsPanel widget (v1.33.0)
+test "MetricsPanel.evaluateThreshold warning zone" {
+    const metric = Metric{
+        .name = "Test",
+        .value = 75.0,
+        .max_value = 100.0,
+        .thresholds = .{ .warning = 70.0, .critical = 90.0 },
+    };
+    const status = MetricsPanel.evaluateThreshold(metric);
+    try std.testing.expectEqual(ThresholdStatus.warning, status);
+}
+
+test "MetricsPanel.render zero width area" {
+    var panel = MetricsPanel.init(std.testing.allocator);
+    defer panel.deinit();
+    try panel.addMetric(.{ .name = "CPU", .value = 50.0 });
+
+    var buf = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 10 };
+    panel.render(buf, area); // Should not crash
+}
+```
+
 ## Library Output Pattern
 ```zig
 // WRONG: direct stdout
