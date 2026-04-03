@@ -5,14 +5,63 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.32.0** 🎉 (2026-04-03 — advanced layout features)
-- Previous versions: v1.31.0, v1.30.2, v1.30.0, v1.29.0, v1.28.0, v1.27.0, v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1, v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.33.0** 🎉 (2026-04-04 — specialized widgets & components)
+- Previous versions: v1.32.0, v1.31.0, v1.30.2, v1.30.0, v1.29.0, v1.28.0, v1.27.0, v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1, v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: v1.33.0 (5/6 complete — 83%)
-- **Last completed**: v1.32.0 → Advanced Layout Features (6/6, 100%) ✅
+- **Active milestone**: v1.34.0 (0/6 complete — 0%)
+- **Last completed**: v1.33.0 → Specialized Widgets & Components (6/6, 100%) ✅
 
 ## Project Status
+✅ **Session 64** — FEATURE MODE: Tooltip Widget + v1.33.0 RELEASE (2026-04-04)
+  - **Mode**: FEATURE (session 64, 64 % 5 != 0)
+  - **Focus**: Complete v1.33.0 milestone with Tooltip widget implementation
+  - **Achievement**: Tooltip widget + auto-release of v1.33.0
+
+  **Implementation Details**:
+    1. ✅ Tooltip Widget Complete (test-writer subagent)
+       - Contextual help tooltips with smart positioning
+       - 5 positioning strategies: above, below, left, right, auto
+       - Auto-positioning with terminal boundary detection
+       - Arrow indicators (▲ ▼ ◀ ▶) for visual clarity
+       - Builder pattern API (withPosition, withStyle, withArrow, withBlock)
+       - Show/hide visibility control
+       - Optional Block wrapper for borders
+       - Zero-allocation rendering
+       - Unicode content support
+    2. ✅ Comprehensive Testing
+       - 53 tests covering all features
+       - Initialization (5), builder methods (8), show/hide (5)
+       - Positioning strategies (12), rendering (10), boundary clipping (8)
+       - Edge cases (5): Unicode, long content, empty content
+
+  **Testing**: +53 new tests
+    - Total tests: ~2,516 across entire library
+    - All tests passing, 0 failures
+    - Test coverage: initialization, builders, positioning, rendering, boundaries, edge cases
+
+  **Milestone Progress**:
+    - v1.33.0: 6/6 complete (100%) ✅
+    - AUTO-RELEASE EXECUTED
+
+  **Release v1.33.0**:
+    1. ✅ Version bumped: build.zig.zon 1.32.0 → 1.33.0
+    2. ✅ Git tag created and pushed: v1.33.0
+    3. ✅ GitHub release created: https://github.com/yusa-imit/sailor/releases/tag/v1.33.0
+    4. ✅ Migration issues filed:
+       - zr: https://github.com/yusa-imit/zr/issues/48
+       - zoltraak: https://github.com/yusa-imit/zoltraak/issues/25
+       - silica: https://github.com/yusa-imit/silica/issues/34
+    5. ✅ Discord notification sent (Message ID: 1489728829424537830)
+
+  **Commits**:
+    - feat(widgets): implement Tooltip widget (+53 tests)
+    - chore: bump version to v1.33.0
+    - chore: update session memory for session 64
+
+  **Agents Used**:
+    - test-writer (sonnet) — comprehensive test suite for Tooltip widget
+
 ✅ **Session 63** — FEATURE MODE: Breadcrumb Widget Implementation (2026-04-04)
   - **Mode**: FEATURE (session 63, 63 % 5 != 0)
   - **Focus**: Implement Breadcrumb widget for v1.33.0 milestone

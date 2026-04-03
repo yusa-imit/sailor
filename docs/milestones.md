@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v1.32.0 (2026-04-03) — Advanced Layout Features
-- **Latest minor**: v1.32.0 (2026-04-03) — Advanced Layout Features
-- **Next milestone**: v1.33.0 — Specialized Widgets & Components
-- **Active milestones**: 2 (v1.33.0, v1.34.0)
+- **Latest release**: v1.33.0 (2026-04-04) — Specialized Widgets & Components
+- **Latest minor**: v1.33.0 (2026-04-04) — Specialized Widgets & Components
+- **Next milestone**: v1.34.0 — Terminal Clipboard & System Integration
+- **Active milestones**: 1 (v1.34.0)
 - **Blockers**: None
 
 ## Active Milestones
@@ -75,6 +75,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.33.0 | Specialized Widgets & Components | 2026-04-04 | 6 specialized widgets: LogViewer, MetricsPanel, ConfigEditor, SplitPane, Breadcrumb, Tooltip — NEW: Tooltip widget with 5 positioning strategies (above/below/left/right/auto), smart boundary detection, arrow indicators (▲▼◀▶), builder pattern API — ~2,516 total tests (+53), 0 breaking changes, auto-release executed |
 | v1.32.0 | Advanced Layout Features | 2026-04-03 | Nested Grid layouts (grid-within-grid, auto-sizing), Aspect ratio constraints (maintain 16:9/4:3 proportions), Min/max size propagation (4 enforcement strategies), Auto-margin/padding (symmetric/all helpers, underflow protection), Layout debugging inspector (tree visualization, splitDebug/print), dashboard_advanced.zig example — 3478 total tests (+91), 0 breaking changes |
 | v1.31.0 | Performance Profiling & Optimization Tools | 2026-04-02 | Render profiler enhancements (flame graphs, beginScope/endScope, +6 tests), Memory allocation tracker (hot spots, leak detection, +10 tests), Event loop profiler (latency, percentiles p95/p99, +10 tests), Widget performance metrics (cache hit rates), Profiling demo (profile_demo.zig), Optimization guide (docs/optimization.md) — 3437 total tests, 0 breaking changes |
 | v1.30.0 | Error Handling & Debugging Enhancements | 2026-04-01 | Debug logging system (debug_log.zig, SAILOR_DEBUG env var, 13 tests), stack trace helpers (stack_trace.zig, assert/require/ensure, 10 tests), error recovery examples (error_handling_demo.zig), enhanced error context (error_context.zig), validators (validators.zig) — 3405 total tests, 0 breaking changes |
