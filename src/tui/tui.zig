@@ -220,6 +220,10 @@ pub const widgets = struct {
     pub const ConfigEditor = @import("widgets/configeditor.zig").ConfigEditor;
     pub const ConfigNode = @import("widgets/configeditor.zig").ConfigNode;
     pub const ValueType = @import("widgets/configeditor.zig").ValueType;
+    pub const SplitPane = @import("widgets/splitpane.zig").SplitPane;
+    pub const Breadcrumb = @import("widgets/breadcrumb.zig").Breadcrumb;
+    pub const TruncationMode = @import("widgets/breadcrumb.zig").TruncationMode;
+    pub const BreadcrumbItem = @import("widgets/breadcrumb.zig").Item;
 };
 
 // Export commonly used types
