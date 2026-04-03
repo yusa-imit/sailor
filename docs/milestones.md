@@ -19,7 +19,7 @@
 - [x] MetricsPanel widget - real-time metrics display with thresholds (Session 62: +34 tests, gauge/counter/rate types, 3 layout modes, sparklines)
 - [x] ConfigEditor widget - hierarchical config editing (JSON/TOML) (Session 62: +45 tests, tree view, 6 value types, expand/collapse)
 - [x] SplitPane widget - resizable panes with drag handles (Session 62: +36 tests, h/v splits, min/max constraints, visual divider)
-- [ ] Breadcrumb widget - navigation breadcrumb trail
+- [x] Breadcrumb widget - navigation breadcrumb trail (Session 63: +51 tests, 3 truncation modes, custom separators, highlighting)
 - [ ] Tooltip widget - contextual help tooltips
 
 ### v1.34.0 — Terminal Clipboard & System Integration
