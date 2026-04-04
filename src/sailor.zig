@@ -66,6 +66,7 @@ pub const stack_trace = @import("stack_trace.zig");
 
 // v1.34.0 — Terminal Clipboard & System Integration
 pub const clipboard = @import("clipboard.zig");
+pub const terminal_detect = @import("terminal_detect.zig");
 
 // v1.23.0 — Plugin Architecture & Extensibility
 pub const ThemeLoader = @import("tui/theme_loader.zig").ThemeLoader;
