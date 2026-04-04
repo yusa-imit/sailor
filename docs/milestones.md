@@ -4,11 +4,47 @@
 
 - **Latest release**: v1.34.0 (2026-04-04) — Terminal Clipboard & System Integration
 - **Latest minor**: v1.34.0 (2026-04-04) — Terminal Clipboard & System Integration
-- **Next milestone**: TBD
-- **Active milestones**: 0
+- **Next milestone**: v1.35.0 — Widget Accessibility & Keyboard Navigation
+- **Active milestones**: 3
 - **Blockers**: None
 
 ## Active Milestones
+
+### v1.35.0 — Widget Accessibility & Keyboard Navigation
+**Theme**: Enhance keyboard navigation and accessibility features across all widgets
+**Target**: 2026-04 (1-2 weeks)
+**Rationale**: Prepare for v2.0.0 event system overhaul; improve accessibility for screen readers and keyboard-only users
+**Checklist**:
+- [ ] Focus indicator system - visual feedback for focused widgets (border highlighting, cursor positioning)
+- [ ] Tab navigation - consistent tab order across complex layouts (forward/backward, skip disabled)
+- [ ] Keyboard shortcuts - standardized shortcuts for common actions (Ctrl+C copy, Ctrl+V paste, etc.)
+- [ ] Screen reader hints - ARIA-like attributes for terminal screen readers (role, label, description)
+- [ ] Focus trap - contain focus within modal dialogs and popups
+- [ ] Example: accessibility_demo.zig - demonstrate all accessibility features
+
+### v1.36.0 — Performance Monitoring & Real-Time Metrics
+**Theme**: Built-in performance monitoring and widget-level metrics
+**Target**: 2026-04 (1-2 weeks)
+**Rationale**: Establish baseline metrics before v2.0.0 breaking changes; help consumer projects optimize their UIs
+**Checklist**:
+- [ ] Widget render metrics - measure render time per widget (min/max/avg, percentiles)
+- [ ] Memory usage tracking - track allocation patterns per widget (peak memory, allocation count)
+- [ ] Event processing metrics - measure event handling latency (input lag, event queue depth)
+- [ ] Live metrics dashboard widget - real-time visualization of performance data
+- [ ] Performance regression tests - automated tests to detect performance degradation
+- [ ] Example: metrics_dashboard.zig - demonstrate performance monitoring
+
+### v1.37.0 — v2.0.0 Deprecation Warnings & Bridge APIs
+**Theme**: Introduce v2.0.0 APIs alongside v1.x APIs with deprecation warnings
+**Target**: 2026-04 (1-2 weeks)
+**Rationale**: Enable gradual migration to v2.0.0 APIs; provide clear deprecation warnings
+**Checklist**:
+- [ ] Deprecation warning system - compile-time warnings for deprecated APIs
+- [ ] Buffer.set() alongside setChar() - introduce v2.0.0 naming convention
+- [ ] Style inference helpers - simplify color specification (.red instead of Color{ .basic = .red })
+- [ ] Widget lifecycle standardization - consistent init/deinit patterns across all widgets
+- [ ] Migration guide document - docs/v1-to-v2-migration.md with examples
+- [ ] Example: migration_demo.zig - side-by-side v1.x vs v2.0.0 APIs
 
 ### v1.33.0 — Specialized Widgets & Components
 **Theme**: Expand widget library with specialized components for common use cases
