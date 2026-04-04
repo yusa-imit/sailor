@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v1.33.0 (2026-04-04) — Specialized Widgets & Components
-- **Latest minor**: v1.33.0 (2026-04-04) — Specialized Widgets & Components
-- **Next milestone**: v1.34.0 — Terminal Clipboard & System Integration
-- **Active milestones**: 1 (v1.34.0)
+- **Latest release**: v1.34.0 (2026-04-04) — Terminal Clipboard & System Integration
+- **Latest minor**: v1.34.0 (2026-04-04) — Terminal Clipboard & System Integration
+- **Next milestone**: TBD
+- **Active milestones**: 0
 - **Blockers**: None
 
 ## Active Milestones
@@ -27,12 +27,12 @@
 **Target**: 2026-04 (1-2 weeks)
 **Rationale**: Widget copy/paste workflows need clipboard access; terminal emulator feature detection improves UX
 **Checklist**:
-- [ ] Clipboard API - read/write system clipboard via OSC 52 escape sequences
-- [ ] Terminal emulator detection - identify terminal type (xterm, kitty, iTerm2, Windows Terminal)
-- [ ] Feature capability query - runtime detection of terminal features (truecolor, mouse, clipboard)
-- [ ] Paste bracketing enhancements - improved multi-line paste handling
-- [ ] Clipboard widget mixin - add copy/paste to any widget
-- [ ] Example: clipboard_demo.zig - demonstrate clipboard operations
+- [x] Clipboard API - read/write system clipboard via OSC 52 escape sequences (Session 65: clipboard.zig, +30 tests)
+- [x] Terminal emulator detection - identify terminal type (xterm, kitty, iTerm2, Windows Terminal) (Session 66: terminal_detect.zig, +22 tests)
+- [x] Feature capability query - runtime detection of terminal features (truecolor, mouse, clipboard) (Session 66: terminal_caps.zig, +37 tests)
+- [x] Paste bracketing enhancements - improved multi-line paste handling (Session 67: paste.zig, +38 tests, PasteHandler/PasteReader)
+- [ ] Clipboard widget mixin - add copy/paste to any widget (DEFERRED: OSC 52 read not widely supported by terminals)
+- [x] Example: clipboard_demo.zig - demonstrate clipboard operations (Session 67: comprehensive demo with all features)
 
 ### v1.28.0 — Ecosystem Integration & Polish (COMPLETED 2026-04-01)
 **Theme**: zuda integration, consumer feedback, final polish
@@ -75,6 +75,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.34.0 | Terminal Clipboard & System Integration | 2026-04-04 | OSC 52 clipboard API (write operations, 3 selection types), terminal emulator detection (xterm/kitty/iTerm2/WezTerm/Alacritty/Windows Terminal), terminal capability detection (truecolor/mouse/clipboard/bracketed paste), paste bracketing enhancements (PasteHandler/PasteReader, multi-line paste with LF/CRLF/CR support), clipboard_demo.zig example — 2901 total tests (+38 from paste.zig), 0 breaking changes |
 | v1.33.0 | Specialized Widgets & Components | 2026-04-04 | 6 specialized widgets: LogViewer, MetricsPanel, ConfigEditor, SplitPane, Breadcrumb, Tooltip — NEW: Tooltip widget with 5 positioning strategies (above/below/left/right/auto), smart boundary detection, arrow indicators (▲▼◀▶), builder pattern API — ~2,516 total tests (+53), 0 breaking changes, auto-release executed |
 | v1.32.0 | Advanced Layout Features | 2026-04-03 | Nested Grid layouts (grid-within-grid, auto-sizing), Aspect ratio constraints (maintain 16:9/4:3 proportions), Min/max size propagation (4 enforcement strategies), Auto-margin/padding (symmetric/all helpers, underflow protection), Layout debugging inspector (tree visualization, splitDebug/print), dashboard_advanced.zig example — 3478 total tests (+91), 0 breaking changes |
 | v1.31.0 | Performance Profiling & Optimization Tools | 2026-04-02 | Render profiler enhancements (flame graphs, beginScope/endScope, +6 tests), Memory allocation tracker (hot spots, leak detection, +10 tests), Event loop profiler (latency, percentiles p95/p99, +10 tests), Widget performance metrics (cache hit rates), Profiling demo (profile_demo.zig), Optimization guide (docs/optimization.md) — 3437 total tests, 0 breaking changes |
