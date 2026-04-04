@@ -70,6 +70,10 @@ pub const terminal_detect = @import("terminal_detect.zig");
 pub const terminal_caps = @import("terminal_caps.zig");
 pub const paste = @import("paste.zig");
 
+// v1.35.0 — Widget Accessibility & Keyboard Navigation
+pub const aria = @import("aria.zig");
+pub const focus_trap = @import("focus_trap.zig");
+
 // v1.23.0 — Plugin Architecture & Extensibility
 pub const ThemeLoader = @import("tui/theme_loader.zig").ThemeLoader;
 

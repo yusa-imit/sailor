@@ -15,6 +15,10 @@ pub const Action = union(enum) {
     navigate: Direction,
     /// Focus action
     focus: FocusAction,
+    /// Clipboard action
+    clipboard: ClipboardAction,
+    /// Edit action
+    edit: EditAction,
 
     pub const Direction = enum {
         up,
@@ -32,6 +36,20 @@ pub const Action = union(enum) {
         prev,
         first,
         last,
+    };
+
+    pub const ClipboardAction = enum {
+        copy,
+        cut,
+        paste,
+    };
+
+    pub const EditAction = enum {
+        undo,
+        redo,
+        select_all,
+        delete,
+        backspace,
     };
 };
 
@@ -230,6 +248,65 @@ pub const Presets = struct {
 
         return kb;
     }
+
+    /// Standard keyboard shortcuts (copy, paste, cut, undo, etc.)
+    pub fn standard(allocator: std.mem.Allocator) !KeyBindings {
+        var kb = KeyBindings.init(allocator);
+
+        // Clipboard shortcuts
+        try kb.bind(.{
+            .key = .{ .char = 'c' },
+            .mods = .{ .ctrl = true },
+            .action = .{ .clipboard = .copy },
+            .description = "Copy (Ctrl+C)",
+        });
+        try kb.bind(.{
+            .key = .{ .char = 'x' },
+            .mods = .{ .ctrl = true },
+            .action = .{ .clipboard = .cut },
+            .description = "Cut (Ctrl+X)",
+        });
+        try kb.bind(.{
+            .key = .{ .char = 'v' },
+            .mods = .{ .ctrl = true },
+            .action = .{ .clipboard = .paste },
+            .description = "Paste (Ctrl+V)",
+        });
+
+        // Edit shortcuts
+        try kb.bind(.{
+            .key = .{ .char = 'z' },
+            .mods = .{ .ctrl = true },
+            .action = .{ .edit = .undo },
+            .description = "Undo (Ctrl+Z)",
+        });
+        try kb.bind(.{
+            .key = .{ .char = 'y' },
+            .mods = .{ .ctrl = true },
+            .action = .{ .edit = .redo },
+            .description = "Redo (Ctrl+Y)",
+        });
+        try kb.bind(.{
+            .key = .{ .char = 'a' },
+            .mods = .{ .ctrl = true },
+            .action = .{ .edit = .select_all },
+            .description = "Select all (Ctrl+A)",
+        });
+
+        // Delete/Backspace
+        try kb.bind(.{
+            .key = .delete,
+            .action = .{ .edit = .delete },
+            .description = "Delete",
+        });
+        try kb.bind(.{
+            .key = .backspace,
+            .action = .{ .edit = .backspace },
+            .description = "Backspace",
+        });
+
+        return kb;
+    }
 };
 
 test "keybindings: init and deinit" {
@@ -367,4 +444,94 @@ test "keybindings: focus action" {
     const found = kb.find(.tab);
     try std.testing.expect(found != null);
     try std.testing.expectEqual(Action.FocusAction.next, found.?.action.focus);
+}
+
+test "keybindings: standard shortcuts preset" {
+    var kb = try Presets.standard(std.testing.allocator);
+    defer kb.deinit();
+
+    // Test copy (Ctrl+C)
+    const copy_binding = kb.findWithMods(.{ .char = 'c' }, .{ .ctrl = true });
+    try std.testing.expect(copy_binding != null);
+    try std.testing.expectEqual(Action.ClipboardAction.copy, copy_binding.?.action.clipboard);
+
+    // Test paste (Ctrl+V)
+    const paste_binding = kb.findWithMods(.{ .char = 'v' }, .{ .ctrl = true });
+    try std.testing.expect(paste_binding != null);
+    try std.testing.expectEqual(Action.ClipboardAction.paste, paste_binding.?.action.clipboard);
+
+    // Test cut (Ctrl+X)
+    const cut_binding = kb.findWithMods(.{ .char = 'x' }, .{ .ctrl = true });
+    try std.testing.expect(cut_binding != null);
+    try std.testing.expectEqual(Action.ClipboardAction.cut, cut_binding.?.action.clipboard);
+}
+
+test "keybindings: standard undo/redo" {
+    var kb = try Presets.standard(std.testing.allocator);
+    defer kb.deinit();
+
+    // Test undo (Ctrl+Z)
+    const undo_binding = kb.findWithMods(.{ .char = 'z' }, .{ .ctrl = true });
+    try std.testing.expect(undo_binding != null);
+    try std.testing.expectEqual(Action.EditAction.undo, undo_binding.?.action.edit);
+
+    // Test redo (Ctrl+Y)
+    const redo_binding = kb.findWithMods(.{ .char = 'y' }, .{ .ctrl = true });
+    try std.testing.expect(redo_binding != null);
+    try std.testing.expectEqual(Action.EditAction.redo, redo_binding.?.action.edit);
+}
+
+test "keybindings: standard select all" {
+    var kb = try Presets.standard(std.testing.allocator);
+    defer kb.deinit();
+
+    // Test select all (Ctrl+A)
+    const select_binding = kb.findWithMods(.{ .char = 'a' }, .{ .ctrl = true });
+    try std.testing.expect(select_binding != null);
+    try std.testing.expectEqual(Action.EditAction.select_all, select_binding.?.action.edit);
+}
+
+test "keybindings: standard delete/backspace" {
+    var kb = try Presets.standard(std.testing.allocator);
+    defer kb.deinit();
+
+    // Test delete
+    const delete_binding = kb.find(.delete);
+    try std.testing.expect(delete_binding != null);
+    try std.testing.expectEqual(Action.EditAction.delete, delete_binding.?.action.edit);
+
+    // Test backspace
+    const backspace_binding = kb.find(.backspace);
+    try std.testing.expect(backspace_binding != null);
+    try std.testing.expectEqual(Action.EditAction.backspace, backspace_binding.?.action.edit);
+}
+
+test "keybindings: clipboard action" {
+    var kb = KeyBindings.init(std.testing.allocator);
+    defer kb.deinit();
+
+    try kb.bind(.{
+        .key = .{ .char = 'c' },
+        .mods = .{ .ctrl = true },
+        .action = .{ .clipboard = .copy },
+    });
+
+    const found = kb.findWithMods(.{ .char = 'c' }, .{ .ctrl = true });
+    try std.testing.expect(found != null);
+    try std.testing.expectEqual(Action.ClipboardAction.copy, found.?.action.clipboard);
+}
+
+test "keybindings: edit action" {
+    var kb = KeyBindings.init(std.testing.allocator);
+    defer kb.deinit();
+
+    try kb.bind(.{
+        .key = .{ .char = 'z' },
+        .mods = .{ .ctrl = true },
+        .action = .{ .edit = .undo },
+    });
+
+    const found = kb.findWithMods(.{ .char = 'z' }, .{ .ctrl = true });
+    try std.testing.expect(found != null);
+    try std.testing.expectEqual(Action.EditAction.undo, found.?.action.edit);
 }
