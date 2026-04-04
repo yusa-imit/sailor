@@ -2,6 +2,41 @@
 
 ## Fixed Issues
 
+### Incomplete Test Assertions - Comment-Only Tests (2026-04-04 STABILIZATION Session 65)
+**Symptom**: 263 tests across widget files contain only "// Should..." comments without actual assertions
+  - Example: `tooltip.zig` had 20+ tests with comments like "// Arrow should be ▼ for above position" but no `try std.testing.expect*()`
+  - These tests always pass even if implementation is broken
+  - False sense of test coverage
+
+**Root Cause**:
+  - Tests written as documentation/TODOs rather than validation
+  - Happy-path-only testing without checking actual output
+  - Copy-paste test skeletons without filling in assertions
+
+**Pattern to Detect**:
+```bash
+grep -r "// Should" src/tui/widgets/*.zig | wc -l  # Find incomplete tests
+```
+
+**Fix (commit: d91e69d)**:
+  1. **tooltip.zig** - Strengthened 20+ tests:
+     - Added `buf.getChar(x, y)` assertions to verify actual rendering
+     - Replaced "// Should render content" with concrete character checks
+     - Added boundary condition validation (top/bottom/left/right edges)
+     - Verified positioning logic for all 5 positions
+     - Edge case validation: empty content, zero-area, Unicode, overflow
+  2. **Test patterns applied**:
+     - Positioning tests: Check first character of content at expected coords
+     - Arrow tests: Verify arrow character (▲ ▼ ◀ ▶) appears at correct position
+     - Boundary tests: Ensure auto-positioning chooses correct fallback
+     - Edge case tests: Verify no crash + buffer integrity
+
+**Impact**: Tests now catch real bugs. Example: border test initially failed because expected border characters didn't match actual rendering.
+
+**Next Steps**: Apply same pattern to remaining 243 incomplete tests in other widget files
+**Test Coverage**: All tests pass (2763/2793 passed, 30 skipped)
+**Commit**: d91e69d
+
 ### Windows Compilation Failures - posix.fd_t Type Mismatch (2026-03-31 STABILIZATION Session 45)
 **Symptom**: Multiple Windows compilation errors:
   1. `term.zig:44`: "value with comptime-only type depends on runtime control flow" - `@intCast(switch (fd))`
