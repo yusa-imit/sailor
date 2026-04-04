@@ -5,14 +5,66 @@
 - Library consumed via `build.zig.zon`
 - Zero dependencies (Zig stdlib only)
 - Cross-platform: Linux, macOS, Windows
-- **Current version: v1.33.0** 🎉 (2026-04-04 — specialized widgets & components)
-- Previous versions: v1.32.0, v1.31.0, v1.30.2, v1.30.0, v1.29.0, v1.28.0, v1.27.0, v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1, v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+- **Current version: v1.34.0** 🎉 (2026-04-04 — Terminal Clipboard & System Integration)
+- Previous versions: v1.33.0, v1.32.0, v1.31.0, v1.30.2, v1.30.0, v1.29.0, v1.28.0, v1.27.0, v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1, v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: v1.34.0 (0/6 complete — 0%)
-- **Last completed**: v1.33.0 → Specialized Widgets & Components (6/6, 100%) ✅
+- **Active milestone**: None (v1.34.0 completed ✅)
+- **Last completed**: v1.34.0 → Terminal Clipboard & System Integration (5/6, 83% — 1 item deferred) ✅
 
 ## Project Status
+✅ **Session 67** — FEATURE MODE: v1.34.0 RELEASE (2026-04-04)
+  - **Mode**: FEATURE (session 67, 67 % 5 == 2)
+  - **Achievement**: Completed v1.34.0 milestone and auto-released
+
+  **Work Completed**:
+    1. ✅ Paste Bracketing Enhancements (paste.zig — 38 tests)
+       - PasteHandler: Extract paste from bracketed markers (ESC[200~/201~)
+       - Marker detection: findPasteStart/End, hasCompletePaste
+       - Line splitting: LF/CRLF/CR support, handles mixed line endings
+       - Zero-allocation streaming: processLines() callback pattern
+       - PasteReader: Streaming reader for large pastes with reset
+       - Edge cases: large 10KB+ pastes, nested markers, empty lines
+    2. ✅ Clipboard Demo Example (clipboard_demo.zig)
+       - Interactive text editor with Ctrl+C/V/X shortcuts
+       - Three clipboard selections: clipboard, primary, system
+       - Terminal emulator and capability detection display
+       - Real-time visual feedback for clipboard operations
+       - Paste bracketing integration demonstration
+    3. ✅ v1.34.0 Release Execution
+       - Version bump: 1.33.0 → 1.34.0
+       - GitHub release created with comprehensive notes
+       - Migration issues filed: zr#49, zoltraak#26, silica#35
+       - Discord notification sent
+       - Milestone updated: 5/6 items (1 deferred)
+
+  **Testing**: 2901/2931 tests passed (30 skipped, 0 failures)
+    - New: +38 paste tests
+    - Total increase: +127 tests from v1.34.0 (clipboard +30, terminal_detect +22, terminal_caps +37, paste +38)
+
+  **Commits**:
+    - 7de34fc — feat(paste): implement paste bracketing enhancements
+    - f5f1c33 — feat(examples): add comprehensive clipboard demonstration
+    - 3db5240 — chore: bump version to v1.34.0
+
+  **Tag**: v1.34.0
+
+✅ **Session 66** — FEATURE MODE: Terminal Detection (2026-04-04)
+  - **Mode**: FEATURE (session 66, 66 % 5 == 1)
+  - **Achievement**: Terminal emulator and capability detection
+
+  **Work Completed**:
+    1. ✅ Terminal Emulator Detection (terminal_detect.zig — 22 tests)
+       - Detects: xterm, kitty, iTerm2, WezTerm, Alacritty, Windows Terminal
+       - Environment variable analysis (TERM, TERM_PROGRAM, WT_SESSION)
+    2. ✅ Terminal Capability Detection (terminal_caps.zig — 37 tests)
+       - Detects: truecolor, mouse tracking, clipboard (OSC 52), bracketed paste
+       - Multiple detection strategies per feature
+       - Linux terminfo integration via XTGETTCAP
+
+  **Testing**: 2863/2893 tests passed (30 skipped)
+  **Commits**: f0a3090, 3e7a73f
+
 ✅ **Session 65** — STABILIZATION MODE: Test Quality Audit (2026-04-04)
   - **Mode**: STABILIZATION (session 65, 65 % 5 == 0)
   - **Focus**: CI verification, test coverage audit, cross-platform builds
