@@ -13,6 +13,47 @@
 - **Last completed**: v1.34.0 → Terminal Clipboard & System Integration (5/6, 83% — 1 item deferred) ✅
 
 ## Project Status
+✅ **Session 69** — FEATURE MODE: v1.35.0 TAB NAVIGATION (2026-04-05)
+  - **Mode**: FEATURE (session 69, 69 % 5 == 4)
+  - **Achievement**: Implemented tab navigation with disabled widget support + accessibility demo
+
+  **Work Completed**:
+    1. ✅ Tab Navigation with Disabled Widgets (src/focus.zig)
+       - Added `disabled` list to FocusManager for skip-during-navigation
+       - Implemented setDisabled/isDisabled methods
+       - Updated focusNext/focusPrev to skip disabled widgets automatically
+       - Handle wrap-around while skipping disabled widgets
+       - Cleanup disabled list on unregister
+       - Edge cases: all disabled, consecutive disabled, from null state
+    2. ✅ Test Expansion (+14 disabled widget tests)
+       - Tab navigation skipping disabled widgets (forward/backward)
+       - Wrap-around with disabled widgets
+       - Multiple consecutive disabled widgets
+       - Enable/disable idempotency
+       - Empty manager edge cases
+    3. ✅ Accessibility Demo Example (examples/accessibility_demo.zig)
+       - Interactive demonstration of tab navigation
+       - Shows all 4 focus styles (default/subtle/highlighted/indicator)
+       - Disabled widget skipping visualization
+       - Wrap-around behavior demonstration
+       - Enable/disable widget toggling
+
+  **Testing**: 2998 tests total (84 focus tests: 70 from session 68 + 14 new)
+    - Focus module: 84 tests (+14 disabled widget tests)
+    - All tests passing, 0 failures
+
+  **Commits**:
+    - dcc6563 — feat(focus): add tab navigation with disabled widget support
+    - ec26012 — feat(examples): add accessibility demo for tab navigation
+
+  **v1.35.0 Progress**: 2/6 items complete (33%)
+    - ✅ Focus indicator system (session 68)
+    - ✅ Tab navigation (session 69)
+    - ⬜ Keyboard shortcuts
+    - ⬜ Screen reader hints
+    - ⬜ Focus trap
+    - ⬜ Example: accessibility_demo.zig (PARTIAL — tab nav only, needs keyboard shortcuts integration)
+
 ✅ **Session 68** — FEATURE MODE: v1.35.0 STARTED (2026-04-04)
   - **Mode**: FEATURE (session 68, 68 % 5 == 3)
   - **Achievement**: Established 3 new milestones (v1.35.0-v1.37.0), implemented FocusIndicator visual rendering
