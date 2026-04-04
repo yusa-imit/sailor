@@ -491,14 +491,18 @@ test "aria: generate announcement expanded/collapsed" {
         .withLabel("File tree")
         .withExpanded(true);
 
-    var announcement = try attrs.generateAnnouncement(std.testing.allocator);
-    defer std.testing.allocator.free(announcement);
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "expanded") != null);
+    {
+        const announcement = try attrs.generateAnnouncement(std.testing.allocator);
+        defer std.testing.allocator.free(announcement);
+        try std.testing.expect(std.mem.indexOf(u8, announcement, "expanded") != null);
+    }
 
     attrs = attrs.withExpanded(false);
-    announcement = try attrs.generateAnnouncement(std.testing.allocator);
-    defer std.testing.allocator.free(announcement);
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "collapsed") != null);
+    {
+        const announcement = try attrs.generateAnnouncement(std.testing.allocator);
+        defer std.testing.allocator.free(announcement);
+        try std.testing.expect(std.mem.indexOf(u8, announcement, "collapsed") != null);
+    }
 }
 
 test "aria: builder pattern" {

@@ -15,12 +15,12 @@
 **Target**: 2026-04 (1-2 weeks)
 **Rationale**: Prepare for v2.0.0 event system overhaul; improve accessibility for screen readers and keyboard-only users
 **Checklist**:
-- [ ] Focus indicator system - visual feedback for focused widgets (border highlighting, cursor positioning)
-- [ ] Tab navigation - consistent tab order across complex layouts (forward/backward, skip disabled)
-- [ ] Keyboard shortcuts - standardized shortcuts for common actions (Ctrl+C copy, Ctrl+V paste, etc.)
-- [ ] Screen reader hints - ARIA-like attributes for terminal screen readers (role, label, description)
-- [ ] Focus trap - contain focus within modal dialogs and popups
-- [ ] Example: accessibility_demo.zig - demonstrate all accessibility features
+- [x] Focus indicator system - visual feedback for focused widgets (border highlighting, cursor positioning) (Session 68-69)
+- [x] Tab navigation - consistent tab order across complex layouts (forward/backward, skip disabled) (Session 69)
+- [x] Keyboard shortcuts - standardized shortcuts for common actions (Ctrl+C copy, Ctrl+V paste, etc.) (Session 70)
+- [x] Screen reader hints - ARIA-like attributes for terminal screen readers (role, label, description) (Session 70: aria.zig)
+- [x] Focus trap - contain focus within modal dialogs and popups (Session 70: focus_trap.zig)
+- [x] Example: accessibility_demo.zig - demonstrate all accessibility features (Session 69)
 
 ### v1.36.0 — Performance Monitoring & Real-Time Metrics
 **Theme**: Built-in performance monitoring and widget-level metrics
