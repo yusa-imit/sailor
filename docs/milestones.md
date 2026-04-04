@@ -2,25 +2,13 @@
 
 ## Current Status
 
-- **Latest release**: v1.34.0 (2026-04-04) — Terminal Clipboard & System Integration
-- **Latest minor**: v1.34.0 (2026-04-04) — Terminal Clipboard & System Integration
-- **Next milestone**: v1.35.0 — Widget Accessibility & Keyboard Navigation
-- **Active milestones**: 3
+- **Latest release**: v1.35.0 (2026-04-05) — Widget Accessibility & Keyboard Navigation
+- **Latest minor**: v1.35.0 (2026-04-05) — Widget Accessibility & Keyboard Navigation
+- **Next milestone**: v1.36.0 — Performance Monitoring & Real-Time Metrics
+- **Active milestones**: 2
 - **Blockers**: None
 
 ## Active Milestones
-
-### v1.35.0 — Widget Accessibility & Keyboard Navigation
-**Theme**: Enhance keyboard navigation and accessibility features across all widgets
-**Target**: 2026-04 (1-2 weeks)
-**Rationale**: Prepare for v2.0.0 event system overhaul; improve accessibility for screen readers and keyboard-only users
-**Checklist**:
-- [x] Focus indicator system - visual feedback for focused widgets (border highlighting, cursor positioning) (Session 68-69)
-- [x] Tab navigation - consistent tab order across complex layouts (forward/backward, skip disabled) (Session 69)
-- [x] Keyboard shortcuts - standardized shortcuts for common actions (Ctrl+C copy, Ctrl+V paste, etc.) (Session 70)
-- [x] Screen reader hints - ARIA-like attributes for terminal screen readers (role, label, description) (Session 70: aria.zig)
-- [x] Focus trap - contain focus within modal dialogs and popups (Session 70: focus_trap.zig)
-- [x] Example: accessibility_demo.zig - demonstrate all accessibility features (Session 69)
 
 ### v1.36.0 — Performance Monitoring & Real-Time Metrics
 **Theme**: Built-in performance monitoring and widget-level metrics
@@ -111,6 +99,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.35.0 | Widget Accessibility & Keyboard Navigation | 2026-04-05 | ARIA attributes (aria.zig: 30+ roles, 8 state flags, screen reader announcements, AriaWidget mixin, +31 tests), Focus trap (focus_trap.zig: modal focus containment, FocusTrapStack for nested dialogs, +25 tests), Standard keyboard shortcuts (keybindings.zig: Ctrl+C/X/V copy/cut/paste, Ctrl+Z/Y undo/redo, Ctrl+A select all, +7 tests), accessibility_demo.zig — 3,022 total tests (+63), 0 breaking changes, 6 cross-platform targets verified |
 | v1.34.0 | Terminal Clipboard & System Integration | 2026-04-04 | OSC 52 clipboard API (write operations, 3 selection types), terminal emulator detection (xterm/kitty/iTerm2/WezTerm/Alacritty/Windows Terminal), terminal capability detection (truecolor/mouse/clipboard/bracketed paste), paste bracketing enhancements (PasteHandler/PasteReader, multi-line paste with LF/CRLF/CR support), clipboard_demo.zig example — 2901 total tests (+38 from paste.zig), 0 breaking changes |
 | v1.33.0 | Specialized Widgets & Components | 2026-04-04 | 6 specialized widgets: LogViewer, MetricsPanel, ConfigEditor, SplitPane, Breadcrumb, Tooltip — NEW: Tooltip widget with 5 positioning strategies (above/below/left/right/auto), smart boundary detection, arrow indicators (▲▼◀▶), builder pattern API — ~2,516 total tests (+53), 0 breaking changes, auto-release executed |
 | v1.32.0 | Advanced Layout Features | 2026-04-03 | Nested Grid layouts (grid-within-grid, auto-sizing), Aspect ratio constraints (maintain 16:9/4:3 proportions), Min/max size propagation (4 enforcement strategies), Auto-margin/padding (symmetric/all helpers, underflow protection), Layout debugging inspector (tree visualization, splitDebug/print), dashboard_advanced.zig example — 3478 total tests (+91), 0 breaking changes |
