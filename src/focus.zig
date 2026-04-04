@@ -184,7 +184,9 @@ pub const FocusManager = struct {
     focused_id: ?usize = null,
     /// Focus order (widget IDs in tab order)
     order: std.ArrayList(usize),
-    /// Allocator for order list
+    /// Disabled widgets (skip during tab navigation)
+    disabled: std.ArrayList(usize),
+    /// Allocator for lists
     allocator: std.mem.Allocator,
     /// Whether focus wraps around (last -> first)
     wrap: bool = true,
@@ -195,12 +197,14 @@ pub const FocusManager = struct {
         return .{
             .allocator = allocator,
             .order = std.ArrayList(usize){},
+            .disabled = std.ArrayList(usize){},
         };
     }
 
-    /// Free the focus order list.
+    /// Free the focus order and disabled lists.
     pub fn deinit(self: *FocusManager) void {
         self.order.deinit(self.allocator);
+        self.disabled.deinit(self.allocator);
     }
 
     /// Register a widget in the focus order
@@ -222,6 +226,13 @@ pub const FocusManager = struct {
                 break;
             }
         }
+        // Also remove from disabled list if present
+        for (self.disabled.items, 0..) |id, i| {
+            if (id == widget_id) {
+                _ = self.disabled.swapRemove(i);
+                break;
+            }
+        }
     }
 
     /// Check if a widget is focused
@@ -234,42 +245,111 @@ pub const FocusManager = struct {
         self.focused_id = widget_id;
     }
 
-    /// Move focus to next widget
+    /// Mark a widget as disabled (skip during tab navigation)
+    pub fn setDisabled(self: *FocusManager, widget_id: usize, disabled: bool) !void {
+        const is_disabled = self.isDisabled(widget_id);
+        if (disabled and !is_disabled) {
+            try self.disabled.append(self.allocator, widget_id);
+        } else if (!disabled and is_disabled) {
+            for (self.disabled.items, 0..) |id, i| {
+                if (id == widget_id) {
+                    _ = self.disabled.swapRemove(i);
+                    break;
+                }
+            }
+        }
+    }
+
+    /// Check if a widget is disabled
+    pub fn isDisabled(self: *const FocusManager, widget_id: usize) bool {
+        for (self.disabled.items) |id| {
+            if (id == widget_id) return true;
+        }
+        return false;
+    }
+
+    /// Move focus to next widget (skips disabled widgets)
     pub fn focusNext(self: *FocusManager) void {
         if (self.order.items.len == 0) return;
+
+        // If no focus, find first enabled widget
         if (self.focused_id == null) {
-            self.focused_id = self.order.items[0];
+            for (self.order.items) |id| {
+                if (!self.isDisabled(id)) {
+                    self.focused_id = id;
+                    return;
+                }
+            }
             return;
         }
 
         const current_id = self.focused_id.?;
         for (self.order.items, 0..) |id, i| {
             if (id == current_id) {
-                if (i + 1 < self.order.items.len) {
-                    self.focused_id = self.order.items[i + 1];
-                } else if (self.wrap) {
-                    self.focused_id = self.order.items[0];
+                // Search forward for next enabled widget
+                var next_idx = i + 1;
+                while (next_idx < self.order.items.len) : (next_idx += 1) {
+                    if (!self.isDisabled(self.order.items[next_idx])) {
+                        self.focused_id = self.order.items[next_idx];
+                        return;
+                    }
+                }
+                // Wrap around if enabled
+                if (self.wrap) {
+                    for (self.order.items) |wrap_id| {
+                        if (!self.isDisabled(wrap_id)) {
+                            self.focused_id = wrap_id;
+                            return;
+                        }
+                    }
                 }
                 return;
             }
         }
     }
 
-    /// Move focus to previous widget
+    /// Move focus to previous widget (skips disabled widgets)
     pub fn focusPrev(self: *FocusManager) void {
         if (self.order.items.len == 0) return;
+
+        // If no focus, find last enabled widget
         if (self.focused_id == null) {
-            self.focused_id = self.order.items[self.order.items.len - 1];
+            var idx: usize = self.order.items.len;
+            while (idx > 0) {
+                idx -= 1;
+                if (!self.isDisabled(self.order.items[idx])) {
+                    self.focused_id = self.order.items[idx];
+                    return;
+                }
+            }
             return;
         }
 
         const current_id = self.focused_id.?;
         for (self.order.items, 0..) |id, i| {
             if (id == current_id) {
+                // Search backward for previous enabled widget
                 if (i > 0) {
-                    self.focused_id = self.order.items[i - 1];
-                } else if (self.wrap) {
-                    self.focused_id = self.order.items[self.order.items.len - 1];
+                    var prev_idx = i - 1;
+                    while (true) {
+                        if (!self.isDisabled(self.order.items[prev_idx])) {
+                            self.focused_id = self.order.items[prev_idx];
+                            return;
+                        }
+                        if (prev_idx == 0) break;
+                        prev_idx -= 1;
+                    }
+                }
+                // Wrap around if enabled
+                if (self.wrap) {
+                    var wrap_idx: usize = self.order.items.len;
+                    while (wrap_idx > 0) {
+                        wrap_idx -= 1;
+                        if (!self.isDisabled(self.order.items[wrap_idx])) {
+                            self.focused_id = self.order.items[wrap_idx];
+                            return;
+                        }
+                    }
                 }
                 return;
             }
@@ -1138,4 +1218,231 @@ test "focus: FocusIndicator style persistence across renders" {
 
     try std.testing.expectEqual(first_cell.style.fg, second_cell.style.fg);
     try std.testing.expectEqual(first_cell.style.bold, second_cell.style.bold);
+}
+
+// Tab navigation with disabled widgets tests (v1.35.0)
+
+test "focus: setDisabled marks widget as disabled" {
+    var manager = FocusManager.init(std.testing.allocator);
+    defer manager.deinit();
+
+    try manager.register(1);
+    try manager.register(2);
+
+    try manager.setDisabled(1, true);
+    try std.testing.expect(manager.isDisabled(1));
+    try std.testing.expect(!manager.isDisabled(2));
+}
+
+test "focus: setDisabled can enable disabled widget" {
+    var manager = FocusManager.init(std.testing.allocator);
+    defer manager.deinit();
+
+    try manager.register(1);
+    try manager.setDisabled(1, true);
+    try std.testing.expect(manager.isDisabled(1));
+
+    try manager.setDisabled(1, false);
+    try std.testing.expect(!manager.isDisabled(1));
+}
+
+test "focus: focusNext skips disabled widgets" {
+    var manager = FocusManager.init(std.testing.allocator);
+    defer manager.deinit();
+
+    try manager.register(1);
+    try manager.register(2);
+    try manager.register(3);
+
+    try manager.setDisabled(2, true);
+
+    manager.setFocus(1);
+    manager.focusNext();
+    try std.testing.expect(manager.isFocused(3)); // Skipped 2
+}
+
+test "focus: focusPrev skips disabled widgets" {
+    var manager = FocusManager.init(std.testing.allocator);
+    defer manager.deinit();
+
+    try manager.register(1);
+    try manager.register(2);
+    try manager.register(3);
+
+    try manager.setDisabled(2, true);
+
+    manager.setFocus(3);
+    manager.focusPrev();
+    try std.testing.expect(manager.isFocused(1)); // Skipped 2
+}
+
+test "focus: focusNext wraps around skipping disabled" {
+    var manager = FocusManager.init(std.testing.allocator);
+    defer manager.deinit();
+
+    try manager.register(1);
+    try manager.register(2);
+    try manager.register(3);
+
+    try manager.setDisabled(1, true);
+    try manager.setDisabled(2, true);
+
+    manager.setFocus(3);
+    manager.focusNext();
+    try std.testing.expect(manager.isFocused(3)); // No enabled widgets to wrap to
+}
+
+test "focus: focusPrev wraps around skipping disabled" {
+    var manager = FocusManager.init(std.testing.allocator);
+    defer manager.deinit();
+
+    try manager.register(1);
+    try manager.register(2);
+    try manager.register(3);
+
+    try manager.setDisabled(2, true);
+
+    manager.setFocus(1);
+    manager.focusPrev();
+    try std.testing.expect(manager.isFocused(3)); // Wrapped to 3, skipped 2
+}
+
+test "focus: focusNext from null finds first enabled" {
+    var manager = FocusManager.init(std.testing.allocator);
+    defer manager.deinit();
+
+    try manager.register(1);
+    try manager.register(2);
+    try manager.register(3);
+
+    try manager.setDisabled(1, true);
+    try manager.setDisabled(2, true);
+
+    manager.clear();
+    manager.focusNext();
+    try std.testing.expect(manager.isFocused(3));
+}
+
+test "focus: focusPrev from null finds last enabled" {
+    var manager = FocusManager.init(std.testing.allocator);
+    defer manager.deinit();
+
+    try manager.register(1);
+    try manager.register(2);
+    try manager.register(3);
+
+    try manager.setDisabled(2, true);
+    try manager.setDisabled(3, true);
+
+    manager.clear();
+    manager.focusPrev();
+    try std.testing.expect(manager.isFocused(1));
+}
+
+test "focus: all widgets disabled focusNext does nothing" {
+    var manager = FocusManager.init(std.testing.allocator);
+    defer manager.deinit();
+
+    try manager.register(1);
+    try manager.register(2);
+
+    try manager.setDisabled(1, true);
+    try manager.setDisabled(2, true);
+
+    manager.clear();
+    manager.focusNext();
+    try std.testing.expectEqual(@as(?usize, null), manager.focused_id);
+}
+
+test "focus: all widgets disabled focusPrev does nothing" {
+    var manager = FocusManager.init(std.testing.allocator);
+    defer manager.deinit();
+
+    try manager.register(1);
+    try manager.register(2);
+
+    try manager.setDisabled(1, true);
+    try manager.setDisabled(2, true);
+
+    manager.clear();
+    manager.focusPrev();
+    try std.testing.expectEqual(@as(?usize, null), manager.focused_id);
+}
+
+test "focus: disabled widget in middle of sequence" {
+    var manager = FocusManager.init(std.testing.allocator);
+    defer manager.deinit();
+
+    try manager.register(1);
+    try manager.register(2);
+    try manager.register(3);
+    try manager.register(4);
+    try manager.register(5);
+
+    try manager.setDisabled(2, true);
+    try manager.setDisabled(4, true);
+
+    manager.setFocus(1);
+    manager.focusNext();
+    try std.testing.expect(manager.isFocused(3));
+    manager.focusNext();
+    try std.testing.expect(manager.isFocused(5));
+}
+
+test "focus: multiple consecutive disabled widgets" {
+    var manager = FocusManager.init(std.testing.allocator);
+    defer manager.deinit();
+
+    try manager.register(1);
+    try manager.register(2);
+    try manager.register(3);
+    try manager.register(4);
+    try manager.register(5);
+
+    try manager.setDisabled(2, true);
+    try manager.setDisabled(3, true);
+    try manager.setDisabled(4, true);
+
+    manager.setFocus(1);
+    manager.focusNext();
+    try std.testing.expect(manager.isFocused(5)); // Skipped 2,3,4
+}
+
+test "focus: setDisabled duplicate disable is idempotent" {
+    var manager = FocusManager.init(std.testing.allocator);
+    defer manager.deinit();
+
+    try manager.register(1);
+    try manager.setDisabled(1, true);
+    try manager.setDisabled(1, true);
+    try manager.setDisabled(1, true);
+
+    try std.testing.expect(manager.isDisabled(1));
+    try std.testing.expectEqual(@as(usize, 1), manager.disabled.items.len);
+}
+
+test "focus: setDisabled duplicate enable is idempotent" {
+    var manager = FocusManager.init(std.testing.allocator);
+    defer manager.deinit();
+
+    try manager.register(1);
+    try manager.setDisabled(1, true);
+    try manager.setDisabled(1, false);
+    try manager.setDisabled(1, false);
+
+    try std.testing.expect(!manager.isDisabled(1));
+    try std.testing.expectEqual(@as(usize, 0), manager.disabled.items.len);
+}
+
+test "focus: unregister disabled widget cleans up disabled list" {
+    var manager = FocusManager.init(std.testing.allocator);
+    defer manager.deinit();
+
+    try manager.register(1);
+    try manager.register(2);
+    try manager.setDisabled(1, true);
+
+    manager.unregister(1);
+    // isDisabled should still work (returns false for unregistered)
+    try std.testing.expect(!manager.isDisabled(1));
 }
