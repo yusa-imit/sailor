@@ -9,10 +9,40 @@
 - Previous versions: v1.33.0, v1.32.0, v1.31.0, v1.30.2, v1.30.0, v1.29.0, v1.28.0, v1.27.0, v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1, v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
 
 ## Current Phase
-- **Active milestone**: None (v1.34.0 completed ✅)
+- **Active milestone**: v1.35.0 — Widget Accessibility & Keyboard Navigation (in progress)
 - **Last completed**: v1.34.0 → Terminal Clipboard & System Integration (5/6, 83% — 1 item deferred) ✅
 
 ## Project Status
+✅ **Session 68** — FEATURE MODE: v1.35.0 STARTED (2026-04-04)
+  - **Mode**: FEATURE (session 68, 68 % 5 == 3)
+  - **Achievement**: Established 3 new milestones (v1.35.0-v1.37.0), implemented FocusIndicator visual rendering
+
+  **Work Completed**:
+    1. ✅ Milestone Establishment (v1.35.0, v1.36.0, v1.37.0)
+       - v1.35.0: Widget Accessibility & Keyboard Navigation (6 items)
+       - v1.36.0: Performance Monitoring & Real-Time Metrics (6 items)
+       - v1.37.0: v2.0.0 Deprecation Warnings & Bridge APIs (6 items)
+       - Rationale: Prepare for v2.0.0 with gradual migration path
+    2. ✅ FocusIndicator Implementation (src/focus.zig)
+       - FocusIndicator struct: init/initWithStyle/setFocused/isFocused/render
+       - Visual rendering: border style (fg, bold), background style (bg)
+       - Indicator characters: left/right/both positions
+       - Style merging: preserves background when applying border
+       - Buffer bounds checking, zero-size rect handling
+    3. ✅ Test Expansion (+13 rendering tests)
+       - Border style application tests
+       - Background style application tests
+       - Indicator character positioning tests (left/right/both)
+       - Boundary and edge case tests
+
+  **Testing**: 2984/3014 tests passed (30 skipped, 0 failures)
+    - Focus module: 70 tests total (57 state + 13 rendering)
+    - New: +13 FocusIndicator rendering tests
+
+  **Commits**:
+    - 4b46b9f — chore: establish milestones v1.35.0-v1.37.0
+    - eb4a9ac — feat(focus): implement FocusIndicator visual rendering
+
 ✅ **Session 67** — FEATURE MODE: v1.34.0 RELEASE (2026-04-04)
   - **Mode**: FEATURE (session 67, 67 % 5 == 2)
   - **Achievement**: Completed v1.34.0 milestone and auto-released
