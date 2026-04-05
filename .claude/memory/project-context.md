@@ -1,3 +1,33 @@
+✅ **Session 72** — FEATURE MODE: v1.36.0 MEMORY TRACKING (2026-04-05)
+  - **Mode**: FEATURE (session 72, 72 % 5 == 2)
+  - **Achievement**: Implemented widget memory usage tracking (second item of v1.36.0 milestone)
+
+  **Work Completed**:
+    1. ✅ Memory Usage Tracking (src/memory_metrics.zig — 25 tests)
+       - MemoryMetricsCollector: Track allocs/frees per widget and type
+       - WidgetMemStats: peak/current bytes, alloc/free counts, active allocs
+       - TypeMemStats: Aggregated stats across all widgets of same type
+       - Underflow protection: Safe handling of free-before-alloc edge cases
+       - Memory safe: No leaks, proper cleanup in all code paths
+       - Overflow protection: Saturating arithmetic for counters and bytes
+       - Stress tested: 1000 widgets, 10000 operations
+
+  **Testing**: 3105 total tests (+25 memory_metrics tests)
+    - All tests passing, 0 failures
+    - Memory leak checks passing with std.testing.allocator
+
+  **Commits**:
+    - 564dd10 — feat(memory_metrics): add widget memory usage tracking
+
+  **v1.36.0 Progress**: 2/6 items complete (33%)
+    - ✅ Widget render metrics (Session 71)
+    - ✅ Memory usage tracking (Session 72)
+    - ⬜ Event processing metrics
+    - ⬜ Live metrics dashboard widget
+    - ⬜ Performance regression tests
+    - ⬜ Example: metrics_dashboard.zig
+
+
 ✅ **Session 71** — FEATURE MODE: v1.36.0 STARTED (2026-04-05)
   - **Mode**: FEATURE (session 71, 71 % 5 == 1)
   - **Achievement**: Implemented widget render metrics tracking (first item of v1.36.0 milestone)
@@ -18,14 +48,6 @@
 
   **Commits**:
     - 21fd7b6 — feat(render_metrics): add widget render metrics tracking
-
-  **v1.36.0 Progress**: 1/6 items complete (17%)
-    - ✅ Widget render metrics
-    - ⬜ Memory usage tracking
-    - ⬜ Event processing metrics
-    - ⬜ Live metrics dashboard widget
-    - ⬜ Performance regression tests
-    - ⬜ Example: metrics_dashboard.zig
 
 
 ✅ **Session 69** — FEATURE MODE: v1.35.0 TAB NAVIGATION (2026-04-05)
