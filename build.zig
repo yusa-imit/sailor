@@ -328,6 +328,14 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    const event_metrics_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/event_metrics_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
     // Add sailor module to integration tests
     const sailor_module_for_tests = b.createModule(.{
         .root_source_file = b.path("src/sailor.zig"),
@@ -367,6 +375,7 @@ pub fn build(b: *std.Build) void {
     animation_tests.root_module.addImport("sailor", sailor_module_for_tests);
     transition_tests.root_module.addImport("sailor", sailor_module_for_tests);
     timer_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    event_metrics_tests.root_module.addImport("sailor", sailor_module_for_tests);
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&b.addRunArtifact(lib_tests).step);
@@ -407,6 +416,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(animation_tests).step);
     test_step.dependOn(&b.addRunArtifact(transition_tests).step);
     test_step.dependOn(&b.addRunArtifact(timer_tests).step);
+    test_step.dependOn(&b.addRunArtifact(event_metrics_tests).step);
 
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
