@@ -15,7 +15,7 @@
 **Target**: 2026-04 (1-2 weeks)
 **Rationale**: Establish baseline metrics before v2.0.0 breaking changes; help consumer projects optimize their UIs
 **Checklist**:
-- [ ] Widget render metrics - measure render time per widget (min/max/avg, percentiles)
+- [x] Widget render metrics - measure render time per widget (min/max/avg, percentiles) (Session 71: render_metrics.zig, +31 tests)
 - [ ] Memory usage tracking - track allocation patterns per widget (peak memory, allocation count)
 - [ ] Event processing metrics - measure event handling latency (input lag, event queue depth)
 - [ ] Live metrics dashboard widget - real-time visualization of performance data

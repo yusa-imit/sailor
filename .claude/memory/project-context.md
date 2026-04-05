@@ -1,18 +1,33 @@
-# Sailor Project Context
+✅ **Session 71** — FEATURE MODE: v1.36.0 STARTED (2026-04-05)
+  - **Mode**: FEATURE (session 71, 71 % 5 == 1)
+  - **Achievement**: Implemented widget render metrics tracking (first item of v1.36.0 milestone)
 
-## Overview
-- Zig TUI framework & CLI toolkit library
-- Library consumed via `build.zig.zon`
-- Zero dependencies (Zig stdlib only)
-- Cross-platform: Linux, macOS, Windows
-- **Current version: v1.34.0** 🎉 (2026-04-04 — Terminal Clipboard & System Integration)
-- Previous versions: v1.33.0, v1.32.0, v1.31.0, v1.30.2, v1.30.0, v1.29.0, v1.28.0, v1.27.0, v1.26.0, v1.25.0, v1.24.0, v1.23.0, v1.22.0, v1.21.0, v1.20.0, v1.19.0, v1.18.0, v1.17.1, v1.17.0, v1.16.0, v1.15.0, v1.14.0, v1.13.1, v1.13.0, v1.12.0, v1.11.0, v1.10.0, v1.9.0, v1.8.0, v1.7.0, v1.6.1, v1.6.0, v1.5.0, v1.4.0, v1.3.0, v1.2.0, v1.1.0, v1.0.1, v1.0.0, v0.5.1, v0.5.0, v0.4.0, v0.3.0, v0.2.0, v0.1.0
+  **Work Completed**:
+    1. ✅ Widget Render Metrics (src/render_metrics.zig — 31 tests)
+       - MetricsCollector: Record render times per widget and type
+       - WidgetStats: min/max/avg/count + percentiles (p50/p95/p99)
+       - TypeStats: Aggregated stats across all widgets of same type
+       - Reset operations: Clear all metrics or specific widget
+       - Memory safe: No leaks, proper cleanup in all code paths
+       - Edge cases: Overflow protection, single sample, zero durations
+       - Stress tested: 1000 widgets, 10000 renders per widget
 
-## Current Phase
-- **Active milestone**: v1.35.0 — Widget Accessibility & Keyboard Navigation (in progress)
-- **Last completed**: v1.34.0 → Terminal Clipboard & System Integration (5/6, 83% — 1 item deferred) ✅
+  **Testing**: 3053 total tests (+31 render_metrics tests)
+    - All tests passing, 0 failures
+    - Memory leak checks passing with std.testing.allocator
 
-## Project Status
+  **Commits**:
+    - 21fd7b6 — feat(render_metrics): add widget render metrics tracking
+
+  **v1.36.0 Progress**: 1/6 items complete (17%)
+    - ✅ Widget render metrics
+    - ⬜ Memory usage tracking
+    - ⬜ Event processing metrics
+    - ⬜ Live metrics dashboard widget
+    - ⬜ Performance regression tests
+    - ⬜ Example: metrics_dashboard.zig
+
+
 ✅ **Session 69** — FEATURE MODE: v1.35.0 TAB NAVIGATION (2026-04-05)
   - **Mode**: FEATURE (session 69, 69 % 5 == 4)
   - **Achievement**: Implemented tab navigation with disabled widget support + accessibility demo
