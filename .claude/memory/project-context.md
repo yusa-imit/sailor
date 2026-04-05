@@ -1,3 +1,34 @@
+✅ **Session 73** — FEATURE MODE: v1.36.0 EVENT METRICS (2026-04-05)
+  - **Mode**: FEATURE (session 73, 73 % 5 == 3)
+  - **Achievement**: Implemented event processing metrics (third item of v1.36.0 milestone)
+
+  **Work Completed**:
+    1. ✅ Event Processing Metrics (src/event_metrics.zig — 39 tests)
+       - EventMetricsCollector: Track event latency and queue depth per event type
+       - EventStats: min/max/avg/count + percentiles (p50/p95/p99) + queue_depth_max
+       - TypeStats: Aggregated stats across all event types
+       - String-based event types (key_press, mouse_move, resize, focus, custom)
+       - Input lag detection via p95/p99 percentiles
+       - Overflow protection: Saturating arithmetic for counters
+       - Memory safe: No leaks, proper cleanup in all code paths
+       - Stress tested: 1000 event types, 10000 events per type
+
+  **Testing**: 3144 total tests (+39 event_metrics tests)
+    - All tests passing, 0 failures
+    - Memory leak checks passing with std.testing.allocator
+
+  **Commits**:
+    - d951b79 — feat(event_metrics): add event processing metrics tracking
+
+  **v1.36.0 Progress**: 3/6 items complete (50%)
+    - ✅ Widget render metrics (Session 71)
+    - ✅ Memory usage tracking (Session 72)
+    - ✅ Event processing metrics (Session 73)
+    - ⬜ Live metrics dashboard widget
+    - ⬜ Performance regression tests
+    - ⬜ Example: metrics_dashboard.zig
+
+
 ✅ **Session 72** — FEATURE MODE: v1.36.0 MEMORY TRACKING (2026-04-05)
   - **Mode**: FEATURE (session 72, 72 % 5 == 2)
   - **Achievement**: Implemented widget memory usage tracking (second item of v1.36.0 milestone)
