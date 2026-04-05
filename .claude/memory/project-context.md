@@ -1,3 +1,44 @@
+✅ **Session 76** — FEATURE MODE: v1.36.0 COMPLETED + AUTO-RELEASE (2026-04-06)
+  - **Mode**: FEATURE (session 76, 76 % 5 == 1)
+  - **Achievement**: Completed v1.36.0 milestone with performance regression tests + executed auto-release
+
+  **Work Completed**:
+    1. ✅ Performance Regression Tests (tests/performance_integration_test.zig — +4 regression tests)
+       - Block widget render performance: <50μs avg, <100μs P95 threshold
+       - Event processing latency: tracking with queue depth
+       - Memory tracking accuracy: 20 widget alloc/free cycles
+       - Type aggregation accuracy: 10 widgets × 10 renders verification
+       - Thresholds conservative for CI stability while catching real regressions
+       - Uses render_metrics, memory_metrics, event_metrics from v1.36.0
+
+  **Testing**: 3162 total tests (+4 regression tests from 3158)
+    - All tests passing, 0 failures
+    - Conservative thresholds for CI flakiness avoidance
+
+  **Commits**:
+    - 92f1ace — feat(tests): add performance regression tests for v1.36.0
+    - 1ba7a00 — chore: bump version to v1.36.0
+
+  **Auto-Release Executed**:
+    - ✅ v1.36.0 tag created and pushed
+    - ✅ GitHub Release: https://github.com/yusa-imit/sailor/releases/tag/v1.36.0
+    - ✅ Consumer migration issues filed: zr#50, zoltraak#27, silica#36
+    - ✅ Discord notification sent
+    - ✅ Milestone marked complete in docs/milestones.md
+    - ✅ All tests pass (3162/3192, 30 skipped)
+    - ✅ No open bug issues
+
+  **v1.36.0 COMPLETE** (6/6 items, 100%):
+    - ✅ Widget render metrics (Session 71)
+    - ✅ Memory usage tracking (Session 72)
+    - ✅ Event processing metrics (Session 73)
+    - ✅ Live metrics dashboard widget (Session 74)
+    - ✅ Performance regression tests (Session 76)
+    - ✅ Example: metrics_dashboard.zig (Session 74)
+
+  **Next Milestone**: v1.37.0 — v2.0.0 Deprecation Warnings & Bridge APIs
+
+
 ✅ **Session 75** — STABILIZATION MODE: WINDOWS CI FIX (2026-04-06)
   - **Mode**: STABILIZATION (session 75, 75 % 5 == 0)
   - **Achievement**: Fixed critical Windows CI failure (std.posix.getenv incompatibility)
