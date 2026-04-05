@@ -229,26 +229,26 @@ pub fn detectKittySupport() bool {
     }
 
     // Fallback: Check for TERM_PROGRAM=kitty or KITTY_WINDOW_ID environment variable
-    // (Windows doesn't typically use these Unix env vars, return false)
+    // (Windows doesn't support std.posix.getenv - env vars are UTF-16)
     if (builtin.os.tag == .windows) {
         return false;
+    } else {
+        const term_program = std.posix.getenv("TERM_PROGRAM");
+        if (term_program) |prog| {
+            if (std.mem.eql(u8, prog, "kitty")) return true;
+        }
+
+        const kitty_window = std.posix.getenv("KITTY_WINDOW_ID");
+        if (kitty_window != null) return true;
+
+        // Check for TERM containing "kitty"
+        const term = std.posix.getenv("TERM");
+        if (term) |t| {
+            if (std.mem.indexOf(u8, t, "kitty") != null) return true;
+        }
+
+        return false;
     }
-
-    const term_program = std.posix.getenv("TERM_PROGRAM");
-    if (term_program) |prog| {
-        if (std.mem.eql(u8, prog, "kitty")) return true;
-    }
-
-    const kitty_window = std.posix.getenv("KITTY_WINDOW_ID");
-    if (kitty_window != null) return true;
-
-    // Check for TERM containing "kitty"
-    const term = std.posix.getenv("TERM");
-    if (term) |t| {
-        if (std.mem.indexOf(u8, t, "kitty") != null) return true;
-    }
-
-    return false;
 }
 
 // ============================================================================

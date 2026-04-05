@@ -244,28 +244,29 @@ pub fn detectSixelSupport() bool {
     }
 
     // Fallback: Check TERM environment variable for known Sixel-capable terminals
+    // Windows doesn't support std.posix.getenv (env vars are UTF-16)
     if (builtin.os.tag == .windows) {
-        return false; // Windows doesn't use TERM env var
-    }
+        return false;
+    } else {
+        const term = std.posix.getenv("TERM") orelse return false;
 
-    const term = std.posix.getenv("TERM") orelse return false;
+        const sixel_terms = [_][]const u8{
+            "xterm-256color",
+            "mlterm",
+            "yaft",
+            "foot",
+            "wezterm",
+            "contour",
+        };
 
-    const sixel_terms = [_][]const u8{
-        "xterm-256color",
-        "mlterm",
-        "yaft",
-        "foot",
-        "wezterm",
-        "contour",
-    };
-
-    for (sixel_terms) |known_term| {
-        if (std.mem.eql(u8, term, known_term)) {
-            return true;
+        for (sixel_terms) |known_term| {
+            if (std.mem.eql(u8, term, known_term)) {
+                return true;
+            }
         }
-    }
 
-    return false;
+        return false;
+    }
 }
 
 // ============================================================================

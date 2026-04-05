@@ -55,18 +55,18 @@ pub const ScreenReaderOutput = struct {
             "VOICEOVER", // VoiceOver on macOS
         };
 
+        // Windows doesn't support std.posix.getenv (env vars are UTF-16)
         if (builtin.os.tag == .windows) {
-            // Windows doesn't typically use these Unix env vars
+            return false;
+        } else {
+            for (screen_reader_vars) |var_name| {
+                if (std.posix.getenv(var_name)) |_| {
+                    return true;
+                }
+            }
+
             return false;
         }
-
-        for (screen_reader_vars) |var_name| {
-            if (std.posix.getenv(var_name)) |_| {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /// Enable or disable screen reader output.
