@@ -227,6 +227,9 @@ pub const widgets = struct {
     pub const Tooltip = @import("widgets/tooltip.zig").Tooltip;
     pub const TooltipPosition = @import("widgets/tooltip.zig").Position;
     pub const TooltipTrigger = @import("widgets/tooltip.zig").Trigger;
+
+    // v1.36.0+ widgets (Performance Monitoring & Real-Time Metrics)
+    pub const MetricsDashboard = @import("widgets/metrics_dashboard.zig").MetricsDashboard;
 };
 
 // Export commonly used types
