@@ -76,6 +76,7 @@ pub const focus_trap = @import("focus_trap.zig");
 
 // v1.36.0 — Widget Performance Metrics
 pub const render_metrics = @import("render_metrics.zig");
+pub const memory_metrics = @import("memory_metrics.zig");
 
 // v1.23.0 — Plugin Architecture & Extensibility
 pub const ThemeLoader = @import("tui/theme_loader.zig").ThemeLoader;
