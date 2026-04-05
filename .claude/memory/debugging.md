@@ -37,13 +37,13 @@ grep -r "// Should" src/tui/widgets/*.zig | wc -l  # Find incomplete tests
 **Test Coverage**: All tests pass (2763/2793 passed, 30 skipped)
 **Commit**: d91e69d
 
-### Windows Compilation Failures - posix.fd_t Type Mismatch (2026-03-31 STABILIZATION Session 45)
+### Windows Compilation Failures - posix.fd_t Type Mismatch (2026-03-31 Session 45, FULLY FIXED 2026-04-06 Session 75)
 **Symptom**: Multiple Windows compilation errors:
-  1. `term.zig:44`: "value with comptime-only type depends on runtime control flow" - `@intCast(switch (fd))`
-  2. `term.zig:232`: "expected type '*anyopaque', found 'comptime_int'" - using fd as integer in switch
-  3. `term.zig:410`: "incompatible types" - WaitForSingleObject return type mismatch
-  4. `color.zig:28`: "std.posix.getenv unavailable for Windows" - UTF-16 environment strings
-  5. Multiple files using std.posix.getenv without Windows guards
+  1. ✅ `term.zig:44`: "value with comptime-only type depends on runtime control flow" - `@intCast(switch (fd))`
+  2. ✅ `term.zig:232`: "expected type '*anyopaque', found 'comptime_int'" - using fd as integer in switch
+  3. ✅ `term.zig:410`: "incompatible types" - WaitForSingleObject return type mismatch
+  4. ✅ `color.zig:28`: "std.posix.getenv unavailable for Windows" - UTF-16 environment strings
+  5. ✅ Multiple files using std.posix.getenv without Windows guards (kitty.zig, sixel.zig, screen_reader.zig)
 
 **Root Cause**:
   - **Fundamental issue**: On Windows, `posix.fd_t` is `*anyopaque` (HANDLE), not `i32`
@@ -51,7 +51,7 @@ grep -r "// Should" src/tui/widgets/*.zig | wc -l  # Find incomplete tests
   - `std.posix.getenv()` doesn't exist on Windows (env vars are UTF-16, not UTF-8)
   - WaitForSingleObject returns error union, not raw DWORD
 
-**Fix (commits: fb40a43, 26f507e)**:
+**Fix (commits: fb40a43, 26f507e, b30ff59)**:
   1. **term.zig**:
      - Changed `isatty(fd: i32)` → `isatty(fd: anytype)` to accept both i32 (Unix) and *anyopaque (Windows)
      - `enterWindows()/deinitWindows()`: Cast fd directly to HANDLE instead of using switch
@@ -60,14 +60,17 @@ grep -r "// Should" src/tui/widgets/*.zig | wc -l  # Find incomplete tests
      - `queryTerminalCapability()`: Platform-specific mock detection (address comparison on Windows)
   2. **color.zig**:
      - Added `getEnvVar()` helper that returns `null` on Windows (TERM/COLORTERM not applicable)
-  3. **screen_reader.zig, sixel.zig, kitty.zig**:
-     - Added `const builtin = @import("builtin");`
-     - Early return `false` on Windows before calling `std.posix.getenv()`
+  3. **screen_reader.zig, sixel.zig, kitty.zig** (Session 75, commit b30ff59):
+     - **CRITICAL FIX**: Wrapped ALL `std.posix.getenv()` calls inside else blocks
+     - Previous fix had early return guards, but compiler still analyzed unreachable code and failed
+     - Changed pattern from `if (windows) return false; getenv()` → `if (windows) return false; else { getenv() }`
+     - Now all 6 cross-compile targets succeed: x86_64/aarch64-windows-msvc, x86_64/aarch64-linux-gnu, x86_64/aarch64-macos
   4. **windows_unicode_test.zig**:
      - Made test more lenient: skip if codepoint ≤ 0xFFFF instead of failing (CI environment limitation)
 
-**Test Coverage**: Local tests pass, CI run 23781306136 in progress
-**Commits**: fb40a43 (cache fix), 26f507e (compilation fixes)
+**Test Coverage**: All tests pass locally, Windows cross-compilation succeeds
+**Commits**: fb40a43 (cache fix), 26f507e (compilation fixes), b30ff59 (final guard fix)
+**STATUS**: ✅ FULLY RESOLVED (2026-04-06 Session 75)
 
 ### Test Quality Audit - Trivial Tests Removed (2026-03-25 STABILIZATION Session 10)
 **Symptom**: Tests that cannot fail unless there's a compiler bug:
