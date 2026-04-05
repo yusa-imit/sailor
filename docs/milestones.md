@@ -2,24 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v1.35.0 (2026-04-05) — Widget Accessibility & Keyboard Navigation
-- **Latest minor**: v1.35.0 (2026-04-05) — Widget Accessibility & Keyboard Navigation
-- **Next milestone**: v1.36.0 — Performance Monitoring & Real-Time Metrics
-- **Active milestones**: 2
+- **Latest release**: v1.36.0 (2026-04-06) — Performance Monitoring & Real-Time Metrics
+- **Latest minor**: v1.36.0 (2026-04-06) — Performance Monitoring & Real-Time Metrics
+- **Next milestone**: v1.37.0 — v2.0.0 Deprecation Warnings & Bridge APIs
+- **Active milestones**: 1
 - **Blockers**: None
 
 ## Active Milestones
 
-### v1.36.0 — Performance Monitoring & Real-Time Metrics
+### v1.36.0 — Performance Monitoring & Real-Time Metrics (COMPLETED 2026-04-06)
 **Theme**: Built-in performance monitoring and widget-level metrics
-**Target**: 2026-04 (1-2 weeks)
-**Rationale**: Establish baseline metrics before v2.0.0 breaking changes; help consumer projects optimize their UIs
 **Checklist**:
 - [x] Widget render metrics - measure render time per widget (min/max/avg, percentiles) (Session 71: render_metrics.zig, +31 tests)
 - [x] Memory usage tracking - track allocation patterns per widget (peak memory, allocation count) (Session 72: memory_metrics.zig, +25 tests)
 - [x] Event processing metrics - measure event handling latency (input lag, event queue depth) (Session 73: event_metrics.zig, +39 tests)
 - [x] Live metrics dashboard widget - real-time visualization of performance data (Session 74: metrics_dashboard.zig, +44 tests, 3 layout modes)
-- [ ] Performance regression tests - automated tests to detect performance degradation
+- [x] Performance regression tests - automated tests to detect performance degradation (Session 76: +4 regression tests in performance_integration_test.zig)
 - [x] Example: metrics_dashboard.zig - demonstrate performance monitoring (Session 74: examples/metrics_dashboard.zig, simulates 50 renders/allocs + 200 events)
 
 ### v1.37.0 — v2.0.0 Deprecation Warnings & Bridge APIs
@@ -99,6 +97,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.36.0 | Performance Monitoring & Real-Time Metrics | 2026-04-06 | render_metrics.zig (widget render time tracking: min/max/avg/p50/p95/p99, +31 tests), memory_metrics.zig (allocation tracking: peak/current bytes, +25 tests), event_metrics.zig (event latency tracking: queue depth, +39 tests), MetricsDashboard widget (3 layout modes: vertical/horizontal/grid, color-coded warnings, +44 tests), performance regression tests (+4 tests: Block/Event/Memory/Aggregation), metrics_dashboard.zig example — 3162 total tests (+143), 0 breaking changes |
 | v1.35.0 | Widget Accessibility & Keyboard Navigation | 2026-04-05 | ARIA attributes (aria.zig: 30+ roles, 8 state flags, screen reader announcements, AriaWidget mixin, +31 tests), Focus trap (focus_trap.zig: modal focus containment, FocusTrapStack for nested dialogs, +25 tests), Standard keyboard shortcuts (keybindings.zig: Ctrl+C/X/V copy/cut/paste, Ctrl+Z/Y undo/redo, Ctrl+A select all, +7 tests), accessibility_demo.zig — 3,022 total tests (+63), 0 breaking changes, 6 cross-platform targets verified |
 | v1.34.0 | Terminal Clipboard & System Integration | 2026-04-04 | OSC 52 clipboard API (write operations, 3 selection types), terminal emulator detection (xterm/kitty/iTerm2/WezTerm/Alacritty/Windows Terminal), terminal capability detection (truecolor/mouse/clipboard/bracketed paste), paste bracketing enhancements (PasteHandler/PasteReader, multi-line paste with LF/CRLF/CR support), clipboard_demo.zig example — 2901 total tests (+38 from paste.zig), 0 breaking changes |
 | v1.33.0 | Specialized Widgets & Components | 2026-04-04 | 6 specialized widgets: LogViewer, MetricsPanel, ConfigEditor, SplitPane, Breadcrumb, Tooltip — NEW: Tooltip widget with 5 positioning strategies (above/below/left/right/auto), smart boundary detection, arrow indicators (▲▼◀▶), builder pattern API — ~2,516 total tests (+53), 0 breaking changes, auto-release executed |
