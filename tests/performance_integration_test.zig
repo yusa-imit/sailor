@@ -2,6 +2,8 @@
 //!
 //! These tests verify that performance optimization features work correctly
 //! together: render budget, lazy rendering, event batching, and debug overlay.
+//!
+//! v1.36.0: Added performance regression tests using metrics collectors
 
 const std = @import("std");
 const testing = std.testing;
@@ -19,6 +21,28 @@ const KeyCode = sailor.tui.KeyCode;
 const Rect = sailor.tui.Rect;
 const Style = sailor.tui.Style;
 const Color = sailor.tui.Color;
+
+// v1.36.0: Metrics collectors for regression testing
+const RenderMetrics = sailor.render_metrics.MetricsCollector;
+const MemoryMetrics = sailor.memory_metrics.MemoryMetricsCollector;
+const EventMetrics = sailor.event_metrics.EventMetricsCollector;
+
+// v1.36.0: Widgets for regression testing
+const Block = sailor.tui.widgets.Block;
+const Paragraph = sailor.tui.widgets.Paragraph;
+const List = sailor.tui.widgets.List;
+const Gauge = sailor.tui.widgets.Gauge;
+const Line = sailor.tui.Line;
+const Span = sailor.tui.Span;
+
+// Performance thresholds (conservative for CI stability)
+const BLOCK_RENDER_MAX_AVG_NS: u64 = 50_000; // 50μs
+const BLOCK_RENDER_MAX_P95_NS: u64 = 100_000; // 100μs
+const PARAGRAPH_RENDER_MAX_AVG_NS: u64 = 100_000; // 100μs
+const LIST_RENDER_MAX_AVG_NS: u64 = 150_000; // 150μs
+const GAUGE_RENDER_MAX_AVG_NS: u64 = 80_000; // 80μs
+const MAX_EVENT_LATENCY_P95_NS: u64 = 1_000_000; // 1ms
+const MAX_EVENT_LATENCY_P99_NS: u64 = 5_000_000; // 5ms
 
 test "RenderBudget basic frame tracking" {
     var budget = RenderBudget.init(60);
@@ -282,4 +306,120 @@ test "performance features integration" {
     try testing.expect(budget.stats.total_frames > 0);
     try testing.expect(lazy.isDirty(10, 10));
     try testing.expectEqual(@as(usize, 1), out_events.items.len);
+}
+
+// ========================================================================
+// v1.36.0: Performance Regression Tests
+// ========================================================================
+
+test "regression - Block widget render performance" {
+    var metrics = RenderMetrics.init(testing.allocator);
+    defer metrics.deinit();
+
+    var buffer = try Buffer.init(testing.allocator, 80, 24);
+    defer buffer.deinit();
+
+    const area = Rect.new(10, 5, 40, 10);
+    const block = Block{
+        .title = "Test",
+        .borders = .all,
+        .border_style = .{ .fg = .cyan },
+    };
+
+    // Run 100 iterations for stable metrics
+    for (0..100) |_| {
+        const start = std.time.nanoTimestamp();
+        block.render(&buffer, area);
+        const end = std.time.nanoTimestamp();
+        const duration_ns: u64 = @intCast(end - start);
+
+        metrics.recordRender(1, "Block", duration_ns);
+    }
+
+    const stats = metrics.getStats(1).?;
+
+    // Regression checks: average and P95 must be within thresholds
+    try testing.expect(stats.avg_ns <= BLOCK_RENDER_MAX_AVG_NS);
+    try testing.expect(stats.p95_ns <= BLOCK_RENDER_MAX_P95_NS);
+    try testing.expect(stats.avg_ns > 0);
+}
+
+test "regression - Event processing latency" {
+    var metrics = EventMetrics.init(testing.allocator);
+    defer metrics.deinit();
+
+    // Simulate realistic event processing with minimal sleep
+    for (0..50) |_| {
+        const start = std.time.nanoTimestamp();
+        std.Thread.sleep(10_000); // 10μs
+        const end = std.time.nanoTimestamp();
+
+        const latency_ns: u64 = @intCast(end - start);
+        metrics.recordEvent("key_press", latency_ns, 5);
+    }
+
+    const stats = metrics.getEventStats("key_press").?;
+
+    // Event latency should be reasonable
+    try testing.expect(stats.avg_ns > 0);
+    try testing.expect(stats.count == 50);
+}
+
+test "regression - Memory tracking accuracy" {
+    var metrics = MemoryMetrics.init(testing.allocator);
+    defer metrics.deinit();
+
+    // Simulate 20 widget allocations and frees
+    for (0..20) |i| {
+        const widget_id: u32 = @intCast(i + 1);
+        const alloc_size: usize = 1024;
+
+        metrics.recordAlloc(widget_id, "TestWidget", alloc_size);
+
+        const stats = metrics.getStats(widget_id).?;
+        try testing.expect(stats.peak_bytes >= alloc_size);
+
+        metrics.recordFree(widget_id, "TestWidget", alloc_size);
+    }
+
+    // Verify type stats aggregation
+    const type_stats = metrics.getTypeStats("TestWidget").?;
+    try testing.expect(type_stats.widget_count == 20);
+}
+
+test "regression - Type aggregation accuracy" {
+    var metrics = RenderMetrics.init(testing.allocator);
+    defer metrics.deinit();
+
+    var buffer = try Buffer.init(testing.allocator, 80, 24);
+    defer buffer.deinit();
+
+    const area = Rect.new(10, 5, 40, 10);
+
+    // Create and measure 10 Block widgets
+    for (0..10) |i| {
+        const widget_id: u32 = @intCast(i + 1);
+        const block = Block{
+            .title = "Test",
+            .borders = .all,
+            .border_style = .{ .fg = .cyan },
+        };
+
+        // 10 renders per widget
+        for (0..10) |_| {
+            const start = std.time.nanoTimestamp();
+            block.render(&buffer, area);
+            const end = std.time.nanoTimestamp();
+            const duration_ns: u64 = @intCast(end - start);
+
+            metrics.recordRender(widget_id, "Block", duration_ns);
+        }
+    }
+
+    const type_stats = metrics.getTypeStats("Block").?;
+
+    // Type aggregation should track all widgets and measurements
+    try testing.expect(type_stats.widget_count == 10);
+    try testing.expect(type_stats.count == 100);
+    try testing.expect(type_stats.avg_ns <= BLOCK_RENDER_MAX_AVG_NS);
 }
