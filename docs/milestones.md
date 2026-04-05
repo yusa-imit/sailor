@@ -20,7 +20,7 @@
 - [x] Event processing metrics - measure event handling latency (input lag, event queue depth) (Session 73: event_metrics.zig, +39 tests)
 - [x] Live metrics dashboard widget - real-time visualization of performance data (Session 74: metrics_dashboard.zig, +44 tests, 3 layout modes)
 - [ ] Performance regression tests - automated tests to detect performance degradation
-- [ ] Example: metrics_dashboard.zig - demonstrate performance monitoring
+- [x] Example: metrics_dashboard.zig - demonstrate performance monitoring (Session 74: examples/metrics_dashboard.zig, simulates 50 renders/allocs + 200 events)
 
 ### v1.37.0 — v2.0.0 Deprecation Warnings & Bridge APIs
 **Theme**: Introduce v2.0.0 APIs alongside v1.x APIs with deprecation warnings
