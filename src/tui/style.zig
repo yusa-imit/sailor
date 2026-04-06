@@ -130,6 +130,110 @@ pub const Style = struct {
             .strikethrough = other.strikethrough or self.strikethrough,
         };
     }
+
+    // v2.0.0 Style Inference Helpers
+    // These methods make it easier to create styles with common patterns.
+
+    /// Create style with foreground color (v2.0.0 helper)
+    ///
+    /// ## Example
+    /// ```zig
+    /// const s = Style.withForeground(.red);
+    /// // equivalent to: Style{ .fg = .red }
+    /// ```
+    pub fn withForeground(color: Color) Style {
+        return .{ .fg = color };
+    }
+
+    /// Create style with background color (v2.0.0 helper)
+    ///
+    /// ## Example
+    /// ```zig
+    /// const s = Style.withBackground(.blue);
+    /// // equivalent to: Style{ .bg = .blue }
+    /// ```
+    pub fn withBackground(color: Color) Style {
+        return .{ .bg = color };
+    }
+
+    /// Create style with foreground and background (v2.0.0 helper)
+    ///
+    /// ## Example
+    /// ```zig
+    /// const s = Style.withColors(.white, .blue);
+    /// // equivalent to: Style{ .fg = .white, .bg = .blue }
+    /// ```
+    pub fn withColors(fg_color: Color, bg_color: Color) Style {
+        return .{ .fg = fg_color, .bg = bg_color };
+    }
+
+    /// Create bold style (v2.0.0 helper)
+    pub fn makeBold() Style {
+        return .{ .bold = true };
+    }
+
+    /// Create italic style (v2.0.0 helper)
+    pub fn makeItalic() Style {
+        return .{ .italic = true };
+    }
+
+    /// Create underlined style (v2.0.0 helper)
+    pub fn makeUnderline() Style {
+        return .{ .underline = true };
+    }
+
+    /// Create dim style (v2.0.0 helper)
+    pub fn makeDim() Style {
+        return .{ .dim = true };
+    }
+
+    /// Create style with foreground and modifiers (v2.0.0 helper)
+    ///
+    /// ## Example
+    /// ```zig
+    /// const s = Style.fg(.red).withBold();
+    /// // equivalent to: Style{ .fg = .red, .bold = true }
+    /// ```
+    pub fn withBold(self: Style) Style {
+        var result = self;
+        result.bold = true;
+        return result;
+    }
+
+    /// Add italic to existing style (v2.0.0 helper)
+    pub fn withItalic(self: Style) Style {
+        var result = self;
+        result.italic = true;
+        return result;
+    }
+
+    /// Add underline to existing style (v2.0.0 helper)
+    pub fn withUnderline(self: Style) Style {
+        var result = self;
+        result.underline = true;
+        return result;
+    }
+
+    /// Add dim to existing style (v2.0.0 helper)
+    pub fn withDim(self: Style) Style {
+        var result = self;
+        result.dim = true;
+        return result;
+    }
+
+    /// Set background color on existing style (v2.0.0 helper)
+    pub fn withBg(self: Style, color: Color) Style {
+        var result = self;
+        result.bg = color;
+        return result;
+    }
+
+    /// Set foreground color on existing style (v2.0.0 helper)
+    pub fn withFg(self: Style, color: Color) Style {
+        var result = self;
+        result.fg = color;
+        return result;
+    }
 };
 
 /// Styled text span
@@ -573,4 +677,99 @@ test "Line.width" {
     };
     const line = Line{ .spans = &spans };
     try std.testing.expectEqual(11, line.width());
+}
+
+// v2.0.0 Style Inference Helper Tests
+
+test "Style.withForeground - foreground color helper" {
+    const s = Style.withForeground(.red);
+    try std.testing.expectEqual(Color.red, s.fg.?);
+    try std.testing.expectEqual(null, s.bg);
+    try std.testing.expectEqual(false, s.bold);
+}
+
+test "Style.withBackground - background color helper" {
+    const s = Style.withBackground(.blue);
+    try std.testing.expectEqual(Color.blue, s.bg.?);
+    try std.testing.expectEqual(null, s.fg);
+}
+
+test "Style.withColors - foreground and background" {
+    const s = Style.withColors(.white, .black);
+    try std.testing.expectEqual(Color.white, s.fg.?);
+    try std.testing.expectEqual(Color.black, s.bg.?);
+}
+
+test "Style.makeBold - bold modifier helper" {
+    const s = Style.makeBold();
+    try std.testing.expectEqual(true, s.bold);
+    try std.testing.expectEqual(false, s.italic);
+}
+
+test "Style.makeItalic - italic modifier helper" {
+    const s = Style.makeItalic();
+    try std.testing.expectEqual(true, s.italic);
+    try std.testing.expectEqual(false, s.bold);
+}
+
+test "Style.makeUnderline - underline modifier helper" {
+    const s = Style.makeUnderline();
+    try std.testing.expectEqual(true, s.underline);
+}
+
+test "Style.makeDim - dim modifier helper" {
+    const s = Style.makeDim();
+    try std.testing.expectEqual(true, s.dim);
+}
+
+test "Style.withBold - add bold to existing style" {
+    const s = Style.withForeground(.red).withBold();
+    try std.testing.expectEqual(Color.red, s.fg.?);
+    try std.testing.expectEqual(true, s.bold);
+}
+
+test "Style.withItalic - add italic to existing style" {
+    const s = Style.withBackground(.blue).withItalic();
+    try std.testing.expectEqual(Color.blue, s.bg.?);
+    try std.testing.expectEqual(true, s.italic);
+}
+
+test "Style.withUnderline - add underline to existing style" {
+    const s = Style.withForeground(.green).withUnderline();
+    try std.testing.expectEqual(Color.green, s.fg.?);
+    try std.testing.expectEqual(true, s.underline);
+}
+
+test "Style.withDim - add dim to existing style" {
+    const s = Style.withForeground(.yellow).withDim();
+    try std.testing.expectEqual(Color.yellow, s.fg.?);
+    try std.testing.expectEqual(true, s.dim);
+}
+
+test "Style.withBg - set background on existing style" {
+    const s = Style.withForeground(.red).withBg(.blue);
+    try std.testing.expectEqual(Color.red, s.fg.?);
+    try std.testing.expectEqual(Color.blue, s.bg.?);
+}
+
+test "Style.withFg - set foreground on existing style" {
+    const s = Style.withBackground(.blue).withFg(.red);
+    try std.testing.expectEqual(Color.red, s.fg.?);
+    try std.testing.expectEqual(Color.blue, s.bg.?);
+}
+
+test "Style helpers - chaining multiple modifiers" {
+    const s = Style.withForeground(.red).withBold().withItalic().withUnderline();
+    try std.testing.expectEqual(Color.red, s.fg.?);
+    try std.testing.expectEqual(true, s.bold);
+    try std.testing.expectEqual(true, s.italic);
+    try std.testing.expectEqual(true, s.underline);
+}
+
+test "Style helpers - complex chaining with colors and modifiers" {
+    const s = Style.withForeground(.white).withBg(.blue).withBold().withDim();
+    try std.testing.expectEqual(Color.white, s.fg.?);
+    try std.testing.expectEqual(Color.blue, s.bg.?);
+    try std.testing.expectEqual(true, s.bold);
+    try std.testing.expectEqual(true, s.dim);
 }
