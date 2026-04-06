@@ -299,7 +299,7 @@ pub const Block = struct {
 
 // Tests
 test "Block.init creates default block" {
-    const block = Block.init();
+    const block = (Block{});
     try std.testing.expect(block.borders.top);
     try std.testing.expect(block.borders.right);
     try std.testing.expect(block.borders.bottom);
@@ -307,7 +307,7 @@ test "Block.init creates default block" {
 }
 
 test "Block.withBorders sets borders" {
-    const block = Block.init().withBorders(Borders.horizontal);
+    const block = (Block{}).withBorders(Borders.horizontal);
     try std.testing.expect(block.borders.top);
     try std.testing.expect(block.borders.bottom);
     try std.testing.expect(!block.borders.left);
@@ -315,7 +315,7 @@ test "Block.withBorders sets borders" {
 }
 
 test "Block.inner calculates inner area with all borders" {
-    const block = Block.init();
+    const block = (Block{});
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     const inner_area = block.inner(area);
 
@@ -326,7 +326,7 @@ test "Block.inner calculates inner area with all borders" {
 }
 
 test "Block.inner calculates inner area with padding" {
-    const block = Block.init().withPadding(1);
+    const block = (Block{}).withPadding(1);
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     const inner_area = block.inner(area);
 
@@ -337,7 +337,7 @@ test "Block.inner calculates inner area with padding" {
 }
 
 test "Block.inner handles no borders" {
-    const block = Block.init().withBorders(Borders.none);
+    const block = (Block{}).withBorders(Borders.none);
     const area = Rect{ .x = 5, .y = 5, .width = 20, .height = 15 };
     const inner_area = block.inner(area);
 
@@ -348,7 +348,7 @@ test "Block.inner handles no borders" {
 }
 
 test "Block.inner handles custom padding" {
-    const block = Block.init()
+    const block = (Block{})
         .withBorders(Borders.none)
         .withPaddingCustom(1, 2, 3, 4);
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 20 };
@@ -365,7 +365,7 @@ test "Block.render draws all borders" {
     var buf = try Buffer.init(allocator, 10, 5);
     defer buf.deinit();
 
-    const block = Block.init();
+    const block = (Block{});
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     block.render(&buf, area);
 
@@ -396,7 +396,7 @@ test "Block.render draws horizontal borders only" {
     var buf = try Buffer.init(allocator, 10, 5);
     defer buf.deinit();
 
-    const block = Block.init().withBorders(Borders.horizontal);
+    const block = (Block{}).withBorders(Borders.horizontal);
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     block.render(&buf, area);
 
@@ -418,7 +418,7 @@ test "Block.render with title at top left" {
     var buf = try Buffer.init(allocator, 20, 5);
     defer buf.deinit();
 
-    const block = Block.init().withTitle("Test", .top_left);
+    const block = (Block{}).withTitle("Test", .top_left);
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
     block.render(&buf, area);
 
@@ -434,7 +434,7 @@ test "Block.render with title at top center" {
     var buf = try Buffer.init(allocator, 20, 5);
     defer buf.deinit();
 
-    const block = Block.init().withTitle("Hi", .top_center);
+    const block = (Block{}).withTitle("Hi", .top_center);
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
     block.render(&buf, area);
 
@@ -449,7 +449,7 @@ test "Block.render with title at bottom right" {
     var buf = try Buffer.init(allocator, 20, 5);
     defer buf.deinit();
 
-    const block = Block.init().withTitle("End", .bottom_right);
+    const block = (Block{}).withTitle("End", .bottom_right);
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
     block.render(&buf, area);
 
@@ -465,7 +465,7 @@ test "Block.render handles empty area" {
     var buf = try Buffer.init(allocator, 10, 10);
     defer buf.deinit();
 
-    const block = Block.init();
+    const block = (Block{});
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
     block.render(&buf, area); // Should not crash
 
@@ -478,7 +478,7 @@ test "Block.render with different border sets" {
     var buf = try Buffer.init(allocator, 10, 5);
     defer buf.deinit();
 
-    const block = Block.init().withBorderSet(BoxSet.double);
+    const block = (Block{}).withBorderSet(BoxSet.double);
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     block.render(&buf, area);
 

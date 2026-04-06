@@ -253,7 +253,7 @@ test "Input.withPlaceholderStyle" {
 }
 
 test "Input.withBlock" {
-    const blk = Block.init().withBorders(block_mod.Borders.all);
+    const blk = (Block{}).withBorders(block_mod.Borders.all);
     const input = Input.init("test").withBlock(blk);
 
     try std.testing.expect(input.block != null);
@@ -348,7 +348,7 @@ test "Input.render with block" {
     var buf = try Buffer.init(allocator, 20, 3);
     defer buf.deinit();
 
-    const blk = Block.init().withBorders(block_mod.Borders.all);
+    const blk = (Block{}).withBorders(block_mod.Borders.all);
     const input = Input.init("hello").withBlock(blk);
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 3 };
 

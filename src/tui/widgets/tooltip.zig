@@ -329,7 +329,7 @@ test "Tooltip.withArrow toggles arrow display false" {
 }
 
 test "Tooltip.withBlock sets border" {
-    const block = Block.init().withBorders(.all);
+    const block = (Block{}).withBorders(.all);
     const tooltip = Tooltip.init("Test").withBlock(block);
 
     try std.testing.expect(tooltip.block != null);
@@ -705,7 +705,7 @@ test "Tooltip.render style applies to content" {
 
 test "Tooltip.render border renders when block is set" {
     var tooltip = Tooltip.init("Bordered")
-        .withBlock(Block.init())
+        .withBlock((Block{}))
         .withPosition(.below);
     const target = Rect.new(10, 10, 5, 2);
 

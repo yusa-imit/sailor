@@ -479,7 +479,7 @@ test "Select: render with block" {
     var select = try Select.init(std.testing.allocator, &items, false);
     defer select.deinit(std.testing.allocator);
 
-    const block = Block.init().withTitle("Choose");
+    const block = (Block{}).withTitle("Choose");
     select = select.withBlock(block);
 
     var buf = try Buffer.init(std.testing.allocator, 25, 5);

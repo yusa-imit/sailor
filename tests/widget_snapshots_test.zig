@@ -37,7 +37,7 @@ test "Block: renders border corners correctly" {
     var term = try MockTerminal.init(testing.allocator, 12, 5);
     defer term.deinit();
 
-    const block = Block{}
+    const block = (Block{})
         .withBorders(Borders.all)
         .withTitle("Test", .top_left);
 
@@ -59,7 +59,7 @@ test "Block: no borders means title doesn't render" {
     var term = try MockTerminal.init(testing.allocator, 8, 3);
     defer term.deinit();
 
-    const block = Block{}
+    const block = (Block{})
         .withBorders(Borders.none)
         .withTitle("Plain", .top_left);
 
@@ -85,7 +85,7 @@ test "Block: thick border set" {
     var term = try MockTerminal.init(testing.allocator, 10, 4);
     defer term.deinit();
 
-    const block = Block{}
+    const block = (Block{})
         .withBorders(Borders.all)
         .withBorderSet(BoxSet.thick)
         .withTitle("Thick", .top_left);
@@ -103,7 +103,7 @@ test "Block: rounded border set" {
     var term = try MockTerminal.init(testing.allocator, 10, 4);
     defer term.deinit();
 
-    const block = Block{}
+    const block = (Block{})
         .withBorders(Borders.all)
         .withBorderSet(BoxSet.rounded)
         .withTitle("Round", .top_left);
@@ -159,7 +159,7 @@ test "Paragraph: with block border" {
     var term = try MockTerminal.init(testing.allocator, 14, 4);
     defer term.deinit();
 
-    const block = Block{}
+    const block = (Block{})
         .withBorders(Borders.all)
         .withTitle("Text", .top_left);
 
@@ -252,7 +252,7 @@ test "Table: with block border" {
     var term = try MockTerminal.init(testing.allocator, 16, 5);
     defer term.deinit();
 
-    const block = Block{}
+    const block = (Block{})
         .withBorders(Borders.all);
 
     const columns = [_]Column{
@@ -286,7 +286,7 @@ test "Gauge: renders label at different progress levels" {
     var term = try MockTerminal.init(testing.allocator, 20, 3);
     defer term.deinit();
 
-    const gauge = Gauge{}
+    const gauge = (Gauge{})
         .withPercent(50)
         .withLabel("50%");
 
@@ -303,7 +303,7 @@ test "Gauge: 100% progress renders filled bar" {
     var term = try MockTerminal.init(testing.allocator, 15, 2);
     defer term.deinit();
 
-    const gauge = Gauge{}
+    const gauge = (Gauge{})
         .withPercent(100)
         .withLabel("Done");
 
@@ -341,7 +341,7 @@ test "Sparkline: with block shows borders" {
     defer term.deinit();
 
     const data = [_]u64{ 2, 4, 3, 5 };
-    const block = Block{}
+    const block = (Block{})
         .withBorders(Borders.all)
         .withTitle("Graph", .top_left);
 
@@ -364,7 +364,7 @@ test "Integration: multiple widgets in vertical layout" {
     defer term.deinit();
 
     // Top paragraph with border
-    const top_block = Block{}
+    const top_block = (Block{})
         .withBorders(Borders.all)
         .withTitle("Header", .top_left);
 
@@ -377,7 +377,7 @@ test "Integration: multiple widgets in vertical layout" {
     para.render(&term.current, Rect.new(0, 0, 30, 4));
 
     // Bottom list with border
-    const bottom_block = Block{}
+    const bottom_block = (Block{})
         .withBorders(Borders.all)
         .withTitle("Menu", .top_left);
 
@@ -402,13 +402,13 @@ test "Integration: side-by-side blocks" {
     defer term.deinit();
 
     // Left block
-    const left_block = Block{}
+    const left_block = (Block{})
         .withBorders(Borders.all)
         .withTitle("Left", .top_left);
     left_block.render(&term.current, Rect.new(0, 0, 10, 4));
 
     // Right block
-    const right_block = Block{}
+    const right_block = (Block{})
         .withBorders(Borders.all)
         .withTitle("Right", .top_left);
     right_block.render(&term.current, Rect.new(10, 0, 10, 4));
@@ -428,7 +428,7 @@ test "Edge case: zero-size area does not crash" {
     var term = try MockTerminal.init(testing.allocator, 10, 5);
     defer term.deinit();
 
-    const block = Block{}
+    const block = (Block{})
         .withBorders(Borders.all)
         .withTitle("Test", .top_left);
 
@@ -468,7 +468,7 @@ test "Style: Block with colored border" {
     var term = try MockTerminal.init(testing.allocator, 10, 4);
     defer term.deinit();
 
-    const block = Block{}
+    const block = (Block{})
         .withBorders(Borders.all)
         .withTitle("Color", .top_left)
         .withBorderStyle(Style{ .fg = .blue });

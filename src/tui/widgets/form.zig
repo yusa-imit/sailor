@@ -484,7 +484,7 @@ test "Form: render with block" {
         Field.init("Username"),
     };
 
-    const block = Block.init().withTitle("Login");
+    const block = (Block{}).withTitle("Login");
     const form = Form.init(&fields).withBlock(block);
 
     var buf = try Buffer.init(std.testing.allocator, 30, 5);

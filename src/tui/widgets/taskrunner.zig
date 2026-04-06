@@ -589,7 +589,7 @@ test "TaskRunner render with block border" {
     var runner = try TaskRunner.init(std.testing.allocator);
     defer runner.deinit(std.testing.allocator);
 
-    var block = Block.init();
+    var block = (Block{});
     block.setBorder(true);
     block.setTitle("Background Tasks");
     runner.setBlock(block);

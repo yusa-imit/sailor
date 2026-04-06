@@ -333,7 +333,7 @@ test "Paragraph.render with block wrapper" {
     const spans = [_]Span{Span.raw("Test")};
     const line = Line{ .spans = &spans };
     const lines = [_]Line{line};
-    const block = Block.init();
+    const block = (Block{});
     const para = Paragraph.fromLines(&lines)
         .withBlock(block);
 

@@ -559,7 +559,7 @@ test "WebSocket: render with block border" {
     var ws = WebSocket.init(allocator, "wss://example.com/ws");
     defer ws.deinit();
     ws.setState(.connected);
-    ws.block = Block.init().title("WebSocket");
+    ws.block = (Block{}).title("WebSocket");
 
     var buffer = try Buffer.init(allocator, 40, 10);
     defer buffer.deinit();

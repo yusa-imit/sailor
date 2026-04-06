@@ -841,7 +841,7 @@ test "richtext: builder pattern" {
     var rt = RichTextInput.init(allocator);
     defer rt.deinit();
 
-    const block = Block.init().setTitle("Rich Text");
+    const block = (Block{}).setTitle("Rich Text");
     _ = rt.setBlock(block);
 
     try testing.expect(rt.block != null);

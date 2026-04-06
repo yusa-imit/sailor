@@ -79,7 +79,7 @@ test "Block: visual structure verification" {
     var term = try MockTerminal.init(testing.allocator, 8, 3);
     defer term.deinit();
 
-    const block = Block{}
+    const block = (Block{})
         .withBorders(Borders.all);
 
     block.render(&term.current, term.size());
@@ -101,7 +101,7 @@ test "Block with title: visual structure" {
     var term = try MockTerminal.init(testing.allocator, 10, 3);
     defer term.deinit();
 
-    const block = Block{}
+    const block = (Block{})
         .withBorders(Borders.all)
         .withTitle("Test", .top_left);
 
@@ -172,7 +172,7 @@ test "Gauge: renders fill character" {
     var term = try MockTerminal.init(testing.allocator, 10, 1);
     defer term.deinit();
 
-    const gauge = Gauge{}
+    const gauge = (Gauge{})
         .withPercent(50);
 
     gauge.render(&term.current, term.size());
@@ -187,7 +187,7 @@ test "Gauge: 0% has no fill" {
     var term = try MockTerminal.init(testing.allocator, 10, 1);
     defer term.deinit();
 
-    const gauge = Gauge{}
+    const gauge = (Gauge{})
         .withPercent(0);
 
     gauge.render(&term.current, term.size());
@@ -202,7 +202,7 @@ test "Gauge: 100% fills completely" {
     var term = try MockTerminal.init(testing.allocator, 10, 1);
     defer term.deinit();
 
-    const gauge = Gauge{}
+    const gauge = (Gauge{})
         .withPercent(100);
 
     gauge.render(&term.current, term.size());

@@ -275,7 +275,7 @@ test "menu withSelected sets selected index" {
 
 test "menu withBlock sets block" {
     const items = [_]Menu.MenuItem{.{ .label = "File" }};
-    const blk = Block.init().withTitle("Menu");
+    const blk = (Block{}).withTitle("Menu");
 
     const menu = Menu.init(&items).withBlock(blk);
     try std.testing.expect(menu.block != null);
@@ -693,7 +693,7 @@ test "menu render with block consumes space" {
     const allocator = std.testing.allocator;
     const items = [_]Menu.MenuItem{.{ .label = "File" }};
 
-    const blk = Block.init().withBorders(.{ .top = true, .left = true });
+    const blk = (Block{}).withBorders(.{ .top = true, .left = true });
     const menu = Menu.init(&items).withBlock(blk);
 
     var buf = try Buffer.init(allocator, .{ .width = 10, .height = 10 });

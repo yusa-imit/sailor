@@ -890,7 +890,7 @@ test "Breadcrumb.render with block wrapper" {
     var buf = try Buffer.init(std.testing.allocator, 80, 10);
     defer buf.deinit();
 
-    const block = Block.init().withTitle("Navigation").withBorders(.all);
+    const block = (Block{}).withTitle("Navigation").withBorders(.all);
     const updated = breadcrumb.withBlock(block);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 3 };
     updated.render(buf, area);

@@ -237,7 +237,7 @@ test "ChunkedBuffer.init creates buffer with total line count" {
 }
 
 test "ChunkedBuffer builder methods chain correctly" {
-    const block = Block.init().withBorders(.all);
+    const block = (Block{}).withBorders(.all);
     const style = Style{ .fg = .{ .indexed = 2 } };
 
     const cb = ChunkedBuffer.init(100)
@@ -852,7 +852,7 @@ test "ChunkedBuffer with block reduces inner area correctly" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-    const block = Block.init().withBorders(.all);
+    const block = (Block{}).withBorders(.all);
     const cb = ChunkedBuffer.init(100).withBlock(block);
 
     var call_count: usize = 0;

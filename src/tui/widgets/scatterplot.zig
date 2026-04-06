@@ -17,7 +17,7 @@
 //! };
 //!
 //! const chart = ScatterPlot.init(&series)
-//!     .withBlock(Block.init().withBorders(.all).withTitle("Scatter"))
+//!     .withBlock((Block{}).withBorders(.all).withTitle("Scatter"))
 //!     .withXAxisLabel("Time (s)")
 //!     .withYAxisLabel("Value");
 //!
@@ -361,7 +361,7 @@ test "ScatterPlot.withBlock" {
     const series = [_]ScatterPlot.Series{
         .{ .name = "A", .points = &[_]ScatterPlot.Point{} },
     };
-    const plot = ScatterPlot.init(&series).withBlock(Block.init());
+    const plot = ScatterPlot.init(&series).withBlock((Block{}));
     try std.testing.expect(plot.block != null);
 }
 
@@ -504,7 +504,7 @@ test "ScatterPlot.render with block" {
         },
     };
     const plot = ScatterPlot.init(&series)
-        .withBlock(Block.init().withBorders(.all).withTitle("Scatter"));
+        .withBlock((Block{}).withBorders(.all).withTitle("Scatter"));
 
     var buf = try Buffer.init(std.testing.allocator, 30, 15);
     defer buf.deinit();

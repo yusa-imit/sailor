@@ -10,7 +10,7 @@
 //! };
 //!
 //! const chart = BarChart.init(&bars)
-//!     .withBlock(Block.init().withBorders(.all).withTitle("Sales"))
+//!     .withBlock((Block{}).withBorders(.all).withTitle("Sales"))
 //!     .withBarStyle(.{ .fg = .{ .indexed = 2 } })
 //!     .withBarWidth(5)
 //!     .withBarGap(2);
@@ -233,7 +233,7 @@ test "BarChart.withBlock sets block" {
     const bars = [_]BarChart.Bar{
         .{ .label = "A", .value = 10 },
     };
-    const blk = Block.init().withTitle("Chart");
+    const blk = (Block{}).withTitle("Chart");
     const chart = BarChart.init(&bars).withBlock(blk);
     try testing.expect(chart.block != null);
 }
@@ -372,7 +372,7 @@ test "BarChart.render with block border" {
     const bars = [_]BarChart.Bar{
         .{ .label = "A", .value = 50 },
     };
-    const blk = Block.init().withBorders(.all);
+    const blk = (Block{}).withBorders(.all);
     const chart = BarChart.init(&bars).withBlock(blk);
     const area = Rect{ .x = 0, .y = 0, .width = 15, .height = 10 };
 

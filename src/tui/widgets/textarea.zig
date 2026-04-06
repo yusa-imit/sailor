@@ -234,7 +234,7 @@ test "TextArea: with offset" {
 
 test "TextArea: with block" {
     const lines = [_][]const u8{"Line"};
-    const blk = Block.init();
+    const blk = (Block{});
     const textarea = TextArea.init(&lines).withBlock(blk);
     try std.testing.expect(textarea.block != null);
 }
@@ -419,7 +419,7 @@ test "TextArea: render with block" {
     defer buf.deinit();
 
     const lines = [_][]const u8{"Text"};
-    const blk = Block.init();
+    const blk = (Block{});
     const textarea = TextArea.init(&lines).withBlock(blk);
     textarea.render(&buf, Rect.init(0, 0, 20, 5));
 

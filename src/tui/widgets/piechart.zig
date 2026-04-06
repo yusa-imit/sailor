@@ -10,7 +10,7 @@
 //! };
 //!
 //! const chart = PieChart.init(&slices)
-//!     .withBlock(Block.init().withBorders(.all).withTitle("Resources"))
+//!     .withBlock((Block{}).withBorders(.all).withTitle("Resources"))
 //!     .withLegendPosition(.right);
 //!
 //! chart.render(&buffer, area);
@@ -247,7 +247,7 @@ test "PieChart.init creates chart" {
 
 test "PieChart.withBlock sets block" {
     const slices = [_]PieChart.Slice{.{ .label = "A", .value = 50 }};
-    const block = Block.init();
+    const block = (Block{});
     const chart = PieChart.init(&slices).withBlock(block);
     try testing.expect(chart.block != null);
 }
@@ -378,7 +378,7 @@ test "PieChart.render with block" {
     const slices = [_]PieChart.Slice{
         .{ .label = "A", .value = 50 },
     };
-    const block = Block.init().withBorders(.all).withTitle("Test");
+    const block = (Block{}).withBorders(.all).withTitle("Test");
     const chart = PieChart.init(&slices).withBlock(block);
 
     var buf = try Buffer.init(testing.allocator, 20, 10);

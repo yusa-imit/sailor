@@ -416,7 +416,7 @@ test "ConfigEditor: with block" {
             .value = .{ .string = "value" },
         },
     };
-    const blk = Block.init();
+    const blk = (Block{});
     const editor = ConfigEditor.init(&nodes).withBlock(blk);
     try std.testing.expect(editor.block != null);
 }
@@ -604,7 +604,7 @@ test "ConfigEditor: render with block" {
             .value = .{ .string = "value" },
         },
     };
-    const blk = Block.init();
+    const blk = (Block{});
     const editor = ConfigEditor.init(&nodes).withBlock(blk);
     editor.render(&buf, Rect.init(0, 0, 30, 10));
 

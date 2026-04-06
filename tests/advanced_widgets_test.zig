@@ -55,7 +55,7 @@ test "Heatmap with PieChart side-by-side layout" {
         .{ .label = "C", .value = 20, .style = .{ .fg = .{ .indexed = 3 } } },
     };
     const pie = PieChart.init(&slices)
-        .withBlock(Block{}.withBorders(.all).withTitle("Distribution", .top_left));
+        .withBlock((Block{}).withBorders(.all).withTitle("Distribution", .top_left));
 
     pie.render(&buffer, right);
 
@@ -88,7 +88,7 @@ test "ScatterPlot with Histogram stacked vertically" {
         },
     };
     const scatter = ScatterPlot.init(&series)
-        .withBlock(Block{}.withBorders(.all).withTitle("Scatter", .top_left));
+        .withBlock((Block{}).withBorders(.all).withTitle("Scatter", .top_left));
 
     scatter.render(&buffer, top);
 
@@ -100,7 +100,7 @@ test "ScatterPlot with Histogram stacked vertically" {
         .{ .label = "4-6", .count = 1 },
     };
     const hist = Histogram.init(&bins)
-        .withBlock(Block{}.withBorders(.all).withTitle("Distribution", .top_left));
+        .withBlock((Block{}).withBorders(.all).withTitle("Distribution", .top_left));
 
     hist.render(&buffer, bottom);
 
@@ -462,7 +462,7 @@ test "Complex dashboard layout with FlexBox and v1.6.0 widgets" {
         .{ .label = "B", .value = 70 },
     };
     const pie = PieChart.init(&slices)
-        .withBlock(Block{}.withBorders(.all).withTitle("Pie", .top_left));
+        .withBlock((Block{}).withBorders(.all).withTitle("Pie", .top_left));
     pie.render(&buffer, pie_area);
 
     const bins = [_]Histogram.Bin{
@@ -471,7 +471,7 @@ test "Complex dashboard layout with FlexBox and v1.6.0 widgets" {
         .{ .label = "3", .count = 7 },
     };
     const hist = Histogram.init(&bins)
-        .withBlock(Block{}.withBorders(.all).withTitle("Hist", .top_left));
+        .withBlock((Block{}).withBorders(.all).withTitle("Hist", .top_left));
     hist.render(&buffer, hist_area);
 
     // Column 3: ScatterPlot
@@ -486,7 +486,7 @@ test "Complex dashboard layout with FlexBox and v1.6.0 widgets" {
         },
     };
     const scatter = ScatterPlot.init(&series)
-        .withBlock(Block{}.withBorders(.all).withTitle("Scatter", .top_left));
+        .withBlock((Block{}).withBorders(.all).withTitle("Scatter", .top_left));
     scatter.render(&buffer, columns[2]);
 
     // Verify complex layout doesn't have overlaps

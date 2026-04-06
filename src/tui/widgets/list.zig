@@ -207,7 +207,7 @@ test "List.withOffset sets scroll offset" {
 
 test "List.withBlock sets block" {
     const items = &[_][]const u8{ "A" };
-    const block = Block.init();
+    const block = (Block{});
     const list = List.init(items).withBlock(block);
 
     try std.testing.expect(list.block != null);
@@ -356,7 +356,7 @@ test "List.render with custom highlight symbol" {
 
 test "List.render with block border" {
     const items = &[_][]const u8{ "Item" };
-    const block = Block.init();
+    const block = (Block{});
     const list = List.init(items).withBlock(block);
 
     var buf = try Buffer.init(std.testing.allocator, 10, 5);

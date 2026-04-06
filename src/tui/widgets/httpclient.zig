@@ -382,7 +382,7 @@ test "HttpClient - render failed state" {
 
 test "HttpClient - setBlock" {
     var client = HttpClient.init("https://example.com");
-    var block = Block.init();
+    var block = (Block{});
     block.title = "Download";
 
     client.setBlock(block);

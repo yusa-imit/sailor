@@ -451,7 +451,7 @@ test "autocomplete: builder pattern" {
     var ac = Autocomplete.init(allocator);
     defer ac.deinit();
 
-    const block = Block.init().setTitle("Autocomplete");
+    const block = (Block{}).setTitle("Autocomplete");
     _ = ac.setBlock(block).setMaxVisible(5).setHighlightStyle(.{ .fg = Color{ .indexed = 3 } });
 
     try std.testing.expectEqual(@as(usize, 5), ac.max_visible);
@@ -501,7 +501,7 @@ test "autocomplete: render with block" {
     var ac = Autocomplete.init(allocator);
     defer ac.deinit();
 
-    const block = Block.init().setTitle("Suggestions");
+    const block = (Block{}).setTitle("Suggestions");
     _ = ac.setBlock(block);
 
     const suggestions = [_][]const u8{"hello"};

@@ -760,7 +760,7 @@ test "FileBrowser render with block" {
     var browser = try FileBrowser.init(allocator, abs_path);
     defer browser.deinit();
 
-    const block = Block.init().withTitle("Files").withBorders(.all);
+    const block = (Block{}).withTitle("Files").withBorders(.all);
     browser = browser.withBlock(block);
 
     var buffer = try Buffer.init(allocator, 40, 10);

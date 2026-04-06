@@ -494,7 +494,7 @@ test "multicursor: builder pattern" {
     var mc = MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
-    const block = Block.init().setTitle("Multi-Cursor");
+    const block = (Block{}).setTitle("Multi-Cursor");
     _ = mc.setBlock(block).setColumnMode(true);
 
     try testing.expect(mc.base.block != null);

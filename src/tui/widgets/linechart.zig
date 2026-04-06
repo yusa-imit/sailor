@@ -9,7 +9,7 @@
 //! };
 //!
 //! const chart = LineChart.init(&series)
-//!     .withBlock(Block.init().withBorders(.all).withTitle("Metrics"))
+//!     .withBlock((Block{}).withBorders(.all).withTitle("Metrics"))
 //!     .withXLabels(&[_][]const u8{ "00:00", "00:15", "00:30", "00:45", "01:00" })
 //!     .withYAxisLabel("Usage %");
 //!
@@ -404,7 +404,7 @@ test "LineChart.withBlock" {
     const series = [_]LineChart.Series{
         .{ .name = "Test", .data = &[_]f64{1.0} },
     };
-    const block = Block.init().withTitle("Chart");
+    const block = (Block{}).withTitle("Chart");
     const chart = LineChart.init(&series).withBlock(block);
     try testing.expect(chart.block != null);
 }
@@ -635,7 +635,7 @@ test "LineChart.render with block" {
     const series = [_]LineChart.Series{
         .{ .name = "Test", .data = &data },
     };
-    const block = Block.init().withBorders(.all).withTitle("Chart");
+    const block = (Block{}).withBorders(.all).withTitle("Chart");
     const chart = LineChart.init(&series).withBlock(block);
 
     chart.render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 15 });

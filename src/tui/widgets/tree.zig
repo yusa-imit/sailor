@@ -339,7 +339,7 @@ test "Tree: with offset" {
 
 test "Tree: with block" {
     const nodes = [_]TreeNode{TreeNode.leaf("Node")};
-    const blk = Block.init();
+    const blk = (Block{});
     const tree = Tree.init(&nodes).withBlock(blk);
     try std.testing.expect(tree.block != null);
 }
@@ -454,7 +454,7 @@ test "Tree: render with block" {
     defer buf.deinit();
 
     const nodes = [_]TreeNode{TreeNode.leaf("File")};
-    const blk = Block.init();
+    const blk = (Block{});
     const tree = Tree.init(&nodes).withBlock(blk);
 
     tree.render(&buf, Rect.init(0, 0, 20, 5));

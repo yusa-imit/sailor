@@ -718,7 +718,7 @@ test "editor setBlock" {
     var editor = Editor.init(allocator);
     defer editor.deinit();
 
-    const block = Block.init().setTitle("Editor");
+    const block = (Block{}).setTitle("Editor");
     _ = editor.setBlock(block);
     try testing.expect(editor.block != null);
 }

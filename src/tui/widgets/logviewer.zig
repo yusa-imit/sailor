@@ -585,7 +585,7 @@ test "LogViewer render with block border" {
     var viewer = try LogViewer.init(std.testing.allocator, 100);
     defer viewer.deinit(std.testing.allocator);
 
-    var block = Block.init();
+    var block = (Block{});
     block.setBorder(true);
     block.setTitle("Logs");
     viewer.setBlock(block);

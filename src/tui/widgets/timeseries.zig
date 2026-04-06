@@ -8,7 +8,7 @@
 //! const data = [_]f64{ 10.5, 15.2, 12.8 };
 //!
 //! const chart = try TimeSeriesChart.init(allocator, &timestamps, &data)
-//!     .withBlock(Block.init().withBorders(.all).withTitle("CPU Usage"))
+//!     .withBlock((Block{}).withBorders(.all).withTitle("CPU Usage"))
 //!     .withYAxisLabel("Percent")
 //!     .withTimeFormat(.hour_minute);
 //!
@@ -392,7 +392,7 @@ test "TimeSeriesChart.withBlock" {
     var chart = try TimeSeriesChart.init(std.testing.allocator, &timestamps, &values);
     defer chart.deinit();
 
-    const with_block = chart.withBlock(Block.init());
+    const with_block = chart.withBlock((Block{}));
     try std.testing.expect(with_block.block != null);
 }
 
@@ -503,7 +503,7 @@ test "TimeSeriesChart.render with block" {
     var chart = try TimeSeriesChart.init(std.testing.allocator, &timestamps, &values);
     defer chart.deinit();
 
-    const with_block = chart.withBlock(Block.init().withBorders(.all).withTitle("TimeSeries"));
+    const with_block = chart.withBlock((Block{}).withBorders(.all).withTitle("TimeSeries"));
 
     var buffer = try Buffer.init(std.testing.allocator, 40, 20);
     defer buffer.deinit();

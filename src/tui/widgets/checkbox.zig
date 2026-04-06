@@ -451,7 +451,7 @@ test "CheckboxGroup: render with block" {
         Checkbox.init("Option"),
     };
 
-    const block = Block.init().withTitle("Choose options");
+    const block = (Block{}).withTitle("Choose options");
     const group = CheckboxGroup.init(&items).withBlock(block);
 
     var buf = try Buffer.init(std.testing.allocator, 30, 5);

@@ -6,7 +6,7 @@
 //! const data = [_]u64{ 10, 20, 15, 30, 25, 40, 35 };
 //!
 //! const chart = Sparkline.init(&data)
-//!     .withBlock(Block.init().withBorders(.all).withTitle("Trend"))
+//!     .withBlock((Block{}).withBorders(.all).withTitle("Trend"))
 //!     .withStyle(.{ .fg = .{ .indexed = 3 } });
 //!
 //! chart.render(&buffer, area);
@@ -151,7 +151,7 @@ test "Sparkline: with max value" {
 
 test "Sparkline: with block" {
     const data = [_]u64{1};
-    const blk = Block.init();
+    const blk = (Block{});
     const sparkline = Sparkline.init(&data).withBlock(blk);
     try std.testing.expect(sparkline.block != null);
 }
@@ -267,7 +267,7 @@ test "Sparkline: render with block" {
     defer buf.deinit();
 
     const data = [_]u64{ 1, 2, 3 };
-    const blk = Block.init();
+    const blk = (Block{});
     const sparkline = Sparkline.init(&data).withBlock(blk);
     sparkline.render(&buf, Rect.init(0, 0, 10, 5));
 

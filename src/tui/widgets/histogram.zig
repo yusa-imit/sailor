@@ -11,7 +11,7 @@
 //! };
 //!
 //! const hist = Histogram.init(&bins)
-//!     .withBlock(Block.init().withBorders(.all).withTitle("Distribution"))
+//!     .withBlock((Block{}).withBorders(.all).withTitle("Distribution"))
 //!     .withBarStyle(.{ .fg = .{ .indexed = 2 } })
 //!     .withOrientation(.vertical);
 //!
@@ -285,7 +285,7 @@ test "Histogram.init" {
 
 test "Histogram.withBlock" {
     const bins = [_]Histogram.Bin{.{ .label = "A", .count = 1 }};
-    const hist = Histogram.init(&bins).withBlock(Block.init());
+    const hist = Histogram.init(&bins).withBlock((Block{}));
     try std.testing.expect(hist.block != null);
 }
 
@@ -406,7 +406,7 @@ test "Histogram.render with block" {
         .{ .label = "A", .count = 5 },
     };
     const hist = Histogram.init(&bins)
-        .withBlock(Block.init().withBorders(.all).withTitle("Histogram"));
+        .withBlock((Block{}).withBorders(.all).withTitle("Histogram"));
 
     var buf = try Buffer.init(std.testing.allocator, 30, 15);
     defer buf.deinit();

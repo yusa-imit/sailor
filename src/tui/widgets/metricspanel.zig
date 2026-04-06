@@ -663,7 +663,7 @@ test "MetricsPanel.render with block" {
 
     try panel.addMetric(.{ .name = "CPU", .value = 50.0 });
 
-    const blk = Block.init().withBorders(.all).withTitle("Metrics");
+    const blk = (Block{}).withBorders(.all).withTitle("Metrics");
     const updated = panel.withBlock(blk);
 
     var buf = try Buffer.init(std.testing.allocator, 30, 10);

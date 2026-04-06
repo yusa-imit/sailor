@@ -365,7 +365,7 @@ test "Table.withOffset sets scroll offset" {
 test "Table.withBlock sets block" {
     const columns = &[_]Column{.{ .title = "A" }};
     const rows = &[_]Row{&[_][]const u8{"1"}};
-    const block = Block.init();
+    const block = (Block{});
     const table = Table.init(columns, rows).withBlock(block);
 
     try std.testing.expect(table.block != null);
@@ -589,7 +589,7 @@ test "Table.render with scrolling" {
 test "Table.render with block border" {
     const columns = &[_]Column{.{ .title = "A", .width = ColumnWidth.ofFixed(5) }};
     const rows = &[_]Row{&[_][]const u8{"1"}};
-    const block = Block.init();
+    const block = (Block{});
     const table = Table.init(columns, rows).withBlock(block);
 
     var buf = try Buffer.init(std.testing.allocator, 10, 5);

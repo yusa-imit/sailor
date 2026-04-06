@@ -28,7 +28,7 @@
 - [x] Deprecation warning system - compile-time warnings for deprecated APIs (Session 77: deprecation.zig, +10 tests, warn/replace/param/type_/field helpers)
 - [x] Buffer.set() alongside setChar() - introduce v2.0.0 naming convention (Session 77: setChar→set(Cell), +3 tests, deprecation warnings)
 - [x] Style inference helpers - simplify color specification (Session 77: withForeground/Background/Colors, makeBold/Italic/Underline/Dim, chaining methods, +16 tests)
-- [ ] Widget lifecycle standardization - consistent init/deinit patterns across all widgets
+- [x] Widget lifecycle standardization - consistent init/deinit patterns across all widgets (Session 78: removed unnecessary init() from stateless widgets, fixed ArrayList API, +31 lifecycle tests)
 - [ ] Migration guide document - docs/v1-to-v2-migration.md with examples
 - [ ] Example: migration_demo.zig - side-by-side v1.x vs v2.0.0 APIs
 

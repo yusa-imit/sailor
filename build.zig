@@ -503,6 +503,7 @@ pub fn build(b: *std.Build) void {
         .{ .name = "profile_demo", .source = "examples/profile_demo.zig", .description = "Profiling demo — render profiler, memory tracker, event loop profiler, widget metrics (v1.31.0)" },
         .{ .name = "accessibility_demo", .source = "examples/accessibility_demo.zig", .description = "Accessibility demo — tab navigation, focus management, disabled widgets, keyboard navigation (v1.35.0)" },
         .{ .name = "metrics_dashboard", .source = "examples/metrics_dashboard.zig", .description = "Performance metrics dashboard — render/memory/event monitoring, 3 layout modes (v1.36.0)" },
+        .{ .name = "migration_demo", .source = "examples/migration_demo.zig", .description = "Migration demo — v1.x to v2.0.0 API side-by-side comparison (v1.37.0)" },
     };
 
     inline for (examples) |example| {

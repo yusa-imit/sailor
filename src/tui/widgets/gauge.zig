@@ -182,7 +182,7 @@ pub const Gauge = struct {
 // Tests
 
 test "Gauge.init" {
-    const gauge = Gauge.init();
+    const gauge = (Gauge{});
 
     try std.testing.expectEqual(0.0, gauge.ratio);
     try std.testing.expectEqual(null, gauge.label);
@@ -191,67 +191,67 @@ test "Gauge.init" {
 }
 
 test "Gauge.withRatio" {
-    const gauge = Gauge.init().withRatio(0.75);
+    const gauge = (Gauge{}).withRatio(0.75);
 
     try std.testing.expectEqual(0.75, gauge.ratio);
 }
 
 test "Gauge.withRatio clamps to 0.0-1.0" {
-    const gauge1 = Gauge.init().withRatio(-0.5);
+    const gauge1 = (Gauge{}).withRatio(-0.5);
     try std.testing.expectEqual(0.0, gauge1.ratio);
 
-    const gauge2 = Gauge.init().withRatio(1.5);
+    const gauge2 = (Gauge{}).withRatio(1.5);
     try std.testing.expectEqual(1.0, gauge2.ratio);
 }
 
 test "Gauge.withPercent" {
-    const gauge = Gauge.init().withPercent(50);
+    const gauge = (Gauge{}).withPercent(50);
 
     try std.testing.expectEqual(0.5, gauge.ratio);
 }
 
 test "Gauge.withPercent clamps to 100" {
-    const gauge = Gauge.init().withPercent(150);
+    const gauge = (Gauge{}).withPercent(150);
 
     try std.testing.expectEqual(1.0, gauge.ratio);
 }
 
 test "Gauge.withLabel" {
-    const gauge = Gauge.init().withLabel("50%");
+    const gauge = (Gauge{}).withLabel("50%");
 
     try std.testing.expect(gauge.label != null);
     try std.testing.expectEqualStrings("50%", gauge.label.?);
 }
 
 test "Gauge.withFilledChar" {
-    const gauge = Gauge.init().withFilledChar('=');
+    const gauge = (Gauge{}).withFilledChar('=');
 
     try std.testing.expectEqual('=', gauge.filled_char);
 }
 
 test "Gauge.withEmptyChar" {
-    const gauge = Gauge.init().withEmptyChar('-');
+    const gauge = (Gauge{}).withEmptyChar('-');
 
     try std.testing.expectEqual('-', gauge.empty_char);
 }
 
 test "Gauge.withFilledStyle" {
     const style = Style{ .fg = .blue };
-    const gauge = Gauge.init().withFilledStyle(style);
+    const gauge = (Gauge{}).withFilledStyle(style);
 
     try std.testing.expectEqual(Color.blue, gauge.filled_style.fg);
 }
 
 test "Gauge.withEmptyStyle" {
     const style = Style{ .fg = .red };
-    const gauge = Gauge.init().withEmptyStyle(style);
+    const gauge = (Gauge{}).withEmptyStyle(style);
 
     try std.testing.expectEqual(Color.red, gauge.empty_style.fg);
 }
 
 test "Gauge.withLabelStyle" {
     const style = Style{ .fg = .yellow };
-    const gauge = Gauge.init().withLabelStyle(style);
+    const gauge = (Gauge{}).withLabelStyle(style);
 
     try std.testing.expectEqual(Color.yellow, gauge.label_style.fg);
 }
@@ -261,7 +261,7 @@ test "Gauge.render basic" {
     var buf = try Buffer.init(allocator, 20, 1);
     defer buf.deinit();
 
-    const gauge = Gauge.init().withRatio(0.5);
+    const gauge = (Gauge{}).withRatio(0.5);
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
     gauge.render(&buf, area);
@@ -282,7 +282,7 @@ test "Gauge.render 0% progress" {
     var buf = try Buffer.init(allocator, 10, 1);
     defer buf.deinit();
 
-    const gauge = Gauge.init().withRatio(0.0);
+    const gauge = (Gauge{}).withRatio(0.0);
 
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 1 };
     gauge.render(&buf, area);
@@ -298,7 +298,7 @@ test "Gauge.render 100% progress" {
     var buf = try Buffer.init(allocator, 10, 1);
     defer buf.deinit();
 
-    const gauge = Gauge.init().withRatio(1.0);
+    const gauge = (Gauge{}).withRatio(1.0);
 
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 1 };
     gauge.render(&buf, area);
@@ -314,7 +314,7 @@ test "Gauge.render with custom chars" {
     var buf = try Buffer.init(allocator, 10, 1);
     defer buf.deinit();
 
-    const gauge = Gauge.init()
+    const gauge = (Gauge{})
         .withRatio(0.5)
         .withFilledChar('=')
         .withEmptyChar('-');
@@ -338,7 +338,7 @@ test "Gauge.render with label" {
     var buf = try Buffer.init(allocator, 20, 1);
     defer buf.deinit();
 
-    const gauge = Gauge.init()
+    const gauge = (Gauge{})
         .withRatio(0.5)
         .withLabel("50%");
 
@@ -359,7 +359,7 @@ test "Gauge.render with styles" {
     const filled_style = Style{ .fg = .blue };
     const empty_style = Style{ .fg = .red };
 
-    const gauge = Gauge.init()
+    const gauge = (Gauge{})
         .withRatio(0.5)
         .withFilledStyle(filled_style)
         .withEmptyStyle(empty_style);
@@ -379,8 +379,8 @@ test "Gauge.render with block" {
     var buf = try Buffer.init(allocator, 20, 3);
     defer buf.deinit();
 
-    const blk = Block.init().withBorders(.all).withTitle("Progress");
-    const gauge = Gauge.init()
+    const blk = (Block{}).withBorders(.all).withTitle("Progress");
+    const gauge = (Gauge{})
         .withRatio(0.5)
         .withBlock(blk);
 
@@ -401,7 +401,7 @@ test "Gauge.render zero width" {
     var buf = try Buffer.init(allocator, 10, 1);
     defer buf.deinit();
 
-    const gauge = Gauge.init().withRatio(0.5);
+    const gauge = (Gauge{}).withRatio(0.5);
 
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 1 };
     gauge.render(&buf, area);
@@ -414,7 +414,7 @@ test "Gauge.render label too long" {
     var buf = try Buffer.init(allocator, 5, 1);
     defer buf.deinit();
 
-    const gauge = Gauge.init()
+    const gauge = (Gauge{})
         .withRatio(0.5)
         .withLabel("Very Long Label");
 
@@ -433,7 +433,7 @@ test "Gauge.render fractional progress" {
     var buf = try Buffer.init(allocator, 7, 1);
     defer buf.deinit();
 
-    const gauge = Gauge.init().withRatio(0.42); // 42% of 7 = 2.94, should be 2
+    const gauge = (Gauge{}).withRatio(0.42); // 42% of 7 = 2.94, should be 2
 
     const area = Rect{ .x = 0, .y = 0, .width = 7, .height = 1 };
     gauge.render(&buf, area);

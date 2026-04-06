@@ -259,7 +259,7 @@ test "Tabs.render with block" {
     defer buf.deinit();
 
     const titles = [_][]const u8{ "Tab1", "Tab2" };
-    const blk = Block.init().withBorders(.all).withTitle("Navigation");
+    const blk = (Block{}).withBorders(.all).withTitle("Navigation");
     const tabs = Tabs.init(&titles).withBlock(blk);
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
