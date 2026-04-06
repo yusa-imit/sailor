@@ -79,6 +79,9 @@ pub const render_metrics = @import("render_metrics.zig");
 pub const memory_metrics = @import("memory_metrics.zig");
 pub const event_metrics = @import("event_metrics.zig");
 
+// v1.37.0 — v2.0.0 Deprecation Warnings & Bridge APIs
+pub const deprecation = @import("deprecation.zig");
+
 // v1.23.0 — Plugin Architecture & Extensibility
 pub const ThemeLoader = @import("tui/theme_loader.zig").ThemeLoader;
 
