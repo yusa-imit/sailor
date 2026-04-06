@@ -80,11 +80,6 @@ pub const Block = struct {
     padding_bottom: u16 = 0,
     padding_left: u16 = 0,
 
-    /// Create a block with all borders
-    pub fn init() Block {
-        return .{};
-    }
-
     /// Set which borders to display
     pub fn withBorders(self: Block, new_borders: Borders) Block {
         var result = self;

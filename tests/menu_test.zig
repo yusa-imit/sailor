@@ -96,7 +96,7 @@ test "Menu.withSelected sets selected index" {
 
 test "Menu.withBlock sets block" {
     const items = &[_]MenuItem{.{ .label = "Item" }};
-    const block = Block.init();
+    const block = Block{};
     const menu = Menu.init(items).withBlock(block);
 
     try std.testing.expect(menu.block != null);
@@ -218,7 +218,7 @@ test "Menu.render with selection highlight" {
 
 test "Menu.render with borders" {
     const items = &[_]MenuItem{.{ .label = "File" }};
-    const block = Block.init();
+    const block = Block{};
     const menu = Menu.init(items).withBlock(block);
 
     var buf = try Buffer.init(std.testing.allocator, 10, 5);

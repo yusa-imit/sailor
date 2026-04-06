@@ -71,11 +71,6 @@ pub const Paragraph = struct {
     /// Text direction (.auto auto-detects from content)
     direction: Bidi.Direction = .auto,
 
-    /// Create a paragraph with no lines (empty)
-    pub fn init() Paragraph {
-        return .{};
-    }
-
     /// Create a paragraph from multiple lines
     pub fn fromLines(lines: []const Line) Paragraph {
         return .{ .lines = lines };
@@ -198,7 +193,7 @@ pub const Paragraph = struct {
 
 // Tests
 test "Paragraph.init creates empty paragraph" {
-    const para = Paragraph.init();
+    const para = Paragraph{};
     try std.testing.expectEqual(@as(usize, 0), para.lines.len);
 }
 
@@ -237,14 +232,12 @@ test "Paragraph.fromLines creates paragraph from multiple lines" {
 }
 
 test "Paragraph.withAlignment sets alignment" {
-    const para = Paragraph.init()
-        .withAlignment(.center);
+    const para = (Paragraph{}).withAlignment(.center);
     try std.testing.expectEqual(Alignment.center, para.alignment);
 }
 
 test "Paragraph.withWrap sets wrap mode" {
-    const para = Paragraph.init()
-        .withWrap(.word);
+    const para = (Paragraph{}).withWrap(.word);
     try std.testing.expectEqual(Wrap.word, para.wrap);
 }
 

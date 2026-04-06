@@ -43,7 +43,7 @@ test "Heatmap with PieChart side-by-side layout" {
     const heatmap_data = [_][]const f64{ &row1, &row2, &row3 };
     const heatmap = Heatmap{
         .data = &heatmap_data,
-        .block = Block.init().withBorders(.all).withTitle("Heatmap", .top_left),
+        .block = (Block{}).withBorders(.all).withTitle("Heatmap", .top_left),
     };
 
     heatmap.render(&buffer, left);
@@ -55,7 +55,7 @@ test "Heatmap with PieChart side-by-side layout" {
         .{ .label = "C", .value = 20, .style = .{ .fg = .{ .indexed = 3 } } },
     };
     const pie = PieChart.init(&slices)
-        .withBlock(Block.init().withBorders(.all).withTitle("Distribution", .top_left));
+        .withBlock(Block{}.withBorders(.all).withTitle("Distribution", .top_left));
 
     pie.render(&buffer, right);
 
@@ -88,7 +88,7 @@ test "ScatterPlot with Histogram stacked vertically" {
         },
     };
     const scatter = ScatterPlot.init(&series)
-        .withBlock(Block.init().withBorders(.all).withTitle("Scatter", .top_left));
+        .withBlock(Block{}.withBorders(.all).withTitle("Scatter", .top_left));
 
     scatter.render(&buffer, top);
 
@@ -100,7 +100,7 @@ test "ScatterPlot with Histogram stacked vertically" {
         .{ .label = "4-6", .count = 1 },
     };
     const hist = Histogram.init(&bins)
-        .withBlock(Block.init().withBorders(.all).withTitle("Distribution", .top_left));
+        .withBlock(Block{}.withBorders(.all).withTitle("Distribution", .top_left));
 
     hist.render(&buffer, bottom);
 
@@ -439,7 +439,7 @@ test "Complex dashboard layout with FlexBox and v1.6.0 widgets" {
     const heatmap_data = [_][]const f64{ &hm_r1, &hm_r2, &hm_r3 };
     const heatmap = Heatmap{
         .data = &heatmap_data,
-        .block = Block.init().withBorders(.all).withTitle("Heatmap", .top_left),
+        .block = (Block{}).withBorders(.all).withTitle("Heatmap", .top_left),
     };
     heatmap.render(&buffer, columns[0]);
 
@@ -462,7 +462,7 @@ test "Complex dashboard layout with FlexBox and v1.6.0 widgets" {
         .{ .label = "B", .value = 70 },
     };
     const pie = PieChart.init(&slices)
-        .withBlock(Block.init().withBorders(.all).withTitle("Pie", .top_left));
+        .withBlock(Block{}.withBorders(.all).withTitle("Pie", .top_left));
     pie.render(&buffer, pie_area);
 
     const bins = [_]Histogram.Bin{
@@ -471,7 +471,7 @@ test "Complex dashboard layout with FlexBox and v1.6.0 widgets" {
         .{ .label = "3", .count = 7 },
     };
     const hist = Histogram.init(&bins)
-        .withBlock(Block.init().withBorders(.all).withTitle("Hist", .top_left));
+        .withBlock(Block{}.withBorders(.all).withTitle("Hist", .top_left));
     hist.render(&buffer, hist_area);
 
     // Column 3: ScatterPlot
@@ -486,7 +486,7 @@ test "Complex dashboard layout with FlexBox and v1.6.0 widgets" {
         },
     };
     const scatter = ScatterPlot.init(&series)
-        .withBlock(Block.init().withBorders(.all).withTitle("Scatter", .top_left));
+        .withBlock(Block{}.withBorders(.all).withTitle("Scatter", .top_left));
     scatter.render(&buffer, columns[2]);
 
     // Verify complex layout doesn't have overlaps

@@ -103,17 +103,17 @@ test "gauge with extreme ratios is clamped" {
     defer buffer.deinit();
 
     // Test withRatio clamping for ratio > 1.0
-    const gauge_over = Gauge.init().withRatio(2.0);
+    const gauge_over = (Gauge{}).withRatio(2.0);
     try testing.expectEqual(1.0, gauge_over.ratio);
     gauge_over.render(&buffer, Rect.new(0, 0, 40, 3));
 
     // Test withRatio clamping for ratio < 0.0
-    const gauge_under = Gauge.init().withRatio(-0.5);
+    const gauge_under = (Gauge{}).withRatio(-0.5);
     try testing.expectEqual(0.0, gauge_under.ratio);
     gauge_under.render(&buffer, Rect.new(0, 0, 40, 3));
 
     // Test withPercent clamping for value > 100
-    const gauge_percent_over = Gauge.init().withPercent(150);
+    const gauge_percent_over = (Gauge{}).withPercent(150);
     try testing.expectEqual(1.0, gauge_percent_over.ratio);
 }
 

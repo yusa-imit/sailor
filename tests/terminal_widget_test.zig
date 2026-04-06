@@ -213,7 +213,7 @@ test "Terminal widget render respects block" {
     var term = try TerminalWidget.init(testing.allocator);
     defer term.deinit();
 
-    const block = sailor.tui.widgets.Block.init()
+    const block = (sailor.tui.widgets.Block{})
         .withBorders(sailor.tui.widgets.Borders.all)
         .withTitle("Terminal", .top_left);
 

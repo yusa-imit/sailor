@@ -345,7 +345,7 @@ test "Calendar.withConstraints sets min/max dates" {
 
 test "Calendar.withBlock sets block" {
     const today = createToday();
-    const block = Block.init();
+    const block = Block{};
     const calendar = Calendar.init(today).withBlock(block);
 
     try std.testing.expect(calendar.block != null);
@@ -779,7 +779,7 @@ test "Calendar.render respects first_day_of_week setting" {
 
 test "Calendar.render with block draws border" {
     const today = createToday();
-    const block = Block.init();
+    const block = Block{};
     var calendar = Calendar.init(today).withBlock(block).withFirstDayOfWeek(0);
 
     var buf = try Buffer.init(std.testing.allocator, 40, 20);

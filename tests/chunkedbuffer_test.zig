@@ -28,7 +28,7 @@ test "ChunkedBuffer.init creates buffer with total line count" {
 }
 
 test "ChunkedBuffer builder methods chain correctly" {
-    const block = Block.init().withBorders(.all);
+    const block = (Block{}).withBorders(.all);
     const style = Style{ .fg = .{ .indexed = 2 } };
 
     const cb = ChunkedBuffer.init(100)
@@ -269,7 +269,7 @@ test "ChunkedBuffer.withBlock renders with borders" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
-    const block = Block.init().withBorders(.all).withTitle("Log Viewer", .top_left);
+    const block = (Block{}).withBorders(.all).withTitle("Log Viewer", .top_left);
 
     const cb = ChunkedBuffer.init(50).withBlock(block);
 
@@ -298,7 +298,7 @@ test "ChunkedBuffer.withBlock reduces effective render area" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
-    const block = Block.init().withBorders(.all);
+    const block = (Block{}).withBorders(.all);
 
     var call_count: usize = 0;
     const Ctx = struct {
@@ -544,7 +544,7 @@ test "ChunkedBuffer full integration: scroll + wrap + block" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 15 };
-    const block = Block.init().withBorders(.all).withTitle("Logs", .top_center);
+    const block = (Block{}).withBorders(.all).withTitle("Logs", .top_center);
     const text_style = Style{ .fg = .{ .indexed = 7 } };
 
     const cb = ChunkedBuffer.init(1000)

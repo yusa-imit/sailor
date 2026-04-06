@@ -79,7 +79,7 @@ test "Block: visual structure verification" {
     var term = try MockTerminal.init(testing.allocator, 8, 3);
     defer term.deinit();
 
-    const block = Block.init()
+    const block = Block{}
         .withBorders(Borders.all);
 
     block.render(&term.current, term.size());
@@ -101,7 +101,7 @@ test "Block with title: visual structure" {
     var term = try MockTerminal.init(testing.allocator, 10, 3);
     defer term.deinit();
 
-    const block = Block.init()
+    const block = Block{}
         .withBorders(Borders.all)
         .withTitle("Test", .top_left);
 
@@ -172,7 +172,7 @@ test "Gauge: renders fill character" {
     var term = try MockTerminal.init(testing.allocator, 10, 1);
     defer term.deinit();
 
-    const gauge = Gauge.init()
+    const gauge = Gauge{}
         .withPercent(50);
 
     gauge.render(&term.current, term.size());
@@ -187,7 +187,7 @@ test "Gauge: 0% has no fill" {
     var term = try MockTerminal.init(testing.allocator, 10, 1);
     defer term.deinit();
 
-    const gauge = Gauge.init()
+    const gauge = Gauge{}
         .withPercent(0);
 
     gauge.render(&term.current, term.size());
@@ -202,7 +202,7 @@ test "Gauge: 100% fills completely" {
     var term = try MockTerminal.init(testing.allocator, 10, 1);
     defer term.deinit();
 
-    const gauge = Gauge.init()
+    const gauge = Gauge{}
         .withPercent(100);
 
     gauge.render(&term.current, term.size());
@@ -229,11 +229,11 @@ test "Multiple blocks: no overlap" {
     defer term.deinit();
 
     // Left block (0-7)
-    const left = Block.init().withBorders(Borders.all);
+    const left = (Block{}).withBorders(Borders.all);
     left.render(&term.current, Rect.new(0, 0, 8, 3));
 
     // Right block (8-15)
-    const right = Block.init().withBorders(Borders.all);
+    const right = (Block{}).withBorders(Borders.all);
     right.render(&term.current, Rect.new(8, 0, 8, 3));
 
     // Verify both corners exist without overlap
@@ -248,11 +248,11 @@ test "Vertical stack: proper separation" {
     defer term.deinit();
 
     // Top block (rows 0-2)
-    const top = Block.init().withBorders(Borders.all);
+    const top = (Block{}).withBorders(Borders.all);
     top.render(&term.current, Rect.new(0, 0, 10, 3));
 
     // Bottom block (rows 3-5)
-    const bottom = Block.init().withBorders(Borders.all);
+    const bottom = (Block{}).withBorders(Borders.all);
     bottom.render(&term.current, Rect.new(0, 3, 10, 3));
 
     // Verify corners of both blocks

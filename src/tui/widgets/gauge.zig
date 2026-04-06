@@ -59,11 +59,6 @@ pub const Gauge = struct {
     /// Optional block for borders/title
     block: ?Block = null,
 
-    /// Create a new gauge widget
-    pub fn init() Gauge {
-        return .{};
-    }
-
     /// Set progress ratio (clamped to 0.0-1.0)
     pub fn withRatio(self: Gauge, value: f64) Gauge {
         var result = self;

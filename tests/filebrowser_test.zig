@@ -190,7 +190,7 @@ test "FileBrowser.withBlock sets border block" {
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
     defer browser.deinit();
 
-    const block = Block.init();
+    const block = Block{};
     browser = browser.withBlock(block);
     try std.testing.expect(browser.block != null);
 }
@@ -995,7 +995,7 @@ test "FileBrowser.render with block draws border" {
     defer browser.deinit();
 
     try browser.refresh();
-    const block = Block.init();
+    const block = Block{};
     browser = browser.withBlock(block);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);

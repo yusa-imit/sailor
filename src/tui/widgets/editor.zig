@@ -91,16 +91,16 @@ pub const Editor = struct {
     /// Initializes a new editor with a single empty line.
     /// The returned instance must be freed with `.deinit()`.
     pub fn init(allocator: std.mem.Allocator) Editor {
-        var lines = std.ArrayList([]const u8).init(allocator);
+        var lines = std.ArrayList([]const u8){};
         // Start with one empty line
-        lines.append("") catch unreachable;
+        lines.append(allocator, "") catch unreachable;
 
         return .{
             .lines = lines,
             .cursor = .{ .line = 0, .col = 0 },
             .selection = null,
-            .undo_stack = std.ArrayList(Edit).init(allocator),
-            .redo_stack = std.ArrayList(Edit).init(allocator),
+            .undo_stack = std.ArrayList(Edit){},
+            .redo_stack = std.ArrayList(Edit){},
             .scroll_offset = 0,
             .language = .none,
             .block = null,
@@ -117,17 +117,17 @@ pub const Editor = struct {
         for (self.lines.items) |line| {
             self.allocator.free(line);
         }
-        self.lines.deinit();
+        self.lines.deinit(self.allocator);
 
         for (self.undo_stack.items) |*edit| {
             edit.deinit();
         }
-        self.undo_stack.deinit();
+        self.undo_stack.deinit(self.allocator);
 
         for (self.redo_stack.items) |*edit| {
             edit.deinit();
         }
-        self.redo_stack.deinit();
+        self.redo_stack.deinit(self.allocator);
     }
 
     /// Replaces the entire editor content with the given text.
@@ -144,12 +144,12 @@ pub const Editor = struct {
         while (it.next()) |line| {
             const owned = try self.allocator.dupe(u8, line);
             errdefer self.allocator.free(owned);
-            try self.lines.append(owned);
+            try self.lines.append(self.allocator, owned);
         }
 
         // Ensure at least one line
         if (self.lines.items.len == 0) {
-            try self.lines.append(try self.allocator.dupe(u8, ""));
+            try self.lines.append(self.allocator, try self.allocator.dupe(u8, ""));
         }
 
         // Reset cursor and clear undo/redo
@@ -166,17 +166,17 @@ pub const Editor = struct {
     /// Returns the entire editor content as a single string with newline separators.
     /// Caller owns the returned memory.
     pub fn getText(self: *const Editor, allocator: std.mem.Allocator) ![]const u8 {
-        var result = std.ArrayList(u8).init(allocator);
-        defer result.deinit();
+        var result = std.ArrayList(u8){};
+        defer result.deinit(allocator);
 
         for (self.lines.items, 0..) |line, i| {
-            try result.appendSlice(line);
+            try result.appendSlice(allocator, line);
             if (i < self.lines.items.len - 1) {
-                try result.append('\n');
+                try result.append(allocator, '\n');
             }
         }
 
-        return result.toOwnedSlice();
+        return result.toOwnedSlice(allocator);
     }
 
     /// Sets the syntax highlighting language.
@@ -219,7 +219,7 @@ pub const Editor = struct {
         // Record edit for undo
         const edit_text = try self.allocator.dupe(u8, &[_]u8{ch});
         errdefer self.allocator.free(edit_text);
-        try self.undo_stack.append(.{
+        try self.undo_stack.append(self.allocator, .{
             .type = .insert,
             .pos = self.cursor,
             .text = edit_text,
@@ -252,7 +252,7 @@ pub const Editor = struct {
         // Record edit for undo
         const edit_text = try self.allocator.dupe(u8, old_line[self.cursor.col - 1 .. self.cursor.col]);
         errdefer self.allocator.free(edit_text);
-        try self.undo_stack.append(.{
+        try self.undo_stack.append(self.allocator, .{
             .type = .delete,
             .pos = .{ .line = line_idx, .col = self.cursor.col - 1 },
             .text = edit_text,
@@ -282,7 +282,7 @@ pub const Editor = struct {
 
         self.allocator.free(old_line);
         self.lines.items[line_idx] = left;
-        try self.lines.insert(line_idx + 1, right);
+        try self.lines.insert(self.allocator, line_idx + 1, right);
 
         self.cursor.line += 1;
         self.cursor.col = 0;
@@ -329,7 +329,7 @@ pub const Editor = struct {
         }
 
         // Move to redo stack
-        try self.redo_stack.append(edit);
+        try self.redo_stack.append(self.allocator, edit);
     }
 
     /// Redoes the last undone edit operation.
@@ -373,7 +373,7 @@ pub const Editor = struct {
         }
 
         // Move back to undo stack
-        try self.undo_stack.append(edit);
+        try self.undo_stack.append(self.allocator, edit);
     }
 
     /// Moves the cursor to the specified line and column.
@@ -431,12 +431,12 @@ pub const Editor = struct {
         if (text_width == 0) return;
 
         // Tokenize all visible lines if language is set
-        var tokens_by_line = std.ArrayList([]syntax.Token).init(self.allocator);
+        var tokens_by_line = std.ArrayList([]syntax.Token){};
         defer {
             for (tokens_by_line.items) |tokens| {
                 self.allocator.free(tokens);
             }
-            tokens_by_line.deinit();
+            tokens_by_line.deinit(self.allocator);
         }
 
         if (self.language != .none) {
@@ -447,7 +447,7 @@ pub const Editor = struct {
                 const line_text = self.lines.items[line_idx];
                 var lexer = Lexer.init(self.language, line_text);
                 const tokens = lexer.tokenize(self.allocator) catch &[_]syntax.Token{};
-                tokens_by_line.append(tokens) catch {};
+                tokens_by_line.append(self.allocator, tokens) catch {};
             }
         }
 

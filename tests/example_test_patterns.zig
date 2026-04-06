@@ -43,7 +43,7 @@ test "Pattern: Basic widget rendering verification" {
     defer term.deinit();
 
     // Create and render a simple block
-    const block = Block.init()
+    const block = Block{}
         .withBorders(Borders.all)
         .withTitle("Test", .top_left);
 
@@ -75,7 +75,7 @@ test "Pattern: Multi-widget dashboard layout" {
     const footer_area = Rect.new(0, 17, 40, 3);
 
     // Header: Title block
-    const header_block = Block.init()
+    const header_block = Block{}
         .withBorders(Borders.all)
         .withTitle("Dashboard", .top_left);
     header_block.render(&term.current, header_area);
@@ -87,23 +87,23 @@ test "Pattern: Multi-widget dashboard layout" {
     // Left panel: Task list
     const tasks = [_][]const u8{ "Build", "Test", "Deploy" };
     const task_list = List.init(&tasks)
-        .withBlock(Block.init().withBorders(Borders.all).withTitle("Tasks", .top_left))
+        .withBlock(Block{}.withBorders(Borders.all).withTitle("Tasks", .top_left))
         .withSelected(1);
     task_list.render(&term.current, left_area);
 
     // Right panel: Progress gauge
-    const progress_block = Block.init()
+    const progress_block = Block{}
         .withBorders(Borders.all)
         .withTitle("Progress", .top_left);
 
-    const gauge = Gauge.init()
+    const gauge = Gauge{}
         .withPercent(75)
         .withLabel("75%")
         .withBlock(progress_block);
     gauge.render(&term.current, right_area);
 
     // Footer: Status bar
-    const footer_block = Block.init()
+    const footer_block = Block{}
         .withBorders(Borders.all);
     footer_block.render(&term.current, footer_area);
 
@@ -186,7 +186,7 @@ test "Pattern: Widget rendering in zero-size area" {
     var term = try MockTerminal.init(testing.allocator, 20, 10);
     defer term.deinit();
 
-    const block = Block.init()
+    const block = Block{}
         .withBorders(Borders.all)
         .withTitle("Test", .top_left);
 
@@ -262,7 +262,7 @@ test "Pattern: Progressive gauge updates" {
         var buf: [10]u8 = undefined;
         const label = try std.fmt.bufPrint(&buf, "{d}%", .{percent});
 
-        const gauge = Gauge.init()
+        const gauge = Gauge{}
             .withPercent(percent)
             .withLabel(label);
 
@@ -326,13 +326,13 @@ test "Pattern: Horizontal layout composition" {
     defer term.deinit();
 
     // Left widget
-    const left_block = Block.init()
+    const left_block = Block{}
         .withBorders(Borders.all)
         .withTitle("Left", .top_left);
     left_block.render(&term.current, Rect.new(0, 0, 15, 5));
 
     // Right widget
-    const right_block = Block.init()
+    const right_block = Block{}
         .withBorders(Borders.all)
         .withTitle("Right", .top_left);
     right_block.render(&term.current, Rect.new(15, 0, 15, 5));
@@ -356,13 +356,13 @@ test "Pattern: Vertical layout composition" {
     defer term.deinit();
 
     // Top widget
-    const top = Block.init()
+    const top = Block{}
         .withBorders(Borders.all)
         .withTitle("Top", .top_left);
     top.render(&term.current, Rect.new(0, 0, 20, 4));
 
     // Bottom widget
-    const bottom = Block.init()
+    const bottom = Block{}
         .withBorders(Borders.all)
         .withTitle("Bottom", .top_left);
     bottom.render(&term.current, Rect.new(0, 4, 20, 4));
