@@ -4,13 +4,45 @@
 
 - **Latest release**: v1.37.0 (2026-04-07) — v2.0.0 Deprecation Warnings & Bridge APIs
 - **Latest minor**: v1.37.0 (2026-04-07) — v2.0.0 Deprecation Warnings & Bridge APIs
-- **Next milestone**: v1.38.0 — TBD (to be established)
-- **Active milestones**: 0 (all planned features completed)
+- **Next milestone**: v1.38.0 — v2.0.0 Migration Tooling & Automation
+- **Active milestones**: 1 (v1.38.0)
 - **Blockers**: None
 
 ## Active Milestones
 
-**No active milestones** — All planned features completed through v1.37.0. New milestones will be established based on consumer project feedback and v2.0.0 planning.
+### v1.38.0 — v2.0.0 Migration Tooling & Automation (Target: 2026-04-10)
+
+**Theme**: Automate v1.x → v2.0.0 migration for consumer projects
+
+**Checklist**:
+- [ ] **Migration script**: Automated sed/regex patterns for common API changes
+  - `setChar()` → `set()` (Buffer API)
+  - `Color{ .basic = .red }` → `.red` (Style API simplification patterns)
+  - Widget construction pattern updates
+- [ ] **Deprecation audit**: Verify all v2.0.0 changes have deprecation warnings
+  - Scan codebase for functions marked for v2.0.0 removal
+  - Ensure deprecation.zig helpers are used consistently
+  - Add missing deprecation warnings where needed
+- [ ] **Migration testing framework**: Test migration script correctness
+  - Before/after test cases for each migration pattern
+  - Verify migrated code compiles and tests pass
+  - Integration tests with realistic code samples
+- [ ] **Consumer project dry-run**: Test migration script on zr, zoltraak, silica (read-only)
+  - Clone consumer projects
+  - Run migration script in dry-run mode
+  - Report potential issues/edge cases
+  - No actual PRs — just validation
+
+**Success Criteria**:
+- Migration script handles 90%+ of common patterns automatically
+- All v2.0.0 breaking changes have deprecation warnings in v1.38.0
+- Dry-run succeeds on all 3 consumer projects without errors
+- ~50+ new tests for migration validation
+
+**Notes**:
+- This milestone prepares for v2.0.0 release (planned May-June 2026)
+- Focus on automation — consumer migrations will happen after v2.0.0 release
+- No breaking changes in v1.38.0 — all bridge APIs remain
 
 ## Completed Milestones
 
