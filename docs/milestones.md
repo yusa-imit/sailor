@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v1.36.0 (2026-04-06) — Performance Monitoring & Real-Time Metrics
-- **Latest minor**: v1.36.0 (2026-04-06) — Performance Monitoring & Real-Time Metrics
-- **Next milestone**: v1.37.0 — v2.0.0 Deprecation Warnings & Bridge APIs
-- **Active milestones**: 1
+- **Latest release**: v1.37.0 (2026-04-07) — v2.0.0 Deprecation Warnings & Bridge APIs
+- **Latest minor**: v1.37.0 (2026-04-07) — v2.0.0 Deprecation Warnings & Bridge APIs
+- **Next milestone**: v1.38.0 — TBD (to be established)
+- **Active milestones**: 3 (v1.33.0, v1.34.0, v1.28.0)
 - **Blockers**: None
 
 ## Active Milestones
@@ -20,7 +20,7 @@
 - [x] Performance regression tests - automated tests to detect performance degradation (Session 76: +4 regression tests in performance_integration_test.zig)
 - [x] Example: metrics_dashboard.zig - demonstrate performance monitoring (Session 74: examples/metrics_dashboard.zig, simulates 50 renders/allocs + 200 events)
 
-### v1.37.0 — v2.0.0 Deprecation Warnings & Bridge APIs
+### v1.37.0 — v2.0.0 Deprecation Warnings & Bridge APIs (COMPLETED 2026-04-07)
 **Theme**: Introduce v2.0.0 APIs alongside v1.x APIs with deprecation warnings
 **Target**: 2026-04 (1-2 weeks)
 **Rationale**: Enable gradual migration to v2.0.0 APIs; provide clear deprecation warnings
@@ -29,8 +29,8 @@
 - [x] Buffer.set() alongside setChar() - introduce v2.0.0 naming convention (Session 77: setChar→set(Cell), +3 tests, deprecation warnings)
 - [x] Style inference helpers - simplify color specification (Session 77: withForeground/Background/Colors, makeBold/Italic/Underline/Dim, chaining methods, +16 tests)
 - [x] Widget lifecycle standardization - consistent init/deinit patterns across all widgets (Session 78: removed unnecessary init() from stateless widgets, fixed ArrayList API, +31 lifecycle tests)
-- [ ] Migration guide document - docs/v1-to-v2-migration.md with examples
-- [ ] Example: migration_demo.zig - side-by-side v1.x vs v2.0.0 APIs
+- [x] Migration guide document - docs/v1-to-v2-migration.md with examples (Session 79: 451 lines, comprehensive guide with sed scripts)
+- [x] Example: migration_demo.zig - side-by-side v1.x vs v2.0.0 APIs (Session 79: 210 lines, full API comparison demo)
 
 ### v1.33.0 — Specialized Widgets & Components
 **Theme**: Expand widget library with specialized components for common use cases
@@ -97,6 +97,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.37.0 | v2.0.0 Deprecation Warnings & Bridge APIs | 2026-04-07 | deprecation.zig (compile-time warnings: warn/replace/param/type_/field helpers, +10 tests), Buffer.set() alongside setChar() (v2.0.0 naming with deprecation warnings, +3 tests), Style inference helpers (withForeground/Background/Colors, makeBold/Italic/Underline/Dim chaining methods, +16 tests), Widget lifecycle standardization (removed unnecessary init() from stateless widgets, fixed ArrayList API, +31 lifecycle tests), v1-to-v2-migration.md guide (451 lines: comprehensive migration patterns, sed scripts, side-by-side examples), migration_demo.zig (210 lines: full API comparison demo) — ~3245 total tests (+60), 0 breaking changes |
 | v1.36.0 | Performance Monitoring & Real-Time Metrics | 2026-04-06 | render_metrics.zig (widget render time tracking: min/max/avg/p50/p95/p99, +31 tests), memory_metrics.zig (allocation tracking: peak/current bytes, +25 tests), event_metrics.zig (event latency tracking: queue depth, +39 tests), MetricsDashboard widget (3 layout modes: vertical/horizontal/grid, color-coded warnings, +44 tests), performance regression tests (+4 tests: Block/Event/Memory/Aggregation), metrics_dashboard.zig example — 3162 total tests (+143), 0 breaking changes |
 | v1.35.0 | Widget Accessibility & Keyboard Navigation | 2026-04-05 | ARIA attributes (aria.zig: 30+ roles, 8 state flags, screen reader announcements, AriaWidget mixin, +31 tests), Focus trap (focus_trap.zig: modal focus containment, FocusTrapStack for nested dialogs, +25 tests), Standard keyboard shortcuts (keybindings.zig: Ctrl+C/X/V copy/cut/paste, Ctrl+Z/Y undo/redo, Ctrl+A select all, +7 tests), accessibility_demo.zig — 3,022 total tests (+63), 0 breaking changes, 6 cross-platform targets verified |
 | v1.34.0 | Terminal Clipboard & System Integration | 2026-04-04 | OSC 52 clipboard API (write operations, 3 selection types), terminal emulator detection (xterm/kitty/iTerm2/WezTerm/Alacritty/Windows Terminal), terminal capability detection (truecolor/mouse/clipboard/bracketed paste), paste bracketing enhancements (PasteHandler/PasteReader, multi-line paste with LF/CRLF/CR support), clipboard_demo.zig example — 2901 total tests (+38 from paste.zig), 0 breaking changes |
