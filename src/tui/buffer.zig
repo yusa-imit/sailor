@@ -88,7 +88,10 @@ pub const Buffer = struct {
         return self.cells[index];
     }
 
-    /// Set cell at position
+    /// Set cell at position (v2.0.0 API - preferred)
+    ///
+    /// This is the v2.0.0 API that takes a Cell directly.
+    /// For v1.x compatibility, use setChar() which will be deprecated.
     pub fn set(self: *Buffer, x: u16, y: u16, cell: Cell) void {
         if (self.get(x, y)) |c| {
             c.* = cell;
@@ -96,11 +99,11 @@ pub const Buffer = struct {
     }
 
     /// Set character at position with optional style
+    /// @deprecated Use set() with Cell instead (will be removed in v2.0.0)
     pub fn setChar(self: *Buffer, x: u16, y: u16, char: u21, cell_style: Style) void {
-        if (self.get(x, y)) |cell| {
-            cell.char = char;
-            cell.style = cell_style;
-        }
+        const deprecation = @import("../deprecation.zig");
+        deprecation.replace("setChar", "set", "2.0.0");
+        self.set(x, y, Cell{ .char = char, .style = cell_style });
     }
 
     /// Write string at position with optional style
@@ -365,6 +368,39 @@ test "Buffer.get - out of bounds" {
 
     try std.testing.expectEqual(null, buffer.get(10, 5));
     try std.testing.expectEqual(null, buffer.get(100, 100));
+}
+
+test "Buffer.set - v2.0.0 API with Cell" {
+    var buffer = try Buffer.init(std.testing.allocator, 10, 5);
+    defer buffer.deinit();
+
+    buffer.set(3, 1, Cell{ .char = 'A', .style = .{ .fg = .red } });
+    const cell = buffer.get(3, 1).?;
+    try std.testing.expectEqual('A', cell.char);
+    const expected_fg: Color = .red;
+    try std.testing.expectEqual(expected_fg, cell.style.fg.?);
+}
+
+test "Buffer.set - with blue background" {
+    var buffer = try Buffer.init(std.testing.allocator, 10, 5);
+    defer buffer.deinit();
+
+    buffer.set(5, 2, Cell{ .char = 'X', .style = .{ .fg = .green, .bg = .blue } });
+    const cell = buffer.get(5, 2).?;
+    try std.testing.expectEqual('X', cell.char);
+    const expected_fg: Color = .green;
+    const expected_bg: Color = .blue;
+    try std.testing.expectEqual(expected_fg, cell.style.fg.?);
+    try std.testing.expectEqual(expected_bg, cell.style.bg.?);
+}
+
+test "Buffer.set - unicode character" {
+    var buffer = try Buffer.init(std.testing.allocator, 10, 5);
+    defer buffer.deinit();
+
+    buffer.set(2, 3, Cell{ .char = '😀', .style = .{} });
+    const cell = buffer.get(2, 3).?;
+    try std.testing.expectEqual('😀', cell.char);
 }
 
 test "Buffer.setChar" {
