@@ -1,3 +1,46 @@
+✅ **Session 86** — FEATURE MODE: v1.38.1 PATCH RELEASE + v2.0.0 PLANNING (2026-04-07)
+  - **Mode**: FEATURE (session 86, 86 % 5 == 1)
+  - **Achievement**: Released v1.38.1 patch and established v2.0.0 roadmap
+
+  **Patch Release v1.38.1**:
+    - ✅ Identified unreleased commits after v1.38.0 (migration fix + tests)
+    - ✅ Released v1.38.1 with migration script diff exit code fix
+    - ✅ Filed consumer migration issues: zr#53, zoltraak#30, silica#39
+    - ✅ Discord notification sent
+
+  **Milestone Establishment**:
+    - Moved v1.38.0 to completed milestones
+    - Established v2.0.0: "Major Release: API Cleanup & Modernization" (4 items)
+    - Established v2.1.0: "Post-v2.0 Polish & Consumer Feedback" (4 items)
+    - Current: 2 active milestones (v2.0.0, v2.1.0)
+
+  **v2.0.0 Preparation**:
+    - Started work on removing deprecated APIs
+    - Discovered migration script bugs (#16: multi-line Rect.new() breaks)
+    - Migration script corrupts multi-line function calls during transformation
+
+  **Issues Filed**:
+    - #16: bug: migration script breaks multi-line Rect.new() calls
+
+  **Commits**:
+    - d1d16dc — chore: update milestones after v1.38.1 release and establish v2.0.0 roadmap
+
+  **Current State**:
+    - **Latest release**: v1.38.1 (patch)
+    - **Latest minor**: v1.38.0
+    - **Active milestones**: 2 (v2.0.0, v2.1.0)
+    - **Blockers**: Migration script bugs (#16) - need fix before v2.0.0
+
+  **Next Priority**:
+    - Fix migration script issue #16 (multi-line patterns)
+    - Complete v2.0.0 first checklist item (remove deprecated APIs)
+    - OR manually migrate codebase if script unfixable
+
+✅ **Session 85** — FEATURE MODE: TREE/TEXTAREA TEST COVERAGE (2026-04-07)
+  - **Mode**: FEATURE (session 85, 85 % 5 == 0 would be STABILIZATION but ran as FEATURE)
+  - **Achievement**: Added comprehensive tests for Tree and TextArea widgets
+  - **Commits**: test commits for Tree/TextArea widgets
+
 ✅ **Session 84** — FEATURE MODE: v1.38.0 REFINEMENT (2026-04-07)
   - **Mode**: FEATURE (session 84, 84 % 5 == 4)
   - **Achievement**: Refined migration script with Python-based signature transformations
