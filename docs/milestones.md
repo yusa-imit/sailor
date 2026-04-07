@@ -15,11 +15,11 @@
 **Theme**: Automate v1.x → v2.0.0 migration for consumer projects
 
 **Checklist**:
-- [ ] **Migration script**: Automated sed/regex patterns for common API changes
+- [x] **Migration script**: Automated sed/regex patterns for common API changes
   - `setChar()` → `set()` (Buffer API)
   - `Color{ .basic = .red }` → `.red` (Style API simplification patterns)
   - Widget construction pattern updates
-- [ ] **Deprecation audit**: Verify all v2.0.0 changes have deprecation warnings
+- [x] **Deprecation audit**: Verify all v2.0.0 changes have deprecation warnings
   - Scan codebase for functions marked for v2.0.0 removal
   - Ensure deprecation.zig helpers are used consistently
   - Add missing deprecation warnings where needed

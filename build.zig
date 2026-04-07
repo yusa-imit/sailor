@@ -352,6 +352,14 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    const migration_script_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/migration_script_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
     // Add sailor module to integration tests
     const sailor_module_for_tests = b.createModule(.{
         .root_source_file = b.path("src/sailor.zig"),
@@ -437,6 +445,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(event_metrics_tests).step);
     test_step.dependOn(&b.addRunArtifact(metrics_dashboard_tests).step);
     test_step.dependOn(&b.addRunArtifact(widget_lifecycle_tests).step);
+    test_step.dependOn(&b.addRunArtifact(migration_script_tests).step);
 
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
