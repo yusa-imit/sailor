@@ -2555,3 +2555,43 @@ All consumer projects can now upgrade to v1.10.0 with mouse, gamepad, and touch 
 - Output via user-provided `std.io.Writer`
 - Comptime platform branching for cross-platform code
 - Test coverage requirement: every public function has tests
+
+✅ **Session 85** — STABILIZATION MODE: TEST COVERAGE & BUG FIXES (2026-04-07)
+  - **Mode**: STABILIZATION (session 85, 85 % 5 == 0)
+  - **Achievement**: Fixed migration script bug and added comprehensive widget tests
+
+  **Bug Fix** (Priority 1):
+    - ✅ Fixed migration script crash due to `diff` exit code with `set -euo pipefail`
+    - Wrapped diff in subshell with `|| true` to prevent script abortion
+    - All 5 failing migration tests now passing (3,227/3,257 total)
+
+  **Test Coverage Expansion** (Priority 3):
+    - ✅ Added tests/tree_test.zig — 19 comprehensive tests for Tree widget
+      - TreeNode construction (leaf, branch, isLeaf)
+      - Tree initialization and builder methods
+      - Rendering (flat, nested, selection, scrolling)
+      - Styling (colors, highlight symbols)
+      - Edge cases (empty, zero-size, unicode, out-of-bounds)
+    - ✅ Added tests/textarea_test.zig — 24 comprehensive tests for TextArea widget
+      - Initialization and builder methods
+      - Text rendering (line numbers, cursor visibility)
+      - Scrolling (vertical, horizontal, auto-scroll)
+      - Styling (text, cursor, line numbers, blocks)
+      - Edge cases (empty, unicode, long lines, many lines)
+
+  **Quality Assurance**:
+    - Cross-platform builds verified (Linux x86_64, Windows x86_64)
+    - No open GitHub issues
+    - CI status: cancelled (rapid commits, expected)
+
+  **Commits**:
+    - 88b4c3b — fix(migration): handle diff exit code in migration script
+    - d2e17fb — test(tree): add comprehensive Tree widget tests
+    - 930aa65 — test(textarea): add comprehensive TextArea widget tests
+
+  **Current State**:
+    - **Tests**: 3,227/3,257 passing (30 skipped, 0 failing) ✅
+    - **New Tests**: +43 (19 Tree + 24 TextArea)
+    - **Test Files**: 44 total (added tree_test.zig, textarea_test.zig)
+    - **Next Priority**: Continue stabilization or return to feature development
+
