@@ -9,7 +9,10 @@ pub const Rect = struct {
     height: u16,
 
     /// Create a new rectangle
+    /// @deprecated Use struct literal instead: Rect{ .x = x, .y = y, .width = w, .height = h }
     pub fn new(x: u16, y: u16, width: u16, height: u16) Rect {
+        const deprecation = @import("../deprecation.zig");
+        deprecation.replace("Rect.new", "Rect{ ... }", "2.0.0");
         return .{ .x = x, .y = y, .width = width, .height = height };
     }
 
