@@ -211,7 +211,7 @@ for file in $ZIG_FILES; do
         after=$(cat "$file.bak")
 
         if [[ "$before" != "$after" ]]; then
-            change_count=$(diff -y --suppress-common-lines <(echo "$before") <(echo "$after") 2>/dev/null | wc -l | tr -d ' ')
+            change_count=$( (diff -y --suppress-common-lines <(echo "$before") <(echo "$after") 2>/dev/null || true) | wc -l | tr -d ' ')
             if [[ $change_count -gt 0 ]]; then
                 echo -e "  ${GREEN}✓ $name: $change_count changes${NC}"
                 ((file_changes += change_count))
