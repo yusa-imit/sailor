@@ -23,15 +23,16 @@
   - Scan codebase for functions marked for v2.0.0 removal
   - Ensure deprecation.zig helpers are used consistently
   - Add missing deprecation warnings where needed
-- [ ] **Migration testing framework**: Test migration script correctness
+- [x] **Migration testing framework**: Test migration script correctness
   - Before/after test cases for each migration pattern
   - Verify migrated code compiles and tests pass
   - Integration tests with realistic code samples
-- [ ] **Consumer project dry-run**: Test migration script on zr, zoltraak, silica (read-only)
+- [x] **Consumer project dry-run**: Test migration script on zr, zoltraak, silica (read-only)
   - Clone consumer projects
   - Run migration script in dry-run mode
   - Report potential issues/edge cases
   - No actual PRs — just validation
+  - **Note**: Automation infrastructure complete; migration patterns need refinement (expected at this stage)
 
 **Success Criteria**:
 - Migration script handles 90%+ of common patterns automatically
