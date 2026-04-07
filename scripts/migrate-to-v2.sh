@@ -63,49 +63,92 @@ echo ""
 
 TOTAL_CHANGES=0
 
-# Migration patterns (in order of application)
-declare -a PATTERNS=(
-    # 1. Buffer API: setChar() → set()
-    "s/\.setChar\(/\.set\(/g"
-    "s/buffer\.setChar\(/buffer\.set\(/g"
+# Complex transformation function for Buffer.setChar → set
+transform_setchar() {
+    local file="$1"
+    # Python script for Buffer.setChar transformation (handles multiline patterns properly)
+    python3 -c '
+import re
+import sys
 
-    # 2. Style API: Basic color simplification
+with open(sys.argv[1], "r") as f:
+    content = f.read()
+
+# Pattern: buffer.setChar(x, y, char, style) → buffer.set(x, y, .{ .char = char, .style = style })
+# Match across newlines, handle whitespace
+pattern = r"(\w+)\.setChar\s*\(\s*([^,]+?)\s*,\s*([^,]+?)\s*,\s*([^,]+?)\s*,\s*(.+?)\s*\)"
+replacement = r"\1.set(\2, \3, .{ .char = \4, .style = \5 })"
+content = re.sub(pattern, replacement, content, flags=re.DOTALL)
+
+with open(sys.argv[1], "w") as f:
+    f.write(content)
+' "$file"
+}
+
+# Complex transformation for Rect.new → Rect{}
+transform_rect_new() {
+    local file="$1"
+    python3 -c '
+import re
+import sys
+
+with open(sys.argv[1], "r") as f:
+    content = f.read()
+
+pattern = r"Rect\.new\s*\(\s*([^,]+?)\s*,\s*([^,]+?)\s*,\s*([^,]+?)\s*,\s*([^)]+?)\s*\)"
+replacement = r"Rect{ .x = \1, .y = \2, .width = \3, .height = \4 }"
+content = re.sub(pattern, replacement, content, flags=re.DOTALL)
+
+with open(sys.argv[1], "w") as f:
+    f.write(content)
+' "$file"
+}
+
+# Complex transformation for Block.withTitle → Block{}
+transform_block_withtitle() {
+    local file="$1"
+    python3 -c '
+import re
+import sys
+
+with open(sys.argv[1], "r") as f:
+    content = f.read()
+
+pattern = r"Block\{\}\.withTitle\s*\(\s*([^,]+?)\s*,\s*([^)]+?)\s*\)"
+replacement = r"Block{ .title = \1, .title_position = \2 }"
+content = re.sub(pattern, replacement, content, flags=re.DOTALL)
+
+with open(sys.argv[1], "w") as f:
+    f.write(content)
+' "$file"
+}
+
+# Migration patterns (simple sed patterns only)
+declare -a PATTERNS=(
+    # Style API: Basic color simplification
     # Color{ .basic = .red } → .red
     "s/Color{ \.basic = \.\([a-z_]*\) }/.\1/g"
     "s/Color{ \.basic = BasicColor\.\([a-z_]*\) }/.\1/g"
 
-    # 3. Style API: Indexed color simplification
+    # Style API: Indexed color simplification
     # Color{ .indexed = 235 } → .@"235"
     "s/Color{ \.indexed = \([0-9]*\) }/.@\"\1\"/g"
 
-    # 4. Widget lifecycle: Remove unnecessary init() calls for stateless widgets
-    # This is more complex — handled separately below
-
-    # 5. Deprecated methods
-    "s/\.withTitle\(/\.title = /g"  # Block.withTitle() → .title field
-    "s/Rect\.new\(/Rect{ /g"         # Rect.new() → Rect{ }
-
-    # 6. Old constraint syntax
-    "s/Constraint\.Length(\([0-9]*\))/Constraint{ .length = \1 }/g"
-    "s/Constraint\.Percentage(\([0-9]*\))/Constraint{ .percentage = \1 }/g"
-    "s/Constraint\.Min(\([0-9]*\))/Constraint{ .min = \1 }/g"
-    "s/Constraint\.Max(\([0-9]*\))/Constraint{ .max = \1 }/g"
-    "s/Constraint\.Ratio(\([0-9]*\), \([0-9]*\))/Constraint{ .ratio = .\{ \1, \2 \} }/g"
+    # Old constraint syntax
+    "s/Constraint\.Length(\([0-9]*\))/.{ .length = \1 }/g"
+    "s/Constraint\.Percentage(\([0-9]*\))/.{ .percentage = \1 }/g"
+    "s/Constraint\.Min(\([0-9]*\))/.{ .min = \1 }/g"
+    "s/Constraint\.Max(\([0-9]*\))/.{ .max = \1 }/g"
 )
 
 declare -a PATTERN_NAMES=(
-    "Buffer.setChar() → set()"
-    "Buffer.setChar() → set() (explicit)"
     "Color{ .basic = .X } → .X"
     "Color{ .basic = BasicColor.X } → .X"
     "Color{ .indexed = N } → .@\"N\""
-    "Block.withTitle() → .title field"
-    "Rect.new() → Rect{ }"
     "Constraint.Length(N) → { .length = N }"
     "Constraint.Percentage(N) → { .percentage = N }"
     "Constraint.Min(N) → { .min = N }"
     "Constraint.Max(N) → { .max = N }"
-    "Constraint.Ratio(A, B) → { .ratio = .{ A, B } }"
 )
 
 # Apply migrations
@@ -122,7 +165,42 @@ for file in $ZIG_FILES; do
 
     file_changes=0
 
-    # Apply each pattern
+    # Apply complex transformations first (these use perl)
+
+    # 1. Buffer.setChar → Buffer.set (signature change)
+    if grep -q "\.setChar(" "$file.bak" 2>/dev/null; then
+        before=$(cat "$file.bak")
+        transform_setchar "$file.bak"
+        after=$(cat "$file.bak")
+        if [[ "$before" != "$after" ]]; then
+            echo -e "  ${GREEN}✓ Buffer.setChar() → set() (signature): changes applied${NC}"
+            ((file_changes++))
+        fi
+    fi
+
+    # 2. Rect.new → Rect{}
+    if grep -q "Rect\.new(" "$file.bak" 2>/dev/null; then
+        before=$(cat "$file.bak")
+        transform_rect_new "$file.bak"
+        after=$(cat "$file.bak")
+        if [[ "$before" != "$after" ]]; then
+            echo -e "  ${GREEN}✓ Rect.new() → Rect{}: changes applied${NC}"
+            ((file_changes++))
+        fi
+    fi
+
+    # 3. Block.withTitle → Block{}
+    if grep -q "Block{}\\.withTitle(" "$file.bak" 2>/dev/null; then
+        before=$(cat "$file.bak")
+        transform_block_withtitle "$file.bak"
+        after=$(cat "$file.bak")
+        if [[ "$before" != "$after" ]]; then
+            echo -e "  ${GREEN}✓ Block.withTitle() → Block{}: changes applied${NC}"
+            ((file_changes++))
+        fi
+    fi
+
+    # Apply simple sed patterns
     for i in "${!PATTERNS[@]}"; do
         pattern="${PATTERNS[$i]}"
         name="${PATTERN_NAMES[$i]}"
