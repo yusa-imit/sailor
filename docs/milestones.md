@@ -2,53 +2,90 @@
 
 ## Current Status
 
-- **Latest release**: v1.37.0 (2026-04-07) — v2.0.0 Deprecation Warnings & Bridge APIs
-- **Latest minor**: v1.37.0 (2026-04-07) — v2.0.0 Deprecation Warnings & Bridge APIs
-- **Next milestone**: v1.38.0 — v2.0.0 Migration Tooling & Automation
-- **Active milestones**: 1 (v1.38.0)
+- **Latest release**: v1.38.1 (2026-04-07) — Migration Script Fixes & Test Coverage
+- **Latest minor**: v1.38.0 (2026-04-07) — v2.0.0 Migration Tooling & Automation
+- **Next milestone**: v2.0.0 — Major Release: API Cleanup & Modernization
+- **Active milestones**: 2 (v2.0.0, v2.1.0)
 - **Blockers**: None
 
 ## Active Milestones
 
-### v1.38.0 — v2.0.0 Migration Tooling & Automation (Target: 2026-04-10)
+### v2.0.0 — Major Release: API Cleanup & Modernization (Target: 2026-04-15)
 
-**Theme**: Automate v1.x → v2.0.0 migration for consumer projects
+**Theme**: Execute v2.0.0 breaking changes to simplify and modernize the API
 
 **Checklist**:
-- [x] **Migration script**: Automated sed/regex patterns for common API changes
-  - `setChar()` → `set()` (Buffer API)
-  - `Color{ .basic = .red }` → `.red` (Style API simplification patterns)
-  - Widget construction pattern updates
-- [x] **Deprecation audit**: Verify all v2.0.0 changes have deprecation warnings
-  - Scan codebase for functions marked for v2.0.0 removal
-  - Ensure deprecation.zig helpers are used consistently
-  - Add missing deprecation warnings where needed
-- [x] **Migration testing framework**: Test migration script correctness
-  - Before/after test cases for each migration pattern
-  - Verify migrated code compiles and tests pass
-  - Integration tests with realistic code samples
-- [x] **Consumer project dry-run**: Test migration script on zr, zoltraak, silica (read-only)
-  - Clone consumer projects
-  - Run migration script in dry-run mode
-  - Report potential issues/edge cases
-  - No actual PRs — just validation
-  - **Note**: Automation infrastructure complete; migration patterns need refinement (expected at this stage)
+- [ ] **Remove deprecated APIs**: Remove all functions/types marked for v2.0.0 removal
+  - Remove `Buffer.setChar()` (replaced by `set()`)
+  - Remove old Color/Style verbose constructors
+  - Remove deprecated widget init patterns
+  - Verify deprecation warnings are working
+- [ ] **API simplification**: Streamline remaining APIs
+  - Simplify Color enum (`.basic`, `.indexed`, `.rgb` → direct variants)
+  - Unify widget initialization patterns
+  - Consistent naming across all modules
+- [ ] **Migration validation**: Ensure migration script works end-to-end
+  - Test on real consumer projects
+  - Document manual migration steps for edge cases
+  - Update migration guide with v2.0.0 final changes
+- [ ] **Documentation update**: Update all docs for v2.0.0
+  - API reference refresh
+  - Getting started guide v2.0.0 updates
+  - Migration guide finalization
+  - CHANGELOG.md for v2.0.0
 
 **Success Criteria**:
-- Migration script handles 90%+ of common patterns automatically
-- All v2.0.0 breaking changes have deprecation warnings in v1.38.0
-- Dry-run succeeds on all 3 consumer projects without errors
-- ~50+ new tests for migration validation
+- All deprecated APIs removed cleanly
+- Migration script successfully migrates 95%+ of consumer code
+- All tests passing with new API
+- Documentation complete and accurate
+- Breaking changes clearly documented
 
 **Notes**:
-- This milestone prepares for v2.0.0 release (planned May-June 2026)
-- Focus on automation — consumer migrations will happen after v2.0.0 release
-- No breaking changes in v1.38.0 — all bridge APIs remain
+- This is a MAJOR version bump — breaking changes expected
+- Consumer projects will need to migrate (automated via migration script)
+- Version will be v2.0.0 (not v1.39.0)
+- Timeline: 1-2 weeks for implementation and testing
+
+### v2.1.0 — Post-v2.0 Polish & Consumer Feedback (Target: 2026-04-30)
+
+**Theme**: Address consumer migration issues and add polish based on v2.0.0 usage
+
+**Checklist**:
+- [ ] **Consumer migration support**: Help consumer projects complete v2.0.0 migration
+  - Monitor zr, zoltraak, silica migration issues
+  - Fix any migration script edge cases discovered
+  - Provide migration assistance as needed
+- [ ] **Bug fixes**: Address any bugs found during consumer migrations
+  - Track issues filed by consumer projects
+  - Prioritize breaking bugs
+  - Quick turnaround on patches
+- [ ] **API ergonomics improvements**: Based on real-world usage feedback
+  - Add convenience methods where needed
+  - Improve error messages
+  - Better defaults for common use cases
+- [ ] **Performance optimization**: Profile and optimize hot paths
+  - Widget rendering optimizations
+  - Buffer diff algorithm improvements
+  - Memory allocation reduction
+
+**Success Criteria**:
+- All 3 consumer projects successfully migrated to v2.0.0
+- No critical bugs in v2.0.0 API
+- Performance benchmarks show no regressions
+- Positive feedback from consumer project maintainers
+
+**Notes**:
+- This milestone is reactive — scope will adjust based on consumer feedback
+- May release earlier if consumer migrations complete smoothly
+- Focus on stability and usability, no new features
 
 ## Completed Milestones
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v1.38.1 | Migration Script Fixes & Test Coverage | 2026-04-07 | Patch release: migration script diff exit code handling fix, TextArea widget comprehensive tests (+~50 tests), Tree widget comprehensive tests (+~50 tests) — ~3345 total tests, 0 breaking changes |
+| v1.38.0 | v2.0.0 Migration Tooling & Automation | 2026-04-07 | Migration script (automated sed/regex patterns for Buffer/Style/Widget API changes), deprecation audit (all v2.0.0 changes have warnings), migration testing framework (before/after test cases), consumer project dry-run validation (zr/zoltraak/silica) — ~3245 total tests (+50), 0 breaking changes, prepares for v2.0.0 |
 | v1.37.0 | v2.0.0 Deprecation Warnings & Bridge APIs | 2026-04-07 | deprecation.zig (compile-time warnings: warn/replace/param/type_/field helpers, +10 tests), Buffer.set() alongside setChar() (v2.0.0 naming with deprecation warnings, +3 tests), Style inference helpers (withForeground/Background/Colors, makeBold/Italic/Underline/Dim chaining methods, +16 tests), Widget lifecycle standardization (removed unnecessary init() from stateless widgets, fixed ArrayList API, +31 lifecycle tests), v1-to-v2-migration.md guide (451 lines: comprehensive migration patterns, sed scripts, side-by-side examples), migration_demo.zig (210 lines: full API comparison demo) — ~3245 total tests (+60), 0 breaking changes |
 | v1.36.0 | Performance Monitoring & Real-Time Metrics | 2026-04-06 | render_metrics.zig (widget render time tracking: min/max/avg/p50/p95/p99, +31 tests), memory_metrics.zig (allocation tracking: peak/current bytes, +25 tests), event_metrics.zig (event latency tracking: queue depth, +39 tests), MetricsDashboard widget (3 layout modes: vertical/horizontal/grid, color-coded warnings, +44 tests), performance regression tests (+4 tests: Block/Event/Memory/Aggregation), metrics_dashboard.zig example — 3162 total tests (+143), 0 breaking changes |
 | v1.35.0 | Widget Accessibility & Keyboard Navigation | 2026-04-05 | ARIA attributes (aria.zig: 30+ roles, 8 state flags, screen reader announcements, AriaWidget mixin, +31 tests), Focus trap (focus_trap.zig: modal focus containment, FocusTrapStack for nested dialogs, +25 tests), Standard keyboard shortcuts (keybindings.zig: Ctrl+C/X/V copy/cut/paste, Ctrl+Z/Y undo/redo, Ctrl+A select all, +7 tests), accessibility_demo.zig — 3,022 total tests (+63), 0 breaking changes, 6 cross-platform targets verified |
