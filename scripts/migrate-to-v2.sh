@@ -63,64 +63,25 @@ echo ""
 
 TOTAL_CHANGES=0
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Complex transformation function for Buffer.setChar → set
 transform_setchar() {
     local file="$1"
-    # Python script for Buffer.setChar transformation (handles multiline patterns properly)
-    python3 -c '
-import re
-import sys
-
-with open(sys.argv[1], "r") as f:
-    content = f.read()
-
-# Pattern: buffer.setChar(x, y, char, style) → buffer.set(x, y, .{ .char = char, .style = style })
-# Match across newlines, handle whitespace
-pattern = r"(\w+)\.setChar\s*\(\s*([^,]+?)\s*,\s*([^,]+?)\s*,\s*([^,]+?)\s*,\s*(.+?)\s*\)"
-replacement = r"\1.set(\2, \3, .{ .char = \4, .style = \5 })"
-content = re.sub(pattern, replacement, content, flags=re.DOTALL)
-
-with open(sys.argv[1], "w") as f:
-    f.write(content)
-' "$file"
+    python3 "$SCRIPT_DIR/migrate_helper.py" setchar "$file"
 }
 
 # Complex transformation for Rect.new → Rect{}
 transform_rect_new() {
     local file="$1"
-    python3 -c '
-import re
-import sys
-
-with open(sys.argv[1], "r") as f:
-    content = f.read()
-
-pattern = r"Rect\.new\s*\(\s*([^,]+?)\s*,\s*([^,]+?)\s*,\s*([^,]+?)\s*,\s*([^)]+?)\s*\)"
-replacement = r"Rect{ .x = \1, .y = \2, .width = \3, .height = \4 }"
-content = re.sub(pattern, replacement, content, flags=re.DOTALL)
-
-with open(sys.argv[1], "w") as f:
-    f.write(content)
-' "$file"
+    python3 "$SCRIPT_DIR/migrate_helper.py" rect "$file"
 }
 
 # Complex transformation for Block.withTitle → Block{}
 transform_block_withtitle() {
     local file="$1"
-    python3 -c '
-import re
-import sys
-
-with open(sys.argv[1], "r") as f:
-    content = f.read()
-
-pattern = r"Block\{\}\.withTitle\s*\(\s*([^,]+?)\s*,\s*([^)]+?)\s*\)"
-replacement = r"Block{ .title = \1, .title_position = \2 }"
-content = re.sub(pattern, replacement, content, flags=re.DOTALL)
-
-with open(sys.argv[1], "w") as f:
-    f.write(content)
-' "$file"
+    python3 "$SCRIPT_DIR/migrate_helper.py" block "$file"
 }
 
 # Migration patterns (simple sed patterns only)
