@@ -462,11 +462,10 @@ const MockWidget = struct {
     pub fn render(self: MockWidget, buf: *Buffer, area: Rect) void {
         for (0..area.height) |dy| {
             for (0..area.width) |dx| {
-                buf.setChar(
+                buf.set(
                     @intCast(area.x + @as(u16, @intCast(dx))),
                     @intCast(area.y + @as(u16, @intCast(dy))),
-                    self.content,
-                    .{},
+                    .{ .char = self.content, .style = .{} },
                 );
             }
         }
