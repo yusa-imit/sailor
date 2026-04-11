@@ -295,7 +295,7 @@ test "MockTerminal clear" {
     var term = try MockTerminal.init(std.testing.allocator, 20, 10);
     defer term.deinit();
 
-    term.current.setChar(5, 5, 'X', .{});
+    term.current.set(5, 5, .{ .char = 'X', .style = .{} });
     term.clear();
 
     const cell = term.current.getConst(5, 5).?;
@@ -366,7 +366,7 @@ test "MockTerminal getChar and getStyle" {
     defer term.deinit();
 
     const style = Style{ .fg = .red, .bold = true };
-    term.current.setChar(3, 2, 'X', style);
+    term.current.set(3, 2, .{ .char = 'X', .style = style });
 
     const char = term.getChar(3, 2).?;
     try std.testing.expectEqual('X', char);
