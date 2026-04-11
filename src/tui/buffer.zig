@@ -133,7 +133,7 @@ pub const Buffer = struct {
             // Check if wide character would overflow
             if (char_width == 2 and col + 1 >= self.width) break;
 
-            self.setChar(col, y, codepoint, cell_style);
+            self.set(col, y, Cell{ .char = codepoint, .style = cell_style });
             i += char_len;
             col += char_width;
         }
@@ -145,7 +145,7 @@ pub const Buffer = struct {
         while (row < area.y + area.height and row < self.height) : (row += 1) {
             var col = area.x;
             while (col < area.x + area.width and col < self.width) : (col += 1) {
-                self.setChar(col, row, char, cell_style);
+                self.set(col, row, Cell{ .char = char, .style = cell_style });
             }
         }
     }
