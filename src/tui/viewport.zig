@@ -229,9 +229,9 @@ test "Viewport.renderClipped" {
     defer source.deinit();
 
     // Set some cells in the source
-    source.setChar(50, 50, 'A', .{});
-    source.setChar(51, 50, 'B', .{});
-    source.setChar(50, 51, 'C', .{});
+    source.set(50, 50, .{ .char = 'A', .style = .{} });
+    source.set(51, 50, .{ .char = 'B', .style = .{} });
+    source.set(50, 51, .{ .char = 'C', .style = .{} });
 
     // Create viewport at (45, 45, 10, 10)
     const vp = Viewport.init(45, 45, 10, 10);
@@ -327,7 +327,7 @@ test "Viewport.renderClipped - offset viewport" {
     defer source.deinit();
 
     // Set marker at (20, 15)
-    source.setChar(20, 15, 'X', .{});
+    source.set(20, 15, .{ .char = 'X', .style = .{} });
 
     // Viewport at (15, 10, 10, 10)
     const vp = Viewport.init(15, 10, 10, 10);
