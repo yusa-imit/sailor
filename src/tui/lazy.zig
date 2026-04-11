@@ -102,8 +102,9 @@ pub const LazyBuffer = struct {
     }
 
     /// Set character and mark as dirty
+    /// @deprecated Use set() with Cell instead (will be removed in v2.0.0)
     pub fn setChar(self: *LazyBuffer, x: u16, y: u16, char: u21, style: Style) void {
-        self.buffer.setChar(x, y, char, style);
+        self.buffer.set(x, y, .{ .char = char, .style = style });
         self.markDirty(x, y);
     }
 
@@ -316,8 +317,8 @@ test "LazyBuffer renderDirty callback" {
     defer lazy.deinit();
 
     lazy.clearDirty();
-    lazy.setChar(2, 1, 'A', .{});
-    lazy.setChar(3, 1, 'B', .{});
+    lazy.set(2, 1, .{ .char = 'A', .style = .{} });
+    lazy.set(3, 1, .{ .char = 'B', .style = .{} });
 
     const TestContext = struct {
         count: usize = 0,
