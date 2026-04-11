@@ -170,6 +170,36 @@ grep -r "// Should" src/tui/widgets/*.zig | wc -l  # Find incomplete tests
 **Fix**: Use `std.unicode.utf8ByteSequenceLength()` and `std.unicode.utf8Decode()` to properly extract codepoints.
 **Test Coverage**: Added 6 edge case tests for Unicode, CJK, zero-width chars, boundaries.
 
+### Test Suite Hangs on Debug Print Output (2026-04-12 STABILIZATION Session 90)
+**Symptom**: `zig build test` hangs indefinitely after printing debug messages from stack_trace.zig tests
+  - Output shown: `[stack_trace.zig:97] test debug message` and similar debug values
+  - Build succeeds without issues: `zig build` completes instantly
+  - All 6 cross-compile targets build successfully
+  - Individual module compilation works, but full test suite hangs
+
+**Root Cause**: UNDER INVESTIGATION
+  - Likely culprits: async_loop.zig tests with Thread.sleep() and retry loops (lines 373-747)
+  - Tests spawn background threads and wait with timeout loops
+  - Possible deadlock or thread spawn failure causing infinite wait
+  - Or: stack_trace.zig debug print tests interfering with test protocol
+
+**Workaround**:
+  - Use `zig build` to verify compilation
+  - Use cross-compile targets to verify platform compatibility
+  - Individual file tests don't work due to module imports
+
+**Impact**: STABILIZATION mode blocked from running test suite
+  - Cannot verify test pass rate
+  - Cannot audit test quality without running tests
+  - Cross-platform verification still works (all 6 targets compile)
+
+**Next Steps**:
+  1. Isolate which test file causes hang (try commenting out test suites in build.zig)
+  2. Check if async_loop.zig thread spawn works in test environment
+  3. Consider skipping problematic tests with `test.skip()` or build flags
+
+**STATUS**: ⚠️ ACTIVE ISSUE (blocking test execution)
+
 ## Known Zig 0.15.x Gotchas (from zr experience)
 - `std.ArrayList(T){}` not `.init(allocator)` — unmanaged API
 - ArrayList methods need allocator: `list.deinit(allocator)`, `list.append(allocator, item)`
