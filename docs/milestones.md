@@ -2,50 +2,13 @@
 
 ## Current Status
 
-- **Latest release**: v1.38.1 (2026-04-07) — Migration Script Fixes & Test Coverage
-- **Latest minor**: v1.38.0 (2026-04-07) — v2.0.0 Migration Tooling & Automation
-- **Next milestone**: v2.0.0 — Major Release: API Cleanup & Modernization
-- **Active milestones**: 2 (v2.0.0, v2.1.0)
+- **Latest release**: v2.0.0 (2026-04-13) — Major Release: API Cleanup & Modernization
+- **Latest minor**: v2.0.0 (2026-04-13) — Breaking changes, simplified API
+- **Next milestone**: v2.1.0 — Post-v2.0 Polish & Consumer Feedback
+- **Active milestones**: 1 (v2.1.0)
 - **Blockers**: None
 
 ## Active Milestones
-
-### v2.0.0 — Major Release: API Cleanup & Modernization (Target: 2026-04-15)
-
-**Theme**: Execute v2.0.0 breaking changes to simplify and modernize the API
-
-**Checklist**:
-- [ ] **Remove deprecated APIs**: Remove all functions/types marked for v2.0.0 removal
-  - Remove `Buffer.setChar()` (replaced by `set()`)
-  - Remove old Color/Style verbose constructors
-  - Remove deprecated widget init patterns
-  - Verify deprecation warnings are working
-- [ ] **API simplification**: Streamline remaining APIs
-  - Simplify Color enum (`.basic`, `.indexed`, `.rgb` → direct variants)
-  - Unify widget initialization patterns
-  - Consistent naming across all modules
-- [ ] **Migration validation**: Ensure migration script works end-to-end
-  - Test on real consumer projects
-  - Document manual migration steps for edge cases
-  - Update migration guide with v2.0.0 final changes
-- [ ] **Documentation update**: Update all docs for v2.0.0
-  - API reference refresh
-  - Getting started guide v2.0.0 updates
-  - Migration guide finalization
-  - CHANGELOG.md for v2.0.0
-
-**Success Criteria**:
-- All deprecated APIs removed cleanly
-- Migration script successfully migrates 95%+ of consumer code
-- All tests passing with new API
-- Documentation complete and accurate
-- Breaking changes clearly documented
-
-**Notes**:
-- This is a MAJOR version bump — breaking changes expected
-- Consumer projects will need to migrate (automated via migration script)
-- Version will be v2.0.0 (not v1.39.0)
-- Timeline: 1-2 weeks for implementation and testing
 
 ### v2.1.0 — Post-v2.0 Polish & Consumer Feedback (Target: 2026-04-30)
 
@@ -84,6 +47,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v2.0.0 | Major Release: API Cleanup & Modernization | 2026-04-13 | BREAKING CHANGES: Removed Buffer.setChar() (use Buffer.set()), removed Rect.new() (use struct literals). Kept Block.withTitle() as valid builder pattern. Migration script updated. All tests passing (~3345 tests). Clean API, simplified naming, better ergonomics |
 | v1.38.1 | Migration Script Fixes & Test Coverage | 2026-04-07 | Patch release: migration script diff exit code handling fix, TextArea widget comprehensive tests (+~50 tests), Tree widget comprehensive tests (+~50 tests) — ~3345 total tests, 0 breaking changes |
 | v1.38.0 | v2.0.0 Migration Tooling & Automation | 2026-04-07 | Migration script (automated sed/regex patterns for Buffer/Style/Widget API changes), deprecation audit (all v2.0.0 changes have warnings), migration testing framework (before/after test cases), consumer project dry-run validation (zr/zoltraak/silica) — ~3245 total tests (+50), 0 breaking changes, prepares for v2.0.0 |
 | v1.37.0 | v2.0.0 Deprecation Warnings & Bridge APIs | 2026-04-07 | deprecation.zig (compile-time warnings: warn/replace/param/type_/field helpers, +10 tests), Buffer.set() alongside setChar() (v2.0.0 naming with deprecation warnings, +3 tests), Style inference helpers (withForeground/Background/Colors, makeBold/Italic/Underline/Dim chaining methods, +16 tests), Widget lifecycle standardization (removed unnecessary init() from stateless widgets, fixed ArrayList API, +31 lifecycle tests), v1-to-v2-migration.md guide (451 lines: comprehensive migration patterns, sed scripts, side-by-side examples), migration_demo.zig (210 lines: full API comparison demo) — ~3245 total tests (+60), 0 breaking changes |
