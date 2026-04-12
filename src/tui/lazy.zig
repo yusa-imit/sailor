@@ -317,8 +317,8 @@ test "LazyBuffer renderDirty callback" {
     defer lazy.deinit();
 
     lazy.clearDirty();
-    lazy.set(2, 1, .{ .char = 'A', .style = .{} });
-    lazy.set(3, 1, .{ .char = 'B', .style = .{} });
+    lazy.setCell(2, 1, .{ .char = 'A', .style = .{} });
+    lazy.setCell(3, 1, .{ .char = 'B', .style = .{} });
 
     const TestContext = struct {
         count: usize = 0,

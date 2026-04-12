@@ -91,10 +91,6 @@ declare -a PATTERNS=(
     "s/Color{ \.basic = \.\([a-z_]*\) }/.\1/g"
     "s/Color{ \.basic = BasicColor\.\([a-z_]*\) }/.\1/g"
 
-    # Style API: Indexed color simplification
-    # Color{ .indexed = 235 } → .@"235"
-    "s/Color{ \.indexed = \([0-9]*\) }/.@\"\1\"/g"
-
     # Old constraint syntax
     "s/Constraint\.Length(\([0-9]*\))/.{ .length = \1 }/g"
     "s/Constraint\.Percentage(\([0-9]*\))/.{ .percentage = \1 }/g"
@@ -105,7 +101,6 @@ declare -a PATTERNS=(
 declare -a PATTERN_NAMES=(
     "Color{ .basic = .X } → .X"
     "Color{ .basic = BasicColor.X } → .X"
-    "Color{ .indexed = N } → .@\"N\""
     "Constraint.Length(N) → { .length = N }"
     "Constraint.Percentage(N) → { .percentage = N }"
     "Constraint.Min(N) → { .min = N }"
