@@ -119,7 +119,7 @@ pub const Grid = struct {
 
             // Bounds check
             if (row_idx >= self.rows.len or col_idx >= self.cols.len) {
-                result[i] = Rect.new(0, 0, 0, 0);
+                result[i] = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
                 continue;
             }
 
@@ -165,7 +165,7 @@ pub const Grid = struct {
                 .stretch => final_height = height,
             }
 
-            result[i] = Rect.new(final_x, final_y, final_width, final_height);
+            result[i] = Rect{ .x = final_x, .y = final_y, .width = final_width, .height = final_height };
         }
 
         return result;
@@ -290,7 +290,7 @@ test "Grid.layout - simple 2x2" {
         .cols = &[_]Track{ .{ .fixed = 40 }, .{ .fixed = 40 } },
     };
 
-    const area = Rect.new(0, 0, 80, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 50 };
     const items = [_]GridItem{
         .{ .row = 1, .col = 1 },
         .{ .row = 1, .col = 2 },
@@ -324,7 +324,7 @@ test "Grid.layout - with gaps" {
         .col_gap = 10,
     };
 
-    const area = Rect.new(0, 0, 90, 55);
+    const area = Rect{ .x = 0, .y = 0, .width = 90, .height = 55 };
     const items = [_]GridItem{
         .{ .row = 1, .col = 1 },
         .{ .row = 1, .col = 2 },
@@ -359,7 +359,7 @@ test "Grid.layout - column span" {
         .col_gap = 5,
     };
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const items = [_]GridItem{
         .{ .row = 1, .col = 1, .col_span = 2 }, // spans 2 columns
         .{ .row = 1, .col = 3 },
@@ -386,7 +386,7 @@ test "Grid.layout - row span" {
         .row_gap = 5,
     };
 
-    const area = Rect.new(0, 0, 80, 65);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 65 };
     const items = [_]GridItem{
         .{ .row = 1, .col = 1, .row_span = 2 }, // spans 2 rows
         .{ .row = 1, .col = 2 },
@@ -412,7 +412,7 @@ test "Grid.layout - fr units" {
         .cols = &[_]Track{ .{ .fr = 1 }, .{ .fr = 2 }, .{ .fr = 1 } },
     };
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const items = [_]GridItem{
         .{ .row = 1, .col = 1 },
         .{ .row = 1, .col = 2 },
@@ -440,7 +440,7 @@ test "Grid.layout - alignment center" {
         .cols = &[_]Track{ .{ .fixed = 100 } },
     };
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const items = [_]GridItem{
         .{ .row = 1, .col = 1, .h_align = .center, .v_align = .center },
     };
@@ -463,7 +463,7 @@ test "Grid.layout - empty items" {
         .cols = &[_]Track{ .{ .fixed = 40 } },
     };
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const items = [_]GridItem{};
 
     const result = try grid.layout(allocator, area, &items);
@@ -480,7 +480,7 @@ test "Grid.layout - out of bounds item" {
         .cols = &[_]Track{ .{ .fixed = 40 } },
     };
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const items = [_]GridItem{
         .{ .row = 5, .col = 5 }, // out of bounds
     };
@@ -502,7 +502,7 @@ test "Grid.layout - mixed track types" {
         .cols = &[_]Track{ .{ .fixed = 30 }, .{ .fr = 1 } },
     };
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const items = [_]GridItem{
         .{ .row = 1, .col = 1 },
         .{ .row = 1, .col = 2 },
@@ -529,7 +529,7 @@ test "Grid.layout - single cell" {
         .cols = &[_]Track{ .{ .fixed = 100 } },
     };
 
-    const area = Rect.new(10, 20, 100, 50);
+    const area = Rect{ .x = 10, .y = 20, .width = 100, .height = 50 };
     const items = [_]GridItem{
         .{ .row = 1, .col = 1 },
     };
@@ -611,7 +611,7 @@ test "nested grid - basic 2x2 outer with 2x2 inner" {
         .cols = &[_]Track{ .{ .fixed = 50 }, .{ .fixed = 50 } },
     };
 
-    const outer_area = Rect.new(0, 0, 100, 100);
+    const outer_area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
     const outer_items = [_]GridItem{
         .{ .row = 1, .col = 1 }, // Will contain inner grid
         .{ .row = 1, .col = 2 },
@@ -674,7 +674,7 @@ test "nested grid - auto-sizing inner grid content" {
         .cols = &[_]Track{ .{ .fr = 1 } },
     };
 
-    const outer_area = Rect.new(0, 0, 100, 100);
+    const outer_area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
     const outer_items = [_]GridItem{
         .{ .row = 1, .col = 1 },
     };
@@ -722,7 +722,7 @@ test "nested grid - multiple nested grids in different cells" {
         .row_gap = 10,
     };
 
-    const outer_area = Rect.new(0, 0, 130, 130);
+    const outer_area = Rect{ .x = 0, .y = 0, .width = 130, .height = 130 };
     const outer_items = [_]GridItem{
         .{ .row = 1, .col = 1 }, // Top-left: will have nested grid
         .{ .row = 1, .col = 2 }, // Top-right: will have different nested grid
@@ -801,7 +801,7 @@ test "nested grid - deep nesting (3 levels)" {
         .cols = &[_]Track{ .{ .fixed = 100 } },
     };
 
-    const level1_area = Rect.new(0, 0, 100, 100);
+    const level1_area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
     const level1_items = [_]GridItem{
         .{ .row = 1, .col = 1 },
     };
@@ -859,7 +859,7 @@ test "nested grid - empty nested grid" {
         .cols = &[_]Track{ .{ .fixed = 50 } },
     };
 
-    const outer_area = Rect.new(0, 0, 50, 50);
+    const outer_area = Rect{ .x = 0, .y = 0, .width = 50, .height = 50 };
     const outer_items = [_]GridItem{
         .{ .row = 1, .col = 1 },
     };
@@ -893,7 +893,7 @@ test "nested grid - oversized nested grid content" {
         .cols = &[_]Track{ .{ .fixed = 50 } },
     };
 
-    const outer_area = Rect.new(0, 0, 50, 50);
+    const outer_area = Rect{ .x = 0, .y = 0, .width = 50, .height = 50 };
     const outer_items = [_]GridItem{
         .{ .row = 1, .col = 1 },
     };
@@ -935,7 +935,7 @@ test "nested grid - with gaps and span" {
         .row_gap = 5,
     };
 
-    const outer_area = Rect.new(0, 0, 100, 100);
+    const outer_area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
     const outer_items = [_]GridItem{
         .{ .row = 1, .col = 1 },
     };
@@ -975,7 +975,7 @@ test "nested grid - inner grid with fr units" {
         .cols = &[_]Track{ .{ .fixed = 100 } },
     };
 
-    const outer_area = Rect.new(0, 0, 100, 100);
+    const outer_area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
     const outer_items = [_]GridItem{
         .{ .row = 1, .col = 1 },
     };
@@ -1017,7 +1017,7 @@ test "nested grid - inner grid respects cell boundaries with padding" {
         .cols = &[_]Track{ .{ .fixed = 100 } },
     };
 
-    const outer_area = Rect.new(10, 20, 100, 100);
+    const outer_area = Rect{ .x = 10, .y = 20, .width = 100, .height = 100 };
     const outer_items = [_]GridItem{
         .{ .row = 1, .col = 1 },
     };

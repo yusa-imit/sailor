@@ -181,7 +181,7 @@ pub const TextArea = struct {
                     col_idx == self.cursor_col;
 
                 const cell_style = if (is_cursor) self.cursor_style else self.text_style;
-                buf.setChar(text_x_pos, screen_y, ch, cell_style);
+                buf.set(text_x_pos, screen_y, .{ .char = ch, .style = cell_style });
                 text_x_pos += 1;
             }
 
@@ -194,7 +194,7 @@ pub const TextArea = struct {
             {
                 const cursor_x = text_x + (self.cursor_col - col_start);
                 if (cursor_x < inner_area.x + inner_area.width) {
-                    buf.setChar(cursor_x, screen_y, ' ', self.cursor_style);
+                    buf.set(cursor_x, screen_y, .{ .char = ' ', .style = self.cursor_style });
                 }
             }
 

@@ -115,7 +115,7 @@ pub const Heatmap = struct {
                 const value = self.data[row][col];
                 const color = self.valueToColor(value, range);
                 const char = self.valueToChar(value, range);
-                buf.setChar(x, y, char, Style{ .bg = color });
+                buf.set(x, y, .{ .char = char, .style = Style{ .bg = color } });
             }
         }
     }

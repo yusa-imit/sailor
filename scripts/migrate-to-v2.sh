@@ -85,26 +85,15 @@ transform_block_withtitle() {
 }
 
 # Migration patterns (simple sed patterns only)
+# v2.0.0 only removes deprecated APIs (setChar, Rect.new, Block.withTitle)
+# Color/Style/Constraint API changes are NOT part of v2.0.0
 declare -a PATTERNS=(
-    # Style API: Basic color simplification
-    # Color{ .basic = .red } → .red
-    "s/Color{ \.basic = \.\([a-z_]*\) }/.\1/g"
-    "s/Color{ \.basic = BasicColor\.\([a-z_]*\) }/.\1/g"
-
-    # Old constraint syntax
-    "s/Constraint\.Length(\([0-9]*\))/.{ .length = \1 }/g"
-    "s/Constraint\.Percentage(\([0-9]*\))/.{ .percentage = \1 }/g"
-    "s/Constraint\.Min(\([0-9]*\))/.{ .min = \1 }/g"
-    "s/Constraint\.Max(\([0-9]*\))/.{ .max = \1 }/g"
+    # No simple sed patterns for v2.0.0
+    # All changes handled by Python helpers
 )
 
 declare -a PATTERN_NAMES=(
-    "Color{ .basic = .X } → .X"
-    "Color{ .basic = BasicColor.X } → .X"
-    "Constraint.Length(N) → { .length = N }"
-    "Constraint.Percentage(N) → { .percentage = N }"
-    "Constraint.Min(N) → { .min = N }"
-    "Constraint.Max(N) → { .max = N }"
+    # No simple patterns
 )
 
 # Apply migrations

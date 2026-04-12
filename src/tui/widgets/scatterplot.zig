@@ -211,7 +211,7 @@ pub const ScatterPlot = struct {
             // Draw Y-axis line
             var y: u16 = plot_area.y;
             while (y < plot_area.y + plot_area.height) : (y += 1) {
-                buf.setChar(render_area.x + y_axis_width - 1, y, '│', self.axis_style);
+                buf.set(render_area.x + y_axis_width - 1, y, .{ .char = '│', .style = self.axis_style });
             }
 
             // Y-axis labels (min, mid, max)
@@ -255,7 +255,7 @@ pub const ScatterPlot = struct {
             const x_axis_y = plot_area.y + plot_area.height;
             var x: u16 = plot_area.x;
             while (x < plot_area.x + plot_area.width) : (x += 1) {
-                buf.setChar(x, x_axis_y, '─', self.axis_style);
+                buf.set(x, x_axis_y, .{ .char = '─', .style = self.axis_style });
             }
 
             // X-axis labels (min, mid, max)
@@ -312,7 +312,7 @@ pub const ScatterPlot = struct {
                     const marker_char = if (s.marker.len > 0)
                         std.unicode.utf8Decode(s.marker) catch '•'
                     else '•';
-                    buf.setChar(screen_x, screen_y, marker_char, s.style);
+                    buf.set(screen_x, screen_y, .{ .char = marker_char, .style = s.style });
                 }
             }
         }
@@ -329,7 +329,7 @@ pub const ScatterPlot = struct {
                 const marker_char = if (s.marker.len > 0)
                     std.unicode.utf8Decode(s.marker) catch '•'
                 else '•';
-                buf.setChar(render_area.x + offset, legend_y, marker_char, s.style);
+                buf.set(render_area.x + offset, legend_y, .{ .char = marker_char, .style = s.style });
                 offset += 2;
 
                 // Draw name

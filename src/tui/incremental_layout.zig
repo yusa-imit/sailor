@@ -180,7 +180,7 @@ test "IncrementalLayout.split caches results" {
     var layout = IncrementalLayout.init(testing.allocator, &cache);
     defer layout.deinit();
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const constraints = &[_]Constraint{
         .{ .percentage = 30 },
         .{ .percentage = 70 },
@@ -209,7 +209,7 @@ test "IncrementalLayout.split different constraints trigger new computation" {
     var layout = IncrementalLayout.init(testing.allocator, &cache);
     defer layout.deinit();
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
 
     const constraints1 = &[_]Constraint{
         .{ .percentage = 50 },
@@ -238,7 +238,7 @@ test "IncrementalLayout.split empty constraints" {
     var layout = IncrementalLayout.init(testing.allocator, &cache);
     defer layout.deinit();
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const constraints = &[_]Constraint{};
 
     const result = try layout.split(.horizontal, area, constraints);

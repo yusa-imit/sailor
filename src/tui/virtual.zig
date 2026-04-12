@@ -13,7 +13,7 @@
 //!
 //! // In your render loop:
 //! for (widgets) |widget| {
-//!     const widget_area = Rect.new(widget.x, widget.y, widget.width, widget.height);
+//!     const widget_area = Rect{ .x = widget.x, .y = widget.y, .width = widget.width, .height = widget.height };
 //!
 //!     if (!renderer.shouldRender(widget_area)) {
 //!         continue; // Skip rendering this widget — it's off-screen
@@ -77,7 +77,7 @@ pub const VirtualRenderer = struct {
     ///
     /// Example:
     /// ```zig
-    /// const area = Rect.new(100, 50, 20, 10);
+    /// const area = Rect{ .x = 100, .y = 50, .width = 20, .height = 10 };
     /// if (renderer.shouldRender(area)) {
     ///     widget.render(buffer, area);
     /// }
@@ -140,7 +140,7 @@ test "VirtualRenderer.shouldRender returns true for area inside viewport" {
     const vp = Viewport.init(0, 0, 80, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
     try testing.expect(renderer.shouldRender(area));
 }
 
@@ -148,7 +148,7 @@ test "VirtualRenderer.shouldRender returns false for area completely left of vie
     const vp = Viewport.init(50, 0, 30, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(0, 5, 40, 10); // x: 0-40, viewport starts at x: 50
+    const area = Rect{ .x = 0, .y = 5, .width = 40, .height = 10 }; // x: 0-40, viewport starts at x: 50
     try testing.expect(!renderer.shouldRender(area));
 }
 
@@ -156,7 +156,7 @@ test "VirtualRenderer.shouldRender returns false for zero-size area" {
     const vp = Viewport.init(0, 0, 80, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(10, 10, 0, 0);
+    const area = Rect{ .x = 10, .y = 10, .width = 0, .height = 0 };
     try testing.expect(!renderer.shouldRender(area));
 }
 
@@ -164,7 +164,7 @@ test "VirtualRenderer.getClippedArea returns full area when inside viewport" {
     const vp = Viewport.init(0, 0, 80, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
     const clipped = renderer.getClippedArea(area);
 
     try testing.expect(clipped != null);
@@ -178,7 +178,7 @@ test "VirtualRenderer.getClippedArea returns null for area completely outside" {
     const vp = Viewport.init(0, 0, 80, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(100, 50, 20, 10); // Far outside viewport
+    const area = Rect{ .x = 100, .y = 50, .width = 20, .height = 10 }; // Far outside viewport
     const clipped = renderer.getClippedArea(area);
 
     try testing.expect(clipped == null);
@@ -188,7 +188,7 @@ test "VirtualRenderer.getClippedArea clips area extending beyond viewport" {
     const vp = Viewport.init(0, 0, 80, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(70, 10, 20, 10); // Extends beyond x: 80
+    const area = Rect{ .x = 70, .y = 10, .width = 20, .height = 10 }; // Extends beyond x: 80
     const clipped = renderer.getClippedArea(area);
 
     try testing.expect(clipped != null);

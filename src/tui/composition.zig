@@ -186,7 +186,7 @@ test "SplitPane - horizontal 50/50" {
         .ratio = 0.5,
     };
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const result = pane.layout(area);
 
     try std.testing.expectEqual(0, result.first.x);
@@ -201,7 +201,7 @@ test "SplitPane - vertical 30/70" {
         .ratio = 0.3,
     };
 
-    const area = Rect.new(0, 0, 100, 100);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
     const result = pane.layout(area);
 
     try std.testing.expectEqual(0, result.first.y);
@@ -217,7 +217,7 @@ test "SplitPane - with gap" {
         .gap = 2,
     };
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const result = pane.layout(area);
 
     // Total usable: 98 (100 - 2 gap)
@@ -241,7 +241,7 @@ test "SplitPane - minimum size enforcement" {
         .min_second = 30,
     };
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const result = pane.layout(area);
 
     // First pane should be at least min_first
@@ -258,7 +258,7 @@ test "SplitPane - insufficient space" {
         .min_second = 40,
     };
 
-    const area = Rect.new(0, 0, 50, 50); // Not enough for both minimums
+    const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 50 }; // Not enough for both minimums
     const result = pane.layout(area);
 
     // Should distribute proportionally
@@ -310,7 +310,7 @@ test "SplitPane - zero area" {
         .ratio = 0.5,
     };
 
-    const area = Rect.new(0, 0, 0, 0);
+    const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
     const result = pane.layout(area);
 
     try std.testing.expectEqual(0, result.first.width);
@@ -324,7 +324,7 @@ test "ResizeBorder - horizontal containsPoint" {
         .handle_width = 2,
     };
 
-    const area = Rect.new(0, 0, 100, 100);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
 
     try std.testing.expect(border.containsPoint(area, 10, 50));
     try std.testing.expect(border.containsPoint(area, 10, 51));
@@ -339,7 +339,7 @@ test "ResizeBorder - vertical containsPoint" {
         .handle_width = 2,
     };
 
-    const area = Rect.new(0, 0, 100, 100);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
 
     try std.testing.expect(border.containsPoint(area, 50, 10));
     try std.testing.expect(border.containsPoint(area, 51, 10));
@@ -369,7 +369,7 @@ test "ResizeBorder - moveTo" {
         .handle_width = 1,
     };
 
-    const area = Rect.new(0, 0, 100, 100);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
 
     border.moveTo(70, area, 10, 10);
     try std.testing.expectEqual(70, border.position);
@@ -389,7 +389,7 @@ test "ResizeBorder - moveTo edge cases" {
         .position = 50,
     };
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
 
     // Move to exactly min_first
     border.moveTo(10, area, 10, 10);
@@ -406,7 +406,7 @@ test "SplitPane - ratio extremes" {
         .ratio = 0.0,
     };
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     var result = pane.layout(area);
 
     // With ratio 0, first pane should be minimal (min_first)
@@ -429,7 +429,7 @@ test "SplitPane - gap larger than area" {
         .gap = 200,
     };
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const result = pane.layout(area);
 
     // Should handle gracefully

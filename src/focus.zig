@@ -154,22 +154,22 @@ pub const FocusIndicator = struct {
                 switch (self.style.indicator_position) {
                     .left => {
                         if (rect.x > 0 and rect.x - 1 < buffer.width) {
-                            buffer.setChar(rect.x - 1, mid_y, indicator_char, border_style);
+                            buffer.set(rect.x - 1, mid_y, .{ .char = indicator_char, .style = border_style });
                         }
                     },
                     .right => {
                         const indicator_x = rect.x + rect.width;
                         if (indicator_x < buffer.width) {
-                            buffer.setChar(indicator_x, mid_y, indicator_char, border_style);
+                            buffer.set(indicator_x, mid_y, .{ .char = indicator_char, .style = border_style });
                         }
                     },
                     .both => {
                         if (rect.x > 0 and rect.x - 1 < buffer.width) {
-                            buffer.setChar(rect.x - 1, mid_y, indicator_char, border_style);
+                            buffer.set(rect.x - 1, mid_y, .{ .char = indicator_char, .style = border_style });
                         }
                         const indicator_x = rect.x + rect.width;
                         if (indicator_x < buffer.width) {
-                            buffer.setChar(indicator_x, mid_y, indicator_char, border_style);
+                            buffer.set(indicator_x, mid_y, .{ .char = indicator_char, .style = border_style });
                         }
                     },
                 }
@@ -1016,7 +1016,7 @@ test "focus: FocusIndicator render when not focused (no-op)" {
     while (y < 10) : (y += 1) {
         var x: u16 = 0;
         while (x < 10) : (x += 1) {
-            buffer.setChar(x, y, 'X', .{});
+            buffer.set(x, y, .{ .char = 'X', .style = .{} });
         }
     }
 
@@ -1043,7 +1043,7 @@ test "focus: FocusIndicator render border style when focused" {
     while (y < 10) : (y += 1) {
         var x: u16 = 0;
         while (x < 10) : (x += 1) {
-            buffer.setChar(x, y, ' ', .{});
+            buffer.set(x, y, .{ .char = ' ', .style = .{} });
         }
     }
 
@@ -1093,7 +1093,7 @@ test "focus: FocusIndicator render with background style" {
         while (y < 10) : (y += 1) {
             var x: u16 = 0;
             while (x < 10) : (x += 1) {
-                buffer.setChar(x, y, ' ', .{});
+                buffer.set(x, y, .{ .char = ' ', .style = .{} });
             }
         }
     }

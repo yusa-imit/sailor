@@ -199,7 +199,7 @@ pub const Menu = struct {
                     char_style = mergeStyles(base_style, self.hotkey_style);
                 }
 
-                buf.setChar(x, y, char, char_style);
+                buf.set(x, y, .{ .char = char, .style = char_style });
                 x += 1;
             }
 
@@ -208,7 +208,7 @@ pub const Menu = struct {
                 var it = (try std.unicode.Utf8View.init(self.submenu_indicator)).iterator();
                 while (it.nextCodepoint()) |codepoint| {
                     if (x >= area.x + area.width) break;
-                    buf.setChar(x, y, codepoint, base_style);
+                    buf.set(x, y, .{ .char = codepoint, .style = base_style });
                     x += 1;
                 }
             }
@@ -216,7 +216,7 @@ pub const Menu = struct {
             // Fill remaining width with spaces if selected (full-width highlight)
             if (is_selected) {
                 while (x < area.x + area.width) : (x += 1) {
-                    buf.setChar(x, y, ' ', base_style);
+                    buf.set(x, y, .{ .char = ' ', .style = base_style });
                 }
             }
 

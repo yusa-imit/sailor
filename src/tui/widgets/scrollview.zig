@@ -134,7 +134,7 @@ pub const ScrollView = struct {
         var y: u16 = 0;
         while (y < scrollbar_height) : (y += 1) {
             const char: u21 = if (y >= thumb_y and y < thumb_y + thumb_size) '█' else '░';
-            buf.setChar(scrollbar_x, inner.y + y, char, self.scrollbar_style);
+            buf.set(scrollbar_x, inner.y + y, .{ .char = char, .style = self.scrollbar_style });
         }
     }
 };
@@ -231,7 +231,7 @@ test "ScrollView - getViewport without block" {
         .content_height = 100,
     };
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     const viewport = sv.getViewport(area);
 
     // Should be area minus 1 for scrollbar
@@ -247,7 +247,7 @@ test "ScrollView - getViewport with block" {
         },
     };
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     const viewport = sv.getViewport(area);
 
     // Should be inner area minus 1 for scrollbar
@@ -262,7 +262,7 @@ test "ScrollView - getViewport no scrollbar" {
         .show_scrollbar = false,
     };
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     const viewport = sv.getViewport(area);
 
     // Full area when no scrollbar
@@ -281,7 +281,7 @@ test "ScrollView - render with scrollbar" {
         .show_scrollbar = true,
     };
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
 
     // Simple content renderer that does nothing
     const renderFn = struct {
@@ -323,7 +323,7 @@ test "ScrollView - zero size viewport" {
         .content_height = 100,
     };
 
-    const area = Rect.new(0, 0, 0, 0);
+    const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
 
     const renderFn = struct {
         fn render(_: *Buffer, _: Rect, _: u16, _: u16) void {}
@@ -339,7 +339,7 @@ test "ScrollView - getContentRect" {
         .scroll_y = 20,
     };
 
-    const viewport = Rect.new(0, 0, 80, 24);
+    const viewport = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     const content = sv.getContentRect(viewport);
 
     try std.testing.expectEqual(viewport.x, content.x);

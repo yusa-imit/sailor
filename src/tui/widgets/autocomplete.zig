@@ -227,7 +227,7 @@ pub const Autocomplete = struct {
                 var cell = buf.get(x, y);
                 cell.char = c;
                 cell.style = style;
-                buf.setChar(x, y, cell.char, cell.style);
+                buf.set(x, y, .{ .char = cell.char, .style = cell.style });
                 x += 1;
             }
 
@@ -236,7 +236,7 @@ pub const Autocomplete = struct {
                 var cell = buf.get(x, y);
                 cell.char = ' ';
                 cell.style = style;
-                buf.setChar(x, y, cell.char, cell.style);
+                buf.set(x, y, .{ .char = cell.char, .style = cell.style });
             }
 
             y += 1;

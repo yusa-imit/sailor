@@ -105,7 +105,7 @@ pub const StatusBar = struct {
             }
 
             for (span.content[0..width], 0..) |c, offset| {
-                buf.setChar(x + @as(u16, @intCast(offset)), y, c, merged_style);
+                buf.set(x + @as(u16, @intCast(offset)), y, .{ .char = c, .style = merged_style });
             }
             x += width;
         }
@@ -123,7 +123,7 @@ pub const StatusBar = struct {
 
         // Fill background
         for (0..area.width) |offset| {
-            buf.setChar(@intCast(x_start + offset), y, ' ', self.style);
+            buf.set(@intCast(x_start + offset), y, .{ .char = ' ', .style = self.style });
         }
 
         // Calculate widths

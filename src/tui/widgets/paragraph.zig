@@ -169,7 +169,7 @@ pub const Paragraph = struct {
 
                     // Set character in buffer
                     if (char_x < area.x + area.width and char_y < area.y + area.height) {
-                        buf.setChar(char_x, char_y, char, span.style);
+                        buf.set(char_x, char_y, .{ .char = char, .style = span.style });
                     }
 
                     x_pos += 1;

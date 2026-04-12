@@ -176,7 +176,7 @@ pub const Breadcrumb = struct {
             const item_len = @min(visible_item.label.len, remaining);
 
             for (visible_item.label[0..item_len], 0..) |c, offset| {
-                buf_mut.setChar(x + @as(u16, @intCast(offset)), y, c, item_style);
+                buf_mut.set(x + @as(u16, @intCast(offset)), y, .{ .char = c, .style = item_style });
             }
             x += @intCast(item_len);
 
@@ -187,7 +187,7 @@ pub const Breadcrumb = struct {
                 const sep_len = @min(self.separator.len, sep_remaining);
 
                 for (self.separator[0..sep_len], 0..) |c, offset| {
-                    buf_mut.setChar(x + @as(u16, @intCast(offset)), y, c, self.separator_style);
+                    buf_mut.set(x + @as(u16, @intCast(offset)), y, .{ .char = c, .style = self.separator_style });
                 }
                 x += @intCast(sep_len);
             }

@@ -221,19 +221,19 @@ pub const Table = struct {
 
         // Fill with spaces before text (for center/right alignment)
         while (col < offset) : (col += 1) {
-            buf.setChar(x + col, y, ' ', cell_style);
+            buf.set(x + col, y, .{ .char = ' ', .style = cell_style });
         }
 
         // Render text
         var text_idx: usize = 0;
         while (col < width and text_idx < text.len) : (col += 1) {
-            buf.setChar(x + col, y, text[text_idx], cell_style);
+            buf.set(x + col, y, .{ .char = text[text_idx], .style = cell_style });
             text_idx += 1;
         }
 
         // Fill remaining width with spaces
         while (col < width) : (col += 1) {
-            buf.setChar(x + col, y, ' ', cell_style);
+            buf.set(x + col, y, .{ .char = ' ', .style = cell_style });
         }
     }
 

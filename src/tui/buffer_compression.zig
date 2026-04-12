@@ -202,8 +202,8 @@ test "CompressedBuffer.compress and decompress with content" {
     var buffer = try Buffer.init(testing.allocator, 20, 5);
     defer buffer.deinit();
 
-    buffer.setChar(0, 0, 'H', .{});
-    buffer.setChar(1, 0, 'i', .{});
+    buffer.set(0, 0, .{ .char = 'H', .style = .{} });
+    buffer.set(1, 0, .{ .char = 'i', .style = .{} });
 
     var compressed = try CompressedBuffer.compress(testing.allocator, &buffer);
     defer compressed.deinit(testing.allocator);

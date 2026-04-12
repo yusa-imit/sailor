@@ -144,12 +144,12 @@ pub const Gauge = struct {
 
         // Render filled portion
         for (0..filled_width) |offset| {
-            buf.setChar(@intCast(x_start + offset), y, self.filled_char, self.filled_style);
+            buf.set(@intCast(x_start + offset), y, .{ .char = self.filled_char, .style = self.filled_style });
         }
 
         // Render empty portion
         for (filled_width..width) |offset| {
-            buf.setChar(@intCast(x_start + offset), y, self.empty_char, self.empty_style);
+            buf.set(@intCast(x_start + offset), y, .{ .char = self.empty_char, .style = self.empty_style });
         }
 
         // Render label if present (centered)
@@ -172,7 +172,7 @@ pub const Gauge = struct {
                             label_style.bg = self.empty_style.bg;
                         }
                     }
-                    buf.setChar(@intCast(x), y, c, label_style);
+                    buf.set(@intCast(x), y, .{ .char = c, .style = label_style });
                 }
             }
         }

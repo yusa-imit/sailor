@@ -49,7 +49,7 @@ pub const MockTerminal = struct {
 
     /// Get terminal size as Rect
     pub fn size(self: MockTerminal) Rect {
-        return Rect.new(0, 0, self.width, self.height);
+        return Rect{ .x = 0, .y = 0, .width = self.width, .height = self.height };
     }
 
     /// Clear terminal

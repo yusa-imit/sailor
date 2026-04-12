@@ -210,12 +210,12 @@ pub const Notification = struct {
         const y = inner_area.y;
 
         if (x < inner_area.x + inner_area.width) {
-            buf.setChar(x, y, self.level.icon(), notif_style);
+            buf.set(x, y, .{ .char = self.level.icon(), .style = notif_style });
             x += 1;
 
             // Space after icon
             if (x < inner_area.x + inner_area.width) {
-                buf.setChar(x, y, ' ', notif_style);
+                buf.set(x, y, .{ .char = ' ', .style = notif_style });
                 x += 1;
             }
         }
@@ -223,7 +223,7 @@ pub const Notification = struct {
         // Draw message
         for (self.message) |ch| {
             if (x >= inner_area.x + inner_area.width) break;
-            buf.setChar(x, y, ch, notif_style);
+            buf.set(x, y, .{ .char = ch, .style = notif_style });
             x += 1;
         }
     }

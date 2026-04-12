@@ -95,7 +95,7 @@ pub fn benchBuffer(allocator: std.mem.Allocator, writer: anytype) !void {
         for (0..iterations) |i| {
             const x: u16 = @intCast(i % 80);
             const y: u16 = @intCast((i / 80) % 24);
-            buf.setChar(x, y, 'X', Style{});
+            buf.set(x, y, .{ .char = 'X', .style = Style{} });
         }
 
         const end = timer.read();

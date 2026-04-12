@@ -388,7 +388,7 @@ pub const RichTextInput = struct {
         var x: u16 = area.x;
         for (toolbar_text) |ch| {
             if (x >= area.x + area.width) break;
-            buf.setChar(x, area.y, ch, self.toolbar_style);
+            buf.set(x, area.y, .{ .char = ch, .style = self.toolbar_style });
             x += 1;
         }
 
@@ -415,13 +415,13 @@ pub const RichTextInput = struct {
                 style.fg = self.cursor_style.fg;
             }
 
-            buf.setChar(x, text_y, ch, style);
+            buf.set(x, text_y, .{ .char = ch, .style = style });
             x += 1;
         }
 
         // Render cursor at end if applicable
         if (self.cursor == self.text.items.len and x < area.x + area.width) {
-            buf.setChar(x, text_y, ' ', self.cursor_style);
+            buf.set(x, text_y, .{ .char = ' ', .style = self.cursor_style });
         }
     }
 
@@ -434,7 +434,7 @@ pub const RichTextInput = struct {
         const category_style = Style{ .fg = Color.yellow, .bold = true };
         for (category_name) |ch| {
             if (x >= area.x + area.width) break;
-            buf.setChar(x, area.y, ch, category_style);
+            buf.set(x, area.y, .{ .char = ch, .style = category_style });
             x += 1;
         }
 
@@ -453,17 +453,17 @@ pub const RichTextInput = struct {
 
             // Render selection indicator
             if (is_selected) {
-                buf.setChar(x, y, '>', style);
+                buf.set(x, y, .{ .char = '>', .style = style });
                 x += 1;
             } else {
-                buf.setChar(x, y, ' ', style);
+                buf.set(x, y, .{ .char = ' ', .style = style });
                 x += 1;
             }
 
             // Render emoji
             for (emoji) |byte| {
                 if (x >= area.x + area.width) break;
-                buf.setChar(x, y, byte, style);
+                buf.set(x, y, .{ .char = byte, .style = style });
                 x += 1;
             }
 
@@ -480,7 +480,7 @@ pub const RichTextInput = struct {
         const label_style = Style{ .fg = Color.cyan, .bold = true };
         for (preview_label) |ch| {
             if (x >= area.x + area.width) break;
-            buf.setChar(x, area.y, ch, label_style);
+            buf.set(x, area.y, .{ .char = ch, .style = label_style });
             x += 1;
         }
 
@@ -510,7 +510,7 @@ pub const RichTextInput = struct {
                         y += 1;
                         if (y >= area.y + area.height) break;
                     }
-                    buf.setChar(x, y, self.text.items[i], bold_style);
+                    buf.set(x, y, .{ .char = self.text.items[i], .style = bold_style });
                     x += 1;
                     i += 1;
                 }
@@ -531,7 +531,7 @@ pub const RichTextInput = struct {
                         y += 1;
                         if (y >= area.y + area.height) break;
                     }
-                    buf.setChar(x, y, self.text.items[i], italic_style);
+                    buf.set(x, y, .{ .char = self.text.items[i], .style = italic_style });
                     x += 1;
                     i += 1;
                 }
@@ -544,7 +544,7 @@ pub const RichTextInput = struct {
                 y += 1;
                 if (y >= area.y + area.height) break;
             }
-            buf.setChar(x, y, self.text.items[i], Style{});
+            buf.set(x, y, .{ .char = self.text.items[i], .style = Style{} });
             x += 1;
             i += 1;
         }
@@ -1514,13 +1514,13 @@ pub const RichText = struct {
                 merged_style.reverse = true;
             }
 
-            buf.setChar(x, y, @intCast(ch), merged_style);
+            buf.set(x, y, .{ .char = @intCast(ch), .style = merged_style });
             x += 1;
         }
 
         // Render cursor if at end of text
         if (self.cursor == self.text.items.len and x < area.x + area.width) {
-            buf.setChar(x, y, ' ', .{ .reverse = true });
+            buf.set(x, y, .{ .char = ' ', .style = .{ .reverse = true } });
         }
     }
 };

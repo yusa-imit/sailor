@@ -328,7 +328,7 @@ pub const Terminal = struct {
 
     /// Get terminal size as Rect
     pub fn size(self: Terminal) Rect {
-        return Rect.new(0, 0, self.width, self.height);
+        return Rect{ .x = 0, .y = 0, .width = self.width, .height = self.height };
     }
 
     /// Clear terminal
@@ -410,12 +410,7 @@ pub const Frame = struct {
 
     /// Fill area with character and style
     pub fn fill(self: *Frame, area: Rect, char: u21, style_val: Style) void {
-        const abs_area = Rect.new(
-            self.area.x + area.x,
-            self.area.y + area.y,
-            area.width,
-            area.height,
-        );
+        const abs_area = Rect{ .x = self.area.x + area.x, .y = self.area.y + area.y, .width = area.width, .height = area.height };
         self.buffer.fill(abs_area, char, style_val);
     }
 };
@@ -483,7 +478,7 @@ test "Terminal clear" {
     var term = try Terminal.init(std.testing.allocator);
     defer term.deinit();
 
-    term.current.setChar(5, 5, 'X', .{});
+    term.current.set(5, 5, .{ .char = 'X', .style = .{} });
     term.clear();
 
     const cell = term.current.getConst(5, 5).?;
@@ -496,7 +491,7 @@ test "Frame setString" {
 
     var frame = Frame{
         .buffer = &buf,
-        .area = Rect.new(2, 2, 15, 8),
+        .area = Rect{ .x = 2, .y = 2, .width = 15, .height = 8 },
     };
 
     frame.setString(0, 0, "Test", .{});
@@ -511,10 +506,10 @@ test "Frame fill" {
 
     var frame = Frame{
         .buffer = &buf,
-        .area = Rect.new(5, 5, 10, 5),
+        .area = Rect{ .x = 5, .y = 5, .width = 10, .height = 5 },
     };
 
-    frame.fill(Rect.new(0, 0, 3, 2), 'X', .{});
+    frame.fill(Rect{ .x = 0, .y = 0, .width = 3, .height = 2 }, 'X', .{});
 
     try std.testing.expectEqual('X', buf.get(5, 5).?.char);
     try std.testing.expectEqual('X', buf.get(7, 6).?.char);
@@ -567,7 +562,7 @@ test "RenderHooks with all callbacks set" {
     var buf = try Buffer.init(std.testing.allocator, 20, 10);
     defer buf.deinit();
 
-    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+    var frame = Frame{ .buffer = &buf, .area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 } };
     var context: i32 = 42;
 
     const hooks = RenderHooks{
@@ -623,7 +618,7 @@ test "RenderHooks context passing with correct types" {
     var buf = try Buffer.init(std.testing.allocator, 20, 10);
     defer buf.deinit();
 
-    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+    var frame = Frame{ .buffer = &buf, .area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 } };
 
     var context_data = struct { value: u32 = 100, name: [10:0]u8 = undefined }{};
     context_data.name[0] = 'T';
@@ -648,7 +643,7 @@ test "RenderHooks Frame modification in preRender" {
     var buf = try Buffer.init(std.testing.allocator, 20, 10);
     defer buf.deinit();
 
-    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+    var frame = Frame{ .buffer = &buf, .area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 } };
 
     var context_frame: ?*Frame = null;
 
@@ -681,7 +676,7 @@ test "RenderHooks Buffer modification in preFlush" {
             fn call(b: *Buffer, ctx: *anyopaque) anyerror!void {
                 const m: *bool = @ptrCast(@alignCast(ctx));
                 m.* = true;
-                b.setChar(0, 0, 'X', .{});
+                b.set(0, 0, .{ .char = 'X', .style = .{} });
             }
         }.call,
     };
@@ -697,7 +692,7 @@ test "RenderHooks error propagation from preRender" {
     var buf = try Buffer.init(std.testing.allocator, 20, 10);
     defer buf.deinit();
 
-    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+    var frame = Frame{ .buffer = &buf, .area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 } };
 
     const TestError = error{ HookFailed, OutOfMemory };
 
@@ -717,7 +712,7 @@ test "RenderHooks error propagation from postRender" {
     var buf = try Buffer.init(std.testing.allocator, 20, 10);
     defer buf.deinit();
 
-    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+    var frame = Frame{ .buffer = &buf, .area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 } };
 
     const TestError = error{HookFailed};
 
@@ -773,7 +768,7 @@ test "RenderHooks null safety - preRender not called if null" {
     var buf = try Buffer.init(std.testing.allocator, 20, 10);
     defer buf.deinit();
 
-    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+    var frame = Frame{ .buffer = &buf, .area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 } };
 
     const hooks = RenderHooks{
         .preRender = null,
@@ -790,7 +785,7 @@ test "RenderHooks null safety - postRender not called if null" {
     var buf = try Buffer.init(std.testing.allocator, 20, 10);
     defer buf.deinit();
 
-    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+    var frame = Frame{ .buffer = &buf, .area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 } };
 
     const hooks = RenderHooks{
         .postRender = null,
@@ -837,7 +832,7 @@ test "RenderHooks multiple hooks execution" {
     var buf = try Buffer.init(std.testing.allocator, 20, 10);
     defer buf.deinit();
 
-    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+    var frame = Frame{ .buffer = &buf, .area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 } };
 
     var counter: u32 = 0;
 
@@ -886,7 +881,7 @@ test "RenderHooks mixed null and non-null callbacks" {
     var buf = try Buffer.init(std.testing.allocator, 20, 10);
     defer buf.deinit();
 
-    var frame = Frame{ .buffer = &buf, .area = Rect.new(0, 0, 20, 10) };
+    var frame = Frame{ .buffer = &buf, .area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 } };
 
     var hook_called = false;
 

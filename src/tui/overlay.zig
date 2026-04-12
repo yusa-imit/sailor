@@ -143,7 +143,7 @@ pub const OverlayManager = struct {
 
 test "Overlay - creation" {
     const overlay = Overlay{
-        .area = Rect.new(10, 10, 20, 20),
+        .area = Rect{ .x = 10, .y = 10, .width = 20, .height = 20 },
         .z_index = 5,
     };
 
@@ -154,11 +154,11 @@ test "Overlay - creation" {
 
 test "Overlay - lessThan comparison" {
     const a = Overlay{
-        .area = Rect.new(0, 0, 10, 10),
+        .area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 },
         .z_index = 1,
     };
     const b = Overlay{
-        .area = Rect.new(0, 0, 10, 10),
+        .area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 },
         .z_index = 2,
     };
 
@@ -180,11 +180,11 @@ test "OverlayManager - add overlays" {
     defer manager.deinit();
 
     const overlay1 = Overlay{
-        .area = Rect.new(0, 0, 10, 10),
+        .area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 },
         .z_index = 2,
     };
     const overlay2 = Overlay{
-        .area = Rect.new(5, 5, 10, 10),
+        .area = Rect{ .x = 5, .y = 5, .width = 10, .height = 10 },
         .z_index = 1,
     };
 
@@ -205,11 +205,11 @@ test "OverlayManager - remove overlay" {
     defer manager.deinit();
 
     try manager.add(Overlay{
-        .area = Rect.new(0, 0, 10, 10),
+        .area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 },
         .z_index = 1,
     });
     try manager.add(Overlay{
-        .area = Rect.new(5, 5, 10, 10),
+        .area = Rect{ .x = 5, .y = 5, .width = 10, .height = 10 },
         .z_index = 2,
     });
 
@@ -223,11 +223,11 @@ test "OverlayManager - clear" {
     defer manager.deinit();
 
     try manager.add(Overlay{
-        .area = Rect.new(0, 0, 10, 10),
+        .area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 },
         .z_index = 1,
     });
     try manager.add(Overlay{
-        .area = Rect.new(5, 5, 10, 10),
+        .area = Rect{ .x = 5, .y = 5, .width = 10, .height = 10 },
         .z_index = 2,
     });
 
@@ -241,11 +241,11 @@ test "OverlayManager - findAt" {
     defer manager.deinit();
 
     try manager.add(Overlay{
-        .area = Rect.new(0, 0, 10, 10),
+        .area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 },
         .z_index = 1,
     });
     try manager.add(Overlay{
-        .area = Rect.new(5, 5, 15, 15),
+        .area = Rect{ .x = 5, .y = 5, .width = 15, .height = 15 },
         .z_index = 2,
     });
 
@@ -270,7 +270,7 @@ test "OverlayManager - isCovered" {
     defer manager.deinit();
 
     try manager.add(Overlay{
-        .area = Rect.new(10, 10, 20, 20),
+        .area = Rect{ .x = 10, .y = 10, .width = 20, .height = 20 },
         .z_index = 1,
     });
 
@@ -284,7 +284,7 @@ test "OverlayManager - setVisible" {
     defer manager.deinit();
 
     try manager.add(Overlay{
-        .area = Rect.new(10, 10, 20, 20),
+        .area = Rect{ .x = 10, .y = 10, .width = 20, .height = 20 },
         .z_index = 1,
     });
 
@@ -303,11 +303,11 @@ test "OverlayManager - bringToFront" {
     defer manager.deinit();
 
     try manager.add(Overlay{
-        .area = Rect.new(0, 0, 10, 10),
+        .area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 },
         .z_index = 1,
     });
     try manager.add(Overlay{
-        .area = Rect.new(0, 0, 10, 10),
+        .area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 },
         .z_index = 2,
     });
 
@@ -325,11 +325,11 @@ test "OverlayManager - sendToBack" {
     defer manager.deinit();
 
     try manager.add(Overlay{
-        .area = Rect.new(0, 0, 10, 10),
+        .area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 },
         .z_index = 5,
     });
     try manager.add(Overlay{
-        .area = Rect.new(0, 0, 10, 10),
+        .area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 },
         .z_index = 10,
     });
 
@@ -347,7 +347,7 @@ test "OverlayManager - z-index overflow" {
     defer manager.deinit();
 
     try manager.add(Overlay{
-        .area = Rect.new(0, 0, 10, 10),
+        .area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 },
         .z_index = 255,
     });
 
@@ -362,7 +362,7 @@ test "OverlayManager - z-index underflow" {
     defer manager.deinit();
 
     try manager.add(Overlay{
-        .area = Rect.new(0, 0, 10, 10),
+        .area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 },
         .z_index = 0,
     });
 
@@ -393,15 +393,15 @@ test "OverlayManager - sorting stability" {
 
     // Add overlays in reverse z-index order
     try manager.add(Overlay{
-        .area = Rect.new(0, 0, 10, 10),
+        .area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 },
         .z_index = 3,
     });
     try manager.add(Overlay{
-        .area = Rect.new(0, 0, 10, 10),
+        .area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 },
         .z_index = 1,
     });
     try manager.add(Overlay{
-        .area = Rect.new(0, 0, 10, 10),
+        .area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 },
         .z_index = 2,
     });
 

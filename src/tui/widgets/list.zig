@@ -150,7 +150,7 @@ pub const List = struct {
             if (is_selected) {
                 for (self.highlight_symbol) |c| {
                     if (x >= inner_area.x + inner_area.width) break;
-                    buf.setChar(x, y, c, item_style);
+                    buf.set(x, y, .{ .char = c, .style = item_style });
                     x += 1;
                 }
             } else {
@@ -162,14 +162,14 @@ pub const List = struct {
             const item = self.items[i];
             for (item) |c| {
                 if (x >= inner_area.x + inner_area.width) break;
-                buf.setChar(x, y, c, item_style);
+                buf.set(x, y, .{ .char = c, .style = item_style });
                 x += 1;
             }
 
             // Fill remaining width with spaces if selected (for full-width highlight)
             if (is_selected) {
                 while (x < inner_area.x + inner_area.width) : (x += 1) {
-                    buf.setChar(x, y, ' ', item_style);
+                    buf.set(x, y, .{ .char = ' ', .style = item_style });
                 }
             }
 

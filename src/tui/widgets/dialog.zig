@@ -218,7 +218,7 @@ pub const Dialog = struct {
                 // Button text
                 for (btn) |ch| {
                     if (x >= area.x + area.width) break;
-                    buf.setChar(x, area.y, ch, btn_style);
+                    buf.set(x, area.y, .{ .char = ch, .style = btn_style });
                     x += 1;
                 }
 

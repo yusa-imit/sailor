@@ -514,7 +514,7 @@ pub const Markdown = struct {
             // Render bullet or number for lists
             if (node.node_type == .list_item) {
                 if (render_area.x + x_offset < render_area.x + render_area.width) {
-                    buf.setChar(render_area.x + x_offset, render_area.y + y, '•', node_style);
+                    buf.set(render_area.x + x_offset, render_area.y + y, .{ .char = '•', .style = node_style });
                     x_offset += 2;
                 }
             } else if (node.node_type == .ordered_item) {
@@ -524,7 +524,7 @@ pub const Markdown = struct {
                     for (num_str, 0..) |ch, i| {
                         const x = render_area.x + x_offset + @as(u16, @intCast(i));
                         if (x < render_area.x + render_area.width) {
-                            buf.setChar(x, render_area.y + y, ch, node_style);
+                            buf.set(x, render_area.y + y, .{ .char = ch, .style = node_style });
                         }
                     }
                     x_offset += @intCast(num_str.len);
@@ -547,7 +547,7 @@ pub const Markdown = struct {
                 const px = render_area.x + x;
                 const py = render_area.y + y;
                 if (px < render_area.x + render_area.width and py < render_area.y + render_area.height) {
-                    buf.setChar(px, py, ch, node_style);
+                    buf.set(px, py, .{ .char = ch, .style = node_style });
                 }
                 x += 1;
             }

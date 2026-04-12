@@ -274,7 +274,7 @@ pub const MetricsPanel = struct {
             var x = area.x;
             for (metric.name) |c| {
                 if (x >= area.x + area.width) break;
-                buf.setChar(x, area.y, c, .{});
+                buf.set(x, area.y, .{ .char = c, .style = .{} });
                 x += 1;
             }
         }
@@ -284,7 +284,7 @@ pub const MetricsPanel = struct {
             var x = area.x;
             for (value_str) |c| {
                 if (x >= area.x + area.width) break;
-                buf.setChar(x, area.y + 1, c, style);
+                buf.set(x, area.y + 1, .{ .char = c, .style = style });
                 x += 1;
             }
         }
@@ -342,7 +342,7 @@ pub const MetricsPanel = struct {
             else
                 0;
 
-            buf.setChar(x, y, bar_chars[bar_idx], style);
+            buf.set(x, y, .{ .char = bar_chars[bar_idx], .style = style });
         }
     }
 };

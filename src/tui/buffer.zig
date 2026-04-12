@@ -407,7 +407,7 @@ test "Buffer.setChar" {
     var buffer = try Buffer.init(std.testing.allocator, 10, 5);
     defer buffer.deinit();
 
-    buffer.setChar(3, 1, 'A', .{ .fg = .red });
+    buffer.set(3, 1, .{ .char = 'A', .style = .{ .fg = .red } });
     const cell = buffer.get(3, 1).?;
     try std.testing.expectEqual('A', cell.char);
     const expected_fg: Color = .red;
@@ -431,7 +431,7 @@ test "Buffer.fill" {
     var buffer = try Buffer.init(std.testing.allocator, 10, 5);
     defer buffer.deinit();
 
-    const area = Rect.new(2, 1, 3, 2);
+    const area = Rect{ .x = 2, .y = 1, .width = 3, .height = 2 };
     buffer.fill(area, 'X', .{ .fg = .yellow });
 
     // Inside area
@@ -447,7 +447,7 @@ test "Buffer.clear" {
     var buffer = try Buffer.init(std.testing.allocator, 10, 5);
     defer buffer.deinit();
 
-    buffer.setChar(3, 2, 'X', .{ .fg = .red });
+    buffer.set(3, 2, .{ .char = 'X', .style = .{ .fg = .red } });
     buffer.clear();
 
     for (buffer.cells) |cell| {
@@ -460,8 +460,8 @@ test "Buffer.clearArea" {
     var buffer = try Buffer.init(std.testing.allocator, 10, 5);
     defer buffer.deinit();
 
-    buffer.fill(Rect.new(0, 0, 10, 5), 'X', .{});
-    buffer.clearArea(Rect.new(2, 1, 3, 2));
+    buffer.fill(Rect{ .x = 0, .y = 0, .width = 10, .height = 5 }, 'X', .{});
+    buffer.clearArea(Rect{ .x = 2, .y = 1, .width = 3, .height = 2 });
 
     // Cleared area
     try std.testing.expectEqual(' ', buffer.get(2, 1).?.char);
@@ -487,7 +487,7 @@ test "Buffer.clone" {
     var original = try Buffer.init(std.testing.allocator, 10, 5);
     defer original.deinit();
 
-    original.setChar(3, 2, 'Z', .{ .fg = .magenta });
+    original.set(3, 2, .{ .char = 'Z', .style = .{ .fg = .magenta } });
 
     var cloned = try original.clone();
     defer cloned.deinit();
@@ -515,7 +515,7 @@ test "diff - single change" {
     var buf2 = try Buffer.init(std.testing.allocator, 5, 3);
     defer buf2.deinit();
 
-    buf2.setChar(2, 1, 'X', .{ .fg = .red });
+    buf2.set(2, 1, .{ .char = 'X', .style = .{ .fg = .red } });
 
     const ops = try diff(std.testing.allocator, buf1, buf2);
     defer std.testing.allocator.free(ops);
@@ -532,9 +532,9 @@ test "diff - multiple changes" {
     var buf2 = try Buffer.init(std.testing.allocator, 10, 5);
     defer buf2.deinit();
 
-    buf2.setChar(0, 0, 'A', .{});
-    buf2.setChar(5, 2, 'B', .{});
-    buf2.setChar(9, 4, 'C', .{});
+    buf2.set(0, 0, .{ .char = 'A', .style = .{} });
+    buf2.set(5, 2, .{ .char = 'B', .style = .{} });
+    buf2.set(9, 4, .{ .char = 'C', .style = .{} });
 
     const ops = try diff(std.testing.allocator, buf1, buf2);
     defer std.testing.allocator.free(ops);
@@ -606,7 +606,7 @@ test "Buffer.setChar - zero-width characters" {
     defer buffer.deinit();
 
     // Test null character
-    buffer.setChar(0, 0, 0, .{});
+    buffer.set(0, 0, .{ .char = 0, .style = .{} });
     try std.testing.expectEqual(@as(u21, 0), buffer.get(0, 0).?.char);
 }
 
@@ -625,7 +625,7 @@ test "Buffer.fill - boundary validation" {
     defer buffer.deinit();
 
     // Fill area that extends beyond buffer
-    const area = Rect.new(8, 3, 5, 3);
+    const area = Rect{ .x = 8, .y = 3, .width = 5, .height = 3 };
     buffer.fill(area, 'X', .{});
 
     // Should only fill within buffer bounds
@@ -642,7 +642,7 @@ test "Buffer.clearArea - zero-size area" {
     buffer.setString(0, 0, "test", .{});
 
     // Clear zero-size area should do nothing
-    const area = Rect.new(0, 0, 0, 0);
+    const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
     buffer.clearArea(area);
 
     try std.testing.expectEqual(@as(u21, 't'), buffer.get(0, 0).?.char);
@@ -659,7 +659,7 @@ test "diff - stress test with many changes" {
         var x: u16 = 0;
         while (x < 50) : (x += 1) {
             const char: u21 = if ((x + y) % 2 == 0) 'A' else 'B';
-            old.setChar(x, y, char, .{});
+            old.set(x, y, .{ .char = char, .style = .{} });
         }
     }
 
@@ -672,7 +672,7 @@ test "diff - stress test with many changes" {
     while (y < 20) : (y += 1) {
         var x: u16 = 0;
         while (x < 50) : (x += 5) {
-            new.setChar(x, y, 'X', .{ .fg = .red });
+            new.set(x, y, .{ .char = 'X', .style = .{ .fg = .red } });
         }
     }
 
@@ -717,7 +717,7 @@ test "diff - single cell change" {
     defer new.deinit();
 
     // Change one cell
-    new.setChar(5, 2, 'X', .{ .fg = .red });
+    new.set(5, 2, .{ .char = 'X', .style = .{ .fg = .red } });
 
     const ops = try diff(allocator, old, new);
     defer allocator.free(ops);
@@ -747,7 +747,7 @@ test "Buffer.clone - creates independent copy" {
     try std.testing.expectEqual(@as(u21, 't'), copy.get(0, 0).?.char);
 
     // Modify original - copy should not change
-    original.setChar(0, 0, 'X', .{});
+    original.set(0, 0, .{ .char = 'X', .style = .{} });
     try std.testing.expectEqual(@as(u21, 'X'), original.get(0, 0).?.char);
     try std.testing.expectEqual(@as(u21, 't'), copy.get(0, 0).?.char);
 }

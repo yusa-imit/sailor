@@ -201,7 +201,7 @@ pub const TerminalWidget = struct {
         if (visible.len < inner_area.height) {
             for (visible.len..inner_area.height) |idx| {
                 const y = inner_area.y + @as(u16, @intCast(idx));
-                buf.fill(Rect.new(inner_area.x, y, inner_area.width, 1), ' ', self.text_style);
+                buf.fill(Rect{ .x = inner_area.x, .y = y, .width = inner_area.width, .height = 1 }, ' ', self.text_style);
             }
         }
     }
@@ -323,7 +323,7 @@ test "Terminal widget render" {
     var buf = try Buffer.init(testing.allocator, 40, 10);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 40, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
     term.render(&buf, area);
 
     // Basic verification - buffer should have content

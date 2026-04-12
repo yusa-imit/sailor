@@ -469,7 +469,7 @@ pub const Editor = struct {
 
                 for (line_num_str, 0..) |ch, i| {
                     const x = @as(u16, @intCast(render_area.x + i));
-                    buf.setChar(x, y, ch, self.line_number_style);
+                    buf.set(x, y, .{ .char = ch, .style = self.line_number_style });
                 }
             }
 
@@ -502,7 +502,7 @@ pub const Editor = struct {
                             final_style.fg = self.cursor_style.fg;
                         }
 
-                        buf.setChar(text_start_x + x_offset, y, ch, final_style);
+                        buf.set(text_start_x + x_offset, y, .{ .char = ch, .style = final_style });
                         x_offset += 1;
                     }
                 }
@@ -527,13 +527,13 @@ pub const Editor = struct {
                         final_style.fg = self.cursor_style.fg;
                     }
 
-                    buf.setChar(text_start_x + @as(u16, @intCast(i)), y, ch, final_style);
+                    buf.set(text_start_x + @as(u16, @intCast(i)), y, .{ .char = ch, .style = final_style });
                 }
             }
 
             // Render cursor at end of line if applicable
             if (line_idx == self.cursor.line and self.cursor.col == line_text.len and self.cursor.col < text_width) {
-                buf.setChar(text_start_x + @as(u16, @intCast(self.cursor.col)), y, ' ', self.cursor_style);
+                buf.set(text_start_x + @as(u16, @intCast(self.cursor.col)), y, .{ .char = ' ', .style = self.cursor_style });
             }
         }
     }

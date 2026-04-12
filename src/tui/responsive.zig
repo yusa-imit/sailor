@@ -157,9 +157,9 @@ test "Breakpoint.matches - width only" {
         .min_width = 80,
     };
 
-    try std.testing.expect(bp.matches(Rect.new(0, 0, 80, 24)));
-    try std.testing.expect(bp.matches(Rect.new(0, 0, 100, 10)));
-    try std.testing.expect(!bp.matches(Rect.new(0, 0, 79, 50)));
+    try std.testing.expect(bp.matches(Rect{ .x = 0, .y = 0, .width = 80, .height = 24 }));
+    try std.testing.expect(bp.matches(Rect{ .x = 0, .y = 0, .width = 100, .height = 10 }));
+    try std.testing.expect(!bp.matches(Rect{ .x = 0, .y = 0, .width = 79, .height = 50 }));
 }
 
 test "Breakpoint.matches - width and height" {
@@ -168,10 +168,10 @@ test "Breakpoint.matches - width and height" {
         .min_height = 24,
     };
 
-    try std.testing.expect(bp.matches(Rect.new(0, 0, 80, 24)));
-    try std.testing.expect(bp.matches(Rect.new(0, 0, 100, 30)));
-    try std.testing.expect(!bp.matches(Rect.new(0, 0, 80, 20)));
-    try std.testing.expect(!bp.matches(Rect.new(0, 0, 79, 24)));
+    try std.testing.expect(bp.matches(Rect{ .x = 0, .y = 0, .width = 80, .height = 24 }));
+    try std.testing.expect(bp.matches(Rect{ .x = 0, .y = 0, .width = 100, .height = 30 }));
+    try std.testing.expect(!bp.matches(Rect{ .x = 0, .y = 0, .width = 80, .height = 20 }));
+    try std.testing.expect(!bp.matches(Rect{ .x = 0, .y = 0, .width = 79, .height = 24 }));
 }
 
 test "ResponsiveLayout.findBreakpoint" {
@@ -186,38 +186,38 @@ test "ResponsiveLayout.findBreakpoint" {
     };
 
     // Tiny screen - no breakpoint matches
-    const tiny_area = Rect.new(0, 0, 30, 24);
+    const tiny_area = Rect{ .x = 0, .y = 0, .width = 30, .height = 24 };
     try std.testing.expectEqual(null, layout.findBreakpoint(tiny_area));
 
     // Small screen
-    const small_area = Rect.new(0, 0, 60, 24);
+    const small_area = Rect{ .x = 0, .y = 0, .width = 60, .height = 24 };
     const small_bp = layout.findBreakpoint(small_area);
     try std.testing.expect(small_bp != null);
     try std.testing.expectEqual(40, breakpoints[small_bp.?].min_width);
 
     // Medium screen
-    const medium_area = Rect.new(0, 0, 100, 24);
+    const medium_area = Rect{ .x = 0, .y = 0, .width = 100, .height = 24 };
     const medium_bp = layout.findBreakpoint(medium_area);
     try std.testing.expect(medium_bp != null);
     try std.testing.expectEqual(80, breakpoints[medium_bp.?].min_width);
 
     // Large screen
-    const large_area = Rect.new(0, 0, 150, 24);
+    const large_area = Rect{ .x = 0, .y = 0, .width = 150, .height = 24 };
     const large_bp = layout.findBreakpoint(large_area);
     try std.testing.expect(large_bp != null);
     try std.testing.expectEqual(120, breakpoints[large_bp.?].min_width);
 }
 
 test "ResponsiveLayout.isMobile" {
-    try std.testing.expect(ResponsiveLayout.isMobile(Rect.new(0, 0, 79, 24)));
-    try std.testing.expect(ResponsiveLayout.isMobile(Rect.new(0, 0, 40, 24)));
-    try std.testing.expect(!ResponsiveLayout.isMobile(Rect.new(0, 0, 80, 24)));
+    try std.testing.expect(ResponsiveLayout.isMobile(Rect{ .x = 0, .y = 0, .width = 79, .height = 24 }));
+    try std.testing.expect(ResponsiveLayout.isMobile(Rect{ .x = 0, .y = 0, .width = 40, .height = 24 }));
+    try std.testing.expect(!ResponsiveLayout.isMobile(Rect{ .x = 0, .y = 0, .width = 80, .height = 24 }));
 }
 
 test "ResponsiveLayout.isDesktop" {
-    try std.testing.expect(!ResponsiveLayout.isDesktop(Rect.new(0, 0, 79, 24)));
-    try std.testing.expect(ResponsiveLayout.isDesktop(Rect.new(0, 0, 80, 24)));
-    try std.testing.expect(ResponsiveLayout.isDesktop(Rect.new(0, 0, 120, 24)));
+    try std.testing.expect(!ResponsiveLayout.isDesktop(Rect{ .x = 0, .y = 0, .width = 79, .height = 24 }));
+    try std.testing.expect(ResponsiveLayout.isDesktop(Rect{ .x = 0, .y = 0, .width = 80, .height = 24 }));
+    try std.testing.expect(ResponsiveLayout.isDesktop(Rect{ .x = 0, .y = 0, .width = 120, .height = 24 }));
 }
 
 test "AdaptiveValue - u16" {
@@ -242,10 +242,10 @@ test "AdaptiveValue - getFor" {
         .large = 3,
     };
 
-    try std.testing.expectEqual(0, padding.getFor(Rect.new(0, 0, 30, 24)));
-    try std.testing.expectEqual(1, padding.getFor(Rect.new(0, 0, 60, 24)));
-    try std.testing.expectEqual(2, padding.getFor(Rect.new(0, 0, 100, 24)));
-    try std.testing.expectEqual(3, padding.getFor(Rect.new(0, 0, 150, 24)));
+    try std.testing.expectEqual(0, padding.getFor(Rect{ .x = 0, .y = 0, .width = 30, .height = 24 }));
+    try std.testing.expectEqual(1, padding.getFor(Rect{ .x = 0, .y = 0, .width = 60, .height = 24 }));
+    try std.testing.expectEqual(2, padding.getFor(Rect{ .x = 0, .y = 0, .width = 100, .height = 24 }));
+    try std.testing.expectEqual(3, padding.getFor(Rect{ .x = 0, .y = 0, .width = 150, .height = 24 }));
 }
 
 test "AdaptiveValue - bool" {
@@ -274,7 +274,7 @@ test "ResponsiveLayout - multiple matching breakpoints" {
     };
 
     // Area that matches all breakpoints - should return the largest
-    const area = Rect.new(0, 0, 100, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 24 };
     const bp = layout.findBreakpoint(area);
     try std.testing.expect(bp != null);
     try std.testing.expectEqual(80, breakpoints[bp.?].min_width);
@@ -286,7 +286,7 @@ test "ResponsiveLayout - empty breakpoints" {
         .breakpoints = &breakpoints,
     };
 
-    const area = Rect.new(0, 0, 100, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 24 };
     try std.testing.expectEqual(null, layout.findBreakpoint(area));
 }
 
@@ -296,9 +296,9 @@ test "Breakpoint - height constraint only" {
         .min_height = 30,
     };
 
-    try std.testing.expect(bp.matches(Rect.new(0, 0, 10, 30)));
-    try std.testing.expect(bp.matches(Rect.new(0, 0, 10, 50)));
-    try std.testing.expect(!bp.matches(Rect.new(0, 0, 100, 20)));
+    try std.testing.expect(bp.matches(Rect{ .x = 0, .y = 0, .width = 10, .height = 30 }));
+    try std.testing.expect(bp.matches(Rect{ .x = 0, .y = 0, .width = 10, .height = 50 }));
+    try std.testing.expect(!bp.matches(Rect{ .x = 0, .y = 0, .width = 100, .height = 20 }));
 }
 
 test "ScreenSize - enum ordering" {
@@ -315,9 +315,9 @@ test "Breakpoint - exact boundary matching" {
     };
 
     // Exactly at boundary
-    try std.testing.expect(bp.matches(Rect.new(0, 0, 80, 24)));
+    try std.testing.expect(bp.matches(Rect{ .x = 0, .y = 0, .width = 80, .height = 24 }));
 
     // One below boundary
-    try std.testing.expect(!bp.matches(Rect.new(0, 0, 79, 24)));
-    try std.testing.expect(!bp.matches(Rect.new(0, 0, 80, 23)));
+    try std.testing.expect(!bp.matches(Rect{ .x = 0, .y = 0, .width = 79, .height = 24 }));
+    try std.testing.expect(!bp.matches(Rect{ .x = 0, .y = 0, .width = 80, .height = 23 }));
 }

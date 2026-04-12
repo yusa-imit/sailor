@@ -195,7 +195,7 @@ pub const PieChart = struct {
 
                 const x = @as(u16, @intCast(abs_x));
                 const y = @as(u16, @intCast(abs_y));
-                buf.setChar(x, y, '█', slice_style);
+                buf.set(x, y, .{ .char = '█', .style = slice_style });
             }
         }
     }

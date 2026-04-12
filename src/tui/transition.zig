@@ -115,12 +115,7 @@ pub const SlideTransition = struct {
         const width = self.anim_width.update(time_ms);
         const height = self.anim_height.update(time_ms);
 
-        return Rect.new(
-            @intFromFloat(x),
-            @intFromFloat(y),
-            @intFromFloat(width),
-            @intFromFloat(height),
-        );
+        return Rect{ .x = @intFromFloat(x), .y = @intFromFloat(y), .width = @intFromFloat(width), .height = @intFromFloat(height) };
     }
 
     /// Check if animation is complete
@@ -199,12 +194,7 @@ pub const ExpandTransition = struct {
         const width = self.anim_width.update(time_ms);
         const height = self.anim_height.update(time_ms);
 
-        return Rect.new(
-            @intFromFloat(x),
-            @intFromFloat(y),
-            @intFromFloat(width),
-            @intFromFloat(height),
-        );
+        return Rect{ .x = @intFromFloat(x), .y = @intFromFloat(y), .width = @intFromFloat(width), .height = @intFromFloat(height) };
     }
 
     /// Check if animation is complete
@@ -374,8 +364,8 @@ test "FadeTransition - inverted opacity range" {
 // ===== SlideTransition Tests =====
 
 test "SlideTransition - slideIn lifecycle" {
-    const start_rect = Rect.new(0, 0, 10, 10);
-    const end_rect = Rect.new(50, 50, 10, 10);
+    const start_rect = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    const end_rect = Rect{ .x = 50, .y = 50, .width = 10, .height = 10 };
     var slide = SlideTransition.slideIn(.right, start_rect, end_rect, 1000, animation.linear);
 
     slide.begin(0);
@@ -399,8 +389,8 @@ test "SlideTransition - slideIn lifecycle" {
 }
 
 test "SlideTransition - slideOut lifecycle" {
-    const start_rect = Rect.new(50, 50, 10, 10);
-    const end_rect = Rect.new(0, 0, 10, 10);
+    const start_rect = Rect{ .x = 50, .y = 50, .width = 10, .height = 10 };
+    const end_rect = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     var slide = SlideTransition.slideOut(.left, start_rect, end_rect, 1000, animation.linear);
 
     slide.begin(0);
@@ -415,8 +405,8 @@ test "SlideTransition - slideOut lifecycle" {
 }
 
 test "SlideTransition - multi-axis animation" {
-    const start_rect = Rect.new(10, 20, 30, 40);
-    const end_rect = Rect.new(100, 200, 50, 60);
+    const start_rect = Rect{ .x = 10, .y = 20, .width = 30, .height = 40 };
+    const end_rect = Rect{ .x = 100, .y = 200, .width = 50, .height = 60 };
     var slide = SlideTransition.init(start_rect, end_rect, 1000, animation.linear);
 
     slide.begin(0);
@@ -429,8 +419,8 @@ test "SlideTransition - multi-axis animation" {
 }
 
 test "SlideTransition - zero duration completes immediately" {
-    const start_rect = Rect.new(0, 0, 10, 10);
-    const end_rect = Rect.new(50, 50, 10, 10);
+    const start_rect = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    const end_rect = Rect{ .x = 50, .y = 50, .width = 10, .height = 10 };
     var slide = SlideTransition.init(start_rect, end_rect, 0, animation.linear);
 
     slide.begin(0);
@@ -441,8 +431,8 @@ test "SlideTransition - zero duration completes immediately" {
 }
 
 test "SlideTransition - reset restarts animation" {
-    const start_rect = Rect.new(0, 0, 10, 10);
-    const end_rect = Rect.new(50, 50, 10, 10);
+    const start_rect = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    const end_rect = Rect{ .x = 50, .y = 50, .width = 10, .height = 10 };
     var slide = SlideTransition.init(start_rect, end_rect, 1000, animation.linear);
 
     slide.begin(0);
@@ -458,8 +448,8 @@ test "SlideTransition - reset restarts animation" {
 }
 
 test "SlideTransition - zero-sized rect" {
-    const start_rect = Rect.new(10, 10, 0, 0);
-    const end_rect = Rect.new(50, 50, 0, 0);
+    const start_rect = Rect{ .x = 10, .y = 10, .width = 0, .height = 0 };
+    const end_rect = Rect{ .x = 50, .y = 50, .width = 0, .height = 0 };
     var slide = SlideTransition.init(start_rect, end_rect, 1000, animation.linear);
 
     slide.begin(0);
@@ -471,8 +461,8 @@ test "SlideTransition - zero-sized rect" {
 }
 
 test "SlideTransition - large coordinates" {
-    const start_rect = Rect.new(0, 0, 10, 10);
-    const end_rect = Rect.new(10000, 10000, 10, 10);
+    const start_rect = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    const end_rect = Rect{ .x = 10000, .y = 10000, .width = 10, .height = 10 };
     var slide = SlideTransition.init(start_rect, end_rect, 1000, animation.linear);
 
     slide.begin(0);
@@ -482,8 +472,8 @@ test "SlideTransition - large coordinates" {
 }
 
 test "SlideTransition - multiple begin calls restart" {
-    const start_rect = Rect.new(0, 0, 10, 10);
-    const end_rect = Rect.new(50, 50, 10, 10);
+    const start_rect = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    const end_rect = Rect{ .x = 50, .y = 50, .width = 10, .height = 10 };
     var slide = SlideTransition.init(start_rect, end_rect, 1000, animation.linear);
 
     slide.begin(0);
@@ -495,8 +485,8 @@ test "SlideTransition - multiple begin calls restart" {
 }
 
 test "SlideTransition - isComplete before begin" {
-    const start_rect = Rect.new(0, 0, 10, 10);
-    const end_rect = Rect.new(50, 50, 10, 10);
+    const start_rect = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    const end_rect = Rect{ .x = 50, .y = 50, .width = 10, .height = 10 };
     const slide = SlideTransition.init(start_rect, end_rect, 1000, animation.linear);
     try std.testing.expect(!slide.isComplete());
 }
@@ -504,8 +494,8 @@ test "SlideTransition - isComplete before begin" {
 // ===== ExpandTransition Tests =====
 
 test "ExpandTransition - expand lifecycle" {
-    const start_rect = Rect.new(50, 50, 10, 10);
-    const end_rect = Rect.new(50, 50, 100, 100);
+    const start_rect = Rect{ .x = 50, .y = 50, .width = 10, .height = 10 };
+    const end_rect = Rect{ .x = 50, .y = 50, .width = 100, .height = 100 };
     var expand_anim = ExpandTransition.expand(start_rect, end_rect, 1000, animation.linear);
 
     expand_anim.begin(0);
@@ -529,8 +519,8 @@ test "ExpandTransition - expand lifecycle" {
 }
 
 test "ExpandTransition - collapse lifecycle" {
-    const start_rect = Rect.new(50, 50, 100, 100);
-    const end_rect = Rect.new(50, 50, 10, 10);
+    const start_rect = Rect{ .x = 50, .y = 50, .width = 100, .height = 100 };
+    const end_rect = Rect{ .x = 50, .y = 50, .width = 10, .height = 10 };
     var collapse_anim = ExpandTransition.collapse(start_rect, end_rect, 1000, animation.linear);
 
     collapse_anim.begin(0);
@@ -545,8 +535,8 @@ test "ExpandTransition - collapse lifecycle" {
 }
 
 test "ExpandTransition - expandWidth only" {
-    const start_rect = Rect.new(50, 50, 10, 50);
-    const end_rect = Rect.new(50, 50, 100, 50);
+    const start_rect = Rect{ .x = 50, .y = 50, .width = 10, .height = 50 };
+    const end_rect = Rect{ .x = 50, .y = 50, .width = 100, .height = 50 };
     var expand_anim = ExpandTransition.expandWidth(start_rect, end_rect, 1000, animation.linear);
 
     expand_anim.begin(0);
@@ -557,8 +547,8 @@ test "ExpandTransition - expandWidth only" {
 }
 
 test "ExpandTransition - expandHeight only" {
-    const start_rect = Rect.new(50, 50, 50, 10);
-    const end_rect = Rect.new(50, 50, 50, 100);
+    const start_rect = Rect{ .x = 50, .y = 50, .width = 50, .height = 10 };
+    const end_rect = Rect{ .x = 50, .y = 50, .width = 50, .height = 100 };
     var expand_anim = ExpandTransition.expandHeight(start_rect, end_rect, 1000, animation.linear);
 
     expand_anim.begin(0);
@@ -569,8 +559,8 @@ test "ExpandTransition - expandHeight only" {
 }
 
 test "ExpandTransition - collapseWidth only" {
-    const start_rect = Rect.new(50, 50, 100, 50);
-    const end_rect = Rect.new(50, 50, 10, 50);
+    const start_rect = Rect{ .x = 50, .y = 50, .width = 100, .height = 50 };
+    const end_rect = Rect{ .x = 50, .y = 50, .width = 10, .height = 50 };
     var collapse_anim = ExpandTransition.collapseWidth(start_rect, end_rect, 1000, animation.linear);
 
     collapse_anim.begin(0);
@@ -581,8 +571,8 @@ test "ExpandTransition - collapseWidth only" {
 }
 
 test "ExpandTransition - collapseHeight only" {
-    const start_rect = Rect.new(50, 50, 50, 100);
-    const end_rect = Rect.new(50, 50, 50, 10);
+    const start_rect = Rect{ .x = 50, .y = 50, .width = 50, .height = 100 };
+    const end_rect = Rect{ .x = 50, .y = 50, .width = 50, .height = 10 };
     var collapse_anim = ExpandTransition.collapseHeight(start_rect, end_rect, 1000, animation.linear);
 
     collapse_anim.begin(0);
@@ -593,8 +583,8 @@ test "ExpandTransition - collapseHeight only" {
 }
 
 test "ExpandTransition - zero duration completes immediately" {
-    const start_rect = Rect.new(50, 50, 10, 10);
-    const end_rect = Rect.new(50, 50, 100, 100);
+    const start_rect = Rect{ .x = 50, .y = 50, .width = 10, .height = 10 };
+    const end_rect = Rect{ .x = 50, .y = 50, .width = 100, .height = 100 };
     var expand_anim = ExpandTransition.expand(start_rect, end_rect, 0, animation.linear);
 
     expand_anim.begin(0);
@@ -605,8 +595,8 @@ test "ExpandTransition - zero duration completes immediately" {
 }
 
 test "ExpandTransition - reset restarts animation" {
-    const start_rect = Rect.new(50, 50, 10, 10);
-    const end_rect = Rect.new(50, 50, 100, 100);
+    const start_rect = Rect{ .x = 50, .y = 50, .width = 10, .height = 10 };
+    const end_rect = Rect{ .x = 50, .y = 50, .width = 100, .height = 100 };
     var expand_anim = ExpandTransition.expand(start_rect, end_rect, 1000, animation.linear);
 
     expand_anim.begin(0);
@@ -622,8 +612,8 @@ test "ExpandTransition - reset restarts animation" {
 }
 
 test "ExpandTransition - zero-sized start rect" {
-    const start_rect = Rect.new(50, 50, 0, 0);
-    const end_rect = Rect.new(50, 50, 100, 100);
+    const start_rect = Rect{ .x = 50, .y = 50, .width = 0, .height = 0 };
+    const end_rect = Rect{ .x = 50, .y = 50, .width = 100, .height = 100 };
     var expand_anim = ExpandTransition.expand(start_rect, end_rect, 1000, animation.linear);
 
     expand_anim.begin(0);
@@ -638,8 +628,8 @@ test "ExpandTransition - zero-sized start rect" {
 }
 
 test "ExpandTransition - large dimensions" {
-    const start_rect = Rect.new(0, 0, 1000, 1000);
-    const end_rect = Rect.new(0, 0, 10000, 10000);
+    const start_rect = Rect{ .x = 0, .y = 0, .width = 1000, .height = 1000 };
+    const end_rect = Rect{ .x = 0, .y = 0, .width = 10000, .height = 10000 };
     var expand_anim = ExpandTransition.expand(start_rect, end_rect, 1000, animation.linear);
 
     expand_anim.begin(0);
@@ -649,8 +639,8 @@ test "ExpandTransition - large dimensions" {
 }
 
 test "ExpandTransition - multiple begin calls restart" {
-    const start_rect = Rect.new(50, 50, 10, 10);
-    const end_rect = Rect.new(50, 50, 100, 100);
+    const start_rect = Rect{ .x = 50, .y = 50, .width = 10, .height = 10 };
+    const end_rect = Rect{ .x = 50, .y = 50, .width = 100, .height = 100 };
     var expand_anim = ExpandTransition.expand(start_rect, end_rect, 1000, animation.linear);
 
     expand_anim.begin(0);
@@ -662,15 +652,15 @@ test "ExpandTransition - multiple begin calls restart" {
 }
 
 test "ExpandTransition - isComplete before begin" {
-    const start_rect = Rect.new(50, 50, 10, 10);
-    const end_rect = Rect.new(50, 50, 100, 100);
+    const start_rect = Rect{ .x = 50, .y = 50, .width = 10, .height = 10 };
+    const end_rect = Rect{ .x = 50, .y = 50, .width = 100, .height = 100 };
     const expand_anim = ExpandTransition.expand(start_rect, end_rect, 1000, animation.linear);
     try std.testing.expect(!expand_anim.isComplete());
 }
 
 test "ExpandTransition - position changes with size" {
-    const start_rect = Rect.new(10, 20, 30, 40);
-    const end_rect = Rect.new(100, 200, 50, 60);
+    const start_rect = Rect{ .x = 10, .y = 20, .width = 30, .height = 40 };
+    const end_rect = Rect{ .x = 100, .y = 200, .width = 50, .height = 60 };
     var expand_anim = ExpandTransition.init(start_rect, end_rect, 1000, animation.linear);
 
     expand_anim.begin(0);

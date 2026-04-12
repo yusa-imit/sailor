@@ -205,16 +205,16 @@ pub const Block = struct {
         if (self.borders.top) {
             const y = area.y;
             if (self.borders.left) {
-                buf.setChar(area.x, y, decodeUtf8(symbols.top_left), self.border_style);
+                buf.set(area.x, y, .{ .char = decodeUtf8(symbols.top_left), .style = self.border_style });
             }
             var x: u16 = area.x + @intFromBool(self.borders.left);
             const end_x = area.x + area.width -| @intFromBool(self.borders.right);
             const h_char = decodeUtf8(symbols.horizontal);
             while (x < end_x) : (x += 1) {
-                buf.setChar(x, y, h_char, self.border_style);
+                buf.set(x, y, .{ .char = h_char, .style = self.border_style });
             }
             if (self.borders.right and area.width > 0) {
-                buf.setChar(area.x + area.width - 1, y, decodeUtf8(symbols.top_right), self.border_style);
+                buf.set(area.x + area.width - 1, y, .{ .char = decodeUtf8(symbols.top_right), .style = self.border_style });
             }
         }
 
@@ -222,16 +222,16 @@ pub const Block = struct {
         if (self.borders.bottom and area.height > 0) {
             const y = area.y + area.height - 1;
             if (self.borders.left) {
-                buf.setChar(area.x, y, decodeUtf8(symbols.bottom_left), self.border_style);
+                buf.set(area.x, y, .{ .char = decodeUtf8(symbols.bottom_left), .style = self.border_style });
             }
             var x: u16 = area.x + @intFromBool(self.borders.left);
             const end_x = area.x + area.width -| @intFromBool(self.borders.right);
             const h_char = decodeUtf8(symbols.horizontal);
             while (x < end_x) : (x += 1) {
-                buf.setChar(x, y, h_char, self.border_style);
+                buf.set(x, y, .{ .char = h_char, .style = self.border_style });
             }
             if (self.borders.right and area.width > 0) {
-                buf.setChar(area.x + area.width - 1, y, decodeUtf8(symbols.bottom_right), self.border_style);
+                buf.set(area.x + area.width - 1, y, .{ .char = decodeUtf8(symbols.bottom_right), .style = self.border_style });
             }
         }
 
@@ -241,7 +241,7 @@ pub const Block = struct {
             var y: u16 = area.y + @intFromBool(self.borders.top);
             const end_y = area.y + area.height -| @intFromBool(self.borders.bottom);
             while (y < end_y) : (y += 1) {
-                buf.setChar(area.x, y, v_char, self.border_style);
+                buf.set(area.x, y, .{ .char = v_char, .style = self.border_style });
             }
         }
 
@@ -252,7 +252,7 @@ pub const Block = struct {
             var y: u16 = area.y + @intFromBool(self.borders.top);
             const end_y = area.y + area.height -| @intFromBool(self.borders.bottom);
             while (y < end_y) : (y += 1) {
-                buf.setChar(x, y, v_char, self.border_style);
+                buf.set(x, y, .{ .char = v_char, .style = self.border_style });
             }
         }
     }

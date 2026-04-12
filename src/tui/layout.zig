@@ -60,7 +60,7 @@ pub const Rect = struct {
         const x2 = @min(self.x + self.width, other.x + other.width);
         const y2 = @min(self.y + self.height, other.y + other.height);
 
-        return Rect.new(x1, y1, x2 - x1, y2 - y1);
+        return Rect{ .x = x1, .y = y1, .width = x2 - x1, .height = y2 - y1 };
     }
 
     /// Calculate a rectangle with the given aspect ratio that fits within self
@@ -69,7 +69,7 @@ pub const Rect = struct {
     pub fn withAspectRatio(self: Rect, ratio: struct { width: u32, height: u32 }) Rect {
         // Handle zero ratio safely
         if (ratio.width == 0 or ratio.height == 0) {
-            return Rect.new(self.x, self.y, 0, 0);
+            return Rect{ .x = self.x, .y = self.y, .width = 0, .height = 0 };
         }
 
         const width_u64 = @as(u64, self.width);
@@ -82,21 +82,11 @@ pub const Rect = struct {
 
         if (calc_height <= height_u64) {
             // Width-constrained fits: use full width
-            return Rect.new(
-                self.x,
-                self.y,
-                self.width,
-                @as(u16, @intCast(calc_height)),
-            );
+            return Rect{ .x = self.x, .y = self.y, .width = self.width, .height = @as(u16, @intCast(calc_height)) };
         } else {
             // Width-constrained exceeds height: use full height instead
             const calc_width = (height_u64 * ratio_w) / ratio_h;
-            return Rect.new(
-                self.x,
-                self.y,
-                @as(u16, @intCast(@min(calc_width, width_u64))),
-                self.height,
-            );
+            return Rect{ .x = self.x, .y = self.y, .width = @as(u16, @intCast(@min(calc_width, width_u64))), .height = self.height };
         }
     }
 
@@ -116,7 +106,7 @@ pub const Rect = struct {
         const new_x = self.x + margin.left;
         const new_y = self.y + margin.top;
 
-        return Rect.new(new_x, new_y, new_width, new_height);
+        return Rect{ .x = new_x, .y = new_y, .width = new_width, .height = new_height };
     }
 
     /// Apply padding to rectangle, shrinking it inward
@@ -135,7 +125,7 @@ pub const Rect = struct {
         const new_x = self.x + padding.left;
         const new_y = self.y + padding.top;
 
-        return Rect.new(new_x, new_y, new_width, new_height);
+        return Rect{ .x = new_x, .y = new_y, .width = new_width, .height = new_height };
     }
 
     /// Format rectangle for debugging output
@@ -456,8 +446,8 @@ pub fn split(
     var offset: u16 = 0;
     for (sizes, 0..) |size, i| {
         result[i] = switch (direction) {
-            .horizontal => Rect.new(area.x + offset, area.y, size, area.height),
-            .vertical => Rect.new(area.x, area.y + offset, area.width, size),
+            .horizontal => Rect{ .x = area.x + offset, .y = area.y, .width = size, .height = area.height },
+            .vertical => Rect{ .x = area.x, .y = area.y + offset, .width = area.width, .height = size },
         };
         offset += size;
     }
@@ -587,7 +577,7 @@ pub const LayoutDebugger = struct {
 // ============================================================================
 
 test "Rect.new" {
-    const r = Rect.new(10, 20, 30, 40);
+    const r = Rect{ .x = 10, .y = 20, .width = 30, .height = 40 };
     try std.testing.expectEqual(10, r.x);
     try std.testing.expectEqual(20, r.y);
     try std.testing.expectEqual(30, r.width);
@@ -595,12 +585,12 @@ test "Rect.new" {
 }
 
 test "Rect.area" {
-    const r = Rect.new(0, 0, 10, 5);
+    const r = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     try std.testing.expectEqual(50, r.area());
 }
 
 test "Rect.contains" {
-    const r = Rect.new(10, 10, 20, 20);
+    const r = Rect{ .x = 10, .y = 10, .width = 20, .height = 20 };
     try std.testing.expect(r.contains(10, 10));
     try std.testing.expect(r.contains(20, 20));
     try std.testing.expect(r.contains(29, 29));
@@ -609,7 +599,7 @@ test "Rect.contains" {
 }
 
 test "Rect.inner" {
-    const r = Rect.new(10, 10, 20, 20);
+    const r = Rect{ .x = 10, .y = 10, .width = 20, .height = 20 };
     const inner_rect = r.inner(2);
     try std.testing.expectEqual(12, inner_rect.x);
     try std.testing.expectEqual(12, inner_rect.y);
@@ -618,16 +608,16 @@ test "Rect.inner" {
 }
 
 test "Rect.inner - margin too large" {
-    const r = Rect.new(0, 0, 10, 10);
+    const r = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     const inner_rect = r.inner(10);
     try std.testing.expectEqual(0, inner_rect.width);
     try std.testing.expectEqual(0, inner_rect.height);
 }
 
 test "Rect.intersects" {
-    const r1 = Rect.new(0, 0, 10, 10);
-    const r2 = Rect.new(5, 5, 10, 10);
-    const r3 = Rect.new(20, 20, 10, 10);
+    const r1 = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    const r2 = Rect{ .x = 5, .y = 5, .width = 10, .height = 10 };
+    const r3 = Rect{ .x = 20, .y = 20, .width = 10, .height = 10 };
 
     try std.testing.expect(r1.intersects(r2));
     try std.testing.expect(r2.intersects(r1));
@@ -635,8 +625,8 @@ test "Rect.intersects" {
 }
 
 test "Rect.intersection" {
-    const r1 = Rect.new(0, 0, 10, 10);
-    const r2 = Rect.new(5, 5, 10, 10);
+    const r1 = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    const r2 = Rect{ .x = 5, .y = 5, .width = 10, .height = 10 };
 
     const inter = r1.intersection(r2).?;
     try std.testing.expectEqual(5, inter.x);
@@ -646,8 +636,8 @@ test "Rect.intersection" {
 }
 
 test "Rect.intersection - no overlap" {
-    const r1 = Rect.new(0, 0, 10, 10);
-    const r2 = Rect.new(20, 20, 10, 10);
+    const r1 = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    const r2 = Rect{ .x = 20, .y = 20, .width = 10, .height = 10 };
 
     try std.testing.expectEqual(null, r1.intersection(r2));
 }
@@ -694,7 +684,7 @@ test "Constraint.apply - ratio zero denominator" {
 
 test "split - horizontal with fixed lengths" {
     const allocator = std.testing.allocator;
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const constraints = [_]Constraint{
         .{ .length = 30 },
         .{ .length = 70 },
@@ -712,7 +702,7 @@ test "split - horizontal with fixed lengths" {
 
 test "split - vertical with percentages" {
     const allocator = std.testing.allocator;
-    const area = Rect.new(0, 0, 100, 100);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
     const constraints = [_]Constraint{
         .{ .percentage = 25 },
         .{ .percentage = 75 },
@@ -730,7 +720,7 @@ test "split - vertical with percentages" {
 
 test "split - mixed constraints" {
     const allocator = std.testing.allocator;
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const constraints = [_]Constraint{
         .{ .length = 20 },
         .{ .percentage = 50 },
@@ -748,7 +738,7 @@ test "split - mixed constraints" {
 
 test "split - empty constraints" {
     const allocator = std.testing.allocator;
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const constraints = [_]Constraint{};
 
     const result = try split(allocator, .horizontal, area, &constraints);
@@ -759,7 +749,7 @@ test "split - empty constraints" {
 
 test "split - exceeding available space" {
     const allocator = std.testing.allocator;
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const constraints = [_]Constraint{
         .{ .length = 60 },
         .{ .length = 60 },
@@ -776,7 +766,7 @@ test "split - exceeding available space" {
 
 test "split - vertical three-way" {
     const allocator = std.testing.allocator;
-    const area = Rect.new(0, 0, 80, 60);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 60 };
     const constraints = [_]Constraint{
         .{ .length = 10 },
         .{ .percentage = 50 },
@@ -797,7 +787,7 @@ test "split - vertical three-way" {
 
 test "split - min constraint enforcement" {
     const allocator = std.testing.allocator;
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const constraints = [_]Constraint{
         .{ .min = 30 },
         .{ .min = 40 },
@@ -816,7 +806,7 @@ test "split - min constraint enforcement" {
 
 test "split - max constraint with tight space" {
     const allocator = std.testing.allocator;
-    const area = Rect.new(0, 0, 40, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 50 };
     const constraints = [_]Constraint{
         .{ .max = 20 },
         .{ .max = 30 },
@@ -834,7 +824,7 @@ test "split - max constraint with tight space" {
 
 test "split - ratio with small denominators" {
     const allocator = std.testing.allocator;
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const constraints = [_]Constraint{
         .{ .ratio = .{ .num = 1, .denom = 2 } }, // 50%
         .{ .ratio = .{ .num = 1, .denom = 2 } }, // 50%
@@ -850,8 +840,8 @@ test "split - ratio with small denominators" {
 }
 
 test "Rect.intersection with partial overlap" {
-    const r1 = Rect.new(0, 0, 10, 10);
-    const r2 = Rect.new(5, 5, 10, 10);
+    const r1 = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    const r2 = Rect{ .x = 5, .y = 5, .width = 10, .height = 10 };
 
     const result = r1.intersection(r2);
     try std.testing.expect(result != null);
@@ -863,8 +853,8 @@ test "Rect.intersection with partial overlap" {
 }
 
 test "Rect.intersection with no overlap" {
-    const r1 = Rect.new(0, 0, 10, 10);
-    const r2 = Rect.new(20, 20, 10, 10);
+    const r1 = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    const r2 = Rect{ .x = 20, .y = 20, .width = 10, .height = 10 };
 
     const result = r1.intersection(r2);
     try std.testing.expectEqual(@as(?Rect, null), result);
@@ -915,7 +905,7 @@ test "Constraint - aspect ratio clamped to available" {
 }
 
 test "aspect ratio helper - Rect.withAspectRatio basic" {
-    const area = Rect.new(0, 0, 1600, 900);
+    const area = Rect{ .x = 0, .y = 0, .width = 1600, .height = 900 };
     const constrained = area.withAspectRatio(.{ .width = 16, .height = 9 });
     // Should fill the full width (1600) and calculate height (900)
     try std.testing.expectEqual(1600, constrained.width);
@@ -923,7 +913,7 @@ test "aspect ratio helper - Rect.withAspectRatio basic" {
 }
 
 test "aspect ratio helper - Rect.withAspectRatio portrait in landscape area" {
-    const area = Rect.new(0, 0, 800, 600);
+    const area = Rect{ .x = 0, .y = 0, .width = 800, .height = 600 };
     const constrained = area.withAspectRatio(.{ .width = 9, .height = 16 });
     // Portrait ratio (9:16) in landscape area
     // Width-constrained: 800 available, height = 800 * 16 / 9 = 1422
@@ -934,7 +924,7 @@ test "aspect ratio helper - Rect.withAspectRatio portrait in landscape area" {
 }
 
 test "aspect ratio helper - Rect.withAspectRatio exact fit" {
-    const area = Rect.new(10, 20, 1920, 1080);
+    const area = Rect{ .x = 10, .y = 20, .width = 1920, .height = 1080 };
     const constrained = area.withAspectRatio(.{ .width = 16, .height = 9 });
     // Exact 16:9 match: 1920 x 1080
     try std.testing.expectEqual(1920, constrained.width);
@@ -942,7 +932,7 @@ test "aspect ratio helper - Rect.withAspectRatio exact fit" {
 }
 
 test "aspect ratio helper - Rect.withAspectRatio preserves position" {
-    const area = Rect.new(100, 200, 400, 300);
+    const area = Rect{ .x = 100, .y = 200, .width = 400, .height = 300 };
     const constrained = area.withAspectRatio(.{ .width = 4, .height = 3 });
     // Position should be preserved
     try std.testing.expectEqual(100, constrained.x);
@@ -953,7 +943,7 @@ test "aspect ratio helper - Rect.withAspectRatio preserves position" {
 }
 
 test "aspect ratio helper - Rect.withAspectRatio small area" {
-    const area = Rect.new(0, 0, 20, 30);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 30 };
     const constrained = area.withAspectRatio(.{ .width = 2, .height = 3 });
     // 2:3 portrait ratio in 20x30 area
     // Width-constrained: 20 * 3 / 2 = 30, fits in 30 height
@@ -963,7 +953,7 @@ test "aspect ratio helper - Rect.withAspectRatio small area" {
 
 test "split - aspect ratio constraint in layout" {
     const allocator = std.testing.allocator;
-    const area = Rect.new(0, 0, 1600, 1200);
+    const area = Rect{ .x = 0, .y = 0, .width = 1600, .height = 1200 };
     const constraints = [_]Constraint{
         .{ .aspect_ratio = .{ .width = 16, .height = 9 } },
         .{ .length = 0 },
@@ -980,7 +970,7 @@ test "split - aspect ratio constraint in layout" {
 
 test "split - aspect ratio with multiple constraints" {
     const allocator = std.testing.allocator;
-    const area = Rect.new(0, 0, 800, 600);
+    const area = Rect{ .x = 0, .y = 0, .width = 800, .height = 600 };
     const constraints = [_]Constraint{
         .{ .length = 200 },
         .{ .aspect_ratio = .{ .width = 16, .height = 9 } },
@@ -1017,7 +1007,7 @@ test "aspect ratio constraint - height much greater than width tall" {
 }
 
 test "Rect.withAspectRatio - width-constrained landscape" {
-    const area = Rect.new(0, 0, 2000, 500);
+    const area = Rect{ .x = 0, .y = 0, .width = 2000, .height = 500 };
     const constrained = area.withAspectRatio(.{ .width = 16, .height = 9 });
     // 16:9 in 2000x500 space
     // Width-constrained would need 1111 height, but only 500 available
@@ -1027,7 +1017,7 @@ test "Rect.withAspectRatio - width-constrained landscape" {
 }
 
 test "Rect.withAspectRatio - height-constrained portrait" {
-    const area = Rect.new(0, 0, 300, 2000);
+    const area = Rect{ .x = 0, .y = 0, .width = 300, .height = 2000 };
     const constrained = area.withAspectRatio(.{ .width = 16, .height = 9 });
     // 16:9 landscape in 300x2000 space
     // Height-constrained would need 3555 width, but only 300 available
@@ -1037,7 +1027,7 @@ test "Rect.withAspectRatio - height-constrained portrait" {
 }
 
 test "Rect.withAspectRatio - square in rectangular area" {
-    const area = Rect.new(50, 75, 1000, 400);
+    const area = Rect{ .x = 50, .y = 75, .width = 1000, .height = 400 };
     const constrained = area.withAspectRatio(.{ .width = 1, .height = 1 });
     // 1:1 square in 1000x400 space = 400x400 (height-constrained)
     try std.testing.expectEqual(50, constrained.x);
@@ -1048,7 +1038,7 @@ test "Rect.withAspectRatio - square in rectangular area" {
 
 test "Rect.withAspectRatio - common mobile aspect ratios" {
     // iPhone 14 Pro: 1170 x 2532 = 9:19.6 (roughly 9:20)
-    const area = Rect.new(0, 0, 1170, 2532);
+    const area = Rect{ .x = 0, .y = 0, .width = 1170, .height = 2532 };
     const constrained = area.withAspectRatio(.{ .width = 9, .height = 20 });
     // Height-constrained: 2532 is available height
     // Width = 2532 * 9 / 20 = 1139
@@ -1058,7 +1048,7 @@ test "Rect.withAspectRatio - common mobile aspect ratios" {
 
 test "split - aspect ratio in three-way vertical split" {
     const allocator = std.testing.allocator;
-    const area = Rect.new(0, 0, 400, 600);
+    const area = Rect{ .x = 0, .y = 0, .width = 400, .height = 600 };
     const constraints = [_]Constraint{
         .{ .percentage = 20 },
         .{ .aspect_ratio = .{ .width = 1, .height = 1 } },
@@ -1081,7 +1071,7 @@ test "split - aspect ratio in three-way vertical split" {
 
 test "nested_split_min_propagation_horizontal: inner layout with min constraint gets reserved space" {
     const allocator = std.testing.allocator;
-    const parent_area = Rect.new(0, 0, 100, 50);
+    const parent_area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
 
     // First, split parent into two areas
     const parent_constraints = [_]Constraint{
@@ -1107,7 +1097,7 @@ test "nested_split_min_propagation_horizontal: inner layout with min constraint 
 
 test "nested_split_max_propagation_horizontal: inner layout with max constraint limits allocation" {
     const allocator = std.testing.allocator;
-    const parent_area = Rect.new(0, 0, 200, 50);
+    const parent_area = Rect{ .x = 0, .y = 0, .width = 200, .height = 50 };
 
     // Split parent into two equal areas
     const parent_constraints = [_]Constraint{
@@ -1131,7 +1121,7 @@ test "nested_split_max_propagation_horizontal: inner layout with max constraint 
 
 test "nested_split_min_propagation_vertical: vertical split respects nested min" {
     const allocator = std.testing.allocator;
-    const parent_area = Rect.new(0, 0, 80, 100);
+    const parent_area = Rect{ .x = 0, .y = 0, .width = 80, .height = 100 };
 
     // Vertical split parent
     const parent_constraints = [_]Constraint{
@@ -1154,7 +1144,7 @@ test "nested_split_min_propagation_vertical: vertical split respects nested min"
 
 test "nested_split_max_propagation_vertical: vertical split respects nested max" {
     const allocator = std.testing.allocator;
-    const parent_area = Rect.new(0, 0, 80, 150);
+    const parent_area = Rect{ .x = 0, .y = 0, .width = 80, .height = 150 };
 
     // Vertical split parent
     const parent_constraints = [_]Constraint{
@@ -1179,7 +1169,7 @@ test "nested_split_three_level_min_propagation: constraints propagate through 3 
     const allocator = std.testing.allocator;
 
     // Level 1: parent area
-    const level1_area = Rect.new(0, 0, 200, 100);
+    const level1_area = Rect{ .x = 0, .y = 0, .width = 200, .height = 100 };
     const level1_constraints = [_]Constraint{
         .{ .percentage = 60 },
         .{ .percentage = 40 },
@@ -1209,7 +1199,7 @@ test "nested_split_three_level_min_propagation: constraints propagate through 3 
 
 test "nested_split_conflicting_mins_exceed_available: multiple nested mins that exceed space" {
     const allocator = std.testing.allocator;
-    const parent_area = Rect.new(0, 0, 100, 50);
+    const parent_area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
 
     // Try to create nested layout with two min constraints that exceed available space
     // First split parent
@@ -1242,7 +1232,7 @@ test "nested_split_conflicting_mins_exceed_available: multiple nested mins that 
 
 test "nested_split_mixed_percentage_and_min: percentage parent with nested min child" {
     const allocator = std.testing.allocator;
-    const parent_area = Rect.new(0, 0, 200, 100);
+    const parent_area = Rect{ .x = 0, .y = 0, .width = 200, .height = 100 };
 
     // Parent splits with percentages
     const parent_constraints = [_]Constraint{
@@ -1269,7 +1259,7 @@ test "nested_split_mixed_percentage_and_min: percentage parent with nested min c
 
 test "nested_split_mixed_percentage_and_max: percentage parent with nested max child" {
     const allocator = std.testing.allocator;
-    const parent_area = Rect.new(0, 0, 200, 100);
+    const parent_area = Rect{ .x = 0, .y = 0, .width = 200, .height = 100 };
 
     // Parent splits
     const parent_constraints = [_]Constraint{
@@ -1296,7 +1286,7 @@ test "nested_split_mixed_percentage_and_max: percentage parent with nested max c
 
 test "nested_split_oversized_min_constraint: min larger than available space" {
     const allocator = std.testing.allocator;
-    const parent_area = Rect.new(0, 0, 100, 50);
+    const parent_area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
 
     // Split parent
     const parent_constraints = [_]Constraint{
@@ -1321,7 +1311,7 @@ test "nested_split_oversized_min_constraint: min larger than available space" {
 
 test "nested_split_zero_min_constraint: min = 0 should be valid" {
     const allocator = std.testing.allocator;
-    const parent_area = Rect.new(0, 0, 100, 50);
+    const parent_area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
 
     const parent_constraints = [_]Constraint{
         .{ .percentage = 50 },
@@ -1343,7 +1333,7 @@ test "nested_split_zero_min_constraint: min = 0 should be valid" {
 
 test "nested_split_zero_max_constraint: max = 0 should limit to zero" {
     const allocator = std.testing.allocator;
-    const parent_area = Rect.new(0, 0, 100, 50);
+    const parent_area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
 
     const parent_constraints = [_]Constraint{
         .{ .percentage = 50 },
@@ -1365,7 +1355,7 @@ test "nested_split_zero_max_constraint: max = 0 should limit to zero" {
 
 test "nested_split_multiple_nested_areas: multiple nested splits at same level" {
     const allocator = std.testing.allocator;
-    const parent_area = Rect.new(0, 0, 300, 100);
+    const parent_area = Rect{ .x = 0, .y = 0, .width = 300, .height = 100 };
 
     // Parent splits into 3 areas
     const parent_constraints = [_]Constraint{
@@ -1408,7 +1398,7 @@ test "nested_split_multiple_nested_areas: multiple nested splits at same level" 
 
 test "split - stress test with many constraints (100)" {
     const allocator = std.testing.allocator;
-    const area = Rect.new(0, 0, 1000, 100);
+    const area = Rect{ .x = 0, .y = 0, .width = 1000, .height = 100 };
 
     // Create 100 constraints (all equal percentages)
     var constraints: [100]Constraint = undefined;
@@ -1446,7 +1436,7 @@ test "split - stress test with many constraints (100)" {
 
 test "split - stress test with many min constraints" {
     const allocator = std.testing.allocator;
-    const area = Rect.new(0, 0, 500, 100);
+    const area = Rect{ .x = 0, .y = 0, .width = 500, .height = 100 };
 
     // Create 50 constraints with min=5 each (total min = 250)
     var constraints: [50]Constraint = undefined;
@@ -1474,7 +1464,7 @@ test "split - stress test with many min constraints" {
 
 test "split - stress test with exceeding min constraints" {
     const allocator = std.testing.allocator;
-    const area = Rect.new(0, 0, 300, 100);
+    const area = Rect{ .x = 0, .y = 0, .width = 300, .height = 100 };
 
     // Create 50 constraints with min=10 each (total min = 500 > 300 available)
     var constraints: [50]Constraint = undefined;
@@ -1597,7 +1587,7 @@ test "Padding.symmetric - equal vertical and horizontal" {
 }
 
 test "Rect.withMargin - uniform margin shrinks rect correctly" {
-    const r = Rect.new(10, 10, 100, 50);
+    const r = Rect{ .x = 10, .y = 10, .width = 100, .height = 50 };
     const m = Margin.all(5);
     const result = r.withMargin(m);
 
@@ -1608,7 +1598,7 @@ test "Rect.withMargin - uniform margin shrinks rect correctly" {
 }
 
 test "Rect.withMargin - asymmetric margin" {
-    const r = Rect.new(0, 0, 100, 100);
+    const r = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
     const m = Margin{ .top = 10, .right = 5, .bottom = 15, .left = 20 };
     const result = r.withMargin(m);
 
@@ -1619,7 +1609,7 @@ test "Rect.withMargin - asymmetric margin" {
 }
 
 test "Rect.withMargin - zero margin does not change rect" {
-    const r = Rect.new(10, 20, 80, 60);
+    const r = Rect{ .x = 10, .y = 20, .width = 80, .height = 60 };
     const m = Margin.all(0);
     const result = r.withMargin(m);
 
@@ -1630,7 +1620,7 @@ test "Rect.withMargin - zero margin does not change rect" {
 }
 
 test "Rect.withMargin - margin exceeds width returns zero-width rect" {
-    const r = Rect.new(0, 0, 10, 50);
+    const r = Rect{ .x = 0, .y = 0, .width = 10, .height = 50 };
     const m = Margin{ .top = 5, .right = 10, .bottom = 5, .left = 10 };
     const result = r.withMargin(m);
 
@@ -1641,7 +1631,7 @@ test "Rect.withMargin - margin exceeds width returns zero-width rect" {
 }
 
 test "Rect.withMargin - margin exceeds height returns zero-height rect" {
-    const r = Rect.new(0, 0, 50, 10);
+    const r = Rect{ .x = 0, .y = 0, .width = 50, .height = 10 };
     const m = Margin{ .top = 10, .right = 5, .bottom = 10, .left = 5 };
     const result = r.withMargin(m);
 
@@ -1652,7 +1642,7 @@ test "Rect.withMargin - margin exceeds height returns zero-height rect" {
 }
 
 test "Rect.withMargin - margin exceeds both dimensions" {
-    const r = Rect.new(5, 5, 10, 10);
+    const r = Rect{ .x = 5, .y = 5, .width = 10, .height = 10 };
     const m = Margin.all(20);
     const result = r.withMargin(m);
 
@@ -1663,7 +1653,7 @@ test "Rect.withMargin - margin exceeds both dimensions" {
 }
 
 test "Rect.withMargin - large rect with small margin" {
-    const r = Rect.new(100, 200, 1920, 1080);
+    const r = Rect{ .x = 100, .y = 200, .width = 1920, .height = 1080 };
     const m = Margin.all(1);
     const result = r.withMargin(m);
 
@@ -1674,7 +1664,7 @@ test "Rect.withMargin - large rect with small margin" {
 }
 
 test "Rect.withPadding - uniform padding shrinks rect correctly" {
-    const r = Rect.new(10, 10, 100, 50);
+    const r = Rect{ .x = 10, .y = 10, .width = 100, .height = 50 };
     const p = Padding.all(5);
     const result = r.withPadding(p);
 
@@ -1685,7 +1675,7 @@ test "Rect.withPadding - uniform padding shrinks rect correctly" {
 }
 
 test "Rect.withPadding - asymmetric padding" {
-    const r = Rect.new(0, 0, 100, 100);
+    const r = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
     const p = Padding{ .top = 2, .right = 4, .bottom = 6, .left = 8 };
     const result = r.withPadding(p);
 
@@ -1696,7 +1686,7 @@ test "Rect.withPadding - asymmetric padding" {
 }
 
 test "Rect.withPadding - zero padding does not change rect" {
-    const r = Rect.new(50, 50, 200, 150);
+    const r = Rect{ .x = 50, .y = 50, .width = 200, .height = 150 };
     const p = Padding.all(0);
     const result = r.withPadding(p);
 
@@ -1707,7 +1697,7 @@ test "Rect.withPadding - zero padding does not change rect" {
 }
 
 test "Rect.withPadding - padding exceeds width returns zero-width rect" {
-    const r = Rect.new(0, 0, 20, 50);
+    const r = Rect{ .x = 0, .y = 0, .width = 20, .height = 50 };
     const p = Padding{ .top = 5, .right = 15, .bottom = 5, .left = 15 };
     const result = r.withPadding(p);
 
@@ -1718,7 +1708,7 @@ test "Rect.withPadding - padding exceeds width returns zero-width rect" {
 }
 
 test "Rect.withPadding - padding exceeds height returns zero-height rect" {
-    const r = Rect.new(0, 0, 50, 20);
+    const r = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };
     const p = Padding{ .top = 15, .right = 5, .bottom = 15, .left = 5 };
     const result = r.withPadding(p);
 
@@ -1729,7 +1719,7 @@ test "Rect.withPadding - padding exceeds height returns zero-height rect" {
 }
 
 test "Rect.withPadding - padding exceeds both dimensions" {
-    const r = Rect.new(0, 0, 5, 5);
+    const r = Rect{ .x = 0, .y = 0, .width = 5, .height = 5 };
     const p = Padding.all(10);
     const result = r.withPadding(p);
 
@@ -1740,7 +1730,7 @@ test "Rect.withPadding - padding exceeds both dimensions" {
 }
 
 test "Margin and Padding combined - margin then padding" {
-    const r = Rect.new(0, 0, 100, 100);
+    const r = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
     const m = Margin.all(10);
     const p = Padding.all(5);
 
@@ -1754,7 +1744,7 @@ test "Margin and Padding combined - margin then padding" {
 }
 
 test "Margin and Padding combined - padding then margin" {
-    const r = Rect.new(0, 0, 100, 100);
+    const r = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
     const m = Margin.all(10);
     const p = Padding.all(5);
 
@@ -1768,7 +1758,7 @@ test "Margin and Padding combined - padding then margin" {
 }
 
 test "Rect.withMargin - edge case one pixel rect" {
-    const r = Rect.new(50, 50, 1, 1);
+    const r = Rect{ .x = 50, .y = 50, .width = 1, .height = 1 };
     const m = Margin.all(1);
     const result = r.withMargin(m);
 
@@ -1779,7 +1769,7 @@ test "Rect.withMargin - edge case one pixel rect" {
 }
 
 test "Rect.withPadding - edge case one pixel rect" {
-    const r = Rect.new(100, 100, 1, 1);
+    const r = Rect{ .x = 100, .y = 100, .width = 1, .height = 1 };
     const p = Padding.all(1);
     const result = r.withPadding(p);
 
@@ -1822,7 +1812,7 @@ test "Padding.symmetric - only horizontal" {
 }
 
 test "Rect.withMargin - underflow protection width" {
-    const r = Rect.new(0, 0, 5, 100);
+    const r = Rect{ .x = 0, .y = 0, .width = 5, .height = 100 };
     const m = Margin{ .top = 0, .right = 3, .bottom = 0, .left = 3 };
     const result = r.withMargin(m);
 
@@ -1831,7 +1821,7 @@ test "Rect.withMargin - underflow protection width" {
 }
 
 test "Rect.withMargin - underflow protection height" {
-    const r = Rect.new(0, 0, 100, 5);
+    const r = Rect{ .x = 0, .y = 0, .width = 100, .height = 5 };
     const m = Margin{ .top = 3, .right = 0, .bottom = 3, .left = 0 };
     const result = r.withMargin(m);
 
@@ -1840,7 +1830,7 @@ test "Rect.withMargin - underflow protection height" {
 }
 
 test "Rect.withPadding - underflow protection width" {
-    const r = Rect.new(0, 0, 8, 100);
+    const r = Rect{ .x = 0, .y = 0, .width = 8, .height = 100 };
     const p = Padding{ .top = 0, .right = 5, .bottom = 0, .left = 5 };
     const result = r.withPadding(p);
 
@@ -1849,7 +1839,7 @@ test "Rect.withPadding - underflow protection width" {
 }
 
 test "Rect.withPadding - underflow protection height" {
-    const r = Rect.new(0, 0, 100, 8);
+    const r = Rect{ .x = 0, .y = 0, .width = 100, .height = 8 };
     const p = Padding{ .top = 5, .right = 0, .bottom = 5, .left = 0 };
     const result = r.withPadding(p);
 
@@ -1886,7 +1876,7 @@ test "Rect.debugFormat formats simple rect" {
     var buf: [256]u8 = undefined;
     var stream = std.io.fixedBufferStream(&buf);
 
-    const r = Rect.new(10, 5, 80, 24);
+    const r = Rect{ .x = 10, .y = 5, .width = 80, .height = 24 };
     try r.debugFormat(stream.writer());
 
     const output = stream.getWritten();
@@ -1903,7 +1893,7 @@ test "Rect.debugFormat handles zero dimensions" {
     var buf: [256]u8 = undefined;
     var stream = std.io.fixedBufferStream(&buf);
 
-    const r = Rect.new(0, 0, 0, 0);
+    const r = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
     try r.debugFormat(stream.writer());
 
     const output = stream.getWritten();
@@ -1917,7 +1907,7 @@ test "DebugNode captures constraint and rect" {
     const allocator = std.testing.allocator;
     _ = allocator;
     const constraint = Constraint{ .length = 50 };
-    const rect = Rect.new(0, 0, 50, 100);
+    const rect = Rect{ .x = 0, .y = 0, .width = 50, .height = 100 };
 
     const node = DebugNode{
         .constraint = constraint,
@@ -1935,7 +1925,7 @@ test "DebugNode.percentage constraint captured correctly" {
     const allocator = std.testing.allocator;
     _ = allocator;
     const constraint = Constraint{ .percentage = 75 };
-    const rect = Rect.new(0, 0, 150, 200);
+    const rect = Rect{ .x = 0, .y = 0, .width = 150, .height = 200 };
 
     const node = DebugNode{
         .constraint = constraint,
@@ -1951,7 +1941,7 @@ test "DebugNode.ratio constraint captured correctly" {
     const allocator = std.testing.allocator;
     _ = allocator;
     const constraint = Constraint{ .ratio = .{ .num = 3, .denom = 4 } };
-    const rect = Rect.new(0, 0, 75, 100);
+    const rect = Rect{ .x = 0, .y = 0, .width = 75, .height = 100 };
 
     const node = DebugNode{
         .constraint = constraint,
@@ -1968,7 +1958,7 @@ test "DebugNode.min constraint captured correctly" {
     const allocator = std.testing.allocator;
     _ = allocator;
     const constraint = Constraint{ .min = 100 };
-    const rect = Rect.new(0, 0, 100, 50);
+    const rect = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
 
     const node = DebugNode{
         .constraint = constraint,
@@ -1984,7 +1974,7 @@ test "DebugNode.max constraint captured correctly" {
     const allocator = std.testing.allocator;
     _ = allocator;
     const constraint = Constraint{ .max = 200 };
-    const rect = Rect.new(0, 0, 200, 50);
+    const rect = Rect{ .x = 0, .y = 0, .width = 200, .height = 50 };
 
     const node = DebugNode{
         .constraint = constraint,
@@ -2000,7 +1990,7 @@ test "DebugNode.aspect_ratio constraint captured correctly" {
     const allocator = std.testing.allocator;
     _ = allocator;
     const constraint = Constraint{ .aspect_ratio = .{ .width = 16, .height = 9 } };
-    const rect = Rect.new(0, 0, 1600, 900);
+    const rect = Rect{ .x = 0, .y = 0, .width = 1600, .height = 900 };
 
     const node = DebugNode{
         .constraint = constraint,
@@ -2018,7 +2008,7 @@ test "LayoutDebugger.splitDebug creates nodes matching split results" {
     var debugger = LayoutDebugger.init(allocator);
     defer debugger.deinit();
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const constraints = [_]Constraint{
         .{ .length = 30 },
         .{ .percentage = 70 },
@@ -2044,7 +2034,7 @@ test "LayoutDebugger.splitDebug vertical split" {
     var debugger = LayoutDebugger.init(allocator);
     defer debugger.deinit();
 
-    const area = Rect.new(0, 0, 80, 100);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 100 };
     const constraints = [_]Constraint{
         .{ .percentage = 25 },
         .{ .percentage = 75 },
@@ -2066,7 +2056,7 @@ test "LayoutDebugger.splitDebug with empty constraints" {
     var debugger = LayoutDebugger.init(allocator);
     defer debugger.deinit();
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const constraints = [_]Constraint{};
 
     const nodes = try debugger.splitDebug(.horizontal, area, &constraints);
@@ -2080,7 +2070,7 @@ test "LayoutDebugger.splitDebug with single constraint" {
     var debugger = LayoutDebugger.init(allocator);
     defer debugger.deinit();
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const constraints = [_]Constraint{
         .{ .percentage = 100 },
     };
@@ -2097,7 +2087,7 @@ test "LayoutDebugger nested splits create child nodes" {
     var debugger = LayoutDebugger.init(allocator);
     defer debugger.deinit();
 
-    const area = Rect.new(0, 0, 200, 100);
+    const area = Rect{ .x = 0, .y = 0, .width = 200, .height = 100 };
     const parent_constraints = [_]Constraint{
         .{ .percentage = 50 },
         .{ .percentage = 50 },
@@ -2125,7 +2115,7 @@ test "LayoutDebugger.print outputs constraint info" {
     var debugger = LayoutDebugger.init(allocator);
     defer debugger.deinit();
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const constraints = [_]Constraint{
         .{ .length = 40 },
         .{ .percentage = 60 },
@@ -2153,7 +2143,7 @@ test "LayoutDebugger.print shows tree indentation" {
     var debugger = LayoutDebugger.init(allocator);
     defer debugger.deinit();
 
-    const area = Rect.new(0, 0, 200, 100);
+    const area = Rect{ .x = 0, .y = 0, .width = 200, .height = 100 };
     const constraints = [_]Constraint{
         .{ .percentage = 50 },
         .{ .percentage = 50 },
@@ -2180,7 +2170,7 @@ test "LayoutDebugger.print nested layout shows hierarchy" {
     defer debugger.deinit();
 
     // Create a three-level nested layout
-    const area = Rect.new(0, 0, 300, 200);
+    const area = Rect{ .x = 0, .y = 0, .width = 300, .height = 200 };
     const level1_constraints = [_]Constraint{
         .{ .percentage = 33 },
         .{ .percentage = 67 },
@@ -2208,7 +2198,7 @@ test "LayoutDebugger deeply nested layout (5 levels)" {
     var debugger = LayoutDebugger.init(allocator);
     defer debugger.deinit();
 
-    var current_area = Rect.new(0, 0, 1000, 1000);
+    var current_area = Rect{ .x = 0, .y = 0, .width = 1000, .height = 1000 };
 
     // Level 1
     const level1 = [_]Constraint{ .{ .percentage = 100 } };
@@ -2254,7 +2244,7 @@ test "LayoutDebugger.print with rect coordinates" {
     var debugger = LayoutDebugger.init(allocator);
     defer debugger.deinit();
 
-    const area = Rect.new(50, 100, 400, 300);
+    const area = Rect{ .x = 50, .y = 100, .width = 400, .height = 300 };
     const constraints = [_]Constraint{
         .{ .length = 200 },
         .{ .length = 200 },
@@ -2279,7 +2269,7 @@ test "LayoutDebugger handles zero-size rects" {
     var debugger = LayoutDebugger.init(allocator);
     defer debugger.deinit();
 
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     const constraints = [_]Constraint{
         .{ .max = 0 },
         .{ .percentage = 100 },

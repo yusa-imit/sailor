@@ -335,7 +335,7 @@ test "renderShadow bottom_right" {
     var buf = try Buffer.init(std.testing.allocator, 10, 10);
     defer buf.deinit();
 
-    const area = Rect.new(2, 2, 5, 3);
+    const area = Rect{ .x = 2, .y = 2, .width = 5, .height = 3 };
     const shadow = ShadowStyle{ .depth = 1, .direction = .bottom_right };
     renderShadow(&buf, area, shadow);
 
@@ -352,7 +352,7 @@ test "renderShadow bottom_left" {
     var buf = try Buffer.init(std.testing.allocator, 10, 10);
     defer buf.deinit();
 
-    const area = Rect.new(4, 2, 4, 3);
+    const area = Rect{ .x = 4, .y = 2, .width = 4, .height = 3 };
     const shadow = ShadowStyle{ .depth = 1, .direction = .bottom_left };
     renderShadow(&buf, area, shadow);
 
@@ -369,7 +369,7 @@ test "renderShadow top_right" {
     var buf = try Buffer.init(std.testing.allocator, 10, 10);
     defer buf.deinit();
 
-    const area = Rect.new(2, 3, 4, 3);
+    const area = Rect{ .x = 2, .y = 3, .width = 4, .height = 3 };
     const shadow = ShadowStyle{ .depth = 1, .direction = .top_right };
     renderShadow(&buf, area, shadow);
 
@@ -386,7 +386,7 @@ test "renderShadow top_left" {
     var buf = try Buffer.init(std.testing.allocator, 10, 10);
     defer buf.deinit();
 
-    const area = Rect.new(4, 4, 3, 3);
+    const area = Rect{ .x = 4, .y = 4, .width = 3, .height = 3 };
     const shadow = ShadowStyle{ .depth = 1, .direction = .top_left };
     renderShadow(&buf, area, shadow);
 
@@ -403,7 +403,7 @@ test "renderShadow bottom only" {
     var buf = try Buffer.init(std.testing.allocator, 10, 10);
     defer buf.deinit();
 
-    const area = Rect.new(2, 2, 5, 3);
+    const area = Rect{ .x = 2, .y = 2, .width = 5, .height = 3 };
     const shadow = ShadowStyle{ .depth = 1, .direction = .bottom };
     renderShadow(&buf, area, shadow);
 
@@ -420,7 +420,7 @@ test "renderShadow right only" {
     var buf = try Buffer.init(std.testing.allocator, 10, 10);
     defer buf.deinit();
 
-    const area = Rect.new(2, 2, 5, 3);
+    const area = Rect{ .x = 2, .y = 2, .width = 5, .height = 3 };
     const shadow = ShadowStyle{ .depth = 1, .direction = .right };
     renderShadow(&buf, area, shadow);
 
@@ -437,7 +437,7 @@ test "renderShadow with depth 2" {
     var buf = try Buffer.init(std.testing.allocator, 10, 10);
     defer buf.deinit();
 
-    const area = Rect.new(2, 2, 4, 3);
+    const area = Rect{ .x = 2, .y = 2, .width = 4, .height = 3 };
     const shadow = ShadowStyle{ .depth = 2, .direction = .bottom_right };
     renderShadow(&buf, area, shadow);
 
@@ -463,7 +463,7 @@ test "renderShadow boundary clipping" {
     defer buf.deinit();
 
     // Area extends to edge of buffer
-    const area = Rect.new(4, 3, 4, 3);
+    const area = Rect{ .x = 4, .y = 3, .width = 4, .height = 3 };
     const shadow = ShadowStyle{ .depth = 2, .direction = .bottom_right };
 
     // Should not panic, shadow clipped at buffer boundaries
@@ -475,7 +475,7 @@ test "applyBorderEffect raised" {
     defer buf.deinit();
 
     // Create a border area
-    const area = Rect.new(2, 2, 6, 4);
+    const area = Rect{ .x = 2, .y = 2, .width = 6, .height = 4 };
 
     // Draw simple border
     var y: u16 = area.y;
@@ -505,7 +505,7 @@ test "applyBorderEffect sunken" {
     var buf = try Buffer.init(std.testing.allocator, 10, 10);
     defer buf.deinit();
 
-    const area = Rect.new(2, 2, 6, 4);
+    const area = Rect{ .x = 2, .y = 2, .width = 6, .height = 4 };
 
     // Draw simple border
     var y: u16 = area.y;
@@ -535,7 +535,7 @@ test "applyBorderEffect flat (no-op)" {
     var buf = try Buffer.init(std.testing.allocator, 10, 10);
     defer buf.deinit();
 
-    const area = Rect.new(2, 2, 6, 4);
+    const area = Rect{ .x = 2, .y = 2, .width = 6, .height = 4 };
     const base_style = Style{ .fg = Color.blue };
 
     buf.set(2, 2, .{ .char = '┌', .style = base_style });
@@ -554,7 +554,7 @@ test "applyBorderEffect small area (no-op)" {
     defer buf.deinit();
 
     // Area too small for border effect
-    const area = Rect.new(2, 2, 1, 1);
+    const area = Rect{ .x = 2, .y = 2, .width = 1, .height = 1 };
     const effect = BorderStyle3D.raised_button;
 
     // Should not panic

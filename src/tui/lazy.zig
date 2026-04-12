@@ -95,17 +95,26 @@ pub const LazyBuffer = struct {
         return self.dirty_rect;
     }
 
-    /// Set cell and mark as dirty
-    pub fn setCell(self: *LazyBuffer, x: u16, y: u16, cell: Cell) void {
+    /// Set cell and mark as dirty (v2.0.0 API - preferred)
+    pub fn set(self: *LazyBuffer, x: u16, y: u16, cell: Cell) void {
         self.buffer.set(x, y, cell);
         self.markDirty(x, y);
+    }
+
+    /// Set cell and mark as dirty
+    /// @deprecated Use set() instead (will be removed in v2.0.0)
+    pub fn setCell(self: *LazyBuffer, x: u16, y: u16, cell: Cell) void {
+        const deprecation = @import("../deprecation.zig");
+        deprecation.replace("setCell", "set", "2.0.0");
+        self.set(x, y, cell);
     }
 
     /// Set character and mark as dirty
     /// @deprecated Use set() with Cell instead (will be removed in v2.0.0)
     pub fn setChar(self: *LazyBuffer, x: u16, y: u16, char: u21, style: Style) void {
-        self.buffer.set(x, y, .{ .char = char, .style = style });
-        self.markDirty(x, y);
+        const deprecation = @import("../deprecation.zig");
+        deprecation.replace("setChar", "set", "2.0.0");
+        self.set(x, y, .{ .char = char, .style = style });
     }
 
     /// Write string and mark affected cells as dirty
@@ -245,7 +254,7 @@ test "LazyBuffer setChar marks dirty" {
 
     lazy.clearDirty();
 
-    lazy.setChar(3, 2, 'X', .{});
+    lazy.set(3, 2, .{ .char = 'X', .style = .{} });
     try std.testing.expect(lazy.isDirty(3, 2));
     try std.testing.expectEqual(@as(usize, 1), lazy.countDirty());
 

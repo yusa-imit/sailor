@@ -434,7 +434,7 @@ pub const Calendar = struct {
             const title_x = if (inner_area.width > title.len) inner_area.x + (inner_area.width - @as(u16, @intCast(title.len))) / 2 else inner_area.x;
             for (title, 0..) |ch, i| {
                 if (title_x + @as(u16, @intCast(i)) >= inner_area.x + inner_area.width) break;
-                buf.setChar(title_x + @as(u16, @intCast(i)), y, ch, self.style_default);
+                buf.set(title_x + @as(u16, @intCast(i)), y, .{ .char = ch, .style = self.style_default });
             }
             y += 1;
         }
@@ -448,10 +448,10 @@ pub const Calendar = struct {
             for (0..7) |i| {
                 if (x >= inner_area.x + inner_area.width) break;
                 const day_idx = (i + self.first_day_of_week) % 7;
-                buf.setChar(x, y, weekday_names[day_idx], self.style_default);
+                buf.set(x, y, .{ .char = weekday_names[day_idx], .style = self.style_default });
                 x += 1;
                 if (x < inner_area.x + inner_area.width) {
-                    buf.setChar(x, y, ' ', self.style_default);
+                    buf.set(x, y, .{ .char = ' ', .style = self.style_default });
                     x += 1;
                 }
             }
@@ -511,16 +511,16 @@ pub const Calendar = struct {
 
                     // Render day number (right-aligned in 2-char cell)
                     if (day < 10) {
-                        buf.setChar(x, y, ' ', cell_style);
+                        buf.set(x, y, .{ .char = ' ', .style = cell_style });
                         x += 1;
-                        buf.setChar(x, y, @as(u8, '0' + day), cell_style);
+                        buf.set(x, y, .{ .char = @as(u8, '0' + day), .style = cell_style });
                         x += 1;
                     } else {
                         const tens = day / 10;
                         const ones = day % 10;
-                        buf.setChar(x, y, @as(u8, '0' + tens), cell_style);
+                        buf.set(x, y, .{ .char = @as(u8, '0' + tens), .style = cell_style });
                         x += 1;
-                        buf.setChar(x, y, @as(u8, '0' + ones), cell_style);
+                        buf.set(x, y, .{ .char = @as(u8, '0' + ones), .style = cell_style });
                         x += 1;
                     }
                 } else if (day_to_show < 1) {
@@ -532,22 +532,22 @@ pub const Calendar = struct {
                     if (prev_day >= 1 and prev_day <= days_in_prev) {
                         const prev_day_u8 = @as(u8, @intCast(prev_day));
                         if (prev_day_u8 < 10) {
-                            buf.setChar(x, y, ' ', self.style_out_of_bounds);
+                            buf.set(x, y, .{ .char = ' ', .style = self.style_out_of_bounds });
                             x += 1;
-                            buf.setChar(x, y, @as(u8, '0' + prev_day_u8), self.style_out_of_bounds);
+                            buf.set(x, y, .{ .char = @as(u8, '0' + prev_day_u8), .style = self.style_out_of_bounds });
                             x += 1;
                         } else {
                             const tens = prev_day_u8 / 10;
                             const ones = prev_day_u8 % 10;
-                            buf.setChar(x, y, @as(u8, '0' + tens), self.style_out_of_bounds);
+                            buf.set(x, y, .{ .char = @as(u8, '0' + tens), .style = self.style_out_of_bounds });
                             x += 1;
-                            buf.setChar(x, y, @as(u8, '0' + ones), self.style_out_of_bounds);
+                            buf.set(x, y, .{ .char = @as(u8, '0' + ones), .style = self.style_out_of_bounds });
                             x += 1;
                         }
                     } else {
-                        buf.setChar(x, y, ' ', self.style_default);
+                        buf.set(x, y, .{ .char = ' ', .style = self.style_default });
                         x += 1;
-                        buf.setChar(x, y, ' ', self.style_default);
+                        buf.set(x, y, .{ .char = ' ', .style = self.style_default });
                         x += 1;
                     }
                 } else {
@@ -557,29 +557,29 @@ pub const Calendar = struct {
 
                     if (next_day >= 1 and next_day <= 31) { // 31 is max days in any month
                         if (next_day < 10) {
-                            buf.setChar(x, y, ' ', self.style_out_of_bounds);
+                            buf.set(x, y, .{ .char = ' ', .style = self.style_out_of_bounds });
                             x += 1;
-                            buf.setChar(x, y, @as(u8, '0' + next_day), self.style_out_of_bounds);
+                            buf.set(x, y, .{ .char = @as(u8, '0' + next_day), .style = self.style_out_of_bounds });
                             x += 1;
                         } else {
                             const tens = next_day / 10;
                             const ones = next_day % 10;
-                            buf.setChar(x, y, @as(u8, '0' + tens), self.style_out_of_bounds);
+                            buf.set(x, y, .{ .char = @as(u8, '0' + tens), .style = self.style_out_of_bounds });
                             x += 1;
-                            buf.setChar(x, y, @as(u8, '0' + ones), self.style_out_of_bounds);
+                            buf.set(x, y, .{ .char = @as(u8, '0' + ones), .style = self.style_out_of_bounds });
                             x += 1;
                         }
                     } else {
-                        buf.setChar(x, y, ' ', self.style_default);
+                        buf.set(x, y, .{ .char = ' ', .style = self.style_default });
                         x += 1;
-                        buf.setChar(x, y, ' ', self.style_default);
+                        buf.set(x, y, .{ .char = ' ', .style = self.style_default });
                         x += 1;
                     }
                 }
 
                 // Add spacing between columns
                 if (x < inner_area.x + inner_area.width) {
-                    buf.setChar(x, y, ' ', self.style_default);
+                    buf.set(x, y, .{ .char = ' ', .style = self.style_default });
                     x += 1;
                 }
             }

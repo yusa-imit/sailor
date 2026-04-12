@@ -291,7 +291,7 @@ pub const CompositeInteraction = struct {
 // ============================================================================
 
 test "Clickable.contains" {
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
     try std.testing.expect(Clickable.contains(area, 10, 5)); // top-left
     try std.testing.expect(Clickable.contains(area, 15, 8)); // center
     try std.testing.expect(Clickable.contains(area, 29, 14)); // bottom-right
@@ -320,7 +320,7 @@ test "Clickable.handleEvent press inside" {
 
     const clickable = Clickable{ .on_click = onClick };
     var ctx = TestCtx{ .clicked = &clicked };
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
     const event = MouseEvent{
         .event_type = .press,
         .button = .left,
@@ -349,7 +349,7 @@ test "Clickable.handleEvent press outside" {
 
     const clickable = Clickable{ .on_click = onClick };
     var ctx = TestCtx{ .clicked = &clicked };
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
     const event = MouseEvent{
         .event_type = .press,
         .button = .left,
@@ -437,7 +437,7 @@ test "Draggable.handleEvent full cycle" {
 
     var ctx = TestCtx{ .started = &drag_started, .count = &drag_count, .ended = &drag_ended };
     var state = Draggable.DragState{};
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
 
     // Press to start drag
     const press_event = MouseEvent{ .event_type = .press, .button = .left, .x = 15, .y = 8 };
@@ -474,7 +474,7 @@ test "Scrollable.handleEvent scroll up" {
 
     const scrollable = Scrollable{ .on_scroll = onScroll };
     var ctx = TestCtx{ .delta = &scroll_delta };
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
     const event = MouseEvent{
         .event_type = .scroll_up,
         .button = .none,
@@ -504,7 +504,7 @@ test "Scrollable.handleEvent scroll down" {
 
     const scrollable = Scrollable{ .on_scroll = onScroll };
     var ctx = TestCtx{ .delta = &scroll_delta };
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
     const event = MouseEvent{
         .event_type = .scroll_down,
         .button = .none,
@@ -519,7 +519,7 @@ test "Scrollable.handleEvent scroll down" {
 
 test "HoverState tracking" {
     const state = Hoverable.HoverState{};
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
 
     try std.testing.expect(!state.hovering);
     try std.testing.expect(Hoverable.HoverState.isInside(area, 15, 8));
@@ -556,7 +556,7 @@ test "Hoverable.handleEvent enter and leave" {
 
     var ctx = TestCtx{ .entered = &entered, .left = &left };
     var state = Hoverable.HoverState{};
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
 
     // Move into area
     const enter_event = MouseEvent{ .event_type = .move, .button = .none, .x = 15, .y = 8 };
@@ -591,7 +591,7 @@ test "CompositeInteraction clickable only" {
     };
 
     var ctx = TestCtx{ .clicked = &clicked };
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
     const event = MouseEvent{ .event_type = .press, .button = .left, .x = 15, .y = 8 };
 
     const result = composite.handleEvent(&ctx, event, area);
@@ -619,7 +619,7 @@ test "CompositeInteraction scrollable only" {
     };
 
     var ctx = TestCtx{ .delta = &scroll_delta };
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
     const event = MouseEvent{ .event_type = .scroll_up, .button = .none, .x = 15, .y = 8 };
 
     const result = composite.handleEvent(&ctx, event, area);
@@ -645,7 +645,7 @@ test "Clickable.handleEvent double click" {
 
     const clickable = Clickable{ .on_click = onClick };
     var ctx = TestCtx{ .clicked = &clicked };
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
     const event = MouseEvent{
         .event_type = .double_click,
         .button = .left,
@@ -686,7 +686,7 @@ test "CompositeInteraction draggable only" {
     };
 
     var ctx = TestCtx{ .started = &drag_started };
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
     const event = MouseEvent{ .event_type = .press, .button = .left, .x = 15, .y = 8 };
 
     const result = composite.handleEvent(&ctx, event, area);
@@ -716,7 +716,7 @@ test "CompositeInteraction hoverable only" {
     };
 
     var ctx = TestCtx{ .entered = &hover_entered };
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
     const event = MouseEvent{ .event_type = .move, .button = .none, .x = 15, .y = 8 };
 
     const result = composite.handleEvent(&ctx, event, area);
@@ -756,7 +756,7 @@ test "CompositeInteraction clickable and scrollable" {
     };
 
     var ctx = TestCtx{ .clicked = &clicked, .scroll_delta = &scroll_delta };
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
 
     // Click event
     const click_event = MouseEvent{ .event_type = .press, .button = .left, .x = 15, .y = 8 };
@@ -793,7 +793,7 @@ test "Hoverable.handleEvent move outside" {
     };
 
     var ctx = TestCtx{ .left = &left_called };
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
     const event = MouseEvent{ .event_type = .move, .button = .none, .x = 5, .y = 5 }; // Outside area
 
     const result = hoverable.handleEvent(&ctx, event, &state, area);
@@ -834,7 +834,7 @@ test "Draggable.handleEvent release outside area" {
     };
 
     var ctx = TestCtx{ .ended = &drag_ended };
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
     const event = MouseEvent{ .event_type = .release, .button = .left, .x = 50, .y = 50 }; // Far outside
 
     const result = draggable.handleEvent(&ctx, event, &state, area);

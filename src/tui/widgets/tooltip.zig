@@ -138,7 +138,7 @@ pub const Tooltip = struct {
 
     /// Internal: Calculate tooltip area based on position strategy
     fn calculateArea(self: Tooltip, area: Rect) Rect {
-        const target = self.target_area orelse return Rect.new(0, 0, 0, 0);
+        const target = self.target_area orelse return Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
 
         // Calculate tooltip dimensions
         const content_width = @as(u16, @intCast(@min(self.content.len, 100)));
@@ -192,24 +192,24 @@ pub const Tooltip = struct {
             .above => {
                 const y = if (target.y >= height) target.y - height else 0;
                 const x = target.x;
-                return Rect.new(x, y, @min(width, area.width), height);
+                return Rect{ .x = x, .y = y, .width = @min(width, area.width), .height = height };
             },
             .below => {
                 const y = target.y + target.height;
                 const x = target.x;
                 const max_height = if (area.height > y) area.height - y else 0;
-                return Rect.new(x, y, @min(width, area.width), @min(height, max_height));
+                return Rect{ .x = x, .y = y, .width = @min(width, area.width), .height = @min(height, max_height) };
             },
             .left => {
                 const x = if (target.x >= width) target.x - width else 0;
                 const y = target.y;
-                return Rect.new(x, y, @min(width, area.width), height);
+                return Rect{ .x = x, .y = y, .width = @min(width, area.width), .height = height };
             },
             .right => {
                 const x = target.x + target.width;
                 const y = target.y;
                 const max_width = if (area.width > x) area.width - x else 0;
-                return Rect.new(x, y, @min(width, max_width), height);
+                return Rect{ .x = x, .y = y, .width = @min(width, max_width), .height = height };
             },
             .auto => unreachable, // Should be resolved before this
         }
@@ -220,7 +220,7 @@ pub const Tooltip = struct {
         const target = self.target_area orelse return;
 
         const actual_position = if (self.position == .auto)
-            self.determineAutoPosition(Rect.new(0, 0, buf.width, buf.height), target, @intCast(@min(self.content.len, 100)), 1)
+            self.determineAutoPosition(Rect{ .x = 0, .y = 0, .width = buf.width, .height = buf.height }, target, @intCast(@min(self.content.len, 100)), 1)
         else
             self.position;
 
@@ -247,7 +247,7 @@ pub const Tooltip = struct {
             .auto => return,
         };
 
-        buf.setChar(arrow_x, arrow_y, arrow_char, self.border_style);
+        buf.set(arrow_x, arrow_y, .{ .char = arrow_char, .style = self.border_style });
     }
 };
 
@@ -355,7 +355,7 @@ test "Tooltip.withStyle method chaining" {
 
 test "Tooltip.show sets visible true" {
     var tooltip = Tooltip.init("Test");
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
@@ -364,7 +364,7 @@ test "Tooltip.show sets visible true" {
 
 test "Tooltip.show stores target area" {
     var tooltip = Tooltip.init("Test");
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
@@ -375,7 +375,7 @@ test "Tooltip.show stores target area" {
 
 test "Tooltip.hide sets visible false" {
     var tooltip = Tooltip.init("Test");
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
     tooltip.hide();
@@ -385,7 +385,7 @@ test "Tooltip.hide sets visible false" {
 
 test "Tooltip.hide clears target area" {
     var tooltip = Tooltip.init("Test");
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
     tooltip.hide();
@@ -395,7 +395,7 @@ test "Tooltip.hide clears target area" {
 
 test "Tooltip.show hide multiple cycles" {
     var tooltip = Tooltip.init("Test");
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
     try std.testing.expectEqual(true, tooltip.visible);
@@ -416,7 +416,7 @@ test "Tooltip.render hidden tooltip doesn't render" {
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Should not render anything (no crash, no visible output)
@@ -426,14 +426,14 @@ test "Tooltip.render hidden tooltip doesn't render" {
 
 test "Tooltip.render visible tooltip renders content" {
     var tooltip = Tooltip.init("Help");
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Should render content above target (auto position with space above)
@@ -444,14 +444,14 @@ test "Tooltip.render visible tooltip renders content" {
 
 test "Tooltip.render position above renders above target" {
     var tooltip = Tooltip.init("Above").withPosition(.above);
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Tooltip should render above target (y < 10)
@@ -461,14 +461,14 @@ test "Tooltip.render position above renders above target" {
 
 test "Tooltip.render position below renders below target" {
     var tooltip = Tooltip.init("Below").withPosition(.below);
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Tooltip should render below target (y = 10 + 2 = 12)
@@ -477,14 +477,14 @@ test "Tooltip.render position below renders below target" {
 
 test "Tooltip.render position left renders left of target" {
     var tooltip = Tooltip.init("Left").withPosition(.left);
-    const target = Rect.new(20, 10, 5, 2);
+    const target = Rect{ .x = 20, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Tooltip should render left of target (x < 20)
@@ -493,14 +493,14 @@ test "Tooltip.render position left renders left of target" {
 
 test "Tooltip.render position right renders right of target" {
     var tooltip = Tooltip.init("Right").withPosition(.right);
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Tooltip should render right of target (x = 10 + 5 = 15)
@@ -509,14 +509,14 @@ test "Tooltip.render position right renders right of target" {
 
 test "Tooltip.render position auto chooses above with space" {
     var tooltip = Tooltip.init("Auto").withPosition(.auto);
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // With space above (y=10), should choose above
@@ -525,14 +525,14 @@ test "Tooltip.render position auto chooses above with space" {
 
 test "Tooltip.render position auto chooses below when no space above" {
     var tooltip = Tooltip.init("Auto").withPosition(.auto);
-    const target = Rect.new(10, 0, 5, 2);
+    const target = Rect{ .x = 10, .y = 0, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // No space above (y=0), should choose below
@@ -541,14 +541,14 @@ test "Tooltip.render position auto chooses below when no space above" {
 
 test "Tooltip.render auto respects top boundary" {
     var tooltip = Tooltip.init("Top").withPosition(.auto);
-    const target = Rect.new(10, 0, 5, 2);
+    const target = Rect{ .x = 10, .y = 0, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Target at top (y=0), should render below instead
@@ -557,14 +557,14 @@ test "Tooltip.render auto respects top boundary" {
 
 test "Tooltip.render auto respects bottom boundary" {
     var tooltip = Tooltip.init("Bottom").withPosition(.auto);
-    const target = Rect.new(10, 22, 5, 2);
+    const target = Rect{ .x = 10, .y = 22, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Target near bottom (y=22), should render above
@@ -573,14 +573,14 @@ test "Tooltip.render auto respects bottom boundary" {
 
 test "Tooltip.render auto respects left boundary" {
     var tooltip = Tooltip.init("Left").withPosition(.auto);
-    const target = Rect.new(0, 10, 5, 2);
+    const target = Rect{ .x = 0, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Target at left edge (x=0), should render above (sufficient space)
@@ -589,14 +589,14 @@ test "Tooltip.render auto respects left boundary" {
 
 test "Tooltip.render auto respects right boundary" {
     var tooltip = Tooltip.init("Right").withPosition(.auto);
-    const target = Rect.new(75, 10, 5, 2);
+    const target = Rect{ .x = 75, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Target near right edge (x=75), should render above (sufficient space)
@@ -605,14 +605,14 @@ test "Tooltip.render auto respects right boundary" {
 
 test "Tooltip.render arrow renders for above position" {
     var tooltip = Tooltip.init("Test").withPosition(.above).withArrow(true);
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Arrow should be ▼ for above position, at y=10 (below tooltip)
@@ -621,14 +621,14 @@ test "Tooltip.render arrow renders for above position" {
 
 test "Tooltip.render arrow renders for below position" {
     var tooltip = Tooltip.init("Test").withPosition(.below).withArrow(true);
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Arrow should be ▲ for below position, at y=11 (above tooltip at y=12)
@@ -637,14 +637,14 @@ test "Tooltip.render arrow renders for below position" {
 
 test "Tooltip.render arrow renders for left position" {
     var tooltip = Tooltip.init("Test").withPosition(.left).withArrow(true);
-    const target = Rect.new(20, 10, 5, 2);
+    const target = Rect{ .x = 20, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Arrow should be ▶ for left position, at x=20 (right of tooltip)
@@ -653,14 +653,14 @@ test "Tooltip.render arrow renders for left position" {
 
 test "Tooltip.render arrow renders for right position" {
     var tooltip = Tooltip.init("Test").withPosition(.right).withArrow(true);
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Arrow should be ◀ for right position, at x=14 (left of tooltip at x=15)
@@ -669,14 +669,14 @@ test "Tooltip.render arrow renders for right position" {
 
 test "Tooltip.render arrow disabled doesn't render" {
     var tooltip = Tooltip.init("Test").withPosition(.above).withArrow(false);
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Arrow should not be rendered - check that position has space, not arrow
@@ -687,14 +687,14 @@ test "Tooltip.render style applies to content" {
     var tooltip = Tooltip.init("Styled")
         .withStyle(.{ .fg = .green, .bg = .black })
         .withPosition(.below);
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Check style is applied
@@ -707,14 +707,14 @@ test "Tooltip.render border renders when block is set" {
     var tooltip = Tooltip.init("Bordered")
         .withBlock((Block{}))
         .withPosition(.below);
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // With block borders, the border occupies outer cells, content is indented
@@ -725,14 +725,14 @@ test "Tooltip.render border renders when block is set" {
 
 test "Tooltip.render empty content edge case" {
     var tooltip = Tooltip.init("").withPosition(.below);
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Should handle empty content gracefully - no crash is success
@@ -743,14 +743,14 @@ test "Tooltip.render empty content edge case" {
 
 test "Tooltip.render zero dimension area edge case" {
     var tooltip = Tooltip.init("Test").withPosition(.below);
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 0, 0);
+    const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
     tooltip.render(buf, area);
 
     // Should not crash with zero area - render returns early
@@ -761,14 +761,14 @@ test "Tooltip.render zero dimension area edge case" {
 test "Tooltip.render very long content" {
     const long_content = "This is a very long tooltip content that exceeds the normal width and should be handled gracefully by the rendering code without crashing or causing issues";
     var tooltip = Tooltip.init(long_content).withPosition(.below);
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Should truncate to max width (100 chars as per calculateArea)
@@ -780,14 +780,14 @@ test "Tooltip.render very long content" {
 
 test "Tooltip.render single character content" {
     var tooltip = Tooltip.init("X").withPosition(.below);
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Should render single character
@@ -796,14 +796,14 @@ test "Tooltip.render single character content" {
 
 test "Tooltip.render unicode content emoji" {
     var tooltip = Tooltip.init("👋 Hello").withPosition(.below);
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Should render emoji correctly - verify content appears
@@ -813,14 +813,14 @@ test "Tooltip.render unicode content emoji" {
 
 test "Tooltip.render unicode content CJK" {
     var tooltip = Tooltip.init("你好世界").withPosition(.below);
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Should render CJK characters correctly - verify first character
@@ -829,14 +829,14 @@ test "Tooltip.render unicode content CJK" {
 
 test "Tooltip.render target area larger than terminal" {
     var tooltip = Tooltip.init("Test").withPosition(.below);
-    const target = Rect.new(100, 100, 50, 20);
+    const target = Rect{ .x = 100, .y = 100, .width = 50, .height = 20 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Should handle out-of-bounds target gracefully - nothing renders
@@ -847,14 +847,14 @@ test "Tooltip.render target area larger than terminal" {
 test "Tooltip.render tooltip larger than terminal" {
     const huge_content = "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua";
     var tooltip = Tooltip.init(huge_content).withPosition(.below);
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 20, 5);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 20, 5);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
     tooltip.render(buf, area);
 
     // Should clip to terminal bounds - verify no overflow
@@ -864,14 +864,14 @@ test "Tooltip.render tooltip larger than terminal" {
 
 test "Tooltip.render corner case top left" {
     var tooltip = Tooltip.init("Corner").withPosition(.auto);
-    const target = Rect.new(0, 0, 3, 1);
+    const target = Rect{ .x = 0, .y = 0, .width = 3, .height = 1 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Should position tooltip below (no space above)
@@ -880,14 +880,14 @@ test "Tooltip.render corner case top left" {
 
 test "Tooltip.render corner case top right" {
     var tooltip = Tooltip.init("Corner").withPosition(.auto);
-    const target = Rect.new(77, 0, 3, 1);
+    const target = Rect{ .x = 77, .y = 0, .width = 3, .height = 1 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Should position below (no space above)
@@ -896,14 +896,14 @@ test "Tooltip.render corner case top right" {
 
 test "Tooltip.render corner case bottom left" {
     var tooltip = Tooltip.init("Corner").withPosition(.auto);
-    const target = Rect.new(0, 23, 3, 1);
+    const target = Rect{ .x = 0, .y = 23, .width = 3, .height = 1 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Should choose above position (sufficient space)
@@ -912,14 +912,14 @@ test "Tooltip.render corner case bottom left" {
 
 test "Tooltip.render corner case bottom right" {
     var tooltip = Tooltip.init("Corner").withPosition(.auto);
-    const target = Rect.new(77, 23, 3, 1);
+    const target = Rect{ .x = 77, .y = 23, .width = 3, .height = 1 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Should position above (sufficient space)
@@ -928,14 +928,14 @@ test "Tooltip.render corner case bottom right" {
 
 test "Tooltip.render no memory leaks" {
     var tooltip = Tooltip.init("Memory test");
-    const target = Rect.new(10, 10, 5, 2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
 
     tooltip.show(target);
 
     var buf = try Buffer.init(std.testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     tooltip.render(buf, area);
 
     // Should not leak memory (testing allocator will catch leaks)

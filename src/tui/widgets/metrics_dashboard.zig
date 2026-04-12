@@ -112,9 +112,9 @@ pub const MetricsDashboard = struct {
         const section_height = area.height / 3;
         if (section_height == 0) return;
 
-        const render_area = Rect.new(area.x, area.y, area.width, section_height);
-        const memory_area = Rect.new(area.x, area.y + section_height, area.width, section_height);
-        const event_area = Rect.new(area.x, area.y + section_height * 2, area.width, area.height - section_height * 2);
+        const render_area = Rect{ .x = area.x, .y = area.y, .width = area.width, .height = section_height };
+        const memory_area = Rect{ .x = area.x, .y = area.y + section_height, .width = area.width, .height = section_height };
+        const event_area = Rect{ .x = area.x, .y = area.y + section_height * 2, .width = area.width, .height = area.height - section_height * 2 };
 
         try self.renderRenderMetrics(buf, render_area);
         try self.renderMemoryMetrics(buf, memory_area);
@@ -126,9 +126,9 @@ pub const MetricsDashboard = struct {
         const section_width = area.width / 3;
         if (section_width == 0) return;
 
-        const render_area = Rect.new(area.x, area.y, section_width, area.height);
-        const memory_area = Rect.new(area.x + section_width, area.y, section_width, area.height);
-        const event_area = Rect.new(area.x + section_width * 2, area.y, area.width - section_width * 2, area.height);
+        const render_area = Rect{ .x = area.x, .y = area.y, .width = section_width, .height = area.height };
+        const memory_area = Rect{ .x = area.x + section_width, .y = area.y, .width = section_width, .height = area.height };
+        const event_area = Rect{ .x = area.x + section_width * 2, .y = area.y, .width = area.width - section_width * 2, .height = area.height };
 
         try self.renderRenderMetrics(buf, render_area);
         try self.renderMemoryMetrics(buf, memory_area);
@@ -141,9 +141,9 @@ pub const MetricsDashboard = struct {
         const half_height = area.height / 2;
         if (half_width == 0 or half_height == 0) return;
 
-        const render_area = Rect.new(area.x, area.y, half_width, half_height);
-        const memory_area = Rect.new(area.x + half_width, area.y, area.width - half_width, half_height);
-        const event_area = Rect.new(area.x, area.y + half_height, area.width, area.height - half_height);
+        const render_area = Rect{ .x = area.x, .y = area.y, .width = half_width, .height = half_height };
+        const memory_area = Rect{ .x = area.x + half_width, .y = area.y, .width = area.width - half_width, .height = half_height };
+        const event_area = Rect{ .x = area.x, .y = area.y + half_height, .width = area.width, .height = area.height - half_height };
 
         try self.renderRenderMetrics(buf, render_area);
         try self.renderMemoryMetrics(buf, memory_area);
@@ -161,7 +161,7 @@ pub const MetricsDashboard = struct {
         // Draw separator
         if (area.height > 1 and area.width > 0) {
             for (0..area.width) |offset| {
-                buf.setChar(area.x + @as(u16, @intCast(offset)), area.y + 1, '─', .{});
+                buf.set(area.x + @as(u16, @intCast(offset)), area.y + 1, .{ .char = '─', .style = .{} });
             }
         }
 
@@ -236,7 +236,7 @@ pub const MetricsDashboard = struct {
         // Draw separator
         if (area.height > 1 and area.width > 0) {
             for (0..area.width) |offset| {
-                buf.setChar(area.x + @as(u16, @intCast(offset)), area.y + 1, '─', .{});
+                buf.set(area.x + @as(u16, @intCast(offset)), area.y + 1, .{ .char = '─', .style = .{} });
             }
         }
 
@@ -300,7 +300,7 @@ pub const MetricsDashboard = struct {
         // Draw separator
         if (area.height > 1 and area.width > 0) {
             for (0..area.width) |offset| {
-                buf.setChar(area.x + @as(u16, @intCast(offset)), area.y + 1, '─', .{});
+                buf.set(area.x + @as(u16, @intCast(offset)), area.y + 1, .{ .char = '─', .style = .{} });
             }
         }
 

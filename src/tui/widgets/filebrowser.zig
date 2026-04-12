@@ -409,13 +409,13 @@ pub const FileBrowser = struct {
             const label = "Path: ";
             for (label) |c| {
                 if (x < inner_area.x + inner_area.width) {
-                    buf.setChar(x, y, c, .{});
+                    buf.set(x, y, .{ .char = c, .style = .{} });
                     x += 1;
                 }
             }
             for (self.current_path) |c| {
                 if (x >= inner_area.x + inner_area.width) break;
-                buf.setChar(x, y, c, .{});
+                buf.set(x, y, .{ .char = c, .style = .{} });
                 x += 1;
             }
             y += 1;
@@ -436,7 +436,7 @@ pub const FileBrowser = struct {
                 const mark = if (entry.selected) "✓ " else "> ";
                 for (mark) |c| {
                     if (x < inner_area.x + inner_area.width) {
-                        buf.setChar(x, y, c, style);
+                        buf.set(x, y, .{ .char = c, .style = style });
                         x += 1;
                     }
                 }
@@ -447,7 +447,7 @@ pub const FileBrowser = struct {
                 const icon = if (entry.is_dir) "📁 " else "📄 ";
                 for (icon) |c| {
                     if (x < inner_area.x + inner_area.width) {
-                        buf.setChar(x, y, c, style);
+                        buf.set(x, y, .{ .char = c, .style = style });
                         x += 1;
                     }
                 }
@@ -456,14 +456,14 @@ pub const FileBrowser = struct {
             // Render filename
             for (entry.name) |c| {
                 if (x >= inner_area.x + inner_area.width) break;
-                buf.setChar(x, y, c, style);
+                buf.set(x, y, .{ .char = c, .style = style });
                 x += 1;
             }
 
             // Fill rest of line if selected
             if (is_selected) {
                 while (x < inner_area.x + inner_area.width) : (x += 1) {
-                    buf.setChar(x, y, ' ', style);
+                    buf.set(x, y, .{ .char = ' ', .style = style });
                 }
             }
 

@@ -294,7 +294,7 @@ pub const MultiCursorEditor = struct {
             if (x < text_start_x + render_area.width) {
                 var cell = buf.get(x, y);
                 cell.style = self.secondary_cursor_style;
-                buf.setChar(x, y, cell.char, cell.style);
+                buf.set(x, y, .{ .char = cell.char, .style = cell.style });
             }
         }
     }
@@ -963,7 +963,7 @@ pub const MultiCursor = struct {
                     }
                 }
 
-                buf.setChar(x, y, char, style);
+                buf.set(x, y, .{ .char = char, .style = style });
             }
         }
 
@@ -987,7 +987,7 @@ pub const MultiCursor = struct {
             else
                 ' ';
 
-            buf.setChar(x, y, char, cursor_style);
+            buf.set(x, y, .{ .char = char, .style = cursor_style });
         }
     }
 };

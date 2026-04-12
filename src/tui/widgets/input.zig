@@ -189,7 +189,7 @@ pub const Input = struct {
             else
                 display_style;
 
-            buf.setChar(x, y, codepoint, char_style);
+            buf.set(x, y, .{ .char = codepoint, .style = char_style });
             x += 1;
             text_byte_idx += char_len;
             char_count += 1;
@@ -197,13 +197,13 @@ pub const Input = struct {
 
         // If cursor is at end or input is empty, show cursor after last character
         if (self.cursor == char_count and x < x_start + width) {
-            buf.setChar(x, y, ' ', self.cursor_style);
+            buf.set(x, y, .{ .char = ' ', .style = self.cursor_style });
             x += 1;
         }
 
         // Fill remaining space
         while (x < x_start + width) {
-            buf.setChar(x, y, ' ', self.style);
+            buf.set(x, y, .{ .char = ' ', .style = self.style });
             x += 1;
         }
     }

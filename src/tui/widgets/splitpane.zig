@@ -146,8 +146,8 @@ pub const SplitPane = struct {
         // Handle zero-size area
         if (area.width == 0 or area.height == 0) {
             return [2]Rect{
-                Rect.new(area.x, area.y, 0, 0),
-                Rect.new(area.x, area.y, 0, 0),
+                Rect{ .x = area.x, .y = area.y, .width = 0, .height = 0 },
+                Rect{ .x = area.x, .y = area.y, .width = 0, .height = 0 },
             };
         }
 
@@ -194,12 +194,12 @@ pub const SplitPane = struct {
         // Build rectangles
         return switch (self.direction) {
             .horizontal => [2]Rect{
-                Rect.new(area.x, area.y, first_size, area.height),
-                Rect.new(area.x + first_size + divider_size, area.y, second_size, area.height),
+                Rect{ .x = area.x, .y = area.y, .width = first_size, .height = area.height },
+                Rect{ .x = area.x + first_size + divider_size, .y = area.y, .width = second_size, .height = area.height },
             },
             .vertical => [2]Rect{
-                Rect.new(area.x, area.y, area.width, first_size),
-                Rect.new(area.x, area.y + first_size + divider_size, area.width, second_size),
+                Rect{ .x = area.x, .y = area.y, .width = area.width, .height = first_size },
+                Rect{ .x = area.x, .y = area.y + first_size + divider_size, .width = area.width, .height = second_size },
             },
         };
     }
@@ -220,7 +220,7 @@ pub const SplitPane = struct {
 
                 var y = area.y;
                 while (y < area.y + area.height) : (y += 1) {
-                    buf.setChar(divider_x, y, self.divider_char, self.divider_style);
+                    buf.set(divider_x, y, .{ .char = self.divider_char, .style = self.divider_style });
                 }
             },
             .vertical => {
@@ -230,7 +230,7 @@ pub const SplitPane = struct {
 
                 var x = area.x;
                 while (x < area.x + area.width) : (x += 1) {
-                    buf.setChar(x, divider_y, self.divider_char, self.divider_style);
+                    buf.set(x, divider_y, .{ .char = self.divider_char, .style = self.divider_style });
                 }
             },
         }
@@ -331,7 +331,7 @@ test "SplitPane.withDividerStyle" {
 
 test "SplitPane.calculatePanes horizontal 50/50" {
     const split = SplitPane.init();
-    const area = Rect.new(0, 0, 100, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
 
     const panes = split.calculatePanes(area);
 
@@ -349,7 +349,7 @@ test "SplitPane.calculatePanes horizontal 50/50" {
 
 test "SplitPane.calculatePanes horizontal 30/70" {
     const split = SplitPane.init().withPercent(30);
-    const area = Rect.new(0, 0, 100, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
 
     const panes = split.calculatePanes(area);
 
@@ -360,7 +360,7 @@ test "SplitPane.calculatePanes horizontal 30/70" {
 
 test "SplitPane.calculatePanes vertical 50/50" {
     const split = SplitPane.init().withDirection(.vertical);
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
 
     const panes = split.calculatePanes(area);
 
@@ -378,7 +378,7 @@ test "SplitPane.calculatePanes vertical 50/50" {
 
 test "SplitPane.calculatePanes vertical 60/40" {
     const split = SplitPane.init().withDirection(.vertical).withPercent(60);
-    const area = Rect.new(0, 0, 80, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 50 };
 
     const panes = split.calculatePanes(area);
 
@@ -389,7 +389,7 @@ test "SplitPane.calculatePanes vertical 60/40" {
 
 test "SplitPane.calculatePanes no divider horizontal" {
     const split = SplitPane.init().withDivider(false);
-    const area = Rect.new(0, 0, 100, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
 
     const panes = split.calculatePanes(area);
 
@@ -401,7 +401,7 @@ test "SplitPane.calculatePanes no divider horizontal" {
 
 test "SplitPane.calculatePanes no divider vertical" {
     const split = SplitPane.init().withDirection(.vertical).withDivider(false);
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
 
     const panes = split.calculatePanes(area);
 
@@ -415,7 +415,7 @@ test "SplitPane.calculatePanes min first size enforced" {
     const split = SplitPane.init()
         .withPercent(10) // Want 10%, but min will force larger
         .withMinFirstSize(30);
-    const area = Rect.new(0, 0, 100, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
 
     const panes = split.calculatePanes(area);
 
@@ -427,7 +427,7 @@ test "SplitPane.calculatePanes max first size enforced" {
     const split = SplitPane.init()
         .withPercent(80) // Want 80%, but max will limit
         .withMaxFirstSize(40);
-    const area = Rect.new(0, 0, 100, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
 
     const panes = split.calculatePanes(area);
 
@@ -439,7 +439,7 @@ test "SplitPane.calculatePanes min second size enforced" {
     const split = SplitPane.init()
         .withPercent(95) // Want 95% first, but second needs min
         .withMinSecondSize(20);
-    const area = Rect.new(0, 0, 100, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
 
     const panes = split.calculatePanes(area);
 
@@ -453,7 +453,7 @@ test "SplitPane.calculatePanes max second size enforced" {
     const split = SplitPane.init()
         .withPercent(10) // Want 10% first, gives 90% to second, but limited
         .withMaxSecondSize(30);
-    const area = Rect.new(0, 0, 100, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
 
     const panes = split.calculatePanes(area);
 
@@ -465,7 +465,7 @@ test "SplitPane.calculatePanes max second size enforced" {
 
 test "SplitPane.calculatePanes zero width area" {
     const split = SplitPane.init();
-    const area = Rect.new(0, 0, 0, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 20 };
 
     const panes = split.calculatePanes(area);
 
@@ -475,7 +475,7 @@ test "SplitPane.calculatePanes zero width area" {
 
 test "SplitPane.calculatePanes zero height area" {
     const split = SplitPane.init().withDirection(.vertical);
-    const area = Rect.new(0, 0, 80, 0);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 0 };
 
     const panes = split.calculatePanes(area);
 
@@ -487,7 +487,7 @@ test "SplitPane.calculatePanes full width to first pane" {
     const split = SplitPane.init()
         .withPercent(100)
         .withDivider(false);
-    const area = Rect.new(0, 0, 100, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
 
     const panes = split.calculatePanes(area);
 
@@ -499,7 +499,7 @@ test "SplitPane.calculatePanes full width to second pane" {
     const split = SplitPane.init()
         .withPercent(0)
         .withDivider(false);
-    const area = Rect.new(0, 0, 100, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
 
     const panes = split.calculatePanes(area);
 
@@ -510,7 +510,7 @@ test "SplitPane.calculatePanes full width to second pane" {
 test "SplitPane.calculatePanes min greater than available" {
     const split = SplitPane.init()
         .withMinFirstSize(200); // Min > available
-    const area = Rect.new(0, 0, 100, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
 
     const panes = split.calculatePanes(area);
 
@@ -524,7 +524,7 @@ test "SplitPane.calculatePanes conflicting constraints" {
     const split = SplitPane.init()
         .withMinFirstSize(60)
         .withMinSecondSize(60);
-    const area = Rect.new(0, 0, 100, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
 
     const panes = split.calculatePanes(area);
 
@@ -540,7 +540,7 @@ test "SplitPane.render horizontal divider" {
     defer buf.deinit();
 
     const split = SplitPane.init();
-    const area = Rect.new(0, 0, 100, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
 
     split.render(&buf, area);
 
@@ -558,7 +558,7 @@ test "SplitPane.render vertical divider" {
     defer buf.deinit();
 
     const split = SplitPane.init().withDirection(.vertical);
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
 
     split.render(&buf, area);
 
@@ -576,7 +576,7 @@ test "SplitPane.render custom divider char" {
     defer buf.deinit();
 
     const split = SplitPane.init().withDividerChar('|');
-    const area = Rect.new(0, 0, 100, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
 
     split.render(&buf, area);
 
@@ -592,7 +592,7 @@ test "SplitPane.render divider with style" {
 
     const style = Style{ .fg = .red };
     const split = SplitPane.init().withDividerStyle(style);
-    const area = Rect.new(0, 0, 100, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
 
     split.render(&buf, area);
 
@@ -607,7 +607,7 @@ test "SplitPane.render no divider renders nothing" {
     defer buf.deinit();
 
     const split = SplitPane.init().withDivider(false);
-    const area = Rect.new(0, 0, 100, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
 
     split.render(&buf, area);
 
@@ -627,7 +627,7 @@ test "SplitPane.render zero size area does not crash" {
     defer buf.deinit();
 
     const split = SplitPane.init();
-    const area = Rect.new(0, 0, 0, 0);
+    const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
 
     split.render(&buf, area);
 
@@ -642,7 +642,7 @@ test "SplitPane.render horizontal divider for vertical split" {
     const split = SplitPane.init()
         .withDirection(.vertical)
         .withDividerChar('─');
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
 
     split.render(&buf, area);
 

@@ -157,13 +157,13 @@ pub const DebugOverlay = struct {
                 // Top border
                 var x = rect.x;
                 while (x < rect.x + rect.width and x < buf.width) : (x += 1) {
-                    buf.setChar(x, rect.y, '─', .{ .fg = color });
+                    buf.set(x, rect.y, .{ .char = '─', .style = .{ .fg = color } });
                 }
                 // Bottom border
                 if (rect.height > 1) {
                     x = rect.x;
                     while (x < rect.x + rect.width and x < buf.width) : (x += 1) {
-                        buf.setChar(x, rect.y + rect.height - 1, '─', .{ .fg = color });
+                        buf.set(x, rect.y + rect.height - 1, .{ .char = '─', .style = .{ .fg = color } });
                     }
                 }
             }
@@ -172,13 +172,13 @@ pub const DebugOverlay = struct {
                 // Left border
                 var y = rect.y;
                 while (y < rect.y + rect.height and y < buf.height) : (y += 1) {
-                    buf.setChar(rect.x, y, '│', .{ .fg = color });
+                    buf.set(rect.x, y, .{ .char = '│', .style = .{ .fg = color } });
                 }
                 // Right border
                 if (rect.width > 1) {
                     y = rect.y;
                     while (y < rect.y + rect.height and y < buf.height) : (y += 1) {
-                        buf.setChar(rect.x + rect.width - 1, y, '│', .{ .fg = color });
+                        buf.set(rect.x + rect.width - 1, y, .{ .char = '│', .style = .{ .fg = color } });
                     }
                 }
             }
