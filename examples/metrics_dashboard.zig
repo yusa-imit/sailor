@@ -57,7 +57,7 @@ pub fn main() !void {
     var buffer = try Buffer.init(allocator, width, height);
     defer buffer.deinit();
 
-    _ = Rect.new(0, 0, width, height);
+    _ = Rect{ .x = 0, .y = 0, .width = width, .height = height };
 
     // Title
     buffer.setString(2, 0, "Sailor Performance Metrics Dashboard", Style{ .bold = true, .fg = Color{ .indexed = 14 } });
@@ -72,7 +72,7 @@ pub fn main() !void {
     defer dashboard.deinit();
 
     // Show metrics in vertical layout (from row 2)
-    const dashboard_area = Rect.new(0, 2, width, height - 5);
+    const dashboard_area = Rect{ .x = 0, .y = 2, .width = width, .height = height - 5 };
     dashboard.setLayoutMode(.vertical);
     dashboard.setShowGraphs(false);
     try dashboard.render(&buffer, dashboard_area);

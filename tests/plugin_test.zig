@@ -73,7 +73,7 @@ test "plugin: custom widget implements protocol" {
     try testing.expectEqual(@as(u16, 1), size.height);
 
     // Test render
-    const area = Rect.new(0, 0, 20, 5);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
     badge.render(&buf, area);
 
     // Verify output (buf.get returns optional)
@@ -98,7 +98,7 @@ test "plugin: Padding composition helper" {
     const padded = Padding(CustomBadge).init(badge, 2);
 
     // Test render
-    const area = Rect.new(0, 0, 20, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     padded.render(&buf, area);
 
     // Content should be at (2, 2) — padding of 2 on all sides
@@ -121,7 +121,7 @@ test "plugin: Centered composition helper" {
     const centered = Centered(CustomBadge).init(badge);
 
     // Test render
-    const area = Rect.new(0, 0, 20, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     centered.render(&buf, area);
 
     // Verify badge was rendered somewhere (centering logic can vary)
@@ -156,7 +156,7 @@ test "plugin: Aligned composition helper" {
     });
 
     // Test render — left-top alignment should render at (0, 0)
-    const area = Rect.new(0, 0, 20, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     aligned.render(&buf, area);
 
     // Verify it rendered
@@ -186,7 +186,7 @@ test "plugin: Stack vertical composition" {
     try stack.push(badge3);
 
     // Test render
-    const area = Rect.new(0, 0, 20, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     stack.render(&buf, area);
 
     // Verify all three badges were rendered (positions depend on distribution logic)
@@ -226,7 +226,7 @@ test "plugin: Stack horizontal composition" {
     try stack.push(badge2);
 
     // Test render
-    const area = Rect.new(0, 0, 20, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     stack.render(&buf, area);
 
     // Verify both badges were rendered
@@ -261,7 +261,7 @@ test "plugin: Constrained composition helper" {
     });
 
     // Test render
-    const area = Rect.new(0, 0, 50, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };
     constrained.render(&buf, area);
 
     // Verify badge was rendered (clipped to 8 width)
@@ -291,7 +291,7 @@ test "plugin: nested composition helpers" {
     const centered = Centered(Padding(CustomBadge)).init(padded);
 
     // Test render
-    const area = Rect.new(0, 0, 30, 15);
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 15 };
     centered.render(&buf, area);
 
     // Verify badge was rendered somewhere
@@ -334,7 +334,7 @@ test "plugin: full integration with all features" {
     });
 
     // Test render
-    const area = Rect.new(0, 0, 40, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     constrained.render(&buf, area);
 
     // Verify badge was rendered (exact position depends on centering logic)
@@ -370,7 +370,7 @@ test "plugin: example demo widget works" {
         .vertical = .middle,
     });
 
-    const area = Rect.new(0, 0, 30, 15);
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 15 };
     aligned.render(&buf, area);
 
     // Verify it rendered

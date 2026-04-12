@@ -37,7 +37,7 @@ test "TextArea.init creates textarea with lines" {
 
 test "TextArea builder methods chain correctly" {
     const lines = [_][]const u8{"test"};
-    const block = Block{}.withTitle("Editor", .top_left);
+    const block = Block{ .title = "Editor", .title_position = .top_left };
 
     const textarea = TextArea.init(&lines)
         .withCursor(5, 10)

@@ -158,8 +158,8 @@ test "FadeTransition - reset and restart" {
 // ============================================================================
 
 test "SlideTransition - slide in from top (Y position)" {
-    const start_rect = Rect.new(10, 0, 50, 20); // Start at Y=0 (off-screen top)
-    const end_rect = Rect.new(10, 30, 50, 20);  // End at Y=30
+    const start_rect = Rect{ .x = 10, .y = 0, .width = 50, .height = 20 }; // Start at Y=0 (off-screen top)
+    const end_rect = Rect{ .x = 10, .y = 30, .width = 50, .height = 20 };  // End at Y=30
 
     var slide = SlideTransition.slideIn(.top, start_rect, end_rect, 1000, animation.linear);
     slide.begin(0);
@@ -183,8 +183,8 @@ test "SlideTransition - slide in from top (Y position)" {
 }
 
 test "SlideTransition - slide in from bottom (Y position)" {
-    const start_rect = Rect.new(10, 100, 50, 20); // Start at Y=100 (off-screen bottom)
-    const end_rect = Rect.new(10, 30, 50, 20);    // End at Y=30
+    const start_rect = Rect{ .x = 10, .y = 100, .width = 50, .height = 20 }; // Start at Y=100 (off-screen bottom)
+    const end_rect = Rect{ .x = 10, .y = 30, .width = 50, .height = 20 };    // End at Y=30
 
     var slide = SlideTransition.slideIn(.bottom, start_rect, end_rect, 1000, animation.linear);
     slide.begin(0);
@@ -203,8 +203,8 @@ test "SlideTransition - slide in from bottom (Y position)" {
 }
 
 test "SlideTransition - slide in from left (X position)" {
-    const start_rect = Rect.new(0, 10, 50, 20);  // Start at X=0 (off-screen left)
-    const end_rect = Rect.new(40, 10, 50, 20);   // End at X=40
+    const start_rect = Rect{ .x = 0, .y = 10, .width = 50, .height = 20 };  // Start at X=0 (off-screen left)
+    const end_rect = Rect{ .x = 40, .y = 10, .width = 50, .height = 20 };   // End at X=40
 
     var slide = SlideTransition.slideIn(.left, start_rect, end_rect, 1000, animation.linear);
     slide.begin(0);
@@ -228,8 +228,8 @@ test "SlideTransition - slide in from left (X position)" {
 }
 
 test "SlideTransition - slide in from right (X position)" {
-    const start_rect = Rect.new(100, 10, 50, 20); // Start at X=100 (off-screen right)
-    const end_rect = Rect.new(40, 10, 50, 20);    // End at X=40
+    const start_rect = Rect{ .x = 100, .y = 10, .width = 50, .height = 20 }; // Start at X=100 (off-screen right)
+    const end_rect = Rect{ .x = 40, .y = 10, .width = 50, .height = 20 };    // End at X=40
 
     var slide = SlideTransition.slideIn(.right, start_rect, end_rect, 1000, animation.linear);
     slide.begin(0);
@@ -248,8 +248,8 @@ test "SlideTransition - slide in from right (X position)" {
 }
 
 test "SlideTransition - slide out transitions (reverse)" {
-    const start_rect = Rect.new(40, 30, 50, 20);
-    const end_rect = Rect.new(40, 0, 50, 20); // Slide out to top
+    const start_rect = Rect{ .x = 40, .y = 30, .width = 50, .height = 20 };
+    const end_rect = Rect{ .x = 40, .y = 0, .width = 50, .height = 20 }; // Slide out to top
 
     var slide = SlideTransition.slideOut(.top, start_rect, end_rect, 1000, animation.linear);
     slide.begin(0);
@@ -264,8 +264,8 @@ test "SlideTransition - slide out transitions (reverse)" {
 }
 
 test "SlideTransition - easing curves for smooth movement" {
-    const start_rect = Rect.new(0, 10, 50, 20);
-    const end_rect = Rect.new(100, 10, 50, 20);
+    const start_rect = Rect{ .x = 0, .y = 10, .width = 50, .height = 20 };
+    const end_rect = Rect{ .x = 100, .y = 10, .width = 50, .height = 20 };
 
     var slide_linear = SlideTransition.slideIn(.left, start_rect, end_rect, 1000, animation.linear);
     var slide_easeOut = SlideTransition.slideIn(.left, start_rect, end_rect, 1000, animation.easeOut);
@@ -283,8 +283,8 @@ test "SlideTransition - easing curves for smooth movement" {
 }
 
 test "SlideTransition - diagonal slide (multi-axis)" {
-    const start_rect = Rect.new(0, 0, 50, 20);    // Top-left corner
-    const end_rect = Rect.new(50, 30, 50, 20);    // Diagonal destination
+    const start_rect = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };    // Top-left corner
+    const end_rect = Rect{ .x = 50, .y = 30, .width = 50, .height = 20 };    // Diagonal destination
 
     var slide = SlideTransition.init(start_rect, end_rect, 1000, animation.linear);
     slide.begin(0);
@@ -301,7 +301,7 @@ test "SlideTransition - diagonal slide (multi-axis)" {
 }
 
 test "SlideTransition - zero distance slide (no movement)" {
-    const rect = Rect.new(40, 30, 50, 20);
+    const rect = Rect{ .x = 40, .y = 30, .width = 50, .height = 20 };
 
     var slide = SlideTransition.init(rect, rect, 1000, animation.linear);
     slide.begin(0);
@@ -325,8 +325,8 @@ test "SlideTransition - zero distance slide (no movement)" {
 // ============================================================================
 
 test "ExpandTransition - expand width (horizontal growth)" {
-    const start_rect = Rect.new(10, 10, 0, 20);   // Zero width
-    const end_rect = Rect.new(10, 10, 100, 20);   // Full width
+    const start_rect = Rect{ .x = 10, .y = 10, .width = 0, .height = 20 };   // Zero width
+    const end_rect = Rect{ .x = 10, .y = 10, .width = 100, .height = 20 };   // Full width
 
     var expand = ExpandTransition.expandWidth(start_rect, end_rect, 1000, animation.linear);
     expand.begin(0);
@@ -350,8 +350,8 @@ test "ExpandTransition - expand width (horizontal growth)" {
 }
 
 test "ExpandTransition - expand height (vertical growth)" {
-    const start_rect = Rect.new(10, 10, 50, 0);   // Zero height
-    const end_rect = Rect.new(10, 10, 50, 60);    // Full height
+    const start_rect = Rect{ .x = 10, .y = 10, .width = 50, .height = 0 };   // Zero height
+    const end_rect = Rect{ .x = 10, .y = 10, .width = 50, .height = 60 };    // Full height
 
     var expand = ExpandTransition.expandHeight(start_rect, end_rect, 1000, animation.linear);
     expand.begin(0);
@@ -375,8 +375,8 @@ test "ExpandTransition - expand height (vertical growth)" {
 }
 
 test "ExpandTransition - expand both dimensions (area growth)" {
-    const start_rect = Rect.new(25, 25, 0, 0);    // Point (no area)
-    const end_rect = Rect.new(25, 25, 50, 50);    // Square
+    const start_rect = Rect{ .x = 25, .y = 25, .width = 0, .height = 0 };    // Point (no area)
+    const end_rect = Rect{ .x = 25, .y = 25, .width = 50, .height = 50 };    // Square
 
     var expand = ExpandTransition.expand(start_rect, end_rect, 1000, animation.linear);
     expand.begin(0);
@@ -402,8 +402,8 @@ test "ExpandTransition - expand both dimensions (area growth)" {
 }
 
 test "ExpandTransition - collapse width (horizontal shrink)" {
-    const start_rect = Rect.new(10, 10, 100, 20); // Full width
-    const end_rect = Rect.new(10, 10, 0, 20);     // Zero width
+    const start_rect = Rect{ .x = 10, .y = 10, .width = 100, .height = 20 }; // Full width
+    const end_rect = Rect{ .x = 10, .y = 10, .width = 0, .height = 20 };     // Zero width
 
     var collapse = ExpandTransition.collapseWidth(start_rect, end_rect, 1000, animation.linear);
     collapse.begin(0);
@@ -422,8 +422,8 @@ test "ExpandTransition - collapse width (horizontal shrink)" {
 }
 
 test "ExpandTransition - collapse height (vertical shrink)" {
-    const start_rect = Rect.new(10, 10, 50, 60);  // Full height
-    const end_rect = Rect.new(10, 10, 50, 0);     // Zero height
+    const start_rect = Rect{ .x = 10, .y = 10, .width = 50, .height = 60 };  // Full height
+    const end_rect = Rect{ .x = 10, .y = 10, .width = 50, .height = 0 };     // Zero height
 
     var collapse = ExpandTransition.collapseHeight(start_rect, end_rect, 1000, animation.linear);
     collapse.begin(0);
@@ -442,8 +442,8 @@ test "ExpandTransition - collapse height (vertical shrink)" {
 }
 
 test "ExpandTransition - collapse both dimensions" {
-    const start_rect = Rect.new(25, 25, 50, 50);  // Square
-    const end_rect = Rect.new(25, 25, 0, 0);      // Point
+    const start_rect = Rect{ .x = 25, .y = 25, .width = 50, .height = 50 };  // Square
+    const end_rect = Rect{ .x = 25, .y = 25, .width = 0, .height = 0 };      // Point
 
     var collapse = ExpandTransition.collapse(start_rect, end_rect, 1000, animation.linear);
     collapse.begin(0);
@@ -465,8 +465,8 @@ test "ExpandTransition - collapse both dimensions" {
 }
 
 test "ExpandTransition - easing curves for organic feel" {
-    const start_rect = Rect.new(10, 10, 0, 0);
-    const end_rect = Rect.new(10, 10, 100, 100);
+    const start_rect = Rect{ .x = 10, .y = 10, .width = 0, .height = 0 };
+    const end_rect = Rect{ .x = 10, .y = 10, .width = 100, .height = 100 };
 
     var expand_linear = ExpandTransition.expand(start_rect, end_rect, 1000, animation.linear);
     var expand_easeOut = ExpandTransition.expand(start_rect, end_rect, 1000, animation.easeOutCubic);
@@ -488,7 +488,7 @@ test "ExpandTransition - easing curves for organic feel" {
 }
 
 test "ExpandTransition - zero-sized start/end" {
-    const rect = Rect.new(10, 10, 0, 0);
+    const rect = Rect{ .x = 10, .y = 10, .width = 0, .height = 0 };
 
     var expand = ExpandTransition.expand(rect, rect, 1000, animation.linear);
     expand.begin(0);
@@ -516,8 +516,8 @@ test "Composition - fade + slide combined (slide in while fading)" {
     var fade = FadeTransition.fadeIn(1000, animation.linear);
 
     // Slide from top to center
-    const start_rect = Rect.new(40, 0, 20, 10);
-    const end_rect = Rect.new(40, 30, 20, 10);
+    const start_rect = Rect{ .x = 40, .y = 0, .width = 20, .height = 10 };
+    const end_rect = Rect{ .x = 40, .y = 30, .width = 20, .height = 10 };
     var slide = SlideTransition.slideIn(.top, start_rect, end_rect, 1000, animation.linear);
 
     fade.begin(0);
@@ -540,13 +540,13 @@ test "Composition - fade + slide combined (slide in while fading)" {
 
 test "Composition - slide + expand combined (growing while moving)" {
     // Slide from left
-    const slide_start = Rect.new(0, 30, 10, 10);   // Small, at left
-    const slide_end = Rect.new(50, 30, 10, 10);    // Same size, at center
+    const slide_start = Rect{ .x = 0, .y = 30, .width = 10, .height = 10 };   // Small, at left
+    const slide_end = Rect{ .x = 50, .y = 30, .width = 10, .height = 10 };    // Same size, at center
     var slide = SlideTransition.slideIn(.left, slide_start, slide_end, 1000, animation.linear);
 
     // Expand size
-    const expand_start = Rect.new(0, 30, 10, 10);  // Small
-    const expand_end = Rect.new(0, 30, 50, 50);    // Large
+    const expand_start = Rect{ .x = 0, .y = 30, .width = 10, .height = 10 };  // Small
+    const expand_end = Rect{ .x = 0, .y = 30, .width = 50, .height = 50 };    // Large
     var expand = ExpandTransition.expand(expand_start, expand_end, 1000, animation.linear);
 
     slide.begin(0);
@@ -567,8 +567,8 @@ test "Composition - slide + expand combined (growing while moving)" {
 test "Composition - sequential transitions (fade then slide)" {
     var fade = FadeTransition.fadeIn(500, animation.linear);
 
-    const start_rect = Rect.new(40, 0, 20, 10);
-    const end_rect = Rect.new(40, 30, 20, 10);
+    const start_rect = Rect{ .x = 40, .y = 0, .width = 20, .height = 10 };
+    const end_rect = Rect{ .x = 40, .y = 30, .width = 20, .height = 10 };
     var slide = SlideTransition.slideIn(.top, start_rect, end_rect, 500, animation.linear);
 
     // First phase: fade only (0-500ms)
@@ -601,13 +601,13 @@ test "Composition - parallel transitions (multiple effects at once)" {
     var fade = FadeTransition.fadeIn(1000, animation.linear);
 
     // 2. Slide from left
-    const slide_start = Rect.new(0, 25, 20, 10);
-    const slide_end = Rect.new(50, 25, 20, 10);
+    const slide_start = Rect{ .x = 0, .y = 25, .width = 20, .height = 10 };
+    const slide_end = Rect{ .x = 50, .y = 25, .width = 20, .height = 10 };
     var slide = SlideTransition.slideIn(.left, slide_start, slide_end, 1000, animation.linear);
 
     // 3. Expand size
-    const expand_start = Rect.new(0, 25, 20, 10);
-    const expand_end = Rect.new(0, 25, 60, 30);
+    const expand_start = Rect{ .x = 0, .y = 25, .width = 20, .height = 10 };
+    const expand_end = Rect{ .x = 0, .y = 25, .width = 60, .height = 30 };
     var expand = ExpandTransition.expand(expand_start, expand_end, 1000, animation.linear);
 
     fade.begin(0);
@@ -629,8 +629,8 @@ test "Composition - custom easing per transition type" {
     // Fast fade (ease-in), slow slide (ease-out)
     var fade = FadeTransition.fadeIn(1000, animation.easeInCubic);
 
-    const start_rect = Rect.new(0, 25, 20, 10);
-    const end_rect = Rect.new(100, 25, 20, 10);
+    const start_rect = Rect{ .x = 0, .y = 25, .width = 20, .height = 10 };
+    const end_rect = Rect{ .x = 100, .y = 25, .width = 20, .height = 10 };
     var slide = SlideTransition.slideIn(.left, start_rect, end_rect, 1000, animation.easeOutCubic);
 
     fade.begin(0);
@@ -652,13 +652,13 @@ test "Composition - complex multi-stage transition" {
     var fade = FadeTransition.fadeIn(300, animation.linear);
 
     // Stage 2 (300-700ms): Slide while maintaining opacity
-    const slide_start = Rect.new(0, 25, 20, 10);
-    const slide_end = Rect.new(50, 25, 20, 10);
+    const slide_start = Rect{ .x = 0, .y = 25, .width = 20, .height = 10 };
+    const slide_end = Rect{ .x = 50, .y = 25, .width = 20, .height = 10 };
     var slide = SlideTransition.slideIn(.left, slide_start, slide_end, 400, animation.linear);
 
     // Stage 3 (700-1000ms): Expand while maintaining position and opacity
-    const expand_start = Rect.new(50, 25, 20, 10);
-    const expand_end = Rect.new(50, 25, 50, 30);
+    const expand_start = Rect{ .x = 50, .y = 25, .width = 20, .height = 10 };
+    const expand_end = Rect{ .x = 50, .y = 25, .width = 50, .height = 30 };
     var expand = ExpandTransition.expand(expand_start, expand_end, 300, animation.linear);
 
     // Stage 1: Fade in (0-300ms)
@@ -697,8 +697,8 @@ test "Composition - complex multi-stage transition" {
 
 test "Integration - Rect position interpolation for slides" {
     // Test that slide transitions properly interpolate Rect position fields
-    const start = Rect.new(10, 20, 30, 40);
-    const end = Rect.new(50, 60, 30, 40);
+    const start = Rect{ .x = 10, .y = 20, .width = 30, .height = 40 };
+    const end = Rect{ .x = 50, .y = 60, .width = 30, .height = 40 };
 
     var slide = SlideTransition.init(start, end, 1000, animation.linear);
     slide.begin(0);
@@ -721,8 +721,8 @@ test "Integration - Rect position interpolation for slides" {
 
 test "Integration - Rect size interpolation for expand/collapse" {
     // Test that expand/collapse transitions properly interpolate Rect size fields
-    const start = Rect.new(25, 25, 10, 10);
-    const end = Rect.new(25, 25, 100, 100);
+    const start = Rect{ .x = 25, .y = 25, .width = 10, .height = 10 };
+    const end = Rect{ .x = 25, .y = 25, .width = 100, .height = 100 };
 
     var expand = ExpandTransition.expand(start, end, 1000, animation.linear);
     expand.begin(0);
@@ -745,11 +745,11 @@ test "Integration - Rect size interpolation for expand/collapse" {
 
 test "Integration - clipping to parent bounds during transitions" {
     // Simulate a widget sliding into view within a parent container
-    const parent = Rect.new(0, 0, 80, 24); // Terminal area
+    const parent = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 }; // Terminal area
 
     // Widget slides from above (off-screen) into view
-    const start = Rect.new(10, 0, 60, 10);  // Top edge at Y=0 (partially visible)
-    const end = Rect.new(10, 7, 60, 10);    // Fully visible at Y=7
+    const start = Rect{ .x = 10, .y = 0, .width = 60, .height = 10 };  // Top edge at Y=0 (partially visible)
+    const end = Rect{ .x = 10, .y = 7, .width = 60, .height = 10 };    // Fully visible at Y=7
 
     var slide = SlideTransition.slideIn(.top, start, end, 1000, animation.linear);
     slide.begin(0);
@@ -775,8 +775,8 @@ test "Integration - clipping to parent bounds during transitions" {
 
 test "Integration - full-screen widget transitions" {
     // Test transition of a widget that occupies the full terminal
-    const small = Rect.new(30, 10, 20, 4);   // Small widget in center
-    const fullscreen = Rect.new(0, 0, 80, 24); // Full terminal
+    const small = Rect{ .x = 30, .y = 10, .width = 20, .height = 4 };   // Small widget in center
+    const fullscreen = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 }; // Full terminal
 
     var expand = ExpandTransition.expand(small, fullscreen, 500, animation.easeOutCubic);
     expand.begin(0);

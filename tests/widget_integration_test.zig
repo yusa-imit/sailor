@@ -43,7 +43,7 @@ test "nested blocks don't overflow" {
         .border_style = .{ .fg = .yellow },
     };
 
-    const area = Rect.new(0, 0, 40, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     outer.render(&buffer, area);
 
     const inner_area = outer.inner(area);
@@ -68,7 +68,7 @@ test "paragraph with empty lines doesn't crash" {
         .lines = &lines,
     };
 
-    para.render(&buffer, Rect.new(0, 0, 40, 10));
+    para.render(&buffer, Rect{ .x = 0, .y = 0, .width = 40, .height = 10 });
     // Should not crash with empty lines
 }
 
@@ -93,7 +93,7 @@ test "table with zero rows renders empty" {
         },
     };
 
-    table.render(&buffer, Rect.new(0, 0, 50, 10));
+    table.render(&buffer, Rect{ .x = 0, .y = 0, .width = 50, .height = 10 });
     // Should render without crashing
 }
 
@@ -105,12 +105,12 @@ test "gauge with extreme ratios is clamped" {
     // Test withRatio clamping for ratio > 1.0
     const gauge_over = (Gauge{}).withRatio(2.0);
     try testing.expectEqual(1.0, gauge_over.ratio);
-    gauge_over.render(&buffer, Rect.new(0, 0, 40, 3));
+    gauge_over.render(&buffer, Rect{ .x = 0, .y = 0, .width = 40, .height = 3 });
 
     // Test withRatio clamping for ratio < 0.0
     const gauge_under = (Gauge{}).withRatio(-0.5);
     try testing.expectEqual(0.0, gauge_under.ratio);
-    gauge_under.render(&buffer, Rect.new(0, 0, 40, 3));
+    gauge_under.render(&buffer, Rect{ .x = 0, .y = 0, .width = 40, .height = 3 });
 
     // Test withPercent clamping for value > 100
     const gauge_percent_over = (Gauge{}).withPercent(150);
@@ -130,7 +130,7 @@ test "list with selection out of bounds is clamped" {
         .selected = 999,
     };
 
-    list.render(&buffer, Rect.new(0, 0, 40, 10));
+    list.render(&buffer, Rect{ .x = 0, .y = 0, .width = 40, .height = 10 });
     // Should handle gracefully
 }
 
@@ -146,7 +146,7 @@ test "statusbar with very long text is truncated" {
         .left = &spans,
     };
 
-    status_bar.render(&buffer, Rect.new(0, 0, 20, 1));
+    status_bar.render(&buffer, Rect{ .x = 0, .y = 0, .width = 20, .height = 1 });
     // Should truncate gracefully
 }
 
@@ -162,7 +162,7 @@ test "tabs with no titles doesn't crash" {
         .selected = 0,
     };
 
-    tabs.render(&buffer, Rect.new(0, 0, 40, 3));
+    tabs.render(&buffer, Rect{ .x = 0, .y = 0, .width = 40, .height = 3 });
     // Should handle empty titles gracefully
 }
 
@@ -177,7 +177,7 @@ test "sparkline with empty data doesn't crash" {
         .data = data,
     };
 
-    sparkline.render(&buffer, Rect.new(0, 0, 40, 5));
+    sparkline.render(&buffer, Rect{ .x = 0, .y = 0, .width = 40, .height = 5 });
     // Should handle empty data gracefully
 }
 
@@ -192,7 +192,7 @@ test "sparkline with single data point" {
         .data = &data,
     };
 
-    sparkline.render(&buffer, Rect.new(0, 0, 40, 5));
+    sparkline.render(&buffer, Rect{ .x = 0, .y = 0, .width = 40, .height = 5 });
     // Should render single point correctly
 }
 
@@ -207,14 +207,14 @@ test "sparkline with all zero values" {
         .data = &data,
     };
 
-    sparkline.render(&buffer, Rect.new(0, 0, 40, 5));
+    sparkline.render(&buffer, Rect{ .x = 0, .y = 0, .width = 40, .height = 5 });
     // Should handle all zeros without division by zero
 }
 
 test "layout split with zero area" {
     const allocator = testing.allocator;
 
-    const area = Rect.new(0, 0, 0, 0);
+    const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
     const chunks = try layout.split(
         allocator,
         .vertical,
@@ -233,7 +233,7 @@ test "layout split with zero area" {
 test "layout split with single constraint" {
     const allocator = testing.allocator;
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     const chunks = try layout.split(
         allocator,
         .vertical,
@@ -250,7 +250,7 @@ test "layout split with single constraint" {
 test "layout split with percentage totaling over 100" {
     const allocator = testing.allocator;
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     const chunks = try layout.split(
         allocator,
         .vertical,
@@ -272,7 +272,7 @@ test "multiple widgets in split layout" {
     var buffer = try Buffer.init(allocator, 80, 24);
     defer buffer.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     const chunks = try layout.split(
         allocator,
         .vertical,
@@ -322,7 +322,7 @@ test "widget rendering in very small area" {
     var buffer = try Buffer.init(allocator, 3, 2);
     defer buffer.deinit();
 
-    const area = Rect.new(0, 0, 3, 2);
+    const area = Rect{ .x = 0, .y = 0, .width = 3, .height = 2 };
 
     // Block should handle minimal area
     const block = Block{
@@ -351,7 +351,7 @@ test "paragraph with very long lines wraps correctly" {
         .lines = &lines,
     };
 
-    para.render(&buffer, Rect.new(0, 0, 20, 10));
+    para.render(&buffer, Rect{ .x = 0, .y = 0, .width = 20, .height = 10 });
     // Should wrap without crashing
 }
 
@@ -376,14 +376,14 @@ test "table with mismatched column and row data" {
         .rows = &rows,
     };
 
-    table.render(&buffer, Rect.new(0, 0, 60, 10));
+    table.render(&buffer, Rect{ .x = 0, .y = 0, .width = 60, .height = 10 });
     // Should handle gracefully
 }
 
 test "deeply nested layout splits" {
     const allocator = testing.allocator;
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
 
     // First split: vertical
     const v_chunks = try layout.split(
@@ -426,35 +426,35 @@ test "block with all border types" {
 
     // Test various border combinations
     const block_none = Block{ .borders = .none };
-    block_none.render(&buffer, Rect.new(0, 0, 20, 10));
+    block_none.render(&buffer, Rect{ .x = 0, .y = 0, .width = 20, .height = 10 });
     buffer.clear();
 
     const block_all = Block{ .borders = .all };
-    block_all.render(&buffer, Rect.new(0, 0, 20, 10));
+    block_all.render(&buffer, Rect{ .x = 0, .y = 0, .width = 20, .height = 10 });
     buffer.clear();
 
     const block_top = Block{ .borders = .{ .top = true } };
-    block_top.render(&buffer, Rect.new(0, 0, 20, 10));
+    block_top.render(&buffer, Rect{ .x = 0, .y = 0, .width = 20, .height = 10 });
     buffer.clear();
 
     const block_bottom = Block{ .borders = .{ .bottom = true } };
-    block_bottom.render(&buffer, Rect.new(0, 0, 20, 10));
+    block_bottom.render(&buffer, Rect{ .x = 0, .y = 0, .width = 20, .height = 10 });
     buffer.clear();
 
     const block_left = Block{ .borders = .{ .left = true } };
-    block_left.render(&buffer, Rect.new(0, 0, 20, 10));
+    block_left.render(&buffer, Rect{ .x = 0, .y = 0, .width = 20, .height = 10 });
     buffer.clear();
 
     const block_right = Block{ .borders = .{ .right = true } };
-    block_right.render(&buffer, Rect.new(0, 0, 20, 10));
+    block_right.render(&buffer, Rect{ .x = 0, .y = 0, .width = 20, .height = 10 });
     buffer.clear();
 
     const block_hori = Block{ .borders = .{ .top = true, .bottom = true } };
-    block_hori.render(&buffer, Rect.new(0, 0, 20, 10));
+    block_hori.render(&buffer, Rect{ .x = 0, .y = 0, .width = 20, .height = 10 });
     buffer.clear();
 
     const block_vert = Block{ .borders = .{ .left = true, .right = true } };
-    block_vert.render(&buffer, Rect.new(0, 0, 20, 10));
+    block_vert.render(&buffer, Rect{ .x = 0, .y = 0, .width = 20, .height = 10 });
     buffer.clear();
 
     // All border combinations should render correctly
@@ -470,7 +470,7 @@ test "gauge with label longer than width" {
         .label = "Very long label text",
     };
 
-    gauge.render(&buffer, Rect.new(0, 0, 10, 3));
+    gauge.render(&buffer, Rect{ .x = 0, .y = 0, .width = 10, .height = 3 });
     // Should truncate label gracefully
 }
 
@@ -485,7 +485,7 @@ test "statusbar with center text wider than area" {
         .center = &center_spans,
     };
 
-    status_bar.render(&buffer, Rect.new(0, 0, 20, 1));
+    status_bar.render(&buffer, Rect{ .x = 0, .y = 0, .width = 20, .height = 1 });
     // Should handle overflow gracefully
 }
 
@@ -494,7 +494,7 @@ test "complex dashboard layout integration" {
     var buffer = try Buffer.init(allocator, 120, 40);
     defer buffer.deinit();
 
-    const area = Rect.new(0, 0, 120, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 120, .height = 40 };
 
     // Main layout: header, body, footer
     const main_chunks = try layout.split(

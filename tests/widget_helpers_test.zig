@@ -96,7 +96,7 @@ test "Padding with uniform padding adds space around widget" {
     const inner_widget = FillWidget{ .char = 'X' };
     const padded = Padding(FillWidget).init(inner_widget, 2); // 2 cells on all sides
 
-    const area = Rect.new(0, 0, 20, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     padded.render(&buffer, area);
 
     // Verify padding is empty (default space char)
@@ -130,7 +130,7 @@ test "Padding with custom padding per side" {
     // top=1, right=3, bottom=2, left=4
     const padded = Padding(FillWidget).initCustom(inner_widget, 1, 3, 2, 4);
 
-    const area = Rect.new(0, 0, 30, 15);
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 15 };
     padded.render(&buffer, area);
 
     // Left padding: 4 cells
@@ -160,7 +160,7 @@ test "Padding with zero padding renders widget unchanged" {
     const inner_widget = FillWidget{ .char = 'Z' };
     const padded = Padding(FillWidget).init(inner_widget, 0);
 
-    const area = Rect.new(0, 0, 10, 5);
+    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     padded.render(&buffer, area);
 
     // No padding, entire area should be 'Z'
@@ -176,7 +176,7 @@ test "Padding exceeds available space renders nothing" {
     const inner_widget = FillWidget{ .char = 'Q' };
     const padded = Padding(FillWidget).init(inner_widget, 10); // padding larger than area
 
-    const area = Rect.new(0, 0, 10, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     padded.render(&buffer, area);
 
     // All padding, no content
@@ -196,7 +196,7 @@ test "Centered centers widget with measure() support" {
     const inner_widget = MeasuredWidget{ .pref_width = 10, .pref_height = 6, .char = 'C' };
     const centered = Centered(MeasuredWidget).init(inner_widget);
 
-    const area = Rect.new(0, 0, 30, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 20 };
     centered.render(&buffer, area);
 
     // Widget is 10x6, area is 30x20
@@ -220,7 +220,7 @@ test "Centered with widget without measure() centers entire area" {
     const inner_widget = FillWidget{ .char = 'F' };
     const centered = Centered(FillWidget).init(inner_widget);
 
-    const area = Rect.new(0, 0, 20, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     centered.render(&buffer, area);
 
     // Without measure(), widget takes full area (no centering needed)
@@ -236,7 +236,7 @@ test "Centered with widget larger than area clips correctly" {
     const inner_widget = MeasuredWidget{ .pref_width = 50, .pref_height = 50, .char = 'L' };
     const centered = Centered(MeasuredWidget).init(inner_widget);
 
-    const area = Rect.new(0, 0, 10, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     centered.render(&buffer, area);
 
     // Widget larger than area: render at (0,0) with area size
@@ -256,7 +256,7 @@ test "Aligned left-top alignment" {
     const inner_widget = MeasuredWidget{ .pref_width = 8, .pref_height = 4, .char = 'A' };
     const aligned = Aligned(MeasuredWidget).init(inner_widget, .{ .horizontal = .left, .vertical = .top });
 
-    const area = Rect.new(5, 3, 30, 20);
+    const area = Rect{ .x = 5, .y = 3, .width = 30, .height = 20 };
     aligned.render(&buffer, area);
 
     // Left-top: starts at area origin (5, 3), size 8x4
@@ -276,7 +276,7 @@ test "Aligned center-middle alignment" {
     const inner_widget = MeasuredWidget{ .pref_width = 10, .pref_height = 6, .char = 'M' };
     const aligned = Aligned(MeasuredWidget).init(inner_widget, .{ .horizontal = .center, .vertical = .middle });
 
-    const area = Rect.new(0, 0, 40, 30);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 30 };
     aligned.render(&buffer, area);
 
     // Center-middle: x=(40-10)/2=15, y=(30-6)/2=12
@@ -296,7 +296,7 @@ test "Aligned right-bottom alignment" {
     const inner_widget = MeasuredWidget{ .pref_width = 12, .pref_height = 8, .char = 'R' };
     const aligned = Aligned(MeasuredWidget).init(inner_widget, .{ .horizontal = .right, .vertical = .bottom });
 
-    const area = Rect.new(0, 0, 50, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 40 };
     aligned.render(&buffer, area);
 
     // Right-bottom: x=50-12=38, y=40-8=32
@@ -316,7 +316,7 @@ test "Aligned with widget without measure() uses full area" {
     const inner_widget = TextWidget{ .text = "Hello" };
     const aligned = Aligned(TextWidget).init(inner_widget, .{ .horizontal = .right, .vertical = .bottom });
 
-    const area = Rect.new(0, 0, 20, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     aligned.render(&buffer, area);
 
     // Without measure(), widget renders at area origin (no alignment calculation)
@@ -345,7 +345,7 @@ test "Stack vertical stacking of multiple widgets" {
     try stack.push(widget2);
     try stack.push(widget3);
 
-    const area = Rect.new(0, 0, 30, 21); // 21/3 = 7 per widget
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 21 }; // 21/3 = 7 per widget
     stack.render(&buffer, area);
 
     // First widget: rows 0-6
@@ -375,7 +375,7 @@ test "Stack horizontal stacking of multiple widgets" {
     try stack.push(widget1);
     try stack.push(widget2);
 
-    const area = Rect.new(0, 0, 30, 10); // 30/2 = 15 per widget
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 }; // 30/2 = 15 per widget
     stack.render(&buffer, area);
 
     // First widget: columns 0-14
@@ -395,7 +395,7 @@ test "Stack with empty stack renders nothing" {
     var stack = try Stack.initVertical(allocator);
     defer stack.deinit();
 
-    const area = Rect.new(0, 0, 20, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     stack.render(&buffer, area);
 
     // Empty stack: buffer remains default (spaces)
@@ -418,7 +418,7 @@ test "Stack with mixed widget types" {
     try stack.pushAny(text_widget); // First 50% (7 rows)
     try stack.pushAny(fill_widget); // Second 50% (8 rows)
 
-    const area = Rect.new(0, 0, 40, 15);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 15 };
     stack.render(&buffer, area);
 
     // First widget (text): rows 0-6
@@ -445,7 +445,7 @@ test "Constrained enforces min width and height" {
     });
 
     // Provide small area: constraints should expand it
-    const small_area = Rect.new(0, 0, 10, 5);
+    const small_area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     constrained.render(&buffer, small_area);
 
     // Widget should render at min size (20x10), clipped to buffer size
@@ -470,7 +470,7 @@ test "Constrained enforces max width and height" {
     });
 
     // Provide large area: constraints should shrink it
-    const large_area = Rect.new(0, 0, 60, 40);
+    const large_area = Rect{ .x = 0, .y = 0, .width = 60, .height = 40 };
     constrained.render(&buffer, large_area);
 
     // Widget should render at max size (30x20)
@@ -496,7 +496,7 @@ test "Constrained with both min and max clamps to valid range" {
     });
 
     // Area within range: should render unchanged
-    const area = Rect.new(0, 0, 20, 15);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 15 };
     constrained.render(&buffer, area);
 
     try testing.expectEqual(@as(u21, 'B'), buffer.getConst(0, 0).?.char);
@@ -518,7 +518,7 @@ test "Constrained with impossible constraints renders at min" {
         .max_height = 5, // max < min
     });
 
-    const area = Rect.new(0, 0, 50, 30);
+    const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 30 };
     constrained.render(&buffer, area);
 
     // Should render at min size (30x20) when constraints conflict
@@ -541,7 +541,7 @@ test "Padding + Centered composition" {
     const centered = Centered(MeasuredWidget).init(inner_widget);
     const padded = Padding(Centered(MeasuredWidget)).init(centered, 3);
 
-    const area = Rect.new(0, 0, 40, 30);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 30 };
     padded.render(&buffer, area);
 
     // Padding reduces area by 3 on each side: inner area is 34x24
@@ -568,7 +568,7 @@ test "Aligned + Constrained composition" {
         .vertical = .bottom,
     });
 
-    const area = Rect.new(0, 0, 50, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 40 };
     aligned.render(&buffer, area);
 
     // Constrained to 20x15, aligned to bottom-right: x=50-20=30, y=40-15=25
@@ -595,7 +595,7 @@ test "Stack with Padding on each child" {
     try stack.pushAny(padded1); // 50% of 30 = 15 rows
     try stack.pushAny(padded2); // 50% of 30 = 15 rows
 
-    const area = Rect.new(0, 0, 30, 30);
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 30 };
     stack.render(&buffer, area);
 
     // First widget (padded1): rows 0-14, padding=1
@@ -626,7 +626,7 @@ test "Padding on zero-size area renders nothing" {
     const inner_widget = FillWidget{ .char = 'Z' };
     const padded = Padding(FillWidget).init(inner_widget, 1);
 
-    const zero_area = Rect.new(5, 5, 0, 0);
+    const zero_area = Rect{ .x = 5, .y = 5, .width = 0, .height = 0 };
     padded.render(&buffer, zero_area);
 
     // Should not crash, buffer remains default
@@ -641,7 +641,7 @@ test "Centered on zero-size area renders nothing" {
     const inner_widget = MeasuredWidget{ .pref_width = 5, .pref_height = 5, .char = 'X' };
     const centered = Centered(MeasuredWidget).init(inner_widget);
 
-    const zero_area = Rect.new(0, 0, 0, 0);
+    const zero_area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
     centered.render(&buffer, zero_area);
 
     // Should not crash
@@ -659,7 +659,7 @@ test "Stack with single widget renders correctly" {
     const widget = FillWidget{ .char = 'S' };
     try stack.push(widget);
 
-    const area = Rect.new(0, 0, 20, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     stack.render(&buffer, area);
 
     // Single widget takes entire area
@@ -675,7 +675,7 @@ test "Constrained with no constraints renders unchanged" {
     const inner_widget = FillWidget{ .char = 'U' };
     const constrained = Constrained(FillWidget).init(inner_widget, .{}); // no constraints
 
-    const area = Rect.new(0, 0, 30, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 20 };
     constrained.render(&buffer, area);
 
     // No constraints: widget uses full area

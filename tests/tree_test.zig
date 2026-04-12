@@ -66,7 +66,7 @@ test "Tree.init creates tree with nodes" {
 
 test "Tree builder methods chain correctly" {
     const nodes = [_]TreeNode{TreeNode.leaf("test")};
-    const block = Block{}.withTitle("Files", .top_left);
+    const block = Block{ .title = "Files", .title_position = .top_left };
 
     const tree = Tree.init(&nodes)
         .withSelected(0)

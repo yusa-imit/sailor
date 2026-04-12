@@ -117,7 +117,7 @@ test "MetricsDashboard vertical layout renders correctly" {
     defer dashboard.deinit();
 
     dashboard.setLayoutMode(.vertical);
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Should not crash
@@ -146,7 +146,7 @@ test "MetricsDashboard horizontal layout renders correctly" {
     defer dashboard.deinit();
 
     dashboard.setLayoutMode(.horizontal);
-    const area = Rect.new(0, 0, 120, 30);
+    const area = Rect{ .x = 0, .y = 0, .width = 120, .height = 30 };
     try dashboard.render(&buffer, area);
 }
 
@@ -173,7 +173,7 @@ test "MetricsDashboard grid layout renders correctly" {
     defer dashboard.deinit();
 
     dashboard.setLayoutMode(.grid);
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     try dashboard.render(&buffer, area);
 }
 
@@ -200,7 +200,7 @@ test "MetricsDashboard layout switching vertical to horizontal" {
     defer dashboard.deinit();
 
     dashboard.setLayoutMode(.vertical);
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     dashboard.setLayoutMode(.horizontal);
@@ -230,7 +230,7 @@ test "MetricsDashboard layout switching horizontal to grid" {
     defer dashboard.deinit();
 
     dashboard.setLayoutMode(.horizontal);
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     try dashboard.render(&buffer, area);
 
     dashboard.setLayoutMode(.grid);
@@ -260,7 +260,7 @@ test "MetricsDashboard vertical layout respects area boundaries" {
     defer dashboard.deinit();
 
     dashboard.setLayoutMode(.vertical);
-    const area = Rect.new(10, 5, 60, 30);
+    const area = Rect{ .x = 10, .y = 5, .width = 60, .height = 30 };
     try dashboard.render(&buffer, area);
 
     // Should not write outside area bounds
@@ -289,7 +289,7 @@ test "MetricsDashboard horizontal layout handles small area gracefully" {
     defer dashboard.deinit();
 
     dashboard.setLayoutMode(.horizontal);
-    const area = Rect.new(0, 0, 30, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     try dashboard.render(&buffer, area);
 }
 
@@ -316,7 +316,7 @@ test "MetricsDashboard grid layout handles small area gracefully" {
     defer dashboard.deinit();
 
     dashboard.setLayoutMode(.grid);
-    const area = Rect.new(0, 0, 40, 20);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     try dashboard.render(&buffer, area);
 }
 
@@ -460,7 +460,7 @@ test "MetricsDashboard configuration persists across renders" {
     dashboard.setUpdateInterval(250);
     dashboard.setShowGraphs(false);
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Config should persist after render
@@ -500,7 +500,7 @@ test "MetricsDashboard render with render_metrics data" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 }
 
@@ -531,7 +531,7 @@ test "MetricsDashboard render with memory_metrics data" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 }
 
@@ -562,7 +562,7 @@ test "MetricsDashboard render with event_metrics data" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 }
 
@@ -594,7 +594,7 @@ test "MetricsDashboard render with all three metrics populated" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 120, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 120, .height = 50 };
     try dashboard.render(&buffer, area);
 }
 
@@ -620,7 +620,7 @@ test "MetricsDashboard render with empty metrics" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Should render empty state without crashing
@@ -650,7 +650,7 @@ test "MetricsDashboard render with graphs enabled" {
     defer dashboard.deinit();
 
     dashboard.setShowGraphs(true);
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     try dashboard.render(&buffer, area);
 }
 
@@ -678,7 +678,7 @@ test "MetricsDashboard render with graphs disabled" {
     defer dashboard.deinit();
 
     dashboard.setShowGraphs(false);
-    const area = Rect.new(0, 0, 80, 30);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 30 };
     try dashboard.render(&buffer, area);
 }
 
@@ -707,7 +707,7 @@ test "MetricsDashboard render output contains metric labels" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Output should contain section headers and metric labels
@@ -739,7 +739,7 @@ test "MetricsDashboard render output contains metric values" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Output should contain formatted metric values
@@ -772,7 +772,7 @@ test "MetricsDashboard render in very small area 10x5" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 10, 5);
+    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     try dashboard.render(&buffer, area);
 
     // Should handle gracefully without crashing
@@ -800,7 +800,7 @@ test "MetricsDashboard render in minimum viable area 30x10" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 30, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     try dashboard.render(&buffer, area);
 }
 
@@ -829,7 +829,7 @@ test "MetricsDashboard render in large area 200x50" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 200, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 200, .height = 50 };
     try dashboard.render(&buffer, area);
 }
 
@@ -855,7 +855,7 @@ test "MetricsDashboard render with zero-width area" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 0, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Should handle zero-width gracefully
@@ -883,7 +883,7 @@ test "MetricsDashboard render with zero-height area" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 0);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 0 };
     try dashboard.render(&buffer, area);
 }
 
@@ -912,7 +912,7 @@ test "MetricsDashboard render with single metric collector having data" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Should show render metrics but empty state for others
@@ -944,7 +944,7 @@ test "MetricsDashboard render includes section headers" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Should contain "Render Metrics", "Memory Metrics", "Event Metrics"
@@ -974,7 +974,7 @@ test "MetricsDashboard render includes metric labels for render metrics" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Should contain labels like "Avg Render Time:", "P95:", "P99:"
@@ -1003,7 +1003,7 @@ test "MetricsDashboard render includes metric labels for memory metrics" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Should contain labels like "Peak Memory:", "Current:", "Allocs:"
@@ -1032,7 +1032,7 @@ test "MetricsDashboard render includes metric labels for event metrics" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Should contain labels like "P95 Latency:", "Queue Depth:"
@@ -1062,7 +1062,7 @@ test "MetricsDashboard formats time values appropriately" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Should format as ns, μs, ms appropriately
@@ -1093,7 +1093,7 @@ test "MetricsDashboard formats memory values appropriately" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Should format as B, KB, MB appropriately
@@ -1123,7 +1123,7 @@ test "MetricsDashboard uses colors for warning thresholds" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Should use warning colors (yellow/red) for slow metrics
@@ -1152,7 +1152,7 @@ test "MetricsDashboard layout alignment labels and values" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Labels should be left-aligned, values right-aligned
@@ -1180,7 +1180,7 @@ test "MetricsDashboard borders between sections" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Should have visual separators between metric sections
@@ -1212,7 +1212,7 @@ test "MetricsDashboard render with null metrics" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // All collectors empty - should show "No data" or similar
@@ -1242,7 +1242,7 @@ test "MetricsDashboard render with very large metric values" {
     );
     defer dashboard.deinit();
 
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Should handle overflow protection
@@ -1271,7 +1271,7 @@ test "MetricsDashboard render with update_interval zero" {
     defer dashboard.deinit();
 
     dashboard.setUpdateInterval(0);
-    const area = Rect.new(0, 0, 80, 40);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     try dashboard.render(&buffer, area);
 
     // Should handle zero interval without issues
@@ -1301,7 +1301,7 @@ test "MetricsDashboard render with show_graphs but no historical data" {
     defer dashboard.deinit();
 
     dashboard.setShowGraphs(true);
-    const area = Rect.new(0, 0, 100, 50);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     try dashboard.render(&buffer, area);
 
     // Should handle gracefully - maybe show empty graph or skip

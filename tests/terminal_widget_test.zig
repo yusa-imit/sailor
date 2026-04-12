@@ -181,7 +181,7 @@ test "Terminal widget render to buffer empty" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     term.render(&buf, area);
 
     // Should fill with spaces
@@ -200,7 +200,7 @@ test "Terminal widget render with lines" {
     var buf = try Buffer.init(testing.allocator, 80, 10);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     term.render(&buf, area);
 
     // Check first line rendered
@@ -222,7 +222,7 @@ test "Terminal widget render respects block" {
     var buf = try Buffer.init(testing.allocator, 20, 10);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 20, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     term.render(&buf, area);
 
     // Block borders should be drawn
@@ -243,7 +243,7 @@ test "Terminal widget long line wrapping" {
     var buf = try Buffer.init(testing.allocator, 10, 5);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 10, 5);
+    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     term.render(&buf, area);
 
     // Line should be rendered up to width
@@ -407,7 +407,7 @@ test "Terminal widget render respects area bounds" {
     defer buf.deinit();
 
     // Render to a small area
-    const area = Rect.new(10, 5, 20, 3);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 3 };
     term.render(&buf, area);
 
     // Should render within bounds
@@ -424,7 +424,7 @@ test "Terminal widget render zero area" {
     defer buf.deinit();
 
     // Render to zero-width area (should handle gracefully)
-    const area = Rect.new(0, 0, 0, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 24 };
     term.render(&buf, area);
     // Should not crash or corrupt buffer
 }
@@ -509,7 +509,7 @@ test "Terminal widget mixed line lengths" {
     var buf = try Buffer.init(testing.allocator, 80, 10);
     defer buf.deinit();
 
-    const area = Rect.new(0, 0, 80, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     term.render(&buf, area);
 }
 
@@ -585,7 +585,7 @@ test "Terminal widget render at offset position" {
     defer buf.deinit();
 
     // Render at offset (5, 10)
-    const area = Rect.new(5, 10, 30, 5);
+    const area = Rect{ .x = 5, .y = 10, .width = 30, .height = 5 };
     term.render(&buf, area);
 
     // Content should appear at offset

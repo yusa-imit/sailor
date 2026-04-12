@@ -409,8 +409,8 @@ test "Animation integration - schedule slide transition on interval" {
         }
     };
 
-    const start_rect = Rect.new(0, 10, 50, 20);
-    const end_rect = Rect.new(40, 10, 50, 20);
+    const start_rect = Rect{ .x = 0, .y = 10, .width = 50, .height = 20 };
+    const end_rect = Rect{ .x = 40, .y = 10, .width = 50, .height = 20 };
 
     var ctx = SlideContext{
         .slide = SlideTransition.slideIn(.left, start_rect, end_rect, 200, animation.linear),
@@ -477,7 +477,7 @@ test "Animation integration - complex timeline with multiple animations at diffe
 
     var ctx = TimelineContext{
         .fade = FadeTransition.fadeIn(500, animation.linear),
-        .slide = SlideTransition.slideIn(.top, Rect.new(40, 0, 20, 10), Rect.new(40, 30, 20, 10), 500, animation.linear),
+        .slide = SlideTransition.slideIn(.top, Rect{ .x = 40, .y = 0, .width = 20, .height = 10 }, Rect{ .x = 40, .y = 30, .width = 20, .height = 10 }, 500, animation.linear),
     };
 
     var timer_fade = Timer.oneShotWithCallback(0, TimelineContext.startFade, &ctx);

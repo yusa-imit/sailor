@@ -124,7 +124,7 @@ test "LazyBuffer dirty rect optimization" {
     try testing.expect(lazy.getDirtyRect() == null);
 
     // Mark small rectangular region
-    lazy.markDirtyRect(Rect.new(10, 10, 5, 3));
+    lazy.markDirtyRect(Rect{ .x = 10, .y = 10, .width = 5, .height = 3 });
 
     // Should have dirty region
     const dirty_rect = lazy.getDirtyRect();
@@ -145,7 +145,7 @@ test "DebugOverlay basic initialization and rendering" {
     defer debug.deinit();
 
     // Add a debug rect
-    try debug.addRect(Rect.new(5, 5, 10, 10), "Test", Color.red);
+    try debug.addRect(Rect{ .x = 5, .y = 5, .width = 10, .height = 10 }, "Test", Color.red);
 
     // Log an event
     try debug.logEvent(.{ .key = KeyEvent{
@@ -161,7 +161,7 @@ test "DebugOverlay basic initialization and rendering" {
     var buffer = try Buffer.init(allocator, 80, 24);
     defer buffer.deinit();
 
-    debug.render(&buffer, Rect.new(0, 0, 80, 24));
+    debug.render(&buffer, Rect{ .x = 0, .y = 0, .width = 80, .height = 24 });
 }
 
 test "LazyBuffer with actual rendering" {
@@ -172,7 +172,7 @@ test "LazyBuffer with actual rendering" {
 
     // Clear and mark specific region dirty
     lazy.clearDirty();
-    lazy.markDirtyRect(Rect.new(10, 10, 10, 5));
+    lazy.markDirtyRect(Rect{ .x = 10, .y = 10, .width = 10, .height = 5 });
 
     // Write to lazy buffer
     lazy.setString(10, 10, "Hello", Style{});
@@ -246,15 +246,15 @@ test "DebugOverlay clears rects" {
     defer debug.deinit();
 
     // Add multiple rects
-    try debug.addRect(Rect.new(0, 0, 10, 10), "Rect1", Color.red);
-    try debug.addRect(Rect.new(10, 10, 10, 10), "Rect2", Color.blue);
-    try debug.addRect(Rect.new(20, 20, 10, 10), "Rect3", Color.green);
+    try debug.addRect(Rect{ .x = 0, .y = 0, .width = 10, .height = 10 }, "Rect1", Color.red);
+    try debug.addRect(Rect{ .x = 10, .y = 10, .width = 10, .height = 10 }, "Rect2", Color.blue);
+    try debug.addRect(Rect{ .x = 20, .y = 20, .width = 10, .height = 10 }, "Rect3", Color.green);
 
     // Clear rects
     debug.clearRects();
 
     // Should be able to add new ones after clearing
-    try debug.addRect(Rect.new(5, 5, 5, 5), "New", Color.yellow);
+    try debug.addRect(Rect{ .x = 5, .y = 5, .width = 5, .height = 5 }, "New", Color.yellow);
 }
 
 test "performance features integration" {
@@ -276,7 +276,7 @@ test "performance features integration" {
     if (should_render) {
         // Mark region dirty
         lazy.clearDirty();
-        lazy.markDirtyRect(Rect.new(5, 5, 10, 5));
+        lazy.markDirtyRect(Rect{ .x = 5, .y = 5, .width = 10, .height = 5 });
 
         // Write content
         lazy.setString(10, 10, "Test", Style{});
@@ -285,7 +285,7 @@ test "performance features integration" {
         debug.updateStats(&budget, &lazy);
 
         // Add debug rect
-        try debug.addRect(Rect.new(5, 5, 10, 5), "DirtyRegion", Color.yellow);
+        try debug.addRect(Rect{ .x = 5, .y = 5, .width = 10, .height = 5 }, "DirtyRegion", Color.yellow);
 
         // End frame
         budget.endFrame();
@@ -319,7 +319,7 @@ test "regression - Block widget render performance" {
     var buffer = try Buffer.init(testing.allocator, 80, 24);
     defer buffer.deinit();
 
-    const area = Rect.new(10, 5, 40, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 40, .height = 10 };
     const block = Block{
         .title = "Test",
         .borders = .all,
@@ -394,7 +394,7 @@ test "regression - Type aggregation accuracy" {
     var buffer = try Buffer.init(testing.allocator, 80, 24);
     defer buffer.deinit();
 
-    const area = Rect.new(10, 5, 40, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 40, .height = 10 };
 
     // Create and measure 10 Block widgets
     for (0..10) |i| {

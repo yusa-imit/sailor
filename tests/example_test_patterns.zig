@@ -71,8 +71,8 @@ test "Pattern: Multi-widget dashboard layout" {
     defer term.deinit();
 
     // Define layout areas (simulating Layout.split)
-    const header_area = Rect.new(0, 0, 40, 3);
-    const footer_area = Rect.new(0, 17, 40, 3);
+    const header_area = Rect{ .x = 0, .y = 0, .width = 40, .height = 3 };
+    const footer_area = Rect{ .x = 0, .y = 17, .width = 40, .height = 3 };
 
     // Header: Title block
     const header_block = (Block{})
@@ -81,8 +81,8 @@ test "Pattern: Multi-widget dashboard layout" {
     header_block.render(&term.current, header_area);
 
     // Content: Split into left panel (list) and right panel (gauge)
-    const left_area = Rect.new(0, 3, 20, 14);
-    const right_area = Rect.new(20, 3, 20, 14);
+    const left_area = Rect{ .x = 0, .y = 3, .width = 20, .height = 14 };
+    const right_area = Rect{ .x = 20, .y = 3, .width = 20, .height = 14 };
 
     // Left panel: Task list
     const tasks = [_][]const u8{ "Build", "Test", "Deploy" };
@@ -191,13 +191,13 @@ test "Pattern: Widget rendering in zero-size area" {
         .withTitle("Test", .top_left);
 
     // Should not crash with zero width
-    block.render(&term.current, Rect.new(0, 0, 0, 5));
+    block.render(&term.current, Rect{ .x = 0, .y = 0, .width = 0, .height = 5 });
 
     // Should not crash with zero height
-    block.render(&term.current, Rect.new(0, 0, 10, 0));
+    block.render(&term.current, Rect{ .x = 0, .y = 0, .width = 10, .height = 0 });
 
     // Should not crash with both zero
-    block.render(&term.current, Rect.new(0, 0, 0, 0));
+    block.render(&term.current, Rect{ .x = 0, .y = 0, .width = 0, .height = 0 });
 
     // Terminal should remain empty after rendering to zero-size areas
     const snapshot = try term.getSnapshot(testing.allocator);
@@ -329,13 +329,13 @@ test "Pattern: Horizontal layout composition" {
     const left_block = (Block{})
         .withBorders(Borders.all)
         .withTitle("Left", .top_left);
-    left_block.render(&term.current, Rect.new(0, 0, 15, 5));
+    left_block.render(&term.current, Rect{ .x = 0, .y = 0, .width = 15, .height = 5 });
 
     // Right widget
     const right_block = (Block{})
         .withBorders(Borders.all)
         .withTitle("Right", .top_left);
-    right_block.render(&term.current, Rect.new(15, 0, 15, 5));
+    right_block.render(&term.current, Rect{ .x = 15, .y = 0, .width = 15, .height = 5 });
 
     // Verify both rendered without overlap
     try testing.expectEqual('┌', term.getChar(0, 0).?); // Left top-left
@@ -359,13 +359,13 @@ test "Pattern: Vertical layout composition" {
     const top = (Block{})
         .withBorders(Borders.all)
         .withTitle("Top", .top_left);
-    top.render(&term.current, Rect.new(0, 0, 20, 4));
+    top.render(&term.current, Rect{ .x = 0, .y = 0, .width = 20, .height = 4 });
 
     // Bottom widget
     const bottom = (Block{})
         .withBorders(Borders.all)
         .withTitle("Bottom", .top_left);
-    bottom.render(&term.current, Rect.new(0, 4, 20, 4));
+    bottom.render(&term.current, Rect{ .x = 0, .y = 4, .width = 20, .height = 4 });
 
     // Verify separation
     try testing.expectEqual('└', term.getChar(0, 3).?); // Top bottom-left

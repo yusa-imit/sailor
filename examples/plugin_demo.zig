@@ -99,7 +99,7 @@ pub fn main() !void {
     });
 
     // Render widget
-    const area = Rect.new(0, 0, width, height);
+    const area = Rect{ .x = 0, .y = 0, .width = width, .height = height };
     aligned.render(&buffer, area);
 
     // Create empty previous buffer for diff

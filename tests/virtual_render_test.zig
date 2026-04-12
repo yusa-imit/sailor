@@ -48,7 +48,7 @@ test "VirtualRenderer.shouldRender returns true for area inside viewport" {
     const vp = Viewport.init(0, 0, 80, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
     try std.testing.expect(renderer.shouldRender(area));
 }
 
@@ -56,7 +56,7 @@ test "VirtualRenderer.shouldRender returns true for area at viewport start" {
     const vp = Viewport.init(0, 0, 80, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(0, 0, 20, 10);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     try std.testing.expect(renderer.shouldRender(area));
 }
 
@@ -64,7 +64,7 @@ test "VirtualRenderer.shouldRender returns true for area at viewport end" {
     const vp = Viewport.init(0, 0, 80, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(60, 14, 20, 10);
+    const area = Rect{ .x = 60, .y = 14, .width = 20, .height = 10 };
     try std.testing.expect(renderer.shouldRender(area));
 }
 
@@ -72,7 +72,7 @@ test "VirtualRenderer.shouldRender returns false for area completely left of vie
     const vp = Viewport.init(50, 0, 30, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(0, 5, 40, 10);
+    const area = Rect{ .x = 0, .y = 5, .width = 40, .height = 10 };
     try std.testing.expect(!renderer.shouldRender(area));
 }
 
@@ -80,7 +80,7 @@ test "VirtualRenderer.shouldRender returns false for area completely right of vi
     const vp = Viewport.init(0, 0, 30, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(50, 5, 40, 10);
+    const area = Rect{ .x = 50, .y = 5, .width = 40, .height = 10 };
     try std.testing.expect(!renderer.shouldRender(area));
 }
 
@@ -88,7 +88,7 @@ test "VirtualRenderer.shouldRender returns false for area completely above viewp
     const vp = Viewport.init(0, 50, 80, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(10, 0, 20, 40);
+    const area = Rect{ .x = 10, .y = 0, .width = 20, .height = 40 };
     try std.testing.expect(!renderer.shouldRender(area));
 }
 
@@ -96,7 +96,7 @@ test "VirtualRenderer.shouldRender returns false for area completely below viewp
     const vp = Viewport.init(0, 0, 80, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(10, 50, 20, 10);
+    const area = Rect{ .x = 10, .y = 50, .width = 20, .height = 10 };
     try std.testing.expect(!renderer.shouldRender(area));
 }
 
@@ -105,7 +105,7 @@ test "VirtualRenderer.shouldRender returns true for area partially overlapping l
     const renderer = VirtualRenderer.init(vp);
 
     // Area from 0 to 25, viewport from 10 to 40 → overlap
-    const area = Rect.new(0, 5, 25, 10);
+    const area = Rect{ .x = 0, .y = 5, .width = 25, .height = 10 };
     try std.testing.expect(renderer.shouldRender(area));
 }
 
@@ -114,7 +114,7 @@ test "VirtualRenderer.shouldRender returns true for area partially overlapping r
     const renderer = VirtualRenderer.init(vp);
 
     // Area from 20 to 50, viewport from 0 to 30 → overlap
-    const area = Rect.new(20, 5, 30, 10);
+    const area = Rect{ .x = 20, .y = 5, .width = 30, .height = 10 };
     try std.testing.expect(renderer.shouldRender(area));
 }
 
@@ -123,7 +123,7 @@ test "VirtualRenderer.shouldRender returns true for area partially overlapping t
     const renderer = VirtualRenderer.init(vp);
 
     // Area from 0 to 25, viewport from 10 to 34 → overlap
-    const area = Rect.new(10, 0, 20, 25);
+    const area = Rect{ .x = 10, .y = 0, .width = 20, .height = 25 };
     try std.testing.expect(renderer.shouldRender(area));
 }
 
@@ -132,7 +132,7 @@ test "VirtualRenderer.shouldRender returns true for area partially overlapping b
     const renderer = VirtualRenderer.init(vp);
 
     // Area from 20 to 40, viewport from 0 to 24 → overlap
-    const area = Rect.new(10, 20, 20, 20);
+    const area = Rect{ .x = 10, .y = 20, .width = 20, .height = 20 };
     try std.testing.expect(renderer.shouldRender(area));
 }
 
@@ -140,7 +140,7 @@ test "VirtualRenderer.shouldRender with zero-size area returns false" {
     const vp = Viewport.init(0, 0, 80, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(10, 10, 0, 0);
+    const area = Rect{ .x = 10, .y = 10, .width = 0, .height = 0 };
     try std.testing.expect(!renderer.shouldRender(area));
 }
 
@@ -148,7 +148,7 @@ test "VirtualRenderer.shouldRender with zero-width area returns false" {
     const vp = Viewport.init(0, 0, 80, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(10, 10, 0, 10);
+    const area = Rect{ .x = 10, .y = 10, .width = 0, .height = 10 };
     try std.testing.expect(!renderer.shouldRender(area));
 }
 
@@ -156,7 +156,7 @@ test "VirtualRenderer.shouldRender with zero-height area returns false" {
     const vp = Viewport.init(0, 0, 80, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(10, 10, 10, 0);
+    const area = Rect{ .x = 10, .y = 10, .width = 10, .height = 0 };
     try std.testing.expect(!renderer.shouldRender(area));
 }
 
@@ -164,7 +164,7 @@ test "VirtualRenderer.getClippedArea returns full area when inside viewport" {
     const vp = Viewport.init(0, 0, 80, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(10, 5, 20, 10);
+    const area = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
     const clipped = renderer.getClippedArea(area);
 
     try std.testing.expect(clipped != null);
@@ -180,7 +180,7 @@ test "VirtualRenderer.getClippedArea clips partially overlapping area left" {
 
     // Area from x=0 to x=25, viewport from x=10 to x=40
     // Clipped should be from x=10 to x=25
-    const area = Rect.new(0, 5, 25, 10);
+    const area = Rect{ .x = 0, .y = 5, .width = 25, .height = 10 };
     const clipped = renderer.getClippedArea(area);
 
     try std.testing.expect(clipped != null);
@@ -196,7 +196,7 @@ test "VirtualRenderer.getClippedArea clips partially overlapping area right" {
 
     // Area from x=20 to x=50, viewport from x=0 to x=30
     // Clipped should be from x=20 to x=30
-    const area = Rect.new(20, 5, 30, 10);
+    const area = Rect{ .x = 20, .y = 5, .width = 30, .height = 10 };
     const clipped = renderer.getClippedArea(area);
 
     try std.testing.expect(clipped != null);
@@ -210,7 +210,7 @@ test "VirtualRenderer.getClippedArea returns null for completely outside area" {
     const vp = Viewport.init(0, 0, 80, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(100, 100, 20, 10);
+    const area = Rect{ .x = 100, .y = 100, .width = 20, .height = 10 };
     const clipped = renderer.getClippedArea(area);
 
     try std.testing.expectEqual(null, clipped);
@@ -220,7 +220,7 @@ test "VirtualRenderer.getClippedArea returns null for zero-size area" {
     const vp = Viewport.init(0, 0, 80, 24);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(10, 10, 0, 0);
+    const area = Rect{ .x = 10, .y = 10, .width = 0, .height = 0 };
     const clipped = renderer.getClippedArea(area);
 
     try std.testing.expectEqual(null, clipped);
@@ -239,7 +239,7 @@ test "VirtualRenderer integration: full viewport render with multiple widgets" {
 
     // Simulate 4 widgets:
     // Widget 1: (10, 5, 20, 10) - visible
-    const w1 = Rect.new(10, 5, 20, 10);
+    const w1 = Rect{ .x = 10, .y = 5, .width = 20, .height = 10 };
     if (renderer.shouldRender(w1)) {
         if (renderer.getClippedArea(w1)) |clipped| {
             buffer.fill(clipped, 'W', .{ .fg = .red });
@@ -247,7 +247,7 @@ test "VirtualRenderer integration: full viewport render with multiple widgets" {
     }
 
     // Widget 2: (200, 50, 20, 10) - outside
-    const w2 = Rect.new(200, 50, 20, 10);
+    const w2 = Rect{ .x = 200, .y = 50, .width = 20, .height = 10 };
     if (renderer.shouldRender(w2)) {
         if (renderer.getClippedArea(w2)) |clipped| {
             buffer.fill(clipped, 'X', .{ .fg = .green });
@@ -255,7 +255,7 @@ test "VirtualRenderer integration: full viewport render with multiple widgets" {
     }
 
     // Widget 3: (60, 15, 30, 10) - visible
-    const w3 = Rect.new(60, 15, 30, 10);
+    const w3 = Rect{ .x = 60, .y = 15, .width = 30, .height = 10 };
     if (renderer.shouldRender(w3)) {
         if (renderer.getClippedArea(w3)) |clipped| {
             buffer.fill(clipped, 'Y', .{ .fg = .blue });
@@ -263,7 +263,7 @@ test "VirtualRenderer integration: full viewport render with multiple widgets" {
     }
 
     // Widget 4: (5, 200, 20, 10) - outside
-    const w4 = Rect.new(5, 200, 20, 10);
+    const w4 = Rect{ .x = 5, .y = 200, .width = 20, .height = 10 };
     if (renderer.shouldRender(w4)) {
         if (renderer.getClippedArea(w4)) |clipped| {
             buffer.fill(clipped, 'Z', .{ .fg = .yellow });
@@ -294,7 +294,7 @@ test "VirtualRenderer performance: skip rendering off-screen widgets" {
     while (i < 100) : (i += 1) {
         const x = @as(u16, @intCast((i % 20) * 20));
         const y = @as(u16, @intCast((i / 20) * 20));
-        const area = Rect.new(x, y, 15, 15);
+        const area = Rect{ .x = x, .y = y, .width = 15, .height = 15 };
 
         if (renderer.shouldRender(area)) {
             rendered += 1;
@@ -315,15 +315,15 @@ test "VirtualRenderer with offset viewport" {
     const renderer = VirtualRenderer.init(vp);
 
     // Widget inside offset viewport
-    const inside = Rect.new(60, 50, 15, 10);
+    const inside = Rect{ .x = 60, .y = 50, .width = 15, .height = 10 };
     try std.testing.expect(renderer.shouldRender(inside));
 
     // Widget before viewport
-    const before = Rect.new(40, 50, 8, 10);
+    const before = Rect{ .x = 40, .y = 50, .width = 8, .height = 10 };
     try std.testing.expect(!renderer.shouldRender(before));
 
     // Widget after viewport
-    const after = Rect.new(92, 50, 8, 10);
+    const after = Rect{ .x = 92, .y = 50, .width = 8, .height = 10 };
     try std.testing.expect(!renderer.shouldRender(after));
 }
 
@@ -332,7 +332,7 @@ test "VirtualRenderer clipping with offset viewport" {
     const renderer = VirtualRenderer.init(vp);
 
     // Area partially outside right edge
-    const area = Rect.new(70, 20, 20, 15);
+    const area = Rect{ .x = 70, .y = 20, .width = 20, .height = 15 };
     const clipped = renderer.getClippedArea(area);
 
     try std.testing.expect(clipped != null);
@@ -349,7 +349,7 @@ test "VirtualRenderer all edges clipped together" {
     const renderer = VirtualRenderer.init(vp);
 
     // Large area partially overlapping all edges
-    const area = Rect.new(0, 0, 100, 100);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
     const clipped = renderer.getClippedArea(area);
 
     try std.testing.expect(clipped != null);
@@ -371,7 +371,7 @@ test "VirtualRenderer render decision matches clipping result" {
         const y = @as(u16, @intCast((i * 11) % 100));
         const w = @as(u16, @intCast((i + 1) * 5));
         const h = @as(u16, @intCast((i + 1) * 3));
-        const area = Rect.new(x, y, w, h);
+        const area = Rect{ .x = x, .y = y, .width = w, .height = h };
 
         const should_render = renderer.shouldRender(area);
         const clipped = renderer.getClippedArea(area);
@@ -406,7 +406,7 @@ test "VirtualRenderer memory safety: no leaks with multiple renderers" {
     // All should render areas in their respective viewports
     var count: u32 = 0;
     for (renderers) |renderer| {
-        const area = Rect.new(renderer.viewport.x + 10, renderer.viewport.y + 5, 20, 10);
+        const area = Rect{ .x = renderer.viewport.x + 10, .y = renderer.viewport.y + 5, .width = 20, .height = 10 };
         if (renderer.shouldRender(area)) {
             count += 1;
         }
@@ -420,13 +420,13 @@ test "VirtualRenderer edge case: single-cell viewport" {
     const renderer = VirtualRenderer.init(vp);
 
     // Exactly at viewport
-    try std.testing.expect(renderer.shouldRender(Rect.new(5, 5, 1, 1)));
+    try std.testing.expect(renderer.shouldRender(Rect{ .x = 5, .y = 5, .width = 1, .height = 1 }));
 
     // Adjacent to viewport
-    try std.testing.expect(!renderer.shouldRender(Rect.new(4, 5, 1, 1)));
-    try std.testing.expect(!renderer.shouldRender(Rect.new(6, 5, 1, 1)));
-    try std.testing.expect(!renderer.shouldRender(Rect.new(5, 4, 1, 1)));
-    try std.testing.expect(!renderer.shouldRender(Rect.new(5, 6, 1, 1)));
+    try std.testing.expect(!renderer.shouldRender(Rect{ .x = 4, .y = 5, .width = 1, .height = 1 }));
+    try std.testing.expect(!renderer.shouldRender(Rect{ .x = 6, .y = 5, .width = 1, .height = 1 }));
+    try std.testing.expect(!renderer.shouldRender(Rect{ .x = 5, .y = 4, .width = 1, .height = 1 }));
+    try std.testing.expect(!renderer.shouldRender(Rect{ .x = 5, .y = 6, .width = 1, .height = 1 }));
 }
 
 test "VirtualRenderer edge case: very large viewport" {
@@ -434,16 +434,16 @@ test "VirtualRenderer edge case: very large viewport" {
     const renderer = VirtualRenderer.init(vp);
 
     // Everything should render
-    try std.testing.expect(renderer.shouldRender(Rect.new(0, 0, 100, 100)));
-    try std.testing.expect(renderer.shouldRender(Rect.new(60000, 60000, 100, 100)));
-    try std.testing.expect(renderer.shouldRender(Rect.new(65400, 65400, 100, 100)));
+    try std.testing.expect(renderer.shouldRender(Rect{ .x = 0, .y = 0, .width = 100, .height = 100 }));
+    try std.testing.expect(renderer.shouldRender(Rect{ .x = 60000, .y = 60000, .width = 100, .height = 100 }));
+    try std.testing.expect(renderer.shouldRender(Rect{ .x = 65400, .y = 65400, .width = 100, .height = 100 }));
 }
 
 test "VirtualRenderer decision consistency: same area yields same result" {
     const vp = Viewport.init(10, 10, 50, 50);
     const renderer = VirtualRenderer.init(vp);
 
-    const area = Rect.new(20, 20, 15, 15);
+    const area = Rect{ .x = 20, .y = 20, .width = 15, .height = 15 };
 
     // Call shouldRender multiple times
     const first = renderer.shouldRender(area);

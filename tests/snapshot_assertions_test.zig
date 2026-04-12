@@ -230,11 +230,11 @@ test "Multiple blocks: no overlap" {
 
     // Left block (0-7)
     const left = (Block{}).withBorders(Borders.all);
-    left.render(&term.current, Rect.new(0, 0, 8, 3));
+    left.render(&term.current, Rect{ .x = 0, .y = 0, .width = 8, .height = 3 });
 
     // Right block (8-15)
     const right = (Block{}).withBorders(Borders.all);
-    right.render(&term.current, Rect.new(8, 0, 8, 3));
+    right.render(&term.current, Rect{ .x = 8, .y = 0, .width = 8, .height = 3 });
 
     // Verify both corners exist without overlap
     try testing.expectEqual('┌', term.getChar(0, 0).?);
@@ -249,11 +249,11 @@ test "Vertical stack: proper separation" {
 
     // Top block (rows 0-2)
     const top = (Block{}).withBorders(Borders.all);
-    top.render(&term.current, Rect.new(0, 0, 10, 3));
+    top.render(&term.current, Rect{ .x = 0, .y = 0, .width = 10, .height = 3 });
 
     // Bottom block (rows 3-5)
     const bottom = (Block{}).withBorders(Borders.all);
-    bottom.render(&term.current, Rect.new(0, 3, 10, 3));
+    bottom.render(&term.current, Rect{ .x = 0, .y = 3, .width = 10, .height = 3 });
 
     // Verify corners of both blocks
     try testing.expectEqual('┌', term.getChar(0, 0).?); // top-left of top

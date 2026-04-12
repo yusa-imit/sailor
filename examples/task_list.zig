@@ -52,7 +52,7 @@ pub fn main() !void {
     var buffer = try Buffer.init(allocator, width, height);
     defer buffer.deinit();
 
-    const area = Rect.new(0, 0, width, height);
+    const area = Rect{ .x = 0, .y = 0, .width = width, .height = height };
 
     const chunks = layout.split(.vertical, &.{
         .{ .length = 3 },

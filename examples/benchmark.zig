@@ -66,7 +66,7 @@ fn benchBufferFill(allocator: std.mem.Allocator) !void {
     var buffer = try Buffer.init(allocator, 80, 24);
     defer buffer.deinit();
 
-    const area = Rect.new(0, 0, 80, 24);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     buffer.fill(area, 'x', .{ .fg = .red });
 }
 
@@ -93,7 +93,7 @@ fn benchBlockRender(allocator: std.mem.Allocator) !void {
         .border_style = .{ .fg = .cyan },
     };
 
-    block.render(&buffer, Rect.new(0, 0, 40, 10));
+    block.render(&buffer, Rect{ .x = 0, .y = 0, .width = 40, .height = 10 });
 }
 
 fn benchParagraphRender(allocator: std.mem.Allocator) !void {
@@ -118,7 +118,7 @@ fn benchParagraphRender(allocator: std.mem.Allocator) !void {
         },
     };
 
-    para.render(&buffer, Rect.new(0, 0, 60, 10));
+    para.render(&buffer, Rect{ .x = 0, .y = 0, .width = 60, .height = 10 });
 }
 
 fn benchTableRender(allocator: std.mem.Allocator) !void {
@@ -145,7 +145,7 @@ fn benchTableRender(allocator: std.mem.Allocator) !void {
         },
     };
 
-    table.render(&buffer, Rect.new(0, 0, 50, 10));
+    table.render(&buffer, Rect{ .x = 0, .y = 0, .width = 50, .height = 10 });
 }
 
 fn benchGaugeRender(allocator: std.mem.Allocator) !void {
@@ -161,7 +161,7 @@ fn benchGaugeRender(allocator: std.mem.Allocator) !void {
         },
     };
 
-    gauge.render(&buffer, Rect.new(0, 0, 40, 3));
+    gauge.render(&buffer, Rect{ .x = 0, .y = 0, .width = 40, .height = 3 });
 }
 
 fn benchSparklineRender(allocator: std.mem.Allocator) !void {
@@ -178,7 +178,7 @@ fn benchSparklineRender(allocator: std.mem.Allocator) !void {
         },
     };
 
-    sparkline.render(&buffer, Rect.new(0, 0, 40, 5));
+    sparkline.render(&buffer, Rect{ .x = 0, .y = 0, .width = 40, .height = 5 });
 }
 
 fn benchListRender(allocator: std.mem.Allocator) !void {
@@ -195,7 +195,7 @@ fn benchListRender(allocator: std.mem.Allocator) !void {
         },
     };
 
-    list.render(&buffer, Rect.new(0, 0, 30, 10));
+    list.render(&buffer, Rect{ .x = 0, .y = 0, .width = 30, .height = 10 });
 }
 
 fn benchInputRender(allocator: std.mem.Allocator) !void {
@@ -211,7 +211,7 @@ fn benchInputRender(allocator: std.mem.Allocator) !void {
         },
     };
 
-    input.render(&buffer, Rect.new(0, 0, 40, 3));
+    input.render(&buffer, Rect{ .x = 0, .y = 0, .width = 40, .height = 3 });
 }
 
 fn benchTabsRender(allocator: std.mem.Allocator) !void {
@@ -228,7 +228,7 @@ fn benchTabsRender(allocator: std.mem.Allocator) !void {
         },
     };
 
-    tabs.render(&buffer, Rect.new(0, 0, 50, 3));
+    tabs.render(&buffer, Rect{ .x = 0, .y = 0, .width = 50, .height = 3 });
 }
 
 fn benchStatusBarRender(allocator: std.mem.Allocator) !void {
@@ -245,7 +245,7 @@ fn benchStatusBarRender(allocator: std.mem.Allocator) !void {
         .style = .{ .bg = .blue },
     };
 
-    statusbar.render(&buffer, Rect.new(0, 0, 80, 1));
+    statusbar.render(&buffer, Rect{ .x = 0, .y = 0, .width = 80, .height = 1 });
 }
 
 // fn benchTreeRender(allocator: std.mem.Allocator) !void {

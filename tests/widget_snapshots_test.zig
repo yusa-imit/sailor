@@ -374,7 +374,7 @@ test "Integration: multiple widgets in vertical layout" {
     const para = Paragraph.fromLines(&lines)
         .withBlock(top_block);
 
-    para.render(&term.current, Rect.new(0, 0, 30, 4));
+    para.render(&term.current, Rect{ .x = 0, .y = 0, .width = 30, .height = 4 });
 
     // Bottom list with border
     const bottom_block = (Block{})
@@ -385,7 +385,7 @@ test "Integration: multiple widgets in vertical layout" {
     const list = List.init(&items)
         .withBlock(bottom_block);
 
-    list.render(&term.current, Rect.new(0, 4, 30, 6));
+    list.render(&term.current, Rect{ .x = 0, .y = 4, .width = 30, .height = 6 });
 
     const snapshot = try term.getSnapshot(testing.allocator);
     defer testing.allocator.free(snapshot);
@@ -405,13 +405,13 @@ test "Integration: side-by-side blocks" {
     const left_block = (Block{})
         .withBorders(Borders.all)
         .withTitle("Left", .top_left);
-    left_block.render(&term.current, Rect.new(0, 0, 10, 4));
+    left_block.render(&term.current, Rect{ .x = 0, .y = 0, .width = 10, .height = 4 });
 
     // Right block
     const right_block = (Block{})
         .withBorders(Borders.all)
         .withTitle("Right", .top_left);
-    right_block.render(&term.current, Rect.new(10, 0, 10, 4));
+    right_block.render(&term.current, Rect{ .x = 10, .y = 0, .width = 10, .height = 4 });
 
     // Both should render without overlapping
     try testing.expectEqual('┌', term.getChar(0, 0).?);
@@ -433,7 +433,7 @@ test "Edge case: zero-size area does not crash" {
         .withTitle("Test", .top_left);
 
     // Should not crash
-    block.render(&term.current, Rect.new(0, 0, 0, 0));
+    block.render(&term.current, Rect{ .x = 0, .y = 0, .width = 0, .height = 0 });
 
     // Terminal should remain empty
     const snapshot = try term.getSnapshot(testing.allocator);
@@ -454,7 +454,7 @@ test "Edge case: single-char area renders content" {
     const lines = [_]Line{line};
 
     const para = Paragraph.fromLines(&lines);
-    para.render(&term.current, Rect.new(2, 1, 1, 1));
+    para.render(&term.current, Rect{ .x = 2, .y = 1, .width = 1, .height = 1 });
 
     // Should render single char at position
     try testing.expectEqual('X', term.getChar(2, 1).?);

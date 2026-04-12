@@ -188,29 +188,29 @@ test "gamepad button press - all buttons" {
 // ============================================================================
 
 test "layout Rect - zero dimensions" {
-    const rect = layout.Rect.new(10, 10, 0, 0);
+    const rect = layout.Rect{ .x = 10, .y = 10, .width = 0, .height = 0 };
     try testing.expectEqual(@as(u16, 0), rect.width);
     try testing.expectEqual(@as(u16, 0), rect.height);
     try testing.expectEqual(@as(u16, 0), rect.area());
 }
 
 test "layout Rect - maximum dimensions" {
-    const rect = layout.Rect.new(0, 0, 65535, 65535);
+    const rect = layout.Rect{ .x = 0, .y = 0, .width = 65535, .height = 65535 };
     try testing.expectEqual(@as(u16, 65535), rect.width);
     try testing.expectEqual(@as(u16, 65535), rect.height);
 }
 
 test "layout Rect intersection - no overlap" {
-    const r1 = layout.Rect.new(0, 0, 10, 10);
-    const r2 = layout.Rect.new(20, 20, 10, 10);
+    const r1 = layout.Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    const r2 = layout.Rect{ .x = 20, .y = 20, .width = 10, .height = 10 };
     const intersection = r1.intersection(r2);
     // No overlap returns null
     try testing.expectEqual(@as(?layout.Rect, null), intersection);
 }
 
 test "layout Rect intersection - partial overlap" {
-    const r1 = layout.Rect.new(0, 0, 10, 10);
-    const r2 = layout.Rect.new(5, 5, 10, 10);
+    const r1 = layout.Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    const r2 = layout.Rect{ .x = 5, .y = 5, .width = 10, .height = 10 };
     const intersection_opt = r1.intersection(r2);
     try testing.expect(intersection_opt != null);
     const intersection = intersection_opt.?;
@@ -221,8 +221,8 @@ test "layout Rect intersection - partial overlap" {
 }
 
 test "layout Rect intersection - complete overlap" {
-    const r1 = layout.Rect.new(0, 0, 10, 10);
-    const r2 = layout.Rect.new(0, 0, 10, 10); // Same rect
+    const r1 = layout.Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    const r2 = layout.Rect{ .x = 0, .y = 0, .width = 10, .height = 10 }; // Same rect
     const intersection_opt = r1.intersection(r2);
     try testing.expect(intersection_opt != null);
     const intersection = intersection_opt.?;
@@ -232,7 +232,7 @@ test "layout Rect intersection - complete overlap" {
 
 test "layout constraint - length overflow" {
     const constraint = layout.Constraint{ .length = 65535 };
-    const area = layout.Rect.new(0, 0, 100, 100);
+    const area = layout.Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
 
     // Should not crash with overflow
     const result = try layout.split(testing.allocator, .horizontal, area, &[_]layout.Constraint{constraint});
@@ -242,7 +242,7 @@ test "layout constraint - length overflow" {
 
 test "layout constraint - percentage 100" {
     const constraint = layout.Constraint{ .percentage = 100 };
-    const area = layout.Rect.new(0, 0, 200, 100);
+    const area = layout.Rect{ .x = 0, .y = 0, .width = 200, .height = 100 };
 
     const result = try layout.split(testing.allocator, .horizontal, area, &[_]layout.Constraint{constraint});
     defer testing.allocator.free(result);
@@ -251,7 +251,7 @@ test "layout constraint - percentage 100" {
 
 test "layout constraint - minimum percentage" {
     const constraint = layout.Constraint{ .min = 10 };
-    const area = layout.Rect.new(0, 0, 200, 100);
+    const area = layout.Rect{ .x = 0, .y = 0, .width = 200, .height = 100 };
 
     const result = try layout.split(testing.allocator, .horizontal, area, &[_]layout.Constraint{constraint});
     defer testing.allocator.free(result);
@@ -260,14 +260,14 @@ test "layout constraint - minimum percentage" {
 }
 
 test "layout split - empty constraints" {
-    const area = layout.Rect.new(0, 0, 100, 100);
+    const area = layout.Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
     const result = try layout.split(testing.allocator, .horizontal, area, &[_]layout.Constraint{});
     defer testing.allocator.free(result);
     try testing.expectEqual(@as(usize, 0), result.len);
 }
 
 test "layout split - single constraint fills area" {
-    const area = layout.Rect.new(10, 20, 100, 50);
+    const area = layout.Rect{ .x = 10, .y = 20, .width = 100, .height = 50 };
     const constraints = [_]layout.Constraint{
         .{ .percentage = 100 },
     };
@@ -369,13 +369,13 @@ test "unicode truncate - CJK characters" {
 // ============================================================================
 
 test "layout area calculation - no overflow" {
-    const rect = layout.Rect.new(0, 0, 100, 100);
+    const rect = layout.Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
     try testing.expectEqual(@as(u16, 10000), rect.area());
 }
 
 test "layout area calculation - maximum safe values" {
     // Maximum area that fits in u16: 255 * 255 = 65025
-    const rect = layout.Rect.new(0, 0, 255, 255);
+    const rect = layout.Rect{ .x = 0, .y = 0, .width = 255, .height = 255 };
     try testing.expectEqual(@as(u16, 65025), rect.area());
 }
 
@@ -412,7 +412,7 @@ test "blur effect - zero intensity" {
     defer buf.deinit();
 
     const effect = blur.BlurEffect.init(.box_drawing, 0);
-    const area = layout.Rect.new(0, 0, 10, 10);
+    const area = layout.Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     effect.apply(&buf, area);
 
     // Zero intensity should still apply effect (minimal blur)
@@ -426,7 +426,7 @@ test "blur effect - maximum intensity" {
     defer buf.deinit();
 
     const effect = blur.BlurEffect.init(.shade_chars, 255);
-    const area = layout.Rect.new(0, 0, 10, 10);
+    const area = layout.Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     effect.apply(&buf, area);
 
     // Maximum intensity should apply strongest blur
@@ -441,7 +441,7 @@ test "blur effect - out of bounds area" {
 
     const effect = blur.BlurEffect.init(.box_drawing, 128);
     // Area extends beyond buffer bounds
-    const area = layout.Rect.new(5, 5, 100, 100);
+    const area = layout.Rect{ .x = 5, .y = 5, .width = 100, .height = 100 };
 
     // Should not crash, only applies to valid cells
     effect.apply(&buf, area);
@@ -453,7 +453,7 @@ test "transparency effect - zero alpha (fully transparent)" {
     defer buf.deinit();
 
     const effect = blur.TransparencyEffect.init(.char_fade, 0);
-    const area = layout.Rect.new(0, 0, 10, 10);
+    const area = layout.Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     effect.apply(&buf, area);
 
     // Zero alpha should show space or lightest fade char
@@ -467,7 +467,7 @@ test "transparency effect - maximum alpha (opaque)" {
     defer buf.deinit();
 
     const effect = blur.TransparencyEffect.init(.char_fade, 255);
-    const area = layout.Rect.new(0, 0, 10, 10);
+    const area = layout.Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     effect.apply(&buf, area);
 
     // Maximum alpha should show heaviest fade char
@@ -481,7 +481,7 @@ test "composite effect - both null effects" {
     defer buf.deinit();
 
     const composite = blur.CompositeEffect.init(null, null);
-    const area = layout.Rect.new(0, 0, 10, 10);
+    const area = layout.Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
 
     // Should be a no-op
     composite.apply(&buf, area);
@@ -496,7 +496,7 @@ test "transition - zero duration" {
     const animation = @import("sailor").tui.animation;
 
     var trans = transitions.Transition.fade(0, animation.linear);
-    const rect = layout.Rect.new(10, 10, 50, 20);
+    const rect = layout.Rect{ .x = 10, .y = 10, .width = 50, .height = 20 };
 
     trans.begin(1000, rect);
 
@@ -512,7 +512,7 @@ test "transition - slide with maximum rect dimensions" {
     const animation = @import("sailor").tui.animation;
 
     var trans = transitions.Transition.slide(1000, .right, animation.linear);
-    const rect = layout.Rect.new(0, 0, 65535, 32768);
+    const rect = layout.Rect{ .x = 0, .y = 0, .width = 65535, .height = 32768 };
 
     trans.begin(0, rect);
 
@@ -526,7 +526,7 @@ test "transition - scale to zero" {
     const animation = @import("sailor").tui.animation;
 
     var trans = transitions.Transition.scale(1000, animation.linear);
-    const rect = layout.Rect.new(10, 10, 100, 50);
+    const rect = layout.Rect{ .x = 10, .y = 10, .width = 100, .height = 50 };
 
     trans.begin(0, rect);
 
@@ -560,7 +560,7 @@ test "transition manager - start non-existent ID" {
     var mgr = transitions.TransitionManager.init(testing.allocator);
     defer mgr.deinit();
 
-    const rect = layout.Rect.new(0, 0, 100, 50);
+    const rect = layout.Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
 
     // Starting non-existent ID should be no-op (not crash)
     mgr.start(999, 0, rect);
@@ -576,7 +576,7 @@ test "transition manager - cleanup with active transitions" {
     const trans = transitions.Transition.fade(1000, animation.linear);
     try mgr.add(1, trans);
 
-    const rect = layout.Rect.new(0, 0, 100, 50);
+    const rect = layout.Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
     mgr.start(1, 0, rect);
 
     // Cleanup with active transition should not remove it
