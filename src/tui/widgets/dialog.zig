@@ -212,7 +212,7 @@ pub const Dialog = struct {
 
             // Draw button: [ Label ]
             if (x < area.x + area.width) {
-                buf.setChar(x, area.y, '[', btn_style);
+                buf.set(x, area.y, .{ .char = '[', .style = btn_style });
                 x += 1;
 
                 // Button text
@@ -223,7 +223,7 @@ pub const Dialog = struct {
                 }
 
                 if (x < area.x + area.width) {
-                    buf.setChar(x, area.y, ']', btn_style);
+                    buf.set(x, area.y, .{ .char = ']', .style = btn_style });
                     x += 1;
                 }
 

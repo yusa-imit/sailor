@@ -44,7 +44,7 @@ const FillWidget = struct {
         while (y < area.y + area.height) : (y += 1) {
             var x: u16 = area.x;
             while (x < area.x + area.width) : (x += 1) {
-                buf.setChar(x, y, self.char, self.style);
+                buf.set(x, y, .{ .char = self.char, .style = self.style });
             }
         }
     }
@@ -61,7 +61,7 @@ const TextWidget = struct {
         for (self.text) |byte| {
             if (x >= area.x + area.width) break;
             if (byte >= 32 and byte < 127) {
-                buf.setChar(x, area.y, byte, self.style);
+                buf.set(x, area.y, .{ .char = byte, .style = self.style });
                 x += 1;
             }
         }

@@ -88,22 +88,11 @@ pub const Buffer = struct {
         return self.cells[index];
     }
 
-    /// Set cell at position (v2.0.0 API - preferred)
-    ///
-    /// This is the v2.0.0 API that takes a Cell directly.
-    /// For v1.x compatibility, use setChar() which will be deprecated.
+    /// Set cell at position
     pub fn set(self: *Buffer, x: u16, y: u16, cell: Cell) void {
         if (self.get(x, y)) |c| {
             c.* = cell;
         }
-    }
-
-    /// Set character at position with optional style
-    /// @deprecated Use set() with Cell instead (will be removed in v2.0.0)
-    pub fn setChar(self: *Buffer, x: u16, y: u16, char: u21, cell_style: Style) void {
-        const deprecation = @import("../deprecation.zig");
-        deprecation.replace("setChar", "set", "2.0.0");
-        self.set(x, y, Cell{ .char = char, .style = cell_style });
     }
 
     /// Write string at position with optional style
@@ -403,7 +392,7 @@ test "Buffer.set - unicode character" {
     try std.testing.expectEqual('😀', cell.char);
 }
 
-test "Buffer.setChar" {
+test "Buffer.set" {
     var buffer = try Buffer.init(std.testing.allocator, 10, 5);
     defer buffer.deinit();
 
@@ -600,7 +589,7 @@ test "Buffer.setString - CJK characters" {
     try std.testing.expectEqual(@as(u21, '界'), buffer.get(6, 0).?.char);
 }
 
-test "Buffer.setChar - zero-width characters" {
+test "Buffer.set - zero-width characters" {
     const allocator = std.testing.allocator;
     var buffer = try Buffer.init(allocator, 10, 5);
     defer buffer.deinit();
