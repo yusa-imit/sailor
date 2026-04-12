@@ -8,14 +8,6 @@ pub const Rect = struct {
     width: u16,
     height: u16,
 
-    /// Create a new rectangle
-    /// @deprecated Use struct literal instead: Rect{ .x = x, .y = y, .width = w, .height = h }
-    pub fn new(x: u16, y: u16, width: u16, height: u16) Rect {
-        const deprecation = @import("../deprecation.zig");
-        deprecation.replace("Rect.new", "Rect{ ... }", "2.0.0");
-        return .{ .x = x, .y = y, .width = width, .height = height };
-    }
-
     /// Get area (width × height)
     pub fn area(self: Rect) u32 {
         return @as(u32, self.width) * @as(u32, self.height);
@@ -576,7 +568,7 @@ pub const LayoutDebugger = struct {
 // Tests
 // ============================================================================
 
-test "Rect.new" {
+test "Rect - struct literal construction" {
     const r = Rect{ .x = 10, .y = 20, .width = 30, .height = 40 };
     try std.testing.expectEqual(10, r.x);
     try std.testing.expectEqual(20, r.y);

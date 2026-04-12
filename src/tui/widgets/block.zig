@@ -101,11 +101,8 @@ pub const Block = struct {
         return result;
     }
 
-    /// Set title text and position
-    /// @deprecated Use .title and .title_position fields directly in struct literal
+    /// Set title text and position (builder pattern)
     pub fn withTitle(self: Block, text: []const u8, position: TitlePosition) Block {
-        const deprecation = @import("../../deprecation.zig");
-        deprecation.replace("Block.withTitle", "Block{ .title = ..., .title_position = ... }", "2.0.0");
         var result = self;
         result.title = text;
         result.title_position = position;
