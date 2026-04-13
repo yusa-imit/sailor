@@ -1,3 +1,43 @@
+✅ **Session 99** — FEATURE MODE: CONSTRAINT & COLOR CONVENIENCE CONSTRUCTORS (2026-04-14)
+  - **Mode**: FEATURE (session 99, 99 % 5 == 4)
+  - **Achievement**: Added 9 convenience constructors across Constraint and Color types
+
+  **Completed Work**:
+    - ✅ Constraint convenience constructors (6 total, +42 tests):
+      - Constraint.len(u16) → .length
+      - Constraint.pct(u8) → .percentage (auto-clamped)
+      - Constraint.rat(u32, u32) → .ratio
+      - Constraint.minimum(u16) → .min
+      - Constraint.maximum(u16) → .max
+      - Constraint.aspect(u32, u32) → .aspect_ratio
+    - ✅ Color convenience constructors (3 total, +34 tests):
+      - Color.fromRgb(r, g, b) → .rgb struct
+      - Color.fromIndexed(idx) → .indexed
+      - Color.fromHex(0xRRGGBB) → .rgb with bit extraction
+    - ✅ All 76 tests pass, full TDD cycle
+    - ✅ Comprehensive documentation with v2.1.0 markers
+
+  **Commits**:
+    - ba6f0ee — feat: add Constraint convenience constructors (+42 tests)
+    - 02df8ce — feat: add Color convenience constructors (+34 tests)
+
+  **Current State**:
+    - **Latest release**: v2.0.0 (2026-04-13)
+    - **Active milestone**: v2.1.0 (Post-v2.0 Polish & Consumer Feedback)
+    - **CI status**: Clean (cancelled runs, not failures)
+    - **Open issues**: 0 (sailor), 0 (consumer projects)
+    - **Blockers**: NONE
+
+  **v2.1.0 Progress**:
+    - API ergonomics: ✅ Deprecation mode, ✅ Rect.fromSize(), ✅ Constraint constructors (6), ✅ Color constructors (3)
+    - Consumer migration: Waiting for feedback
+    - Bug fixes: None needed currently
+    - Performance: Opportunity for future work
+
+  **Next Priority**:
+    - Continue v2.1.0 ergonomics: look for more convenience helpers
+    - Monitor consumer project migrations
+
 ✅ **Session 97** — FEATURE MODE: RECT CONVENIENCE CONSTRUCTOR (2026-04-13)
   - **Mode**: FEATURE (session 97, 97 % 5 == 2)
   - **Achievement**: Added Rect.fromSize() ergonomic helper
