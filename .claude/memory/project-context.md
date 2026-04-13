@@ -1,3 +1,36 @@
+✅ **Session 96** — FEATURE MODE: ERGONOMICS IMPROVEMENTS (2026-04-13)
+  - **Mode**: FEATURE (session 96, 96 % 5 == 1)
+  - **Achievement**: Event metrics tests + deprecation mode build option
+
+  **Completed Work**:
+    - ✅ Committed event_metrics.zig tests (39 comprehensive tests covering percentiles, edge cases, stress testing)
+    - ✅ Implemented -Ddeprecation-mode build option (warn/error/ignore modes)
+    - ✅ Fixed duplicate sailor_module creation in build.zig
+    - ✅ Updated deprecation.zig to use build_options instead of hardcoded mode
+    - ✅ Resolved TODO from deprecation.zig line 68
+
+  **Commits**:
+    - 7de7567 — test: add comprehensive tests for EventMetricsCollector
+    - 7e71190 — feat: add build option for deprecation mode control
+
+  **Current State**:
+    - **Latest release**: v2.0.0 (2026-04-13)
+    - **Active milestone**: v2.1.0 (Post-v2.0 Polish & Consumer Feedback)
+    - **CI status**: Cancelled runs (not failures)
+    - **Open issues**: 0 (sailor), 0 (consumer projects)
+    - **Blockers**: NONE
+
+  **v2.1.0 Progress**:
+    - API ergonomics: ✅ Deprecation mode control added
+    - Consumer migration: Waiting for feedback
+    - Bug fixes: None needed currently
+    - Performance: Opportunity for future work
+
+  **Next Priority**:
+    - Continue v2.1.0 polish: look for API ergonomics improvements
+    - Monitor consumer project migrations
+    - Consider performance profiling opportunities
+
 ✅ **Session 88** — FEATURE MODE: MIGRATION SCRIPT BUG FIX (2026-04-11)
   - **Mode**: FEATURE (session 88, 88 % 5 == 3)
   - **Achievement**: Fixed critical migration script bug #16
