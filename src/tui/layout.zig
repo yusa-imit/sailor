@@ -120,6 +120,24 @@ pub const Rect = struct {
         return Rect{ .x = new_x, .y = new_y, .width = new_width, .height = new_height };
     }
 
+    /// Create rectangle from size with origin at (0, 0)
+    ///
+    /// Convenience constructor for zero-origin rectangles. Equivalent to
+    /// `Rect{ .x = 0, .y = 0, .width = width, .height = height }`.
+    ///
+    /// ## Example
+    /// ```zig
+    /// const area = Rect.fromSize(80, 24);
+    /// // equivalent to: Rect{ .x = 0, .y = 0, .width = 80, .height = 24 }
+    /// ```
+    ///
+    /// ## v2.1.0 Ergonomics Helper
+    /// This pattern appears 276+ times in tests and widget code. Using `fromSize`
+    /// improves readability and reduces boilerplate.
+    pub fn fromSize(width: u16, height: u16) Rect {
+        return .{ .x = 0, .y = 0, .width = width, .height = height };
+    }
+
     /// Format rectangle for debugging output
     pub fn debugFormat(self: Rect, writer: anytype) !void {
         try writer.print("Rect{{x={d}, y={d}, width={d}, height={d}}}", .{
@@ -996,6 +1014,114 @@ test "aspect ratio constraint - height much greater than width tall" {
     // Very tall ratio 1:100
     const size = c.apply(1000);
     try std.testing.expectEqual(1000, size);
+}
+
+// ============================================================================
+// Rect.fromSize() Convenience Constructor Tests
+// ============================================================================
+
+test "Rect.fromSize basic usage - standard dimensions" {
+    const rect = Rect.fromSize(10, 5);
+    try std.testing.expectEqual(@as(u16, 0), rect.x);
+    try std.testing.expectEqual(@as(u16, 0), rect.y);
+    try std.testing.expectEqual(@as(u16, 10), rect.width);
+    try std.testing.expectEqual(@as(u16, 5), rect.height);
+}
+
+test "Rect.fromSize zero dimensions - 0x0 rectangle" {
+    const rect = Rect.fromSize(0, 0);
+    try std.testing.expectEqual(@as(u16, 0), rect.x);
+    try std.testing.expectEqual(@as(u16, 0), rect.y);
+    try std.testing.expectEqual(@as(u16, 0), rect.width);
+    try std.testing.expectEqual(@as(u16, 0), rect.height);
+}
+
+test "Rect.fromSize zero width - degenerate rectangle" {
+    const rect = Rect.fromSize(0, 100);
+    try std.testing.expectEqual(@as(u16, 0), rect.x);
+    try std.testing.expectEqual(@as(u16, 0), rect.y);
+    try std.testing.expectEqual(@as(u16, 0), rect.width);
+    try std.testing.expectEqual(@as(u16, 100), rect.height);
+}
+
+test "Rect.fromSize zero height - degenerate rectangle" {
+    const rect = Rect.fromSize(100, 0);
+    try std.testing.expectEqual(@as(u16, 0), rect.x);
+    try std.testing.expectEqual(@as(u16, 0), rect.y);
+    try std.testing.expectEqual(@as(u16, 100), rect.width);
+    try std.testing.expectEqual(@as(u16, 0), rect.height);
+}
+
+test "Rect.fromSize large dimensions - 1000x1000" {
+    const rect = Rect.fromSize(1000, 1000);
+    try std.testing.expectEqual(@as(u16, 0), rect.x);
+    try std.testing.expectEqual(@as(u16, 0), rect.y);
+    try std.testing.expectEqual(@as(u16, 1000), rect.width);
+    try std.testing.expectEqual(@as(u16, 1000), rect.height);
+}
+
+test "Rect.fromSize asymmetric - wide rectangle" {
+    const rect = Rect.fromSize(100, 1);
+    try std.testing.expectEqual(@as(u16, 0), rect.x);
+    try std.testing.expectEqual(@as(u16, 0), rect.y);
+    try std.testing.expectEqual(@as(u16, 100), rect.width);
+    try std.testing.expectEqual(@as(u16, 1), rect.height);
+}
+
+test "Rect.fromSize asymmetric - tall rectangle" {
+    const rect = Rect.fromSize(1, 100);
+    try std.testing.expectEqual(@as(u16, 0), rect.x);
+    try std.testing.expectEqual(@as(u16, 0), rect.y);
+    try std.testing.expectEqual(@as(u16, 1), rect.width);
+    try std.testing.expectEqual(@as(u16, 100), rect.height);
+}
+
+test "Rect.fromSize equivalence with manual construction" {
+    const rect1 = Rect.fromSize(80, 24);
+    const rect2 = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    try std.testing.expectEqual(rect2.x, rect1.x);
+    try std.testing.expectEqual(rect2.y, rect1.y);
+    try std.testing.expectEqual(rect2.width, rect1.width);
+    try std.testing.expectEqual(rect2.height, rect1.height);
+}
+
+test "Rect.fromSize max u16 dimensions" {
+    const rect = Rect.fromSize(65535, 65535);
+    try std.testing.expectEqual(@as(u16, 0), rect.x);
+    try std.testing.expectEqual(@as(u16, 0), rect.y);
+    try std.testing.expectEqual(@as(u16, 65535), rect.width);
+    try std.testing.expectEqual(@as(u16, 65535), rect.height);
+}
+
+test "Rect.fromSize area calculation matches created rectangle" {
+    const rect = Rect.fromSize(50, 40);
+    const expected_area = @as(u32, 50) * @as(u32, 40);
+    try std.testing.expectEqual(expected_area, rect.area());
+}
+
+test "Rect.fromSize contains point at origin" {
+    const rect = Rect.fromSize(10, 10);
+    try std.testing.expect(rect.contains(0, 0));
+}
+
+test "Rect.fromSize does not contain point outside bounds" {
+    const rect = Rect.fromSize(10, 10);
+    try std.testing.expect(!rect.contains(10, 10)); // beyond right and bottom edges
+    try std.testing.expect(!rect.contains(15, 15));
+}
+
+test "Rect.fromSize common terminal size 80x24" {
+    const rect = Rect.fromSize(80, 24);
+    try std.testing.expectEqual(@as(u16, 80), rect.width);
+    try std.testing.expectEqual(@as(u16, 24), rect.height);
+    try std.testing.expectEqual(@as(u32, 1920), rect.area());
+}
+
+test "Rect.fromSize common terminal size 120x40" {
+    const rect = Rect.fromSize(120, 40);
+    try std.testing.expectEqual(@as(u16, 120), rect.width);
+    try std.testing.expectEqual(@as(u16, 40), rect.height);
+    try std.testing.expectEqual(@as(u32, 4800), rect.area());
 }
 
 test "Rect.withAspectRatio - width-constrained landscape" {
