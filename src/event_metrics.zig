@@ -263,3 +263,410 @@ fn percentile(sorted: []const u64, p: u8) u64 {
     const index = (@as(u64, p) * (sorted.len - 1)) / 100;
     return sorted[@intCast(index)];
 }
+
+// ============================================================================
+// TESTS
+// ============================================================================
+
+test "EventMetricsCollector init and deinit" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    // Should initialize with no events
+    try std.testing.expectEqual(@as(usize, 0), collector.events.count());
+    try std.testing.expect(collector.type_data == null);
+}
+
+test "recordEvent single event" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    collector.recordEvent("input", 1000, 5);
+
+    const stats = collector.getEventStats("input");
+    try std.testing.expect(stats != null);
+    try std.testing.expectEqual(@as(u64, 1000), stats.?.min_ns);
+    try std.testing.expectEqual(@as(u64, 1000), stats.?.max_ns);
+    try std.testing.expectEqual(@as(u64, 1000), stats.?.avg_ns);
+    try std.testing.expectEqual(@as(u64, 1), stats.?.count);
+    try std.testing.expectEqual(@as(u32, 5), stats.?.queue_depth_max);
+}
+
+test "recordEvent multiple events same type" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    collector.recordEvent("input", 1000, 1);
+    collector.recordEvent("input", 2000, 2);
+    collector.recordEvent("input", 3000, 3);
+
+    const stats = collector.getEventStats("input");
+    try std.testing.expect(stats != null);
+    try std.testing.expectEqual(@as(u64, 1000), stats.?.min_ns);
+    try std.testing.expectEqual(@as(u64, 3000), stats.?.max_ns);
+    try std.testing.expectEqual(@as(u64, 2000), stats.?.avg_ns); // (1000+2000+3000)/3
+    try std.testing.expectEqual(@as(u64, 3), stats.?.count);
+    try std.testing.expectEqual(@as(u32, 3), stats.?.queue_depth_max);
+}
+
+test "recordEvent multiple event types" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    collector.recordEvent("input", 1000, 1);
+    collector.recordEvent("render", 5000, 2);
+    collector.recordEvent("input", 2000, 1);
+
+    const input_stats = collector.getEventStats("input");
+    try std.testing.expect(input_stats != null);
+    try std.testing.expectEqual(@as(u64, 2), input_stats.?.count);
+    try std.testing.expectEqual(@as(u64, 1500), input_stats.?.avg_ns); // (1000+2000)/2
+
+    const render_stats = collector.getEventStats("render");
+    try std.testing.expect(render_stats != null);
+    try std.testing.expectEqual(@as(u64, 1), render_stats.?.count);
+    try std.testing.expectEqual(@as(u64, 5000), render_stats.?.avg_ns);
+}
+
+test "getEventStats returns null for unknown event type" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    const stats = collector.getEventStats("unknown");
+    try std.testing.expect(stats == null);
+}
+
+test "getEventStats empty collector returns null" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    const stats = collector.getEventStats("input");
+    try std.testing.expect(stats == null);
+}
+
+test "getTypeStats aggregates across all event types" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    collector.recordEvent("input", 1000, 1);
+    collector.recordEvent("render", 2000, 2);
+    collector.recordEvent("input", 3000, 3);
+
+    const stats = collector.getTypeStats();
+    try std.testing.expect(stats != null);
+    try std.testing.expectEqual(@as(u64, 3), stats.?.count);
+    try std.testing.expectEqual(@as(u64, 1000), stats.?.min_ns);
+    try std.testing.expectEqual(@as(u64, 3000), stats.?.max_ns);
+    try std.testing.expectEqual(@as(u64, 2000), stats.?.avg_ns); // (1000+2000+3000)/3
+    try std.testing.expectEqual(@as(u32, 3), stats.?.queue_depth_max);
+}
+
+test "getTypeStats returns null when no events recorded" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    const stats = collector.getTypeStats();
+    try std.testing.expect(stats == null);
+}
+
+test "percentile calculation p50 with odd count" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    // 5 values: 100, 200, 300, 400, 500 → p50 should be 300 (median)
+    collector.recordEvent("test", 100, 1);
+    collector.recordEvent("test", 200, 1);
+    collector.recordEvent("test", 300, 1);
+    collector.recordEvent("test", 400, 1);
+    collector.recordEvent("test", 500, 1);
+
+    const stats = collector.getEventStats("test");
+    try std.testing.expect(stats != null);
+    try std.testing.expectEqual(@as(u64, 300), stats.?.p50_ns);
+}
+
+test "percentile calculation p50 with even count" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    // 4 values: 100, 200, 300, 400 → p50 index = (50*(4-1))/100 = 1.5 → 1 → 200
+    collector.recordEvent("test", 100, 1);
+    collector.recordEvent("test", 200, 1);
+    collector.recordEvent("test", 300, 1);
+    collector.recordEvent("test", 400, 1);
+
+    const stats = collector.getEventStats("test");
+    try std.testing.expect(stats != null);
+    try std.testing.expectEqual(@as(u64, 200), stats.?.p50_ns);
+}
+
+test "percentile calculation p95 accuracy" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    // 100 values: 0, 1, 2, ..., 99
+    // p95 index = (95 * 99) / 100 = 94.05 → 94 → value 94
+    var i: u64 = 0;
+    while (i < 100) : (i += 1) {
+        collector.recordEvent("test", i, 1);
+    }
+
+    const stats = collector.getEventStats("test");
+    try std.testing.expect(stats != null);
+    try std.testing.expectEqual(@as(u64, 94), stats.?.p95_ns);
+}
+
+test "percentile calculation p99 accuracy" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    // 100 values: 0, 1, 2, ..., 99
+    // p99 index = (99 * 99) / 100 = 98.01 → 98 → value 98
+    var i: u64 = 0;
+    while (i < 100) : (i += 1) {
+        collector.recordEvent("test", i, 1);
+    }
+
+    const stats = collector.getEventStats("test");
+    try std.testing.expect(stats != null);
+    try std.testing.expectEqual(@as(u64, 98), stats.?.p99_ns);
+}
+
+test "percentile with single value" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    collector.recordEvent("test", 1234, 1);
+
+    const stats = collector.getEventStats("test");
+    try std.testing.expect(stats != null);
+    try std.testing.expectEqual(@as(u64, 1234), stats.?.p50_ns);
+    try std.testing.expectEqual(@as(u64, 1234), stats.?.p95_ns);
+    try std.testing.expectEqual(@as(u64, 1234), stats.?.p99_ns);
+}
+
+test "percentile with unsorted input" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    // Record in random order
+    collector.recordEvent("test", 500, 1);
+    collector.recordEvent("test", 100, 1);
+    collector.recordEvent("test", 300, 1);
+    collector.recordEvent("test", 200, 1);
+    collector.recordEvent("test", 400, 1);
+
+    const stats = collector.getEventStats("test");
+    try std.testing.expect(stats != null);
+    // After sorting: [100, 200, 300, 400, 500] → p50 = 300
+    try std.testing.expectEqual(@as(u64, 300), stats.?.p50_ns);
+}
+
+test "overflow handling in sum_ns" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    // Record values that will overflow u64
+    const large_value = std.math.maxInt(u64) - 100;
+    collector.recordEvent("test", large_value, 1);
+    collector.recordEvent("test", 200, 1); // This should trigger saturating add
+
+    const stats = collector.getEventStats("test");
+    try std.testing.expect(stats != null);
+    // sum_ns should be saturated to maxInt(u64)
+    // avg_ns = maxInt(u64) / 2
+    try std.testing.expectEqual(std.math.maxInt(u64) / 2, stats.?.avg_ns);
+}
+
+test "reset clears all events and type data" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    collector.recordEvent("input", 1000, 1);
+    collector.recordEvent("render", 2000, 2);
+
+    collector.reset();
+
+    try std.testing.expectEqual(@as(usize, 0), collector.events.count());
+    try std.testing.expect(collector.type_data == null);
+    try std.testing.expect(collector.getEventStats("input") == null);
+    try std.testing.expect(collector.getTypeStats() == null);
+}
+
+test "reset can be called on empty collector" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    // Should not crash
+    collector.reset();
+
+    try std.testing.expectEqual(@as(usize, 0), collector.events.count());
+    try std.testing.expect(collector.type_data == null);
+}
+
+test "resetEvent removes specific event type" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    collector.recordEvent("input", 1000, 1);
+    collector.recordEvent("render", 2000, 2);
+    collector.recordEvent("input", 1500, 1);
+
+    collector.resetEvent("input");
+
+    // Input should be gone
+    try std.testing.expect(collector.getEventStats("input") == null);
+
+    // Render should remain
+    const render_stats = collector.getEventStats("render");
+    try std.testing.expect(render_stats != null);
+    try std.testing.expectEqual(@as(u64, 1), render_stats.?.count);
+}
+
+test "resetEvent rebuilds type stats correctly" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    collector.recordEvent("input", 1000, 1);
+    collector.recordEvent("render", 2000, 2);
+    collector.recordEvent("input", 3000, 3);
+
+    // Type stats before reset: 3 events (1000, 2000, 3000)
+    const before_stats = collector.getTypeStats();
+    try std.testing.expect(before_stats != null);
+    try std.testing.expectEqual(@as(u64, 3), before_stats.?.count);
+
+    collector.resetEvent("input");
+
+    // Type stats after reset: 1 event (2000)
+    const after_stats = collector.getTypeStats();
+    try std.testing.expect(after_stats != null);
+    try std.testing.expectEqual(@as(u64, 1), after_stats.?.count);
+    try std.testing.expectEqual(@as(u64, 2000), after_stats.?.min_ns);
+    try std.testing.expectEqual(@as(u64, 2000), after_stats.?.max_ns);
+    try std.testing.expectEqual(@as(u64, 2000), after_stats.?.avg_ns);
+}
+
+test "resetEvent clears type data when last event removed" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    collector.recordEvent("input", 1000, 1);
+
+    collector.resetEvent("input");
+
+    try std.testing.expect(collector.type_data == null);
+    try std.testing.expect(collector.getTypeStats() == null);
+}
+
+test "resetEvent on unknown event type is no-op" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    collector.recordEvent("input", 1000, 1);
+
+    // Should not crash
+    collector.resetEvent("unknown");
+
+    const stats = collector.getEventStats("input");
+    try std.testing.expect(stats != null);
+    try std.testing.expectEqual(@as(u64, 1), stats.?.count);
+}
+
+test "many events performance stress test" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    // Record 1000 events
+    var i: u64 = 0;
+    while (i < 1000) : (i += 1) {
+        collector.recordEvent("stress", i, @intCast(i % 10));
+    }
+
+    const stats = collector.getEventStats("stress");
+    try std.testing.expect(stats != null);
+    try std.testing.expectEqual(@as(u64, 1000), stats.?.count);
+    try std.testing.expectEqual(@as(u64, 0), stats.?.min_ns);
+    try std.testing.expectEqual(@as(u64, 999), stats.?.max_ns);
+    // avg = sum(0..999) / 1000 = 999*1000/2 / 1000 = 499.5 → 499
+    try std.testing.expectEqual(@as(u64, 499), stats.?.avg_ns);
+    try std.testing.expectEqual(@as(u32, 9), stats.?.queue_depth_max);
+}
+
+test "queue_depth_max tracks maximum across events" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    collector.recordEvent("test", 100, 5);
+    collector.recordEvent("test", 200, 10);
+    collector.recordEvent("test", 300, 3);
+    collector.recordEvent("test", 400, 20);
+
+    const stats = collector.getEventStats("test");
+    try std.testing.expect(stats != null);
+    try std.testing.expectEqual(@as(u32, 20), stats.?.queue_depth_max);
+
+    const type_stats = collector.getTypeStats();
+    try std.testing.expect(type_stats != null);
+    try std.testing.expectEqual(@as(u32, 20), type_stats.?.queue_depth_max);
+}
+
+test "percentile edge case with two values" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    collector.recordEvent("test", 100, 1);
+    collector.recordEvent("test", 200, 1);
+
+    const stats = collector.getEventStats("test");
+    try std.testing.expect(stats != null);
+    // p50 index = (50 * 1) / 100 = 0 → value 100
+    try std.testing.expectEqual(@as(u64, 100), stats.?.p50_ns);
+    // p95 index = (95 * 1) / 100 = 0 → value 100
+    try std.testing.expectEqual(@as(u64, 100), stats.?.p95_ns);
+    // p99 index = (99 * 1) / 100 = 0 → value 100
+    try std.testing.expectEqual(@as(u64, 100), stats.?.p99_ns);
+}
+
+test "type stats with mixed event types and queue depths" {
+    const allocator = std.testing.allocator;
+    var collector = EventMetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    collector.recordEvent("input", 100, 1);
+    collector.recordEvent("render", 500, 10);
+    collector.recordEvent("timer", 200, 5);
+
+    const type_stats = collector.getTypeStats();
+    try std.testing.expect(type_stats != null);
+    try std.testing.expectEqual(@as(u64, 3), type_stats.?.count);
+    try std.testing.expectEqual(@as(u64, 100), type_stats.?.min_ns);
+    try std.testing.expectEqual(@as(u64, 500), type_stats.?.max_ns);
+    // avg = (100 + 500 + 200) / 3 = 266
+    try std.testing.expectEqual(@as(u64, 266), type_stats.?.avg_ns);
+    try std.testing.expectEqual(@as(u32, 10), type_stats.?.queue_depth_max);
+}
