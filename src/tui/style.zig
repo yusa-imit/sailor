@@ -23,6 +23,60 @@ pub const Color = union(enum) {
     indexed: u8, // 256-color palette
     rgb: struct { r: u8, g: u8, b: u8 }, // truecolor
 
+    /// Create an RGB truecolor from individual components.
+    ///
+    /// Equivalent to: `Color{ .rgb = .{ .r = r, .g = g, .b = b } }`
+    ///
+    /// Example:
+    /// ```zig
+    /// const red = Color.fromRgb(255, 0, 0);
+    /// const custom = Color.fromRgb(128, 200, 64);
+    /// ```
+    ///
+    /// **v2.1.0**: Convenience constructor to reduce boilerplate for RGB colors.
+    pub fn fromRgb(r: u8, g: u8, b: u8) Color {
+        return .{ .rgb = .{ .r = r, .g = g, .b = b } };
+    }
+
+    /// Create an indexed color from the 256-color palette.
+    ///
+    /// Equivalent to: `Color{ .indexed = idx }`
+    ///
+    /// Example:
+    /// ```zig
+    /// const gray = Color.fromIndexed(237);  // xterm color 237 (dark gray)
+    /// const red = Color.fromIndexed(196);   // xterm color 196 (bright red)
+    /// ```
+    ///
+    /// **v2.1.0**: Convenience constructor to reduce boilerplate for indexed colors.
+    pub fn fromIndexed(idx: u8) Color {
+        return .{ .indexed = idx };
+    }
+
+    /// Create an RGB color from a 24-bit hex value (0xRRGGBB format).
+    ///
+    /// Extracts RGB components from hex value:
+    /// - Red: (hex >> 16) & 0xFF
+    /// - Green: (hex >> 8) & 0xFF
+    /// - Blue: hex & 0xFF
+    ///
+    /// Example:
+    /// ```zig
+    /// const red = Color.fromHex(0xFF0000);
+    /// const green = Color.fromHex(0x00FF00);
+    /// const blue = Color.fromHex(0x0000FF);
+    /// const orange = Color.fromHex(0xFFA500);
+    /// ```
+    ///
+    /// **v2.1.0**: Convenience constructor for web-style hex colors.
+    pub fn fromHex(hex: u24) Color {
+        return .{ .rgb = .{
+            .r = @intCast((hex >> 16) & 0xFF),
+            .g = @intCast((hex >> 8) & 0xFF),
+            .b = @intCast(hex & 0xFF),
+        } };
+    }
+
     /// Convert color to ANSI foreground escape code
     pub fn toFg(self: Color, writer: anytype) !void {
         switch (self) {
@@ -772,4 +826,297 @@ test "Style helpers - complex chaining with colors and modifiers" {
     try std.testing.expectEqual(Color.blue, s.bg.?);
     try std.testing.expectEqual(true, s.bold);
     try std.testing.expectEqual(true, s.dim);
+}
+
+// Color Convenience Constructor Tests
+
+test "Color.fromRgb - basic construction" {
+    const c = Color.fromRgb(255, 128, 64);
+    try std.testing.expectEqual(@as(u8, 255), c.rgb.r);
+    try std.testing.expectEqual(@as(u8, 128), c.rgb.g);
+    try std.testing.expectEqual(@as(u8, 64), c.rgb.b);
+}
+
+test "Color.fromRgb - equivalence to verbose syntax" {
+    const c1 = Color.fromRgb(100, 150, 200);
+    const c2 = Color{ .rgb = .{ .r = 100, .g = 150, .b = 200 } };
+    try std.testing.expectEqual(c2.rgb.r, c1.rgb.r);
+    try std.testing.expectEqual(c2.rgb.g, c1.rgb.g);
+    try std.testing.expectEqual(c2.rgb.b, c1.rgb.b);
+}
+
+test "Color.fromRgb - edge case zero values" {
+    const c = Color.fromRgb(0, 0, 0);
+    try std.testing.expectEqual(@as(u8, 0), c.rgb.r);
+    try std.testing.expectEqual(@as(u8, 0), c.rgb.g);
+    try std.testing.expectEqual(@as(u8, 0), c.rgb.b);
+}
+
+test "Color.fromRgb - edge case max values" {
+    const c = Color.fromRgb(255, 255, 255);
+    try std.testing.expectEqual(@as(u8, 255), c.rgb.r);
+    try std.testing.expectEqual(@as(u8, 255), c.rgb.g);
+    try std.testing.expectEqual(@as(u8, 255), c.rgb.b);
+}
+
+test "Color.fromRgb - boundary values individual channels" {
+    const c1 = Color.fromRgb(255, 0, 128);
+    try std.testing.expectEqual(@as(u8, 255), c1.rgb.r);
+    try std.testing.expectEqual(@as(u8, 0), c1.rgb.g);
+    try std.testing.expectEqual(@as(u8, 128), c1.rgb.b);
+
+    const c2 = Color.fromRgb(0, 255, 64);
+    try std.testing.expectEqual(@as(u8, 0), c2.rgb.r);
+    try std.testing.expectEqual(@as(u8, 255), c2.rgb.g);
+    try std.testing.expectEqual(@as(u8, 64), c2.rgb.b);
+}
+
+test "Color.fromRgb - renders correctly to ANSI foreground" {
+    var buf: [32]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const c = Color.fromRgb(255, 128, 0);
+    try c.toFg(writer);
+    try std.testing.expectEqualStrings("\x1b[38;2;255;128;0m", fbs.getWritten());
+}
+
+test "Color.fromRgb - renders correctly to ANSI background" {
+    var buf: [32]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const c = Color.fromRgb(50, 100, 150);
+    try c.toBg(writer);
+    try std.testing.expectEqualStrings("\x1b[48;2;50;100;150m", fbs.getWritten());
+}
+
+test "Color.fromIndexed - basic construction" {
+    const c = Color.fromIndexed(42);
+    try std.testing.expectEqual(@as(u8, 42), c.indexed);
+}
+
+test "Color.fromIndexed - equivalence to verbose syntax" {
+    const c1 = Color.fromIndexed(208);
+    const c2 = Color{ .indexed = 208 };
+    try std.testing.expectEqual(c2.indexed, c1.indexed);
+}
+
+test "Color.fromIndexed - edge case zero" {
+    const c = Color.fromIndexed(0);
+    try std.testing.expectEqual(@as(u8, 0), c.indexed);
+}
+
+test "Color.fromIndexed - edge case max (255)" {
+    const c = Color.fromIndexed(255);
+    try std.testing.expectEqual(@as(u8, 255), c.indexed);
+}
+
+test "Color.fromIndexed - common xterm colors" {
+    const c16 = Color.fromIndexed(16); // black (256-color mode)
+    const c196 = Color.fromIndexed(196); // red
+    const c231 = Color.fromIndexed(231); // white
+    try std.testing.expectEqual(@as(u8, 16), c16.indexed);
+    try std.testing.expectEqual(@as(u8, 196), c196.indexed);
+    try std.testing.expectEqual(@as(u8, 231), c231.indexed);
+}
+
+test "Color.fromIndexed - renders correctly to ANSI foreground" {
+    var buf: [32]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const c = Color.fromIndexed(208);
+    try c.toFg(writer);
+    try std.testing.expectEqualStrings("\x1b[38;5;208m", fbs.getWritten());
+}
+
+test "Color.fromIndexed - renders correctly to ANSI background" {
+    var buf: [32]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const c = Color.fromIndexed(42);
+    try c.toBg(writer);
+    try std.testing.expectEqualStrings("\x1b[48;5;42m", fbs.getWritten());
+}
+
+test "Color.fromHex - basic construction" {
+    const c = Color.fromHex(0xFF8040);
+    try std.testing.expectEqual(@as(u8, 0xFF), c.rgb.r);
+    try std.testing.expectEqual(@as(u8, 0x80), c.rgb.g);
+    try std.testing.expectEqual(@as(u8, 0x40), c.rgb.b);
+}
+
+test "Color.fromHex - red (0xFF0000)" {
+    const c = Color.fromHex(0xFF0000);
+    try std.testing.expectEqual(@as(u8, 255), c.rgb.r);
+    try std.testing.expectEqual(@as(u8, 0), c.rgb.g);
+    try std.testing.expectEqual(@as(u8, 0), c.rgb.b);
+}
+
+test "Color.fromHex - green (0x00FF00)" {
+    const c = Color.fromHex(0x00FF00);
+    try std.testing.expectEqual(@as(u8, 0), c.rgb.r);
+    try std.testing.expectEqual(@as(u8, 255), c.rgb.g);
+    try std.testing.expectEqual(@as(u8, 0), c.rgb.b);
+}
+
+test "Color.fromHex - blue (0x0000FF)" {
+    const c = Color.fromHex(0x0000FF);
+    try std.testing.expectEqual(@as(u8, 0), c.rgb.r);
+    try std.testing.expectEqual(@as(u8, 0), c.rgb.g);
+    try std.testing.expectEqual(@as(u8, 255), c.rgb.b);
+}
+
+test "Color.fromHex - white (0xFFFFFF)" {
+    const c = Color.fromHex(0xFFFFFF);
+    try std.testing.expectEqual(@as(u8, 255), c.rgb.r);
+    try std.testing.expectEqual(@as(u8, 255), c.rgb.g);
+    try std.testing.expectEqual(@as(u8, 255), c.rgb.b);
+}
+
+test "Color.fromHex - black (0x000000)" {
+    const c = Color.fromHex(0x000000);
+    try std.testing.expectEqual(@as(u8, 0), c.rgb.r);
+    try std.testing.expectEqual(@as(u8, 0), c.rgb.g);
+    try std.testing.expectEqual(@as(u8, 0), c.rgb.b);
+}
+
+test "Color.fromHex - common web colors" {
+    // Orange (#FFA500)
+    const orange = Color.fromHex(0xFFA500);
+    try std.testing.expectEqual(@as(u8, 0xFF), orange.rgb.r);
+    try std.testing.expectEqual(@as(u8, 0xA5), orange.rgb.g);
+    try std.testing.expectEqual(@as(u8, 0x00), orange.rgb.b);
+
+    // Purple (#800080)
+    const purple = Color.fromHex(0x800080);
+    try std.testing.expectEqual(@as(u8, 0x80), purple.rgb.r);
+    try std.testing.expectEqual(@as(u8, 0x00), purple.rgb.g);
+    try std.testing.expectEqual(@as(u8, 0x80), purple.rgb.b);
+
+    // Teal (#008080)
+    const teal = Color.fromHex(0x008080);
+    try std.testing.expectEqual(@as(u8, 0x00), teal.rgb.r);
+    try std.testing.expectEqual(@as(u8, 0x80), teal.rgb.g);
+    try std.testing.expectEqual(@as(u8, 0x80), teal.rgb.b);
+}
+
+test "Color.fromHex - edge case minimum value" {
+    const c = Color.fromHex(0x000000);
+    try std.testing.expectEqual(@as(u8, 0), c.rgb.r);
+    try std.testing.expectEqual(@as(u8, 0), c.rgb.g);
+    try std.testing.expectEqual(@as(u8, 0), c.rgb.b);
+}
+
+test "Color.fromHex - edge case maximum value" {
+    const c = Color.fromHex(0xFFFFFF);
+    try std.testing.expectEqual(@as(u8, 255), c.rgb.r);
+    try std.testing.expectEqual(@as(u8, 255), c.rgb.g);
+    try std.testing.expectEqual(@as(u8, 255), c.rgb.b);
+}
+
+test "Color.fromHex - equivalence to fromRgb" {
+    const c1 = Color.fromHex(0xABCDEF);
+    const c2 = Color.fromRgb(0xAB, 0xCD, 0xEF);
+    try std.testing.expectEqual(c2.rgb.r, c1.rgb.r);
+    try std.testing.expectEqual(c2.rgb.g, c1.rgb.g);
+    try std.testing.expectEqual(c2.rgb.b, c1.rgb.b);
+}
+
+test "Color.fromHex - renders correctly to ANSI foreground" {
+    var buf: [32]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const c = Color.fromHex(0xFF8000);
+    try c.toFg(writer);
+    try std.testing.expectEqualStrings("\x1b[38;2;255;128;0m", fbs.getWritten());
+}
+
+test "Color.fromHex - renders correctly to ANSI background" {
+    var buf: [32]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const c = Color.fromHex(0x326496);
+    try c.toBg(writer);
+    try std.testing.expectEqualStrings("\x1b[48;2;50;100;150m", fbs.getWritten());
+}
+
+test "Color.fromHex - bit extraction correctness" {
+    // Test that bit shifting/masking works correctly
+    const c = Color.fromHex(0x123456);
+    try std.testing.expectEqual(@as(u8, 0x12), c.rgb.r);
+    try std.testing.expectEqual(@as(u8, 0x34), c.rgb.g);
+    try std.testing.expectEqual(@as(u8, 0x56), c.rgb.b);
+}
+
+// Integration tests: using convenience constructors with Style
+
+test "Color convenience constructors - integration with Style.withForeground using fromRgb" {
+    const s = Style.withForeground(Color.fromRgb(255, 100, 50));
+    try std.testing.expectEqual(@as(u8, 255), s.fg.?.rgb.r);
+    try std.testing.expectEqual(@as(u8, 100), s.fg.?.rgb.g);
+    try std.testing.expectEqual(@as(u8, 50), s.fg.?.rgb.b);
+}
+
+test "Color convenience constructors - integration with Style.withForeground using fromIndexed" {
+    const s = Style.withForeground(Color.fromIndexed(196));
+    try std.testing.expectEqual(@as(u8, 196), s.fg.?.indexed);
+}
+
+test "Color convenience constructors - integration with Style.withForeground using fromHex" {
+    const s = Style.withForeground(Color.fromHex(0xFF6347)); // Tomato
+    try std.testing.expectEqual(@as(u8, 0xFF), s.fg.?.rgb.r);
+    try std.testing.expectEqual(@as(u8, 0x63), s.fg.?.rgb.g);
+    try std.testing.expectEqual(@as(u8, 0x47), s.fg.?.rgb.b);
+}
+
+test "Color convenience constructors - integration with Style.withColors" {
+    const s = Style.withColors(Color.fromHex(0xFFFFFF), Color.fromHex(0x000000));
+    try std.testing.expectEqual(@as(u8, 255), s.fg.?.rgb.r);
+    try std.testing.expectEqual(@as(u8, 255), s.fg.?.rgb.g);
+    try std.testing.expectEqual(@as(u8, 255), s.fg.?.rgb.b);
+    try std.testing.expectEqual(@as(u8, 0), s.bg.?.rgb.r);
+    try std.testing.expectEqual(@as(u8, 0), s.bg.?.rgb.g);
+    try std.testing.expectEqual(@as(u8, 0), s.bg.?.rgb.b);
+}
+
+test "Color convenience constructors - integration with Style rendering" {
+    var buf: [64]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const s = Style.withForeground(Color.fromRgb(255, 128, 0));
+    try s.apply(writer);
+    try std.testing.expectEqualStrings("\x1b[38;2;255;128;0m", fbs.getWritten());
+}
+
+test "Color convenience constructors - integration with Span rendering using fromHex" {
+    var buf: [128]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const span = Span.styled("test", Style.withForeground(Color.fromHex(0xFF0000)));
+    try span.render(writer);
+    try std.testing.expectEqualStrings("\x1b[38;2;255;0;0mtest\x1b[0m", fbs.getWritten());
+}
+
+test "Color convenience constructors - all three methods produce valid Color unions" {
+    const c1 = Color.fromRgb(100, 150, 200);
+    const c2 = Color.fromIndexed(42);
+    const c3 = Color.fromHex(0xABCDEF);
+
+    // Test that they can be used in switch (valid Color union variants)
+    var buf: [32]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    try c1.toFg(writer);
+    fbs.reset();
+    try c2.toFg(writer);
+    fbs.reset();
+    try c3.toFg(writer);
 }
