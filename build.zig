@@ -1,24 +1,38 @@
 const std = @import("std");
 
 // Build steps:
-//   zig build                           # Build library
-//   zig build test                      # Run all tests
-//   zig build benchmark                 # Run performance benchmarks
-//   zig build example-hello             # Build hello example
-//   zig build example-counter           # Build counter example
-//   zig build example-dashboard         # Build dashboard example
-//   zig build -Dtarget=x86_64-linux     # Cross-compile check
+//   zig build                                        # Build library
+//   zig build test                                   # Run all tests
+//   zig build benchmark                              # Run performance benchmarks
+//   zig build example-hello                          # Build hello example
+//   zig build example-counter                        # Build counter example
+//   zig build example-dashboard                      # Build dashboard example
+//   zig build -Dtarget=x86_64-linux                  # Cross-compile check
+//   zig build -Ddeprecation-mode=error               # Treat deprecations as errors
+//   zig build -Ddeprecation-mode=ignore              # Suppress deprecation warnings
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    // Deprecation mode option: warn (default), error, or ignore
+    const deprecation_mode = b.option(
+        []const u8,
+        "deprecation-mode",
+        "How to handle deprecation warnings: 'warn' (default), 'error', or 'ignore'",
+    ) orelse "warn";
+
+    // Build options for comptime configuration
+    const options = b.addOptions();
+    options.addOption([]const u8, "deprecation_mode", deprecation_mode);
+
     // Library module — consumed by other projects via build.zig.zon
-    _ = b.addModule("sailor", .{
+    const sailor_module = b.addModule("sailor", .{
         .root_source_file = b.path("src/sailor.zig"),
         .target = target,
         .optimize = optimize,
     });
+    sailor_module.addImport("build_options", options.createModule());
 
     // Unit tests — src module tests
     const lib_tests = b.addTest(.{
@@ -28,6 +42,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    lib_tests.root_module.addImport("build_options", options.createModule());
     lib_tests.root_module.link_libc = true; // Required for env.zig tests (setenv/unsetenv)
 
     // Standalone tests in tests/ directory
@@ -460,11 +475,6 @@ pub fn build(b: *std.Build) void {
     });
 
     // Add sailor module to benchmark executable
-    const sailor_module = b.createModule(.{
-        .root_source_file = b.path("src/sailor.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
     bench_exe.root_module.addImport("sailor", sailor_module);
 
     const bench_install = b.addInstallArtifact(bench_exe, .{});

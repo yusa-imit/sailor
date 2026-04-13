@@ -14,12 +14,13 @@
 //! }
 //! ```
 //!
-//! Users can control deprecation warnings via environment variable:
-//! - `SAILOR_DEPRECATION=error` — treat warnings as compile errors
-//! - `SAILOR_DEPRECATION=warn` — show warnings (default)
-//! - `SAILOR_DEPRECATION=ignore` — suppress warnings
+//! Users can control deprecation warnings via build option:
+//! - `zig build -Ddeprecation-mode=error` — treat warnings as compile errors
+//! - `zig build -Ddeprecation-mode=warn` — show warnings (default)
+//! - `zig build -Ddeprecation-mode=ignore` — suppress warnings
 
 const std = @import("std");
+const build_options = @import("build_options");
 
 /// Emit a compile-time deprecation warning.
 ///
@@ -60,13 +61,18 @@ const Mode = enum {
     ignore, // Suppress warnings
 };
 
-/// Get deprecation mode from environment or default to warn
+/// Get deprecation mode from build options or default to warn
 fn getMode() Mode {
-    // Environment variables are not available at comptime in Zig,
-    // so we use a comptime constant that can be overridden via build options.
-    // For now, default to warn mode.
-    // TODO: Support build options: zig build -Ddeprecation-mode=error
-    return .warn;
+    const mode_str = build_options.deprecation_mode;
+
+    if (std.mem.eql(u8, mode_str, "error")) {
+        return .err;
+    } else if (std.mem.eql(u8, mode_str, "ignore")) {
+        return .ignore;
+    } else {
+        // Default to warn for any other value (including "warn")
+        return .warn;
+    }
 }
 
 /// Mark a function as deprecated with a replacement suggestion.
@@ -201,9 +207,20 @@ test "field - field deprecation" {
     field("old_field", "new_field", "2.0.0");
 }
 
-test "getMode - returns default warn mode" {
+test "getMode - returns mode from build options" {
     const mode = getMode();
-    try testing.expectEqual(Mode.warn, mode);
+    // Mode will be determined by build option -Ddeprecation-mode=<mode>
+    // Default is warn, but can be error or ignore
+    const mode_str = build_options.deprecation_mode;
+
+    if (std.mem.eql(u8, mode_str, "error")) {
+        try testing.expectEqual(Mode.err, mode);
+    } else if (std.mem.eql(u8, mode_str, "ignore")) {
+        try testing.expectEqual(Mode.ignore, mode);
+    } else {
+        // Default or "warn" → Mode.warn
+        try testing.expectEqual(Mode.warn, mode);
+    }
 }
 
 test "deprecation in struct method" {
