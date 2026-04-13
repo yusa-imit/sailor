@@ -209,27 +209,129 @@ pub const Constraint = union(enum) {
     /// Calculate actual size for this constraint given available space
     pub fn apply(self: Constraint, available: u16) u16 {
         return switch (self) {
-            .length => |len| @min(len, available),
-            .percentage => |pct| blk: {
-                const clamped = @min(pct, 100);
+            .length => |fixed_length| @min(fixed_length, available),
+            .percentage => |percentage_val| blk: {
+                const clamped = @min(percentage_val, 100);
                 const size = (@as(u32, available) * clamped) / 100;
                 break :blk @as(u16, @intCast(@min(size, available)));
             },
-            .min => |minimum| @min(minimum, available),
-            .max => |maximum| @min(maximum, available),
-            .ratio => |r| blk: {
-                if (r.denom == 0) break :blk 0;
-                const size = (@as(u64, available) * r.num) / r.denom;
+            .min => |min_val| @min(min_val, available),
+            .max => |max_val| @min(max_val, available),
+            .ratio => |ratio_val| blk: {
+                if (ratio_val.denom == 0) break :blk 0;
+                const size = (@as(u64, available) * ratio_val.num) / ratio_val.denom;
                 break :blk @as(u16, @intCast(@min(size, available)));
             },
-            .aspect_ratio => |ar| blk: {
+            .aspect_ratio => |aspect_val| blk: {
                 // Aspect ratio applies to one dimension at a time
                 // Return the available space as-is; the caller will use Rect.withAspectRatio()
                 // to compute the actual 2D constraints
-                if (ar.width == 0 or ar.height == 0) break :blk 0;
+                if (aspect_val.width == 0 or aspect_val.height == 0) break :blk 0;
                 break :blk available;
             },
         };
+    }
+
+    /// Create a fixed-length constraint.
+    ///
+    /// Equivalent to: `Constraint{ .length = length }`
+    ///
+    /// Returns a constraint that allocates exactly `length` cells, clamped to available space.
+    ///
+    /// Example:
+    /// ```zig
+    /// const constraint = Constraint.len(50);  // Fixed 50-cell width
+    /// ```
+    ///
+    /// **v2.1.0**: Convenience constructor to reduce boilerplate.
+    pub fn len(length: u16) Constraint {
+        return .{ .length = length };
+    }
+
+    /// Create a percentage constraint.
+    ///
+    /// Equivalent to: `Constraint{ .percentage = @min(percentage, 100) }`
+    ///
+    /// Returns a constraint that allocates a percentage of available space.
+    /// Input is automatically clamped to [0, 100] at construction time.
+    ///
+    /// Example:
+    /// ```zig
+    /// const constraint = Constraint.pct(75);  // 75% of available space
+    /// const clamped = Constraint.pct(150);    // Clamped to 100%
+    /// ```
+    ///
+    /// **v2.1.0**: Convenience constructor with automatic clamping.
+    pub fn pct(percentage: u8) Constraint {
+        return .{ .percentage = @min(percentage, 100) };
+    }
+
+    /// Create a ratio constraint.
+    ///
+    /// Equivalent to: `Constraint{ .ratio = .{ .num = num, .denom = denom } }`
+    ///
+    /// Returns a constraint that allocates `(available * num) / denom` cells.
+    /// Zero denominator is handled by apply(), returning 0.
+    ///
+    /// Example:
+    /// ```zig
+    /// const constraint = Constraint.rat(1, 2);  // 1/2 of available space
+    /// const constraint = Constraint.rat(3, 4);  // 3/4 of available space
+    /// ```
+    ///
+    /// **v2.1.0**: Convenience constructor to reduce boilerplate.
+    pub fn rat(num: u32, denom: u32) Constraint {
+        return .{ .ratio = .{ .num = num, .denom = denom } };
+    }
+
+    /// Create a minimum-length constraint.
+    ///
+    /// Equivalent to: `Constraint{ .min = min }`
+    ///
+    /// Returns a constraint that allocates at least `min` cells, clamped to available space.
+    ///
+    /// Example:
+    /// ```zig
+    /// const constraint = Constraint.minimum(50);  // At least 50 cells
+    /// ```
+    ///
+    /// **v2.1.0**: Convenience constructor to reduce boilerplate.
+    pub fn minimum(min: u16) Constraint {
+        return .{ .min = min };
+    }
+
+    /// Create a maximum-length constraint.
+    ///
+    /// Equivalent to: `Constraint{ .max = max }`
+    ///
+    /// Returns a constraint that allocates at most `max` cells.
+    ///
+    /// Example:
+    /// ```zig
+    /// const constraint = Constraint.maximum(200);  // At most 200 cells
+    /// ```
+    ///
+    /// **v2.1.0**: Convenience constructor to reduce boilerplate.
+    pub fn maximum(max: u16) Constraint {
+        return .{ .max = max };
+    }
+
+    /// Create an aspect-ratio constraint.
+    ///
+    /// Equivalent to: `Constraint{ .aspect_ratio = .{ .width = width, .height = height } }`
+    ///
+    /// Returns a constraint that maintains the given aspect ratio (width:height).
+    /// Zero width or height is invalid and returns 0 from apply().
+    ///
+    /// Example:
+    /// ```zig
+    /// const constraint = Constraint.aspect(16, 9);   // 16:9 aspect ratio
+    /// const constraint = Constraint.aspect(1, 1);    // 1:1 square aspect ratio
+    /// ```
+    ///
+    /// **v2.1.0**: Convenience constructor to reduce boilerplate.
+    pub fn aspect(width: u32, height: u32) Constraint {
+        return .{ .aspect_ratio = .{ .width = width, .height = height } };
     }
 };
 
@@ -2406,4 +2508,320 @@ test "LayoutDebugger handles zero-size rects" {
 
     const output = stream.getWritten();
     try std.testing.expect(output.len > 0);
+}
+
+// === Constraint Convenience Constructor Tests ===
+
+test "Constraint.len creates length constraint" {
+    const c = Constraint.len(50);
+    try std.testing.expectEqual(Constraint{ .length = 50 }, c);
+}
+
+test "Constraint.len with zero value" {
+    const c = Constraint.len(0);
+    try std.testing.expectEqual(Constraint{ .length = 0 }, c);
+}
+
+test "Constraint.len with max u16 value" {
+    const c = Constraint.len(65535);
+    try std.testing.expectEqual(Constraint{ .length = 65535 }, c);
+}
+
+test "Constraint.len is equivalent to verbose syntax" {
+    const c1 = Constraint.len(100);
+    const c2 = Constraint{ .length = 100 };
+    try std.testing.expectEqual(c1, c2);
+    try std.testing.expectEqual(c1.apply(200), c2.apply(200));
+}
+
+test "Constraint.pct creates percentage constraint" {
+    const c = Constraint.pct(75);
+    try std.testing.expectEqual(Constraint{ .percentage = 75 }, c);
+}
+
+test "Constraint.pct with zero value" {
+    const c = Constraint.pct(0);
+    try std.testing.expectEqual(Constraint{ .percentage = 0 }, c);
+}
+
+test "Constraint.pct with 100 percent" {
+    const c = Constraint.pct(100);
+    try std.testing.expectEqual(Constraint{ .percentage = 100 }, c);
+}
+
+test "Constraint.pct clamps to 100" {
+    const c = Constraint.pct(150);
+    // Constructor should clamp to 100, so apply() returns full available space
+    try std.testing.expectEqual(100, c.apply(100));
+    try std.testing.expectEqual(50, c.apply(50));
+}
+
+test "Constraint.pct is equivalent to verbose syntax" {
+    const c1 = Constraint.pct(50);
+    const c2 = Constraint{ .percentage = 50 };
+    try std.testing.expectEqual(c1, c2);
+    try std.testing.expectEqual(c1.apply(100), c2.apply(100));
+}
+
+test "Constraint.rat creates ratio constraint" {
+    const c = Constraint.rat(1, 2);
+    try std.testing.expectEqual(Constraint{ .ratio = .{ .num = 1, .denom = 2 } }, c);
+}
+
+test "Constraint.rat with 1:1 ratio" {
+    const c = Constraint.rat(1, 1);
+    try std.testing.expectEqual(100, c.apply(100));
+    try std.testing.expectEqual(50, c.apply(50));
+}
+
+test "Constraint.rat with 2:1 ratio" {
+    const c = Constraint.rat(2, 1);
+    try std.testing.expectEqual(200, c.apply(200)); // unclamped (200*2/1=400, min to 200)
+    try std.testing.expectEqual(100, c.apply(100)); // clamped to available (100*2/1=200, min to 100)
+}
+
+test "Constraint.rat with zero numerator" {
+    const c = Constraint.rat(0, 1);
+    try std.testing.expectEqual(0, c.apply(100));
+    try std.testing.expectEqual(0, c.apply(50));
+}
+
+test "Constraint.rat with zero denominator" {
+    const c = Constraint.rat(1, 0);
+    try std.testing.expectEqual(0, c.apply(100));
+    try std.testing.expectEqual(0, c.apply(50));
+}
+
+test "Constraint.rat with large numerator and small denominator" {
+    const c = Constraint.rat(3, 1);
+    try std.testing.expectEqual(300, c.apply(300)); // capped to available
+    try std.testing.expectEqual(100, c.apply(100));
+}
+
+test "Constraint.rat is equivalent to verbose syntax" {
+    const c1 = Constraint.rat(1, 3);
+    const c2 = Constraint{ .ratio = .{ .num = 1, .denom = 3 } };
+    try std.testing.expectEqual(c1, c2);
+    try std.testing.expectEqual(c1.apply(300), c2.apply(300));
+}
+
+test "Constraint.minimum creates min constraint" {
+    const c = Constraint.minimum(50);
+    try std.testing.expectEqual(Constraint{ .min = 50 }, c);
+}
+
+test "Constraint.minimum with zero value" {
+    const c = Constraint.minimum(0);
+    try std.testing.expectEqual(Constraint{ .min = 0 }, c);
+}
+
+test "Constraint.minimum with max u16 value" {
+    const c = Constraint.minimum(65535);
+    try std.testing.expectEqual(Constraint{ .min = 65535 }, c);
+}
+
+test "Constraint.minimum clamps to available space" {
+    const c = Constraint.minimum(100);
+    try std.testing.expectEqual(100, c.apply(150));
+    try std.testing.expectEqual(50, c.apply(50)); // clamped to available
+}
+
+test "Constraint.minimum is equivalent to verbose syntax" {
+    const c1 = Constraint.minimum(75);
+    const c2 = Constraint{ .min = 75 };
+    try std.testing.expectEqual(c1, c2);
+    try std.testing.expectEqual(c1.apply(200), c2.apply(200));
+}
+
+test "Constraint.maximum creates max constraint" {
+    const c = Constraint.maximum(100);
+    try std.testing.expectEqual(Constraint{ .max = 100 }, c);
+}
+
+test "Constraint.maximum with zero value" {
+    const c = Constraint.maximum(0);
+    try std.testing.expectEqual(Constraint{ .max = 0 }, c);
+}
+
+test "Constraint.maximum with max u16 value" {
+    const c = Constraint.maximum(65535);
+    try std.testing.expectEqual(Constraint{ .max = 65535 }, c);
+}
+
+test "Constraint.maximum clamps to max value" {
+    const c = Constraint.maximum(50);
+    try std.testing.expectEqual(50, c.apply(100));
+    try std.testing.expectEqual(30, c.apply(30)); // available is smaller
+}
+
+test "Constraint.maximum is equivalent to verbose syntax" {
+    const c1 = Constraint.maximum(200);
+    const c2 = Constraint{ .max = 200 };
+    try std.testing.expectEqual(c1, c2);
+    try std.testing.expectEqual(c1.apply(300), c2.apply(300));
+}
+
+test "Constraint.aspect creates aspect ratio constraint" {
+    const c = Constraint.aspect(16, 9);
+    try std.testing.expectEqual(Constraint{ .aspect_ratio = .{ .width = 16, .height = 9 } }, c);
+}
+
+test "Constraint.aspect with 1:1 square ratio" {
+    const c = Constraint.aspect(1, 1);
+    try std.testing.expectEqual(Constraint{ .aspect_ratio = .{ .width = 1, .height = 1 } }, c);
+}
+
+test "Constraint.aspect with 4:3 ratio" {
+    const c = Constraint.aspect(4, 3);
+    try std.testing.expectEqual(Constraint{ .aspect_ratio = .{ .width = 4, .height = 3 } }, c);
+}
+
+test "Constraint.aspect with zero width" {
+    const c = Constraint.aspect(0, 9);
+    try std.testing.expectEqual(0, c.apply(100)); // invalid aspect ratio
+}
+
+test "Constraint.aspect with zero height" {
+    const c = Constraint.aspect(16, 0);
+    try std.testing.expectEqual(0, c.apply(100)); // invalid aspect ratio
+}
+
+test "Constraint.aspect with both zero" {
+    const c = Constraint.aspect(0, 0);
+    try std.testing.expectEqual(0, c.apply(100));
+}
+
+test "Constraint.aspect is equivalent to verbose syntax" {
+    const c1 = Constraint.aspect(21, 9);
+    const c2 = Constraint{ .aspect_ratio = .{ .width = 21, .height = 9 } };
+    try std.testing.expectEqual(c1, c2);
+    try std.testing.expectEqual(c1.apply(100), c2.apply(100));
+}
+
+// Integration tests: using convenience constructors in split()
+
+test "split uses Constraint.len convenience constructor" {
+    const allocator = std.testing.allocator;
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
+    const constraints = [_]Constraint{
+        Constraint.len(30),
+        Constraint.len(70),
+    };
+
+    const result = try split(allocator, .horizontal, area, &constraints);
+    defer allocator.free(result);
+
+    try std.testing.expectEqual(2, result.len);
+    try std.testing.expectEqual(30, result[0].width);
+    try std.testing.expectEqual(70, result[1].width);
+}
+
+test "split uses Constraint.pct convenience constructor" {
+    const allocator = std.testing.allocator;
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
+    const constraints = [_]Constraint{
+        Constraint.pct(25),
+        Constraint.pct(75),
+    };
+
+    const result = try split(allocator, .vertical, area, &constraints);
+    defer allocator.free(result);
+
+    try std.testing.expectEqual(2, result.len);
+    try std.testing.expectEqual(25, result[0].height);
+    try std.testing.expectEqual(75, result[1].height);
+}
+
+test "split uses Constraint.rat convenience constructor" {
+    const allocator = std.testing.allocator;
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
+    const constraints = [_]Constraint{
+        Constraint.rat(1, 3),
+        Constraint.rat(2, 3),
+    };
+
+    const result = try split(allocator, .vertical, area, &constraints);
+    defer allocator.free(result);
+
+    try std.testing.expectEqual(2, result.len);
+}
+
+test "split uses mixed convenience constructors" {
+    const allocator = std.testing.allocator;
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
+    const constraints = [_]Constraint{
+        Constraint.len(20),
+        Constraint.pct(50),
+        Constraint.rat(1, 4),
+    };
+
+    const result = try split(allocator, .horizontal, area, &constraints);
+    defer allocator.free(result);
+
+    try std.testing.expectEqual(3, result.len);
+    try std.testing.expect(result[0].width > 0);
+    try std.testing.expect(result[1].width > 0);
+    try std.testing.expect(result[2].width > 0);
+}
+
+test "split uses Constraint.minimum convenience constructor" {
+    const allocator = std.testing.allocator;
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
+    const constraints = [_]Constraint{
+        Constraint.minimum(30),
+        Constraint.minimum(30),
+    };
+
+    const result = try split(allocator, .horizontal, area, &constraints);
+    defer allocator.free(result);
+
+    try std.testing.expectEqual(2, result.len);
+}
+
+test "split uses Constraint.maximum convenience constructor" {
+    const allocator = std.testing.allocator;
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
+    const constraints = [_]Constraint{
+        Constraint.maximum(50),
+        Constraint.maximum(50),
+    };
+
+    const result = try split(allocator, .horizontal, area, &constraints);
+    defer allocator.free(result);
+
+    try std.testing.expectEqual(2, result.len);
+    try std.testing.expect(result[0].width <= 50);
+    try std.testing.expect(result[1].width <= 50);
+}
+
+test "Constraint.apply works with all convenience constructor types" {
+    const c_len = Constraint.len(50);
+    const c_pct = Constraint.pct(50);
+    const c_rat = Constraint.rat(1, 2);
+    const c_min = Constraint.minimum(50);
+    const c_max = Constraint.maximum(50);
+
+    try std.testing.expectEqual(50, c_len.apply(100));
+    try std.testing.expectEqual(50, c_pct.apply(100));
+    try std.testing.expectEqual(50, c_rat.apply(100));
+    try std.testing.expectEqual(50, c_min.apply(100));
+    try std.testing.expectEqual(50, c_max.apply(100));
+}
+
+test "Constraint constructors maintain type safety" {
+    // Verify that each constructor creates the correct union variant
+    const c_len = Constraint.len(50);
+    const c_pct = Constraint.pct(50);
+    const c_rat = Constraint.rat(1, 2);
+    const c_min = Constraint.minimum(50);
+    const c_max = Constraint.maximum(50);
+    const c_aspect = Constraint.aspect(16, 9);
+
+    // Switch on each to ensure they are the correct types
+    try std.testing.expectEqual(true, std.meta.activeTag(c_len) == .length);
+    try std.testing.expectEqual(true, std.meta.activeTag(c_pct) == .percentage);
+    try std.testing.expectEqual(true, std.meta.activeTag(c_rat) == .ratio);
+    try std.testing.expectEqual(true, std.meta.activeTag(c_min) == .min);
+    try std.testing.expectEqual(true, std.meta.activeTag(c_max) == .max);
+    try std.testing.expectEqual(true, std.meta.activeTag(c_aspect) == .aspect_ratio);
 }
