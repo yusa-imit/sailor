@@ -1,3 +1,34 @@
+✅ **Session 97** — FEATURE MODE: RECT CONVENIENCE CONSTRUCTOR (2026-04-13)
+  - **Mode**: FEATURE (session 97, 97 % 5 == 2)
+  - **Achievement**: Added Rect.fromSize() ergonomic helper
+
+  **Completed Work**:
+    - ✅ TDD cycle: test-writer → 14 comprehensive tests → implementation
+    - ✅ Added Rect.fromSize(width, height) convenience constructor
+    - ✅ Reduces boilerplate for zero-origin rectangles (pattern used 276+ times)
+    - ✅ All 14 tests pass covering: basic usage, edge cases, boundary values, integration
+    - ✅ Comprehensive documentation with v2.1.0 marker
+
+  **Commits**:
+    - 26ac999 — feat: add Rect.fromSize() convenience constructor
+
+  **Current State**:
+    - **Latest release**: v2.0.0 (2026-04-13)
+    - **Active milestone**: v2.1.0 (Post-v2.0 Polish & Consumer Feedback)
+    - **CI status**: Clean (no failures)
+    - **Open issues**: 0 (sailor), 0 (consumer projects)
+    - **Blockers**: NONE
+
+  **v2.1.0 Progress**:
+    - API ergonomics: ✅ Deprecation mode, ✅ Rect.fromSize()
+    - Consumer migration: Waiting for feedback
+    - Bug fixes: None needed currently
+    - Performance: Opportunity for future work
+
+  **Next Priority**:
+    - Continue v2.1.0 ergonomics: look for more convenience helpers
+    - Monitor consumer project migrations
+
 ✅ **Session 96** — FEATURE MODE: ERGONOMICS IMPROVEMENTS (2026-04-13)
   - **Mode**: FEATURE (session 96, 96 % 5 == 1)
   - **Achievement**: Event metrics tests + deprecation mode build option
