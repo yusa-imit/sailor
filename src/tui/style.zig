@@ -126,6 +126,59 @@ pub const Color = union(enum) {
             .rgb => |c| try writer.print("\x1b[48;2;{d};{d};{d}m", .{ c.r, c.g, c.b }),
         }
     }
+
+    // Semantic color constants (v2.1.0)
+    // These provide common semantic meanings for better UX
+
+    /// Error/danger color — typically used for error messages and critical warnings.
+    ///
+    /// Example:
+    /// ```zig
+    /// const error_span = Span.colored("Error: File not found", Color.err);
+    /// ```
+    ///
+    /// **v2.1.0**: Semantic color for error states.
+    pub const err: Color = .red;
+
+    /// Success color — typically used for success messages and positive feedback.
+    ///
+    /// Example:
+    /// ```zig
+    /// const success_span = Span.colored("✓ Build successful", Color.success);
+    /// ```
+    ///
+    /// **v2.1.0**: Semantic color for success states.
+    pub const success: Color = .green;
+
+    /// Warning color — typically used for warnings and caution messages.
+    ///
+    /// Example:
+    /// ```zig
+    /// const warning_span = Span.colored("⚠ Deprecated API", Color.warning);
+    /// ```
+    ///
+    /// **v2.1.0**: Semantic color for warning states.
+    pub const warning: Color = .yellow;
+
+    /// Informational color — typically used for informational messages and hints.
+    ///
+    /// Example:
+    /// ```zig
+    /// const info_span = Span.colored("ℹ Tip: Use --verbose for details", Color.info);
+    /// ```
+    ///
+    /// **v2.1.0**: Semantic color for informational content.
+    pub const info: Color = .cyan;
+
+    /// Muted/secondary color — typically used for less important text.
+    ///
+    /// Example:
+    /// ```zig
+    /// const muted_span = Span.colored("(optional)", Color.muted);
+    /// ```
+    ///
+    /// **v2.1.0**: Semantic color for de-emphasized content.
+    pub const muted: Color = .bright_black;
 };
 
 /// Text styling with colors and modifiers
@@ -142,6 +195,60 @@ pub const Style = struct {
 
     /// Default style (no formatting)
     pub const default: Style = .{};
+
+    // Semantic style constants (v2.1.0)
+    // These provide ready-to-use styles for common UI patterns
+
+    /// Error/danger style — red foreground for error messages.
+    ///
+    /// Example:
+    /// ```zig
+    /// const error_span = Span.styled("Error: Failed to connect", Style.err);
+    /// // Can be combined: Style.err.withBold()
+    /// ```
+    ///
+    /// **v2.1.0**: Semantic style for error states.
+    pub const err: Style = .{ .fg = .red };
+
+    /// Success style — green foreground for success messages.
+    ///
+    /// Example:
+    /// ```zig
+    /// const success_span = Span.styled("✓ Test passed", Style.success);
+    /// ```
+    ///
+    /// **v2.1.0**: Semantic style for success states.
+    pub const success: Style = .{ .fg = .green };
+
+    /// Warning style — yellow foreground for warnings.
+    ///
+    /// Example:
+    /// ```zig
+    /// const warning_span = Span.styled("⚠ Deprecation warning", Style.warning);
+    /// ```
+    ///
+    /// **v2.1.0**: Semantic style for warning states.
+    pub const warning: Style = .{ .fg = .yellow };
+
+    /// Info style — cyan foreground for informational messages.
+    ///
+    /// Example:
+    /// ```zig
+    /// const info_span = Span.styled("ℹ Configuration loaded", Style.info);
+    /// ```
+    ///
+    /// **v2.1.0**: Semantic style for informational content.
+    pub const info: Style = .{ .fg = .cyan };
+
+    /// Muted style — dim gray for de-emphasized text.
+    ///
+    /// Example:
+    /// ```zig
+    /// const muted_span = Span.styled("(optional argument)", Style.muted);
+    /// ```
+    ///
+    /// **v2.1.0**: Semantic style for secondary/muted content.
+    pub const muted: Style = .{ .fg = .bright_black, .dim = true };
 
     /// Apply style to writer (emit ANSI codes)
     pub fn apply(self: Style, writer: anytype) !void {
@@ -1681,4 +1788,433 @@ test "Documentation - Line.singleStyled usage example" {
     const warning = Line.singleStyled("Warning", .{ .fg = .yellow, .bold = true });
     try std.testing.expectEqual(Color.yellow, warning.spans[0].style.fg.?);
     try std.testing.expectEqual(true, warning.spans[0].style.bold);
+}
+
+// ============================================================================
+// Semantic Color & Style Constants Tests (v2.1.0)
+// ============================================================================
+
+// Semantic Color Constants Tests
+
+test "Color.err - maps to red" {
+    const c = Color.err;
+    try std.testing.expectEqual(Color.red, c);
+}
+
+test "Color.success - maps to green" {
+    const c = Color.success;
+    try std.testing.expectEqual(Color.green, c);
+}
+
+test "Color.warning - maps to yellow" {
+    const c = Color.warning;
+    try std.testing.expectEqual(Color.yellow, c);
+}
+
+test "Color.info - maps to cyan" {
+    const c = Color.info;
+    try std.testing.expectEqual(Color.cyan, c);
+}
+
+test "Color.muted - maps to bright_black (dim gray)" {
+    const c = Color.muted;
+    try std.testing.expectEqual(Color.bright_black, c);
+}
+
+test "Color.err - renders correctly to ANSI foreground" {
+    var buf: [32]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    try Color.err.toFg(writer);
+    try std.testing.expectEqualStrings("\x1b[31m", fbs.getWritten());
+}
+
+test "Color.success - renders correctly to ANSI foreground" {
+    var buf: [32]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    try Color.success.toFg(writer);
+    try std.testing.expectEqualStrings("\x1b[32m", fbs.getWritten());
+}
+
+test "Color.warning - renders correctly to ANSI foreground" {
+    var buf: [32]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    try Color.warning.toFg(writer);
+    try std.testing.expectEqualStrings("\x1b[33m", fbs.getWritten());
+}
+
+test "Color.info - renders correctly to ANSI foreground" {
+    var buf: [32]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    try Color.info.toFg(writer);
+    try std.testing.expectEqualStrings("\x1b[36m", fbs.getWritten());
+}
+
+test "Color.muted - renders correctly to ANSI foreground" {
+    var buf: [32]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    try Color.muted.toFg(writer);
+    try std.testing.expectEqualStrings("\x1b[90m", fbs.getWritten());
+}
+
+test "Color semantic constants - usable in Span.colored" {
+    const error_span = Span.colored("Error", Color.err);
+    const success_span = Span.colored("Success", Color.success);
+    const warning_span = Span.colored("Warning", Color.warning);
+
+    try std.testing.expectEqual(Color.red, error_span.style.fg.?);
+    try std.testing.expectEqual(Color.green, success_span.style.fg.?);
+    try std.testing.expectEqual(Color.yellow, warning_span.style.fg.?);
+}
+
+test "Color semantic constants - usable in Style.withForeground" {
+    const s = Style.withForeground(Color.err);
+    try std.testing.expectEqual(Color.red, s.fg.?);
+}
+
+test "Color semantic constants - usable as background colors" {
+    var buf: [32]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    try Color.err.toBg(writer);
+    try std.testing.expectEqualStrings("\x1b[41m", fbs.getWritten());
+}
+
+// Semantic Style Constants Tests
+
+test "Style.err - has red foreground" {
+    const s = Style.err;
+    try std.testing.expectEqual(Color.red, s.fg.?);
+    try std.testing.expectEqual(null, s.bg);
+    try std.testing.expectEqual(false, s.bold);
+}
+
+test "Style.success - has green foreground" {
+    const s = Style.success;
+    try std.testing.expectEqual(Color.green, s.fg.?);
+    try std.testing.expectEqual(null, s.bg);
+    try std.testing.expectEqual(false, s.bold);
+}
+
+test "Style.warning - has yellow foreground" {
+    const s = Style.warning;
+    try std.testing.expectEqual(Color.yellow, s.fg.?);
+    try std.testing.expectEqual(null, s.bg);
+    try std.testing.expectEqual(false, s.bold);
+}
+
+test "Style.info - has cyan foreground" {
+    const s = Style.info;
+    try std.testing.expectEqual(Color.cyan, s.fg.?);
+    try std.testing.expectEqual(null, s.bg);
+    try std.testing.expectEqual(false, s.bold);
+}
+
+test "Style.muted - has bright_black foreground and dim modifier" {
+    const s = Style.muted;
+    try std.testing.expectEqual(Color.bright_black, s.fg.?);
+    try std.testing.expectEqual(null, s.bg);
+    try std.testing.expectEqual(false, s.bold);
+    try std.testing.expectEqual(true, s.dim);
+}
+
+test "Style.err - renders correctly to ANSI" {
+    var buf: [32]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    try Style.err.apply(writer);
+    try std.testing.expectEqualStrings("\x1b[31m", fbs.getWritten());
+}
+
+test "Style.success - renders correctly to ANSI" {
+    var buf: [32]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    try Style.success.apply(writer);
+    try std.testing.expectEqualStrings("\x1b[32m", fbs.getWritten());
+}
+
+test "Style.warning - renders correctly to ANSI" {
+    var buf: [32]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    try Style.warning.apply(writer);
+    try std.testing.expectEqualStrings("\x1b[33m", fbs.getWritten());
+}
+
+test "Style.info - renders correctly to ANSI" {
+    var buf: [32]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    try Style.info.apply(writer);
+    try std.testing.expectEqualStrings("\x1b[36m", fbs.getWritten());
+}
+
+test "Style.muted - renders correctly to ANSI with dim modifier" {
+    var buf: [64]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    try Style.muted.apply(writer);
+    try std.testing.expectEqualStrings("\x1b[90m\x1b[2m", fbs.getWritten());
+}
+
+test "Style.err - usable in Span.styled" {
+    const span = Span.styled("Error", Style.err);
+    try std.testing.expectEqualStrings("Error", span.content);
+    try std.testing.expectEqual(Color.red, span.style.fg.?);
+}
+
+test "Style.success - usable in Span.styled" {
+    const span = Span.styled("Success", Style.success);
+    try std.testing.expectEqualStrings("Success", span.content);
+    try std.testing.expectEqual(Color.green, span.style.fg.?);
+}
+
+test "Style.warning - usable in Span.styled" {
+    const span = Span.styled("Warning", Style.warning);
+    try std.testing.expectEqualStrings("Warning", span.content);
+    try std.testing.expectEqual(Color.yellow, span.style.fg.?);
+}
+
+test "Style.info - usable in Span.styled" {
+    const span = Span.styled("Info", Style.info);
+    try std.testing.expectEqualStrings("Info", span.content);
+    try std.testing.expectEqual(Color.cyan, span.style.fg.?);
+}
+
+test "Style.muted - usable in Span.styled" {
+    const span = Span.styled("Secondary", Style.muted);
+    try std.testing.expectEqualStrings("Secondary", span.content);
+    try std.testing.expectEqual(Color.bright_black, span.style.fg.?);
+    try std.testing.expectEqual(true, span.style.dim);
+}
+
+test "Style.err - usable in Line.singleStyled" {
+    const single_line = Line.singleStyled("Error!", Style.err);
+    const line = single_line.asLine();
+    try std.testing.expectEqual(Color.red, line.spans[0].style.fg.?);
+}
+
+test "Style.success - usable in Line.singleStyled" {
+    const single_line = Line.singleStyled("Done!", Style.success);
+    const line = single_line.asLine();
+    try std.testing.expectEqual(Color.green, line.spans[0].style.fg.?);
+}
+
+// Combining semantic styles with existing helpers
+
+test "Style.err.withBold - adds bold to error style" {
+    const s = Style.err.withBold();
+    try std.testing.expectEqual(Color.red, s.fg.?);
+    try std.testing.expectEqual(true, s.bold);
+}
+
+test "Style.success.withItalic - adds italic to success style" {
+    const s = Style.success.withItalic();
+    try std.testing.expectEqual(Color.green, s.fg.?);
+    try std.testing.expectEqual(true, s.italic);
+}
+
+test "Style.warning.withUnderline - adds underline to warning style" {
+    const s = Style.warning.withUnderline();
+    try std.testing.expectEqual(Color.yellow, s.fg.?);
+    try std.testing.expectEqual(true, s.underline);
+}
+
+test "Style.info.withBg - adds background to info style" {
+    const s = Style.info.withBg(.black);
+    try std.testing.expectEqual(Color.cyan, s.fg.?);
+    try std.testing.expectEqual(Color.black, s.bg.?);
+}
+
+test "Style.muted.withBold - adds bold to muted style (preserves dim)" {
+    const s = Style.muted.withBold();
+    try std.testing.expectEqual(Color.bright_black, s.fg.?);
+    try std.testing.expectEqual(true, s.dim);
+    try std.testing.expectEqual(true, s.bold);
+}
+
+test "Style.err.withBold - renders with both red and bold" {
+    var buf: [64]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const s = Style.err.withBold();
+    try s.apply(writer);
+    try std.testing.expectEqualStrings("\x1b[31m\x1b[1m", fbs.getWritten());
+}
+
+test "Style.muted.withBold - renders with color, dim, and bold" {
+    var buf: [64]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const s = Style.muted.withBold();
+    try s.apply(writer);
+    try std.testing.expectEqualStrings("\x1b[90m\x1b[1m\x1b[2m", fbs.getWritten());
+}
+
+test "Style.warning.withBold.withUnderline - chain multiple modifiers" {
+    const s = Style.warning.withBold().withUnderline();
+    try std.testing.expectEqual(Color.yellow, s.fg.?);
+    try std.testing.expectEqual(true, s.bold);
+    try std.testing.expectEqual(true, s.underline);
+}
+
+// Integration tests: realistic usage scenarios
+
+test "Integration - error message with semantic style" {
+    var buf: [256]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const span = Span.styled("Error: File not found", Style.err);
+    try span.render(writer);
+    try std.testing.expectEqualStrings("\x1b[31mError: File not found\x1b[0m", fbs.getWritten());
+}
+
+test "Integration - success message with bold" {
+    var buf: [256]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const span = Span.styled("Build succeeded!", Style.success.withBold());
+    try span.render(writer);
+    try std.testing.expectEqualStrings("\x1b[32m\x1b[1mBuild succeeded!\x1b[0m", fbs.getWritten());
+}
+
+test "Integration - warning with underline" {
+    var buf: [256]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const span = Span.styled("Deprecated API", Style.warning.withUnderline());
+    try span.render(writer);
+    try std.testing.expectEqualStrings("\x1b[33m\x1b[4mDeprecated API\x1b[0m", fbs.getWritten());
+}
+
+test "Integration - info message in Line" {
+    const single_line = Line.singleStyled("Tip: Use --help for more options", Style.info);
+    const line = single_line.asLine();
+    try std.testing.expectEqual(Color.cyan, line.spans[0].style.fg.?);
+}
+
+test "Integration - muted text for secondary information" {
+    var buf: [256]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const span = Span.styled("(optional)", Style.muted);
+    try span.render(writer);
+    try std.testing.expectEqualStrings("\x1b[90m\x1b[2m(optional)\x1b[0m", fbs.getWritten());
+}
+
+test "Integration - mixed semantic styles in one line" {
+    const spans = [_]Span{
+        Span.styled("Error: ", Style.err.withBold()),
+        Span.styled("Build failed. ", Style.err),
+        Span.styled("(see logs for details)", Style.muted),
+    };
+    const line = Line{ .spans = &spans };
+
+    var buf: [512]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    try line.render(writer);
+    const expected = "\x1b[31m\x1b[1mError: \x1b[0m\x1b[31mBuild failed. \x1b[0m\x1b[90m\x1b[2m(see logs for details)\x1b[0m";
+    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+}
+
+test "Integration - semantic colors in multi-color line" {
+    const spans = [_]Span{
+        Span.colored("Success: ", Color.success),
+        Span.raw("3 passed, "),
+        Span.colored("1 warning, ", Color.warning),
+        Span.colored("0 errors", Color.err),
+    };
+    const line = Line{ .spans = &spans };
+
+    var buf: [512]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    try line.render(writer);
+    const expected = "\x1b[32mSuccess: \x1b[0m3 passed, \x1b[33m1 warning, \x1b[0m\x1b[31m0 errors\x1b[0m";
+    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+}
+
+test "Integration - semantic styles reduce boilerplate" {
+    // Verbose way (before semantic constants)
+    const verbose_span = Span.styled("Error", .{ .fg = .red });
+
+    // Concise way (with semantic constants)
+    const concise_span = Span.styled("Error", Style.err);
+
+    try std.testing.expectEqual(verbose_span.style.fg.?, concise_span.style.fg.?);
+}
+
+test "Integration - semantic styles improve readability" {
+    // Self-documenting: Style.err clearly conveys intent
+    const error_msg = Span.styled("Fatal error", Style.err);
+    const warning_msg = Span.styled("Caution", Style.warning);
+    const info_msg = Span.styled("Note", Style.info);
+    const success_msg = Span.styled("Done", Style.success);
+
+    try std.testing.expectEqual(Color.red, error_msg.style.fg.?);
+    try std.testing.expectEqual(Color.yellow, warning_msg.style.fg.?);
+    try std.testing.expectEqual(Color.cyan, info_msg.style.fg.?);
+    try std.testing.expectEqual(Color.green, success_msg.style.fg.?);
+}
+
+test "Documentation - Color semantic constants usage example" {
+    // Example usage:
+    const error_color = Color.err; // red
+    const success_color = Color.success; // green
+    const warning_color = Color.warning; // yellow
+    const info_color = Color.info; // cyan
+    const muted_color = Color.muted; // bright_black (dim gray)
+
+    try std.testing.expectEqual(Color.red, error_color);
+    try std.testing.expectEqual(Color.green, success_color);
+    try std.testing.expectEqual(Color.yellow, warning_color);
+    try std.testing.expectEqual(Color.cyan, info_color);
+    try std.testing.expectEqual(Color.bright_black, muted_color);
+}
+
+test "Documentation - Style semantic constants usage example" {
+    // Example usage:
+    const error_span = Span.styled("Error: Connection failed", Style.err);
+    const success_span = Span.styled("Task completed", Style.success);
+    const warning_span = Span.styled("Low disk space", Style.warning);
+    const info_span = Span.styled("Press any key to continue", Style.info);
+    const muted_span = Span.styled("Version 1.0.0", Style.muted);
+
+    try std.testing.expectEqual(Color.red, error_span.style.fg.?);
+    try std.testing.expectEqual(Color.green, success_span.style.fg.?);
+    try std.testing.expectEqual(Color.yellow, warning_span.style.fg.?);
+    try std.testing.expectEqual(Color.cyan, info_span.style.fg.?);
+    try std.testing.expectEqual(Color.bright_black, muted_span.style.fg.?);
+}
+
+test "Documentation - combining semantic styles with modifiers" {
+    // Example: bold error heading
+    const heading = Span.styled("BUILD FAILED", Style.err.withBold());
+    try std.testing.expectEqual(Color.red, heading.style.fg.?);
+    try std.testing.expectEqual(true, heading.style.bold);
 }
