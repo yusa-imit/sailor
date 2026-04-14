@@ -556,3 +556,326 @@ pub const Markdown = struct {
         }
     }
 };
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+const testing = std.testing;
+
+test "Markdown init and deinit" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try testing.expectEqual(@as(usize, 0), md.nodes.items.len);
+    try testing.expectEqual(@as(usize, 0), md.scroll_offset);
+    try testing.expect(!md.wrap);
+}
+
+test "Markdown parse heading levels" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("# Level 1\n## Level 2\n### Level 3");
+
+    try testing.expectEqual(@as(usize, 3), md.nodes.items.len);
+    try testing.expectEqual(NodeType.heading, md.nodes.items[0].node_type);
+    try testing.expectEqual(@as(u8, 1), md.nodes.items[0].level);
+    try testing.expectEqualStrings("Level 1", md.nodes.items[0].text);
+
+    try testing.expectEqual(@as(u8, 2), md.nodes.items[1].level);
+    try testing.expectEqualStrings("Level 2", md.nodes.items[1].text);
+
+    try testing.expectEqual(@as(u8, 3), md.nodes.items[2].level);
+    try testing.expectEqualStrings("Level 3", md.nodes.items[2].text);
+}
+
+test "Markdown parse bold text" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("**bold text**");
+
+    try testing.expectEqual(@as(usize, 1), md.nodes.items.len);
+    try testing.expectEqual(NodeType.bold, md.nodes.items[0].node_type);
+    try testing.expectEqualStrings("bold text", md.nodes.items[0].text);
+}
+
+test "Markdown parse italic text" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("*italic text*");
+
+    try testing.expectEqual(@as(usize, 1), md.nodes.items.len);
+    try testing.expectEqual(NodeType.italic, md.nodes.items[0].node_type);
+    try testing.expectEqualStrings("italic text", md.nodes.items[0].text);
+}
+
+test "Markdown parse bold italic text" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("***bold italic***");
+
+    try testing.expectEqual(@as(usize, 1), md.nodes.items.len);
+    try testing.expectEqual(NodeType.bold_italic, md.nodes.items[0].node_type);
+    try testing.expectEqualStrings("bold italic", md.nodes.items[0].text);
+}
+
+test "Markdown parse inline code" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("`inline code`");
+
+    try testing.expectEqual(@as(usize, 1), md.nodes.items.len);
+    try testing.expectEqual(NodeType.code, md.nodes.items[0].node_type);
+    try testing.expectEqualStrings("inline code", md.nodes.items[0].text);
+}
+
+test "Markdown parse code block" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("```zig\nconst x = 42;\n```");
+
+    try testing.expectEqual(@as(usize, 1), md.nodes.items.len);
+    try testing.expectEqual(NodeType.code_block, md.nodes.items[0].node_type);
+    try testing.expectEqualStrings("const x = 42;\n", md.nodes.items[0].text);
+    try testing.expect(md.nodes.items[0].language != null);
+    try testing.expectEqualStrings("zig", md.nodes.items[0].language.?);
+}
+
+test "Markdown parse unordered list" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("- Item 1\n- Item 2");
+
+    try testing.expectEqual(@as(usize, 2), md.nodes.items.len);
+    try testing.expectEqual(NodeType.list_item, md.nodes.items[0].node_type);
+    try testing.expectEqualStrings("Item 1", md.nodes.items[0].text);
+    try testing.expectEqual(@as(u8, 0), md.nodes.items[0].indent_level);
+
+    try testing.expectEqual(NodeType.list_item, md.nodes.items[1].node_type);
+    try testing.expectEqualStrings("Item 2", md.nodes.items[1].text);
+}
+
+test "Markdown parse ordered list" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("1. First\n2. Second");
+
+    try testing.expectEqual(@as(usize, 2), md.nodes.items.len);
+    try testing.expectEqual(NodeType.ordered_item, md.nodes.items[0].node_type);
+    try testing.expectEqualStrings("First", md.nodes.items[0].text);
+    try testing.expect(md.nodes.items[0].number != null);
+    try testing.expectEqual(@as(u32, 1), md.nodes.items[0].number.?);
+
+    try testing.expectEqual(NodeType.ordered_item, md.nodes.items[1].node_type);
+    try testing.expectEqualStrings("Second", md.nodes.items[1].text);
+    try testing.expectEqual(@as(u32, 2), md.nodes.items[1].number.?);
+}
+
+test "Markdown parse nested list with indentation" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("- Item 1\n  - Nested");
+
+    try testing.expectEqual(@as(usize, 2), md.nodes.items.len);
+    try testing.expectEqual(@as(u8, 0), md.nodes.items[0].indent_level);
+    try testing.expectEqual(@as(u8, 1), md.nodes.items[1].indent_level);
+}
+
+test "Markdown parse link" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("[example](https://example.com)");
+
+    try testing.expectEqual(@as(usize, 1), md.nodes.items.len);
+    try testing.expectEqual(NodeType.link, md.nodes.items[0].node_type);
+    try testing.expectEqualStrings("example", md.nodes.items[0].text);
+    try testing.expect(md.nodes.items[0].url != null);
+    try testing.expectEqualStrings("https://example.com", md.nodes.items[0].url.?);
+}
+
+test "Markdown parse mixed inline formatting" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("normal **bold** `code`");
+
+    try testing.expectEqual(@as(usize, 3), md.nodes.items.len);
+    try testing.expectEqual(NodeType.text, md.nodes.items[0].node_type);
+    try testing.expectEqualStrings("normal ", md.nodes.items[0].text);
+
+    try testing.expectEqual(NodeType.bold, md.nodes.items[1].node_type);
+    try testing.expectEqualStrings("bold", md.nodes.items[1].text);
+
+    try testing.expectEqual(NodeType.code, md.nodes.items[2].node_type);
+    try testing.expectEqualStrings("code", md.nodes.items[2].text);
+}
+
+test "Markdown empty content" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("");
+    try testing.expectEqual(@as(usize, 0), md.nodes.items.len);
+}
+
+test "Markdown whitespace-only content" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("   \n\n   ");
+    try testing.expectEqual(@as(usize, 0), md.nodes.items.len);
+}
+
+test "Markdown malformed heading (no space after #)" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("#NoSpace");
+
+    // Should be treated as plain text
+    try testing.expectEqual(@as(usize, 1), md.nodes.items.len);
+    try testing.expectEqual(NodeType.text, md.nodes.items[0].node_type);
+}
+
+test "Markdown unclosed bold marker" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("**unclosed");
+
+    // Should be treated as plain text
+    try testing.expectEqual(@as(usize, 1), md.nodes.items.len);
+    try testing.expectEqual(NodeType.text, md.nodes.items[0].node_type);
+}
+
+test "Markdown unclosed code block" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("```\ncode without close");
+
+    // Should still parse as code block
+    try testing.expectEqual(@as(usize, 1), md.nodes.items.len);
+    try testing.expectEqual(NodeType.code_block, md.nodes.items[0].node_type);
+    try testing.expectEqualStrings("code without close\n", md.nodes.items[0].text);
+}
+
+test "Markdown render to buffer" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("# Test");
+
+    var buf = try Buffer.init(testing.allocator, 20, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
+    try md.render(&buf, area);
+
+    // Verify heading was rendered (exact rendering details depend on implementation)
+    const cell = buf.get(0, 0);
+    try testing.expect(cell.char != ' '); // Should have content
+}
+
+test "Markdown render with zero-sized area" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("# Test");
+
+    var buf = try Buffer.init(testing.allocator, 20, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
+    try md.render(&buf, area); // Should not crash
+}
+
+test "Markdown render with scroll offset" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("# Line 1\n# Line 2\n# Line 3");
+    md.scroll_offset = 1;
+
+    var buf = try Buffer.init(testing.allocator, 20, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
+    try md.render(&buf, area); // Should skip first node
+}
+
+test "Markdown render with block border" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("# Test");
+    md.block = Block.init().withTitle("Markdown");
+
+    var buf = try Buffer.init(testing.allocator, 20, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
+    try md.render(&buf, area);
+
+    // Verify block was rendered
+    const cell = buf.get(0, 0);
+    try testing.expect(cell.char == '┌' or cell.char == '╭'); // Top-left border
+}
+
+test "Markdown setContent replaces old content" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("# First");
+    try testing.expectEqual(@as(usize, 1), md.nodes.items.len);
+
+    try md.setContent("# Second");
+    try testing.expectEqual(@as(usize, 1), md.nodes.items.len);
+    try testing.expectEqualStrings("Second", md.nodes.items[0].text);
+}
+
+test "Markdown heading with trailing hashes" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("# Heading ##");
+
+    try testing.expectEqual(@as(usize, 1), md.nodes.items.len);
+    try testing.expectEqual(NodeType.heading, md.nodes.items[0].node_type);
+    try testing.expectEqualStrings("Heading", md.nodes.items[0].text);
+}
+
+test "Markdown code block with language" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    try md.setContent("```python\nprint('hello')\n```");
+
+    try testing.expectEqual(@as(usize, 1), md.nodes.items.len);
+    try testing.expectEqual(NodeType.code_block, md.nodes.items[0].node_type);
+    try testing.expect(md.nodes.items[0].language != null);
+    try testing.expectEqualStrings("python", md.nodes.items[0].language.?);
+}
+
+test "Markdown multiple setContent calls memory safety" {
+    var md = try Markdown.init(testing.allocator);
+    defer md.deinit();
+
+    // Multiple calls should not leak memory
+    try md.setContent("# First");
+    try md.setContent("# Second");
+    try md.setContent("# Third");
+
+    try testing.expectEqual(@as(usize, 1), md.nodes.items.len);
+    try testing.expectEqualStrings("Third", md.nodes.items[0].text);
+}
