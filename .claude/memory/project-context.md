@@ -1,3 +1,48 @@
+✅ **Session 101** — FEATURE MODE: SPAN & LINE CONVENIENCE CONSTRUCTORS (2026-04-14)
+  - **Mode**: FEATURE (session 101, 101 % 5 == 1)
+  - **Achievement**: Added 6 convenience constructors for Span and Line types (v2.1.0 ergonomics)
+
+  **Completed Work**:
+    - ✅ TDD cycle: test-writer subagent → 40 comprehensive tests → implementation
+    - ✅ Span convenience constructors (4 total, +20 tests):
+      - Span.colored(content, color) — foreground color convenience
+      - Span.bold(content) — bold text
+      - Span.italic(content) — italic text
+      - Span.underline(content) — underlined text
+    - ✅ Line convenience constructors (2 total + SingleLine helper, +20 tests):
+      - Line.single(content) → SingleLine with .asLine() method
+      - Line.singleStyled(content, style) → SingleLine with .asLine() method
+      - Line.SingleLine helper struct owns backing span array (Zig lifetime safety)
+    - ✅ All 40 new tests pass, 3380/3410 total tests passing (30 skipped)
+    - ✅ CI status: Clean
+    - ✅ No open issues
+
+  **Technical Note**:
+    - Line.single() cannot return Line directly due to Zig lifetime semantics (function-local span array)
+    - Solution: SingleLine struct owns both Line and backing array, exposes .asLine() for safe access
+    - Example: `const single_line = Line.single("text"); const line = single_line.asLine();`
+
+  **Commits**:
+    - 82b5f23 — feat: add Span and Line convenience constructors (+562 lines, 40 tests)
+
+  **Current State**:
+    - **Latest release**: v2.0.0 (2026-04-13)
+    - **Active milestone**: v2.1.0 (Post-v2.0 Polish & Consumer Feedback)
+    - **CI status**: Clean
+    - **Open issues**: 0 (sailor), 0 (consumer projects)
+    - **Blockers**: NONE
+
+  **v2.1.0 Progress**:
+    - API ergonomics: ✅ Rect.fromSize(), ✅ Constraint constructors (6), ✅ Color constructors (3), ✅ Span constructors (4), ✅ Line constructors (2)
+    - Consumer migration: Waiting for feedback
+    - Bug fixes: None needed
+    - Test coverage: ✅ Markdown widget (25 tests), MetricsDashboard next opportunity
+    - Performance: Opportunity for future work
+
+  **Next Priority**:
+    - Continue v2.1.0 ergonomics: look for more convenience helpers or performance optimizations
+    - Monitor consumer project migrations
+
 ✅ **Session 100** — STABILIZATION MODE: TEST COVERAGE AUDIT (2026-04-14)
   - **Mode**: STABILIZATION (session 100, 100 % 5 == 0)
   - **Achievement**: Added 25 comprehensive tests for previously untested Markdown widget
@@ -17,13 +62,6 @@
 
   **Commits**:
     - 0a42fd9 — test: add 25 comprehensive tests for Markdown widget
-
-  **Current State**:
-    - **Latest release**: v2.0.0 (2026-04-13)
-    - **Active milestone**: v2.1.0 (Post-v2.0 Polish & Consumer Feedback)
-    - **CI status**: Clean
-    - **Open issues**: 0 (sailor), 0 (consumer projects)
-    - **Blockers**: NONE
 
   **v2.1.0 Progress**:
     - API ergonomics: ✅ Deprecation mode, ✅ Rect.fromSize(), ✅ Constraint constructors (6), ✅ Color constructors (3)
