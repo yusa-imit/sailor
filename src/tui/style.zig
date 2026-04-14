@@ -305,6 +305,63 @@ pub const Span = struct {
         return .{ .content = content, .style = style };
     }
 
+    /// Create span with foreground color.
+    ///
+    /// Equivalent to: `Span{ .content = content, .style = .{ .fg = color } }`
+    ///
+    /// Example:
+    /// ```zig
+    /// const red_text = Span.colored("Error", .red);
+    /// const custom = Span.colored("Info", Color.fromRgb(100, 150, 200));
+    /// ```
+    ///
+    /// **v2.1.0**: Convenience constructor to reduce boilerplate for colored text.
+    pub fn colored(content: []const u8, color: Color) Span {
+        return .{ .content = content, .style = .{ .fg = color } };
+    }
+
+    /// Create bold span.
+    ///
+    /// Equivalent to: `Span{ .content = content, .style = .{ .bold = true } }`
+    ///
+    /// Example:
+    /// ```zig
+    /// const title = Span.bold("Important");
+    /// ```
+    ///
+    /// **v2.1.0**: Convenience constructor for bold text.
+    pub fn bold(content: []const u8) Span {
+        return .{ .content = content, .style = .{ .bold = true } };
+    }
+
+    /// Create italic span.
+    ///
+    /// Equivalent to: `Span{ .content = content, .style = .{ .italic = true } }`
+    ///
+    /// Example:
+    /// ```zig
+    /// const emphasis = Span.italic("Note:");
+    /// ```
+    ///
+    /// **v2.1.0**: Convenience constructor for italic text.
+    pub fn italic(content: []const u8) Span {
+        return .{ .content = content, .style = .{ .italic = true } };
+    }
+
+    /// Create underlined span.
+    ///
+    /// Equivalent to: `Span{ .content = content, .style = .{ .underline = true } }`
+    ///
+    /// Example:
+    /// ```zig
+    /// const link = Span.underline("https://example.com");
+    /// ```
+    ///
+    /// **v2.1.0**: Convenience constructor for underlined text.
+    pub fn underline(content: []const u8) Span {
+        return .{ .content = content, .style = .{ .underline = true } };
+    }
+
     /// Render span to writer
     pub fn render(self: Span, writer: anytype) !void {
         // Only apply styling if style has non-default attributes
@@ -349,6 +406,50 @@ pub const Line = struct {
             w += span.content.len;
         }
         return w;
+    }
+
+    /// Helper struct that owns a single-span Line and its backing array.
+    ///
+    /// This struct bundles a Line with its span array to ensure proper lifetime management.
+    /// Use `.asLine()` to get a Line reference when needed.
+    pub const SingleLine = struct {
+        spans: [1]Span,
+
+        pub fn asLine(self: *const SingleLine) Line {
+            return .{ .spans = &self.spans };
+        }
+    };
+
+    /// Create a SingleLine with a single raw (unstyled) span.
+    ///
+    /// This is a convenience method for the common case of creating a line
+    /// with just plain text. The returned struct owns both the Line and its backing span array.
+    ///
+    /// Example:
+    /// ```zig
+    /// const single_line = Line.single("Hello, world!");
+    /// const line = single_line.asLine();
+    /// // Instead of:
+    /// // const spans = [_]Span{Span.raw("Hello, world!")};
+    /// // const line = Line{ .spans = &spans };
+    /// ```
+    ///
+    /// **v2.1.0**: Convenience constructor to reduce boilerplate for simple lines.
+    pub fn single(content: []const u8) SingleLine {
+        return .{ .spans = [1]Span{Span.raw(content)} };
+    }
+
+    /// Create a SingleLine with a single styled span.
+    ///
+    /// Example:
+    /// ```zig
+    /// const single_line = Line.singleStyled("Error!", .{ .fg = .red, .bold = true });
+    /// const line = single_line.asLine();
+    /// ```
+    ///
+    /// **v2.1.0**: Convenience constructor for single-span styled lines.
+    pub fn singleStyled(content: []const u8, style: Style) SingleLine {
+        return .{ .spans = [1]Span{Span.styled(content, style)} };
     }
 };
 
@@ -1119,4 +1220,465 @@ test "Color convenience constructors - all three methods produce valid Color uni
     try c2.toFg(writer);
     fbs.reset();
     try c3.toFg(writer);
+}
+
+// ============================================================================
+// Span & Line Convenience Constructor Tests (v2.1.0)
+// ============================================================================
+
+// Span.colored() tests
+
+test "Span.colored - basic construction with foreground color" {
+    const span = Span.colored("hello", .red);
+    try std.testing.expectEqualStrings("hello", span.content);
+    try std.testing.expectEqual(Color.red, span.style.fg.?);
+}
+
+test "Span.colored - equivalence to manual construction" {
+    const s1 = Span.colored("test", .blue);
+    const s2 = Span{ .content = "test", .style = .{ .fg = .blue } };
+    try std.testing.expectEqualStrings(s2.content, s1.content);
+    try std.testing.expectEqual(s2.style.fg.?, s1.style.fg.?);
+}
+
+test "Span.colored - with basic colors" {
+    const red = Span.colored("red", .red);
+    const green = Span.colored("green", .green);
+    const blue = Span.colored("blue", .blue);
+
+    try std.testing.expectEqual(Color.red, red.style.fg.?);
+    try std.testing.expectEqual(Color.green, green.style.fg.?);
+    try std.testing.expectEqual(Color.blue, blue.style.fg.?);
+}
+
+test "Span.colored - with bright colors" {
+    const span = Span.colored("bright", .bright_cyan);
+    try std.testing.expectEqual(Color.bright_cyan, span.style.fg.?);
+}
+
+test "Span.colored - with indexed color" {
+    const span = Span.colored("indexed", Color.fromIndexed(208));
+    try std.testing.expectEqual(@as(u8, 208), span.style.fg.?.indexed);
+}
+
+test "Span.colored - with RGB color" {
+    const span = Span.colored("rgb", Color.fromRgb(255, 128, 64));
+    try std.testing.expectEqual(@as(u8, 255), span.style.fg.?.rgb.r);
+    try std.testing.expectEqual(@as(u8, 128), span.style.fg.?.rgb.g);
+    try std.testing.expectEqual(@as(u8, 64), span.style.fg.?.rgb.b);
+}
+
+test "Span.colored - with hex color" {
+    const span = Span.colored("hex", Color.fromHex(0xFF6347));
+    try std.testing.expectEqual(@as(u8, 0xFF), span.style.fg.?.rgb.r);
+    try std.testing.expectEqual(@as(u8, 0x63), span.style.fg.?.rgb.g);
+    try std.testing.expectEqual(@as(u8, 0x47), span.style.fg.?.rgb.b);
+}
+
+test "Span.colored - empty content" {
+    const span = Span.colored("", .yellow);
+    try std.testing.expectEqualStrings("", span.content);
+    try std.testing.expectEqual(Color.yellow, span.style.fg.?);
+}
+
+test "Span.colored - other style fields remain default" {
+    const span = Span.colored("test", .red);
+    try std.testing.expectEqual(null, span.style.bg);
+    try std.testing.expectEqual(false, span.style.bold);
+    try std.testing.expectEqual(false, span.style.italic);
+    try std.testing.expectEqual(false, span.style.underline);
+}
+
+test "Span.colored - renders correctly to ANSI" {
+    var buf: [128]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const span = Span.colored("test", .red);
+    try span.render(writer);
+    try std.testing.expectEqualStrings("\x1b[31mtest\x1b[0m", fbs.getWritten());
+}
+
+test "Span.colored - multiple colors render correctly" {
+    var buf: [128]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const red_span = Span.colored("red", .red);
+    try red_span.render(writer);
+    try std.testing.expectEqualStrings("\x1b[31mred\x1b[0m", fbs.getWritten());
+
+    fbs.reset();
+    const blue_span = Span.colored("blue", .blue);
+    try blue_span.render(writer);
+    try std.testing.expectEqualStrings("\x1b[34mblue\x1b[0m", fbs.getWritten());
+}
+
+// Span.bold() tests
+
+test "Span.bold - basic construction" {
+    const span = Span.bold("bold text");
+    try std.testing.expectEqualStrings("bold text", span.content);
+    try std.testing.expectEqual(true, span.style.bold);
+}
+
+test "Span.bold - equivalence to manual construction" {
+    const s1 = Span.bold("test");
+    const s2 = Span{ .content = "test", .style = .{ .bold = true } };
+    try std.testing.expectEqualStrings(s2.content, s1.content);
+    try std.testing.expectEqual(s2.style.bold, s1.style.bold);
+}
+
+test "Span.bold - empty content" {
+    const span = Span.bold("");
+    try std.testing.expectEqualStrings("", span.content);
+    try std.testing.expectEqual(true, span.style.bold);
+}
+
+test "Span.bold - other style fields remain default" {
+    const span = Span.bold("test");
+    try std.testing.expectEqual(null, span.style.fg);
+    try std.testing.expectEqual(null, span.style.bg);
+    try std.testing.expectEqual(false, span.style.italic);
+    try std.testing.expectEqual(false, span.style.underline);
+}
+
+test "Span.bold - renders correctly to ANSI" {
+    var buf: [128]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const span = Span.bold("test");
+    try span.render(writer);
+    try std.testing.expectEqualStrings("\x1b[1mtest\x1b[0m", fbs.getWritten());
+}
+
+// Span.italic() tests
+
+test "Span.italic - basic construction" {
+    const span = Span.italic("italic text");
+    try std.testing.expectEqualStrings("italic text", span.content);
+    try std.testing.expectEqual(true, span.style.italic);
+}
+
+test "Span.italic - equivalence to manual construction" {
+    const s1 = Span.italic("test");
+    const s2 = Span{ .content = "test", .style = .{ .italic = true } };
+    try std.testing.expectEqualStrings(s2.content, s1.content);
+    try std.testing.expectEqual(s2.style.italic, s1.style.italic);
+}
+
+test "Span.italic - empty content" {
+    const span = Span.italic("");
+    try std.testing.expectEqualStrings("", span.content);
+    try std.testing.expectEqual(true, span.style.italic);
+}
+
+test "Span.italic - other style fields remain default" {
+    const span = Span.italic("test");
+    try std.testing.expectEqual(null, span.style.fg);
+    try std.testing.expectEqual(null, span.style.bg);
+    try std.testing.expectEqual(false, span.style.bold);
+    try std.testing.expectEqual(false, span.style.underline);
+}
+
+test "Span.italic - renders correctly to ANSI" {
+    var buf: [128]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const span = Span.italic("test");
+    try span.render(writer);
+    try std.testing.expectEqualStrings("\x1b[3mtest\x1b[0m", fbs.getWritten());
+}
+
+// Span.underline() tests
+
+test "Span.underline - basic construction" {
+    const span = Span.underline("underlined text");
+    try std.testing.expectEqualStrings("underlined text", span.content);
+    try std.testing.expectEqual(true, span.style.underline);
+}
+
+test "Span.underline - equivalence to manual construction" {
+    const s1 = Span.underline("test");
+    const s2 = Span{ .content = "test", .style = .{ .underline = true } };
+    try std.testing.expectEqualStrings(s2.content, s1.content);
+    try std.testing.expectEqual(s2.style.underline, s1.style.underline);
+}
+
+test "Span.underline - empty content" {
+    const span = Span.underline("");
+    try std.testing.expectEqualStrings("", span.content);
+    try std.testing.expectEqual(true, span.style.underline);
+}
+
+test "Span.underline - other style fields remain default" {
+    const span = Span.underline("test");
+    try std.testing.expectEqual(null, span.style.fg);
+    try std.testing.expectEqual(null, span.style.bg);
+    try std.testing.expectEqual(false, span.style.bold);
+    try std.testing.expectEqual(false, span.style.italic);
+}
+
+test "Span.underline - renders correctly to ANSI" {
+    var buf: [128]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const span = Span.underline("test");
+    try span.render(writer);
+    try std.testing.expectEqualStrings("\x1b[4mtest\x1b[0m", fbs.getWritten());
+}
+
+// Line.single() tests
+
+test "Line.single - basic construction with plain text" {
+    const single_line = Line.single("hello");
+    const line = single_line.asLine();
+    try std.testing.expectEqual(1, line.spans.len);
+    try std.testing.expectEqualStrings("hello", line.spans[0].content);
+    try std.testing.expectEqual(Style.default, line.spans[0].style);
+}
+
+test "Line.single - equivalence to manual construction" {
+    const single_l1 = Line.single("test");
+    const l1 = single_l1.asLine();
+    const spans = [_]Span{Span.raw("test")};
+    const l2 = Line{ .spans = &spans };
+    try std.testing.expectEqual(l2.spans.len, l1.spans.len);
+    try std.testing.expectEqualStrings(l2.spans[0].content, l1.spans[0].content);
+}
+
+test "Line.single - empty content" {
+    const single_line = Line.single("");
+    const line = single_line.asLine();
+    try std.testing.expectEqual(1, line.spans.len);
+    try std.testing.expectEqualStrings("", line.spans[0].content);
+}
+
+test "Line.single - renders correctly" {
+    var buf: [128]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const single_line = Line.single("hello world");
+    const line = single_line.asLine();
+    try line.render(writer);
+    try std.testing.expectEqualStrings("hello world", fbs.getWritten());
+}
+
+test "Line.single - width calculation" {
+    const single_line = Line.single("hello");
+    const line = single_line.asLine();
+    try std.testing.expectEqual(5, line.width());
+}
+
+test "Line.single - multiple lines do not share spans" {
+    const single_line1 = Line.single("first");
+    const line1 = single_line1.asLine();
+    const single_line2 = Line.single("second");
+    const line2 = single_line2.asLine();
+
+    try std.testing.expectEqualStrings("first", line1.spans[0].content);
+    try std.testing.expectEqualStrings("second", line2.spans[0].content);
+}
+
+// Line.singleStyled() tests
+
+test "Line.singleStyled - basic construction with foreground color" {
+    const single_line = Line.singleStyled("styled", .{ .fg = .red });
+    const line = single_line.asLine();
+    try std.testing.expectEqual(1, line.spans.len);
+    try std.testing.expectEqualStrings("styled", line.spans[0].content);
+    try std.testing.expectEqual(Color.red, line.spans[0].style.fg.?);
+}
+
+test "Line.singleStyled - equivalence to manual construction" {
+    const style = Style{ .fg = .blue, .bold = true };
+    const single_l1 = Line.singleStyled("test", style);
+    const l1 = single_l1.asLine();
+    const spans = [_]Span{Span.styled("test", style)};
+    const l2 = Line{ .spans = &spans };
+
+    try std.testing.expectEqual(l2.spans.len, l1.spans.len);
+    try std.testing.expectEqualStrings(l2.spans[0].content, l1.spans[0].content);
+    try std.testing.expectEqual(l2.spans[0].style.fg.?, l1.spans[0].style.fg.?);
+    try std.testing.expectEqual(l2.spans[0].style.bold, l1.spans[0].style.bold);
+}
+
+test "Line.singleStyled - with bold style" {
+    const single_line = Line.singleStyled("bold", .{ .bold = true });
+    const line = single_line.asLine();
+    try std.testing.expectEqual(true, line.spans[0].style.bold);
+}
+
+test "Line.singleStyled - with multiple modifiers" {
+    const single_line = Line.singleStyled("multi", .{
+        .fg = .cyan,
+        .bold = true,
+        .italic = true,
+    });
+    const line = single_line.asLine();
+    try std.testing.expectEqual(Color.cyan, line.spans[0].style.fg.?);
+    try std.testing.expectEqual(true, line.spans[0].style.bold);
+    try std.testing.expectEqual(true, line.spans[0].style.italic);
+}
+
+test "Line.singleStyled - empty content" {
+    const single_line = Line.singleStyled("", .{ .fg = .green });
+    const line = single_line.asLine();
+    try std.testing.expectEqual(1, line.spans.len);
+    try std.testing.expectEqualStrings("", line.spans[0].content);
+    try std.testing.expectEqual(Color.green, line.spans[0].style.fg.?);
+}
+
+test "Line.singleStyled - renders correctly with color" {
+    var buf: [128]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const single_line = Line.singleStyled("test", .{ .fg = .red });
+    const line = single_line.asLine();
+    try line.render(writer);
+    try std.testing.expectEqualStrings("\x1b[31mtest\x1b[0m", fbs.getWritten());
+}
+
+test "Line.singleStyled - renders correctly with bold" {
+    var buf: [128]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const single_line = Line.singleStyled("test", .{ .bold = true });
+    const line = single_line.asLine();
+    try line.render(writer);
+    try std.testing.expectEqualStrings("\x1b[1mtest\x1b[0m", fbs.getWritten());
+}
+
+test "Line.singleStyled - renders correctly with multiple styles" {
+    var buf: [128]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const single_line = Line.singleStyled("test", .{ .fg = .blue, .bold = true, .underline = true });
+    const line = single_line.asLine();
+    try line.render(writer);
+    try std.testing.expectEqualStrings("\x1b[34m\x1b[1m\x1b[4mtest\x1b[0m", fbs.getWritten());
+}
+
+test "Line.singleStyled - width calculation" {
+    const single_line = Line.singleStyled("hello", .{ .fg = .red });
+    const line = single_line.asLine();
+    try std.testing.expectEqual(5, line.width());
+}
+
+test "Line.singleStyled - with Style helper constructors" {
+    const single_line = Line.singleStyled("test", Style.withForeground(.magenta));
+    const line = single_line.asLine();
+    try std.testing.expectEqual(Color.magenta, line.spans[0].style.fg.?);
+}
+
+// Integration tests: combining convenience constructors
+
+test "Integration - Span.colored in multi-span Line" {
+    const spans = [_]Span{
+        Span.colored("Hello", .red),
+        Span.raw(" "),
+        Span.colored("world", .blue),
+    };
+    const line = Line{ .spans = &spans };
+
+    var buf: [256]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    try line.render(writer);
+    const expected = "\x1b[31mHello\x1b[0m \x1b[34mworld\x1b[0m";
+    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+}
+
+test "Integration - Span.bold and Span.italic in same Line" {
+    const spans = [_]Span{
+        Span.bold("Bold"),
+        Span.raw(" and "),
+        Span.italic("Italic"),
+    };
+    const line = Line{ .spans = &spans };
+
+    var buf: [256]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    try line.render(writer);
+    const expected = "\x1b[1mBold\x1b[0m and \x1b[3mItalic\x1b[0m";
+    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+}
+
+test "Integration - Line.single vs Line.singleStyled comparison" {
+    const plain = Line.single("text");
+    const styled = Line.singleStyled("text", .{ .fg = .red });
+
+    try std.testing.expectEqualStrings(plain.spans[0].content, styled.spans[0].content);
+    try std.testing.expectEqual(null, plain.spans[0].style.fg);
+    try std.testing.expectEqual(Color.red, styled.spans[0].style.fg.?);
+}
+
+test "Integration - all Span helpers produce valid spans" {
+    const spans = [_]Span{
+        Span.colored("red", .red),
+        Span.bold("bold"),
+        Span.italic("italic"),
+        Span.underline("underline"),
+    };
+
+    try std.testing.expectEqual(Color.red, spans[0].style.fg.?);
+    try std.testing.expectEqual(true, spans[1].style.bold);
+    try std.testing.expectEqual(true, spans[2].style.italic);
+    try std.testing.expectEqual(true, spans[3].style.underline);
+}
+
+test "Integration - Line helpers reduce boilerplate" {
+    // Verbose way
+    const span1 = Span.raw("verbose");
+    const spans1 = [_]Span{span1};
+    const line1 = Line{ .spans = &spans1 };
+
+    // Concise way
+    const single_line2 = Line.single("verbose");
+    const line2 = single_line2.asLine();
+
+    try std.testing.expectEqualStrings(line1.spans[0].content, line2.spans[0].content);
+}
+
+test "Documentation - Span.colored usage example" {
+    // Example from proposed API:
+    // const error_msg = Span.colored("Error", .red);
+    const error_msg = Span.colored("Error", .red);
+    try std.testing.expectEqualStrings("Error", error_msg.content);
+    try std.testing.expectEqual(Color.red, error_msg.style.fg.?);
+}
+
+test "Documentation - Span.bold usage example" {
+    // Example from proposed API:
+    // const header = Span.bold("Important");
+    const header = Span.bold("Important");
+    try std.testing.expectEqual(true, header.style.bold);
+}
+
+test "Documentation - Line.single usage example" {
+    // Example from proposed API:
+    // const single_line = Line.single("Hello, world!");
+    // const line = single_line.asLine();
+    const single_line = Line.single("Hello, world!");
+    const line = single_line.asLine();
+    try std.testing.expectEqual(1, line.spans.len);
+    try std.testing.expectEqualStrings("Hello, world!", line.spans[0].content);
+}
+
+test "Documentation - Line.singleStyled usage example" {
+    // Example from proposed API:
+    // const warning = Line.singleStyled("Warning", .{ .fg = .yellow, .bold = true });
+    const warning = Line.singleStyled("Warning", .{ .fg = .yellow, .bold = true });
+    try std.testing.expectEqual(Color.yellow, warning.spans[0].style.fg.?);
+    try std.testing.expectEqual(true, warning.spans[0].style.bold);
 }
