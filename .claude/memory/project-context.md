@@ -1,34 +1,32 @@
-✅ **Session 103** — FEATURE MODE: SEMANTIC COLOR & STYLE CONSTANTS (2026-04-15)
-  - **Mode**: FEATURE (session 103, 103 % 5 == 3)
-  - **Achievement**: Added 10 semantic constants (5 Color, 5 Style) to improve API readability (v2.1.0 ergonomics)
+✅ **Session 104** — FEATURE MODE: BUFFER DIFF PERFORMANCE OPTIMIZATION (2026-04-15)
+  - **Mode**: FEATURE (session 104, 104 % 5 == 4)
+  - **Achievement**: Optimized buffer diff algorithm, achieving 38% performance improvement (v2.1.0 performance milestone)
 
   **Completed Work**:
-    - ✅ Semantic Color constants (5 total):
-      - Color.err (red) — error/danger messages
-      - Color.success (green) — success states
-      - Color.warning (yellow) — warnings
-      - Color.info (cyan) — informational content
-      - Color.muted (bright_black) — secondary/de-emphasized text
-    - ✅ Semantic Style constants (5 total):
-      - Style.err, success, warning, info, muted (matching colors)
-      - Style.muted includes dim modifier for proper de-emphasis
-    - ✅ Comprehensive test suite (50 new tests):
-      - Color constant mappings and ANSI rendering
-      - Style constant composition and chaining
-      - Integration with Span/Line constructors
-      - Combining with modifiers (.withBold(), etc.)
-      - Realistic usage scenarios
-    - ✅ All 3460 tests passing (50 new, 30 skipped)
-    - ✅ Fixed: Avoided `@"error"` syntax by using `err` name (reserved keyword issue)
-    - ✅ Type annotations: `: Color` and `: Style` ensure proper union value types
+    - ✅ Optimized buffer diff algorithm with 3 key improvements:
+      1. **Row-level early exit**: Skip entire unchanged rows using byte-wise comparison
+      2. **Direct cell access**: Replace bounds-checked getConst() with direct array indexing
+      3. **Better capacity estimation**: Initialize ArrayList with 10% of buffer size (typical change rate)
+    - ✅ Performance benchmark results (80x24 buffer, 10k iterations):
+      - **Before**: 0.1017ms/op (9,836 ops/sec)
+      - **After**: 0.0625ms/op (15,997 ops/sec)
+      - **Improvement**: 38% faster (62% of original time)
+    - ✅ All 3430/3460 tests passing (30 skipped as expected)
+    - ✅ Zero breaking changes — optimization is fully backward compatible
 
-  **Technical Note**:
-    - Initial implementation used `Color.@"error"` but accessing `Color.error` failed due to Zig reserved keyword
-    - Solution: Renamed to `Color.err` and `Style.err` for clean syntax
-    - Constants need explicit type annotation (`: Color`, `: Style`) to create union values, not just enum tags
+  **Technical Implementation**:
+    - Use `std.mem.sliceAsBytes()` to compare entire rows as byte arrays (Cell has no pointers, safe for byte comparison)
+    - Early `continue` when row bytes match (common case: most rows unchanged in typical TUI updates)
+    - Direct cell array indexing: `old.cells[idx]` instead of `old.getConst(x, y).?`
+    - Pre-allocate ArrayList capacity based on empirical 10% change rate
+
+  **Performance Impact**:
+    - Buffer diff is a **hot path** operation (called every frame in TUI applications)
+    - 38% speedup translates to smoother rendering and lower CPU usage
+    - Particularly beneficial for large buffers and high frame rates
 
   **Commits**:
-    - 9469481 — feat: add semantic color and style constants (+536 lines, 50 tests)
+    - f6e897f — perf: optimize buffer diff with row-level skipping (38% faster)
 
   **Current State**:
     - **Latest release**: v2.0.0 (2026-04-13)
@@ -42,11 +40,18 @@
     - Consumer migration: Waiting for feedback
     - Bug fixes: None needed
     - Test coverage: ✅ Markdown widget (25 tests), MetricsDashboard next opportunity
-    - Performance: Opportunity for future work
+    - **Performance**: ✅ Buffer diff optimized (38% faster) — milestone target achieved!
 
   **Next Priority**:
-    - Continue v2.1.0 ergonomics: look for more convenience helpers or performance optimizations
+    - Continue v2.1.0: More performance optimizations or widget rendering improvements
     - Monitor consumer project migrations
+
+✅ **Session 103** — FEATURE MODE: SEMANTIC COLOR & STYLE CONSTANTS (2026-04-15)
+  - **Mode**: FEATURE (session 103, 103 % 5 == 3)
+  - **Achievement**: Added 10 semantic constants (5 Color, 5 Style) to improve API readability (v2.1.0 ergonomics)
+
+  **Commits**:
+    - 9469481 — feat: add semantic color and style constants (+536 lines, 50 tests)
 
 ✅ **Session 101** — FEATURE MODE: SPAN & LINE CONVENIENCE CONSTRUCTORS (2026-04-14)
   - **Mode**: FEATURE (session 101, 101 % 5 == 1)
