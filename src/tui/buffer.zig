@@ -212,20 +212,46 @@ pub const DiffOp = struct {
 };
 
 /// Calculate diff between two buffers
+/// Optimized diff computation with row-level skipping and direct cell access.
+/// Performance improvements:
+/// - Skip unchanged rows entirely by comparing row slices as bytes
+/// - Direct array indexing instead of bounds-checked getConst()
+/// - Better initial capacity estimation (10% of buffer size)
+/// Added in v2.1.0 for performance optimization milestone.
 pub fn diff(allocator: Allocator, old: Buffer, new: Buffer) ![]DiffOp {
     if (old.width != new.width or old.height != new.height) {
         return error.BufferSizeMismatch;
     }
 
-    var ops = try std.ArrayList(DiffOp).initCapacity(allocator, 0);
+    // Better initial capacity: estimate ~10% of cells might change in typical usage
+    const total_cells = @as(usize, old.width) * @as(usize, old.height);
+    const estimated_changes = @max(16, total_cells / 10);
+    var ops = try std.ArrayList(DiffOp).initCapacity(allocator, estimated_changes);
     defer ops.deinit(allocator);
 
+    const width = @as(usize, old.width);
     var y: u16 = 0;
     while (y < new.height) : (y += 1) {
+        const row_start = @as(usize, y) * width;
+        const row_end = row_start + width;
+
+        // Optimization: Skip entire unchanged rows by comparing as bytes
+        // Cell has no pointers, so byte comparison is safe and faster
+        const old_row = old.cells[row_start..row_end];
+        const new_row = new.cells[row_start..row_end];
+        const old_bytes = std.mem.sliceAsBytes(old_row);
+        const new_bytes = std.mem.sliceAsBytes(new_row);
+
+        if (std.mem.eql(u8, old_bytes, new_bytes)) {
+            continue; // Entire row unchanged, skip to next row
+        }
+
+        // Row has changes, find individual cells
         var x: u16 = 0;
         while (x < new.width) : (x += 1) {
-            const old_cell = old.getConst(x, y).?;
-            const new_cell = new.getConst(x, y).?;
+            const idx = row_start + @as(usize, x);
+            const old_cell = old.cells[idx];
+            const new_cell = new.cells[idx];
 
             if (!old_cell.eql(new_cell)) {
                 try ops.append(allocator, .{ .x = x, .y = y, .cell = new_cell });
