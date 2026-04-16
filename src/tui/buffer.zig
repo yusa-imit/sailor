@@ -97,6 +97,9 @@ pub const Buffer = struct {
 
     /// Write string at position with optional style
     pub fn setString(self: *Buffer, x: u16, y: u16, str: []const u8, cell_style: Style) void {
+        // Early return if y is out of bounds
+        if (y >= self.height) return;
+
         var col = x;
         var i: usize = 0;
         while (i < str.len and col < self.width) {
@@ -122,7 +125,9 @@ pub const Buffer = struct {
             // Check if wide character would overflow
             if (char_width == 2 and col + 1 >= self.width) break;
 
-            self.set(col, y, Cell{ .char = codepoint, .style = cell_style });
+            // Direct array access - bounds already checked in loop condition (col < self.width)
+            const idx = @as(usize, y) * @as(usize, self.width) + @as(usize, col);
+            self.cells[idx] = Cell{ .char = codepoint, .style = cell_style };
             i += char_len;
             col += char_width;
         }
@@ -768,4 +773,141 @@ test "Buffer.clone - creates independent copy" {
     original.set(0, 0, .{ .char = 'X', .style = .{} });
     try std.testing.expectEqual(@as(u21, 'X'), original.get(0, 0).?.char);
     try std.testing.expectEqual(@as(u21, 't'), copy.get(0, 0).?.char);
+}
+
+// ============================================================================
+// Performance Benchmarks
+// ============================================================================
+
+test "benchmark setString with realistic workload" {
+    const allocator = std.testing.allocator;
+
+    // Realistic terminal buffer: 80x24 (standard terminal size)
+    var buffer = try Buffer.init(allocator, 80, 24);
+    defer buffer.deinit();
+
+    // Simulate rendering 100 strings (e.g., rows of text in a TUI)
+    // Each string is 40 characters, writing to different rows and columns
+    const num_writes = 100;
+    const test_string = "This is a test string for benchmark";
+    const style = Style{ .fg = .white };
+
+    // Measure total time for all writes
+    var timer = try std.time.Timer.start();
+
+    var i: usize = 0;
+    while (i < num_writes) : (i += 1) {
+        // Write to different row (wrap around buffer height)
+        const row: u16 = @intCast(i % 24);
+        // Write to different column (cycle through valid starting columns)
+        const col: u16 = @intCast((i / 24) * 10); // 10 chars per cycle
+
+        if (col < buffer.width) {
+            buffer.setString(col, row, test_string, style);
+        }
+    }
+
+    const elapsed = timer.read();
+
+    // Verify correctness: first write should be present
+    try std.testing.expectEqual(@as(u21, 'T'), buffer.get(0, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'h'), buffer.get(1, 0).?.char);
+
+    // Log timing information (for manual performance tracking)
+    // Expected: ~100-500 microseconds for 100 writes on modern hardware
+    // After optimization (direct array access): should be ~10-20% faster
+    std.debug.print("\nbenchmark setString: {d} writes in {d} ns ({d} ns/write)\n", .{
+        num_writes,
+        elapsed,
+        elapsed / num_writes,
+    });
+
+    // Assert that the benchmark completes in reasonable time
+    // This is a sanity check to catch extreme regressions
+    // 100 writes should not take more than 10 milliseconds
+    try std.testing.expect(elapsed < 10_000_000); // 10ms in nanoseconds
+}
+
+test "benchmark setString vs fill performance comparison" {
+    const allocator = std.testing.allocator;
+
+    var buffer = try Buffer.init(allocator, 80, 24);
+    defer buffer.deinit();
+
+    const style = Style{ .fg = .green, .bold = true };
+    const test_string = "Performance test string here";
+
+    // Benchmark setString: multiple writes
+    const num_writes = 50;
+    var timer = try std.time.Timer.start();
+
+    var i: usize = 0;
+    while (i < num_writes) : (i += 1) {
+        const row: u16 = @intCast((i * 2) % 24);
+        if (i * 10 < buffer.width) {
+            buffer.setString(@intCast(i * 10), row, test_string, style);
+        }
+    }
+
+    const setstring_elapsed = timer.read();
+
+    // Benchmark fill: for comparison (similar number of cells written)
+    timer = try std.time.Timer.start();
+
+    var j: usize = 0;
+    while (j < num_writes) : (j += 1) {
+        const area = Rect{
+            .x = @intCast((j * 10) % 60),
+            .y = @intCast((j * 2) % 20),
+            .width = 28,
+            .height = 1,
+        };
+        buffer.fill(area, 'X', style);
+    }
+
+    const fill_elapsed = timer.read();
+
+    // Verify data was written
+    try std.testing.expect(buffer.get(0, 0) != null);
+
+    // Log comparison
+    std.debug.print("\nbenchmark comparison:\n", .{});
+    std.debug.print("  setString: {d} ns ({d} ns/op)\n", .{ setstring_elapsed, setstring_elapsed / num_writes });
+    std.debug.print("  fill:      {d} ns ({d} ns/op)\n", .{ fill_elapsed, fill_elapsed / num_writes });
+    std.debug.print("  ratio:     {d:.2}x\n", .{ @as(f64, @floatFromInt(setstring_elapsed)) / @as(f64, @floatFromInt(fill_elapsed)) });
+}
+
+test "benchmark setString high-frequency updates" {
+    const allocator = std.testing.allocator;
+
+    var buffer = try Buffer.init(allocator, 80, 24);
+    defer buffer.deinit();
+
+    // Simulate rapid updates to same region (e.g., status bar updates)
+    const num_updates = 200;
+    const status_text = "Status: Processing...";
+    const style = Style{ .fg = .yellow };
+
+    var timer = try std.time.Timer.start();
+
+    var i: usize = 0;
+    while (i < num_updates) : (i += 1) {
+        // Same position, rapidly updated
+        buffer.setString(0, 23, status_text, style);
+    }
+
+    const elapsed = timer.read();
+
+    // Verify correctness
+    try std.testing.expectEqual(@as(u21, 'S'), buffer.get(0, 23).?.char);
+
+    std.debug.print("\nbenchmark setString (high-frequency): {d} updates in {d} ns ({d} ns/update)\n", .{
+        num_updates,
+        elapsed,
+        elapsed / num_updates,
+    });
+
+    // Should be very fast since same cells are updated repeatedly
+    // (likely CPU cache hits after first update)
+    try std.testing.expect(elapsed < 20_000_000); // 20ms max
 }
