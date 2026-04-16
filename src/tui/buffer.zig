@@ -130,11 +130,14 @@ pub const Buffer = struct {
 
     /// Fill area with character and style
     pub fn fill(self: *Buffer, area: Rect, char: u21, cell_style: Style) void {
+        const cell = Cell{ .char = char, .style = cell_style };
         var row = area.y;
         while (row < area.y + area.height and row < self.height) : (row += 1) {
             var col = area.x;
             while (col < area.x + area.width and col < self.width) : (col += 1) {
-                self.set(col, row, Cell{ .char = char, .style = cell_style });
+                // Direct array access - bounds already checked in loop condition
+                const idx = @as(usize, row) * @as(usize, self.width) + @as(usize, col);
+                self.cells[idx] = cell;
             }
         }
     }
