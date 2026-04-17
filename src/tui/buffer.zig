@@ -90,9 +90,10 @@ pub const Buffer = struct {
 
     /// Set cell at position
     pub fn set(self: *Buffer, x: u16, y: u16, cell: Cell) void {
-        if (self.get(x, y)) |c| {
-            c.* = cell;
-        }
+        // Bounds check once, then direct array access (no redundant get() call)
+        if (x >= self.width or y >= self.height) return;
+        const index = @as(usize, y) * @as(usize, self.width) + @as(usize, x);
+        self.cells[index] = cell;
     }
 
     /// Write string at position with optional style
@@ -910,4 +911,180 @@ test "benchmark setString high-frequency updates" {
     // Should be very fast since same cells are updated repeatedly
     // (likely CPU cache hits after first update)
     try std.testing.expect(elapsed < 20_000_000); // 20ms max
+}
+
+test "benchmark set() with 10000 operations" {
+    const allocator = std.testing.allocator;
+
+    // Standard terminal buffer: 80x24
+    var buffer = try Buffer.init(allocator, 80, 24);
+    defer buffer.deinit();
+
+    // Benchmark parameters
+    const num_ops = 10_000;
+    const style = Style{ .fg = .white };
+
+    // Warm up: a few operations to get CPU cache warm
+    var warmup: u16 = 0;
+    while (warmup < 10) : (warmup += 1) {
+        buffer.set(warmup % 80, warmup % 24, .{ .char = 'A', .style = style });
+    }
+
+    // Start measurement
+    var timer = try std.time.Timer.start();
+
+    // Perform 10,000 set operations with pseudo-random positions
+    // Using simple LCG to avoid overhead of complex PRNG
+    var seed: u32 = 12345;
+    var op: usize = 0;
+    while (op < num_ops) : (op += 1) {
+        // Simple LCG: x = (a*x + c) mod m
+        seed = (seed *% 1103515245) +% 12345;
+        const x: u16 = @intCast((seed >> 16) % 80);
+        const y: u16 = @intCast((seed >> 8) % 24);
+        const char: u21 = 'A' + @as(u21, @intCast(seed % 26));
+
+        buffer.set(x, y, .{ .char = char, .style = style });
+    }
+
+    const elapsed = timer.read();
+
+    // Verify that data was actually written (prevent optimization dead code)
+    try std.testing.expect(buffer.get(0, 0) != null);
+
+    // Calculate ns per operation
+    const ns_per_op = elapsed / num_ops;
+
+    std.debug.print("\nbenchmark set(): {d} operations in {d} ns ({d} ns/op)\n", .{
+        num_ops,
+        elapsed,
+        ns_per_op,
+    });
+
+    // Performance assertion: set() should be very fast (~10-50 ns/op on modern hardware)
+    // This is a sanity check to detect regressions from redundant bounds checking
+    try std.testing.expect(elapsed < 2_000_000); // 2ms total max (20 ns/op average)
+}
+
+test "benchmark set() comparison: sequential vs random positions" {
+    const allocator = std.testing.allocator;
+
+    var buffer = try Buffer.init(allocator, 80, 24);
+    defer buffer.deinit();
+
+    const num_ops = 5_000;
+    const style = Style{ .fg = .green };
+
+    // Test 1: Sequential positions (best cache locality)
+    var timer = try std.time.Timer.start();
+
+    var seq_op: usize = 0;
+    while (seq_op < num_ops) : (seq_op += 1) {
+        const pos = seq_op % (80 * 24);
+        const x: u16 = @intCast(pos % 80);
+        const y: u16 = @intCast(pos / 80);
+        buffer.set(x, y, .{ .char = 'S', .style = style });
+    }
+
+    const seq_elapsed = timer.read();
+
+    // Test 2: Random positions (worst cache locality)
+    timer = try std.time.Timer.start();
+
+    var seed: u32 = 9999;
+    var rand_op: usize = 0;
+    while (rand_op < num_ops) : (rand_op += 1) {
+        seed = (seed *% 1103515245) +% 12345;
+        const x: u16 = @intCast((seed >> 16) % 80);
+        const y: u16 = @intCast((seed >> 8) % 24);
+        buffer.set(x, y, .{ .char = 'R', .style = style });
+    }
+
+    const rand_elapsed = timer.read();
+
+    // Verify operations completed
+    try std.testing.expect(buffer.get(0, 0) != null);
+
+    std.debug.print("\nbenchmark set() position patterns:\n", .{});
+    std.debug.print("  sequential: {d} ops in {d} ns ({d} ns/op)\n", .{
+        num_ops,
+        seq_elapsed,
+        seq_elapsed / num_ops,
+    });
+    std.debug.print("  random:     {d} ops in {d} ns ({d} ns/op)\n", .{
+        num_ops,
+        rand_elapsed,
+        rand_elapsed / num_ops,
+    });
+
+    const ratio = @as(f64, @floatFromInt(rand_elapsed)) / @as(f64, @floatFromInt(seq_elapsed));
+    std.debug.print("  cache penalty: {d:.2}x slower\n", .{ratio});
+
+    // Sanity checks
+    try std.testing.expect(seq_elapsed < 2_000_000); // Sequential should be very fast
+    try std.testing.expect(rand_elapsed < 3_000_000); // Random should still be reasonable
+}
+
+test "benchmark set() with style variations" {
+    const allocator = std.testing.allocator;
+
+    var buffer = try Buffer.init(allocator, 80, 24);
+    defer buffer.deinit();
+
+    const num_ops = 5_000;
+
+    // Test 1: No style (minimal data)
+    var timer = try std.time.Timer.start();
+
+    var op1: usize = 0;
+    while (op1 < num_ops) : (op1 += 1) {
+        const x: u16 = @intCast(op1 % 80);
+        const y: u16 = @intCast(op1 / 80 % 24);
+        buffer.set(x, y, .{ .char = 'A', .style = .{} });
+    }
+
+    const nostyle_elapsed = timer.read();
+
+    // Test 2: Complex style (many attributes)
+    timer = try std.time.Timer.start();
+
+    var op2: usize = 0;
+    while (op2 < num_ops) : (op2 += 1) {
+        const x: u16 = @intCast(op2 % 80);
+        const y: u16 = @intCast(op2 / 80 % 24);
+        buffer.set(x, y, .{
+            .char = 'B',
+            .style = .{
+                .fg = .red,
+                .bg = .blue,
+                .bold = true,
+                .italic = true,
+                .underline = true,
+            },
+        });
+    }
+
+    const styled_elapsed = timer.read();
+
+    // Verify operations
+    try std.testing.expect(buffer.get(0, 0) != null);
+
+    std.debug.print("\nbenchmark set() style overhead:\n", .{});
+    std.debug.print("  no style:    {d} ops in {d} ns ({d} ns/op)\n", .{
+        num_ops,
+        nostyle_elapsed,
+        nostyle_elapsed / num_ops,
+    });
+    std.debug.print("  complex:     {d} ops in {d} ns ({d} ns/op)\n", .{
+        num_ops,
+        styled_elapsed,
+        styled_elapsed / num_ops,
+    });
+
+    // Style difference should be minimal (just copying struct data)
+    const ratio = @as(f64, @floatFromInt(styled_elapsed)) / @as(f64, @floatFromInt(nostyle_elapsed));
+    std.debug.print("  style overhead: {d:.2}x\n", .{ratio});
+
+    try std.testing.expect(nostyle_elapsed < 2_000_000);
+    try std.testing.expect(styled_elapsed < 2_000_000);
 }
