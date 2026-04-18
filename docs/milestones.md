@@ -2,51 +2,21 @@
 
 ## Current Status
 
-- **Latest release**: v2.0.0 (2026-04-13) — Major Release: API Cleanup & Modernization
-- **Latest minor**: v2.0.0 (2026-04-13) — Breaking changes, simplified API
-- **Next milestone**: v2.1.0 — Post-v2.0 Polish & Consumer Feedback
-- **Active milestones**: 1 (v2.1.0)
+- **Latest release**: v2.1.0 (2026-04-19) — Performance & Ergonomics Polish
+- **Latest minor**: v2.1.0 (2026-04-19) — Performance optimizations, API ergonomics
+- **Next milestone**: TBD — To be established (active milestones < 2)
+- **Active milestones**: 0
 - **Blockers**: None
 
 ## Active Milestones
 
-### v2.1.0 — Post-v2.0 Polish & Consumer Feedback (Target: 2026-04-30)
-
-**Theme**: Address consumer migration issues and add polish based on v2.0.0 usage
-
-**Checklist**:
-- [ ] **Consumer migration support**: Help consumer projects complete v2.0.0 migration
-  - Monitor zr, zoltraak, silica migration issues
-  - Fix any migration script edge cases discovered
-  - Provide migration assistance as needed
-- [ ] **Bug fixes**: Address any bugs found during consumer migrations
-  - Track issues filed by consumer projects
-  - Prioritize breaking bugs
-  - Quick turnaround on patches
-- [ ] **API ergonomics improvements**: Based on real-world usage feedback
-  - Add convenience methods where needed
-  - Improve error messages
-  - Better defaults for common use cases
-- [ ] **Performance optimization**: Profile and optimize hot paths
-  - Widget rendering optimizations
-  - Buffer diff algorithm improvements
-  - Memory allocation reduction
-
-**Success Criteria**:
-- All 3 consumer projects successfully migrated to v2.0.0
-- No critical bugs in v2.0.0 API
-- Performance benchmarks show no regressions
-- Positive feedback from consumer project maintainers
-
-**Notes**:
-- This milestone is reactive — scope will adjust based on consumer feedback
-- May release earlier if consumer migrations complete smoothly
-- Focus on stability and usability, no new features
+(None — will be established when count < 2)
 
 ## Completed Milestones
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v2.1.0 | Performance & Ergonomics Polish | 2026-04-19 | Performance optimizations: Buffer diff +38% (row-level skipping), Buffer fill +34% (direct array access), Buffer set +33% (eliminated bounds checks). API ergonomics: Rect.fromSize(), Constraint/Color/Span/Line constructors, semantic constants (Style.bold/dim/italic, Color.red/green/yellow). 1036 tests passing, 6 cross-platform targets verified, 0 breaking changes |
 | v2.0.0 | Major Release: API Cleanup & Modernization | 2026-04-13 | BREAKING CHANGES: Removed Buffer.setChar() (use Buffer.set()), removed Rect.new() (use struct literals). Kept Block.withTitle() as valid builder pattern. Migration script updated. All tests passing (~3345 tests). Clean API, simplified naming, better ergonomics |
 | v1.38.1 | Migration Script Fixes & Test Coverage | 2026-04-07 | Patch release: migration script diff exit code handling fix, TextArea widget comprehensive tests (+~50 tests), Tree widget comprehensive tests (+~50 tests) — ~3345 total tests, 0 breaking changes |
 | v1.38.0 | v2.0.0 Migration Tooling & Automation | 2026-04-07 | Migration script (automated sed/regex patterns for Buffer/Style/Widget API changes), deprecation audit (all v2.0.0 changes have warnings), migration testing framework (before/after test cases), consumer project dry-run validation (zr/zoltraak/silica) — ~3245 total tests (+50), 0 breaking changes, prepares for v2.0.0 |
