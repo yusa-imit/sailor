@@ -4,13 +4,81 @@
 
 - **Latest release**: v2.1.0 (2026-04-19) — Performance & Ergonomics Polish
 - **Latest minor**: v2.1.0 (2026-04-19) — Performance optimizations, API ergonomics
-- **Next milestone**: TBD — To be established (active milestones < 2)
-- **Active milestones**: 0
+- **Next milestone**: v2.2.0 — Consumer Feedback & Bug Fixes
+- **Active milestones**: 2 (v2.2.0, v2.3.0)
 - **Blockers**: None
 
 ## Active Milestones
 
-(None — will be established when count < 2)
+### v2.2.0 — Consumer Feedback & Bug Fixes (Target: 2026-05-15)
+
+**Theme**: Address real-world usage feedback from zr, zoltraak, silica migrations
+
+**Checklist**:
+- [ ] **Monitor consumer migrations**: Track progress of v2.1.0 migrations
+  - zr#54, zoltraak#31, silica#40
+  - Help resolve any migration blockers
+  - Document common migration patterns
+- [ ] **Bug fixes**: Fix any issues discovered during real-world usage
+  - Prioritize bugs from consumer projects (`from:*` labels)
+  - Quick turnaround on critical issues
+  - Comprehensive test coverage for fixes
+- [ ] **Documentation improvements**: Based on consumer questions
+  - Add examples for common use cases
+  - Clarify API documentation where confusion occurs
+  - Migration guides for tricky patterns
+- [ ] **API refinements**: Minor improvements based on usage patterns
+  - Add missing convenience methods if requested
+  - Improve error messages
+  - No breaking changes
+
+**Success Criteria**:
+- All consumer projects successfully migrated to v2.1.0
+- Zero critical bugs in production use
+- Positive feedback from consumer maintainers
+- Documentation addresses common questions
+
+**Notes**:
+- Reactive milestone — scope adjusts based on consumer feedback
+- May release earlier if migrations complete smoothly with no issues
+- Focus: stability, usability, developer experience
+
+### v2.3.0 — Advanced Widget Features (Target: 2026-06-15)
+
+**Theme**: Enhance widgets with advanced features requested by real-world applications
+
+**Checklist**:
+- [ ] **Scrollable widgets**: Add scrolling support where needed
+  - Table with vertical/horizontal scroll
+  - List with smooth scrolling
+  - Paragraph with text wrapping improvements
+- [ ] **Widget state persistence**: Save/restore widget state
+  - Table column widths, sort order
+  - List selection, scroll position
+  - Input cursor position, undo/redo
+- [ ] **Advanced styling**: More flexible styling options
+  - Gradient backgrounds
+  - Border styles (double, rounded, dashed)
+  - Shadow effects
+- [ ] **Widget composition helpers**: Make complex layouts easier
+  - Bordered wrapper
+  - Padded wrapper
+  - Scrollable wrapper
+- [ ] **Performance**: Optimize widget rendering further
+  - Lazy rendering for large data sets
+  - Virtual scrolling for huge lists
+  - Render budget enforcement
+
+**Success Criteria**:
+- All scrollable widgets handle large datasets efficiently
+- State persistence works across sessions
+- Performance benchmarks show no regressions
+- Consumer projects adopt new features
+
+**Notes**:
+- Build on v2.2.0 feedback — features driven by actual needs
+- No breaking changes to existing APIs
+- All new features must have comprehensive tests
 
 ## Completed Milestones
 
