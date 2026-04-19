@@ -9,6 +9,7 @@
 //! - Aligned(T): aligns widget with horizontal/vertical control
 //! - Stack: stacks multiple widgets vertically or horizontally
 //! - Constrained(T): enforces min/max size constraints
+//! - Bordered(T): wraps a widget with a Block border
 
 const std = @import("std");
 const Buffer = @import("buffer.zig").Buffer;
@@ -16,6 +17,9 @@ const Rect = @import("layout.zig").Rect;
 const widget_trait = @import("widget_trait.zig");
 const Size = widget_trait.Size;
 const WidgetList = widget_trait.WidgetList;
+const block_mod = @import("widgets/block.zig");
+const Block = block_mod.Block;
+const Borders = block_mod.Borders;
 
 // ============================================================================
 // Padding — Decorator adding padding around any widget
@@ -451,6 +455,69 @@ pub fn Constrained(comptime T: type) type {
 }
 
 // ============================================================================
+// Bordered — Wraps a widget with a Block border
+// ============================================================================
+
+/// Bordered wrapper adds a Block border around any widget.
+/// The inner widget is rendered in the block's inner area.
+pub fn Bordered(comptime T: type) type {
+    return struct {
+        widget: T,
+        block: Block,
+
+        const Self = @This();
+
+        /// Creates a new bordered wrapper with the given widget and block.
+        pub fn init(widget: T, block: Block) Self {
+            return .{
+                .widget = widget,
+                .block = block,
+            };
+        }
+
+        /// Creates a bordered wrapper with a simple titled border.
+        pub fn withTitle(widget: T, title: []const u8) Self {
+            const block = (Block{}).withBorders(Borders.all).withTitle(title, .top_left);
+            return .{
+                .widget = widget,
+                .block = block,
+            };
+        }
+
+        /// Measures the widget's size including border overhead (2 cols, 2 rows).
+        pub fn measure(self: Self, allocator: std.mem.Allocator, max_width: u16, max_height: u16) !Size {
+            // Border takes 2 width and 2 height (1 on each side)
+            const inner_max_width = if (max_width >= 2) max_width - 2 else 0;
+            const inner_max_height = if (max_height >= 2) max_height - 2 else 0;
+
+            var inner_size = Size{ .width = inner_max_width, .height = inner_max_height };
+
+            if (@hasDecl(T, "measure")) {
+                inner_size = try self.widget.measure(allocator, inner_max_width, inner_max_height);
+            }
+
+            // Add border overhead
+            return Size{
+                .width = @min(inner_size.width + 2, max_width),
+                .height = @min(inner_size.height + 2, max_height),
+            };
+        }
+
+        /// Renders the border and the widget inside it.
+        pub fn render(self: Self, buf: *Buffer, area: Rect) void {
+            // Render the block border first
+            self.block.render(buf, area);
+
+            // Calculate inner area (excluding border)
+            const inner = self.block.inner(area);
+
+            // Render the widget in the inner area
+            self.widget.render(buf, inner);
+        }
+    };
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -755,4 +822,99 @@ test "Constraints - all fields optional" {
     const c2 = Constraints{ .min_width = 10 };
     try std.testing.expectEqual(@as(?u16, 10), c2.min_width);
     try std.testing.expectEqual(@as(?u16, null), c2.max_width);
+}
+
+test "Bordered - init with block" {
+    const BorderedWidget = Bordered(MockWidget);
+    const mock = MockWidget{ .content = 'B' };
+    const block = (Block{}).withBorders(Borders.all).withTitle("Test", .top_left);
+    const bordered = BorderedWidget.init(mock, block);
+
+    try std.testing.expectEqual(@as(u8, 'B'), bordered.widget.content);
+}
+
+test "Bordered - withTitle convenience method" {
+    const BorderedWidget = Bordered(MockWidget);
+    const mock = MockWidget{ .content = 'B' };
+    const bordered = BorderedWidget.withTitle(mock, "Title");
+
+    try std.testing.expectEqual(@as(u8, 'B'), bordered.widget.content);
+}
+
+test "Bordered - render with border" {
+    const BorderedWidget = Bordered(MockWidget);
+    const mock = MockWidget{ .content = 'X' };
+    const bordered = BorderedWidget.withTitle(mock, "Box");
+
+    var buf = try Buffer.init(std.testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
+    bordered.render(&buf, area);
+
+    // Check corners (border characters)
+    const top_left = buf.getConst(0, 0).?;
+    const top_right = buf.getConst(19, 0).?;
+    const bottom_left = buf.getConst(0, 9).?;
+    const bottom_right = buf.getConst(19, 9).?;
+
+    // These should be border characters (not spaces, not 'X')
+    try std.testing.expect(top_left.char != ' ');
+    try std.testing.expect(top_left.char != 'X');
+    try std.testing.expect(top_right.char != ' ');
+    try std.testing.expect(bottom_left.char != ' ');
+    try std.testing.expect(bottom_right.char != ' ');
+
+    // Check inner content (should be 'X')
+    // Inner area is (1,1) to (18,8) due to border
+    try std.testing.expectEqual(@as(u21, 'X'), buf.getConst(1, 1).?.char);
+    try std.testing.expectEqual(@as(u21, 'X'), buf.getConst(10, 5).?.char);
+    try std.testing.expectEqual(@as(u21, 'X'), buf.getConst(18, 8).?.char);
+}
+
+test "Bordered - measure includes border overhead" {
+    const BorderedWidget = Bordered(MockWidget);
+    const mock = MockWidget{ .content = 'B' };
+    const bordered = BorderedWidget.withTitle(mock, "Test");
+
+    // MockWidget measures as 10x5
+    // Bordered should add 2 to each dimension for border
+    const size = try bordered.measure(std.testing.allocator, 100, 100);
+    try std.testing.expectEqual(@as(u16, 12), size.width); // 10 + 2
+    try std.testing.expectEqual(@as(u16, 7), size.height); // 5 + 2
+}
+
+test "Bordered - measure respects max constraints" {
+    const BorderedWidget = Bordered(MockWidget);
+    const mock = MockWidget{ .content = 'B' };
+    const bordered = BorderedWidget.withTitle(mock, "Test");
+
+    // If max_width is 10, bordered should not exceed it
+    const size = try bordered.measure(std.testing.allocator, 10, 10);
+    try std.testing.expectEqual(@as(u16, 10), size.width); // Clamped to max
+    try std.testing.expectEqual(@as(u16, 7), size.height); // 5 + 2, fits within 10
+}
+
+test "Bordered - small area renders border only" {
+    const BorderedWidget = Bordered(MockWidget);
+    const mock = MockWidget{ .content = 'X' };
+    const bordered = BorderedWidget.withTitle(mock, "Box");
+
+    var buf = try Buffer.init(std.testing.allocator, 5, 3);
+    defer buf.deinit();
+
+    // Very small area (5x3) — should render border with minimal inner space
+    const area = Rect{ .x = 0, .y = 0, .width = 5, .height = 3 };
+    bordered.render(&buf, area);
+
+    // Border should exist
+    try std.testing.expect(buf.getConst(0, 0).?.char != ' ');
+    try std.testing.expect(buf.getConst(4, 0).?.char != ' ');
+    try std.testing.expect(buf.getConst(0, 2).?.char != ' ');
+    try std.testing.expect(buf.getConst(4, 2).?.char != ' ');
+
+    // Inner area (1,1) to (3,1) should have content if space allows
+    // With 5x3 area, inner is 3x1 — mock widget will try to render
+    const inner_cell = buf.getConst(1, 1);
+    try std.testing.expect(inner_cell != null);
 }
