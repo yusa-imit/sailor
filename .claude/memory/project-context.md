@@ -1,3 +1,46 @@
+✅ **Session 114** — FEATURE MODE: SCROLLABLE WIDGETS (2026-04-20)
+  - **Mode**: FEATURE (session 114, 114 % 5 == 4)
+  - **Achievement**: Added scroll helper methods to Table and List widgets (v2.3.0 milestone)
+
+  **Completed Work**:
+    - ✅ Implemented scroll helper methods for Table widget (src/tui/widgets/table.zig)
+    - ✅ Implemented scroll helper methods for List widget (src/tui/widgets/list.zig)
+    - ✅ Methods added (both widgets):
+      - scrollDown(n, visible_rows?) — scroll down with bounds checking
+      - scrollUp(n) — scroll up (saturating subtraction, never below 0)
+      - scrollToTop() — reset offset to 0
+      - scrollToBottom(visible_rows) — scroll to show last rows
+    - ✅ Added 37 comprehensive tests (18 Table, 19 List)
+    - ✅ All tests passing (exit code 0)
+    - ✅ Commit: 71e5c72 — feat: add scroll helper methods to Table and List widgets
+    - ✅ Pushed to main
+
+  **v2.3.0 Progress** (Advanced Widget Features):
+    - ✅ Widget composition helpers (ALL DONE):
+      - ✅ Bordered wrapper (session 112)
+      - ✅ Scrollable wrapper (session 113)
+      - ✅ Padded wrapper (already exists)
+    - ⏳ Scrollable widgets (IN PROGRESS):
+      - ✅ Table scroll helper methods (session 114)
+      - ✅ List scroll helper methods (session 114)
+      - ⏳ Paragraph text wrapping improvements (pending)
+    - Widget state persistence: Pending
+    - Advanced styling: Pending
+    - Performance: Pending
+
+  **Current State**:
+    - **Latest release**: v2.1.0 (2026-04-19)
+    - **Active milestones**: 2 (v2.2.0 Consumer Feedback, v2.3.0 Advanced Widget Features)
+    - **CI status**: Building (commit 71e5c72)
+    - **Open issues**: 0 (sailor), 3 (consumer migration notifications)
+    - **Blockers**: NONE
+    - **Test count**: ~3174 passing tests (+37)
+
+  **Next Priority**:
+    - Continue v2.3.0 work: Paragraph wrapping improvements, widget state persistence, or advanced styling
+    - Monitor consumer migrations for v2.1.0 (reactive milestone v2.2.0)
+    - Address any feedback from consumer projects
+
 ✅ **Session 113** — FEATURE MODE: SCROLLABLE WIDGET COMPOSITION HELPER (2026-04-20)
   - **Mode**: FEATURE (session 113, 113 % 5 == 3)
   - **Achievement**: Added Scrollable(T) widget composition helper (v2.3.0 milestone)
