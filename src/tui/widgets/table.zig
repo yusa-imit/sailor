@@ -155,6 +155,53 @@ pub const Table = struct {
         return result;
     }
 
+    /// Scroll down by n rows (with bounds checking)
+    pub fn scrollDown(self: Table, n: usize, visible_rows: ?usize) Table {
+        var result = self;
+        const new_offset = self.offset + n;
+
+        if (visible_rows) |vis| {
+            // With visible_rows: clamp to (rows.len - visible_rows)
+            if (self.rows.len >= vis) {
+                result.offset = @min(new_offset, self.rows.len - vis);
+            } else {
+                result.offset = 0;
+            }
+        } else {
+            // Without visible_rows: clamp to rows.len
+            result.offset = @min(new_offset, self.rows.len);
+        }
+
+        return result;
+    }
+
+    /// Scroll up by n rows (never goes below 0)
+    pub fn scrollUp(self: Table, n: usize) Table {
+        var result = self;
+        result.offset = self.offset -| n;
+        return result;
+    }
+
+    /// Scroll to the top (set offset to 0)
+    pub fn scrollToTop(self: Table) Table {
+        var result = self;
+        result.offset = 0;
+        return result;
+    }
+
+    /// Scroll to bottom to show last rows
+    pub fn scrollToBottom(self: Table, visible_rows: usize) Table {
+        var result = self;
+
+        if (self.rows.len >= visible_rows) {
+            result.offset = self.rows.len - visible_rows;
+        } else {
+            result.offset = 0;
+        }
+
+        return result;
+    }
+
     /// Calculate column widths based on available space into provided buffer
     fn calculateColumnWidths(self: Table, available_width: u16, widths_buf: []u16) void {
         // widths_buf must be at least self.columns.len long
@@ -702,4 +749,230 @@ test "Table: render with large dataset does not leak" {
     for (0..100) |offset| {
         table.withOffset(offset).render(&buf, Rect{ .x = 0, .y = 0, .width = 40, .height = 10 });
     }
+}
+
+// ============================================================================
+// Scroll Helper Method Tests
+// ============================================================================
+
+test "Table.scrollDown increments offset correctly" {
+    const columns = &[_]Column{.{ .title = "A" }};
+    const rows = &[_]Row{
+        &[_][]const u8{"1"},
+        &[_][]const u8{"2"},
+        &[_][]const u8{"3"},
+        &[_][]const u8{"4"},
+        &[_][]const u8{"5"},
+    };
+    const table = Table.init(columns, rows);
+
+    // Initial offset should be 0
+    try std.testing.expectEqual(@as(usize, 0), table.offset);
+
+    // Scroll down by 2
+    const scrolled = table.scrollDown(2, null);
+    try std.testing.expectEqual(@as(usize, 2), scrolled.offset);
+
+    // Scroll down again
+    const scrolled_more = scrolled.scrollDown(1, null);
+    try std.testing.expectEqual(@as(usize, 3), scrolled_more.offset);
+}
+
+test "Table.scrollDown respects bounds with visible_rows parameter" {
+    const columns = &[_]Column{.{ .title = "A" }};
+    const rows = &[_]Row{
+        &[_][]const u8{"1"},
+        &[_][]const u8{"2"},
+        &[_][]const u8{"3"},
+        &[_][]const u8{"4"},
+        &[_][]const u8{"5"},
+    };
+    const table = Table.init(columns, rows);
+
+    // With 3 visible rows, max offset should be 5 - 3 = 2
+    const scrolled = table.scrollDown(10, 3);
+    try std.testing.expectEqual(@as(usize, 2), scrolled.offset);
+}
+
+test "Table.scrollDown handles scroll past end without visible_rows" {
+    const columns = &[_]Column{.{ .title = "A" }};
+    const rows = &[_]Row{
+        &[_][]const u8{"1"},
+        &[_][]const u8{"2"},
+        &[_][]const u8{"3"},
+    };
+    const table = Table.init(columns, rows);
+
+    // Without visible_rows, should clamp to row count
+    const scrolled = table.scrollDown(100, null);
+    try std.testing.expectEqual(@as(usize, 3), scrolled.offset);
+}
+
+test "Table.scrollDown on empty table does nothing" {
+    const columns = &[_]Column{.{ .title = "A" }};
+    const rows = &[_]Row{};
+    const table = Table.init(columns, rows);
+
+    const scrolled = table.scrollDown(5, null);
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "Table.scrollDown with single row and visible_rows" {
+    const columns = &[_]Column{.{ .title = "A" }};
+    const rows = &[_]Row{&[_][]const u8{"1"}};
+    const table = Table.init(columns, rows);
+
+    // With 1 row and 5 visible, offset should stay at 0
+    const scrolled = table.scrollDown(5, 5);
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "Table.scrollUp decrements offset correctly" {
+    const columns = &[_]Column{.{ .title = "A" }};
+    const rows = &[_]Row{
+        &[_][]const u8{"1"},
+        &[_][]const u8{"2"},
+        &[_][]const u8{"3"},
+    };
+    const table = Table.init(columns, rows).withOffset(2);
+
+    // Starting at offset 2
+    try std.testing.expectEqual(@as(usize, 2), table.offset);
+
+    // Scroll up by 1
+    const scrolled = table.scrollUp(1);
+    try std.testing.expectEqual(@as(usize, 1), scrolled.offset);
+
+    // Scroll up by 1 more
+    const scrolled_more = scrolled.scrollUp(1);
+    try std.testing.expectEqual(@as(usize, 0), scrolled_more.offset);
+}
+
+test "Table.scrollUp never goes below zero" {
+    const columns = &[_]Column{.{ .title = "A" }};
+    const rows = &[_]Row{&[_][]const u8{"1"}};
+    const table = Table.init(columns, rows).withOffset(1);
+
+    // Scroll up by more than current offset
+    const scrolled = table.scrollUp(100);
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "Table.scrollUp from zero offset does nothing" {
+    const columns = &[_]Column{.{ .title = "A" }};
+    const rows = &[_]Row{&[_][]const u8{"1"}};
+    const table = Table.init(columns, rows);
+
+    // Already at 0
+    try std.testing.expectEqual(@as(usize, 0), table.offset);
+
+    const scrolled = table.scrollUp(5);
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "Table.scrollToTop resets offset to zero" {
+    const columns = &[_]Column{.{ .title = "A" }};
+    const rows = &[_]Row{
+        &[_][]const u8{"1"},
+        &[_][]const u8{"2"},
+        &[_][]const u8{"3"},
+    };
+    const table = Table.init(columns, rows).withOffset(2);
+
+    try std.testing.expectEqual(@as(usize, 2), table.offset);
+
+    const scrolled = table.scrollToTop();
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "Table.scrollToTop when already at top" {
+    const columns = &[_]Column{.{ .title = "A" }};
+    const rows = &[_]Row{&[_][]const u8{"1"}};
+    const table = Table.init(columns, rows);
+
+    try std.testing.expectEqual(@as(usize, 0), table.offset);
+
+    const scrolled = table.scrollToTop();
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "Table.scrollToBottom with visible_rows parameter" {
+    const columns = &[_]Column{.{ .title = "A" }};
+    const rows = &[_]Row{
+        &[_][]const u8{"1"},
+        &[_][]const u8{"2"},
+        &[_][]const u8{"3"},
+        &[_][]const u8{"4"},
+        &[_][]const u8{"5"},
+    };
+    const table = Table.init(columns, rows);
+
+    // With 3 visible rows, offset should be 5 - 3 = 2
+    const scrolled = table.scrollToBottom(3);
+    try std.testing.expectEqual(@as(usize, 2), scrolled.offset);
+}
+
+test "Table.scrollToBottom with visible_rows larger than data" {
+    const columns = &[_]Column{.{ .title = "A" }};
+    const rows = &[_]Row{
+        &[_][]const u8{"1"},
+        &[_][]const u8{"2"},
+    };
+    const table = Table.init(columns, rows);
+
+    // With 10 visible rows but only 2 data rows, offset should be 0
+    const scrolled = table.scrollToBottom(10);
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "Table.scrollToBottom on empty table" {
+    const columns = &[_]Column{.{ .title = "A" }};
+    const rows = &[_]Row{};
+    const table = Table.init(columns, rows);
+
+    const scrolled = table.scrollToBottom(5);
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "Table.scrollToBottom with single row" {
+    const columns = &[_]Column{.{ .title = "A" }};
+    const rows = &[_]Row{&[_][]const u8{"1"}};
+    const table = Table.init(columns, rows);
+
+    const scrolled = table.scrollToBottom(1);
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "Table scroll methods can be chained" {
+    const columns = &[_]Column{.{ .title = "A" }};
+    const rows = &[_]Row{
+        &[_][]const u8{"1"},
+        &[_][]const u8{"2"},
+        &[_][]const u8{"3"},
+        &[_][]const u8{"4"},
+        &[_][]const u8{"5"},
+    };
+    const table = Table.init(columns, rows);
+
+    // Chain multiple scroll operations
+    const scrolled = table.scrollDown(3, null).scrollUp(1).scrollDown(1, null);
+    try std.testing.expectEqual(@as(usize, 3), scrolled.offset);
+}
+
+test "Table scroll methods work with other builder methods" {
+    const columns = &[_]Column{.{ .title = "A" }};
+    const rows = &[_]Row{
+        &[_][]const u8{"1"},
+        &[_][]const u8{"2"},
+    };
+    const style = Style{ .bold = true };
+
+    const table = Table.init(columns, rows)
+        .withHeaderStyle(style)
+        .scrollDown(1, null)
+        .withSelected(0);
+
+    try std.testing.expectEqual(@as(usize, 1), table.offset);
+    try std.testing.expectEqual(true, table.header_style.bold);
+    try std.testing.expectEqual(@as(?usize, 0), table.selected);
 }

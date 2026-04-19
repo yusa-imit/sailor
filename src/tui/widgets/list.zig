@@ -85,6 +85,53 @@ pub const List = struct {
         return result;
     }
 
+    /// Scroll down by n rows (with bounds checking)
+    pub fn scrollDown(self: List, n: usize, visible_rows: ?usize) List {
+        var result = self;
+        const new_offset = self.offset + n;
+
+        if (visible_rows) |vis| {
+            // With visible_rows: clamp to (items.len - visible_rows)
+            if (self.items.len >= vis) {
+                result.offset = @min(new_offset, self.items.len - vis);
+            } else {
+                result.offset = 0;
+            }
+        } else {
+            // Without visible_rows: clamp to items.len
+            result.offset = @min(new_offset, self.items.len);
+        }
+
+        return result;
+    }
+
+    /// Scroll up by n rows (never goes below 0)
+    pub fn scrollUp(self: List, n: usize) List {
+        var result = self;
+        result.offset = self.offset -| n;
+        return result;
+    }
+
+    /// Scroll to the top (set offset to 0)
+    pub fn scrollToTop(self: List) List {
+        var result = self;
+        result.offset = 0;
+        return result;
+    }
+
+    /// Scroll to bottom to show last rows
+    pub fn scrollToBottom(self: List, visible_rows: usize) List {
+        var result = self;
+
+        if (self.items.len >= visible_rows) {
+            result.offset = self.items.len - visible_rows;
+        } else {
+            result.offset = 0;
+        }
+
+        return result;
+    }
+
     /// Calculate the visible range of items
     fn visibleRange(self: List, height: u16) struct { start: usize, end: usize } {
         const max_items = @min(self.items.len, height);
@@ -435,4 +482,172 @@ test "List.render selection full-width highlight" {
         const cell = buf.get(@intCast(x), 0).?;
         try std.testing.expect(cell.style.bg != null);
     }
+}
+
+// ============================================================================
+// Scroll Helper Method Tests
+// ============================================================================
+
+test "List.scrollDown increments offset correctly" {
+    const items = &[_][]const u8{ "A", "B", "C", "D", "E" };
+    const list = List.init(items);
+
+    // Initial offset should be 0
+    try std.testing.expectEqual(@as(usize, 0), list.offset);
+
+    // Scroll down by 2
+    const scrolled = list.scrollDown(2, null);
+    try std.testing.expectEqual(@as(usize, 2), scrolled.offset);
+
+    // Scroll down again
+    const scrolled_more = scrolled.scrollDown(1, null);
+    try std.testing.expectEqual(@as(usize, 3), scrolled_more.offset);
+}
+
+test "List.scrollDown respects bounds with visible_rows parameter" {
+    const items = &[_][]const u8{ "A", "B", "C", "D", "E" };
+    const list = List.init(items);
+
+    // With 3 visible rows, max offset should be 5 - 3 = 2
+    const scrolled = list.scrollDown(10, 3);
+    try std.testing.expectEqual(@as(usize, 2), scrolled.offset);
+}
+
+test "List.scrollDown handles scroll past end without visible_rows" {
+    const items = &[_][]const u8{ "A", "B", "C" };
+    const list = List.init(items);
+
+    // Without visible_rows, should clamp to item count
+    const scrolled = list.scrollDown(100, null);
+    try std.testing.expectEqual(@as(usize, 3), scrolled.offset);
+}
+
+test "List.scrollDown on empty list does nothing" {
+    const items = &[_][]const u8{};
+    const list = List.init(items);
+
+    const scrolled = list.scrollDown(5, null);
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "List.scrollDown with single item and visible_rows" {
+    const items = &[_][]const u8{"A"};
+    const list = List.init(items);
+
+    // With 1 item and 5 visible, offset should stay at 0
+    const scrolled = list.scrollDown(5, 5);
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "List.scrollUp decrements offset correctly" {
+    const items = &[_][]const u8{ "A", "B", "C" };
+    const list = List.init(items).withOffset(2);
+
+    // Starting at offset 2
+    try std.testing.expectEqual(@as(usize, 2), list.offset);
+
+    // Scroll up by 1
+    const scrolled = list.scrollUp(1);
+    try std.testing.expectEqual(@as(usize, 1), scrolled.offset);
+
+    // Scroll up by 1 more
+    const scrolled_more = scrolled.scrollUp(1);
+    try std.testing.expectEqual(@as(usize, 0), scrolled_more.offset);
+}
+
+test "List.scrollUp never goes below zero" {
+    const items = &[_][]const u8{"A"};
+    const list = List.init(items).withOffset(1);
+
+    // Scroll up by more than current offset
+    const scrolled = list.scrollUp(100);
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "List.scrollUp from zero offset does nothing" {
+    const items = &[_][]const u8{"A"};
+    const list = List.init(items);
+
+    // Already at 0
+    try std.testing.expectEqual(@as(usize, 0), list.offset);
+
+    const scrolled = list.scrollUp(5);
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "List.scrollToTop resets offset to zero" {
+    const items = &[_][]const u8{ "A", "B", "C" };
+    const list = List.init(items).withOffset(2);
+
+    try std.testing.expectEqual(@as(usize, 2), list.offset);
+
+    const scrolled = list.scrollToTop();
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "List.scrollToTop when already at top" {
+    const items = &[_][]const u8{"A"};
+    const list = List.init(items);
+
+    try std.testing.expectEqual(@as(usize, 0), list.offset);
+
+    const scrolled = list.scrollToTop();
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "List.scrollToBottom with visible_rows parameter" {
+    const items = &[_][]const u8{ "A", "B", "C", "D", "E" };
+    const list = List.init(items);
+
+    // With 3 visible rows, offset should be 5 - 3 = 2
+    const scrolled = list.scrollToBottom(3);
+    try std.testing.expectEqual(@as(usize, 2), scrolled.offset);
+}
+
+test "List.scrollToBottom with visible_rows larger than data" {
+    const items = &[_][]const u8{ "A", "B" };
+    const list = List.init(items);
+
+    // With 10 visible rows but only 2 items, offset should be 0
+    const scrolled = list.scrollToBottom(10);
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "List.scrollToBottom on empty list" {
+    const items = &[_][]const u8{};
+    const list = List.init(items);
+
+    const scrolled = list.scrollToBottom(5);
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "List.scrollToBottom with single item" {
+    const items = &[_][]const u8{"A"};
+    const list = List.init(items);
+
+    const scrolled = list.scrollToBottom(1);
+    try std.testing.expectEqual(@as(usize, 0), scrolled.offset);
+}
+
+test "List scroll methods can be chained" {
+    const items = &[_][]const u8{ "A", "B", "C", "D", "E" };
+    const list = List.init(items);
+
+    // Chain multiple scroll operations
+    const scrolled = list.scrollDown(3, null).scrollUp(1).scrollDown(1, null);
+    try std.testing.expectEqual(@as(usize, 3), scrolled.offset);
+}
+
+test "List scroll methods work with other builder methods" {
+    const items = &[_][]const u8{ "A", "B" };
+    const style = Style{ .bold = true };
+
+    const list = List.init(items)
+        .withSelectedStyle(style)
+        .scrollDown(1, null)
+        .withSelected(0);
+
+    try std.testing.expectEqual(@as(usize, 1), list.offset);
+    try std.testing.expectEqual(true, list.selected_style.bold);
+    try std.testing.expectEqual(@as(?usize, 0), list.selected);
 }
