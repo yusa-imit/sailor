@@ -10,6 +10,7 @@
 //! - Stack: stacks multiple widgets vertically or horizontally
 //! - Constrained(T): enforces min/max size constraints
 //! - Bordered(T): wraps a widget with a Block border
+//! - Scrollable(T): adds scroll functionality to any widget
 
 const std = @import("std");
 const Buffer = @import("buffer.zig").Buffer;
@@ -917,4 +918,340 @@ test "Bordered - small area renders border only" {
     // With 5x3 area, inner is 3x1 — mock widget will try to render
     const inner_cell = buf.getConst(1, 1);
     try std.testing.expect(inner_cell != null);
+}
+
+// ============================================================================
+// Scrollable — Adds scroll functionality to any widget
+// ============================================================================
+
+/// Scrollable wrapper adds vertical and horizontal scrolling to any widget.
+/// The widget renders to an internal buffer and the visible portion is displayed.
+pub fn Scrollable(comptime T: type) type {
+    return struct {
+        widget: T,
+        /// Vertical scroll offset
+        scroll_y: u16 = 0,
+        /// Horizontal scroll offset
+        scroll_x: u16 = 0,
+        /// Show vertical scrollbar
+        show_scrollbar_y: bool = true,
+        /// Show horizontal scrollbar
+        show_scrollbar_x: bool = false,
+        /// Scrollbar style
+        scrollbar_style: Style = .{},
+
+        const Self = @This();
+        const Style = @import("style.zig").Style;
+
+        /// Creates a new scrollable wrapper for the given widget.
+        pub fn init(widget: T) Self {
+            return .{ .widget = widget };
+        }
+
+        /// Scroll down by lines.
+        pub fn scrollDown(self: *Self, lines: u16, content_height: u16, viewport_height: u16) void {
+            const max_scroll = if (content_height > viewport_height) content_height - viewport_height else 0;
+            self.scroll_y = @min(self.scroll_y + lines, max_scroll);
+        }
+
+        /// Scroll up by lines.
+        pub fn scrollUp(self: *Self, lines: u16) void {
+            if (lines > self.scroll_y) {
+                self.scroll_y = 0;
+            } else {
+                self.scroll_y -= lines;
+            }
+        }
+
+        /// Scroll right by columns.
+        pub fn scrollRight(self: *Self, cols: u16, content_width: u16, viewport_width: u16) void {
+            const max_scroll = if (content_width > viewport_width) content_width - viewport_width else 0;
+            self.scroll_x = @min(self.scroll_x + cols, max_scroll);
+        }
+
+        /// Scroll left by columns.
+        pub fn scrollLeft(self: *Self, cols: u16) void {
+            if (cols > self.scroll_x) {
+                self.scroll_x = 0;
+            } else {
+                self.scroll_x -= cols;
+            }
+        }
+
+        /// Renders the widget with scrolling applied.
+        /// If widget has measure(), uses it to determine content size.
+        /// Otherwise, assumes content fits in viewport (no scrolling).
+        pub fn render(self: Self, buf: *Buffer, area: Rect) void {
+            // Reserve space for scrollbars
+            var viewport = area;
+            if (self.show_scrollbar_y and viewport.width > 0) {
+                viewport.width = viewport.width -| 1;
+            }
+            if (self.show_scrollbar_x and viewport.height > 0) {
+                viewport.height = viewport.height -| 1;
+            }
+
+            if (viewport.width == 0 or viewport.height == 0) return;
+
+            // Determine content size
+            var content_width = viewport.width;
+            var content_height = viewport.height;
+
+            if (@hasDecl(T, "measure")) {
+                const allocator = std.heap.page_allocator;
+                const size = self.widget.measure(allocator, 65535, 65535) catch {
+                    // Measure failed — render at viewport size
+                    self.widget.render(buf, viewport);
+                    return;
+                };
+                content_width = size.width;
+                content_height = size.height;
+            }
+
+            // If content fits in viewport, render directly without scrolling
+            if (content_width <= viewport.width and content_height <= viewport.height) {
+                self.widget.render(buf, viewport);
+                return;
+            }
+
+            // Content is larger — need to render to internal buffer and copy visible portion
+            const allocator = std.heap.page_allocator;
+            var content_buf = Buffer.init(allocator, content_width, content_height) catch {
+                // Failed to allocate buffer — render directly
+                self.widget.render(buf, viewport);
+                return;
+            };
+            defer content_buf.deinit();
+
+            // Render widget to content buffer
+            const content_area = Rect{ .x = 0, .y = 0, .width = content_width, .height = content_height };
+            self.widget.render(&content_buf, content_area);
+
+            // Copy visible portion to output buffer
+            const copy_width = @min(viewport.width, content_width -| self.scroll_x);
+            const copy_height = @min(viewport.height, content_height -| self.scroll_y);
+
+            for (0..copy_height) |dy| {
+                for (0..copy_width) |dx| {
+                    const src_x = self.scroll_x + @as(u16, @intCast(dx));
+                    const src_y = self.scroll_y + @as(u16, @intCast(dy));
+                    const dst_x = viewport.x + @as(u16, @intCast(dx));
+                    const dst_y = viewport.y + @as(u16, @intCast(dy));
+
+                    if (content_buf.getConst(src_x, src_y)) |cell| {
+                        buf.set(dst_x, dst_y, cell);
+                    }
+                }
+            }
+
+            // Render scrollbars
+            if (self.show_scrollbar_y) {
+                self.renderVerticalScrollbar(buf, area, viewport, content_height);
+            }
+            if (self.show_scrollbar_x) {
+                self.renderHorizontalScrollbar(buf, area, viewport, content_width);
+            }
+        }
+
+        fn renderVerticalScrollbar(self: Self, buf: *Buffer, area: Rect, viewport: Rect, content_height: u16) void {
+            if (area.height < 2 or content_height <= viewport.height) return;
+
+            const scrollbar_x = area.x + area.width - 1;
+            const scrollbar_height = viewport.height;
+
+            // Calculate thumb size and position
+            const visible_ratio = @as(f64, @floatFromInt(viewport.height)) / @as(f64, @floatFromInt(@max(1, content_height)));
+            const thumb_size = @max(1, @as(u16, @intFromFloat(@as(f64, @floatFromInt(scrollbar_height)) * visible_ratio)));
+
+            const max_scroll = content_height -| viewport.height;
+            const scroll_ratio = if (max_scroll > 0)
+                @as(f64, @floatFromInt(self.scroll_y)) / @as(f64, @floatFromInt(max_scroll))
+            else
+                0.0;
+
+            const thumb_y = @as(u16, @intFromFloat(@as(f64, @floatFromInt(scrollbar_height - thumb_size)) * scroll_ratio));
+
+            // Render scrollbar track and thumb
+            for (0..scrollbar_height) |i| {
+                const y = @as(u16, @intCast(i));
+                const char: u21 = if (y >= thumb_y and y < thumb_y + thumb_size) '█' else '░';
+                buf.set(scrollbar_x, area.y + y, .{ .char = char, .style = self.scrollbar_style });
+            }
+        }
+
+        fn renderHorizontalScrollbar(self: Self, buf: *Buffer, area: Rect, viewport: Rect, content_width: u16) void {
+            if (area.width < 2 or content_width <= viewport.width) return;
+
+            const scrollbar_y = area.y + area.height - 1;
+            const scrollbar_width = viewport.width;
+
+            // Calculate thumb size and position
+            const visible_ratio = @as(f64, @floatFromInt(viewport.width)) / @as(f64, @floatFromInt(@max(1, content_width)));
+            const thumb_size = @max(1, @as(u16, @intFromFloat(@as(f64, @floatFromInt(scrollbar_width)) * visible_ratio)));
+
+            const max_scroll = content_width -| viewport.width;
+            const scroll_ratio = if (max_scroll > 0)
+                @as(f64, @floatFromInt(self.scroll_x)) / @as(f64, @floatFromInt(max_scroll))
+            else
+                0.0;
+
+            const thumb_x = @as(u16, @intFromFloat(@as(f64, @floatFromInt(scrollbar_width - thumb_size)) * scroll_ratio));
+
+            // Render scrollbar track and thumb
+            for (0..scrollbar_width) |i| {
+                const x = @as(u16, @intCast(i));
+                const char: u21 = if (x >= thumb_x and x < thumb_x + thumb_size) '█' else '░';
+                buf.set(area.x + x, scrollbar_y, .{ .char = char, .style = self.scrollbar_style });
+            }
+        }
+    };
+}
+
+// ============================================================================
+// Scrollable Tests
+// ============================================================================
+
+// Mock widget with large content for scrolling tests
+const LargeWidget = struct {
+    content_width: u16,
+    content_height: u16,
+    fill_char: u8,
+
+    pub fn render(self: LargeWidget, buf: *Buffer, area: Rect) void {
+        const render_width = @min(area.width, self.content_width);
+        const render_height = @min(area.height, self.content_height);
+
+        for (0..render_height) |dy| {
+            for (0..render_width) |dx| {
+                buf.set(
+                    @intCast(area.x + @as(u16, @intCast(dx))),
+                    @intCast(area.y + @as(u16, @intCast(dy))),
+                    .{ .char = self.fill_char, .style = .{} },
+                );
+            }
+        }
+    }
+
+    pub fn measure(self: LargeWidget, _: std.mem.Allocator, _: u16, _: u16) !Size {
+        return Size{ .width = self.content_width, .height = self.content_height };
+    }
+};
+
+test "Scrollable - init with default state" {
+    const ScrollableWidget = Scrollable(MockWidget);
+    const mock = MockWidget{ .content = 'S' };
+    const scrollable = ScrollableWidget.init(mock);
+
+    try std.testing.expectEqual(@as(u16, 0), scrollable.scroll_y);
+    try std.testing.expectEqual(@as(u16, 0), scrollable.scroll_x);
+    try std.testing.expectEqual(true, scrollable.show_scrollbar_y);
+    try std.testing.expectEqual(false, scrollable.show_scrollbar_x);
+}
+
+test "Scrollable - scroll down" {
+    const ScrollableWidget = Scrollable(LargeWidget);
+    const large = LargeWidget{ .content_width = 50, .content_height = 100, .fill_char = 'L' };
+    var scrollable = ScrollableWidget.init(large);
+
+    // Scroll down by 10 lines (viewport height = 20, content = 100)
+    scrollable.scrollDown(10, 100, 20);
+    try std.testing.expectEqual(@as(u16, 10), scrollable.scroll_y);
+
+    // Scroll to max (100 - 20 = 80)
+    scrollable.scrollDown(100, 100, 20);
+    try std.testing.expectEqual(@as(u16, 80), scrollable.scroll_y);
+}
+
+test "Scrollable - scroll up" {
+    const ScrollableWidget = Scrollable(LargeWidget);
+    const large = LargeWidget{ .content_width = 50, .content_height = 100, .fill_char = 'L' };
+    var scrollable = ScrollableWidget.init(large);
+    scrollable.scroll_y = 50;
+
+    scrollable.scrollUp(10);
+    try std.testing.expectEqual(@as(u16, 40), scrollable.scroll_y);
+
+    scrollable.scrollUp(100);
+    try std.testing.expectEqual(@as(u16, 0), scrollable.scroll_y);
+}
+
+test "Scrollable - scroll right" {
+    const ScrollableWidget = Scrollable(LargeWidget);
+    const large = LargeWidget{ .content_width = 100, .content_height = 50, .fill_char = 'L' };
+    var scrollable = ScrollableWidget.init(large);
+
+    scrollable.scrollRight(10, 100, 30);
+    try std.testing.expectEqual(@as(u16, 10), scrollable.scroll_x);
+
+    // Max scroll = 100 - 30 = 70
+    scrollable.scrollRight(100, 100, 30);
+    try std.testing.expectEqual(@as(u16, 70), scrollable.scroll_x);
+}
+
+test "Scrollable - scroll left" {
+    const ScrollableWidget = Scrollable(LargeWidget);
+    const large = LargeWidget{ .content_width = 100, .content_height = 50, .fill_char = 'L' };
+    var scrollable = ScrollableWidget.init(large);
+    scrollable.scroll_x = 30;
+
+    scrollable.scrollLeft(10);
+    try std.testing.expectEqual(@as(u16, 20), scrollable.scroll_x);
+
+    scrollable.scrollLeft(100);
+    try std.testing.expectEqual(@as(u16, 0), scrollable.scroll_x);
+}
+
+test "Scrollable - render small content (no scrolling needed)" {
+    const ScrollableWidget = Scrollable(MockWidget);
+    const mock = MockWidget{ .content = 'S' };
+    const scrollable = ScrollableWidget.init(mock);
+
+    var buf = try Buffer.init(std.testing.allocator, 30, 30);
+    defer buf.deinit();
+
+    // MockWidget is 10x5, area is 30x30 — no scrolling needed
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 30 };
+    scrollable.render(&buf, area);
+
+    // Content should be rendered directly
+    try std.testing.expectEqual(@as(u21, 'S'), buf.getConst(0, 0).?.char);
+}
+
+test "Scrollable - render large content with vertical scroll" {
+    const ScrollableWidget = Scrollable(LargeWidget);
+    const large = LargeWidget{ .content_width = 15, .content_height = 50, .fill_char = 'L' };
+    var scrollable = ScrollableWidget.init(large);
+
+    var buf = try Buffer.init(std.testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    // Viewport is 20x10 (minus 1 for scrollbar = 19x10), content is 15x50
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
+    scrollable.render(&buf, area);
+
+    // Should render top-left portion of content
+    try std.testing.expectEqual(@as(u21, 'L'), buf.getConst(0, 0).?.char);
+
+    // Scrollbar should be visible at x=19
+    const scrollbar_cell = buf.getConst(19, 0);
+    try std.testing.expect(scrollbar_cell != null);
+    try std.testing.expect(scrollbar_cell.?.char == '█' or scrollbar_cell.?.char == '░');
+}
+
+test "Scrollable - render with scroll offset" {
+    const ScrollableWidget = Scrollable(LargeWidget);
+    const large = LargeWidget{ .content_width = 30, .content_height = 30, .fill_char = 'X' };
+    var scrollable = ScrollableWidget.init(large);
+    scrollable.scroll_y = 10;
+    scrollable.scroll_x = 5;
+
+    var buf = try Buffer.init(std.testing.allocator, 15, 10);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 15, .height = 10 };
+    scrollable.render(&buf, area);
+
+    // Should render content starting from (5, 10) in content buffer
+    // This is hard to verify without knowing exact content, but we verify it renders
+    try std.testing.expectEqual(@as(u21, 'X'), buf.getConst(0, 0).?.char);
 }
