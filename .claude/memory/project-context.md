@@ -1,3 +1,45 @@
+✅ **Session 112** — FEATURE MODE: BORDERED WIDGET COMPOSITION HELPER (2026-04-19)
+  - **Mode**: FEATURE (session 112, 112 % 5 == 2)
+  - **Achievement**: Added Bordered(T) widget composition helper (v2.3.0 milestone)
+
+  **Completed Work**:
+    - ✅ Implemented Bordered(T) generic wrapper in widget_helpers.zig
+    - ✅ Features:
+      - init(widget, block) — custom block configuration
+      - withTitle(widget, title) — convenience method with default border
+      - measure() includes border overhead (2 cols, 2 rows)
+      - render() draws border then inner widget
+    - ✅ Added 6 comprehensive tests:
+      - init with block
+      - withTitle convenience method
+      - render with border (validates border chars + inner content)
+      - measure includes border overhead
+      - measure respects max constraints
+      - small area renders border only
+    - ✅ All tests passing (~1042 tests, +6 from this session)
+    - ✅ Commit: 2efae2d — feat: add Bordered widget composition helper
+    - ✅ Pushed to main
+
+  **v2.3.0 Progress**:
+    - Widget composition helpers: ⏳ In progress (Bordered ✅, Scrollable wrapper remaining)
+    - Scrollable widgets: Pending (ScrollView exists, need integration with Table/List)
+    - Widget state persistence: Pending
+    - Advanced styling: Pending
+    - Performance: Pending
+
+  **Current State**:
+    - **Latest release**: v2.1.0 (2026-04-19)
+    - **Active milestones**: 2 (v2.2.0 Consumer Feedback, v2.3.0 Advanced Widget Features)
+    - **CI status**: Building (commit 2efae2d)
+    - **Open issues**: 0 (sailor), 3 (consumer migration notifications)
+    - **Blockers**: NONE
+    - **Test count**: ~1042 passing tests (+6)
+
+  **Next Priority**:
+    - Continue v2.3.0 work: Scrollable wrapper, or advanced styling features
+    - Monitor consumer migrations for v2.1.0 (reactive milestone v2.2.0)
+    - Address any feedback from consumer projects
+
 ✅ **Session 111** — FEATURE MODE: v2.1.0 RELEASE (2026-04-19)
   - **Mode**: FEATURE (session 111, 111 % 5 == 1)
   - **Achievement**: Successfully released v2.1.0 with performance optimizations and API ergonomics
@@ -21,14 +63,14 @@
 
   **Current State**:
     - **Latest release**: v2.1.0 (2026-04-19)
-    - **Active milestones**: 0 (need to establish 2+ new milestones)
+    - **Active milestones**: 2 (v2.2.0, v2.3.0 established)
     - **CI status**: Queued
     - **Open issues**: 0 (sailor), 3 (consumer migration notifications)
     - **Blockers**: NONE
     - **Test count**: 1036 passing tests
 
   **Next Priority**:
-    - Establish new milestones (active < 2)
+    - Start v2.3.0 features proactively
     - Monitor consumer migrations for v2.1.0
     - Address any feedback from consumer projects
 
