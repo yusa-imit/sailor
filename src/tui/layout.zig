@@ -2076,18 +2076,36 @@ test "LayoutDebugger.init creates empty debugger" {
     var debugger = LayoutDebugger.init(allocator);
     defer debugger.deinit();
 
-    // Debugger should be initialized and ready to capture layout operations
-    // This will fail until LayoutDebugger is implemented
-    try std.testing.expect(true);
+    // Debugger should be initialized with no nodes
+    try std.testing.expectEqual(@as(usize, 0), debugger.nodes.items.len);
+    try std.testing.expectEqual(allocator.ptr, debugger.allocator.ptr);
 }
 
 test "LayoutDebugger.deinit cleans up resources" {
     const allocator = std.testing.allocator;
     var debugger = LayoutDebugger.init(allocator);
-    debugger.deinit();
 
-    // Should not leak memory - tested by running with allocator
-    try std.testing.expect(true);
+    // Add a node with allocated children to test recursive cleanup
+    var children = try allocator.alloc(DebugNode, 1);
+    children[0] = DebugNode{
+        .constraint = .{ .length = 50 },
+        .rect = Rect{ .x = 0, .y = 0, .width = 50, .height = 50 },
+        .children = &[_]DebugNode{},
+    };
+
+    const parent = DebugNode{
+        .constraint = .{ .length = 100 },
+        .rect = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 },
+        .children = children,
+    };
+    try debugger.nodes.append(allocator, parent);
+
+    // Verify we have nodes
+    try std.testing.expectEqual(@as(usize, 1), debugger.nodes.items.len);
+    try std.testing.expectEqual(@as(usize, 1), debugger.nodes.items[0].children.len);
+
+    debugger.deinit();
+    // Test passes if no memory leak detected by testing allocator
 }
 
 test "Rect.debugFormat formats simple rect" {
