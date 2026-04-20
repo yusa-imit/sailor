@@ -1575,3 +1575,84 @@ test "FocusTracking with simulated focus events" {
     try std.testing.expect(isFocusIn(focus_in_event));
     try std.testing.expect(isFocusOut(focus_out_event));
 }
+
+// ============================================================================
+// Error Handling Tests
+// ============================================================================
+
+test "hexDecode with odd length string returns error" {
+    const allocator = std.testing.allocator;
+    const result = hexDecode(allocator, "abc");
+    try std.testing.expectError(error.InvalidHexString, result);
+}
+
+test "hexDecode with invalid hex character returns error" {
+    const allocator = std.testing.allocator;
+    const result = hexDecode(allocator, "12zz");
+    try std.testing.expectError(error.InvalidHexString, result);
+}
+
+test "hexDecode with empty string returns empty slice" {
+    const allocator = std.testing.allocator;
+    const result = try hexDecode(allocator, "");
+    defer allocator.free(result);
+    try std.testing.expectEqual(@as(usize, 0), result.len);
+}
+
+test "hexDecode with valid hex decodes correctly" {
+    const allocator = std.testing.allocator;
+    const result = try hexDecode(allocator, "48656C6C6F"); // "Hello"
+    defer allocator.free(result);
+    try std.testing.expectEqualStrings("Hello", result);
+}
+
+test "hexDecode handles lowercase hex" {
+    const allocator = std.testing.allocator;
+    const result = try hexDecode(allocator, "48656c6c6f"); // "Hello" with lowercase
+    defer allocator.free(result);
+    try std.testing.expectEqualStrings("Hello", result);
+}
+
+test "hexDecode handles mixed case hex" {
+    const allocator = std.testing.allocator;
+    const result = try hexDecode(allocator, "48656C6c6F"); // "Hello" mixed case
+    defer allocator.free(result);
+    try std.testing.expectEqualStrings("Hello", result);
+}
+
+test "parseXtgettcapResponse with missing DCS start returns error" {
+    const allocator = std.testing.allocator;
+    const invalid = "1+r48656C6C6F\x1b\\";
+    const result = parseXtgettcapResponse(allocator, invalid);
+    try std.testing.expectError(error.InvalidResponse, result);
+}
+
+test "parseXtgettcapResponse with missing ST returns error" {
+    const allocator = std.testing.allocator;
+    const invalid = "\x1bP1+r48656C6C6F";
+    const result = parseXtgettcapResponse(allocator, invalid);
+    try std.testing.expectError(error.InvalidResponse, result);
+}
+
+test "parseXtgettcapResponse with invalid validity digit returns error" {
+    const allocator = std.testing.allocator;
+    const invalid = "\x1bP9+r48656C6C6F\x1b\\"; // 9 is invalid (should be 0 or 1)
+    const result = parseXtgettcapResponse(allocator, invalid);
+    try std.testing.expectError(error.InvalidResponse, result);
+}
+
+test "parseXtgettcapResponse with missing + separator returns error" {
+    const allocator = std.testing.allocator;
+    const invalid = "\x1bP1r48656C6C6F\x1b\\"; // Missing '+'
+    const result = parseXtgettcapResponse(allocator, invalid);
+    try std.testing.expectError(error.InvalidResponse, result);
+}
+
+test "parseXtgettcapResponse with capability not supported (0) returns supported=false" {
+    const allocator = std.testing.allocator;
+    const response = "\x1bP0+r48656C6C6F\x1b\\"; // 0 = not supported
+    const result = try parseXtgettcapResponse(allocator, response);
+    defer if (result.value) |v| allocator.free(v);
+    try std.testing.expectEqual(false, result.supported);
+    try std.testing.expectEqual(@as(?[]u8, null), result.value);
+}
