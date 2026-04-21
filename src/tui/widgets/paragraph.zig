@@ -44,6 +44,8 @@ pub const Alignment = enum {
     left,
     center,
     right,
+    /// Justify (space-distributed, full-width lines)
+    justify,
 };
 
 /// Text wrapping behavior
@@ -70,6 +72,8 @@ pub const Paragraph = struct {
     scroll: u16 = 0,
     /// Text direction (.auto auto-detects from content)
     direction: Bidi.Direction = .auto,
+    /// First-line indent (number of spaces at start of first line)
+    first_line_indent: u16 = 0,
 
     /// Create a paragraph from multiple lines
     pub fn fromLines(lines: []const Line) Paragraph {
@@ -111,6 +115,13 @@ pub const Paragraph = struct {
         return result;
     }
 
+    /// Set first-line indent (number of spaces at start of first line)
+    pub fn withFirstLineIndent(self: Paragraph, indent: u16) Paragraph {
+        var result = self;
+        result.first_line_indent = indent;
+        return result;
+    }
+
     /// Render the paragraph
     pub fn render(self: Paragraph, buf: *Buffer, area: Rect) void {
         if (area.width == 0 or area.height == 0) return;
@@ -131,6 +142,7 @@ pub const Paragraph = struct {
     fn renderLines(self: Paragraph, buf: *Buffer, area: Rect) void {
         var y_offset: u16 = 0;
         var lines_skipped: u16 = 0;
+        var is_first_line = true;
 
         for (self.lines) |line| {
             if (y_offset >= area.height) break;
@@ -138,45 +150,64 @@ pub const Paragraph = struct {
             // Apply scroll offset
             if (lines_skipped < self.scroll) {
                 lines_skipped += 1;
+                is_first_line = false;
                 continue;
             }
 
             // Calculate line width for alignment
             const line_width = self.calculateLineWidth(line);
 
+            // Apply first-line indent
+            const indent = if (is_first_line) self.first_line_indent else 0;
+            const effective_width = if (area.width > indent) area.width - indent else 0;
+
             // Determine x offset based on alignment
             const x_offset = switch (self.alignment) {
-                .left => @as(u16, 0),
-                .center => if (line_width < area.width) @divTrunc(area.width - @as(u16, @intCast(line_width)), 2) else 0,
-                .right => if (line_width < area.width) area.width - @as(u16, @intCast(line_width)) else 0,
+                .left => indent,
+                .center => if (line_width < effective_width)
+                    indent + @divTrunc(effective_width - @as(u16, @intCast(line_width)), 2)
+                else
+                    indent,
+                .right => if (line_width < effective_width)
+                    indent + (effective_width - @as(u16, @intCast(line_width)))
+                else
+                    indent,
+                .justify => indent, // Justify uses left offset, distributes spaces during render
             };
 
             // Render the line
-            var x_pos: u16 = 0;
-            for (line.spans) |span| {
-                for (span.content) |char| {
-                    const char_x = area.x + x_offset + x_pos;
-                    const char_y = area.y + y_offset;
+            if (self.alignment == .justify and line_width > 0 and line_width < effective_width) {
+                // Justify: distribute extra space between words
+                self.renderJustifiedLine(buf, area, line, x_offset, y_offset, effective_width);
+            } else {
+                // Standard rendering for non-justify alignments
+                var x_pos: u16 = 0;
+                for (line.spans) |span| {
+                    for (span.content) |char| {
+                        const char_x = area.x + x_offset + x_pos;
+                        const char_y = area.y + y_offset;
 
-                    // Check if we're still within bounds
-                    if (x_pos >= area.width) break;
-                    if (char_y >= area.y + area.height) break;
+                        // Check if we're still within bounds
+                        if (x_pos >= effective_width) break;
+                        if (char_y >= area.y + area.height) break;
 
-                    // Handle wrapping
-                    if (self.wrap == .none and x_pos >= area.width) {
-                        break;
+                        // Handle wrapping
+                        if (self.wrap == .none and x_pos >= effective_width) {
+                            break;
+                        }
+
+                        // Set character in buffer
+                        if (char_x < area.x + area.width and char_y < area.y + area.height) {
+                            buf.set(char_x, char_y, .{ .char = char, .style = span.style });
+                        }
+
+                        x_pos += 1;
                     }
-
-                    // Set character in buffer
-                    if (char_x < area.x + area.width and char_y < area.y + area.height) {
-                        buf.set(char_x, char_y, .{ .char = char, .style = span.style });
-                    }
-
-                    x_pos += 1;
                 }
             }
 
             y_offset += 1;
+            is_first_line = false;
         }
     }
 
@@ -188,6 +219,85 @@ pub const Paragraph = struct {
             width += span.content.len;
         }
         return width;
+    }
+
+    /// Render a justified line by distributing extra space between words
+    fn renderJustifiedLine(self: Paragraph, buf: *Buffer, area: Rect, line: Line, x_offset: u16, y_offset: u16, target_width: u16) void {
+        _ = self;
+        const line_width = blk: {
+            var w: usize = 0;
+            for (line.spans) |span| {
+                w += span.content.len;
+            }
+            break :blk w;
+        };
+
+        if (line_width == 0 or line_width >= target_width) {
+            // Can't justify empty or overflowing line
+            return;
+        }
+
+        // Count spaces (word separators) in the line
+        var space_count: usize = 0;
+        for (line.spans) |span| {
+            for (span.content) |char| {
+                if (char == ' ') space_count += 1;
+            }
+        }
+
+        if (space_count == 0) {
+            // No spaces to distribute — render normally (left-aligned)
+            var x_pos: u16 = 0;
+            for (line.spans) |span| {
+                for (span.content) |char| {
+                    if (x_pos >= target_width) break;
+                    const char_x = area.x + x_offset + x_pos;
+                    const char_y = area.y + y_offset;
+                    if (char_x < area.x + area.width and char_y < area.y + area.height) {
+                        buf.set(char_x, char_y, .{ .char = char, .style = span.style });
+                    }
+                    x_pos += 1;
+                }
+            }
+            return;
+        }
+
+        // Calculate extra space to distribute
+        const extra_space = target_width - @as(u16, @intCast(line_width));
+        const space_per_gap = @divTrunc(extra_space, @as(u16, @intCast(space_count)));
+        const extra_space_remainder = extra_space % @as(u16, @intCast(space_count));
+
+        // Render line with distributed spaces
+        var x_pos: u16 = 0;
+        var space_idx: u16 = 0;
+        for (line.spans) |span| {
+            for (span.content) |char| {
+                if (x_pos >= target_width) break;
+                const char_x = area.x + x_offset + x_pos;
+                const char_y = area.y + y_offset;
+
+                if (char_x < area.x + area.width and char_y < area.y + area.height) {
+                    buf.set(char_x, char_y, .{ .char = char, .style = span.style });
+                }
+
+                x_pos += 1;
+
+                // After each space, add extra distributed spacing
+                if (char == ' ') {
+                    const extra = space_per_gap + (if (space_idx < extra_space_remainder) @as(u16, 1) else 0);
+                    var i: u16 = 0;
+                    while (i < extra) : (i += 1) {
+                        const space_x = area.x + x_offset + x_pos;
+                        if (space_x < area.x + area.width and char_y < area.y + area.height) {
+                            buf.set(space_x, char_y, .{ .char = ' ', .style = span.style });
+                        }
+                        x_pos += 1;
+                        if (x_pos >= target_width) break;
+                    }
+                    space_idx += 1;
+                }
+            }
+        }
     }
 };
 
@@ -411,4 +521,180 @@ test "Paragraph.render with styled spans" {
     // Check styled text
     try std.testing.expectEqual(@as(u21, 'W'), buf.get(6, 0).?.char);
     try std.testing.expect(buf.get(6, 0).?.style.bold);
+}
+
+test "Paragraph.render with justify alignment" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 20, 5);
+    defer buf.deinit();
+
+    // "Hello world" (11 chars) justified to 20 width — extra 9 spaces distributed
+    const spans = [_]Span{Span.raw("Hello world")};
+    const line = Line{ .spans = &spans };
+    const lines = [_]Line{line};
+    const para = Paragraph.fromLines(&lines).withAlignment(.justify);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
+    para.render(&buf, area);
+
+    // First word "Hello" should be at start
+    try std.testing.expectEqual(@as(u21, 'H'), buf.get(0, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'e'), buf.get(1, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'l'), buf.get(2, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'l'), buf.get(3, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'o'), buf.get(4, 0).?.char);
+
+    // Space(s) after "Hello"
+    try std.testing.expectEqual(@as(u21, ' '), buf.get(5, 0).?.char);
+
+    // Last word "world" should end at width boundary (chars 15-19)
+    try std.testing.expectEqual(@as(u21, 'w'), buf.get(15, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'o'), buf.get(16, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'r'), buf.get(17, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'l'), buf.get(18, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'd'), buf.get(19, 0).?.char);
+
+    // Spaces between "Hello" and "world" should be distributed
+    // Original: "Hello world" (1 space) → with 9 extra spaces → 10 total spaces between words
+    var space_count: u16 = 0;
+    var i: u16 = 5;
+    while (i < 15) : (i += 1) {
+        if (buf.get(i, 0).?.char == ' ') {
+            space_count += 1;
+        }
+    }
+    try std.testing.expectEqual(@as(u16, 10), space_count);
+}
+
+test "Paragraph.render with justify alignment (no spaces)" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 20, 5);
+    defer buf.deinit();
+
+    // No spaces — should render left-aligned
+    const spans = [_]Span{Span.raw("HelloWorld")};
+    const line = Line{ .spans = &spans };
+    const lines = [_]Line{line};
+    const para = Paragraph.fromLines(&lines).withAlignment(.justify);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
+    para.render(&buf, area);
+
+    // Should render at left
+    try std.testing.expectEqual(@as(u21, 'H'), buf.get(0, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'e'), buf.get(1, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'l'), buf.get(2, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'l'), buf.get(3, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'o'), buf.get(4, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'W'), buf.get(5, 0).?.char);
+}
+
+test "Paragraph.render with justify alignment (multiple spaces)" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 30, 5);
+    defer buf.deinit();
+
+    // "one two three" (13 chars, 2 spaces) justified to 30 width
+    const spans = [_]Span{Span.raw("one two three")};
+    const line = Line{ .spans = &spans };
+    const lines = [_]Line{line};
+    const para = Paragraph.fromLines(&lines).withAlignment(.justify);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 5 };
+    para.render(&buf, area);
+
+    // First word at start
+    try std.testing.expectEqual(@as(u21, 'o'), buf.get(0, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'n'), buf.get(1, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'e'), buf.get(2, 0).?.char);
+
+    // Last word at end (positions 25-29: "three")
+    // Justification distributes extra spaces: 17 extra / 2 gaps = 8-9 spaces per gap
+    try std.testing.expectEqual(@as(u21, 't'), buf.get(25, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'h'), buf.get(26, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'r'), buf.get(27, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'e'), buf.get(28, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'e'), buf.get(29, 0).?.char);
+
+    // Verify spacing distribution
+    // Gap 1 (after "one"): should have more spaces (gets remainder)
+    var gap1_spaces: u16 = 0;
+    var i: u16 = 3;
+    while (i < 13) : (i += 1) {
+        if (buf.get(i, 0).?.char == ' ') gap1_spaces += 1;
+    }
+    try std.testing.expectEqual(@as(u16, 10), gap1_spaces); // 1 original + 8 + 1 remainder
+
+    // Gap 2 (after "two"): should have 9 spaces
+    var gap2_spaces: u16 = 0;
+    i = 16;
+    while (i < 25) : (i += 1) {
+        if (buf.get(i, 0).?.char == ' ') gap2_spaces += 1;
+    }
+    try std.testing.expectEqual(@as(u16, 9), gap2_spaces); // 1 original + 8
+
+    // Verify distributed spacing (30 - 13 = 17 extra spaces, distributed over 2 gaps)
+    // Each gap gets 8 or 9 spaces (17 / 2 = 8 remainder 1)
+}
+
+test "Paragraph.withFirstLineIndent sets indent" {
+    const para = (Paragraph{}).withFirstLineIndent(4);
+    try std.testing.expectEqual(@as(u16, 4), para.first_line_indent);
+}
+
+test "Paragraph.render with first-line indent" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 20, 5);
+    defer buf.deinit();
+
+    const line1 = Line{ .spans = &[_]Span{Span.raw("First")} };
+    const line2 = Line{ .spans = &[_]Span{Span.raw("Second")} };
+    const lines = [_]Line{ line1, line2 };
+    const para = Paragraph.fromLines(&lines).withFirstLineIndent(4);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
+    para.render(&buf, area);
+
+    // First line should start at x=4 (indented)
+    try std.testing.expectEqual(@as(u21, ' '), buf.get(0, 0).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.get(1, 0).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.get(2, 0).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.get(3, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'F'), buf.get(4, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'i'), buf.get(5, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'r'), buf.get(6, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 's'), buf.get(7, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 't'), buf.get(8, 0).?.char);
+
+    // Second line should start at x=0 (no indent)
+    try std.testing.expectEqual(@as(u21, 'S'), buf.get(0, 1).?.char);
+    try std.testing.expectEqual(@as(u21, 'e'), buf.get(1, 1).?.char);
+    try std.testing.expectEqual(@as(u21, 'c'), buf.get(2, 1).?.char);
+    try std.testing.expectEqual(@as(u21, 'o'), buf.get(3, 1).?.char);
+    try std.testing.expectEqual(@as(u21, 'n'), buf.get(4, 1).?.char);
+    try std.testing.expectEqual(@as(u21, 'd'), buf.get(5, 1).?.char);
+}
+
+test "Paragraph.render with first-line indent and center alignment" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 20, 5);
+    defer buf.deinit();
+
+    // "Hi" (2 chars) centered in width 20 with 4-space indent
+    // Effective width: 20 - 4 = 16
+    // Center offset: (16 - 2) / 2 = 7
+    // Final position: 4 + 7 = 11
+    const spans = [_]Span{Span.raw("Hi")};
+    const line = Line{ .spans = &spans };
+    const lines = [_]Line{line};
+    const para = Paragraph.fromLines(&lines)
+        .withFirstLineIndent(4)
+        .withAlignment(.center);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
+    para.render(&buf, area);
+
+    // Text should be at position 11-12
+    try std.testing.expectEqual(@as(u21, 'H'), buf.get(11, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'i'), buf.get(12, 0).?.char);
 }
