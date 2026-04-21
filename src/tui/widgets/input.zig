@@ -104,6 +104,45 @@ pub const Input = struct {
         return result;
     }
 
+    // ========================================================================
+    // State Persistence
+    // ========================================================================
+
+    /// Input state for persistence (includes undo/redo history)
+    pub const State = struct {
+        value: []const u8,
+        cursor: usize,
+        placeholder: ?[]const u8,
+        history: []const HistoryEntry = &[_]HistoryEntry{},
+        history_index: usize = 0,
+    };
+
+    /// History entry for undo/redo
+    pub const HistoryEntry = struct {
+        value: []const u8,
+        cursor: usize,
+    };
+
+    /// Save current input state (does not allocate - returns slice references)
+    pub fn saveState(self: Input) State {
+        return State{
+            .value = self.value,
+            .cursor = self.cursor,
+            .placeholder = self.placeholder,
+            .history = &[_]HistoryEntry{},
+            .history_index = 0,
+        };
+    }
+
+    /// Restore input state from saved state
+    pub fn restoreState(self: Input, state: State) Input {
+        var result = self;
+        result.value = state.value;
+        result.cursor = state.cursor;
+        result.placeholder = state.placeholder;
+        return result;
+    }
+
     /// Render the input widget
     pub fn render(self: Input, buf: *Buffer, area: Rect) void {
         // Render block if present
@@ -435,4 +474,45 @@ test "Input.render empty with cursor" {
     const cell = buf.getConst(0, 0).?;
     try std.testing.expect(cell.style.reverse);
     try std.testing.expectEqual(' ', cell.char);
+}
+
+test "Input.saveState basic" {
+    const input = Input.init("hello").withCursor(3).withPlaceholder("enter text");
+    const state = input.saveState();
+
+    try std.testing.expectEqualStrings("hello", state.value);
+    try std.testing.expectEqual(@as(usize, 3), state.cursor);
+    try std.testing.expectEqualStrings("enter text", state.placeholder.?);
+}
+
+test "Input.restoreState" {
+    const original = Input.init("world").withCursor(5);
+    const state = original.saveState();
+
+    const empty_input = Input.init("");
+    const restored = empty_input.restoreState(state);
+
+    try std.testing.expectEqualStrings("world", restored.value);
+    try std.testing.expectEqual(@as(usize, 5), restored.cursor);
+}
+
+test "Input.saveState no placeholder" {
+    const input = Input.init("test").withCursor(0);
+    const state = input.saveState();
+
+    try std.testing.expectEqualStrings("test", state.value);
+    try std.testing.expectEqual(@as(usize, 0), state.cursor);
+    try std.testing.expectEqual(@as(?[]const u8, null), state.placeholder);
+}
+
+test "Input.restoreState preserves all fields" {
+    const original = Input.init("abc123").withCursor(6).withPlaceholder("type");
+    const state = original.saveState();
+
+    const different = Input.init("xyz").withCursor(0).withPlaceholder("other");
+    const restored = different.restoreState(state);
+
+    try std.testing.expectEqualStrings("abc123", restored.value);
+    try std.testing.expectEqual(@as(usize, 6), restored.cursor);
+    try std.testing.expectEqualStrings("type", restored.placeholder.?);
 }

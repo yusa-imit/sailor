@@ -202,6 +202,46 @@ pub const Table = struct {
         return result;
     }
 
+    // ========================================================================
+    // State Persistence
+    // ========================================================================
+
+    /// Table state for persistence
+    pub const State = struct {
+        selected: ?usize,
+        offset: usize,
+        column_widths: []const u16,
+        column_spacing: u16,
+    };
+
+    /// Save current table state (allocates memory for column_widths)
+    pub fn saveState(self: Table, allocator: std.mem.Allocator, area_width: u16) !State {
+        // Calculate current column widths
+        const widths = try allocator.alloc(u16, self.columns.len);
+        var widths_buf: [64]u16 = undefined;
+        const buf_slice = widths_buf[0..@min(self.columns.len, 64)];
+
+        self.calculateColumnWidths(area_width, buf_slice);
+        @memcpy(widths, buf_slice[0..self.columns.len]);
+
+        return State{
+            .selected = self.selected,
+            .offset = self.offset,
+            .column_widths = widths,
+            .column_spacing = self.column_spacing,
+        };
+    }
+
+    /// Restore table state from saved state
+    pub fn restoreState(self: Table, state: State) Table {
+        var result = self;
+        result.selected = state.selected;
+        result.offset = state.offset;
+        result.column_spacing = state.column_spacing;
+        // Note: column_widths is informational only - actual widths are recalculated on render
+        return result;
+    }
+
     /// Calculate column widths based on available space into provided buffer
     fn calculateColumnWidths(self: Table, available_width: u16, widths_buf: []u16) void {
         // widths_buf must be at least self.columns.len long
@@ -975,4 +1015,89 @@ test "Table scroll methods work with other builder methods" {
     try std.testing.expectEqual(@as(usize, 1), table.offset);
     try std.testing.expectEqual(true, table.header_style.bold);
     try std.testing.expectEqual(@as(?usize, 0), table.selected);
+}
+
+test "Table.saveState basic" {
+    const allocator = std.testing.allocator;
+    const columns = &[_]Column{
+        .{ .title = "Name", .width = .{ .percentage = 50 } },
+        .{ .title = "Age", .width = .{ .fixed = 10 } },
+    };
+    const rows = &[_]Row{
+        &[_][]const u8{ "Alice", "30" },
+        &[_][]const u8{ "Bob", "25" },
+    };
+
+    const table = Table.init(columns, rows).withSelected(1).scrollDown(1, null).withColumnSpacing(2);
+    const state = try table.saveState(allocator, 80);
+    defer allocator.free(state.column_widths);
+
+    try std.testing.expectEqual(@as(?usize, 1), state.selected);
+    try std.testing.expectEqual(@as(usize, 1), state.offset);
+    try std.testing.expectEqual(@as(u16, 2), state.column_spacing);
+    try std.testing.expectEqual(@as(usize, 2), state.column_widths.len);
+}
+
+test "Table.restoreState" {
+    const allocator = std.testing.allocator;
+    const columns = &[_]Column{
+        .{ .title = "Col1" },
+        .{ .title = "Col2" },
+    };
+    const rows = &[_]Row{
+        &[_][]const u8{ "A", "B" },
+        &[_][]const u8{ "C", "D" },
+    };
+
+    const original = Table.init(columns, rows).withSelected(1).scrollDown(1, null).withColumnSpacing(3);
+    const state = try original.saveState(allocator, 50);
+    defer allocator.free(state.column_widths);
+
+    const empty_table = Table.init(columns, rows);
+    const restored = empty_table.restoreState(state);
+
+    try std.testing.expectEqual(@as(?usize, 1), restored.selected);
+    try std.testing.expectEqual(@as(usize, 1), restored.offset);
+    try std.testing.expectEqual(@as(u16, 3), restored.column_spacing);
+}
+
+test "Table.saveState no selection" {
+    const allocator = std.testing.allocator;
+    const columns = &[_]Column{.{ .title = "X" }};
+    const rows = &[_]Row{
+        &[_][]const u8{"1"},
+        &[_][]const u8{"2"},
+        &[_][]const u8{"3"},
+    };
+
+    const table = Table.init(columns, rows).scrollDown(2, null);
+    const state = try table.saveState(allocator, 40);
+    defer allocator.free(state.column_widths);
+
+    try std.testing.expectEqual(@as(?usize, null), state.selected);
+    try std.testing.expectEqual(@as(usize, 2), state.offset);
+}
+
+test "Table.restoreState preserves all fields" {
+    const allocator = std.testing.allocator;
+    const columns = &[_]Column{
+        .{ .title = "A" },
+        .{ .title = "B" },
+        .{ .title = "C" },
+    };
+    const rows = &[_]Row{
+        &[_][]const u8{ "1", "2", "3" },
+        &[_][]const u8{ "4", "5", "6" },
+    };
+
+    const original = Table.init(columns, rows).withSelected(1).scrollDown(1, null).withColumnSpacing(4);
+    const state = try original.saveState(allocator, 100);
+    defer allocator.free(state.column_widths);
+
+    const different = Table.init(columns, rows).withSelected(0).withColumnSpacing(1);
+    const restored = different.restoreState(state);
+
+    try std.testing.expectEqual(@as(?usize, 1), restored.selected);
+    try std.testing.expectEqual(@as(usize, 1), restored.offset);
+    try std.testing.expectEqual(@as(u16, 4), restored.column_spacing);
 }

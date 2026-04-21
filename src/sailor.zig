@@ -85,6 +85,9 @@ pub const deprecation = @import("deprecation.zig");
 // v1.23.0 — Plugin Architecture & Extensibility
 pub const ThemeLoader = @import("tui/theme_loader.zig").ThemeLoader;
 
+// v2.3.0 — Advanced Widget Features (State Persistence)
+pub const widget_state = @import("tui/widget_state.zig");
+
 // v1.24.0 — Animation & Transitions
 pub const animation = @import("tui/animation.zig");
 pub const transition = @import("tui/transition.zig");

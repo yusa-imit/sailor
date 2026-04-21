@@ -132,6 +132,35 @@ pub const List = struct {
         return result;
     }
 
+    // ========================================================================
+    // State Persistence
+    // ========================================================================
+
+    /// List state for persistence
+    pub const State = struct {
+        selected: ?usize,
+        offset: usize,
+        highlight_symbol: []const u8,
+    };
+
+    /// Save current list state
+    pub fn saveState(self: List) State {
+        return State{
+            .selected = self.selected,
+            .offset = self.offset,
+            .highlight_symbol = self.highlight_symbol,
+        };
+    }
+
+    /// Restore list state from saved state
+    pub fn restoreState(self: List, state: State) List {
+        var result = self;
+        result.selected = state.selected;
+        result.offset = state.offset;
+        result.highlight_symbol = state.highlight_symbol;
+        return result;
+    }
+
     /// Calculate the visible range of items
     fn visibleRange(self: List, height: u16) struct { start: usize, end: usize } {
         const max_items = @min(self.items.len, height);
@@ -650,4 +679,48 @@ test "List scroll methods work with other builder methods" {
     try std.testing.expectEqual(@as(usize, 1), list.offset);
     try std.testing.expectEqual(true, list.selected_style.bold);
     try std.testing.expectEqual(@as(?usize, 0), list.selected);
+}
+
+test "List.saveState basic" {
+    const items = &[_][]const u8{ "Item 1", "Item 2", "Item 3" };
+    const list = List.init(items).withSelected(1).scrollDown(2, null).withHighlightSymbol("→ ");
+    const state = list.saveState();
+
+    try std.testing.expectEqual(@as(?usize, 1), state.selected);
+    try std.testing.expectEqual(@as(usize, 2), state.offset);
+    try std.testing.expectEqualStrings("→ ", state.highlight_symbol);
+}
+
+test "List.restoreState" {
+    const items = &[_][]const u8{ "A", "B", "C" };
+    const original = List.init(items).withSelected(2).scrollDown(1, null);
+    const state = original.saveState();
+
+    const empty_list = List.init(items);
+    const restored = empty_list.restoreState(state);
+
+    try std.testing.expectEqual(@as(?usize, 2), restored.selected);
+    try std.testing.expectEqual(@as(usize, 1), restored.offset);
+}
+
+test "List.saveState no selection" {
+    const items = &[_][]const u8{ "X", "Y" };
+    const list = List.init(items).scrollDown(1, null);
+    const state = list.saveState();
+
+    try std.testing.expectEqual(@as(?usize, null), state.selected);
+    try std.testing.expectEqual(@as(usize, 1), state.offset);
+}
+
+test "List.restoreState preserves all fields" {
+    const items = &[_][]const u8{ "1", "2", "3", "4" };
+    const original = List.init(items).withSelected(3).scrollDown(2, null).withHighlightSymbol("* ");
+    const state = original.saveState();
+
+    const different = List.init(items).withSelected(0).withHighlightSymbol("> ");
+    const restored = different.restoreState(state);
+
+    try std.testing.expectEqual(@as(?usize, 3), restored.selected);
+    try std.testing.expectEqual(@as(usize, 2), restored.offset);
+    try std.testing.expectEqualStrings("* ", restored.highlight_symbol);
 }
