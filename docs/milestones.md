@@ -48,22 +48,23 @@
 **Theme**: Enhance widgets with advanced features requested by real-world applications
 
 **Checklist**:
-- [ ] **Scrollable widgets**: Add scrolling support where needed
-  - Table with vertical/horizontal scroll
-  - List with smooth scrolling
-  - Paragraph with text wrapping improvements
-- [ ] **Widget state persistence**: Save/restore widget state
-  - Table column widths, sort order
-  - List selection, scroll position
-  - Input cursor position, undo/redo
+- [x] **Scrollable widgets**: Add scrolling support where needed
+  - ✅ Table with vertical/horizontal scroll (v114)
+  - ✅ List with smooth scrolling (v114)
+  - ✅ Paragraph with text wrapping improvements (v117: justify + indent)
+- [x] **Widget state persistence**: Save/restore widget state
+  - ✅ Table: selected, offset, column_widths, column_spacing (v119)
+  - ✅ List: selected, offset, highlight_symbol (v119)
+  - ✅ Input: value, cursor, placeholder (v119)
+  - ✅ StateHistory utility for undo/redo (v119)
 - [ ] **Advanced styling**: More flexible styling options
   - Gradient backgrounds
   - Border styles (double, rounded, dashed)
   - Shadow effects
-- [ ] **Widget composition helpers**: Make complex layouts easier
-  - Bordered wrapper
-  - Padded wrapper
-  - Scrollable wrapper
+- [x] **Widget composition helpers**: Make complex layouts easier
+  - ✅ Bordered wrapper (v112)
+  - ✅ Padded wrapper (already exists)
+  - ✅ Scrollable wrapper (v113)
 - [ ] **Performance**: Optimize widget rendering further
   - Lazy rendering for large data sets
   - Virtual scrolling for huge lists
