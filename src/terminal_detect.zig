@@ -37,7 +37,43 @@ pub const TerminalInfo = struct {
 
     /// Detect terminal emulator from environment variables
     pub fn detect() TerminalInfo {
-        return detectWith(std.posix.getenv);
+        const builtin = @import("builtin");
+        if (builtin.os.tag == .windows) {
+            // Windows: use thread-local buffer for environment variable conversion
+            const Ctx = struct {
+                threadlocal var buf: [4096]u8 = undefined;
+
+                fn getenv(key: []const u8) ?[]const u8 {
+                    // Convert key to wide string
+                    var key_buf: [256]u16 = undefined;
+                    if (key.len >= key_buf.len) return null;
+
+                    var i: usize = 0;
+                    while (i < key.len) : (i += 1) {
+                        key_buf[i] = key[i];
+                    }
+                    key_buf[i] = 0; // null terminator
+
+                    // Get environment variable using Windows API
+                    const len = std.os.windows.kernel32.GetEnvironmentVariableW(
+                        &key_buf,
+                        @ptrCast(&buf),
+                        buf.len / 2,
+                    );
+
+                    if (len == 0 or len >= buf.len / 2) return null;
+
+                    // Convert UTF-16 result back to UTF-8
+                    const wide_slice = @as([*]const u16, @ptrCast(&buf))[0..len];
+                    const utf8_len = std.unicode.utf16LeToUtf8(&buf, wide_slice) catch return null;
+
+                    return buf[0..utf8_len];
+                }
+            };
+            return detectWith(Ctx.getenv);
+        } else {
+            return detectWith(std.posix.getenv);
+        }
     }
 
     /// Detect with custom environment getter (for testing)
