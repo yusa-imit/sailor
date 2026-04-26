@@ -20,6 +20,7 @@ pub const composition = @import("composition.zig");
 pub const responsive = @import("responsive.zig");
 pub const symbols = @import("symbols.zig");
 pub const gradient = @import("gradient.zig");
+pub const shadow = @import("shadow.zig");
 pub const theme = @import("theme.zig");
 pub const theme_loader = @import("theme_loader.zig");
 pub const animation = @import("animation.zig");
