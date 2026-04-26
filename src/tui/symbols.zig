@@ -74,6 +74,21 @@ pub const BoxSet = struct {
         .cross = "┼",
     };
 
+    /// Dashed border style
+    pub const dashed: BoxSet = .{
+        .horizontal = "╌",
+        .vertical = "╎",
+        .top_left = "┌",
+        .top_right = "┐",
+        .bottom_left = "└",
+        .bottom_right = "┘",
+        .vertical_left = "├",
+        .vertical_right = "┤",
+        .horizontal_down = "┬",
+        .horizontal_up = "┴",
+        .cross = "┼",
+    };
+
     /// ASCII fallback (for terminals without Unicode support)
     pub const ascii: BoxSet = .{
         .horizontal = "-",
