@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v2.1.0 (2026-04-19) — Performance & Ergonomics Polish
-- **Latest minor**: v2.1.0 (2026-04-19) — Performance optimizations, API ergonomics
-- **Next milestone**: v2.2.0 — Consumer Feedback & Bug Fixes
-- **Active milestones**: 2 (v2.2.0, v2.3.0)
+- **Latest release**: v2.3.0 (2026-04-27) — Advanced Widget Features
+- **Latest minor**: v2.3.0 (2026-04-27) — Scrollable widgets, state persistence, advanced styling, performance
+- **Next milestone**: v2.4.0 — TBD (to be determined based on consumer feedback)
+- **Active milestones**: 1 (v2.2.0)
 - **Blockers**: None
 
 ## Active Milestones
@@ -43,48 +43,11 @@
 - May release earlier if migrations complete smoothly with no issues
 - Focus: stability, usability, developer experience
 
-### v2.3.0 — Advanced Widget Features (Target: 2026-06-15)
-
-**Theme**: Enhance widgets with advanced features requested by real-world applications
-
-**Checklist**:
-- [x] **Scrollable widgets**: Add scrolling support where needed
-  - ✅ Table with vertical/horizontal scroll (v114)
-  - ✅ List with smooth scrolling (v114)
-  - ✅ Paragraph with text wrapping improvements (v117: justify + indent)
-- [x] **Widget state persistence**: Save/restore widget state
-  - ✅ Table: selected, offset, column_widths, column_spacing (v119)
-  - ✅ List: selected, offset, highlight_symbol (v119)
-  - ✅ Input: value, cursor, placeholder (v119)
-  - ✅ StateHistory utility for undo/redo (v119)
-- [ ] **Advanced styling**: More flexible styling options
-  - Gradient backgrounds
-  - Border styles (double, rounded, dashed)
-  - Shadow effects
-- [x] **Widget composition helpers**: Make complex layouts easier
-  - ✅ Bordered wrapper (v112)
-  - ✅ Padded wrapper (already exists)
-  - ✅ Scrollable wrapper (v113)
-- [ ] **Performance**: Optimize widget rendering further
-  - Lazy rendering for large data sets
-  - Virtual scrolling for huge lists
-  - Render budget enforcement
-
-**Success Criteria**:
-- All scrollable widgets handle large datasets efficiently
-- State persistence works across sessions
-- Performance benchmarks show no regressions
-- Consumer projects adopt new features
-
-**Notes**:
-- Build on v2.2.0 feedback — features driven by actual needs
-- No breaking changes to existing APIs
-- All new features must have comprehensive tests
-
 ## Completed Milestones
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v2.3.0 | Advanced Widget Features | 2026-04-27 | Scrollable widgets (Table/List vertical+horizontal scroll, Paragraph justify+indent), State persistence (Table/List/Input state save/restore, StateHistory undo/redo), Advanced styling (gradient backgrounds v121, border styles single/double/thick/rounded/dashed v125, shadow effects drop/inner/box v125), Widget composition (Bordered/Padded/Scrollable wrappers), Performance (LazyBuffer, VirtualList, RenderBudget). All tests passing, 0 breaking changes |
 | v2.1.0 | Performance & Ergonomics Polish | 2026-04-19 | Performance optimizations: Buffer diff +38% (row-level skipping), Buffer fill +34% (direct array access), Buffer set +33% (eliminated bounds checks). API ergonomics: Rect.fromSize(), Constraint/Color/Span/Line constructors, semantic constants (Style.bold/dim/italic, Color.red/green/yellow). 1036 tests passing, 6 cross-platform targets verified, 0 breaking changes |
 | v2.0.0 | Major Release: API Cleanup & Modernization | 2026-04-13 | BREAKING CHANGES: Removed Buffer.setChar() (use Buffer.set()), removed Rect.new() (use struct literals). Kept Block.withTitle() as valid builder pattern. Migration script updated. All tests passing (~3345 tests). Clean API, simplified naming, better ergonomics |
 | v1.38.1 | Migration Script Fixes & Test Coverage | 2026-04-07 | Patch release: migration script diff exit code handling fix, TextArea widget comprehensive tests (+~50 tests), Tree widget comprehensive tests (+~50 tests) — ~3345 total tests, 0 breaking changes |
