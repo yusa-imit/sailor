@@ -10,6 +10,48 @@
 
 ## Active Milestones
 
+### v2.4.0 — Testing Infrastructure & Quality Tooling (Target: 2026-05-05)
+
+**Theme**: Improve testing experience and provide tools for consumer projects to verify sailor integrations
+
+**Checklist**:
+- [ ] **Snapshot testing framework**: Capture and compare widget render output
+  - SnapshotRecorder: capture Buffer output to string
+  - SnapshotMatcher: compare with stored snapshots (exact/fuzzy)
+  - Auto-update mode for approved changes
+  - Diff visualization for mismatches
+- [ ] **Property-based testing helpers**: Randomized testing for widgets
+  - Random input generators (strings, numbers, rectangles)
+  - Property assertions (measure/render invariants)
+  - Shrinking for minimal failing cases
+  - Seed-based reproducibility
+- [ ] **Visual regression testing**: Detect unintended visual changes
+  - Buffer diff reporter (color-coded changes)
+  - Side-by-side comparison output
+  - Integration with CI workflows
+- [ ] **Mock Terminal**: Programmable terminal for testing
+  - MockTerminal with scripted responses
+  - Event injection (key/mouse/resize)
+  - Output capture and assertions
+  - Works with all widgets
+- [ ] **Testing utilities module**: Common test patterns
+  - Test allocators with leak detection
+  - Fixtures for common widget states
+  - Assertion helpers for Buffer content
+  - Benchmark comparison utilities
+
+**Success Criteria**:
+- All 5 checklist items implemented with comprehensive tests
+- Consumer projects can use snapshot testing for regressions
+- MockTerminal covers 90% of interactive testing needs
+- Documentation with examples for each testing tool
+- CI integration examples provided
+
+**Notes**:
+- Focus: testing infrastructure, quality tooling, developer productivity
+- Enables consumer projects to confidently upgrade sailor versions
+- Reduces manual testing burden for TUI applications
+
 ### v2.2.0 — Consumer Feedback & Bug Fixes (Target: 2026-05-15)
 
 **Theme**: Address real-world usage feedback from zr, zoltraak, silica migrations
