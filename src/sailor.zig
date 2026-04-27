@@ -92,6 +92,9 @@ pub const widget_state = @import("tui/widget_state.zig");
 pub const animation = @import("tui/animation.zig");
 pub const transition = @import("tui/transition.zig");
 
+// v2.4.0 — Testing utilities
+pub const testing = @import("testing.zig");
+
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;
 pub const Cell = tui.buffer.Cell;
