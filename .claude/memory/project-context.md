@@ -1,3 +1,24 @@
+✅ **Session 127** — FEATURE MODE: PROPERTY-BASED TESTING & VISUAL REGRESSION (2026-04-28)
+  - **Mode**: FEATURE (session 127, 127 % 5 == 2)
+  - **Achievement**: Completed 2/5 v2.4.0 milestone items (property testing + visual regression)
+
+  **Completed Work**:
+    - ✅ Property-based testing helpers (src/testing/property.zig):
+      - Generator with seed-based determinism (genU16/U32, genBool, genString, genRect, genColor, genStyle)
+      - PropertyTest runner for N iterations
+      - 38 comprehensive tests
+    - ✅ Visual regression testing (src/testing/visual_regression.zig):
+      - VisualDiff: compare buffers, detect added/removed/modified cells
+      - SideBySideComparison: formatted diff output
+      - 23 comprehensive tests
+    - ✅ All tests passing (~3672 tests, +61 from this session)
+    - ✅ Commits: 1b703e8, 11e94c2
+    - ✅ Pushed to main
+
+  **v2.4.0 Progress**: 80% (4/5 checklist items done)
+
+  **Next Priority**: Testing utilities module → auto-release v2.4.0
+
 ✅ **Session 125** — STABILIZATION MODE: v2.3.0 RELEASE + SHADOW SYSTEM (2026-04-27)
   - **Mode**: STABILIZATION (session 125, 125 % 5 == 0)
   - **Achievement**: Released v2.3.0 milestone + completed shadow effects and dashed borders
