@@ -9,6 +9,10 @@ pub const mock_terminal = @import("testing/mock_terminal.zig");
 pub const MockTerminal = mock_terminal.MockTerminal;
 pub const Size = mock_terminal.Size;
 
+pub const snapshot = @import("testing/snapshot.zig");
+pub const Snapshot = snapshot.Snapshot;
+pub const SnapshotRecorder = snapshot.SnapshotRecorder;
+
 test {
     // Pull in all tests from sub-modules
     std.testing.refAllDeclsRecursive(@This());
