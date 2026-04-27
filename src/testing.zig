@@ -17,6 +17,11 @@ pub const property = @import("testing/property.zig");
 pub const Generator = property.Generator;
 pub const PropertyTest = property.PropertyTest;
 
+pub const visual_regression = @import("testing/visual_regression.zig");
+pub const VisualDiff = visual_regression.VisualDiff;
+pub const SideBySideComparison = visual_regression.SideBySideComparison;
+pub const compareBuffers = visual_regression.compareBuffers;
+
 test {
     // Pull in all tests from sub-modules
     std.testing.refAllDeclsRecursive(@This());
