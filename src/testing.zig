@@ -13,6 +13,10 @@ pub const snapshot = @import("testing/snapshot.zig");
 pub const Snapshot = snapshot.Snapshot;
 pub const SnapshotRecorder = snapshot.SnapshotRecorder;
 
+pub const property = @import("testing/property.zig");
+pub const Generator = property.Generator;
+pub const PropertyTest = property.PropertyTest;
+
 test {
     // Pull in all tests from sub-modules
     std.testing.refAllDeclsRecursive(@This());
