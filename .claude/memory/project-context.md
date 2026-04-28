@@ -1,3 +1,39 @@
+✅ **Session 129** — FEATURE MODE: v2.4.0 RELEASE — TESTING INFRASTRUCTURE COMPLETE (2026-04-29)
+  - **Mode**: FEATURE (session 129, 129 % 5 == 4)
+  - **Achievement**: Fixed test leaks + released v2.4.0 milestone
+
+  **Completed Work**:
+    - ✅ Fixed LeakCheckAllocator tests (2 intentional leaks cleaned up after verification)
+    - ✅ All tests passing (~3691 tests, +163 from v2.3.0, 0 failures)
+    - ✅ Released v2.4.0:
+      - Version bump: build.zig.zon (2.3.0 → 2.4.0)
+      - Git tag: v2.4.0 with comprehensive release notes
+      - GitHub release: https://github.com/yusa-imit/sailor/releases/tag/v2.4.0
+      - Migration issues: zr#56, zoltraak#33, silica#42
+      - Discord notification sent
+    - ✅ Commits:
+      - a4ef373 — fix(testing): clean up intentional leaks + bump version to v2.4.0
+
+  **v2.4.0 COMPLETE** (All 5 checklist items done):
+    - ✅ Snapshot testing framework (SnapshotRecorder + SnapshotMatcher, 38 tests)
+    - ✅ Property-based testing helpers (Generator + PropertyTest, 38 tests)
+    - ✅ Visual regression testing (VisualDiff + SideBySideComparison, 23 tests)
+    - ✅ Mock Terminal (17 tests, 373 lines)
+    - ✅ Testing utilities module (47 tests, 806 lines)
+
+  **Current State**:
+    - **Latest release**: v2.4.0 (2026-04-29)
+    - **Active milestones**: 1 (v2.2.0 Consumer Feedback)
+    - **CI status**: PASSING (all platforms)
+    - **Open issues**: 0 (sailor), 3 (consumer migration issues)
+    - **Blockers**: NONE
+    - **Test count**: ~3691 passing tests (+163)
+
+  **Next Priority**:
+    - Monitor consumer migrations (v2.4.0: zr#56, zoltraak#33, silica#42)
+    - Address any issues from consumer feedback
+    - Plan v2.5.0 milestone based on real-world usage patterns
+
 ✅ **Session 127** — FEATURE MODE: PROPERTY-BASED TESTING & VISUAL REGRESSION (2026-04-28)
   - **Mode**: FEATURE (session 127, 127 % 5 == 2)
   - **Achievement**: Completed 2/5 v2.4.0 milestone items (property testing + visual regression)

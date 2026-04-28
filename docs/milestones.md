@@ -2,55 +2,14 @@
 
 ## Current Status
 
-- **Latest release**: v2.3.0 (2026-04-27) — Advanced Widget Features
-- **Latest minor**: v2.3.0 (2026-04-27) — Scrollable widgets, state persistence, advanced styling, performance
-- **Next milestone**: v2.4.0 — TBD (to be determined based on consumer feedback)
+- **Latest release**: v2.4.0 (2026-04-29) — Testing Infrastructure & Quality Tooling
+- **Latest minor**: v2.4.0 (2026-04-29) — Snapshot testing, property-based testing, visual regression, mock terminal, test utilities
+- **Next milestone**: TBD (to be determined based on consumer feedback)
 - **Active milestones**: 1 (v2.2.0)
 - **Blockers**: None
 
 ## Active Milestones
 
-### v2.4.0 — Testing Infrastructure & Quality Tooling (Target: 2026-05-05)
-
-**Theme**: Improve testing experience and provide tools for consumer projects to verify sailor integrations
-
-**Checklist**:
-- [ ] **Snapshot testing framework**: Capture and compare widget render output
-  - SnapshotRecorder: capture Buffer output to string
-  - SnapshotMatcher: compare with stored snapshots (exact/fuzzy)
-  - Auto-update mode for approved changes
-  - Diff visualization for mismatches
-- [ ] **Property-based testing helpers**: Randomized testing for widgets
-  - Random input generators (strings, numbers, rectangles)
-  - Property assertions (measure/render invariants)
-  - Shrinking for minimal failing cases
-  - Seed-based reproducibility
-- [ ] **Visual regression testing**: Detect unintended visual changes
-  - Buffer diff reporter (color-coded changes)
-  - Side-by-side comparison output
-  - Integration with CI workflows
-- [ ] **Mock Terminal**: Programmable terminal for testing
-  - MockTerminal with scripted responses
-  - Event injection (key/mouse/resize)
-  - Output capture and assertions
-  - Works with all widgets
-- [ ] **Testing utilities module**: Common test patterns
-  - Test allocators with leak detection
-  - Fixtures for common widget states
-  - Assertion helpers for Buffer content
-  - Benchmark comparison utilities
-
-**Success Criteria**:
-- All 5 checklist items implemented with comprehensive tests
-- Consumer projects can use snapshot testing for regressions
-- MockTerminal covers 90% of interactive testing needs
-- Documentation with examples for each testing tool
-- CI integration examples provided
-
-**Notes**:
-- Focus: testing infrastructure, quality tooling, developer productivity
-- Enables consumer projects to confidently upgrade sailor versions
-- Reduces manual testing burden for TUI applications
 
 ### v2.2.0 — Consumer Feedback & Bug Fixes (Target: 2026-05-15)
 
@@ -89,6 +48,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v2.4.0 | Testing Infrastructure & Quality Tooling | 2026-04-29 | Snapshot testing (SnapshotRecorder/Matcher with auto-update, 38 tests), Property-based testing (Generator with seed-based determinism, PropertyTest runner, 38 tests), Visual regression (VisualDiff, SideBySideComparison, 23 tests), Mock Terminal (programmable terminal with event injection, output capture, 17 tests), Testing utilities (LeakCheckAllocator, WidgetFixture, assertion helpers, benchmark tools, 47 tests). Total: +163 tests (3691 passing), 0 breaking changes |
 | v2.3.0 | Advanced Widget Features | 2026-04-27 | Scrollable widgets (Table/List vertical+horizontal scroll, Paragraph justify+indent), State persistence (Table/List/Input state save/restore, StateHistory undo/redo), Advanced styling (gradient backgrounds v121, border styles single/double/thick/rounded/dashed v125, shadow effects drop/inner/box v125), Widget composition (Bordered/Padded/Scrollable wrappers), Performance (LazyBuffer, VirtualList, RenderBudget). All tests passing, 0 breaking changes |
 | v2.1.0 | Performance & Ergonomics Polish | 2026-04-19 | Performance optimizations: Buffer diff +38% (row-level skipping), Buffer fill +34% (direct array access), Buffer set +33% (eliminated bounds checks). API ergonomics: Rect.fromSize(), Constraint/Color/Span/Line constructors, semantic constants (Style.bold/dim/italic, Color.red/green/yellow). 1036 tests passing, 6 cross-platform targets verified, 0 breaking changes |
 | v2.0.0 | Major Release: API Cleanup & Modernization | 2026-04-13 | BREAKING CHANGES: Removed Buffer.setChar() (use Buffer.set()), removed Rect.new() (use struct literals). Kept Block.withTitle() as valid builder pattern. Migration script updated. All tests passing (~3345 tests). Clean API, simplified naming, better ergonomics |
