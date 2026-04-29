@@ -5,6 +5,7 @@ const layout_mod = @import("../layout.zig");
 const Rect = layout_mod.Rect;
 const style_mod = @import("../style.zig");
 const Style = style_mod.Style;
+const Color = style_mod.Color;
 const block_mod = @import("block.zig");
 const Block = block_mod.Block;
 
@@ -290,4 +291,72 @@ test "VirtualList.renderSlice convenience method" {
     defer testing.allocator.free(line2);
     try testing.expect(std.mem.indexOf(u8, line2, ">") != null);
     try testing.expect(std.mem.indexOf(u8, line2, "Item 2") != null);
+}
+
+test "VirtualList.withSelected builder" {
+    const list1 = VirtualList.init(10);
+    try testing.expectEqual(@as(?usize, null), list1.selected);
+
+    const list2 = list1.withSelected(5);
+    try testing.expectEqual(@as(?usize, 5), list2.selected);
+
+    const list3 = list2.withSelected(null);
+    try testing.expectEqual(@as(?usize, null), list3.selected);
+}
+
+test "VirtualList.withOffset builder" {
+    const list1 = VirtualList.init(100);
+    try testing.expectEqual(@as(usize, 0), list1.offset);
+
+    const list2 = list1.withOffset(25);
+    try testing.expectEqual(@as(usize, 25), list2.offset);
+
+    const list3 = list2.withOffset(0);
+    try testing.expectEqual(@as(usize, 0), list3.offset);
+}
+
+test "VirtualList.withBlock builder" {
+    const list1 = VirtualList.init(10);
+    try testing.expectEqual(@as(?Block, null), list1.block);
+
+    const block = Block.init().withTitle("My List");
+    const list2 = list1.withBlock(block);
+    try testing.expect(list2.block != null);
+    try testing.expectEqualStrings("My List", list2.block.?.title);
+}
+
+test "VirtualList.withItemStyle builder" {
+    const list1 = VirtualList.init(10);
+    try testing.expectEqual(Style{}, list1.item_style);
+
+    const custom_style = Style{ .fg = Color.rgb(255, 0, 0) };
+    const list2 = list1.withItemStyle(custom_style);
+    try testing.expect(list2.item_style.fg != null);
+    if (list2.item_style.fg) |fg| {
+        try testing.expectEqual(Color.rgb(255, 0, 0), fg);
+    }
+}
+
+test "VirtualList.withSelectedStyle builder" {
+    const list1 = VirtualList.init(10);
+    try testing.expectEqual(Style{ .fg = Color.white }, list1.selected_style);
+
+    const custom_style = Style{ .fg = Color.rgb(0, 255, 0), .bold = true };
+    const list2 = list1.withSelectedStyle(custom_style);
+    try testing.expect(list2.selected_style.fg != null);
+    if (list2.selected_style.fg) |fg| {
+        try testing.expectEqual(Color.rgb(0, 255, 0), fg);
+    }
+    try testing.expect(list2.selected_style.bold);
+}
+
+test "VirtualList.withHighlightSymbol builder" {
+    const list1 = VirtualList.init(10);
+    try testing.expectEqualStrings("> ", list1.highlight_symbol);
+
+    const list2 = list1.withHighlightSymbol("* ");
+    try testing.expectEqualStrings("* ", list2.highlight_symbol);
+
+    const list3 = list2.withHighlightSymbol("→ ");
+    try testing.expectEqualStrings("→ ", list3.highlight_symbol);
 }
