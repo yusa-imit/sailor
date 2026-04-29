@@ -492,3 +492,76 @@ test "Select: render with block" {
     const top_left = buf.get(0, 0);
     try std.testing.expectEqual(symbols.border.plain.top_left, top_left.char);
 }
+
+test "Select: withStyle builder" {
+    const items = [_][]const u8{ "Item 1" };
+    var select1 = try Select.init(std.testing.allocator, &items, false);
+    defer select1.deinit(std.testing.allocator);
+
+    const custom_style = Style{ .fg = Color.rgb(128, 128, 128), .dim = true };
+    const select2 = select1.withStyle(custom_style);
+
+    try std.testing.expect(select2.style.fg != null);
+    if (select2.style.fg) |fg| {
+        try std.testing.expectEqual(Color.rgb(128, 128, 128), fg);
+    }
+    try std.testing.expect(select2.style.dim);
+}
+
+test "Select: withHighlightStyle builder" {
+    const items = [_][]const u8{ "Item 1" };
+    var select1 = try Select.init(std.testing.allocator, &items, false);
+    defer select1.deinit(std.testing.allocator);
+
+    const highlight_style = Style{ .fg = Color.cyan, .bold = true };
+    const select2 = select1.withHighlightStyle(highlight_style);
+
+    try std.testing.expect(select2.highlight_style.fg != null);
+    if (select2.highlight_style.fg) |fg| {
+        try std.testing.expectEqual(Color.cyan, fg);
+    }
+    try std.testing.expect(select2.highlight_style.bold);
+}
+
+test "Select: withSelectedStyle builder" {
+    const items = [_][]const u8{ "Item 1" };
+    var select1 = try Select.init(std.testing.allocator, &items, false);
+    defer select1.deinit(std.testing.allocator);
+
+    const selected_style = Style{ .fg = Color.green, .italic = true };
+    const select2 = select1.withSelectedStyle(selected_style);
+
+    try std.testing.expect(select2.selected_style.fg != null);
+    if (select2.selected_style.fg) |fg| {
+        try std.testing.expectEqual(Color.green, fg);
+    }
+    try std.testing.expect(select2.selected_style.italic);
+}
+
+test "Select: withMaxVisible builder" {
+    const items = [_][]const u8{ "Item 1", "Item 2", "Item 3" };
+    var select1 = try Select.init(std.testing.allocator, &items, false);
+    defer select1.deinit(std.testing.allocator);
+
+    try std.testing.expectEqual(@as(usize, 10), select1.max_visible);
+
+    const select2 = select1.withMaxVisible(5);
+    try std.testing.expectEqual(@as(usize, 5), select2.max_visible);
+
+    const select3 = select2.withMaxVisible(3);
+    try std.testing.expectEqual(@as(usize, 3), select3.max_visible);
+}
+
+test "Select: withHelp builder" {
+    const items = [_][]const u8{ "Item 1" };
+    var select1 = try Select.init(std.testing.allocator, &items, false);
+    defer select1.deinit(std.testing.allocator);
+
+    try std.testing.expect(select1.show_help);
+
+    const select2 = select1.withHelp(false);
+    try std.testing.expect(!select2.show_help);
+
+    const select3 = select2.withHelp(true);
+    try std.testing.expect(select3.show_help);
+}
