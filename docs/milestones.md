@@ -4,12 +4,58 @@
 
 - **Latest release**: v2.4.0 (2026-04-29) — Testing Infrastructure & Quality Tooling
 - **Latest minor**: v2.4.0 (2026-04-29) — Snapshot testing, property-based testing, visual regression, mock terminal, test utilities
-- **Next milestone**: TBD (to be determined based on consumer feedback)
-- **Active milestones**: 1 (v2.2.0)
+- **Next milestone**: v2.5.0 (iTerm2 Protocol & Unicode Grapheme Support)
+- **Active milestones**: 2 (v2.2.0, v2.5.0)
 - **Blockers**: None
 
 ## Active Milestones
 
+### v2.5.0 — iTerm2 Protocol & Unicode Grapheme Support (Target: 2026-05-05)
+
+**Theme**: Advanced terminal protocols and proper Unicode handling for modern terminals
+
+**Checklist**:
+- [ ] **iTerm2 inline images protocol**: OSC 1337 image rendering
+  - File transfer syntax (File=inline=1;[base64])
+  - Positioning and sizing (width, height, preserveAspectRatio)
+  - Terminal capability detection (iTerm2, WezTerm support)
+  - Image cache management (memory limits, eviction)
+  - Error handling for unsupported terminals
+- [ ] **Unicode grapheme cluster support**: Proper multi-codepoint character handling
+  - Grapheme boundary detection (UAX#29 rules)
+  - Display width calculation for grapheme clusters (emoji, combining marks, ZWJ sequences)
+  - Cursor positioning with grapheme awareness
+  - Text wrapping respects grapheme boundaries
+  - Buffer Cell storage for grapheme clusters
+- [ ] **Terminal quirks database**: Handle emulator-specific behaviors
+  - Known issues database (per-terminal workarounds)
+  - Auto-detection of terminal bugs (response parsing)
+  - Graceful fallbacks for broken terminals
+  - Quirk flags (disable problematic features)
+- [ ] **Performance benchmarks**: Real-world scenario benchmarks
+  - Widget composition overhead (nested layouts)
+  - Large dataset rendering (10K+ rows)
+  - Event loop latency (input-to-render)
+  - Memory allocation patterns
+  - Regression detection in CI
+- [ ] **Testing**: Comprehensive test coverage for all features
+  - iTerm2 protocol encoding/decoding tests
+  - Grapheme cluster test suite (emoji, combining marks, ligatures)
+  - Quirks database tests (mock terminal responses)
+  - Benchmark stability tests (variance < 5%)
+
+**Success Criteria**:
+- iTerm2 users can render inline images seamlessly
+- Emoji and complex Unicode render correctly (no broken cursor positioning)
+- All tests passing (~3800+ tests expected)
+- Benchmarks show <0.02ms/op for widget operations
+- Documentation includes grapheme handling guide
+
+**Notes**:
+- iTerm2 protocol complements Kitty/Sixel for broader terminal support
+- Grapheme support fixes long-standing emoji/combining mark issues
+- Quirks database improves robustness across terminal emulators
+- Performance benchmarks establish baseline for future optimizations
 
 ### v2.2.0 — Consumer Feedback & Bug Fixes (Target: 2026-05-15)
 
