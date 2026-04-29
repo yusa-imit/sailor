@@ -340,3 +340,128 @@ test "ANSI parse state" {
     state.parseSequence("0");
     try testing.expect(!state.bold);
 }
+
+test "Terminal widget withBlock" {
+    var term = try TerminalWidget.init(testing.allocator);
+    defer term.deinit();
+
+    const block = Block.init().withTitle("Custom Block");
+    const term_with_block = term.withBlock(block);
+
+    try testing.expectEqualStrings("Custom Block", term_with_block.block.title);
+}
+
+test "Terminal widget withTitle" {
+    var term = try TerminalWidget.init(testing.allocator);
+    defer term.deinit();
+
+    const term_titled = term.withTitle("My Terminal");
+    try testing.expectEqualStrings("My Terminal", term_titled.block.title);
+}
+
+test "Terminal widget clear" {
+    var term = try TerminalWidget.init(testing.allocator);
+    defer term.deinit();
+
+    try term.addLine("Line 1");
+    try term.addLine("Line 2");
+    try term.addLine("Line 3");
+    try testing.expectEqual(@as(usize, 3), term.lineCount());
+
+    term.clear();
+    try testing.expectEqual(@as(usize, 0), term.lineCount());
+    try testing.expectEqual(@as(usize, 0), term.scroll_offset);
+}
+
+test "Terminal widget scrollDown" {
+    var term = try TerminalWidget.init(testing.allocator);
+    defer term.deinit();
+    term = term.withSize(80, 5);
+
+    // Add 10 lines
+    var i: usize = 0;
+    while (i < 10) : (i += 1) {
+        var buf: [32]u8 = undefined;
+        const line = try std.fmt.bufPrint(&buf, "Line {d}", .{i});
+        try term.addLine(line);
+    }
+
+    // Scroll up first
+    term.scrollUp(8);
+    try testing.expectEqual(@as(usize, 8), term.scroll_offset);
+
+    // Scroll down by 3
+    term.scrollDown(3);
+    try testing.expectEqual(@as(usize, 5), term.scroll_offset);
+
+    // Scroll down beyond bottom (should clamp to 0)
+    term.scrollDown(10);
+    try testing.expectEqual(@as(usize, 0), term.scroll_offset);
+}
+
+test "Terminal widget visibleLines" {
+    var term = try TerminalWidget.init(testing.allocator);
+    defer term.deinit();
+    term = term.withSize(80, 3);
+
+    try term.addLine("Line 0");
+    try term.addLine("Line 1");
+    try term.addLine("Line 2");
+    try term.addLine("Line 3");
+    try term.addLine("Line 4");
+
+    // With no scrolling, should see last 3 lines
+    const visible = term.visibleLines();
+    try testing.expectEqual(@as(usize, 3), visible.len);
+    try testing.expectEqualStrings("Line 2", visible[0]);
+    try testing.expectEqualStrings("Line 3", visible[1]);
+    try testing.expectEqualStrings("Line 4", visible[2]);
+}
+
+test "Terminal widget visibleLines with scroll offset" {
+    var term = try TerminalWidget.init(testing.allocator);
+    defer term.deinit();
+    term = term.withSize(80, 3);
+
+    try term.addLine("Line 0");
+    try term.addLine("Line 1");
+    try term.addLine("Line 2");
+    try term.addLine("Line 3");
+    try term.addLine("Line 4");
+
+    term.scrollUp(2);
+    const visible = term.visibleLines();
+    try testing.expectEqual(@as(usize, 3), visible.len);
+    try testing.expectEqualStrings("Line 0", visible[0]);
+    try testing.expectEqualStrings("Line 1", visible[1]);
+    try testing.expectEqualStrings("Line 2", visible[2]);
+}
+
+test "AnsiParseState reset" {
+    var state = AnsiParseState{};
+
+    // Set some state
+    state.parseSequence("1"); // bold
+    state.parseSequence("3"); // italic
+    state.parseSequence("4"); // underline
+    state.cursor_x = 10;
+    state.cursor_y = 5;
+
+    try testing.expect(state.bold);
+    try testing.expect(state.italic);
+    try testing.expect(state.underline);
+    try testing.expectEqual(@as(u16, 10), state.cursor_x);
+    try testing.expectEqual(@as(u16, 5), state.cursor_y);
+
+    // Reset should clear everything
+    state.reset();
+    try testing.expect(!state.bold);
+    try testing.expect(!state.dim);
+    try testing.expect(!state.italic);
+    try testing.expect(!state.underline);
+    try testing.expect(!state.reverse);
+    try testing.expectEqual(@as(u16, 0), state.cursor_x);
+    try testing.expectEqual(@as(u16, 0), state.cursor_y);
+    try testing.expectEqual(@as(?Color, null), state.foreground);
+    try testing.expectEqual(@as(?Color, null), state.background);
+}
