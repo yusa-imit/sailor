@@ -59,6 +59,7 @@ pub const async_loop = @import("async_loop.zig");
 // v1.11.0+ — Terminal Graphics & Effects
 pub const sixel = @import("sixel.zig");
 pub const kitty = @import("kitty.zig");
+pub const iterm2 = @import("iterm2.zig"); // v2.5.0 — iTerm2 inline images
 pub const transitions = @import("transitions.zig");
 pub const particles = @import("widgets/particles.zig");
 pub const blur = @import("blur.zig");
