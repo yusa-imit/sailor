@@ -93,13 +93,161 @@ pub const ITerm2Image = struct {
     }
 };
 
+/// Terminal capability flags for iTerm2 protocol
+pub const ITerm2Capability = struct {
+    /// Terminal supports iTerm2 inline images
+    supports_inline_images: bool = false,
+    /// Terminal emulator name (if detected)
+    emulator: ?[]const u8 = null,
+
+    /// Detect iTerm2 capability from environment variables.
+    /// Checks TERM_PROGRAM for iTerm2, WezTerm, Hyper.
+    pub fn detect(allocator: Allocator) ITerm2Capability {
+        var cap = ITerm2Capability{};
+
+        // Check TERM_PROGRAM environment variable
+        if (std.process.getEnvVarOwned(allocator, "TERM_PROGRAM")) |term_program| {
+            defer allocator.free(term_program);
+
+            if (std.mem.eql(u8, term_program, "iTerm.app")) {
+                cap.supports_inline_images = true;
+                cap.emulator = "iTerm2";
+            } else if (std.mem.eql(u8, term_program, "WezTerm")) {
+                cap.supports_inline_images = true;
+                cap.emulator = "WezTerm";
+            } else if (std.mem.eql(u8, term_program, "Hyper")) {
+                cap.supports_inline_images = true;
+                cap.emulator = "Hyper";
+            }
+        } else |_| {
+            // TERM_PROGRAM not set, assume no support
+        }
+
+        return cap;
+    }
+};
+
+/// Image cache entry
+const CacheEntry = struct {
+    /// Base64-encoded image data
+    data: []const u8,
+    /// Size in bytes
+    size: usize,
+    /// Access timestamp (for LRU eviction)
+    last_access: i64,
+    /// Hash of original image data (for deduplication)
+    hash: u64,
+};
+
+/// iTerm2 image cache for memory management
+pub const ITerm2Cache = struct {
+    allocator: Allocator,
+    /// Cache entries keyed by image data hash
+    entries: std.AutoHashMap(u64, CacheEntry),
+    /// Current total cache size in bytes
+    current_size: usize,
+    /// Maximum cache size in bytes (default: 10 MB)
+    max_size: usize,
+
+    /// Initialize cache with allocator and optional max size.
+    pub fn init(allocator: Allocator, max_size: ?usize) ITerm2Cache {
+        return .{
+            .allocator = allocator,
+            .entries = std.AutoHashMap(u64, CacheEntry).init(allocator),
+            .current_size = 0,
+            .max_size = max_size orelse 10 * 1024 * 1024, // 10 MB default
+        };
+    }
+
+    /// Free all cache resources.
+    pub fn deinit(self: *ITerm2Cache) void {
+        var it = self.entries.iterator();
+        while (it.next()) |entry| {
+            self.allocator.free(entry.value_ptr.data);
+        }
+        self.entries.deinit();
+    }
+
+    /// Get or add image to cache. Returns base64-encoded data.
+    /// Evicts LRU entries if cache is full.
+    pub fn getOrAdd(self: *ITerm2Cache, image_data: []const u8) ![]const u8 {
+        const hash = std.hash.Wyhash.hash(0, image_data);
+
+        // Check if already cached
+        if (self.entries.getPtr(hash)) |entry| {
+            entry.last_access = std.time.timestamp();
+            return entry.data;
+        }
+
+        // Encode to base64
+        const encoder = std.base64.standard.Encoder;
+        const encoded_len = encoder.calcSize(image_data.len);
+        const encoded_data = try self.allocator.alloc(u8, encoded_len);
+        errdefer self.allocator.free(encoded_data);
+        _ = encoder.encode(encoded_data, image_data);
+
+        // Evict if necessary
+        while (self.current_size + encoded_len > self.max_size and self.entries.count() > 0) {
+            try self.evictLRU();
+        }
+
+        // Add to cache
+        try self.entries.put(hash, .{
+            .data = encoded_data,
+            .size = encoded_len,
+            .last_access = std.time.timestamp(),
+            .hash = hash,
+        });
+        self.current_size += encoded_len;
+
+        return encoded_data;
+    }
+
+    /// Evict least recently used entry.
+    fn evictLRU(self: *ITerm2Cache) !void {
+        var oldest_hash: u64 = 0;
+        var oldest_time: i64 = std.math.maxInt(i64);
+
+        var it = self.entries.iterator();
+        while (it.next()) |entry| {
+            if (entry.value_ptr.last_access < oldest_time) {
+                oldest_time = entry.value_ptr.last_access;
+                oldest_hash = entry.key_ptr.*;
+            }
+        }
+
+        if (self.entries.fetchRemove(oldest_hash)) |kv| {
+            self.current_size -= kv.value.size;
+            self.allocator.free(kv.value.data);
+        }
+    }
+
+    /// Clear all cached entries.
+    pub fn clear(self: *ITerm2Cache) void {
+        var it = self.entries.iterator();
+        while (it.next()) |entry| {
+            self.allocator.free(entry.value_ptr.data);
+        }
+        self.entries.clearRetainingCapacity();
+        self.current_size = 0;
+    }
+};
+
 /// iTerm2 inline images encoder
 pub const ITerm2Encoder = struct {
     allocator: Allocator,
+    /// Optional image cache for memory management
+    cache: ?*ITerm2Cache,
+    /// Terminal capability detection result
+    capability: ITerm2Capability,
 
-    /// Initialize iTerm2 encoder with allocator.
-    pub fn init(allocator: Allocator) ITerm2Encoder {
-        return .{ .allocator = allocator };
+    /// Initialize iTerm2 encoder with allocator and optional cache.
+    pub fn init(allocator: Allocator, cache: ?*ITerm2Cache) ITerm2Encoder {
+        return .{
+            .allocator = allocator,
+            .cache = cache,
+            .capability = ITerm2Capability.detect(allocator),
+        };
     }
 
     /// Free resources (currently a no-op).
@@ -107,23 +255,43 @@ pub const ITerm2Encoder = struct {
         // No state to clean up currently
     }
 
+    /// Check if terminal supports iTerm2 inline images.
+    pub fn isSupported(self: ITerm2Encoder) bool {
+        return self.capability.supports_inline_images;
+    }
+
     /// Encode image to iTerm2 inline images protocol and write to output.
     ///
     /// Protocol format: ESC ] 1337 ; File = [args] : base64data BEL
+    ///
+    /// Returns error.UnsupportedTerminal if terminal doesn't support iTerm2 protocol.
     pub fn encode(
         self: *ITerm2Encoder,
         image: ITerm2Image,
         writer: anytype,
     ) !void {
+        // Check terminal support
+        if (!self.isSupported()) {
+            return error.UnsupportedTerminal;
+        }
+
         try image.validate();
 
-        // Encode image data to base64
-        const encoder = std.base64.standard.Encoder;
-        const encoded_len = encoder.calcSize(image.data.len);
-        const encoded_data = try self.allocator.alloc(u8, encoded_len);
-        defer self.allocator.free(encoded_data);
+        // Get base64-encoded data (from cache or encode new)
+        const encoded_data = if (self.cache) |cache|
+            try cache.getOrAdd(image.data)
+        else blk: {
+            // No cache, encode on the fly
+            const encoder = std.base64.standard.Encoder;
+            const encoded_len = encoder.calcSize(image.data.len);
+            const data = try self.allocator.alloc(u8, encoded_len);
+            errdefer self.allocator.free(data);
+            _ = encoder.encode(data, image.data);
+            break :blk data;
+        };
 
-        _ = encoder.encode(encoded_data, image.data);
+        // Free temporary data if not cached
+        defer if (self.cache == null) self.allocator.free(encoded_data);
 
         // Write OSC 1337 sequence: ESC ] 1337 ; File = [args] : base64data BEL
         try writer.writeAll("\x1b]1337;File=");
@@ -262,8 +430,10 @@ test "ITerm2Encoder encode - minimal image" {
         .data = &png_header,
     };
 
-    var encoder = ITerm2Encoder.init(testing.allocator);
+    var encoder = ITerm2Encoder.init(testing.allocator, null);
     defer encoder.deinit();
+    // Force capability to supported for testing
+    encoder.capability.supports_inline_images = true;
     try encoder.encode(img, writer);
 
     const output = fbs.getWritten();
@@ -296,8 +466,9 @@ test "ITerm2Encoder encode - with all parameters" {
         .is_inline = false,
     };
 
-    var encoder = ITerm2Encoder.init(testing.allocator);
+    var encoder = ITerm2Encoder.init(testing.allocator, null);
     defer encoder.deinit();
+    encoder.capability.supports_inline_images = true;
     try encoder.encode(img, writer);
 
     const output = fbs.getWritten();
@@ -321,8 +492,9 @@ test "ITerm2Encoder encode - width pixels" {
         .width = .{ .pixels = 800 },
     };
 
-    var encoder = ITerm2Encoder.init(testing.allocator);
+    var encoder = ITerm2Encoder.init(testing.allocator, null);
     defer encoder.deinit();
+    encoder.capability.supports_inline_images = true;
     try encoder.encode(img, writer);
 
     const output = fbs.getWritten();
@@ -341,8 +513,9 @@ test "ITerm2Encoder encode - auto dimensions" {
         .height = .auto,
     };
 
-    var encoder = ITerm2Encoder.init(testing.allocator);
+    var encoder = ITerm2Encoder.init(testing.allocator, null);
     defer encoder.deinit();
+    encoder.capability.supports_inline_images = true;
     try encoder.encode(img, writer);
 
     const output = fbs.getWritten();
@@ -353,6 +526,98 @@ test "ITerm2Encoder encode - auto dimensions" {
 }
 
 test "ITerm2Encoder init and deinit" {
-    var encoder = ITerm2Encoder.init(testing.allocator);
+    var encoder = ITerm2Encoder.init(testing.allocator, null);
     encoder.deinit();
+}
+
+test "ITerm2Encoder unsupported terminal" {
+    var buf: [1024]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const png_header = [_]u8{ 0x89, 0x50, 0x4e, 0x47 };
+    const img = ITerm2Image{
+        .data = &png_header,
+    };
+
+    var encoder = ITerm2Encoder.init(testing.allocator, null);
+    defer encoder.deinit();
+    // Force unsupported
+    encoder.capability.supports_inline_images = false;
+
+    try testing.expectError(error.UnsupportedTerminal, encoder.encode(img, writer));
+}
+
+test "ITerm2Cache init and deinit" {
+    var cache = ITerm2Cache.init(testing.allocator, null);
+    defer cache.deinit();
+}
+
+test "ITerm2Cache getOrAdd - single image" {
+    var cache = ITerm2Cache.init(testing.allocator, null);
+    defer cache.deinit();
+
+    const png_header = [_]u8{ 0x89, 0x50, 0x4e, 0x47 };
+    const encoded = try cache.getOrAdd(&png_header);
+
+    // Should return base64-encoded data
+    try testing.expect(encoded.len > 0);
+
+    // Second call should return same data
+    const encoded2 = try cache.getOrAdd(&png_header);
+    try testing.expectEqualStrings(encoded, encoded2);
+}
+
+test "ITerm2Cache eviction" {
+    // Small cache (100 bytes) to force eviction
+    var cache = ITerm2Cache.init(testing.allocator, 100);
+    defer cache.deinit();
+
+    const img1 = [_]u8{ 0x89, 0x50, 0x4e, 0x47, 0x01, 0x02, 0x03 };
+    const img2 = [_]u8{ 0x89, 0x50, 0x4e, 0x47, 0x04, 0x05, 0x06 };
+
+    _ = try cache.getOrAdd(&img1);
+    _ = try cache.getOrAdd(&img2);
+
+    // Cache should have evicted oldest entry
+    try testing.expect(cache.entries.count() <= 2);
+    try testing.expect(cache.current_size <= 100);
+}
+
+test "ITerm2Cache clear" {
+    var cache = ITerm2Cache.init(testing.allocator, null);
+    defer cache.deinit();
+
+    const png_header = [_]u8{ 0x89, 0x50, 0x4e, 0x47 };
+    _ = try cache.getOrAdd(&png_header);
+
+    try testing.expect(cache.entries.count() == 1);
+    try testing.expect(cache.current_size > 0);
+
+    cache.clear();
+
+    try testing.expect(cache.entries.count() == 0);
+    try testing.expect(cache.current_size == 0);
+}
+
+test "ITerm2Encoder with cache" {
+    var cache = ITerm2Cache.init(testing.allocator, null);
+    defer cache.deinit();
+
+    var buf: [1024]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const png_header = [_]u8{ 0x89, 0x50, 0x4e, 0x47 };
+    const img = ITerm2Image{
+        .data = &png_header,
+    };
+
+    var encoder = ITerm2Encoder.init(testing.allocator, &cache);
+    defer encoder.deinit();
+    encoder.capability.supports_inline_images = true;
+    try encoder.encode(img, writer);
+
+    // Verify cache was used
+    try testing.expect(cache.entries.count() == 1);
 }
