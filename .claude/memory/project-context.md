@@ -1,3 +1,44 @@
+✅ **Session 132** — FEATURE MODE: v2.5.0 ITERM2 PROTOCOL COMPLETE (2026-04-30)
+  - **Mode**: FEATURE (session 132, 132 % 5 == 2)
+  - **Achievement**: Implemented complete iTerm2 inline images protocol (OSC 1337)
+
+  **Completed Work**:
+    - ✅ iTerm2 inline images protocol (src/tui/iterm2.zig, 19 tests, 491 lines):
+      - ITerm2Image: image metadata + data structure (PNG/JPEG/GIF/BMP)
+      - SizeSpec: auto/pixels/cells/percent size specification
+      - ITerm2Encoder: OSC 1337 sequence generation with base64 encoding
+      - ITerm2Capability: terminal emulator detection (iTerm2, WezTerm, Hyper via TERM_PROGRAM)
+      - ITerm2Cache: LRU image cache (10 MB default, hash-based dedup, eviction)
+      - Error handling: UnsupportedTerminal for non-iTerm2 terminals
+    - ✅ All tests passing (~3710 tests, +19 from v2.4.0, 0 failures)
+    - ✅ Commits:
+      - b621383 — feat(tui): add iTerm2 inline images protocol (OSC 1337)
+      - ea39395 — feat(tui): add iTerm2 capability detection and image cache
+
+  **v2.5.0 Progress** (iTerm2 Protocol & Unicode Grapheme Support):
+    - ✅ iTerm2 inline images protocol (100% complete)
+      - ✅ File transfer syntax + positioning/sizing
+      - ✅ Terminal capability detection (TERM_PROGRAM check)
+      - ✅ Image cache management (LRU, memory limits)
+      - ✅ Error handling (UnsupportedTerminal)
+    - ⏳ Unicode grapheme cluster support (pending)
+    - ⏳ Terminal quirks database (pending)
+    - ⏳ Performance benchmarks (pending)
+    - ⏳ Testing checklist (pending)
+
+  **Current State**:
+    - **Latest release**: v2.4.0 (2026-04-29)
+    - **Active milestones**: 2 (v2.2.0 Consumer Feedback, v2.5.0 iTerm2+Grapheme)
+    - **v2.5.0 completion**: 20% (1/5 checklist items done)
+    - **CI status**: PASSING (all platforms)
+    - **Open issues**: 0 (sailor), 3 (consumer migration notifications)
+    - **Blockers**: NONE
+    - **Test count**: ~3710 passing tests (+19)
+
+  **Next Priority**:
+    - Continue v2.5.0: Unicode grapheme cluster support (UAX#29, display width, cursor positioning)
+    - Monitor consumer migrations (v2.4.0: zr#56, zoltraak#33, silica#42)
+
 ✅ **Session 129** — FEATURE MODE: v2.4.0 RELEASE — TESTING INFRASTRUCTURE COMPLETE (2026-04-29)
   - **Mode**: FEATURE (session 129, 129 % 5 == 4)
   - **Achievement**: Fixed test leaks + released v2.4.0 milestone
