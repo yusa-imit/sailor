@@ -15,18 +15,18 @@
 **Theme**: Advanced terminal protocols and proper Unicode handling for modern terminals
 
 **Checklist**:
-- [ ] **iTerm2 inline images protocol**: OSC 1337 image rendering
+- [x] **iTerm2 inline images protocol**: OSC 1337 image rendering
   - File transfer syntax (File=inline=1;[base64])
   - Positioning and sizing (width, height, preserveAspectRatio)
   - Terminal capability detection (iTerm2, WezTerm support)
   - Image cache management (memory limits, eviction)
   - Error handling for unsupported terminals
-- [ ] **Unicode grapheme cluster support**: Proper multi-codepoint character handling
+- [x] **Unicode grapheme cluster support**: Proper multi-codepoint character handling
   - Grapheme boundary detection (UAX#29 rules)
   - Display width calculation for grapheme clusters (emoji, combining marks, ZWJ sequences)
   - Cursor positioning with grapheme awareness
   - Text wrapping respects grapheme boundaries
-  - Buffer Cell storage for grapheme clusters
+  - Buffer Cell storage for grapheme clusters (existing Cell structure + grapheme-aware helpers)
 - [ ] **Terminal quirks database**: Handle emulator-specific behaviors
   - Known issues database (per-terminal workarounds)
   - Auto-detection of terminal bugs (response parsing)
