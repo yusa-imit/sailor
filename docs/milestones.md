@@ -27,7 +27,7 @@
   - Cursor positioning with grapheme awareness
   - Text wrapping respects grapheme boundaries
   - Buffer Cell storage for grapheme clusters (existing Cell structure + grapheme-aware helpers)
-- [ ] **Terminal quirks database**: Handle emulator-specific behaviors
+- [x] **Terminal quirks database**: Handle emulator-specific behaviors
   - Known issues database (per-terminal workarounds)
   - Auto-detection of terminal bugs (response parsing)
   - Graceful fallbacks for broken terminals
