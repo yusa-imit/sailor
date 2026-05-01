@@ -1,3 +1,46 @@
+✅ **Session 138** — FEATURE MODE: v2.5.0 BENCHMARK REGRESSION DETECTION COMPLETE (2026-05-02)
+  - **Mode**: FEATURE (session 138, 138 % 5 == 3)
+  - **Achievement**: Implemented automated performance regression detection in CI
+
+  **Completed Work**:
+    - ✅ Implemented benchmark regression detection tool (scripts/check_benchmarks.zig, 4 tests):
+      - BenchmarkResult parser for examples/benchmark.zig output format
+      - Regression calculation (percentage change in per-op time)
+      - Configurable threshold (default: 10% slowdown)
+      - Color-coded output: ✅ (improvement), ⚠️ (within threshold), ❌ (regression)
+      - Exit code 1 when regression detected (fails CI)
+    - ✅ Updated CI workflow (.github/workflows/ci.yml):
+      - Dedicated benchmark job on ubuntu-latest
+      - Fetches baseline from main branch artifacts (or rebuilds from main)
+      - Runs check_benchmarks.zig to compare current vs baseline
+      - Fails CI if regression >10% detected
+      - Reports detailed comparison in PR summary
+      - Uploads results as artifacts (90-day retention)
+    - ✅ Documentation (scripts/README.md): Tool usage, exit codes, CI integration
+    - ✅ All tests passing (~3808 tests, +4 from check_benchmarks)
+    - ✅ Commit: 9d38bdb — feat(ci): add benchmark regression detection system
+    - ✅ Pushed to main
+
+  **v2.5.0 Progress** (iTerm2 Protocol & Unicode Grapheme Support):
+    - ✅ iTerm2 inline images protocol (100% complete)
+    - ✅ Unicode grapheme cluster support (100% complete) — 110 tests
+    - ✅ Terminal quirks database (100% complete) — 25 tests
+    - ✅ Performance benchmarks (100% complete) — regression detection in CI
+    - ⏳ Testing checklist (pending)
+
+  **Current State**:
+    - **Latest release**: v2.4.0 (2026-04-29)
+    - **Active milestones**: 2 (v2.2.0 Consumer Feedback, v2.5.0 iTerm2+Grapheme)
+    - **v2.5.0 completion**: 80% (4/5 checklist items done)
+    - **CI status**: Building (commit 9d38bdb)
+    - **Open issues**: 0 (sailor), 3 (consumer migration notifications)
+    - **Blockers**: NONE
+    - **Test count**: ~3808 passing tests (+4 regression detection tests)
+
+  **Next Priority**:
+    - Complete v2.5.0: Testing checklist (iTerm2, grapheme, quirks features)
+    - Monitor consumer migrations (v2.4.0: zr#56, zoltraak#33, silica#42)
+
 ✅ **Session 136** — FEATURE MODE: v2.5.0 TERMINAL QUIRKS DATABASE COMPLETE (2026-05-01)
   - **Mode**: FEATURE (session 136, 136 % 5 == 1)
   - **Achievement**: Implemented comprehensive terminal quirks detection system
