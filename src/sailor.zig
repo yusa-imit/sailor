@@ -39,8 +39,9 @@ pub const keybindings = @import("keybindings.zig");
 pub const unicode = @import("unicode.zig");
 pub const bidi = @import("bidi.zig");
 
-// v2.5.0 — Unicode Grapheme Cluster Support
+// v2.5.0 — iTerm2 Protocol & Unicode Grapheme Support
 pub const grapheme = @import("grapheme.zig");
+pub const quirks = @import("tui/quirks.zig");
 
 // v1.4.0 — Memory Management
 pub const pool = @import("pool.zig");

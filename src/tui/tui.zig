@@ -64,6 +64,9 @@ pub const transitions = @import("transitions.zig");
 pub const particles = @import("widgets/particles.zig");
 pub const blur = @import("blur.zig");
 
+// v2.5.0+ — Terminal Quirks Database
+pub const quirks = @import("quirks.zig");
+
 // v1.24.0+ — Transition Helpers
 pub const transition = @import("transition.zig");
 pub const timer = @import("timer.zig");
