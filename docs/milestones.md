@@ -32,7 +32,7 @@
   - Auto-detection of terminal bugs (response parsing)
   - Graceful fallbacks for broken terminals
   - Quirk flags (disable problematic features)
-- [ ] **Performance benchmarks**: Real-world scenario benchmarks
+- [x] **Performance benchmarks**: Real-world scenario benchmarks
   - Widget composition overhead (nested layouts)
   - Large dataset rendering (10K+ rows)
   - Event loop latency (input-to-render)

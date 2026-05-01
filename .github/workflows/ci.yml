@@ -111,24 +111,59 @@ jobs:
         with:
           version: 0.15.2
 
-      - name: Build Benchmarks
+      - name: Build Benchmark Executable
         run: zig build benchmark
 
-      - name: Run Benchmarks
-        run: zig build benchmark | tee benchmark-results.txt
+      - name: Run Current Benchmarks
+        run: ./zig-out/bin/benchmark 2>&1 | tee benchmark-current.txt
+
+      - name: Get Baseline from Main Branch
+        if: github.event_name == 'pull_request'
+        run: |
+          # Fetch baseline from main branch artifact (if available)
+          gh run list --branch main --workflow ci.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId' > main_run_id.txt || echo "0" > main_run_id.txt
+          MAIN_RUN_ID=$(cat main_run_id.txt)
+          if [ "$MAIN_RUN_ID" != "0" ]; then
+            gh run download $MAIN_RUN_ID --name benchmark-results --dir baseline || echo "No baseline found"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Run Baseline Benchmarks (fallback)
+        if: github.event_name == 'pull_request' && !hashFiles('baseline/benchmark-current.txt')
+        run: |
+          # Build baseline from main branch
+          git fetch origin main
+          git checkout origin/main
+          zig build benchmark
+          ./zig-out/bin/benchmark 2>&1 | tee benchmark-baseline.txt
+          git checkout -
+
+      - name: Detect Regressions
+        if: github.event_name == 'pull_request'
+        run: |
+          if [ -f baseline/benchmark-current.txt ]; then
+            BASELINE_FILE=baseline/benchmark-current.txt
+          elif [ -f benchmark-baseline.txt ]; then
+            BASELINE_FILE=benchmark-baseline.txt
+          else
+            echo "No baseline found - skipping regression detection"
+            exit 0
+          fi
+
+          zig run scripts/check_benchmarks.zig -- benchmark-current.txt $BASELINE_FILE 2>&1 | tee regression-report.txt
+          REGRESSION_EXIT=$?
+
+          echo "## Benchmark Regression Report" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat regression-report.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+          exit $REGRESSION_EXIT
 
       - name: Upload Benchmark Results
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
-          path: benchmark-results.txt
-          retention-days: 30
-
-      - name: Performance Regression Detection
-        if: github.event_name == 'pull_request'
-        run: |
-          echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          cat benchmark-results.txt >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "Compare with main branch results to detect regressions." >> $GITHUB_STEP_SUMMARY
+          path: benchmark-current.txt
+          retention-days: 90
