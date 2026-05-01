@@ -1,3 +1,47 @@
+✅ **Session 136** — FEATURE MODE: v2.5.0 TERMINAL QUIRKS DATABASE COMPLETE (2026-05-01)
+  - **Mode**: FEATURE (session 136, 136 % 5 == 1)
+  - **Achievement**: Implemented comprehensive terminal quirks detection system
+
+  **Completed Work**:
+    - ✅ Implemented terminal quirks database (src/tui/quirks.zig, 425 lines, 25 tests)
+      - 8 quirk flags for common terminal bugs:
+        - clipboard_needs_padding (iTerm2 OSC 52 base64 padding)
+        - broken_sync_output (Alacritty < v0.13)
+        - broken_sgr_mouse (Windows Terminal < v1.12 coordinate bugs)
+        - broken_sixel (Konsole rendering issues)
+        - broken_emoji_rendering (Kitty < v0.26 UTF-8 issues)
+        - needs_tmux_passthrough (tmux/screen OSC sequences)
+        - broken_hyperlinks (GNOME Terminal < v3.38)
+        - needs_colorterm_hint (xterm variants truecolor detection)
+      - Auto-detection from environment (detect/detectWith)
+      - Version comparison for terminal-specific bug thresholds
+      - Windows-compatible environment variable handling
+    - ✅ All tests passing (~3808 tests, +25 from quirks)
+    - ✅ Commits:
+      - 2b866bb — feat(tui): add terminal quirks database
+      - 6c518c2 — chore: mark terminal quirks database as complete in v2.5.0
+    - ✅ Both commits pushed to main
+
+  **v2.5.0 Progress** (iTerm2 Protocol & Unicode Grapheme Support):
+    - ✅ iTerm2 inline images protocol (100% complete)
+    - ✅ Unicode grapheme cluster support (100% complete) — 110 tests
+    - ✅ Terminal quirks database (100% complete) — 25 tests
+    - ⏳ Performance benchmarks (pending)
+    - ⏳ Testing checklist (pending)
+
+  **Current State**:
+    - **Latest release**: v2.4.0 (2026-04-29)
+    - **Active milestones**: 2 (v2.2.0 Consumer Feedback, v2.5.0 iTerm2+Grapheme)
+    - **v2.5.0 completion**: 60% (3/5 checklist items done)
+    - **CI status**: PASSING (commit 6c518c2)
+    - **Open issues**: 0 (sailor), 3 (consumer migration notifications)
+    - **Blockers**: NONE
+    - **Test count**: ~3808 passing tests (+25)
+
+  **Next Priority**:
+    - Continue v2.5.0: Performance benchmarks OR Testing checklist
+    - Monitor consumer migrations (v2.4.0: zr#56, zoltraak#33, silica#42)
+
 ✅ **Session 135** — STABILIZATION MODE: CROSS-COMPILATION VERIFICATION (2026-05-01)
   - **Mode**: STABILIZATION (session 135, 135 % 5 == 0)
   - **Achievement**: Verified all 6 cross-compilation targets build successfully
