@@ -2,68 +2,115 @@
 
 ## Current Status
 
-- **Latest release**: v2.4.0 (2026-04-29) — Testing Infrastructure & Quality Tooling
-- **Latest minor**: v2.4.0 (2026-04-29) — Snapshot testing, property-based testing, visual regression, mock terminal, test utilities
-- **Next milestone**: v2.5.0 (iTerm2 Protocol & Unicode Grapheme Support)
-- **Active milestones**: 2 (v2.2.0, v2.5.0)
+- **Latest release**: v2.5.0 (2026-05-03) — iTerm2 Protocol & Unicode Grapheme Support
+- **Latest minor**: v2.5.0 (2026-05-03) — iTerm2 inline images, Unicode grapheme clusters, terminal quirks database, benchmark stability
+- **Next milestone**: v2.6.0 (Advanced Input & Clipboard)
+- **Active milestones**: 3 (v2.2.0, v2.6.0, v2.7.0)
 - **Blockers**: None
 
 ## Active Milestones
 
-### v2.5.0 — iTerm2 Protocol & Unicode Grapheme Support (Target: 2026-05-05)
+### v2.6.0 — Advanced Input & Clipboard (Target: 2026-05-10)
 
-**Theme**: Advanced terminal protocols and proper Unicode handling for modern terminals
+**Theme**: Enhanced input handling and system clipboard integration for professional TUI applications
 
 **Checklist**:
-- [x] **iTerm2 inline images protocol**: OSC 1337 image rendering
-  - File transfer syntax (File=inline=1;[base64])
-  - Positioning and sizing (width, height, preserveAspectRatio)
-  - Terminal capability detection (iTerm2, WezTerm support)
-  - Image cache management (memory limits, eviction)
-  - Error handling for unsupported terminals
-- [x] **Unicode grapheme cluster support**: Proper multi-codepoint character handling
-  - Grapheme boundary detection (UAX#29 rules)
-  - Display width calculation for grapheme clusters (emoji, combining marks, ZWJ sequences)
-  - Cursor positioning with grapheme awareness
-  - Text wrapping respects grapheme boundaries
-  - Buffer Cell storage for grapheme clusters (existing Cell structure + grapheme-aware helpers)
-- [x] **Terminal quirks database**: Handle emulator-specific behaviors
-  - Known issues database (per-terminal workarounds)
-  - Auto-detection of terminal bugs (response parsing)
-  - Graceful fallbacks for broken terminals
-  - Quirk flags (disable problematic features)
-- [x] **Performance benchmarks**: Real-world scenario benchmarks
-  - Widget composition overhead (nested layouts)
-  - Large dataset rendering (10K+ rows)
-  - Event loop latency (input-to-render)
-  - Memory allocation patterns
-  - Regression detection in CI
-- [x] **Testing**: Comprehensive test coverage for all features
-  - iTerm2 protocol encoding/decoding tests (19 tests)
-  - Grapheme cluster test suite (emoji, combining marks, ligatures) (15 tests)
-  - Quirks database tests (mock terminal responses) (25 tests)
-  - Benchmark stability tests (variance < 5%) (8 tests)
+- [ ] **Multi-line text input**: TextArea enhancements
+  - Line wrapping with soft/hard breaks
+  - Vertical scrolling for large texts
+  - Selection with keyboard (Shift+arrows)
+  - Line numbers display (optional)
+  - Syntax highlighting hooks
+- [ ] **Clipboard operations**: Full read/write support
+  - OSC 52 clipboard read (where supported)
+  - Clipboard history buffer (last 10 entries)
+  - Copy/paste with bracketed paste mode
+  - System clipboard fallback (pbcopy/pbpaste on macOS, xclip/xsel on Linux)
+  - Multi-line paste handling
+- [ ] **Input validation**: Real-time validation framework
+  - Email, URL, phone number validators
+  - Custom regex validators
+  - Min/max length constraints
+  - Visual feedback (error highlights)
+  - Async validation support (debounced)
+- [ ] **Autocomplete enhancements**: Intelligent completion
+  - Fuzzy matching algorithms
+  - Context-aware suggestions
+  - Multi-column completion popup
+  - Documentation preview pane
+  - Keyboard shortcuts (Tab, Ctrl+Space)
+- [ ] **Testing**: Comprehensive test coverage
+  - TextArea multi-line tests
+  - Clipboard read/write tests (mock terminal)
+  - Validation framework tests
+  - Autocomplete fuzzy matching tests
 
 **Success Criteria**:
-- iTerm2 users can render inline images seamlessly
-- Emoji and complex Unicode render correctly (no broken cursor positioning)
-- All tests passing (~3800+ tests expected)
-- Benchmarks show <0.02ms/op for widget operations
-- Documentation includes grapheme handling guide
+- TextArea handles 10K+ line files smoothly
+- Clipboard works across iTerm2, Kitty, Alacritty, WezTerm
+- Input validation catches common mistakes instantly
+- Autocomplete feels responsive (<50ms latency)
+- All tests passing (~3900+ tests expected)
 
 **Notes**:
-- iTerm2 protocol complements Kitty/Sixel for broader terminal support
-- Grapheme support fixes long-standing emoji/combining mark issues
-- Quirks database improves robustness across terminal emulators
-- Performance benchmarks establish baseline for future optimizations
+- Builds on v2.5.0 clipboard foundation (OSC 52 write)
+- Focuses on developer experience for text-heavy TUIs
+- Enables richer REPL and editor-like interfaces
+
+### v2.7.0 — Cross-Platform Improvements (Target: 2026-05-17)
+
+**Theme**: Enhanced Windows compatibility and platform-specific optimizations
+
+**Checklist**:
+- [ ] **Windows console API**: Native Windows support
+  - ConPTY integration for modern Windows Terminal
+  - Legacy console API fallback (Windows 7/8)
+  - ANSI escape sequence emulation layer
+  - Windows-specific keyboard events (Ctrl+C, Alt+F4)
+  - UTF-16 console encoding handling
+- [ ] **Platform-specific optimizations**: Performance tuning
+  - Linux: Direct ANSI sequence emission (no overhead)
+  - macOS: Metal-accelerated rendering detection
+  - Windows: Batch console API calls for performance
+  - Platform detection at comptime (zero runtime cost)
+- [ ] **CI enhancements**: Multi-platform testing
+  - Windows native tests (not cross-compile)
+  - macOS ARM64 native tests
+  - Linux ARM64 native tests
+  - Platform-specific test suites
+  - Performance regression per platform
+- [ ] **Documentation**: Platform-specific guides
+  - Windows setup guide (dependencies, quirks)
+  - macOS Terminal.app vs iTerm2 differences
+  - Linux terminal emulator compatibility matrix
+  - WSL vs native Windows guidance
+- [ ] **Testing**: Comprehensive platform coverage
+  - Windows console API tests
+  - Platform-specific quirks tests
+  - UTF-16 encoding tests (Windows)
+  - CI passes on all platforms natively
+
+**Success Criteria**:
+- sailor works seamlessly on Windows 10+ (native and WSL)
+- All widgets render correctly on Windows Terminal
+- CI runs native tests on Linux/macOS/Windows
+- Zero platform-specific bugs in issue tracker
+- Documentation covers all major platforms
+
+**Notes**:
+- Addresses Windows as a first-class platform (currently cross-compile only)
+- Prepares for broader ecosystem adoption
+- Ensures consumer projects work on Windows natively
 
 ### v2.2.0 — Consumer Feedback & Bug Fixes (Target: 2026-05-15)
 
 **Theme**: Address real-world usage feedback from zr, zoltraak, silica migrations
 
 **Checklist**:
-- [ ] **Monitor consumer migrations**: Track progress of v2.1.0 migrations
-  - zr#54, zoltraak#31, silica#40
+- [ ] **Monitor consumer migrations**: Track progress of v2.4.0/v2.5.0 migrations
+  - zr: No sailor usage yet (pure data structure library)
+  - zoltraak#33, zoltraak#34: v2.4.0 and v2.5.0 migrations
+  - silica: Pending sailor adoption (currently internal TUI)
   - Help resolve any migration blockers
   - Document common migration patterns
 - [ ] **Bug fixes**: Fix any issues discovered during real-world usage
@@ -80,7 +127,7 @@
   - No breaking changes
 
 **Success Criteria**:
-- All consumer projects successfully migrated to v2.1.0
+- All consumer projects successfully migrated to latest sailor
 - Zero critical bugs in production use
 - Positive feedback from consumer maintainers
 - Documentation addresses common questions
@@ -94,6 +141,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v2.5.0 | iTerm2 Protocol & Unicode Grapheme Support | 2026-05-03 | iTerm2 inline images (OSC 1337, 19 tests), Unicode grapheme clusters (UAX#29, 15 tests), Terminal quirks database (8 quirks, 25 tests), Benchmark stability tests (variance < 5%, 8 tests), CI regression detection (10% threshold). Total: +67 tests (~3816 passing), 6 cross-platform targets verified, 0 breaking changes |
 | v2.4.0 | Testing Infrastructure & Quality Tooling | 2026-04-29 | Snapshot testing (SnapshotRecorder/Matcher with auto-update, 38 tests), Property-based testing (Generator with seed-based determinism, PropertyTest runner, 38 tests), Visual regression (VisualDiff, SideBySideComparison, 23 tests), Mock Terminal (programmable terminal with event injection, output capture, 17 tests), Testing utilities (LeakCheckAllocator, WidgetFixture, assertion helpers, benchmark tools, 47 tests). Total: +163 tests (3691 passing), 0 breaking changes |
 | v2.3.0 | Advanced Widget Features | 2026-04-27 | Scrollable widgets (Table/List vertical+horizontal scroll, Paragraph justify+indent), State persistence (Table/List/Input state save/restore, StateHistory undo/redo), Advanced styling (gradient backgrounds v121, border styles single/double/thick/rounded/dashed v125, shadow effects drop/inner/box v125), Widget composition (Bordered/Padded/Scrollable wrappers), Performance (LazyBuffer, VirtualList, RenderBudget). All tests passing, 0 breaking changes |
 | v2.1.0 | Performance & Ergonomics Polish | 2026-04-19 | Performance optimizations: Buffer diff +38% (row-level skipping), Buffer fill +34% (direct array access), Buffer set +33% (eliminated bounds checks). API ergonomics: Rect.fromSize(), Constraint/Color/Span/Line constructors, semantic constants (Style.bold/dim/italic, Color.red/green/yellow). 1036 tests passing, 6 cross-platform targets verified, 0 breaking changes |
