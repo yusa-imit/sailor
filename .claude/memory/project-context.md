@@ -1,3 +1,54 @@
+✅ **Session 141** — FEATURE MODE: v2.5.0 COMPLETE & AUTO-RELEASE (2026-05-03)
+  - **Mode**: FEATURE (session 141, 141 % 5 == 1)
+  - **Achievement**: Completed v2.5.0 milestone and executed autonomous release
+
+  **Completed Work**:
+    - ✅ Created benchmark stability tests (tests/benchmark_stability_test.zig, 8 tests)
+      - Verify variance < 5% for CI regression detection reliability
+      - Tests for Buffer.init, Buffer.fill, Buffer.diff, Block, Paragraph, List, Gauge
+      - Stats calculation (mean, stddev, coefficient of variation)
+      - 1000 iterations × 5 runs per benchmark
+    - ✅ All tests passing (~3816 tests, +8 from benchmark stability)
+    - ✅ Marked v2.5.0 testing checklist as complete (5/5 items)
+    - ✅ **AUTO-RELEASE v2.5.0 executed**:
+      - Version bump: v2.4.0 → v2.5.0 (build.zig.zon)
+      - All release conditions met (tests passing, 0 bugs, 6 cross-compile targets OK)
+      - Git tag: v2.5.0 with detailed release notes
+      - GitHub Release: https://github.com/yusa-imit/sailor/releases/tag/v2.5.0
+      - Consumer migration issues: zr#57, zoltraak#34, silica#43
+      - Discord notification sent
+    - ✅ Milestone management:
+      - Moved v2.5.0 to completed milestones
+      - Established 2 new milestones: v2.6.0 (Advanced Input & Clipboard), v2.7.0 (Cross-Platform)
+      - Updated v2.2.0 consumer tracking
+      - Active milestones: 3 (v2.2.0, v2.6.0, v2.7.0)
+    - ✅ Commits:
+      - 9b259b5 — chore: bump version to v2.5.0
+      - aecb951 — chore: update milestones (v2.5.0 complete, add v2.6.0 & v2.7.0)
+    - ✅ Both commits pushed to main
+
+  **v2.5.0 Release Summary** (100% complete):
+    - ✅ iTerm2 inline images protocol (19 tests)
+    - ✅ Unicode grapheme cluster support (15 tests)
+    - ✅ Terminal quirks database (25 tests)
+    - ✅ Performance benchmarks with CI regression detection
+    - ✅ Benchmark stability tests (8 tests, variance < 5%)
+    - Total: +67 tests for v2.5.0 features
+
+  **Current State**:
+    - **Latest release**: v2.5.0 (2026-05-03)
+    - **Active milestones**: 3 (v2.2.0, v2.6.0, v2.7.0)
+    - **Next priority**: Monitor consumer migrations, wait for feedback/bugs, or start v2.6.0
+    - **CI status**: Building (commit aecb951)
+    - **Open issues**: 0 (sailor), 3 (consumer migration notifications: zr#57, zoltraak#34, silica#43)
+    - **Blockers**: NONE
+    - **Test count**: ~3816 passing tests (+8)
+
+  **Next Priority**:
+    - Monitor consumer migrations (v2.5.0)
+    - Address any bugs from consumer feedback (v2.2.0 scope)
+    - Start v2.6.0 (Advanced Input & Clipboard) if no blockers
+
 ✅ **Session 140** — STABILIZATION MODE: TEST COVERAGE IMPROVEMENTS (2026-05-02)
   - **Mode**: STABILIZATION (session 140, 140 % 5 == 0)
   - **Achievement**: Added comprehensive tests for previously untested public functions
