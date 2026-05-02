@@ -2843,3 +2843,160 @@ test "Constraint constructors maintain type safety" {
     try std.testing.expectEqual(true, std.meta.activeTag(c_max) == .max);
     try std.testing.expectEqual(true, std.meta.activeTag(c_aspect) == .aspect_ratio);
 }
+
+// ============================================================================
+// Additional Coverage Tests (added in stabilization session 140)
+// ============================================================================
+
+test "Rect.withAspectRatio - width constrained" {
+    const rect = Rect{ .x = 10, .y = 20, .width = 100, .height = 100 };
+    const result = rect.withAspectRatio(.{ .width = 16, .height = 9 });
+
+    // 16:9 in 100x100: width-constrained gives 100 width, 56.25 height
+    try std.testing.expectEqual(@as(u16, 10), result.x);
+    try std.testing.expectEqual(@as(u16, 20), result.y);
+    try std.testing.expectEqual(@as(u16, 100), result.width);
+    try std.testing.expect(result.height <= 100);
+}
+
+test "Rect.withAspectRatio - height constrained" {
+    const rect = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
+    const result = rect.withAspectRatio(.{ .width = 16, .height = 9 });
+
+    // 16:9 in 100x50: height-constrained gives 50 height, ~88 width
+    try std.testing.expectEqual(@as(u16, 50), result.height);
+    try std.testing.expect(result.width <= 100);
+}
+
+test "Rect.withAspectRatio - zero ratio" {
+    const rect = Rect{ .x = 5, .y = 5, .width = 80, .height = 24 };
+    const result = rect.withAspectRatio(.{ .width = 0, .height = 9 });
+
+    // Zero width/height should return zero dimensions
+    try std.testing.expectEqual(@as(u16, 0), result.width);
+    try std.testing.expectEqual(@as(u16, 0), result.height);
+}
+
+test "Rect.withMargin - symmetric" {
+    const rect = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
+    const margin = Margin.all(5);
+    const result = rect.withMargin(margin);
+
+    try std.testing.expectEqual(@as(u16, 5), result.x);
+    try std.testing.expectEqual(@as(u16, 5), result.y);
+    try std.testing.expectEqual(@as(u16, 90), result.width); // 100 - (5+5)
+    try std.testing.expectEqual(@as(u16, 40), result.height); // 50 - (5+5)
+}
+
+test "Rect.withMargin - asymmetric" {
+    const rect = Rect{ .x = 10, .y = 10, .width = 100, .height = 50 };
+    const margin = Margin{ .top = 5, .right = 10, .bottom = 5, .left = 10 };
+    const result = rect.withMargin(margin);
+
+    try std.testing.expectEqual(@as(u16, 20), result.x); // 10 + 10 (left margin)
+    try std.testing.expectEqual(@as(u16, 15), result.y); // 10 + 5 (top margin)
+    try std.testing.expectEqual(@as(u16, 80), result.width); // 100 - (10+10)
+    try std.testing.expectEqual(@as(u16, 40), result.height); // 50 - (5+5)
+}
+
+test "Rect.withMargin - exceeds dimensions" {
+    const rect = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
+    const margin = Margin.all(15);
+    const result = rect.withMargin(margin);
+
+    // Margin exceeds size, should return zero dimensions
+    try std.testing.expectEqual(@as(u16, 0), result.width);
+    try std.testing.expectEqual(@as(u16, 0), result.height);
+}
+
+test "Rect.withPadding - symmetric" {
+    const rect = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    const padding = Padding.all(2);
+    const result = rect.withPadding(padding);
+
+    try std.testing.expectEqual(@as(u16, 2), result.x);
+    try std.testing.expectEqual(@as(u16, 2), result.y);
+    try std.testing.expectEqual(@as(u16, 76), result.width); // 80 - 4
+    try std.testing.expectEqual(@as(u16, 20), result.height); // 24 - 4
+}
+
+test "Rect.withPadding - asymmetric" {
+    const rect = Rect{ .x = 5, .y = 5, .width = 50, .height = 30 };
+    const padding = Padding{ .top = 1, .right = 2, .bottom = 3, .left = 4 };
+    const result = rect.withPadding(padding);
+
+    try std.testing.expectEqual(@as(u16, 9), result.x); // 5 + 4
+    try std.testing.expectEqual(@as(u16, 6), result.y); // 5 + 1
+    try std.testing.expectEqual(@as(u16, 44), result.width); // 50 - (4+2)
+    try std.testing.expectEqual(@as(u16, 26), result.height); // 30 - (1+3)
+}
+
+test "Rect.withPadding - exceeds dimensions" {
+    const rect = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    const padding = Padding.all(6);
+    const result = rect.withPadding(padding);
+
+    // Padding exceeds size
+    try std.testing.expectEqual(@as(u16, 0), result.width);
+    try std.testing.expectEqual(@as(u16, 0), result.height);
+}
+
+test "Rect.fromSize - convenience constructor" {
+    const rect = Rect.fromSize(80, 24);
+
+    try std.testing.expectEqual(@as(u16, 0), rect.x);
+    try std.testing.expectEqual(@as(u16, 0), rect.y);
+    try std.testing.expectEqual(@as(u16, 80), rect.width);
+    try std.testing.expectEqual(@as(u16, 24), rect.height);
+}
+
+test "Rect.debugFormat - output" {
+    const rect = Rect{ .x = 10, .y = 20, .width = 80, .height = 24 };
+
+    var buf: [128]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    try rect.debugFormat(fbs.writer());
+
+    const output = fbs.getWritten();
+    try std.testing.expect(std.mem.indexOf(u8, output, "Rect{") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "x=10") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "y=20") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "width=80") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "height=24") != null);
+}
+
+test "Margin.all - convenience constructor" {
+    const margin = Margin.all(10);
+
+    try std.testing.expectEqual(@as(u16, 10), margin.top);
+    try std.testing.expectEqual(@as(u16, 10), margin.right);
+    try std.testing.expectEqual(@as(u16, 10), margin.bottom);
+    try std.testing.expectEqual(@as(u16, 10), margin.left);
+}
+
+test "Margin.symmetric - convenience constructor" {
+    const margin = Margin.symmetric(5, 10);
+
+    try std.testing.expectEqual(@as(u16, 5), margin.top);
+    try std.testing.expectEqual(@as(u16, 10), margin.right);
+    try std.testing.expectEqual(@as(u16, 5), margin.bottom);
+    try std.testing.expectEqual(@as(u16, 10), margin.left);
+}
+
+test "Padding.all - convenience constructor" {
+    const padding = Padding.all(3);
+
+    try std.testing.expectEqual(@as(u16, 3), padding.top);
+    try std.testing.expectEqual(@as(u16, 3), padding.right);
+    try std.testing.expectEqual(@as(u16, 3), padding.bottom);
+    try std.testing.expectEqual(@as(u16, 3), padding.left);
+}
+
+test "Padding.symmetric - convenience constructor" {
+    const padding = Padding.symmetric(2, 4);
+
+    try std.testing.expectEqual(@as(u16, 2), padding.top);
+    try std.testing.expectEqual(@as(u16, 4), padding.right);
+    try std.testing.expectEqual(@as(u16, 2), padding.bottom);
+    try std.testing.expectEqual(@as(u16, 4), padding.left);
+}

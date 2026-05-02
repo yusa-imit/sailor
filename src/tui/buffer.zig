@@ -1088,3 +1088,137 @@ test "benchmark set() with style variations" {
     try std.testing.expect(nostyle_elapsed < 2_000_000);
     try std.testing.expect(styled_elapsed < 2_000_000);
 }
+
+// ============================================================================
+// Additional Coverage Tests (added in stabilization session 140)
+// ============================================================================
+
+test "Buffer.getConst - valid positions" {
+    const allocator = std.testing.allocator;
+    var buffer = try Buffer.init(allocator, 10, 5);
+    defer buffer.deinit();
+
+    buffer.set(3, 2, .{ .char = 'T', .style = .{ .fg = .cyan } });
+
+    const cell = buffer.getConst(3, 2).?;
+    try std.testing.expectEqual(@as(u21, 'T'), cell.char);
+    const expected_fg: Color = .cyan;
+    try std.testing.expectEqual(expected_fg, cell.style.fg.?);
+}
+
+test "Buffer.getConst - out of bounds returns null" {
+    const allocator = std.testing.allocator;
+    var buffer = try Buffer.init(allocator, 10, 5);
+    defer buffer.deinit();
+
+    try std.testing.expect(buffer.getConst(10, 0) == null);
+    try std.testing.expect(buffer.getConst(0, 5) == null);
+    try std.testing.expect(buffer.getConst(15, 10) == null);
+}
+
+test "Buffer.getChar - convenience method" {
+    const allocator = std.testing.allocator;
+    var buffer = try Buffer.init(allocator, 10, 5);
+    defer buffer.deinit();
+
+    buffer.set(5, 2, .{ .char = 'Q', .style = .{} });
+
+    try std.testing.expectEqual(@as(u21, 'Q'), buffer.getChar(5, 2));
+    try std.testing.expectEqual(@as(u21, ' '), buffer.getChar(0, 0)); // default
+}
+
+test "Buffer.getChar - out of bounds returns space" {
+    const allocator = std.testing.allocator;
+    var buffer = try Buffer.init(allocator, 10, 5);
+    defer buffer.deinit();
+
+    try std.testing.expectEqual(@as(u21, ' '), buffer.getChar(10, 5));
+    try std.testing.expectEqual(@as(u21, ' '), buffer.getChar(100, 100));
+}
+
+test "Buffer.getStyle - convenience method" {
+    const allocator = std.testing.allocator;
+    var buffer = try Buffer.init(allocator, 10, 5);
+    defer buffer.deinit();
+
+    const expected_style = Style{ .fg = .magenta, .bold = true };
+    buffer.set(3, 1, .{ .char = 'S', .style = expected_style });
+
+    const retrieved_style = buffer.getStyle(3, 1);
+    const expected_fg: Color = .magenta;
+    try std.testing.expectEqual(expected_fg, retrieved_style.fg.?);
+    try std.testing.expect(retrieved_style.bold);
+}
+
+test "Buffer.getStyle - out of bounds returns default style" {
+    const allocator = std.testing.allocator;
+    var buffer = try Buffer.init(allocator, 10, 5);
+    defer buffer.deinit();
+
+    const style = buffer.getStyle(10, 5);
+    try std.testing.expectEqual(Style.default, style);
+}
+
+test "Buffer.getLine - full line" {
+    const allocator = std.testing.allocator;
+    var buffer = try Buffer.init(allocator, 20, 5);
+    defer buffer.deinit();
+
+    buffer.setString(0, 1, "Hello World", .{});
+
+    const line = buffer.getLine(1, 0, 20);
+    defer allocator.free(line);
+
+    try std.testing.expect(std.mem.startsWith(u8, line, "Hello World"));
+}
+
+test "Buffer.getLine - partial line" {
+    const allocator = std.testing.allocator;
+    var buffer = try Buffer.init(allocator, 20, 5);
+    defer buffer.deinit();
+
+    buffer.setString(5, 2, "Test", .{});
+
+    const line = buffer.getLine(2, 5, 9);
+    defer allocator.free(line);
+
+    try std.testing.expectEqualStrings("Test", line);
+}
+
+test "Buffer.getLine - out of bounds y returns empty" {
+    const allocator = std.testing.allocator;
+    var buffer = try Buffer.init(allocator, 10, 5);
+    defer buffer.deinit();
+
+    const line = buffer.getLine(10, 0, 10);
+    defer allocator.free(line);
+
+    try std.testing.expectEqual(@as(usize, 0), line.len);
+}
+
+test "Buffer.getLine - invalid start_x >= end_x returns empty" {
+    const allocator = std.testing.allocator;
+    var buffer = try Buffer.init(allocator, 10, 5);
+    defer buffer.deinit();
+
+    const line = buffer.getLine(0, 5, 3);
+    defer allocator.free(line);
+
+    try std.testing.expectEqual(@as(usize, 0), line.len);
+}
+
+test "Buffer.getLine - with unicode characters" {
+    const allocator = std.testing.allocator;
+    var buffer = try Buffer.init(allocator, 20, 5);
+    defer buffer.deinit();
+
+    buffer.setString(0, 0, "Test你好", .{}); // ASCII + CJK
+
+    const line = buffer.getLine(0, 0, 8);
+    defer allocator.free(line);
+
+    // "Test" = 4 cells, "你" = 2 cells (at position 4), "好" = 2 cells (at position 6)
+    // getLine() reads character-by-character from cells, so it should capture the full string
+    try std.testing.expect(std.mem.startsWith(u8, line, "Test"));
+    try std.testing.expect(std.mem.indexOf(u8, line, "你") != null);
+}
