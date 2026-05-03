@@ -15,12 +15,12 @@
 **Theme**: Enhanced input handling and system clipboard integration for professional TUI applications
 
 **Checklist**:
-- [ ] **Multi-line text input**: TextArea enhancements
-  - Line wrapping with soft/hard breaks
-  - Vertical scrolling for large texts
-  - Selection with keyboard (Shift+arrows)
-  - Line numbers display (optional)
-  - Syntax highlighting hooks
+- [x] **Multi-line text input**: TextArea enhancements (Session 143 - 2026-05-03)
+  - Line wrapping with soft/hard breaks (WrapMode: .none/.soft/.hard)
+  - Vertical scrolling for large texts (already existed)
+  - Selection support (withSelection, selection_style, style precedence)
+  - Line numbers display (already existed as optional)
+  - Syntax highlighting hooks (withHighlighter callback)
 - [ ] **Clipboard operations**: Full read/write support
   - OSC 52 clipboard read (where supported)
   - Clipboard history buffer (last 10 entries)
