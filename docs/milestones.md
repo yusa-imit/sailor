@@ -21,13 +21,13 @@
   - Selection support (withSelection, selection_style, style precedence)
   - Line numbers display (already existed as optional)
   - Syntax highlighting hooks (withHighlighter callback)
-- [ ] **Clipboard operations**: Full read/write support
+- [x] **Clipboard operations**: Full read/write support (Session 145 - 2026-05-03)
   - OSC 52 clipboard read (where supported)
   - Clipboard history buffer (last 10 entries)
   - Copy/paste with bracketed paste mode
   - System clipboard fallback (pbcopy/pbpaste on macOS, xclip/xsel on Linux)
   - Multi-line paste handling
-- [ ] **Input validation**: Real-time validation framework
+- [x] **Input validation**: Real-time validation framework (Session 147 - 2026-05-04)
   - Email, URL, phone number validators
   - Custom regex validators
   - Min/max length constraints
