@@ -33,17 +33,17 @@
   - Min/max length constraints
   - Visual feedback (error highlights)
   - Async validation support (debounced)
-- [ ] **Autocomplete enhancements**: Intelligent completion
+- [x] **Autocomplete enhancements**: Intelligent completion (Session 147 - 2026-05-04)
   - Fuzzy matching algorithms
-  - Context-aware suggestions
-  - Multi-column completion popup
-  - Documentation preview pane
-  - Keyboard shortcuts (Tab, Ctrl+Space)
-- [ ] **Testing**: Comprehensive test coverage
-  - TextArea multi-line tests
-  - Clipboard read/write tests (mock terminal)
-  - Validation framework tests
-  - Autocomplete fuzzy matching tests
+  - Context-aware suggestions (provider callback)
+  - Multi-column completion popup with metadata column
+  - Documentation preview pane with word-wrapping
+  - Keyboard shortcuts (up/down, home/end) — Tab/Ctrl+Space handled by consumer
+- [x] **Testing**: Comprehensive test coverage (Session 147 - 2026-05-04)
+  - TextArea multi-line tests (17 tests - Session 143)
+  - Clipboard read/write tests (71 tests - Session 145)
+  - Validation framework tests (79 tests - Session 147)
+  - Autocomplete fuzzy matching tests (23 tests - Session 147)
 
 **Success Criteria**:
 - TextArea handles 10K+ line files smoothly
