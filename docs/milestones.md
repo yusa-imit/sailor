@@ -5,7 +5,7 @@
 - **Latest release**: v2.6.0 (2026-05-04) — Advanced Input & Clipboard
 - **Latest minor**: v2.6.0 (2026-05-04) — Multi-line TextArea, clipboard operations, input validation, autocomplete enhancements
 - **Next milestone**: v2.7.0 (Cross-Platform Improvements)
-- **Active milestones**: 2 (v2.2.0, v2.7.0)
+- **Active milestones**: 3 (v2.2.0, v2.7.0, v2.8.0)
 - **Blockers**: None
 
 ## Active Milestones
@@ -54,6 +54,53 @@
 - Addresses Windows as a first-class platform (currently cross-compile only)
 - Prepares for broader ecosystem adoption
 - Ensures consumer projects work on Windows natively
+
+### v2.8.0 — Event System & Async Integration (Target: 2026-05-24)
+
+**Theme**: Enhanced event handling and async primitives for responsive TUI applications
+
+**Checklist**:
+- [ ] **Event Bus**: Publish-subscribe pattern for decoupled component communication
+  - EventBus with topic-based subscriptions
+  - Type-safe event payloads with comptime validation
+  - Priority-based event dispatch
+  - Event filtering and transformation
+  - Scoped subscriptions (auto-unsubscribe on deinit)
+- [ ] **Command Pattern**: Undo/redo infrastructure for stateful widgets
+  - Command trait with execute/undo operations
+  - CommandHistory with configurable stack size
+  - Batched commands (macro recording)
+  - Command compression (merge consecutive similar commands)
+  - Integration with existing widgets (TextArea, Input, Table)
+- [ ] **Async Task Runner**: Cooperative multitasking for background operations
+  - Task queue with priority levels
+  - Yield-based scheduling (no threads)
+  - Task cancellation support
+  - Progress reporting callbacks
+  - Integration with progress bars
+- [ ] **Event Debouncing & Throttling**: Rate-limiting for high-frequency events
+  - Debounce helper (trigger after quiet period)
+  - Throttle helper (rate-limit execution)
+  - Configurable time windows
+  - Use cases: search-as-you-type, resize handling, validation
+- [ ] **Testing**: Comprehensive test coverage
+  - EventBus subscription and dispatch tests
+  - Command pattern undo/redo tests
+  - TaskRunner scheduling tests
+  - Debounce/throttle timing tests
+
+**Success Criteria**:
+- EventBus handles 10K+ events/sec without lag
+- Command history supports 1K+ operations efficiently
+- TaskRunner executes 100+ concurrent tasks smoothly
+- Debounce/throttle reduce event noise by 90%+
+- All tests passing (~4000+ tests expected)
+
+**Notes**:
+- Enables reactive programming patterns in TUIs
+- Critical for zoltraak's Redis monitoring dashboard
+- Useful for silica's query result streaming
+- Foundation for future async I/O integration (v2.9.0)
 
 ### v2.2.0 — Consumer Feedback & Bug Fixes (Target: 2026-05-15)
 
