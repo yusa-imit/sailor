@@ -2,60 +2,13 @@
 
 ## Current Status
 
-- **Latest release**: v2.5.0 (2026-05-03) — iTerm2 Protocol & Unicode Grapheme Support
-- **Latest minor**: v2.5.0 (2026-05-03) — iTerm2 inline images, Unicode grapheme clusters, terminal quirks database, benchmark stability
-- **Next milestone**: v2.6.0 (Advanced Input & Clipboard)
-- **Active milestones**: 3 (v2.2.0, v2.6.0, v2.7.0)
+- **Latest release**: v2.6.0 (2026-05-04) — Advanced Input & Clipboard
+- **Latest minor**: v2.6.0 (2026-05-04) — Multi-line TextArea, clipboard operations, input validation, autocomplete enhancements
+- **Next milestone**: v2.7.0 (Cross-Platform Improvements)
+- **Active milestones**: 2 (v2.2.0, v2.7.0)
 - **Blockers**: None
 
 ## Active Milestones
-
-### v2.6.0 — Advanced Input & Clipboard (Target: 2026-05-10)
-
-**Theme**: Enhanced input handling and system clipboard integration for professional TUI applications
-
-**Checklist**:
-- [x] **Multi-line text input**: TextArea enhancements (Session 143 - 2026-05-03)
-  - Line wrapping with soft/hard breaks (WrapMode: .none/.soft/.hard)
-  - Vertical scrolling for large texts (already existed)
-  - Selection support (withSelection, selection_style, style precedence)
-  - Line numbers display (already existed as optional)
-  - Syntax highlighting hooks (withHighlighter callback)
-- [x] **Clipboard operations**: Full read/write support (Session 145 - 2026-05-03)
-  - OSC 52 clipboard read (where supported)
-  - Clipboard history buffer (last 10 entries)
-  - Copy/paste with bracketed paste mode
-  - System clipboard fallback (pbcopy/pbpaste on macOS, xclip/xsel on Linux)
-  - Multi-line paste handling
-- [x] **Input validation**: Real-time validation framework (Session 147 - 2026-05-04)
-  - Email, URL, phone number validators
-  - Custom regex validators
-  - Min/max length constraints
-  - Visual feedback (error highlights)
-  - Async validation support (debounced)
-- [x] **Autocomplete enhancements**: Intelligent completion (Session 147 - 2026-05-04)
-  - Fuzzy matching algorithms
-  - Context-aware suggestions (provider callback)
-  - Multi-column completion popup with metadata column
-  - Documentation preview pane with word-wrapping
-  - Keyboard shortcuts (up/down, home/end) — Tab/Ctrl+Space handled by consumer
-- [x] **Testing**: Comprehensive test coverage (Session 147 - 2026-05-04)
-  - TextArea multi-line tests (17 tests - Session 143)
-  - Clipboard read/write tests (71 tests - Session 145)
-  - Validation framework tests (79 tests - Session 147)
-  - Autocomplete fuzzy matching tests (23 tests - Session 147)
-
-**Success Criteria**:
-- TextArea handles 10K+ line files smoothly
-- Clipboard works across iTerm2, Kitty, Alacritty, WezTerm
-- Input validation catches common mistakes instantly
-- Autocomplete feels responsive (<50ms latency)
-- All tests passing (~3900+ tests expected)
-
-**Notes**:
-- Builds on v2.5.0 clipboard foundation (OSC 52 write)
-- Focuses on developer experience for text-heavy TUIs
-- Enables richer REPL and editor-like interfaces
 
 ### v2.7.0 — Cross-Platform Improvements (Target: 2026-05-17)
 
@@ -107,10 +60,10 @@
 **Theme**: Address real-world usage feedback from zr, zoltraak, silica migrations
 
 **Checklist**:
-- [ ] **Monitor consumer migrations**: Track progress of v2.4.0/v2.5.0 migrations
-  - zr: No sailor usage yet (pure data structure library)
-  - zoltraak#33, zoltraak#34: v2.4.0 and v2.5.0 migrations
-  - silica: Pending sailor adoption (currently internal TUI)
+- [ ] **Monitor consumer migrations**: Track progress of v2.4.0/v2.5.0/v2.6.0 migrations
+  - zr#58: v2.6.0 migration (2026-05-04)
+  - zoltraak#33, zoltraak#34, zoltraak#35: v2.4.0, v2.5.0, v2.6.0 migrations
+  - silica#44: v2.6.0 migration (2026-05-04)
   - Help resolve any migration blockers
   - Document common migration patterns
 - [ ] **Bug fixes**: Fix any issues discovered during real-world usage
@@ -141,6 +94,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v2.6.0 | Advanced Input & Clipboard | 2026-05-04 | Multi-line TextArea (line wrapping WrapMode, selection support, syntax highlighting hooks, +31 tests), Clipboard operations (ClipboardHistory FIFO buffer, SystemClipboard cross-platform integration macOS/Linux/Windows, OSC 52 support, +71 tests), Input validation framework (email/URL/phone validators, regex, min/max length, visual feedback, async support, +79 tests), Autocomplete enhancements (fuzzy matching, context-aware suggestions, multi-column popup, docs preview, +23 tests). Total: +204 tests (~3900 passing), 6 cross-platform targets, 0 breaking changes |
 | v2.5.0 | iTerm2 Protocol & Unicode Grapheme Support | 2026-05-03 | iTerm2 inline images (OSC 1337, 19 tests), Unicode grapheme clusters (UAX#29, 15 tests), Terminal quirks database (8 quirks, 25 tests), Benchmark stability tests (variance < 5%, 8 tests), CI regression detection (10% threshold). Total: +67 tests (~3816 passing), 6 cross-platform targets verified, 0 breaking changes |
 | v2.4.0 | Testing Infrastructure & Quality Tooling | 2026-04-29 | Snapshot testing (SnapshotRecorder/Matcher with auto-update, 38 tests), Property-based testing (Generator with seed-based determinism, PropertyTest runner, 38 tests), Visual regression (VisualDiff, SideBySideComparison, 23 tests), Mock Terminal (programmable terminal with event injection, output capture, 17 tests), Testing utilities (LeakCheckAllocator, WidgetFixture, assertion helpers, benchmark tools, 47 tests). Total: +163 tests (3691 passing), 0 breaking changes |
 | v2.3.0 | Advanced Widget Features | 2026-04-27 | Scrollable widgets (Table/List vertical+horizontal scroll, Paragraph justify+indent), State persistence (Table/List/Input state save/restore, StateHistory undo/redo), Advanced styling (gradient backgrounds v121, border styles single/double/thick/rounded/dashed v125, shadow effects drop/inner/box v125), Widget composition (Bordered/Padded/Scrollable wrappers), Performance (LazyBuffer, VirtualList, RenderBudget). All tests passing, 0 breaking changes |
