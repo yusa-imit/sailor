@@ -1,3 +1,46 @@
+✅ **Session 149** — FEATURE MODE: v2.8.0 EVENTBUS COMPLETE (2026-05-05)
+  - **Mode**: FEATURE (session 149, 149 % 5 == 4)
+  - **Achievement**: Implemented EventBus advanced features (filtering, transformation, scoped subscriptions, thread-safety)
+
+  **Completed Work**:
+    - ✅ CI status check: 1 queued (main), no failures
+    - ✅ GitHub issues check: 0 open issues (clean slate)
+    - ✅ TDD workflow executed successfully:
+      - test-writer (agent a1298b4): Created 34 failing tests for EventBus advanced features
+      - zig-developer (agent ab6b1ea): Implemented all features, 48/48 tests passing
+    - ✅ EventBus advanced features implemented:
+      - subscribeFiltered(): Event filtering with predicate functions (6 tests)
+      - subscribeTransformed(): Event transformation with allocator (6 tests)
+      - scopedSubscribe() + ScopedSubscription: RAII auto-unsubscribe (5 tests)
+      - Thread-safety: Mutex protection for concurrent operations (5 tests)
+      - Memory management: Proper cleanup, leak-free transformations (6 tests)
+      - Edge cases: Unicode topics, 1KB+ names, 10K+ events, 1000+ subscribers (6 tests)
+    - ✅ All tests passing (48 EventBus tests: 34 new + 14 existing)
+    - ✅ Commits:
+      - 401d03f — feat(eventbus): add filtering, transformation, scoped subscriptions, thread-safety
+      - 7665a64 — chore: mark EventBus as complete in v2.8.0 milestone
+    - ✅ All commits pushed to main
+
+  **v2.8.0 Progress** (Event System & Async Integration):
+    - ✅ Event Bus (100% complete) — 48 tests passing
+    - ⏳ Command Pattern (pending)
+    - ⏳ Async Task Runner (pending)
+    - ⏳ Event Debouncing & Throttling (pending)
+    - ⏳ Testing checklist (pending)
+
+  **Current State**:
+    - **Latest release**: v2.6.0 (2026-05-04)
+    - **Active milestones**: 3 (v2.2.0, v2.7.0, v2.8.0)
+    - **v2.8.0 completion**: 20% (1/5 checklist items done)
+    - **CI status**: Building (commit 7665a64)
+    - **Open issues**: 0 (sailor), 3 (consumer migration notifications)
+    - **Blockers**: NONE
+    - **Test count**: ~3965 passing tests (+34 from EventBus)
+
+  **Next Priority**:
+    - Continue v2.8.0: Command Pattern OR Async Task Runner OR Debouncing/Throttling
+    - Monitor consumer migrations (v2.6.0: zr#58, zoltraak#35, silica#44)
+
 ✅ **Session 148** — FEATURE MODE: v2.6.0 AUTO-RELEASE (2026-05-04)
   - **Mode**: FEATURE (session 148, 148 % 5 == 3)
   - **Achievement**: Successfully released v2.6.0 and established new milestone v2.8.0
