@@ -12,13 +12,15 @@ const Block = @import("block.zig").Block;
 ///
 /// Features:
 /// - Fuzzy matching with score-based ranking
-/// - Keyboard navigation (up/down, home/end)
+/// - Keyboard navigation (up/down, home/end, Tab, Ctrl+Space)
 /// - Selected item highlighting
 /// - Max visible items with scrolling
+/// - Multi-column layout with optional metadata columns
+/// - Documentation preview pane for selected item
 /// - Custom provider callback for dynamic suggestions
 /// - Optional block borders
 ///
-/// Example:
+/// Example (basic):
 /// ```zig
 /// var autocomplete = Autocomplete.init(allocator);
 /// defer autocomplete.deinit();
@@ -31,6 +33,21 @@ const Block = @import("block.zig").Block;
 ///
 /// autocomplete.render(buffer, area);
 /// ```
+///
+/// Example (with documentation):
+/// ```zig
+/// var autocomplete = Autocomplete.init(allocator);
+/// defer autocomplete.deinit();
+///
+/// try autocomplete.setSuggestionsWithDocs(&.{
+///     .{ .text = "println", .doc = "Prints a line to stdout", .metadata = "macro" },
+///     .{ .text = "printf", .doc = "Formatted print", .metadata = "fn" },
+/// });
+/// autocomplete.enableDocPreview(true);
+/// autocomplete.setPreviewWidth(40); // 40 columns for preview pane
+///
+/// autocomplete.render(buffer, area); // Splits area: list | preview
+/// ```
 pub const Autocomplete = struct {
     allocator: Allocator,
     input: []const u8,
@@ -41,11 +58,27 @@ pub const Autocomplete = struct {
     block: ?Block,
     highlight_style: Style,
     normal_style: Style,
+    metadata_style: Style,
+    doc_style: Style,
     provider: ?*const ProviderFn,
+    show_doc_preview: bool,
+    preview_width: u16,
+    show_metadata_column: bool,
+    metadata_column_width: u16,
 
-    const Suggestion = struct {
+    /// Suggestion item with optional metadata and documentation
+    pub const Suggestion = struct {
         text: []const u8,
-        score: f32,
+        score: f32 = 1.0,
+        metadata: ?[]const u8 = null, // e.g., type annotation, file path
+        doc: ?[]const u8 = null,      // documentation preview text
+    };
+
+    /// Simple suggestion item for basic use cases (backward compatible)
+    pub const SuggestionItem = struct {
+        text: []const u8,
+        metadata: ?[]const u8 = null,
+        doc: ?[]const u8 = null,
     };
 
     pub const ProviderFn = fn (input: []const u8, allocator: Allocator) anyerror![]const []const u8;
@@ -64,7 +97,13 @@ pub const Autocomplete = struct {
             .block = null,
             .highlight_style = Style{ .fg = Color{ .indexed = 0 }, .bg = Color{ .indexed = 7 } },
             .normal_style = Style{},
+            .metadata_style = Style{ .fg = Color{ .indexed = 8 } }, // gray
+            .doc_style = Style{ .fg = Color{ .indexed = 7 } },       // white
             .provider = null,
+            .show_doc_preview = false,
+            .preview_width = 40,
+            .show_metadata_column = false,
+            .metadata_column_width = 10,
         };
     }
 
@@ -111,19 +150,82 @@ pub const Autocomplete = struct {
         return self;
     }
 
+    /// Enable or disable documentation preview pane
+    /// When enabled, splits the render area into list | preview
+    /// Returns `self` for method chaining.
+    pub fn enableDocPreview(self: *Autocomplete, enable: bool) *Autocomplete {
+        self.show_doc_preview = enable;
+        return self;
+    }
+
+    /// Set width of documentation preview pane (in columns)
+    /// Returns `self` for method chaining.
+    pub fn setPreviewWidth(self: *Autocomplete, width: u16) *Autocomplete {
+        self.preview_width = width;
+        return self;
+    }
+
+    /// Enable or disable metadata column (e.g., type annotations)
+    /// Returns `self` for method chaining.
+    pub fn enableMetadataColumn(self: *Autocomplete, enable: bool) *Autocomplete {
+        self.show_metadata_column = enable;
+        return self;
+    }
+
+    /// Set width of metadata column (in columns)
+    /// Returns `self` for method chaining.
+    pub fn setMetadataColumnWidth(self: *Autocomplete, width: u16) *Autocomplete {
+        self.metadata_column_width = width;
+        return self;
+    }
+
+    /// Set style for metadata column text
+    /// Returns `self` for method chaining.
+    pub fn setMetadataStyle(self: *Autocomplete, style: Style) *Autocomplete {
+        self.metadata_style = style;
+        return self;
+    }
+
+    /// Set style for documentation preview text
+    /// Returns `self` for method chaining.
+    pub fn setDocStyle(self: *Autocomplete, style: Style) *Autocomplete {
+        self.doc_style = style;
+        return self;
+    }
+
     /// Set input text and trigger suggestion update
     pub fn setInput(self: *Autocomplete, input: []const u8) !void {
         self.input = input;
         try self.updateSuggestions();
     }
 
-    /// Manually set suggestions (bypasses provider)
+    /// Manually set suggestions (bypasses provider) - backward compatible
     pub fn setSuggestions(self: *Autocomplete, items: []const []const u8) !void {
         self.suggestions.clearRetainingCapacity();
         for (items) |item| {
             const score = fuzzyMatch(self.input, item);
             if (score > 0.0) {
                 try self.suggestions.append(.{ .text = item, .score = score });
+            }
+        }
+        // Sort by score descending
+        std.mem.sort(Suggestion, self.suggestions.items, {}, suggestionLessThan);
+        self.selected_index = if (self.suggestions.items.len > 0) 0 else 0;
+        self.scroll_offset = 0;
+    }
+
+    /// Set suggestions with metadata and documentation
+    pub fn setSuggestionsWithDocs(self: *Autocomplete, items: []const SuggestionItem) !void {
+        self.suggestions.clearRetainingCapacity();
+        for (items) |item| {
+            const score = fuzzyMatch(self.input, item.text);
+            if (score > 0.0) {
+                try self.suggestions.append(.{
+                    .text = item.text,
+                    .score = score,
+                    .metadata = item.metadata,
+                    .doc = item.doc,
+                });
             }
         }
         // Sort by score descending
@@ -197,7 +299,7 @@ pub const Autocomplete = struct {
 
     /// Renders the autocomplete suggestion list to the given buffer within the specified area.
     /// Displays suggestions with fuzzy match scoring, highlights the selected item,
-    /// and supports scrolling when suggestions exceed max visible count.
+    /// supports scrolling, multi-column layout, and documentation preview pane.
     pub fn render(self: *const Autocomplete, buf: *Buffer, area: Rect) void {
         const inner = if (self.block) |b| b.inner(area) else area;
 
@@ -210,36 +312,145 @@ pub const Autocomplete = struct {
             return; // No suggestions to render
         }
 
+        // Split area if doc preview is enabled
+        var list_area = inner;
+        var preview_area: ?Rect = null;
+
+        if (self.show_doc_preview and inner.width > self.preview_width + 2) {
+            const list_width = inner.width - self.preview_width - 1; // -1 for separator
+            list_area = Rect{
+                .x = inner.x,
+                .y = inner.y,
+                .width = list_width,
+                .height = inner.height,
+            };
+            preview_area = Rect{
+                .x = inner.x + list_width + 1,
+                .y = inner.y,
+                .width = self.preview_width,
+                .height = inner.height,
+            };
+
+            // Render separator between list and preview
+            const sep_x = inner.x + list_width;
+            var sep_y: u16 = inner.y;
+            while (sep_y < inner.y + inner.height) : (sep_y += 1) {
+                buf.set(sep_x, sep_y, .{ .char = '│', .style = self.normal_style });
+            }
+        }
+
+        // Render suggestion list
+        self.renderList(buf, list_area);
+
+        // Render documentation preview if enabled
+        if (preview_area) |parea| {
+            self.renderDocPreview(buf, parea);
+        }
+    }
+
+    fn renderList(self: *const Autocomplete, buf: *Buffer, area: Rect) void {
         const visible_count = @min(self.max_visible, self.suggestions.items.len);
         const end_index = @min(self.scroll_offset + visible_count, self.suggestions.items.len);
 
-        var y: u16 = inner.y;
+        var y: u16 = area.y;
         for (self.suggestions.items[self.scroll_offset..end_index], 0..) |suggestion, i| {
-            if (y >= inner.y + inner.height) break;
+            if (y >= area.y + area.height) break;
 
             const is_selected = (self.scroll_offset + i) == self.selected_index;
             const style = if (is_selected) self.highlight_style else self.normal_style;
 
+            var x: u16 = area.x;
+
             // Render suggestion text
-            var x: u16 = inner.x;
-            for (suggestion.text) |c| {
-                if (x >= inner.x + inner.width) break;
-                var cell = buf.get(x, y);
-                cell.char = c;
-                cell.style = style;
-                buf.set(x, y, .{ .char = cell.char, .style = cell.style });
+            const text_width = if (self.show_metadata_column and suggestion.metadata != null)
+                @min(suggestion.text.len, area.width -| self.metadata_column_width -| 1)
+            else
+                @min(suggestion.text.len, area.width);
+
+            for (suggestion.text[0..text_width]) |c| {
+                if (x >= area.x + area.width) break;
+                buf.set(x, y, .{ .char = c, .style = style });
                 x += 1;
             }
 
+            // Render metadata column if enabled
+            if (self.show_metadata_column and suggestion.metadata != null) {
+                // Pad to metadata column start
+                const meta_start = area.x + area.width - self.metadata_column_width;
+                while (x < meta_start and x < area.x + area.width) : (x += 1) {
+                    buf.set(x, y, .{ .char = ' ', .style = style });
+                }
+
+                // Render metadata
+                const meta_style = if (is_selected)
+                    Style{ .fg = self.metadata_style.fg, .bg = self.highlight_style.bg }
+                else
+                    self.metadata_style;
+
+                for (suggestion.metadata.?) |c| {
+                    if (x >= area.x + area.width) break;
+                    buf.set(x, y, .{ .char = c, .style = meta_style });
+                    x += 1;
+                }
+            }
+
             // Fill remaining width with background
-            while (x < inner.x + inner.width) : (x += 1) {
-                var cell = buf.get(x, y);
-                cell.char = ' ';
-                cell.style = style;
-                buf.set(x, y, .{ .char = cell.char, .style = cell.style });
+            while (x < area.x + area.width) : (x += 1) {
+                buf.set(x, y, .{ .char = ' ', .style = style });
             }
 
             y += 1;
+        }
+    }
+
+    fn renderDocPreview(self: *const Autocomplete, buf: *Buffer, area: Rect) void {
+        if (self.selected_index >= self.suggestions.items.len) return;
+
+        const selected = self.suggestions.items[self.selected_index];
+        if (selected.doc == null) return;
+
+        const doc = selected.doc.?;
+
+        // Render doc text with word wrapping
+        var y: u16 = area.y;
+        var char_idx: usize = 0;
+
+        while (char_idx < doc.len and y < area.y + area.height) {
+            var x: u16 = area.x;
+            const line_start = char_idx;
+
+            // Find line break or wrap point
+            while (char_idx < doc.len and x < area.x + area.width) {
+                const c = doc[char_idx];
+                if (c == '\n') {
+                    char_idx += 1;
+                    break;
+                }
+                buf.set(x, y, .{ .char = c, .style = self.doc_style });
+                x += 1;
+                char_idx += 1;
+            }
+
+            // Fill rest of line
+            while (x < area.x + area.width) : (x += 1) {
+                buf.set(x, y, .{ .char = ' ', .style = self.doc_style });
+            }
+
+            y += 1;
+
+            // Word wrap if needed
+            if (char_idx < doc.len and doc[char_idx] != '\n' and char_idx > line_start) {
+                // Backtrack to last space
+                while (char_idx > line_start and doc[char_idx] != ' ') {
+                    char_idx -= 1;
+                }
+                if (char_idx == line_start) {
+                    // No space found, hard break
+                    char_idx = line_start + (area.width);
+                } else {
+                    char_idx += 1; // Skip the space
+                }
+            }
         }
     }
 
@@ -568,4 +779,116 @@ test "autocomplete: render scrolled" {
 
     try std.testing.expectEqual(@as(u21, 'b'), cell_first.char);
     try std.testing.expectEqual(@as(u21, 'c'), cell_second.char);
+}
+
+// ============================================================================
+// Multi-Column and Documentation Preview Tests
+// ============================================================================
+
+test "autocomplete: setSuggestionsWithDocs" {
+    const allocator = std.testing.allocator;
+    var ac = Autocomplete.init(allocator);
+    defer ac.deinit();
+
+    try ac.setSuggestionsWithDocs(&.{
+        .{ .text = "println", .metadata = "macro", .doc = "Prints a line to stdout" },
+        .{ .text = "printf", .metadata = "fn", .doc = "Formatted print function" },
+        .{ .text = "print", .metadata = "fn", .doc = "Print without newline" },
+    });
+
+    try std.testing.expectEqual(@as(usize, 3), ac.getSuggestionCount());
+    try std.testing.expect(std.mem.eql(u8, "println", ac.suggestions.items[0].text));
+    try std.testing.expect(ac.suggestions.items[0].metadata != null);
+    try std.testing.expect(std.mem.eql(u8, "macro", ac.suggestions.items[0].metadata.?));
+    try std.testing.expect(ac.suggestions.items[0].doc != null);
+}
+
+test "autocomplete: enable doc preview" {
+    const allocator = std.testing.allocator;
+    var ac = Autocomplete.init(allocator);
+    defer ac.deinit();
+
+    try std.testing.expectEqual(false, ac.show_doc_preview);
+
+    _ = ac.enableDocPreview(true);
+    try std.testing.expectEqual(true, ac.show_doc_preview);
+
+    _ = ac.setPreviewWidth(50);
+    try std.testing.expectEqual(@as(u16, 50), ac.preview_width);
+}
+
+test "autocomplete: enable metadata column" {
+    const allocator = std.testing.allocator;
+    var ac = Autocomplete.init(allocator);
+    defer ac.deinit();
+
+    try std.testing.expectEqual(false, ac.show_metadata_column);
+
+    _ = ac.enableMetadataColumn(true);
+    try std.testing.expectEqual(true, ac.show_metadata_column);
+
+    _ = ac.setMetadataColumnWidth(15);
+    try std.testing.expectEqual(@as(u16, 15), ac.metadata_column_width);
+}
+
+test "autocomplete: render with metadata column" {
+    const allocator = std.testing.allocator;
+    var ac = Autocomplete.init(allocator);
+    defer ac.deinit();
+
+    try ac.setSuggestionsWithDocs(&.{
+        .{ .text = "foo", .metadata = "fn" },
+        .{ .text = "bar", .metadata = "type" },
+    });
+
+    _ = ac.enableMetadataColumn(true);
+    _ = ac.setMetadataColumnWidth(8);
+
+    var buffer = try Buffer.init(allocator, 30, 10);
+    defer buffer.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
+    ac.render(&buffer, area);
+
+    // Should render both suggestions with metadata
+    const cell_first = buffer.get(0, 0);
+    try std.testing.expectEqual(@as(u21, 'f'), cell_first.char);
+}
+
+test "autocomplete: render with doc preview" {
+    const allocator = std.testing.allocator;
+    var ac = Autocomplete.init(allocator);
+    defer ac.deinit();
+
+    try ac.setSuggestionsWithDocs(&.{
+        .{ .text = "println", .doc = "Prints a line with newline" },
+    });
+
+    _ = ac.enableDocPreview(true);
+    _ = ac.setPreviewWidth(30);
+
+    var buffer = try Buffer.init(allocator, 80, 10);
+    defer buffer.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
+    ac.render(&buffer, area);
+
+    // Should render suggestion on left and doc preview on right
+    const cell_first = buffer.get(0, 0);
+    try std.testing.expectEqual(@as(u21, 'p'), cell_first.char);
+}
+
+test "autocomplete: metadata and doc styles" {
+    const allocator = std.testing.allocator;
+    var ac = Autocomplete.init(allocator);
+    defer ac.deinit();
+
+    const custom_meta_style = Style{ .fg = Color{ .indexed = 3 } };
+    const custom_doc_style = Style{ .fg = Color{ .indexed = 4 } };
+
+    _ = ac.setMetadataStyle(custom_meta_style);
+    _ = ac.setDocStyle(custom_doc_style);
+
+    try std.testing.expectEqual(custom_meta_style.fg, ac.metadata_style.fg);
+    try std.testing.expectEqual(custom_doc_style.fg, ac.doc_style.fg);
 }
