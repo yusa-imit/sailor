@@ -375,6 +375,14 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    const validation_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/validation_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
     // TODO: Re-enable migration tests after updating for v2.0.0 scope
     // (removed Color/Constraint simplification patterns)
     // const migration_script_tests = b.addTest(.{
@@ -428,6 +436,7 @@ pub fn build(b: *std.Build) void {
     metrics_dashboard_tests.root_module.addImport("sailor", sailor_module_for_tests);
     widget_lifecycle_tests.root_module.addImport("sailor", sailor_module_for_tests);
     grapheme_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    validation_tests.root_module.addImport("sailor", sailor_module_for_tests);
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&b.addRunArtifact(lib_tests).step);
@@ -472,6 +481,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(metrics_dashboard_tests).step);
     test_step.dependOn(&b.addRunArtifact(widget_lifecycle_tests).step);
     test_step.dependOn(&b.addRunArtifact(grapheme_tests).step);
+    test_step.dependOn(&b.addRunArtifact(validation_tests).step);
     // test_step.dependOn(&b.addRunArtifact(migration_script_tests).step); // Disabled for v2.0.0 work
 
     // Benchmark executable

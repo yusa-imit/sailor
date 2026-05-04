@@ -99,6 +99,9 @@ pub const transition = @import("tui/transition.zig");
 // v2.4.0 — Testing utilities
 pub const testing = @import("testing.zig");
 
+// v2.6.0 — Input Validation Framework
+pub const validation = @import("validation.zig");
+
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;
 pub const Cell = tui.buffer.Cell;
