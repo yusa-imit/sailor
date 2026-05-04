@@ -60,12 +60,14 @@
 **Theme**: Enhanced event handling and async primitives for responsive TUI applications
 
 **Checklist**:
-- [ ] **Event Bus**: Publish-subscribe pattern for decoupled component communication
+- [x] **Event Bus**: Publish-subscribe pattern for decoupled component communication
   - EventBus with topic-based subscriptions
   - Type-safe event payloads with comptime validation
   - Priority-based event dispatch
   - Event filtering and transformation
   - Scoped subscriptions (auto-unsubscribe on deinit)
+  - Thread-safety with mutex protection
+  - 48 tests passing (34 advanced features + 14 basic pub-sub)
 - [ ] **Command Pattern**: Undo/redo infrastructure for stateful widgets
   - Command trait with execute/undo operations
   - CommandHistory with configurable stack size
