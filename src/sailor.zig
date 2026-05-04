@@ -114,6 +114,9 @@ pub const LayoutCache = tui.layout_cache.LayoutCache;
 pub const CompressedBuffer = tui.buffer_compression.CompressedBuffer;
 pub const RichTextParser = tui.richtext_parser.RichTextParser;
 
+// Convenient re-exports from event system
+pub const EventBus = eventbus.EventBus;
+
 test {
     // Pull in all module tests
     std.testing.refAllDecls(@This());

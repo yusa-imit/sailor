@@ -22,17 +22,23 @@ const Allocator = std.mem.Allocator;
 
 /// Event bus for pub/sub cross-widget communication.
 /// Supports typed events, multiple subscribers per event type, and priority-based dispatch.
+/// Thread-safe for concurrent publish/subscribe operations.
 pub const EventBus = struct {
     allocator: Allocator,
     subscribers: std.StringHashMap(SubscriberList),
+    mutex: std.Thread.Mutex,
+    alive: bool,
 
     const SubscriberList = std.ArrayList(Subscriber);
     const StringHashMap = std.StringHashMap(SubscriberList);
 
+    /// Subscriber with optional filter and transformation functions
     const Subscriber = struct {
         callback: *const fn (ctx: ?*anyopaque, event: Event) void,
         context: ?*anyopaque,
         priority: i32, // Higher priority = earlier dispatch
+        filter: ?*const fn (event: Event) bool = null,
+        transform: ?*const fn (allocator: Allocator, event: Event) anyerror!Event = null,
 
         fn compare(_: void, a: Subscriber, b: Subscriber) bool {
             return a.priority > b.priority; // Descending order
@@ -54,13 +60,22 @@ pub const EventBus = struct {
         return .{
             .allocator = allocator,
             .subscribers = StringHashMap.init(allocator),
+            .mutex = .{},
+            .alive = true,
         };
     }
 
     /// Clean up event bus.
     pub fn deinit(self: *EventBus) void {
+        self.mutex.lock();
+        self.alive = false;
+        self.mutex.unlock();
+
         var it = self.subscribers.iterator();
         while (it.next()) |entry| {
+            // Free the copied event type string
+            self.allocator.free(entry.key_ptr.*);
+            // Free the subscriber list
             entry.value_ptr.deinit(self.allocator);
         }
         self.subscribers.deinit();
@@ -75,8 +90,14 @@ pub const EventBus = struct {
         context: ?*anyopaque,
         priority: i32,
     ) !usize {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
         const gop = try self.subscribers.getOrPut(event_type);
         if (!gop.found_existing) {
+            // Copy the event type string (caller doesn't need to keep it alive)
+            const event_type_copy = try self.allocator.dupe(u8, event_type);
+            gop.key_ptr.* = event_type_copy;
             gop.value_ptr.* = .{};
         }
 
@@ -93,15 +114,136 @@ pub const EventBus = struct {
 
         // Return index after sorting
         for (gop.value_ptr.items, 0..) |s, idx| {
-            if (s.callback == callback and s.context == context) {
+            if (s.callback == callback and s.context == context and s.filter == null and s.transform == null) {
                 return idx;
             }
         }
         return gop.value_ptr.items.len - 1;
     }
 
+    /// Subscribe with event filter.
+    /// Returns subscription ID (index in subscriber list).
+    pub fn subscribeFiltered(
+        self: *EventBus,
+        event_type: []const u8,
+        filter: *const fn (event: Event) bool,
+        callback: *const fn (ctx: ?*anyopaque, event: Event) void,
+        context: ?*anyopaque,
+        priority: i32,
+    ) !usize {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        const gop = try self.subscribers.getOrPut(event_type);
+        if (!gop.found_existing) {
+            // Copy the event type string (caller doesn't need to keep it alive)
+            const event_type_copy = try self.allocator.dupe(u8, event_type);
+            gop.key_ptr.* = event_type_copy;
+            gop.value_ptr.* = .{};
+        }
+
+        const sub = Subscriber{
+            .callback = callback,
+            .context = context,
+            .priority = priority,
+            .filter = filter,
+        };
+
+        try gop.value_ptr.append(self.allocator, sub);
+
+        // Sort by priority (descending)
+        std.mem.sort(Subscriber, gop.value_ptr.items, {}, Subscriber.compare);
+
+        // Return index after sorting
+        for (gop.value_ptr.items, 0..) |s, idx| {
+            if (s.callback == callback and s.context == context and s.filter == filter) {
+                return idx;
+            }
+        }
+        return gop.value_ptr.items.len - 1;
+    }
+
+    /// Subscribe with event transformation.
+    /// Returns subscription ID (index in subscriber list).
+    pub fn subscribeTransformed(
+        self: *EventBus,
+        event_type: []const u8,
+        transform: *const fn (allocator: Allocator, event: Event) anyerror!Event,
+        callback: *const fn (ctx: ?*anyopaque, event: Event) void,
+        context: ?*anyopaque,
+        priority: i32,
+    ) !usize {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        const gop = try self.subscribers.getOrPut(event_type);
+        if (!gop.found_existing) {
+            // Copy the event type string (caller doesn't need to keep it alive)
+            const event_type_copy = try self.allocator.dupe(u8, event_type);
+            gop.key_ptr.* = event_type_copy;
+            gop.value_ptr.* = .{};
+        }
+
+        const sub = Subscriber{
+            .callback = callback,
+            .context = context,
+            .priority = priority,
+            .transform = transform,
+        };
+
+        try gop.value_ptr.append(self.allocator, sub);
+
+        // Sort by priority (descending)
+        std.mem.sort(Subscriber, gop.value_ptr.items, {}, Subscriber.compare);
+
+        // Return index after sorting
+        for (gop.value_ptr.items, 0..) |s, idx| {
+            if (s.callback == callback and s.context == context and s.transform == transform) {
+                return idx;
+            }
+        }
+        return gop.value_ptr.items.len - 1;
+    }
+
+    /// Scoped subscription that auto-unsubscribes on deinit (RAII)
+    pub const ScopedSubscription = struct {
+        bus: *EventBus,
+        event_type: []const u8,
+        id: usize,
+
+        pub fn deinit(self: ScopedSubscription) void {
+            // Check if bus is still alive before trying to unsubscribe
+            self.bus.mutex.lock();
+            const alive = self.bus.alive;
+            self.bus.mutex.unlock();
+
+            if (alive) {
+                self.bus.unsubscribe(self.event_type, self.id);
+            }
+        }
+    };
+
+    /// Subscribe with scoped subscription (RAII auto-unsubscribe)
+    pub fn scopedSubscribe(
+        self: *EventBus,
+        event_type: []const u8,
+        callback: *const fn (ctx: ?*anyopaque, event: Event) void,
+        context: ?*anyopaque,
+        priority: i32,
+    ) !ScopedSubscription {
+        const id = try self.subscribe(event_type, callback, context, priority);
+        return ScopedSubscription{
+            .bus = self,
+            .event_type = event_type,
+            .id = id,
+        };
+    }
+
     /// Unsubscribe from an event type by subscription ID.
     pub fn unsubscribe(self: *EventBus, event_type: []const u8, subscription_id: usize) void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
         if (self.subscribers.getPtr(event_type)) |list| {
             if (subscription_id < list.items.len) {
                 _ = list.orderedRemove(subscription_id);
@@ -117,11 +259,48 @@ pub const EventBus = struct {
     }
 
     /// Publish an event to all subscribers.
+    /// Handles filtering and transformation.
     pub fn publish(self: *EventBus, event: Event) void {
-        if (self.subscribers.get(event.type)) |list| {
-            for (list.items) |sub| {
-                sub.callback(sub.context, event);
+        // Use arena allocator for temporary allocations (transformations + subscriber list copy)
+        var arena = std.heap.ArenaAllocator.init(self.allocator);
+        defer arena.deinit();
+        const temp_allocator = arena.allocator();
+
+        // Copy subscriber list under lock to avoid iterator invalidation
+        // when callbacks modify subscriptions
+        const subscribers_copy = blk: {
+            self.mutex.lock();
+            defer self.mutex.unlock();
+
+            if (self.subscribers.get(event.type)) |list| {
+                const copy = temp_allocator.alloc(Subscriber, list.items.len) catch return;
+                @memcpy(copy, list.items);
+                break :blk copy;
+            } else {
+                break :blk &[_]Subscriber{};
             }
+        };
+
+        // Dispatch events without holding lock (callbacks may call subscribe/unsubscribe)
+        for (subscribers_copy) |sub| {
+            // Apply filter if present
+            if (sub.filter) |filter| {
+                if (!filter(event)) {
+                    continue; // Skip this subscriber
+                }
+            }
+
+            // Apply transformation if present
+            var transformed_event = event;
+            if (sub.transform) |transform| {
+                transformed_event = transform(temp_allocator, event) catch {
+                    // Transformation failed, skip this subscriber
+                    continue;
+                };
+            }
+
+            // Invoke callback with (potentially transformed) event
+            sub.callback(sub.context, transformed_event);
         }
     }
 
