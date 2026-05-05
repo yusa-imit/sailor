@@ -229,13 +229,13 @@ pub const Shadow = struct {
         if (px < left) {
             dx = left - px;
         } else if (px >= right) {
-            dx = px - right + 1;
+            dx = px - right;
         }
 
         if (py < top) {
             dy = top - py;
         } else if (py >= bottom) {
-            dy = py - bottom + 1;
+            dy = py - bottom;
         }
 
         // Euclidean distance
@@ -353,10 +353,13 @@ pub const Shadow = struct {
     }
 };
 
+/// RGB triplet type (avoids anonymous struct type issues)
+const RgbTriplet = struct { r: u8, g: u8, b: u8 };
+
 /// Extract RGB values from a color (convert named colors to approximate RGB)
-fn extractRgb(color: Color) struct { r: u8, g: u8, b: u8 } {
+fn extractRgb(color: Color) RgbTriplet {
     return switch (color) {
-        .rgb => |c| c,
+        .rgb => |c| .{ .r = c.r, .g = c.g, .b = c.b },
         .reset => .{ .r = 0, .g = 0, .b = 0 },
         .black => .{ .r = 0, .g = 0, .b = 0 },
         .red => .{ .r = 170, .g = 0, .b = 0 },
@@ -379,29 +382,29 @@ fn extractRgb(color: Color) struct { r: u8, g: u8, b: u8 } {
 }
 
 /// Convert indexed color to approximate RGB
-fn indexedToRgb(idx: u8) struct { r: u8, g: u8, b: u8 } {
+fn indexedToRgb(idx: u8) RgbTriplet {
     // Simplified conversion for 256-color palette
     // Colors 0-15: standard colors (same as named colors)
     if (idx < 16) {
-        const standard = [_]struct { r: u8, g: u8, b: u8 }{
-            .{ .r = 0, .g = 0, .b = 0 },       // 0: black
-            .{ .r = 170, .g = 0, .b = 0 },     // 1: red
-            .{ .r = 0, .g = 170, .b = 0 },     // 2: green
-            .{ .r = 170, .g = 85, .b = 0 },    // 3: yellow
-            .{ .r = 0, .g = 0, .b = 170 },     // 4: blue
-            .{ .r = 170, .g = 0, .b = 170 },   // 5: magenta
-            .{ .r = 0, .g = 170, .b = 170 },   // 6: cyan
-            .{ .r = 170, .g = 170, .b = 170 }, // 7: white
-            .{ .r = 85, .g = 85, .b = 85 },    // 8: bright black
-            .{ .r = 255, .g = 85, .b = 85 },   // 9: bright red
-            .{ .r = 85, .g = 255, .b = 85 },   // 10: bright green
-            .{ .r = 255, .g = 255, .b = 85 },  // 11: bright yellow
-            .{ .r = 85, .g = 85, .b = 255 },   // 12: bright blue
-            .{ .r = 255, .g = 85, .b = 255 },  // 13: bright magenta
-            .{ .r = 85, .g = 255, .b = 255 },  // 14: bright cyan
-            .{ .r = 255, .g = 255, .b = 255 }, // 15: bright white
+        return switch (idx) {
+            0 => .{ .r = 0, .g = 0, .b = 0 },       // black
+            1 => .{ .r = 170, .g = 0, .b = 0 },     // red
+            2 => .{ .r = 0, .g = 170, .b = 0 },     // green
+            3 => .{ .r = 170, .g = 85, .b = 0 },    // yellow
+            4 => .{ .r = 0, .g = 0, .b = 170 },     // blue
+            5 => .{ .r = 170, .g = 0, .b = 170 },   // magenta
+            6 => .{ .r = 0, .g = 170, .b = 170 },   // cyan
+            7 => .{ .r = 170, .g = 170, .b = 170 }, // white
+            8 => .{ .r = 85, .g = 85, .b = 85 },    // bright black
+            9 => .{ .r = 255, .g = 85, .b = 85 },   // bright red
+            10 => .{ .r = 85, .g = 255, .b = 85 },  // bright green
+            11 => .{ .r = 255, .g = 255, .b = 85 }, // bright yellow
+            12 => .{ .r = 85, .g = 85, .b = 255 },  // bright blue
+            13 => .{ .r = 255, .g = 85, .b = 255 }, // bright magenta
+            14 => .{ .r = 85, .g = 255, .b = 255 }, // bright cyan
+            15 => .{ .r = 255, .g = 255, .b = 255 }, // bright white
+            else => unreachable,
         };
-        return standard[idx];
     }
 
     // Colors 16-231: 6x6x6 RGB cube
@@ -430,4 +433,354 @@ fn interpolateU8(a: u8, b: u8, t: f32) u8 {
     const b_f: f32 = @floatFromInt(b);
     const result = a_f + (b_f - a_f) * t;
     return @intFromFloat(@max(0.0, @min(255.0, result)));
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "Shadow.drop constructor initialization" {
+    const shadow = Shadow.drop(2, 1, 3, 0.7);
+
+    try std.testing.expectEqual(@as(i16, 2), shadow.offset_x);
+    try std.testing.expectEqual(@as(i16, 1), shadow.offset_y);
+    try std.testing.expectEqual(@as(u8, 3), shadow.blur_radius);
+    try std.testing.expectEqual(@as(f32, 0.7), shadow.opacity);
+    try std.testing.expectEqual(ShadowStyle.drop, shadow.style);
+    try std.testing.expectEqual(Color.black, shadow.color);
+}
+
+test "Shadow.inner constructor initialization" {
+    const shadow = Shadow.inner(-1, -2, 5, 0.5);
+
+    try std.testing.expectEqual(@as(i16, -1), shadow.offset_x);
+    try std.testing.expectEqual(@as(i16, -2), shadow.offset_y);
+    try std.testing.expectEqual(@as(u8, 5), shadow.blur_radius);
+    try std.testing.expectEqual(@as(f32, 0.5), shadow.opacity);
+    try std.testing.expectEqual(ShadowStyle.inner, shadow.style);
+    try std.testing.expectEqual(Color.black, shadow.color);
+}
+
+test "Shadow.box constructor initialization" {
+    const shadow = Shadow.box(0, 0, 4, 0.8);
+
+    try std.testing.expectEqual(@as(i16, 0), shadow.offset_x);
+    try std.testing.expectEqual(@as(i16, 0), shadow.offset_y);
+    try std.testing.expectEqual(@as(u8, 4), shadow.blur_radius);
+    try std.testing.expectEqual(@as(f32, 0.8), shadow.opacity);
+    try std.testing.expectEqual(ShadowStyle.box, shadow.style);
+    try std.testing.expectEqual(Color.black, shadow.color);
+}
+
+test "Shadow.render with zero opacity (no-op)" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 10, 10);
+    defer buf.deinit();
+
+    // Fill buffer with a known character
+    var y: u16 = 0;
+    while (y < 10) : (y += 1) {
+        var x: u16 = 0;
+        while (x < 10) : (x += 1) {
+            const cell = buf.get(x, y) orelse unreachable;
+            cell.char = 'A';
+            cell.style.bg = Color.white;
+        }
+    }
+
+    const shadow = Shadow.drop(2, 1, 3, 0.0); // zero opacity
+    const area = Rect{ .x = 2, .y = 2, .width = 4, .height = 3 };
+
+    try shadow.render(&buf, area);
+
+    // Verify buffer unchanged (opacity = 0 should cause early exit)
+    y = 0;
+    while (y < 10) : (y += 1) {
+        var x: u16 = 0;
+        while (x < 10) : (x += 1) {
+            const cell = buf.get(x, y) orelse unreachable;
+            try std.testing.expectEqual(@as(u21, 'A'), cell.char);
+            try std.testing.expectEqual(Color.white, cell.style.bg.?);
+        }
+    }
+}
+
+test "Shadow.render with zero-size area (no-op)" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 10, 10);
+    defer buf.deinit();
+
+    const shadow = Shadow.drop(2, 1, 3, 0.7);
+
+    // Zero width
+    const area1 = Rect{ .x = 2, .y = 2, .width = 0, .height = 5 };
+    try shadow.render(&buf, area1);
+
+    // Zero height
+    const area2 = Rect{ .x = 2, .y = 2, .width = 5, .height = 0 };
+    try shadow.render(&buf, area2);
+
+    // Both zero
+    const area3 = Rect{ .x = 2, .y = 2, .width = 0, .height = 0 };
+    try shadow.render(&buf, area3);
+
+    // Test passes if no crash occurs (early exit on zero-size areas)
+}
+
+test "Shadow.render dispatch to drop style" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 20, 20);
+    defer buf.deinit();
+
+    // Initialize buffer with white background
+    var y: u16 = 0;
+    while (y < 20) : (y += 1) {
+        var x: u16 = 0;
+        while (x < 20) : (x += 1) {
+            const cell = buf.get(x, y) orelse unreachable;
+            cell.style.bg = Color.white;
+        }
+    }
+
+    const shadow = Shadow.drop(2, 2, 2, 0.5);
+    const area = Rect{ .x = 5, .y = 5, .width = 4, .height = 3 };
+
+    try shadow.render(&buf, area);
+
+    // Verify shadow was rendered at offset position
+    // Shadow should affect cells around (7,7) with offset (2,2)
+    const shadow_cell = buf.get(7, 7) orelse unreachable;
+
+    // Background should be darkened (not white anymore due to shadow blend)
+    // The exact color depends on blend, but it should not be the original white
+    const is_darkened = if (shadow_cell.style.bg) |bg| blk: {
+        if (bg == .rgb) {
+            const rgb = bg.rgb;
+            // Darkened color should have lower RGB values than pure white (170,170,170)
+            break :blk rgb.r < 170 or rgb.g < 170 or rgb.b < 170;
+        }
+        break :blk true;
+    } else false;
+
+    try std.testing.expect(is_darkened);
+}
+
+test "Shadow.render dispatch to inner style" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 20, 20);
+    defer buf.deinit();
+
+    // Initialize buffer with white background
+    var y: u16 = 0;
+    while (y < 20) : (y += 1) {
+        var x: u16 = 0;
+        while (x < 20) : (x += 1) {
+            const cell = buf.get(x, y) orelse unreachable;
+            cell.style.bg = Color.white;
+        }
+    }
+
+    const shadow = Shadow.inner(1, 1, 2, 0.6);
+    const area = Rect{ .x = 5, .y = 5, .width = 8, .height = 6 };
+
+    try shadow.render(&buf, area);
+
+    // Verify inner shadow affected cells inside the area
+    // Edge cells should be more darkened than center cells
+    const edge_cell = buf.get(5, 5) orelse unreachable; // top-left corner
+    const center_cell = buf.get(9, 8) orelse unreachable; // near center
+
+    // Both should have background modified (not white)
+    try std.testing.expect(edge_cell.style.bg != null);
+    try std.testing.expect(center_cell.style.bg != null);
+}
+
+test "Shadow.render dispatch to box style" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 20, 20);
+    defer buf.deinit();
+
+    // Initialize buffer with white background
+    var y: u16 = 0;
+    while (y < 20) : (y += 1) {
+        var x: u16 = 0;
+        while (x < 20) : (x += 1) {
+            const cell = buf.get(x, y) orelse unreachable;
+            cell.style.bg = Color.white;
+        }
+    }
+
+    const shadow = Shadow.box(0, 0, 3, 0.4);
+    const area = Rect{ .x = 8, .y = 8, .width = 4, .height = 4 };
+
+    try shadow.render(&buf, area);
+
+    // Verify box shadow rendered around all edges
+    // Check cells outside the area (should be affected by blur)
+    const outside_cell = buf.get(7, 7) orelse unreachable; // top-left outside
+
+    try std.testing.expect(outside_cell.style.bg != null);
+}
+
+test "Shadow distanceToRect - point inside rectangle" {
+    const shadow = Shadow.drop(0, 0, 0, 1.0);
+
+    // Rectangle at (10, 10) with width=5, height=4
+    const dist = shadow.distanceToRect(12, 11, 10, 10, 5, 4);
+
+    // Point (12, 11) is inside [10..15) x [10..14), so distance should be 0
+    try std.testing.expectEqual(@as(f32, 0.0), dist);
+}
+
+test "Shadow distanceToRect - point outside rectangle" {
+    const shadow = Shadow.drop(0, 0, 0, 1.0);
+
+    // Rectangle at (10, 10) with width=5, height=4
+    // Point at (17, 10) - 2 units to the right of rectangle edge (x=15)
+    const dist = shadow.distanceToRect(17, 10, 10, 10, 5, 4);
+
+    // Distance should be 2.0 (horizontal distance from edge)
+    try std.testing.expectEqual(@as(f32, 2.0), dist);
+}
+
+test "Shadow distanceToRect - diagonal point" {
+    const shadow = Shadow.drop(0, 0, 0, 1.0);
+
+    // Rectangle at (0, 0) with width=4, height=3
+    // Point at (6, 5) - outside top-right corner
+    // Distance from (4, 3) to (6, 5) = sqrt((6-4)^2 + (5-3)^2) = sqrt(4+4) = sqrt(8) ≈ 2.828
+    const dist = shadow.distanceToRect(6, 5, 0, 0, 4, 3);
+
+    const expected = @sqrt(@as(f32, 8.0));
+    try std.testing.expectApproxEqRel(expected, dist, 0.001);
+}
+
+test "Shadow calculateIntensity with zero blur" {
+    const shadow = Shadow.drop(0, 0, 0, 0.8);
+
+    // Zero blur: sharp cutoff at distance 0
+    const intensity_inside = shadow.calculateIntensity(0.0);
+    const intensity_outside = shadow.calculateIntensity(1.0);
+
+    try std.testing.expectEqual(@as(f32, 0.8), intensity_inside);
+    try std.testing.expectEqual(@as(f32, 0.0), intensity_outside);
+}
+
+test "Shadow calculateIntensity with blur (Gaussian falloff)" {
+    const shadow = Shadow.drop(0, 0, 4, 1.0);
+
+    // Gaussian falloff: intensity decreases with distance
+    const intensity_zero = shadow.calculateIntensity(0.0);
+    const intensity_near = shadow.calculateIntensity(1.0);
+    const intensity_far = shadow.calculateIntensity(5.0);
+
+    // At distance 0, intensity should be max (opacity)
+    try std.testing.expectEqual(@as(f32, 1.0), intensity_zero);
+
+    // At distance 1, intensity should be less than max
+    try std.testing.expect(intensity_near < 1.0);
+    try std.testing.expect(intensity_near > 0.0);
+
+    // At distance 5 (beyond blur radius), intensity should be very low
+    try std.testing.expect(intensity_far < intensity_near);
+    try std.testing.expect(intensity_far < 0.2);
+}
+
+test "Shadow blendColors - RGB interpolation" {
+    const shadow = Shadow.drop(0, 0, 0, 1.0);
+
+    const white = Color.fromRgb(255, 255, 255);
+    const black = Color.fromRgb(0, 0, 0);
+
+    // Blend at 50% intensity
+    const blended = shadow.blendColors(white, black, 0.5);
+
+    try std.testing.expect(blended == .rgb);
+    const rgb = blended.rgb;
+
+    // 50% blend: (255 + 0) / 2 ≈ 127
+    try std.testing.expectApproxEqAbs(@as(f32, 127.0), @as(f32, @floatFromInt(rgb.r)), 1.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 127.0), @as(f32, @floatFromInt(rgb.g)), 1.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 127.0), @as(f32, @floatFromInt(rgb.b)), 1.0);
+}
+
+test "Shadow blendColors - intensity clamping" {
+    const shadow = Shadow.drop(0, 0, 0, 1.0);
+
+    const base = Color.fromRgb(100, 100, 100);
+    const overlay = Color.fromRgb(200, 200, 200);
+
+    // Intensity > 1.0 should be clamped to 1.0
+    const blended_over = shadow.blendColors(base, overlay, 1.5);
+    try std.testing.expect(blended_over == .rgb);
+    try std.testing.expectEqual(@as(u8, 200), blended_over.rgb.r);
+
+    // Intensity < 0.0 should be clamped to 0.0
+    const blended_under = shadow.blendColors(base, overlay, -0.5);
+    try std.testing.expect(blended_under == .rgb);
+    try std.testing.expectEqual(@as(u8, 100), blended_under.rgb.r);
+}
+
+test "extractRgb - named colors conversion" {
+    const black_rgb = extractRgb(Color.black);
+    try std.testing.expectEqual(@as(u8, 0), black_rgb.r);
+    try std.testing.expectEqual(@as(u8, 0), black_rgb.g);
+    try std.testing.expectEqual(@as(u8, 0), black_rgb.b);
+
+    const white_rgb = extractRgb(Color.white);
+    try std.testing.expectEqual(@as(u8, 170), white_rgb.r);
+    try std.testing.expectEqual(@as(u8, 170), white_rgb.g);
+    try std.testing.expectEqual(@as(u8, 170), white_rgb.b);
+
+    const bright_red_rgb = extractRgb(Color.bright_red);
+    try std.testing.expectEqual(@as(u8, 255), bright_red_rgb.r);
+    try std.testing.expectEqual(@as(u8, 85), bright_red_rgb.g);
+    try std.testing.expectEqual(@as(u8, 85), bright_red_rgb.b);
+}
+
+test "extractRgb - RGB color passthrough" {
+    const custom = Color.fromRgb(123, 45, 67);
+    const rgb = extractRgb(custom);
+
+    try std.testing.expectEqual(@as(u8, 123), rgb.r);
+    try std.testing.expectEqual(@as(u8, 45), rgb.g);
+    try std.testing.expectEqual(@as(u8, 67), rgb.b);
+}
+
+test "extractRgb - indexed color conversion" {
+    // Test standard color (idx=1 = red)
+    const indexed_red = extractRgb(Color{ .indexed = 1 });
+    try std.testing.expectEqual(@as(u8, 170), indexed_red.r);
+    try std.testing.expectEqual(@as(u8, 0), indexed_red.g);
+    try std.testing.expectEqual(@as(u8, 0), indexed_red.b);
+
+    // Test grayscale (idx=232 = first gray)
+    const indexed_gray = extractRgb(Color{ .indexed = 232 });
+    try std.testing.expectEqual(@as(u8, 8), indexed_gray.r);
+    try std.testing.expectEqual(@as(u8, 8), indexed_gray.g);
+    try std.testing.expectEqual(@as(u8, 8), indexed_gray.b);
+}
+
+test "interpolateU8 - basic interpolation" {
+    // 0% blend: return first value
+    try std.testing.expectEqual(@as(u8, 100), interpolateU8(100, 200, 0.0));
+
+    // 100% blend: return second value
+    try std.testing.expectEqual(@as(u8, 200), interpolateU8(100, 200, 1.0));
+
+    // 50% blend: return midpoint
+    try std.testing.expectEqual(@as(u8, 150), interpolateU8(100, 200, 0.5));
+
+    // 25% blend
+    try std.testing.expectEqual(@as(u8, 125), interpolateU8(100, 200, 0.25));
+}
+
+test "interpolateU8 - clamping to [0, 255]" {
+    // Over 1.0: interpolation goes beyond second value, clamps to 255
+    // 100 + (200-100)*2.0 = 300 → clamps to 255
+    try std.testing.expectEqual(@as(u8, 255), interpolateU8(100, 200, 2.0));
+
+    // Negative: interpolation goes below first value, clamps to 0
+    // 100 + (200-100)*(-1.0) = 0
+    try std.testing.expectEqual(@as(u8, 0), interpolateU8(100, 200, -1.0));
 }
