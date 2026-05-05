@@ -102,6 +102,9 @@ pub const testing = @import("testing.zig");
 // v2.6.0 — Input Validation Framework
 pub const validation = @import("validation.zig");
 
+// v2.8.0 — Event System & Async Integration
+pub const taskrunner = @import("taskrunner.zig");
+
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;
 pub const Cell = tui.buffer.Cell;
@@ -116,6 +119,8 @@ pub const RichTextParser = tui.richtext_parser.RichTextParser;
 
 // Convenient re-exports from event system
 pub const EventBus = eventbus.EventBus;
+pub const TaskRunner = taskrunner.TaskRunner;
+pub const Priority = taskrunner.Priority;
 
 test {
     // Pull in all module tests
