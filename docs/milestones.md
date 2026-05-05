@@ -74,12 +74,13 @@
   - BatchCommand: execute/undo multiple commands as one unit
   - Command compression: canMerge() and merge() for consecutive similar commands
   - 29 tests passing (10 basic + 19 advanced: batch, compression, error handling, edge cases)
-- [ ] **Async Task Runner**: Cooperative multitasking for background operations
-  - Task queue with priority levels
-  - Yield-based scheduling (no threads)
-  - Task cancellation support
+- [x] **Async Task Runner**: Cooperative multitasking for background operations
+  - Task queue with priority levels (high/normal/low)
+  - Step-based cooperative execution (no threads)
+  - Task cancellation support (cancel by ID)
   - Progress reporting callbacks
-  - Integration with progress bars
+  - Unique task IDs for tracking
+  - 21 tests passing (priority ordering, cancellation, error handling, null context, mixed execution)
 - [ ] **Event Debouncing & Throttling**: Rate-limiting for high-frequency events
   - Debounce helper (trigger after quiet period)
   - Throttle helper (rate-limit execution)
