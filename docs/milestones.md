@@ -68,12 +68,12 @@
   - Scoped subscriptions (auto-unsubscribe on deinit)
   - Thread-safety with mutex protection
   - 48 tests passing (34 advanced features + 14 basic pub-sub)
-- [ ] **Command Pattern**: Undo/redo infrastructure for stateful widgets
+- [x] **Command Pattern**: Undo/redo infrastructure for stateful widgets
   - Command trait with execute/undo operations
   - CommandHistory with configurable stack size
-  - Batched commands (macro recording)
-  - Command compression (merge consecutive similar commands)
-  - Integration with existing widgets (TextArea, Input, Table)
+  - BatchCommand: execute/undo multiple commands as one unit
+  - Command compression: canMerge() and merge() for consecutive similar commands
+  - 29 tests passing (10 basic + 19 advanced: batch, compression, error handling, edge cases)
 - [ ] **Async Task Runner**: Cooperative multitasking for background operations
   - Task queue with priority levels
   - Yield-based scheduling (no threads)
