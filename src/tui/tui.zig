@@ -71,6 +71,9 @@ pub const quirks = @import("quirks.zig");
 pub const transition = @import("transition.zig");
 pub const timer = @import("timer.zig");
 
+// v2.8.0+ — Event Debouncing & Throttling
+pub const debounce = @import("debounce.zig");
+
 // v1.12.0+ — Enterprise & Accessibility
 pub const session = @import("session.zig");
 pub const audit = @import("audit.zig");
