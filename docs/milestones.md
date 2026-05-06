@@ -2,15 +2,15 @@
 
 ## Current Status
 
-- **Latest release**: v2.6.0 (2026-05-04) — Advanced Input & Clipboard
-- **Latest minor**: v2.6.0 (2026-05-04) — Multi-line TextArea, clipboard operations, input validation, autocomplete enhancements
-- **Next milestone**: v2.7.0 (Cross-Platform Improvements)
-- **Active milestones**: 3 (v2.2.0, v2.7.0, v2.8.0)
+- **Latest release**: v2.7.0 (2026-05-07) — Event System & Async Integration
+- **Latest minor**: v2.7.0 (2026-05-07) — Event Bus, Command Pattern, Async Task Runner, Debouncing & Throttling
+- **Next milestone**: v2.8.0 (Cross-Platform Improvements)
+- **Active milestones**: 2 (v2.2.0, v2.8.0)
 - **Blockers**: None
 
 ## Active Milestones
 
-### v2.7.0 — Cross-Platform Improvements (Target: 2026-05-17)
+### v2.8.0 — Cross-Platform Improvements (Target: 2026-05-17)
 
 **Theme**: Enhanced Windows compatibility and platform-specific optimizations
 
@@ -55,65 +55,15 @@
 - Prepares for broader ecosystem adoption
 - Ensures consumer projects work on Windows natively
 
-### v2.8.0 — Event System & Async Integration (Target: 2026-05-24)
-
-**Theme**: Enhanced event handling and async primitives for responsive TUI applications
-
-**Checklist**:
-- [x] **Event Bus**: Publish-subscribe pattern for decoupled component communication
-  - EventBus with topic-based subscriptions
-  - Type-safe event payloads with comptime validation
-  - Priority-based event dispatch
-  - Event filtering and transformation
-  - Scoped subscriptions (auto-unsubscribe on deinit)
-  - Thread-safety with mutex protection
-  - 48 tests passing (34 advanced features + 14 basic pub-sub)
-- [x] **Command Pattern**: Undo/redo infrastructure for stateful widgets
-  - Command trait with execute/undo operations
-  - CommandHistory with configurable stack size
-  - BatchCommand: execute/undo multiple commands as one unit
-  - Command compression: canMerge() and merge() for consecutive similar commands
-  - 29 tests passing (10 basic + 19 advanced: batch, compression, error handling, edge cases)
-- [x] **Async Task Runner**: Cooperative multitasking for background operations
-  - Task queue with priority levels (high/normal/low)
-  - Step-based cooperative execution (no threads)
-  - Task cancellation support (cancel by ID)
-  - Progress reporting callbacks
-  - Unique task IDs for tracking
-  - 21 tests passing (priority ordering, cancellation, error handling, null context, mixed execution)
-- [ ] **Event Debouncing & Throttling**: Rate-limiting for high-frequency events
-  - Debounce helper (trigger after quiet period)
-  - Throttle helper (rate-limit execution)
-  - Configurable time windows
-  - Use cases: search-as-you-type, resize handling, validation
-- [ ] **Testing**: Comprehensive test coverage
-  - EventBus subscription and dispatch tests
-  - Command pattern undo/redo tests
-  - TaskRunner scheduling tests
-  - Debounce/throttle timing tests
-
-**Success Criteria**:
-- EventBus handles 10K+ events/sec without lag
-- Command history supports 1K+ operations efficiently
-- TaskRunner executes 100+ concurrent tasks smoothly
-- Debounce/throttle reduce event noise by 90%+
-- All tests passing (~4000+ tests expected)
-
-**Notes**:
-- Enables reactive programming patterns in TUIs
-- Critical for zoltraak's Redis monitoring dashboard
-- Useful for silica's query result streaming
-- Foundation for future async I/O integration (v2.9.0)
-
 ### v2.2.0 — Consumer Feedback & Bug Fixes (Target: 2026-05-15)
 
 **Theme**: Address real-world usage feedback from zr, zoltraak, silica migrations
 
 **Checklist**:
-- [ ] **Monitor consumer migrations**: Track progress of v2.4.0/v2.5.0/v2.6.0 migrations
-  - zr#58: v2.6.0 migration (2026-05-04)
-  - zoltraak#33, zoltraak#34, zoltraak#35: v2.4.0, v2.5.0, v2.6.0 migrations
-  - silica#44: v2.6.0 migration (2026-05-04)
+- [ ] **Monitor consumer migrations**: Track progress of v2.4.0/v2.5.0/v2.6.0/v2.7.0 migrations
+  - zr#58, zr#59: v2.6.0, v2.7.0 migrations (2026-05-04, 2026-05-07)
+  - zoltraak#33, zoltraak#34, zoltraak#35, zoltraak#36: v2.4.0, v2.5.0, v2.6.0, v2.7.0 migrations
+  - silica#44, silica#45: v2.6.0, v2.7.0 migrations (2026-05-04, 2026-05-07)
   - Help resolve any migration blockers
   - Document common migration patterns
 - [ ] **Bug fixes**: Fix any issues discovered during real-world usage
@@ -144,6 +94,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v2.7.0 | Event System & Async Integration | 2026-05-07 | Event Bus (publish-subscribe pattern, filtering, transformation, scoped subscriptions, thread-safety, 48 tests), Command Pattern (undo/redo, BatchCommand, compression, 29 tests), Async Task Runner (cooperative multitasking, priority queue, cancellation, progress tracking, 21 tests), Event Debouncing & Throttling (zero-allocation rate limiting, 25 tests). Total: +123 tests (~4100 passing), 6 cross-platform targets, 0 breaking changes. Consumer migrations: zr#59, zoltraak#36, silica#45 |
 | v2.6.0 | Advanced Input & Clipboard | 2026-05-04 | Multi-line TextArea (line wrapping WrapMode, selection support, syntax highlighting hooks, +31 tests), Clipboard operations (ClipboardHistory FIFO buffer, SystemClipboard cross-platform integration macOS/Linux/Windows, OSC 52 support, +71 tests), Input validation framework (email/URL/phone validators, regex, min/max length, visual feedback, async support, +79 tests), Autocomplete enhancements (fuzzy matching, context-aware suggestions, multi-column popup, docs preview, +23 tests). Total: +204 tests (~3900 passing), 6 cross-platform targets, 0 breaking changes |
 | v2.5.0 | iTerm2 Protocol & Unicode Grapheme Support | 2026-05-03 | iTerm2 inline images (OSC 1337, 19 tests), Unicode grapheme clusters (UAX#29, 15 tests), Terminal quirks database (8 quirks, 25 tests), Benchmark stability tests (variance < 5%, 8 tests), CI regression detection (10% threshold). Total: +67 tests (~3816 passing), 6 cross-platform targets verified, 0 breaking changes |
 | v2.4.0 | Testing Infrastructure & Quality Tooling | 2026-04-29 | Snapshot testing (SnapshotRecorder/Matcher with auto-update, 38 tests), Property-based testing (Generator with seed-based determinism, PropertyTest runner, 38 tests), Visual regression (VisualDiff, SideBySideComparison, 23 tests), Mock Terminal (programmable terminal with event injection, output capture, 17 tests), Testing utilities (LeakCheckAllocator, WidgetFixture, assertion helpers, benchmark tools, 47 tests). Total: +163 tests (3691 passing), 0 breaking changes |
