@@ -678,3 +678,416 @@ test "visual feedback basic" {
     const result = try feedback.validateWithStyle("user@example.com");
     try testing.expect(result.is_valid == true);
 }
+
+test "email validator - invalid formats" {
+    const testing = std.testing;
+
+    const validator = Validator.email();
+
+    // Empty email
+    {
+        const result = validator.validateFn("");
+        try testing.expect(result == .invalid);
+    }
+
+    // Missing @
+    {
+        const result = validator.validateFn("userexample.com");
+        try testing.expect(result == .invalid);
+    }
+
+    // Multiple @
+    {
+        const result = validator.validateFn("user@@example.com");
+        try testing.expect(result == .invalid);
+    }
+
+    // Empty local part
+    {
+        const result = validator.validateFn("@example.com");
+        try testing.expect(result == .invalid);
+    }
+
+    // Empty domain
+    {
+        const result = validator.validateFn("user@");
+        try testing.expect(result == .invalid);
+    }
+
+    // Domain without dot
+    {
+        const result = validator.validateFn("user@localhost");
+        try testing.expect(result == .invalid);
+    }
+
+    // Null byte
+    {
+        const result = validator.validateFn("user\x00@example.com");
+        try testing.expect(result == .invalid);
+    }
+}
+
+test "url validator - invalid formats" {
+    const testing = std.testing;
+
+    const validator = Validator.url();
+
+    // Empty URL
+    {
+        const result = validator.validateFn("");
+        try testing.expect(result == .invalid);
+    }
+
+    // Missing protocol
+    {
+        const result = validator.validateFn("example.com");
+        try testing.expect(result == .invalid);
+    }
+
+    // Protocol only
+    {
+        const result = validator.validateFn("https://");
+        try testing.expect(result == .invalid);
+    }
+
+    // Contains spaces
+    {
+        const result = validator.validateFn("https://example .com");
+        try testing.expect(result == .invalid);
+    }
+
+    // Invalid characters
+    {
+        const result = validator.validateFn("https://example.com!");
+        try testing.expect(result == .invalid);
+    }
+}
+
+test "phoneUS validator - invalid formats" {
+    const testing = std.testing;
+
+    const validator = Validator.phoneUS();
+
+    // Empty
+    {
+        const result = validator.validateFn("");
+        try testing.expect(result == .invalid);
+    }
+
+    // Too few digits
+    {
+        const result = validator.validateFn("555-1234");
+        try testing.expect(result == .invalid);
+    }
+
+    // Too many digits
+    {
+        const result = validator.validateFn("555-123-45678");
+        try testing.expect(result == .invalid);
+    }
+
+    // Invalid characters
+    {
+        const result = validator.validateFn("555-abc-1234");
+        try testing.expect(result == .invalid);
+    }
+
+    // Valid formats
+    {
+        const result1 = validator.validateFn("555-123-4567");
+        try testing.expect(result1 == .valid);
+
+        const result2 = validator.validateFn("(555) 123-4567");
+        try testing.expect(result2 == .valid);
+
+        const result3 = validator.validateFn("5551234567");
+        try testing.expect(result3 == .valid);
+    }
+}
+
+test "minLength validator - edge cases" {
+    const testing = std.testing;
+
+    const validator = Validator.minLength(5);
+
+    // Exact minimum
+    {
+        const result = validator.validateFn("hello");
+        try testing.expect(result == .valid);
+    }
+
+    // Below minimum
+    {
+        const result = validator.validateFn("hi");
+        try testing.expect(result == .invalid);
+    }
+
+    // Empty string
+    {
+        const result = validator.validateFn("");
+        try testing.expect(result == .invalid);
+    }
+
+    // Unicode characters
+    {
+        const result = validator.validateFn("こんに"); // 3 characters
+        try testing.expect(result == .invalid);
+    }
+}
+
+test "maxLength validator - edge cases" {
+    const testing = std.testing;
+
+    const validator = Validator.maxLength(10);
+
+    // Exact maximum
+    {
+        const result = validator.validateFn("1234567890");
+        try testing.expect(result == .valid);
+    }
+
+    // Above maximum
+    {
+        const result = validator.validateFn("12345678901");
+        try testing.expect(result == .invalid);
+    }
+
+    // Empty string
+    {
+        const result = validator.validateFn("");
+        try testing.expect(result == .valid);
+    }
+
+    // Unicode characters
+    {
+        const result = validator.validateFn("こんにちは世界あいうえ"); // 11 characters
+        try testing.expect(result == .invalid);
+    }
+}
+
+test "regex validator - SSN pattern" {
+    const testing = std.testing;
+
+    const validator = try Validator.regex("^[0-9]{3}-[0-9]{2}-[0-9]{4}$");
+
+    // Valid SSN
+    {
+        const result = validator.validateFn("123-45-6789");
+        try testing.expect(result == .valid);
+    }
+
+    // Wrong format
+    {
+        const result = validator.validateFn("12-345-6789");
+        try testing.expect(result == .invalid);
+    }
+
+    // Contains letters
+    {
+        const result = validator.validateFn("123-ab-6789");
+        try testing.expect(result == .invalid);
+    }
+
+    // Too short
+    {
+        const result = validator.validateFn("123-45-678");
+        try testing.expect(result == .invalid);
+    }
+}
+
+test "regex validator - alternation pattern" {
+    const testing = std.testing;
+
+    const validator = try Validator.regex("^(foo|bar|baz)$");
+
+    // Valid values
+    {
+        try testing.expect(validator.validateFn("foo") == .valid);
+        try testing.expect(validator.validateFn("bar") == .valid);
+        try testing.expect(validator.validateFn("baz") == .valid);
+    }
+
+    // Invalid values
+    {
+        try testing.expect(validator.validateFn("qux") == .invalid);
+        try testing.expect(validator.validateFn("") == .invalid);
+        try testing.expect(validator.validateFn("foobar") == .invalid);
+    }
+}
+
+test "regex validator - error cases" {
+    const testing = std.testing;
+
+    // Empty pattern
+    try testing.expectError(error.EmptyPattern, Validator.regex(""));
+
+    // Invalid regex (unclosed bracket)
+    try testing.expectError(error.InvalidRegex, Validator.regex("[unclosed"));
+}
+
+test "combine validators - all mode" {
+    const testing = std.testing;
+
+    const validators = [_]Validator{
+        Validator.minLength(5),
+        Validator.maxLength(10),
+    };
+
+    const combined = Validator.combine(&validators, .all);
+
+    // Passes both
+    {
+        const result = combined.validateFn("hello");
+        try testing.expect(result == .valid);
+    }
+
+    // Fails minLength
+    {
+        const result = combined.validateFn("hi");
+        try testing.expect(result == .invalid);
+    }
+
+    // Fails maxLength
+    {
+        const result = combined.validateFn("hello world!");
+        try testing.expect(result == .invalid);
+    }
+}
+
+test "combine validators - any mode" {
+    const testing = std.testing;
+
+    const validators = [_]Validator{
+        Validator.email(),
+        Validator.url(),
+    };
+
+    const combined = Validator.combine(&validators, .any);
+
+    // Passes email validator
+    {
+        const result = combined.validateFn("user@example.com");
+        try testing.expect(result == .valid);
+    }
+
+    // Passes url validator
+    {
+        const result = combined.validateFn("https://example.com");
+        try testing.expect(result == .valid);
+    }
+
+    // Fails both
+    {
+        const result = combined.validateFn("invalid");
+        try testing.expect(result == .invalid);
+    }
+}
+
+test "async validator - timeout" {
+    const testing = std.testing;
+
+    var async_validator = try AsyncValidator.init(testing.allocator, Validator.email(), 5000); // 5 second debounce
+    defer async_validator.deinit();
+
+    try async_validator.queueValidation("user@example.com");
+
+    // Should timeout before debounce completes
+    const result = async_validator.getResultWithTimeout(100) catch |err| {
+        try testing.expectEqual(error.ValidationTimeout, err);
+        return;
+    };
+
+    // If we got here, the timeout didn't work
+    _ = result;
+    try testing.expect(false);
+}
+
+test "async validator - non-blocking" {
+    const testing = std.testing;
+
+    var async_validator = try AsyncValidator.init(testing.allocator, Validator.email(), 50);
+    defer async_validator.deinit();
+
+    try async_validator.queueValidation("user@example.com");
+
+    // Immediately get result (should be pending)
+    const result1 = async_validator.getResultNonBlocking();
+    try testing.expectEqual(ValidatorResult.pending, result1);
+
+    // Wait and try again
+    std.Thread.sleep(100 * std.time.ns_per_ms);
+    const result2 = async_validator.getResultNonBlocking();
+    try testing.expectEqual(ValidatorResult.valid, result2);
+}
+
+test "visual feedback - custom styles" {
+    const testing = std.testing;
+
+    const validator = Validator.email();
+    const feedback = try VisualFeedback.init(testing.allocator, validator);
+    defer feedback.deinit();
+
+    // Set custom styles
+    feedback.setErrorStyle(.{ .fg = .red, .bold = true });
+    feedback.setSuccessStyle(.{ .fg = .green, .bold = true });
+    feedback.setPendingStyle(.{ .fg = .yellow, .italic = true });
+
+    // Valid input
+    {
+        const result = try feedback.validateWithStyle("user@example.com");
+        try testing.expect(result.is_valid == true);
+        try testing.expect(result.style.bold == true);
+    }
+
+    // Invalid input
+    {
+        const result = try feedback.validateWithStyle("invalid");
+        try testing.expect(result.is_valid == false);
+        try testing.expect(result.style.bold == true);
+        try testing.expect(result.message.len > 0);
+    }
+}
+
+test "ValidatorResult format" {
+    const testing = std.testing;
+
+    var buf: [256]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    // Valid result
+    {
+        fbs.reset();
+        const result = ValidatorResult.valid;
+        switch (result) {
+            .valid => try writer.writeAll("valid"),
+            .invalid => |msg| try writer.print("invalid: {s}", .{msg}),
+            .pending => try writer.writeAll("pending"),
+        }
+        try testing.expectEqualStrings("valid", fbs.getWritten());
+    }
+
+    // Invalid result with message
+    {
+        fbs.reset();
+        const result = ValidatorResult{ .invalid = "Email must contain @ sign" };
+        switch (result) {
+            .valid => try writer.writeAll("valid"),
+            .invalid => |msg| try writer.print("invalid: {s}", .{msg}),
+            .pending => try writer.writeAll("pending"),
+        }
+        try testing.expectEqualStrings("invalid: Email must contain @ sign", fbs.getWritten());
+    }
+
+    // Pending result
+    {
+        fbs.reset();
+        const result = ValidatorResult.pending;
+        switch (result) {
+            .valid => try writer.writeAll("valid"),
+            .invalid => |msg| try writer.print("invalid: {s}", .{msg}),
+            .pending => try writer.writeAll("pending"),
+        }
+        try testing.expectEqualStrings("pending", fbs.getWritten());
+    }
+}
