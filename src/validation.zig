@@ -1014,8 +1014,8 @@ test "async validator - non-blocking" {
     const result1 = async_validator.getResultNonBlocking();
     try testing.expectEqual(ValidatorResult.pending, result1);
 
-    // Wait and try again
-    std.Thread.sleep(100 * std.time.ns_per_ms);
+    // Wait for async validation to complete (debounce_ms * 2 + margin for thread scheduling)
+    std.Thread.sleep(200 * std.time.ns_per_ms);
     const result2 = async_validator.getResultNonBlocking();
     try testing.expectEqual(ValidatorResult.valid, result2);
 }

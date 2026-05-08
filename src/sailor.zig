@@ -14,6 +14,7 @@
 //! - `tui`      — Full-screen TUI framework (layout, widgets, double buffering)
 
 const std = @import("std");
+const builtin = @import("builtin");
 
 // Phase 1 modules (v0.1.0)
 pub const term = @import("term.zig");

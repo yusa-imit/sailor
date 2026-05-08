@@ -109,13 +109,13 @@ fn getSizeWindows() Error!Size {
         return Error.UnsupportedPlatform;
     }
 
-    const windows = std.os.windows;
-    const handle = windows.GetStdHandle(windows.STD_OUTPUT_HANDLE) catch {
+    const win = std.os.windows;
+    const handle = win.GetStdHandle(win.STD_OUTPUT_HANDLE) catch {
         return Error.TerminalSizeUnavailable;
     };
 
-    var csbi: windows.CONSOLE_SCREEN_BUFFER_INFO = undefined;
-    if (windows.kernel32.GetConsoleScreenBufferInfo(handle, &csbi) == 0) {
+    var csbi: win.CONSOLE_SCREEN_BUFFER_INFO = undefined;
+    if (win.kernel32.GetConsoleScreenBufferInfo(handle, &csbi) == 0) {
         return Error.TerminalSizeUnavailable;
     }
 
@@ -196,21 +196,21 @@ pub const RawMode = struct {
             return Error.UnsupportedPlatform;
         }
 
-        const windows = std.os.windows;
+        const win = std.os.windows;
         // On Windows, fd is already a handle (*anyopaque)
-        const handle: windows.HANDLE = @ptrCast(fd);
+        const handle: win.HANDLE = @ptrCast(fd);
 
-        var original: windows.DWORD = undefined;
-        if (windows.kernel32.GetConsoleMode(handle, &original) == 0) {
+        var original: win.DWORD = undefined;
+        if (win.kernel32.GetConsoleMode(handle, &original) == 0) {
             return Error.NotATty;
         }
 
         // Disable line input and echo
         var mode = original;
-        mode &= ~@as(windows.DWORD, ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
+        mode &= ~@as(win.DWORD, ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
         mode |= ENABLE_VIRTUAL_TERMINAL_INPUT;
 
-        if (windows.kernel32.SetConsoleMode(handle, mode) == 0) {
+        if (win.kernel32.SetConsoleMode(handle, mode) == 0) {
             return Error.NotATty;
         }
 
@@ -236,10 +236,10 @@ pub const RawMode = struct {
     }
 
     fn deinitWindows(self: *RawMode) void {
-        const windows = std.os.windows;
+        const win = std.os.windows;
         // On Windows, fd is already a handle (*anyopaque)
-        const handle: windows.HANDLE = @ptrCast(self.fd);
-        _ = windows.kernel32.SetConsoleMode(handle, self.original);
+        const handle: win.HANDLE = @ptrCast(self.fd);
+        _ = win.kernel32.SetConsoleMode(handle, self.original);
     }
 };
 
@@ -407,18 +407,18 @@ fn readByteUnix(timeout_ms: u32) !?u8 {
 }
 
 fn readByteWindows(timeout_ms: u32) !?u8 {
-    const windows = std.os.windows;
-    const handle = try windows.GetStdHandle(windows.STD_INPUT_HANDLE);
+    const win = std.os.windows;
+    const handle = try win.GetStdHandle(win.STD_INPUT_HANDLE);
 
     // WaitForSingleObject returns void on success (WAIT_OBJECT_0), or error on timeout/abandoned
-    windows.WaitForSingleObject(handle, timeout_ms) catch {
+    win.WaitForSingleObject(handle, timeout_ms) catch {
         // Timeout or other wait result
         return null;
     };
 
     var buf: [1]u8 = undefined;
-    var bytes_read: windows.DWORD = undefined;
-    if (windows.kernel32.ReadFile(handle, &buf, 1, &bytes_read, null) == 0) {
+    var bytes_read: win.DWORD = undefined;
+    if (win.kernel32.ReadFile(handle, &buf, 1, &bytes_read, null) == 0) {
         return error.InputOutputError;
     }
 
@@ -1656,3 +1656,13 @@ test "parseXtgettcapResponse with capability not supported (0) returns supported
     try std.testing.expectEqual(false, result.supported);
     try std.testing.expectEqual(@as(?[]u8, null), result.value);
 }
+
+// ============================================================================
+// Windows-specific exports (comptime guarded)
+// ============================================================================
+
+pub const windows = if (builtin.os.tag == .windows) @import("term/windows.zig") else struct {
+    pub fn createPseudoConsole(_: u16, _: u16) !void {
+        return error.UnsupportedPlatform;
+    }
+};
