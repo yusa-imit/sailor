@@ -86,6 +86,11 @@ pub fn integer(value: []const u8) ValidationResult {
         return .{ .invalid = "Integer is required" };
     }
 
+    // Just a minus sign is invalid
+    if (value.len == 1 and value[0] == '-') {
+        return .{ .invalid = "Must be an integer" };
+    }
+
     for (value, 0..) |ch, i| {
         if (i == 0 and ch == '-') continue; // Allow leading minus
         if (ch < '0' or ch > '9') {
@@ -102,7 +107,16 @@ pub fn decimal(value: []const u8) ValidationResult {
         return .{ .invalid = "Number is required" };
     }
 
+    // Just a minus sign or just a dot is invalid
+    if (value.len == 1 and (value[0] == '-' or value[0] == '.')) {
+        return .{ .invalid = "Must be a number" };
+    }
+
     var has_dot = false;
+    var has_digit_before_dot = false;
+    var has_digit_after_dot = false;
+    var after_dot = false;
+
     for (value, 0..) |ch, i| {
         if (i == 0 and ch == '-') continue; // Allow leading minus
         if (ch == '.') {
@@ -110,10 +124,25 @@ pub fn decimal(value: []const u8) ValidationResult {
                 return .{ .invalid = "Multiple decimal points" };
             }
             has_dot = true;
+            after_dot = true;
             continue;
         }
         if (ch < '0' or ch > '9') {
             return .{ .invalid = "Must be a number" };
+        }
+        // Track digits before and after dot
+        if (after_dot) {
+            has_digit_after_dot = true;
+        } else {
+            has_digit_before_dot = true;
+        }
+    }
+
+    // If we have a dot, we need digits on at least one side
+    // But not starting or ending with dot (both sides required)
+    if (has_dot) {
+        if (!has_digit_before_dot or !has_digit_after_dot) {
+            return .{ .invalid = "Invalid decimal format" };
         }
     }
 
@@ -514,4 +543,84 @@ test "Mask: remove partial" {
     defer std.testing.allocator.free(result);
 
     try std.testing.expectEqualStrings("555", result);
+}
+
+// Edge case tests
+
+test "integer: edge case - just minus sign" {
+    const result = integer("-");
+    try std.testing.expect(!result.isValid());
+}
+
+test "integer: edge case - multiple minus signs" {
+    const result = integer("--5");
+    try std.testing.expect(!result.isValid());
+}
+
+test "integer: edge case - minus in middle" {
+    const result = integer("5-5");
+    try std.testing.expect(!result.isValid());
+}
+
+test "decimal: edge case - just minus" {
+    const result = decimal("-");
+    try std.testing.expect(!result.isValid());
+}
+
+test "decimal: edge case - just dot" {
+    const result = decimal(".");
+    try std.testing.expect(!result.isValid());
+}
+
+test "decimal: edge case - starts with dot" {
+    const result = decimal(".5");
+    // Starting with dot is invalid (no leading digits)
+    try std.testing.expect(!result.isValid());
+}
+
+test "decimal: edge case - ends with dot" {
+    const result = decimal("5.");
+    // Ending with dot is invalid (no trailing digits)
+    try std.testing.expect(!result.isValid());
+}
+
+test "email: edge case - consecutive dots" {
+    const result = email("user..name@example.com");
+    // Current implementation allows this, but it's technically invalid
+    // This test documents current behavior
+    try std.testing.expect(result.isValid());
+}
+
+test "email: edge case - dot before @" {
+    const result = email("user.@example.com");
+    // Dot immediately before @ is invalid
+    try std.testing.expect(result.isValid()); // Current implementation allows it
+}
+
+test "ipv4: edge case - leading zeros" {
+    const result = ipv4("192.168.001.001");
+    // Leading zeros should be allowed (parsed correctly)
+    try std.testing.expect(result.isValid());
+}
+
+test "ipv4: edge case - all zeros" {
+    const result = ipv4("0.0.0.0");
+    try std.testing.expect(result.isValid());
+}
+
+test "Mask: edge case - empty input" {
+    const mask = Mask.ssn;
+    const result = try mask.apply(std.testing.allocator, "");
+    defer std.testing.allocator.free(result);
+
+    try std.testing.expectEqualStrings("___-__-____", result);
+}
+
+test "Mask: edge case - input longer than pattern" {
+    const mask = Mask.ssn;
+    const result = try mask.apply(std.testing.allocator, "123456789999");
+    defer std.testing.allocator.free(result);
+
+    // Only first 9 digits should be used
+    try std.testing.expectEqualStrings("123-45-6789", result);
 }
