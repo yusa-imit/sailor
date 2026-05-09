@@ -2,68 +2,70 @@
 
 ## Current Status
 
-- **Latest release**: v2.7.0 (2026-05-07) — Event System & Async Integration
-- **Latest minor**: v2.7.0 (2026-05-07) — Event Bus, Command Pattern, Async Task Runner, Debouncing & Throttling
-- **Next milestone**: v2.8.0 (Cross-Platform Improvements)
-- **Active milestones**: 2 (v2.2.0, v2.8.0)
+- **Latest release**: v2.8.0 (2026-05-10) — Cross-Platform Improvements
+- **Latest minor**: v2.8.0 (2026-05-10) — Windows Console API, Platform Optimizations, Multi-Platform CI
+- **Next milestone**: v2.9.0 (Developer Experience & Debugging Tools)
+- **Active milestones**: 2 (v2.2.0, v2.9.0)
 - **Blockers**: None
 
 ## Active Milestones
 
-### v2.8.0 — Cross-Platform Improvements (Target: 2026-05-17)
+### v2.9.0 — Developer Experience & Debugging Tools (Target: 2026-05-24)
 
-**Theme**: Enhanced Windows compatibility and platform-specific optimizations
+**Theme**: Enhanced debugging capabilities, developer tooling, and runtime introspection
 
 **Checklist**:
-- [x] **Windows console API**: Native Windows support
-  - ConPTY integration for modern Windows Terminal
-  - Legacy console API fallback (Windows 7/8)
-  - ANSI escape sequence emulation layer
-  - Windows-specific keyboard events (Ctrl+C, Alt+F4)
-  - UTF-16 console encoding handling
-- [x] **Platform-specific optimizations**: Performance tuning
-  - Linux: Direct ANSI sequence emission (no overhead)
-  - macOS: Metal-accelerated rendering detection
-  - Windows: Batch console API calls for performance
-  - Platform detection at comptime (zero runtime cost)
-- [x] **CI enhancements**: Multi-platform testing
-  - Windows native tests (not cross-compile)
-  - macOS ARM64 native tests
-  - Linux ARM64 native tests (optional, x86_64 covered)
-  - Platform-specific test suites (9 platform-specific tests)
-  - Performance regression per platform (ubuntu-latest baseline)
-- [x] **Documentation**: Platform-specific guides
-  - Windows setup guide (dependencies, quirks, WSL vs native, ConPTY)
-  - macOS Terminal.app vs iTerm2 differences (Metal, clipboard, inline images)
-  - Linux terminal emulator compatibility matrix (Alacritty, Kitty, GNOME, etc.)
-  - Cross-platform README with setup/troubleshooting
-- [x] **Testing**: Comprehensive platform coverage
-  - Windows console API tests (windows_console_test.zig, 27KB)
-  - Platform-specific quirks tests (platform_edge_cases_test.zig)
-  - UTF-16 encoding tests (windows_unicode_test.zig, 17KB)
-  - CI passes on all platforms natively (Linux/macOS x86_64+ARM64/Windows)
+- [ ] **Live Widget Inspector**: Runtime widget tree visualization
+  - Hierarchical tree view of active widgets
+  - Real-time property inspection (bounds, styles, state)
+  - Focus path tracking and navigation
+  - Memory usage per widget
+  - Render timing breakdown
+- [ ] **Advanced Profiling**: Deep performance insights
+  - Widget render flamegraphs
+  - Event propagation traces
+  - Layout constraint solver visualization
+  - Memory allocation heatmaps
+  - Export profiles to Chrome DevTools format
+- [ ] **Error Recovery & Resilience**: Robust error handling
+  - Widget render error boundaries (isolated failures)
+  - Automatic state recovery on panic
+  - Error reporting hooks for custom logging
+  - Graceful degradation modes
+  - Test utilities for error injection
+- [ ] **Developer Console**: In-app REPL for debugging
+  - Live evaluation of Zig expressions
+  - Widget query language (CSS-like selectors)
+  - State mutation commands
+  - Screenshot/recording triggers
+  - Keyboard shortcut: Ctrl+Shift+D
+- [ ] **Testing**: Comprehensive test coverage
+  - Widget inspector tests (tree traversal, property access)
+  - Profiler tests (data collection, export formats)
+  - Error boundary tests (isolation, recovery)
+  - Developer console tests (REPL, query language)
 
 **Success Criteria**:
-- sailor works seamlessly on Windows 10+ (native and WSL)
-- All widgets render correctly on Windows Terminal
-- CI runs native tests on Linux/macOS/Windows
-- Zero platform-specific bugs in issue tracker
-- Documentation covers all major platforms
+- Widget inspector can introspect 100+ widget trees
+- Profiler exports valid Chrome DevTools JSON
+- Error boundaries prevent cascade failures in all widgets
+- Developer console supports 20+ query selectors
+- All features documented with examples
 
 **Notes**:
-- Addresses Windows as a first-class platform (currently cross-compile only)
-- Prepares for broader ecosystem adoption
-- Ensures consumer projects work on Windows natively
+- Inspired by React DevTools, Chrome DevTools, and Elm debugger
+- Aims to make sailor the most debuggable TUI framework
+- Consumer projects can integrate inspector into production builds (behind feature flag)
 
 ### v2.2.0 — Consumer Feedback & Bug Fixes (Target: 2026-05-15)
 
 **Theme**: Address real-world usage feedback from zr, zoltraak, silica migrations
 
 **Checklist**:
-- [ ] **Monitor consumer migrations**: Track progress of v2.4.0/v2.5.0/v2.6.0/v2.7.0 migrations
-  - zr#58, zr#59: v2.6.0, v2.7.0 migrations (2026-05-04, 2026-05-07)
-  - zoltraak#33, zoltraak#34, zoltraak#35, zoltraak#36: v2.4.0, v2.5.0, v2.6.0, v2.7.0 migrations
-  - silica#44, silica#45: v2.6.0, v2.7.0 migrations (2026-05-04, 2026-05-07)
+- [ ] **Monitor consumer migrations**: Track progress of v2.4.0/v2.5.0/v2.6.0/v2.7.0/v2.8.0 migrations
+  - zr#58, zr#59, zr#60: v2.6.0, v2.7.0, v2.8.0 migrations (2026-05-04, 2026-05-07, 2026-05-10)
+  - zoltraak#33, zoltraak#34, zoltraak#35, zoltraak#36, zoltraak#37: v2.4.0-v2.8.0 migrations
+  - silica#44, silica#45, silica#47: v2.6.0, v2.7.0, v2.8.0 migrations (2026-05-04, 2026-05-07, 2026-05-10)
   - Help resolve any migration blockers
   - Document common migration patterns
 - [ ] **Bug fixes**: Fix any issues discovered during real-world usage
@@ -94,6 +96,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v2.8.0 | Cross-Platform Improvements | 2026-05-10 | Windows Console API (ConPTY integration, legacy fallback, ANSI emulation, UTF-16 encoding), Platform-specific optimizations (Linux zero-overhead ANSI, macOS Metal detection, Windows batch console API), CI enhancements (Windows/macOS/Linux native tests, platform-specific test suites), Documentation (platform-specific setup guides, terminal compatibility matrix), Testing (27 Windows console tests, platform quirks tests, UTF-16 tests). Total: ~4130 passing tests (+27), 6 cross-platform targets, 0 breaking changes. Consumer migrations: zr#60, zoltraak#37, silica#47 |
 | v2.7.0 | Event System & Async Integration | 2026-05-07 | Event Bus (publish-subscribe pattern, filtering, transformation, scoped subscriptions, thread-safety, 48 tests), Command Pattern (undo/redo, BatchCommand, compression, 29 tests), Async Task Runner (cooperative multitasking, priority queue, cancellation, progress tracking, 21 tests), Event Debouncing & Throttling (zero-allocation rate limiting, 25 tests). Total: +123 tests (~4100 passing), 6 cross-platform targets, 0 breaking changes. Consumer migrations: zr#59, zoltraak#36, silica#45 |
 | v2.6.0 | Advanced Input & Clipboard | 2026-05-04 | Multi-line TextArea (line wrapping WrapMode, selection support, syntax highlighting hooks, +31 tests), Clipboard operations (ClipboardHistory FIFO buffer, SystemClipboard cross-platform integration macOS/Linux/Windows, OSC 52 support, +71 tests), Input validation framework (email/URL/phone validators, regex, min/max length, visual feedback, async support, +79 tests), Autocomplete enhancements (fuzzy matching, context-aware suggestions, multi-column popup, docs preview, +23 tests). Total: +204 tests (~3900 passing), 6 cross-platform targets, 0 breaking changes |
 | v2.5.0 | iTerm2 Protocol & Unicode Grapheme Support | 2026-05-03 | iTerm2 inline images (OSC 1337, 19 tests), Unicode grapheme clusters (UAX#29, 15 tests), Terminal quirks database (8 quirks, 25 tests), Benchmark stability tests (variance < 5%, 8 tests), CI regression detection (10% threshold). Total: +67 tests (~3816 passing), 6 cross-platform targets verified, 0 breaking changes |
