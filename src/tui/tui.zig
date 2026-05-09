@@ -74,6 +74,9 @@ pub const timer = @import("timer.zig");
 // v2.8.0+ — Event Debouncing & Throttling
 pub const debounce = @import("debounce.zig");
 
+// v2.8.0+ — Platform-specific Optimizations
+pub const platform_opts = @import("platform_opts.zig");
+
 // v1.12.0+ — Enterprise & Accessibility
 pub const session = @import("session.zig");
 pub const audit = @import("audit.zig");
