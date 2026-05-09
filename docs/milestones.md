@@ -37,11 +37,11 @@
   - macOS Terminal.app vs iTerm2 differences (Metal, clipboard, inline images)
   - Linux terminal emulator compatibility matrix (Alacritty, Kitty, GNOME, etc.)
   - Cross-platform README with setup/troubleshooting
-- [ ] **Testing**: Comprehensive platform coverage
-  - Windows console API tests
-  - Platform-specific quirks tests
-  - UTF-16 encoding tests (Windows)
-  - CI passes on all platforms natively
+- [x] **Testing**: Comprehensive platform coverage
+  - Windows console API tests (windows_console_test.zig, 27KB)
+  - Platform-specific quirks tests (platform_edge_cases_test.zig)
+  - UTF-16 encoding tests (windows_unicode_test.zig, 17KB)
+  - CI passes on all platforms natively (Linux/macOS x86_64+ARM64/Windows)
 
 **Success Criteria**:
 - sailor works seamlessly on Windows 10+ (native and WSL)
