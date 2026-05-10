@@ -21,12 +21,12 @@
   - Focus path tracking and navigation ✅
   - Memory usage per widget ✅
   - Render timing breakdown ✅
-- [ ] **Advanced Profiling**: Deep performance insights
-  - Widget render flamegraphs
-  - Event propagation traces
-  - Layout constraint solver visualization
-  - Memory allocation heatmaps
-  - Export profiles to Chrome DevTools format
+- [x] **Advanced Profiling**: Deep performance insights (COMPLETE - commit 7cd7ede)
+  - Widget render flamegraphs ✅
+  - Event propagation traces ✅
+  - Layout constraint solver visualization ✅
+  - Memory allocation heatmaps ✅
+  - Export profiles to Chrome DevTools format ✅
 - [ ] **Error Recovery & Resilience**: Robust error handling
   - Widget render error boundaries (isolated failures)
   - Automatic state recovery on panic
