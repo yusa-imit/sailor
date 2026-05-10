@@ -2,6 +2,8 @@
 //!
 //! Provides runtime introspection, layout debugging, and event tracing for TUI applications.
 //! All operations use writer-based output (no stdout) and follow sailor library principles.
+//!
+//! **v2.9.0**: Live Widget Inspector with hierarchical tree view and real-time property inspection
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -14,1316 +16,1298 @@ pub const Rect = layout_mod.Rect;
 pub const Constraint = layout_mod.Constraint;
 pub const Direction = layout_mod.Direction;
 
+const style_mod = @import("style.zig");
+pub const Style = style_mod.Style;
+
 // ============================================================================
-// Public Types
+// v2.9.0 Live Widget Inspector API
 // ============================================================================
 
-/// Event types that can be recorded
-pub const EventType = enum {
-    keyboard,
-    mouse_move,
-    mouse_click,
-    mouse_scroll,
-    resize,
-};
-
-/// Event data union
-pub const EventData = union(EventType) {
-    keyboard: u8,
-    mouse_move: struct { x: u16, y: u16 },
-    mouse_click: struct { x: u16, y: u16, button: MouseButton },
-    mouse_scroll: struct { delta: i16 },
-    resize: struct { cols: u16, rows: u16 },
-};
-
-/// Mouse button enum
-pub const MouseButton = enum {
-    left,
-    right,
-    middle,
-};
-
-/// Recorded event with timestamp
-pub const EventRecord = struct {
-    event_type: EventType,
-    data: EventData,
-    timestamp: i64,
-};
-
-/// Constraint record for layout debugging
-pub const ConstraintRecord = struct {
-    constraint: Constraint,
-    direction: Direction,
-    available: u16,
-};
-
-/// Layout information for a widget
-pub const LayoutInfo = struct {
-    widget_id: u32,
-    constraints: []const ConstraintRecord,
-    calculated_area: Rect,
-    available_width: u16,
-    available_height: u16,
-
-    allocator: Allocator,
-    constraint_list: ArrayList(ConstraintRecord),
-
-    /// Free constraint list memory. Must be called to prevent leaks.
-    pub fn deinit(self: *LayoutInfo) void {
-        self.constraint_list.deinit(self.allocator);
-    }
-};
-
-/// Widget information with hierarchy
-pub const WidgetInfo = struct {
-    id: u32,
-    name: []const u8,
-    area: Rect,
-    parent_id: ?u32,
-    children: []const u32,
-    properties: StringHashMap([]const u8),
-
-    allocator: Allocator,
-    name_owned: []u8,
-    child_list: ArrayList(u32),
-
-    /// Free all widget info memory including name, children, and properties.
-    pub fn deinit(self: *WidgetInfo) void {
-        self.allocator.free(self.name_owned);
-        self.child_list.deinit(self.allocator);
-        var it = self.properties.iterator();
-        while (it.next()) |entry| {
-            self.allocator.free(entry.key_ptr.*);
-            self.allocator.free(entry.value_ptr.*);
-        }
-        self.properties.deinit();
-    }
-
-    /// Retrieve a custom property value by key. Returns null if not found.
-    pub fn getProperty(self: *const WidgetInfo, key: []const u8) ?[]const u8 {
-        return self.properties.get(key);
-    }
-};
-
-/// Tree node for widget hierarchy
+/// Widget node in the hierarchical tree
 pub const WidgetNode = struct {
-    name: []const u8,
-    id: u32,
-    area: Rect,
-    children: []const *const WidgetNode,
+    name: []const u8,           // Widget type name (e.g. "Block", "List")
+    bounds: Rect,               // Current widget bounds
+    style: Style,               // Current widget style
+    focused: bool,              // Is this widget focused?
+    memory_bytes: usize,        // Memory allocated by widget
+    render_ns: u64,             // Last render time in nanoseconds
+    children: []const *WidgetNode, // Child widgets
+    parent: ?*WidgetNode,       // Parent widget (null for root)
 
-    allocator: Allocator,
-    child_ptrs: ArrayList(*WidgetNode),
-
-    /// Recursively free this node and all child nodes.
-    pub fn deinit(self: *WidgetNode, allocator: Allocator) void {
-        for (self.child_ptrs.items) |child| {
-            child.deinit(allocator);
-            allocator.destroy(child);
+    /// Calculate depth in the tree (root = 0)
+    pub fn depth(self: *const WidgetNode) usize {
+        var d: usize = 0;
+        var current = self.parent;
+        while (current) |p| {
+            d += 1;
+            current = p.parent;
         }
-        self.child_ptrs.deinit(allocator);
-    }
-};
-
-/// Layout violation detected by inspector
-pub const LayoutViolation = struct {
-    widget_id: u32,
-    violation_type: []const u8,
-    description: []const u8,
-
-    allocator: Allocator,
-    violation_type_owned: []u8,
-    description_owned: []u8,
-
-    /// Free violation type and description strings.
-    pub fn deinit(self: *LayoutViolation) void {
-        self.allocator.free(self.violation_type_owned);
-        self.allocator.free(self.description_owned);
-    }
-};
-
-/// Frame snapshot for historical tracking
-pub const FrameSnapshot = struct {
-    frame_number: usize,
-    widget_ids: []const u32,
-
-    allocator: Allocator,
-    widget_id_list: ArrayList(u32),
-
-    /// Free the widget ID list.
-    pub fn deinit(self: *FrameSnapshot) void {
-        self.widget_id_list.deinit(self.allocator);
-    }
-};
-
-// ============================================================================
-// Inspector
-// ============================================================================
-
-pub const Inspector = struct {
-    allocator: Allocator,
-    enabled: bool,
-    next_widget_id: u32,
-
-    // Widget tracking
-    widgets: AutoHashMap(u32, WidgetInfo),
-    widget_order: ArrayList(u32), // Insertion order for iteration
-
-    // Layout tracking
-    layouts: AutoHashMap(u32, LayoutInfo),
-
-    // Event tracking
-    events: ArrayList(EventRecord),
-    max_events: usize,
-
-    // Frame tracking
-    frames: ArrayList(FrameSnapshot),
-    current_frame_widgets: ArrayList(u32),
-    frame_started: bool,
-
-    /// Initialize a new inspector instance.
-    /// The inspector starts disabled; call `enable()` to activate tracking.
-    /// Returns error.OutOfMemory if allocation fails.
-    pub fn init(allocator: Allocator) !Inspector {
-        return Inspector{
-            .allocator = allocator,
-            .enabled = false,
-            .next_widget_id = 1,
-            .widgets = AutoHashMap(u32, WidgetInfo).init(allocator),
-            .widget_order = ArrayList(u32){},
-            .layouts = AutoHashMap(u32, LayoutInfo).init(allocator),
-            .events = ArrayList(EventRecord){},
-            .max_events = 1000, // Default max events
-            .frames = ArrayList(FrameSnapshot){},
-            .current_frame_widgets = ArrayList(u32){},
-            .frame_started = false,
-        };
+        return d;
     }
 
-    /// Free all resources including widgets, layouts, events, and frame snapshots.
-    /// Must be called to prevent memory leaks.
-    pub fn deinit(self: *Inspector) void {
-        // Clean up widgets
-        var widget_it = self.widgets.iterator();
-        while (widget_it.next()) |entry| {
-            entry.value_ptr.deinit();
-        }
-        self.widgets.deinit();
-        self.widget_order.deinit(self.allocator);
-
-        // Clean up layouts
-        var layout_it = self.layouts.iterator();
-        while (layout_it.next()) |entry| {
-            entry.value_ptr.deinit();
-        }
-        self.layouts.deinit();
-
-        // Clean up events
-        self.events.deinit(self.allocator);
-
-        // Clean up frames
-        for (self.frames.items) |*frame| {
-            frame.deinit();
-        }
-        self.frames.deinit(self.allocator);
-        self.current_frame_widgets.deinit(self.allocator);
+    /// Check if this is a leaf node (no children)
+    pub fn isLeaf(self: *const WidgetNode) bool {
+        return self.children.len == 0;
     }
 
-    /// Enable widget and event tracking.
-    /// When enabled, all record* and track* calls will collect data.
-    pub fn enable(self: *Inspector) void {
-        self.enabled = true;
-    }
-
-    /// Disable widget and event tracking.
-    /// When disabled, record* and track* calls become no-ops.
-    pub fn disable(self: *Inspector) void {
-        self.enabled = false;
-    }
-
-    /// Check whether the inspector is currently tracking widgets and events.
-    /// Returns true if enabled, false otherwise.
-    pub fn isEnabled(self: *const Inspector) bool {
-        return self.enabled;
-    }
-
-    /// Record a widget with no parent (top-level widget).
-    /// Returns a unique widget ID for later reference, or 0 if disabled or allocation fails.
-    /// The widget will be tracked in the current frame.
-    pub fn recordWidget(self: *Inspector, name: []const u8, area: Rect) u32 {
-        if (!self.enabled) return 0;
-
-        const widget_id = self.next_widget_id;
-        self.next_widget_id += 1;
-
-        const name_owned = self.allocator.dupe(u8, name) catch return 0;
-
-        const info = WidgetInfo{
-            .id = widget_id,
-            .name = name_owned,
-            .area = area,
-            .parent_id = null,
-            .children = &[_]u32{},
-            .properties = StringHashMap([]const u8).init(self.allocator),
-            .allocator = self.allocator,
-            .name_owned = name_owned,
-            .child_list = ArrayList(u32){},
-        };
-
-        self.widgets.put(widget_id, info) catch return 0;
-        self.widget_order.append(self.allocator, widget_id) catch {};
-        self.current_frame_widgets.append(self.allocator, widget_id) catch {};
-
-        return widget_id;
-    }
-
-    /// Record a widget as a child of another widget.
-    /// Returns a unique widget ID or 0 if disabled/allocation fails.
-    /// The parent's children list will be updated to include this widget.
-    pub fn recordWidgetWithParent(self: *Inspector, name: []const u8, area: Rect, parent_id: u32) u32 {
-        if (!self.enabled) return 0;
-
-        const widget_id = self.recordWidget(name, area);
-        if (widget_id == 0) return 0;
-
-        // Set parent
-        if (self.widgets.getPtr(widget_id)) |widget| {
-            widget.parent_id = parent_id;
-        }
-
-        // Add to parent's children
-        if (self.widgets.getPtr(parent_id)) |parent| {
-            parent.child_list.append(self.allocator, widget_id) catch {};
-            parent.children = parent.child_list.items;
-        }
-
-        return widget_id;
-    }
-
-    /// Attach a custom key-value property to a widget.
-    /// Both key and value are duplicated. If the key already exists, the old value is freed.
-    /// Returns error.WidgetNotFound if widget_id doesn't exist.
-    pub fn setWidgetProperty(self: *Inspector, widget_id: u32, key: []const u8, value: []const u8) !void {
-        if (!self.enabled) return;
-
-        const widget = self.widgets.getPtr(widget_id) orelse return error.WidgetNotFound;
-
-        const key_owned = try self.allocator.dupe(u8, key);
-        errdefer self.allocator.free(key_owned);
-
-        const value_owned = try self.allocator.dupe(u8, value);
-        errdefer self.allocator.free(value_owned);
-
-        // Free old value if key exists
-        if (widget.properties.fetchRemove(key)) |old| {
-            self.allocator.free(old.key);
-            self.allocator.free(old.value);
-        }
-
-        try widget.properties.put(key_owned, value_owned);
-    }
-
-    /// Record a layout constraint applied to a widget.
-    /// Multiple constraints can be recorded for the same widget.
-    /// Updates available_width or available_height based on direction.
-    pub fn recordConstraint(self: *Inspector, widget_id: u32, constraint: Constraint, direction: Direction, available: u16) void {
-        if (!self.enabled) return;
-
-        const layout = self.layouts.getPtr(widget_id) orelse blk: {
-            const new_layout = LayoutInfo{
-                .widget_id = widget_id,
-                .constraints = &[_]ConstraintRecord{},
-                .calculated_area = .{ .x = 0, .y = 0, .width = 0, .height = 0 },
-                .available_width = 0,
-                .available_height = 0,
-                .allocator = self.allocator,
-                .constraint_list = ArrayList(ConstraintRecord){},
-            };
-            self.layouts.put(widget_id, new_layout) catch return;
-            break :blk self.layouts.getPtr(widget_id).?;
-        };
-
-        const record = ConstraintRecord{
-            .constraint = constraint,
-            .direction = direction,
-            .available = available,
-        };
-
-        layout.constraint_list.append(self.allocator, record) catch return;
-        layout.constraints = layout.constraint_list.items;
-
-        // Update available dimensions
-        if (direction == .horizontal) {
-            layout.available_width = available;
-        } else {
-            layout.available_height = available;
-        }
-    }
-
-    /// Record the final calculated area for a widget after layout resolution.
-    /// Accepts either a u32 widget ID or a string widget name.
-    /// If the widget has no layout info yet, creates a new entry.
-    pub fn recordLayoutCalculation(self: *Inspector, widget_id_or_name: anytype, area: Rect) void {
-        if (!self.enabled) return;
-
-        const T = @TypeOf(widget_id_or_name);
-        const widget_id: u32 = if (T == u32)
-            widget_id_or_name
-        else if (T == []const u8 or comptime std.mem.startsWith(u8, @typeName(T), "*const [")) blk: {
-            // Find widget by name
-            for (self.widget_order.items) |id| {
-                const widget = self.widgets.get(id) orelse continue;
-                if (std.mem.eql(u8, widget.name, widget_id_or_name)) {
-                    break :blk id;
-                }
-            }
-            return; // Widget not found
-        } else {
-            @compileError("recordLayoutCalculation expects u32 or string slice");
-        };
-
-        const layout = self.layouts.getPtr(widget_id) orelse blk: {
-            const new_layout = LayoutInfo{
-                .widget_id = widget_id,
-                .constraints = &[_]ConstraintRecord{},
-                .calculated_area = area,
-                .available_width = area.width,
-                .available_height = area.height,
-                .allocator = self.allocator,
-                .constraint_list = ArrayList(ConstraintRecord){},
-            };
-            self.layouts.put(widget_id, new_layout) catch return;
-            break :blk self.layouts.getPtr(widget_id).?;
-        };
-
-        layout.calculated_area = area;
-    }
-
-    /// Record a terminal event (keyboard, mouse, resize).
-    /// Events are timestamped and limited by max_events setting.
-    /// Oldest events are automatically pruned when the limit is exceeded.
-    pub fn recordEvent(self: *Inspector, data: EventData) void {
-        if (!self.enabled) return;
-
-        const event_type: EventType = switch (data) {
-            .keyboard => .keyboard,
-            .mouse_move => .mouse_move,
-            .mouse_click => .mouse_click,
-            .mouse_scroll => .mouse_scroll,
-            .resize => .resize,
-        };
-
-        const record = EventRecord{
-            .event_type = event_type,
-            .data = data,
-            .timestamp = std.time.milliTimestamp(),
-        };
-
-        self.events.append(self.allocator, record) catch return;
-
-        // Limit event history
-        if (self.events.items.len > self.max_events) {
-            // Remove oldest events
-            const to_remove = self.events.items.len - self.max_events;
-            std.mem.copyForwards(EventRecord, self.events.items, self.events.items[to_remove..]);
-            self.events.shrinkRetainingCapacity(self.max_events);
-        }
-    }
-
-    /// Retrieve widget information by ID.
-    /// Returns null if the widget doesn't exist.
-    pub fn getWidgetInfo(self: *const Inspector, widget_id: u32) ?*const WidgetInfo {
-        return self.widgets.getPtr(widget_id);
-    }
-
-    /// Retrieve layout information by widget ID.
-    /// Returns null if no layout data has been recorded for this widget.
-    pub fn getLayoutInfo(self: *const Inspector, widget_id: u32) ?*const LayoutInfo {
-        return self.layouts.getPtr(widget_id);
-    }
-
-    /// Get the total number of widgets currently tracked.
-    pub fn getWidgetCount(self: *const Inspector) usize {
-        return self.widgets.count();
-    }
-
-    /// Build and return the widget tree starting from the root widget.
-    /// Returns null if no root widget exists (widget with parent_id == null).
-    /// Caller must call deinit() on the returned node to free memory.
-    pub fn getWidgetTree(self: *const Inspector) ?*const WidgetNode {
-        // Find root widget (widget with no parent)
-        for (self.widget_order.items) |widget_id| {
-            const widget = self.widgets.get(widget_id) orelse continue;
-            if (widget.parent_id == null) {
-                // Build tree from this root
-                return self.buildWidgetNode(widget_id);
+    /// Find a child widget by name (first match)
+    pub fn findChild(self: *const WidgetNode, name: []const u8) ?*WidgetNode {
+        for (self.children) |child| {
+            if (std.mem.eql(u8, child.name, name)) {
+                return child;
             }
         }
         return null;
     }
+};
 
-    fn buildWidgetNode(self: *const Inspector, widget_id: u32) ?*const WidgetNode {
-        const widget = self.widgets.get(widget_id) orelse return null;
+// Internal node structure with dynamic children list
+const InternalNode = struct {
+    node: WidgetNode,
+    children_list: ArrayList(*InternalNode),
+    owned_name: []u8,
+};
 
-        var node = self.allocator.create(WidgetNode) catch return null;
-        node.* = WidgetNode{
-            .name = widget.name,
-            .id = widget.id,
-            .area = widget.area,
-            .children = &[_]*const WidgetNode{},
-            .allocator = self.allocator,
-            .child_ptrs = ArrayList(*WidgetNode){},
+/// Live widget inspector with tree building and traversal
+pub const WidgetInspector = struct {
+    allocator: std.mem.Allocator,
+    root: ?*WidgetNode,
+    root_internal: ?*InternalNode, // Internal root for memory management
+    current_stack: ArrayList(*InternalNode), // Stack for tree building
+    focus_path_cache: ArrayList(*WidgetNode), // Cached focus path
+
+    /// Initialize a new widget inspector
+    pub fn init(allocator: std.mem.Allocator) WidgetInspector {
+        return .{
+            .allocator = allocator,
+            .root = null,
+            .root_internal = null,
+            .current_stack = .{},
+            .focus_path_cache = .{},
+        };
+    }
+
+    /// Free all resources
+    pub fn deinit(self: *WidgetInspector) void {
+        if (self.root_internal) |root| {
+            freeInternalNode(root, self.allocator);
+        }
+        self.current_stack.deinit(self.allocator);
+        self.focus_path_cache.deinit(self.allocator);
+    }
+
+    // Tree building
+
+    /// Begin recording a widget (returns node for property updates)
+    pub fn beginWidget(self: *WidgetInspector, name: []const u8, bounds: Rect, style: Style) !*WidgetNode {
+        // If this is a new root (stack is empty), clear the old tree first
+        if (self.current_stack.items.len == 0 and self.root_internal != null) {
+            freeInternalNode(self.root_internal.?, self.allocator);
+            self.root = null;
+            self.root_internal = null;
+        }
+
+        const internal = try self.allocator.create(InternalNode);
+        errdefer self.allocator.destroy(internal);
+
+        const owned_name = try self.allocator.dupe(u8, name);
+        errdefer self.allocator.free(owned_name);
+
+        internal.* = .{
+            .node = .{
+                .name = owned_name,
+                .bounds = bounds,
+                .style = style,
+                .focused = false,
+                .memory_bytes = 0,
+                .render_ns = 0,
+                .children = &[_]*WidgetNode{},
+                .parent = null,
+            },
+            .children_list = .{},
+            .owned_name = owned_name,
         };
 
-        // Build children recursively
-        for (widget.children) |child_id| {
-            if (self.buildWidgetNode(child_id)) |child_node| {
-                // Need to cast const away temporarily for append
-                const mutable_node = @constCast(node);
-                mutable_node.child_ptrs.append(self.allocator, @constCast(child_node)) catch continue;
+        // If we have a current parent, add this node as a child
+        if (self.current_stack.items.len > 0) {
+            const parent = self.current_stack.items[self.current_stack.items.len - 1];
+            internal.node.parent = &parent.node;
+            try parent.children_list.append(self.allocator, internal);
+
+            // Update parent's children slice
+            const child_nodes = try self.allocator.alloc(*WidgetNode, parent.children_list.items.len);
+            for (parent.children_list.items, 0..) |child, i| {
+                child_nodes[i] = &child.node;
             }
-        }
-
-        node.children = node.child_ptrs.items;
-        return node;
-    }
-
-    /// Calculate the depth of a widget in the hierarchy tree.
-    /// Root widgets have depth 0, their children have depth 1, etc.
-    pub fn getWidgetDepth(self: *const Inspector, widget_id: u32) usize {
-        var depth: usize = 0;
-        var current_id = widget_id;
-
-        while (self.widgets.get(current_id)) |widget| {
-            if (widget.parent_id) |parent_id| {
-                depth += 1;
-                current_id = parent_id;
-            } else {
-                break;
+            // Free old slice if it exists
+            if (parent.node.children.len > 0) {
+                self.allocator.free(parent.node.children);
             }
+            parent.node.children = child_nodes;
+        } else {
+            // This is the root
+            self.root = &internal.node;
+            self.root_internal = internal;
         }
 
-        return depth;
+        // Push to stack
+        try self.current_stack.append(self.allocator, internal);
+
+        return &internal.node;
     }
 
-    /// Get all sibling widget IDs (widgets sharing the same parent).
-    /// Returns an empty list if the widget has no siblings or no parent.
-    /// Caller must call deinit() on the returned ArrayList.
-    pub fn getSiblings(self: *const Inspector, allocator: Allocator, widget_id: u32) !ArrayList(u32) {
-        var siblings = ArrayList(u32){};
-        errdefer siblings.deinit(allocator);
-
-        const widget = self.widgets.get(widget_id) orelse return siblings;
-        const parent_id = widget.parent_id orelse return siblings;
-        const parent = self.widgets.get(parent_id) orelse return siblings;
-
-        // Filter out the widget itself from siblings
-        for (parent.children) |child_id| {
-            if (child_id != widget_id) {
-                try siblings.append(allocator, child_id);
-            }
-        }
-
-        return siblings;
-    }
-
-    /// Get all recorded events in chronological order.
-    /// The returned slice is valid until the next event is recorded or clearEvents() is called.
-    pub fn getEvents(self: *const Inspector) []const EventRecord {
-        return self.events.items;
-    }
-
-    /// Get events filtered by type (keyboard, mouse_move, etc.).
-    /// Caller must free the returned slice using the inspector's allocator.
-    pub fn getEventsByType(self: *const Inspector, event_type: EventType) ![]const EventRecord {
-        var filtered = ArrayList(EventRecord){};
-        errdefer filtered.deinit(self.allocator);
-        for (self.events.items) |event| {
-            if (event.event_type == event_type) {
-                try filtered.append(self.allocator, event);
-            }
-        }
-        return try filtered.toOwnedSlice(self.allocator);
-    }
-
-    /// Set the maximum number of events to keep in history.
-    /// When exceeded, oldest events are automatically pruned.
-    /// Default is 1000 events.
-    pub fn setMaxEvents(self: *Inspector, max: usize) void {
-        self.max_events = max;
-    }
-
-    /// Clear all recorded events while retaining allocated capacity.
-    pub fn clearEvents(self: *Inspector) void {
-        self.events.clearRetainingCapacity();
-    }
-
-    /// Detect layout violations such as widgets overflowing parent bounds.
-    /// Returns a list of violations; caller must deinit() the ArrayList and each violation's deinit().
-    pub fn detectLayoutViolations(self: *const Inspector, allocator: Allocator) !ArrayList(LayoutViolation) {
-        var violations = ArrayList(LayoutViolation){};
-        errdefer {
-            for (violations.items) |v| {
-                allocator.free(v.violation_type_owned);
-                allocator.free(v.description_owned);
-            }
-            violations.deinit(allocator);
-        }
-
-        for (self.widget_order.items) |widget_id| {
-            const widget = self.widgets.get(widget_id) orelse continue;
-            const parent_id = widget.parent_id orelse continue;
-            const parent = self.widgets.get(parent_id) orelse continue;
-
-            // Check if widget overflows parent bounds
-            const child_right = widget.area.x + widget.area.width;
-            const child_bottom = widget.area.y + widget.area.height;
-            const parent_right = parent.area.x + parent.area.width;
-            const parent_bottom = parent.area.y + parent.area.height;
-
-            if (child_right > parent_right or child_bottom > parent_bottom) {
-                const violation_type = try allocator.dupe(u8, "overflow");
-                errdefer allocator.free(violation_type);
-
-                const description = try std.fmt.allocPrint(
-                    allocator,
-                    "Widget extends beyond parent bounds",
-                    .{},
-                );
-                errdefer allocator.free(description);
-
-                const violation = LayoutViolation{
-                    .widget_id = widget_id,
-                    .violation_type = violation_type,
-                    .description = description,
-                    .allocator = allocator,
-                    .violation_type_owned = violation_type,
-                    .description_owned = description,
-                };
-
-                try violations.append(allocator, violation);
-            }
-        }
-
-        return violations;
-    }
-
-    /// Begin a new rendering frame.
-    /// Clears current frame widget list and optionally clears previous frame data.
-    pub fn beginFrame(self: *Inspector) void {
-        if (!self.enabled) return;
-
-        // Clear current frame
-        self.current_frame_widgets.clearRetainingCapacity();
-
-        // Clear widgets from previous frame (not historical frames)
-        if (!self.frame_started) {
-            var widget_it = self.widgets.iterator();
-            while (widget_it.next()) |entry| {
-                entry.value_ptr.deinit();
-            }
-            self.widgets.clearRetainingCapacity();
-            self.widget_order.clearRetainingCapacity();
-
-            var layout_it = self.layouts.iterator();
-            while (layout_it.next()) |entry| {
-                entry.value_ptr.deinit();
-            }
-            self.layouts.clearRetainingCapacity();
-        }
-
-        self.frame_started = true;
-    }
-
-    /// End the current rendering frame.
-    /// Saves a snapshot of widgets rendered in this frame for historical tracking.
-    pub fn endFrame(self: *Inspector) void {
-        if (!self.enabled) return;
-        if (!self.frame_started) return;
-
-        // Save frame snapshot
-        var snapshot = FrameSnapshot{
-            .frame_number = self.frames.items.len,
-            .widget_ids = &[_]u32{},
-            .allocator = self.allocator,
-            .widget_id_list = ArrayList(u32){},
-        };
-
-        for (self.current_frame_widgets.items) |id| {
-            snapshot.widget_id_list.append(self.allocator, id) catch continue;
-        }
-        snapshot.widget_ids = snapshot.widget_id_list.items;
-
-        self.frames.append(self.allocator, snapshot) catch {};
-        self.frame_started = false;
-    }
-
-    /// Get the total number of frames recorded.
-    pub fn getFrameCount(self: *const Inspector) usize {
-        return self.frames.items.len;
-    }
-
-    /// Get widget IDs rendered in a specific frame.
-    /// Returns an empty slice if frame_index is out of range.
-    pub fn getFrameWidgets(self: *const Inspector, frame_index: usize) []const u32 {
-        if (frame_index >= self.frames.items.len) return &[_]u32{};
-        return self.frames.items[frame_index].widget_ids;
-    }
-
-    // ========================================================================
-    // Writer-based output methods
-    // ========================================================================
-
-    /// Write the widget hierarchy tree to the given writer in human-readable format.
-    /// Shows widget names, dimensions, positions, and IDs with indentation for hierarchy.
-    pub fn writeWidgetTree(self: *const Inspector, writer: anytype) !void {
-        if (self.getWidgetCount() == 0) {
-            try writer.writeAll("(empty widget tree)\n");
-            return;
-        }
-
-        // Find all root widgets and write trees
-        for (self.widget_order.items) |widget_id| {
-            const widget = self.widgets.get(widget_id) orelse continue;
-            if (widget.parent_id == null) {
-                try self.writeWidgetNode(writer, widget_id, 0);
-            }
+    /// End the current widget (pop from stack)
+    pub fn endWidget(self: *WidgetInspector) void {
+        if (self.current_stack.items.len > 0) {
+            _ = self.current_stack.pop();
         }
     }
 
-    fn writeWidgetNode(self: *const Inspector, writer: anytype, widget_id: u32, depth: usize) !void {
-        const widget = self.widgets.get(widget_id) orelse return;
+    // Tree traversal
 
-        // Indentation
-        var i: usize = 0;
-        while (i < depth) : (i += 1) {
-            try writer.writeAll("  ");
-        }
-
-        // Widget info
-        try writer.print("{s} ({}x{} at {},{}) [id:{}]\n", .{
-            widget.name,
-            widget.area.width,
-            widget.area.height,
-            widget.area.x,
-            widget.area.y,
-            widget.id,
-        });
-
-        // Recursively write children
-        for (widget.children) |child_id| {
-            try self.writeWidgetNode(writer, child_id, depth + 1);
+    /// Traverse the tree depth-first, calling visitor on each node
+    pub fn traverse(self: *const WidgetInspector, visitor: anytype) void {
+        if (self.root) |root| {
+            traverseNode(root, visitor);
         }
     }
 
-    /// Write detailed layout information for all widgets to the given writer.
-    /// Includes areas, available dimensions, calculated dimensions, and constraints.
-    pub fn writeLayoutInfo(self: *const Inspector, writer: anytype) !void {
-        try writer.writeAll("=== Layout Information ===\n");
+    /// Find a widget by name (first match)
+    pub fn find(self: *const WidgetInspector, name: []const u8) ?*WidgetNode {
+        if (self.root) |root| {
+            return findInNode(root, name);
+        }
+        return null;
+    }
 
-        for (self.widget_order.items) |widget_id| {
-            const widget = self.widgets.get(widget_id) orelse continue;
-            const layout = self.layouts.get(widget_id);
+    /// Get the focus path from root to focused widget
+    pub fn focusPath(self: *const WidgetInspector) []const *WidgetNode {
+        // Clear cache (we need mutable self but the signature is const, so we cast)
+        const mutable_self = @constCast(self);
+        mutable_self.focus_path_cache.clearRetainingCapacity();
 
-            try writer.print("\nWidget: {s} [id:{}]\n", .{ widget.name, widget.id });
-            try writer.print("  Area: {}x{} at ({},{})\n", .{
-                widget.area.width,
-                widget.area.height,
-                widget.area.x,
-                widget.area.y,
-            });
+        if (self.root) |root| {
+            // Find the deepest focused node
+            if (findFocusedNode(root)) |focused| {
+                // Build path from focused to root
+                var path_reversed: ArrayList(*WidgetNode) = .{};
+                defer path_reversed.deinit(self.allocator);
 
-            if (layout) |lay| {
-                try writer.print("  Available: {}w x {}h\n", .{ lay.available_width, lay.available_height });
-                try writer.print("  Calculated: {}x{}\n", .{ lay.calculated_area.width, lay.calculated_area.height });
+                var current: ?*WidgetNode = focused;
+                while (current) |node| {
+                    path_reversed.append(self.allocator, node) catch return &[_]*WidgetNode{};
+                    current = node.parent;
+                }
 
-                if (lay.constraints.len > 0) {
-                    try writer.writeAll("  Constraints:\n");
-                    for (lay.constraints) |constraint| {
-                        const dir_str = if (constraint.direction == .horizontal) "horizontal" else "vertical";
-                        try writer.print("    {s}: ", .{dir_str});
-
-                        switch (constraint.constraint) {
-                            .length => |len| try writer.print("length({})", .{len}),
-                            .percentage => |pct| try writer.print("percentage({}%)", .{pct}),
-                            .min => |min| try writer.print("min({})", .{min}),
-                            .max => |max| try writer.print("max({})", .{max}),
-                            .ratio => |r| try writer.print("ratio({}/{})", .{ r.num, r.denom }),
-                            .aspect_ratio => |ar| try writer.print("aspect_ratio({}:{})", .{ ar.width, ar.height }),
-                        }
-
-                        try writer.print(" available={}\n", .{constraint.available});
-                    }
+                // Reverse to get root -> focused order
+                var i: usize = path_reversed.items.len;
+                while (i > 0) {
+                    i -= 1;
+                    mutable_self.focus_path_cache.append(self.allocator, path_reversed.items[i]) catch return &[_]*WidgetNode{};
                 }
             }
         }
+
+        return mutable_self.focus_path_cache.items;
     }
 
-    /// Write all recorded events to the given writer in chronological order.
-    /// Each event includes timestamp and event-specific details.
-    pub fn writeEventLog(self: *const Inspector, writer: anytype) !void {
-        try writer.writeAll("=== Event Log ===\n");
+    // Statistics
 
-        for (self.events.items) |event| {
-            try writer.print("[{}] ", .{event.timestamp});
-
-            switch (event.data) {
-                .keyboard => |key| try writer.print("keyboard: '{}'\n", .{key}),
-                .mouse_move => |pos| try writer.print("mouse move: ({},{})\n", .{ pos.x, pos.y }),
-                .mouse_click => |click| try writer.print("mouse click: ({},{}) button={s}\n", .{
-                    click.x,
-                    click.y,
-                    @tagName(click.button),
-                }),
-                .mouse_scroll => |scroll| try writer.print("mouse scroll: delta={}\n", .{scroll.delta}),
-                .resize => |size| try writer.print("resize: {}x{}\n", .{ size.cols, size.rows }),
-            }
+    /// Calculate total memory usage of all widgets
+    pub fn totalMemory(self: *const WidgetInspector) usize {
+        if (self.root) |root| {
+            return nodeMemory(root);
         }
+        return 0;
     }
 
-    /// Write all inspector data (widgets, events) as JSON to the given writer.
-    /// Useful for external analysis tools or serializing inspector state.
-    pub fn writeJSON(self: *const Inspector, writer: anytype) !void {
-        try writer.writeAll("{");
-
-        // Widgets
-        try writer.writeAll("\"widgets\":[");
-        var first_widget = true;
-        for (self.widget_order.items) |widget_id| {
-            const widget = self.widgets.get(widget_id) orelse continue;
-
-            if (!first_widget) try writer.writeAll(",");
-            first_widget = false;
-
-            try writer.print("{{\"id\":{},\"name\":\"{s}\",\"area\":{{\"x\":{},\"y\":{},\"width\":{},\"height\":{}}}",
-                .{ widget.id, widget.name, widget.area.x, widget.area.y, widget.area.width, widget.area.height });
-
-            if (widget.parent_id) |parent_id| {
-                try writer.print(",\"parent\":{}", .{parent_id});
-            }
-
-            try writer.writeAll("}");
+    /// Calculate total render time of all widgets
+    pub fn totalRenderTime(self: *const WidgetInspector) u64 {
+        if (self.root) |root| {
+            return nodeRenderTime(root);
         }
-        try writer.writeAll("]");
+        return 0;
+    }
 
-        // Events
-        try writer.writeAll(",\"events\":[");
-        var first_event = true;
-        for (self.events.items) |event| {
-            if (!first_event) try writer.writeAll(",");
-            first_event = false;
-
-            try writer.print("{{\"timestamp\":{},\"type\":\"{s}\"", .{ event.timestamp, @tagName(event.event_type) });
-
-            switch (event.data) {
-                .keyboard => |key| try writer.print(",\"key\":{}", .{key}),
-                .mouse_move => |pos| try writer.print(",\"x\":{},\"y\":{}", .{ pos.x, pos.y }),
-                .mouse_click => |click| try writer.print(",\"x\":{},\"y\":{},\"button\":\"{s}\"", .{ click.x, click.y, @tagName(click.button) }),
-                .mouse_scroll => |scroll| try writer.print(",\"delta\":{}", .{scroll.delta}),
-                .resize => |size| try writer.print(",\"cols\":{},\"rows\":{}", .{ size.cols, size.rows }),
-            }
-
-            try writer.writeAll("}");
+    /// Count total number of widgets (including root)
+    pub fn widgetCount(self: *const WidgetInspector) usize {
+        if (self.root) |root| {
+            return countNodes(root);
         }
-        try writer.writeAll("]");
-
-        try writer.writeAll("}");
+        return 0;
     }
 };
 
 // ============================================================================
-// Tests
+// Private Helper Functions
 // ============================================================================
 
-test "Inspector.init and deinit" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
+/// Recursively free an internal node and all its children
+fn freeInternalNode(internal: *InternalNode, allocator: Allocator) void {
+    // Free children first
+    for (internal.children_list.items) |child| {
+        freeInternalNode(child, allocator);
+    }
 
-    try std.testing.expect(!inspector.isEnabled());
-    try std.testing.expectEqual(@as(usize, 0), inspector.getWidgetCount());
+    // Free children list
+    internal.children_list.deinit(allocator);
+
+    // Free children slice
+    if (internal.node.children.len > 0) {
+        allocator.free(internal.node.children);
+    }
+
+    // Free owned name
+    allocator.free(internal.owned_name);
+
+    // Free node itself
+    allocator.destroy(internal);
 }
 
-test "Inspector.enable and disable" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    try std.testing.expect(!inspector.isEnabled());
-
-    inspector.enable();
-    try std.testing.expect(inspector.isEnabled());
-
-    inspector.disable();
-    try std.testing.expect(!inspector.isEnabled());
+/// Traverse a node and its children depth-first
+fn traverseNode(node: *const WidgetNode, visitor: anytype) void {
+    visitor.visit(node);
+    for (node.children) |child| {
+        traverseNode(child, visitor);
+    }
 }
 
-test "Inspector.recordWidget creates widget with unique ID" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    const area = Rect{ .x = 10, .y = 20, .width = 100, .height = 50 };
-    const id1 = inspector.recordWidget("test_widget", area);
-    const id2 = inspector.recordWidget("another_widget", area);
-
-    try std.testing.expect(id1 > 0);
-    try std.testing.expect(id2 > 0);
-    try std.testing.expect(id1 != id2);
-    try std.testing.expectEqual(@as(usize, 2), inspector.getWidgetCount());
-}
-
-test "Inspector.recordWidget returns 0 when disabled" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
-    const id = inspector.recordWidget("disabled_widget", area);
-
-    try std.testing.expectEqual(@as(u32, 0), id);
-    try std.testing.expectEqual(@as(usize, 0), inspector.getWidgetCount());
-}
-
-test "Inspector.recordWidgetWithParent establishes parent-child relationship" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    const parent_area = Rect{ .x = 0, .y = 0, .width = 200, .height = 100 };
-    const child_area = Rect{ .x = 10, .y = 10, .width = 50, .height = 30 };
-
-    const parent_id = inspector.recordWidget("parent", parent_area);
-    const child_id = inspector.recordWidgetWithParent("child", child_area, parent_id);
-
-    const child_info = inspector.getWidgetInfo(child_id).?;
-    try std.testing.expectEqual(parent_id, child_info.parent_id.?);
-
-    const parent_info = inspector.getWidgetInfo(parent_id).?;
-    try std.testing.expectEqual(@as(usize, 1), parent_info.children.len);
-    try std.testing.expectEqual(child_id, parent_info.children[0]);
-}
-
-test "Inspector.setWidgetProperty stores and retrieves properties" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
-    const id = inspector.recordWidget("test", area);
-
-    try inspector.setWidgetProperty(id, "color", "blue");
-    try inspector.setWidgetProperty(id, "visible", "true");
-
-    const info = inspector.getWidgetInfo(id).?;
-    try std.testing.expectEqualStrings("blue", info.getProperty("color").?);
-    try std.testing.expectEqualStrings("true", info.getProperty("visible").?);
-    try std.testing.expect(info.getProperty("nonexistent") == null);
-}
-
-test "Inspector.setWidgetProperty replaces existing value" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
-    const id = inspector.recordWidget("test", area);
-
-    try inspector.setWidgetProperty(id, "status", "active");
-    try inspector.setWidgetProperty(id, "status", "inactive");
-
-    const info = inspector.getWidgetInfo(id).?;
-    try std.testing.expectEqualStrings("inactive", info.getProperty("status").?);
-}
-
-test "Inspector.setWidgetProperty returns error for invalid widget ID" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    const result = inspector.setWidgetProperty(999, "key", "value");
-    try std.testing.expectError(error.WidgetNotFound, result);
-}
-
-test "Inspector.recordConstraint stores constraint information" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
-    const id = inspector.recordWidget("test", area);
-
-    const constraint = Constraint{ .length = 80 };
-    inspector.recordConstraint(id, constraint, .horizontal, 100);
-
-    const layout = inspector.getLayoutInfo(id).?;
-    try std.testing.expectEqual(@as(usize, 1), layout.constraints.len);
-    try std.testing.expectEqual(@as(u16, 100), layout.available_width);
-    try std.testing.expectEqual(@as(u16, 0), layout.available_height);
-}
-
-test "Inspector.recordLayoutCalculation stores calculated area" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
-    const id = inspector.recordWidget("test", area);
-
-    const calculated = Rect{ .x = 5, .y = 10, .width = 80, .height = 40 };
-    inspector.recordLayoutCalculation(id, calculated);
-
-    const layout = inspector.getLayoutInfo(id).?;
-    try std.testing.expectEqual(calculated, layout.calculated_area);
-}
-
-test "Inspector.recordLayoutCalculation by widget name" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
-    _ = inspector.recordWidget("named_widget", area);
-
-    const calculated = Rect{ .x = 10, .y = 20, .width = 60, .height = 30 };
-    inspector.recordLayoutCalculation("named_widget", calculated);
-
-    // Verify by finding widget manually
-    for (inspector.widget_order.items) |id| {
-        const widget = inspector.widgets.get(id).?;
-        if (std.mem.eql(u8, widget.name, "named_widget")) {
-            const layout = inspector.getLayoutInfo(id).?;
-            try std.testing.expectEqual(calculated, layout.calculated_area);
-            return;
+/// Find a node by name (depth-first search)
+fn findInNode(node: *WidgetNode, name: []const u8) ?*WidgetNode {
+    if (std.mem.eql(u8, node.name, name)) {
+        return node;
+    }
+    for (node.children) |child| {
+        if (findInNode(child, name)) |found| {
+            return found;
         }
     }
-    try std.testing.expect(false); // Widget not found
+    return null;
 }
 
-test "Inspector.recordEvent stores events with timestamp" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
+/// Find the deepest focused node (depth-first search)
+fn findFocusedNode(node: *WidgetNode) ?*WidgetNode {
+    // Check children first (depth-first = deeper nodes win)
+    for (node.children) |child| {
+        if (findFocusedNode(child)) |focused| {
+            return focused;
+        }
+    }
 
-    inspector.enable();
+    // Then check self
+    if (node.focused) {
+        return node;
+    }
 
-    const event1 = EventData{ .keyboard = 'a' };
-    const event2 = EventData{ .mouse_move = .{ .x = 10, .y = 20 } };
-
-    inspector.recordEvent(event1);
-    inspector.recordEvent(event2);
-
-    const events = inspector.getEvents();
-    try std.testing.expectEqual(@as(usize, 2), events.len);
-    try std.testing.expectEqual(EventType.keyboard, events[0].event_type);
-    try std.testing.expectEqual(EventType.mouse_move, events[1].event_type);
+    return null;
 }
 
-test "Inspector.recordEvent prunes old events when max_events exceeded" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
+/// Calculate total memory for a node and its subtree
+fn nodeMemory(node: *const WidgetNode) usize {
+    var total: usize = node.memory_bytes;
+    for (node.children) |child| {
+        total += nodeMemory(child);
+    }
+    return total;
+}
+
+/// Calculate total render time for a node and its subtree
+fn nodeRenderTime(node: *const WidgetNode) u64 {
+    var total: u64 = node.render_ns;
+    for (node.children) |child| {
+        total +%= nodeRenderTime(child); // Use wrapping add to handle overflow
+    }
+    return total;
+}
+
+/// Count nodes in a subtree (including the node itself)
+fn countNodes(node: *const WidgetNode) usize {
+    var count: usize = 1; // Count self
+    for (node.children) |child| {
+        count += countNodes(child);
+    }
+    return count;
+}
+
+// ============================================================================
+// TESTS - v2.9.0 Live Widget Inspector
+// ============================================================================
+
+// ---------------------------------------------------------------------------
+// WidgetNode Tests (~10 tests)
+// ---------------------------------------------------------------------------
+
+test "WidgetNode depth returns 0 for root node" {
+    const node = WidgetNode{
+        .name = "Root",
+        .bounds = .{ .x = 0, .y = 0, .width = 80, .height = 24 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 0,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{},
+        .parent = null,
+    };
+
+    try std.testing.expectEqual(@as(usize, 0), node.depth());
+}
+
+test "WidgetNode depth returns 1 for direct child" {
+    var root = WidgetNode{
+        .name = "Root",
+        .bounds = .{ .x = 0, .y = 0, .width = 80, .height = 24 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 0,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{},
+        .parent = null,
+    };
+
+    const child = WidgetNode{
+        .name = "Child",
+        .bounds = .{ .x = 0, .y = 0, .width = 40, .height = 12 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 0,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{},
+        .parent = &root,
+    };
+
+    try std.testing.expectEqual(@as(usize, 1), child.depth());
+}
+
+test "WidgetNode depth returns 2 for grandchild" {
+    var root = WidgetNode{
+        .name = "Root",
+        .bounds = .{ .x = 0, .y = 0, .width = 80, .height = 24 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 0,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{},
+        .parent = null,
+    };
+
+    var child = WidgetNode{
+        .name = "Child",
+        .bounds = .{ .x = 0, .y = 0, .width = 40, .height = 12 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 0,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{},
+        .parent = &root,
+    };
+
+    const grandchild = WidgetNode{
+        .name = "Grandchild",
+        .bounds = .{ .x = 0, .y = 0, .width = 20, .height = 6 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 0,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{},
+        .parent = &child,
+    };
+
+    try std.testing.expectEqual(@as(usize, 2), grandchild.depth());
+}
+
+test "WidgetNode isLeaf returns true for node with no children" {
+    const node = WidgetNode{
+        .name = "Leaf",
+        .bounds = .{ .x = 0, .y = 0, .width = 10, .height = 5 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 0,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{},
+        .parent = null,
+    };
+
+    try std.testing.expect(node.isLeaf());
+}
+
+test "WidgetNode isLeaf returns false for node with children" {
+    var child = WidgetNode{
+        .name = "Child",
+        .bounds = .{ .x = 0, .y = 0, .width = 5, .height = 2 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 0,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{},
+        .parent = null,
+    };
+
+    const child_ptr = &child;
+    const node = WidgetNode{
+        .name = "Parent",
+        .bounds = .{ .x = 0, .y = 0, .width = 10, .height = 5 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 0,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{child_ptr},
+        .parent = null,
+    };
+
+    try std.testing.expect(!node.isLeaf());
+}
+
+test "WidgetNode findChild returns child when name matches" {
+    var child1 = WidgetNode{
+        .name = "Block",
+        .bounds = .{ .x = 0, .y = 0, .width = 5, .height = 2 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 0,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{},
+        .parent = null,
+    };
+
+    var child2 = WidgetNode{
+        .name = "List",
+        .bounds = .{ .x = 5, .y = 0, .width = 5, .height = 2 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 0,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{},
+        .parent = null,
+    };
+
+    const child1_ptr = &child1;
+    const child2_ptr = &child2;
+    const parent = WidgetNode{
+        .name = "Root",
+        .bounds = .{ .x = 0, .y = 0, .width = 10, .height = 5 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 0,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{child1_ptr, child2_ptr},
+        .parent = null,
+    };
+
+    const found = parent.findChild("List");
+    try std.testing.expect(found != null);
+    try std.testing.expectEqualStrings("List", found.?.name);
+}
+
+test "WidgetNode findChild returns null when name not found" {
+    var child = WidgetNode{
+        .name = "Block",
+        .bounds = .{ .x = 0, .y = 0, .width = 5, .height = 2 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 0,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{},
+        .parent = null,
+    };
+
+    const child_ptr = &child;
+    const parent = WidgetNode{
+        .name = "Root",
+        .bounds = .{ .x = 0, .y = 0, .width = 10, .height = 5 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 0,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{child_ptr},
+        .parent = null,
+    };
+
+    const found = parent.findChild("NotFound");
+    try std.testing.expectEqual(@as(?*WidgetNode, null), found);
+}
+
+test "WidgetNode findChild returns null for node with no children" {
+    const node = WidgetNode{
+        .name = "Leaf",
+        .bounds = .{ .x = 0, .y = 0, .width = 10, .height = 5 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 0,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{},
+        .parent = null,
+    };
+
+    const found = node.findChild("Any");
+    try std.testing.expectEqual(@as(?*WidgetNode, null), found);
+}
+
+test "WidgetNode findChild returns first match when multiple children have same name" {
+    var child1 = WidgetNode{
+        .name = "Block",
+        .bounds = .{ .x = 0, .y = 0, .width = 5, .height = 2 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 100,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{},
+        .parent = null,
+    };
+
+    var child2 = WidgetNode{
+        .name = "Block",
+        .bounds = .{ .x = 5, .y = 0, .width = 5, .height = 2 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 200,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{},
+        .parent = null,
+    };
+
+    const child1_ptr = &child1;
+    const child2_ptr = &child2;
+    const parent = WidgetNode{
+        .name = "Root",
+        .bounds = .{ .x = 0, .y = 0, .width = 10, .height = 5 },
+        .style = Style{},
+        .focused = false,
+        .memory_bytes = 0,
+        .render_ns = 0,
+        .children = &[_]*WidgetNode{child1_ptr, child2_ptr},
+        .parent = null,
+    };
+
+    const found = parent.findChild("Block");
+    try std.testing.expect(found != null);
+    try std.testing.expectEqual(@as(usize, 100), found.?.memory_bytes);
+}
+
+// ---------------------------------------------------------------------------
+// Tree Building Tests (~15 tests)
+// ---------------------------------------------------------------------------
+
+test "WidgetInspector init creates empty inspector" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
     defer inspector.deinit();
 
-    inspector.enable();
-    inspector.setMaxEvents(5);
+    try std.testing.expectEqual(@as(?*WidgetNode, null), inspector.root);
+}
 
-    var i: u8 = 0;
+test "WidgetInspector beginWidget creates root node" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    const node = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+
+    try std.testing.expectEqualStrings("Root", node.name);
+    try std.testing.expectEqual(@as(u16, 80), node.bounds.width);
+    try std.testing.expectEqual(@as(u16, 24), node.bounds.height);
+}
+
+test "WidgetInspector beginWidget sets inspector root" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+
+    try std.testing.expect(inspector.root != null);
+    try std.testing.expectEqualStrings("Root", inspector.root.?.name);
+}
+
+test "WidgetInspector beginWidget and endWidget basic flow" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    inspector.endWidget();
+
+    try std.testing.expect(inspector.root != null);
+}
+
+test "WidgetInspector nested widgets create parent-child relationship" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    _ = try inspector.beginWidget("Child", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    inspector.endWidget();
+    inspector.endWidget();
+
+    try std.testing.expect(inspector.root != null);
+    try std.testing.expectEqual(@as(usize, 1), inspector.root.?.children.len);
+    try std.testing.expectEqualStrings("Child", inspector.root.?.children[0].name);
+}
+
+test "WidgetInspector three-level nesting" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    _ = try inspector.beginWidget("Child", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    _ = try inspector.beginWidget("Grandchild", .{ .x = 0, .y = 0, .width = 20, .height = 6 }, Style{});
+    inspector.endWidget();
+    inspector.endWidget();
+    inspector.endWidget();
+
+    try std.testing.expect(inspector.root != null);
+    const child = inspector.root.?.children[0];
+    try std.testing.expectEqual(@as(usize, 1), child.children.len);
+    try std.testing.expectEqualStrings("Grandchild", child.children[0].name);
+}
+
+test "WidgetInspector multiple children under same parent" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    _ = try inspector.beginWidget("Child1", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    inspector.endWidget();
+    _ = try inspector.beginWidget("Child2", .{ .x = 40, .y = 0, .width = 40, .height = 12 }, Style{});
+    inspector.endWidget();
+    _ = try inspector.beginWidget("Child3", .{ .x = 0, .y = 12, .width = 80, .height = 12 }, Style{});
+    inspector.endWidget();
+    inspector.endWidget();
+
+    try std.testing.expectEqual(@as(usize, 3), inspector.root.?.children.len);
+    try std.testing.expectEqualStrings("Child1", inspector.root.?.children[0].name);
+    try std.testing.expectEqualStrings("Child2", inspector.root.?.children[1].name);
+    try std.testing.expectEqualStrings("Child3", inspector.root.?.children[2].name);
+}
+
+test "WidgetInspector endWidget without beginWidget returns error" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    // This should panic or be a no-op, but we expect it not to crash
+    inspector.endWidget();
+
+    try std.testing.expectEqual(@as(?*WidgetNode, null), inspector.root);
+}
+
+test "WidgetInspector memory tracking per widget" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    const node = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    node.memory_bytes = 1024;
+    inspector.endWidget();
+
+    try std.testing.expectEqual(@as(usize, 1024), inspector.root.?.memory_bytes);
+}
+
+test "WidgetInspector render timing recording" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    const node = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    node.render_ns = 1_500_000; // 1.5ms
+    inspector.endWidget();
+
+    try std.testing.expectEqual(@as(u64, 1_500_000), inspector.root.?.render_ns);
+}
+
+test "WidgetInspector focus tracking single widget" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    const node = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    node.focused = true;
+    inspector.endWidget();
+
+    try std.testing.expect(inspector.root.?.focused);
+}
+
+test "WidgetInspector focus tracking nested widgets" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    const child = try inspector.beginWidget("Child", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    child.focused = true;
+    inspector.endWidget();
+    inspector.endWidget();
+
+    try std.testing.expect(!inspector.root.?.focused);
+    try std.testing.expect(inspector.root.?.children[0].focused);
+}
+
+test "WidgetInspector style tracking" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    var style = Style{};
+    style.bold = true;
+    const node = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, style);
+    inspector.endWidget();
+
+    try std.testing.expect(node.style.bold);
+}
+
+test "WidgetInspector complex tree with multiple branches" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+        _ = try inspector.beginWidget("Left", .{ .x = 0, .y = 0, .width = 40, .height = 24 }, Style{});
+            _ = try inspector.beginWidget("LeftChild1", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+            inspector.endWidget();
+            _ = try inspector.beginWidget("LeftChild2", .{ .x = 0, .y = 12, .width = 40, .height = 12 }, Style{});
+            inspector.endWidget();
+        inspector.endWidget();
+        _ = try inspector.beginWidget("Right", .{ .x = 40, .y = 0, .width = 40, .height = 24 }, Style{});
+            _ = try inspector.beginWidget("RightChild1", .{ .x = 40, .y = 0, .width = 40, .height = 24 }, Style{});
+            inspector.endWidget();
+        inspector.endWidget();
+    inspector.endWidget();
+
+    try std.testing.expectEqual(@as(usize, 2), inspector.root.?.children.len);
+    try std.testing.expectEqual(@as(usize, 2), inspector.root.?.children[0].children.len);
+    try std.testing.expectEqual(@as(usize, 1), inspector.root.?.children[1].children.len);
+}
+
+test "WidgetInspector bounds propagation" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 10, .y = 5, .width = 80, .height = 24 }, Style{});
+    inspector.endWidget();
+
+    try std.testing.expectEqual(@as(u16, 10), inspector.root.?.bounds.x);
+    try std.testing.expectEqual(@as(u16, 5), inspector.root.?.bounds.y);
+}
+
+// ---------------------------------------------------------------------------
+// Focus Tracking Tests (~7 tests)
+// ---------------------------------------------------------------------------
+
+test "WidgetInspector focus path with single widget" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    const node = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    node.focused = true;
+    inspector.endWidget();
+
+    const path = inspector.focusPath();
+    try std.testing.expectEqual(@as(usize, 1), path.len);
+    try std.testing.expectEqualStrings("Root", path[0].name);
+}
+
+test "WidgetInspector focus path with nested focused widget" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    _ = try inspector.beginWidget("Container", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    const leaf = try inspector.beginWidget("Input", .{ .x = 0, .y = 0, .width = 20, .height = 1 }, Style{});
+    leaf.focused = true;
+    inspector.endWidget();
+    inspector.endWidget();
+    inspector.endWidget();
+
+    const path = inspector.focusPath();
+    try std.testing.expectEqual(@as(usize, 3), path.len);
+    try std.testing.expectEqualStrings("Root", path[0].name);
+    try std.testing.expectEqualStrings("Container", path[1].name);
+    try std.testing.expectEqualStrings("Input", path[2].name);
+}
+
+test "WidgetInspector focus path returns empty array when no focus" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    _ = try inspector.beginWidget("Child1", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    inspector.endWidget();
+    _ = try inspector.beginWidget("Child2", .{ .x = 40, .y = 0, .width = 40, .height = 12 }, Style{});
+    inspector.endWidget();
+    inspector.endWidget();
+
+    const path = inspector.focusPath();
+    try std.testing.expectEqual(@as(usize, 0), path.len);
+}
+
+test "WidgetInspector multiple focused widgets returns deepest path" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    const root = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    root.focused = true;
+
+    const child1 = try inspector.beginWidget("Child1", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    child1.focused = true;
+
+    const grandchild = try inspector.beginWidget("Grandchild", .{ .x = 0, .y = 0, .width = 20, .height = 6 }, Style{});
+    grandchild.focused = true;
+    inspector.endWidget();
+
+    inspector.endWidget();
+
+    _ = try inspector.beginWidget("Child2", .{ .x = 40, .y = 0, .width = 40, .height = 12 }, Style{});
+    inspector.endWidget();
+
+    inspector.endWidget();
+
+    const path = inspector.focusPath();
+    try std.testing.expectEqual(@as(usize, 3), path.len);
+    try std.testing.expectEqualStrings("Grandchild", path[path.len - 1].name);
+}
+
+test "WidgetInspector focus tracking updates between builds" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    const root = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    root.focused = true;
+    inspector.endWidget();
+
+    const path1 = inspector.focusPath();
+    try std.testing.expectEqual(@as(usize, 1), path1.len);
+
+    // Now focus is lost
+    const root2 = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    root2.focused = false;
+    inspector.endWidget();
+
+    const path2 = inspector.focusPath();
+    try std.testing.expectEqual(@as(usize, 0), path2.len);
+}
+
+test "WidgetInspector focus tracking across sibling branches" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+
+    _ = try inspector.beginWidget("LeftPanel", .{ .x = 0, .y = 0, .width = 40, .height = 24 }, Style{});
+    _ = try inspector.beginWidget("LeftChild", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    inspector.endWidget();
+    inspector.endWidget();
+
+    _ = try inspector.beginWidget("RightPanel", .{ .x = 40, .y = 0, .width = 40, .height = 24 }, Style{});
+    const focused = try inspector.beginWidget("RightChild", .{ .x = 40, .y = 0, .width = 40, .height = 12 }, Style{});
+    focused.focused = true;
+    inspector.endWidget();
+    inspector.endWidget();
+
+    inspector.endWidget();
+
+    const path = inspector.focusPath();
+    try std.testing.expectEqual(@as(usize, 3), path.len);
+    try std.testing.expectEqualStrings("Root", path[0].name);
+    try std.testing.expectEqualStrings("RightPanel", path[1].name);
+    try std.testing.expectEqualStrings("RightChild", path[2].name);
+}
+
+test "WidgetInspector focus tracking with dynamic tree changes" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    const old_focus = try inspector.beginWidget("OldFocus", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    old_focus.focused = true;
+    inspector.endWidget();
+    inspector.endWidget();
+
+    const old_path = inspector.focusPath();
+    try std.testing.expectEqual(@as(usize, 2), old_path.len);
+    try std.testing.expectEqualStrings("OldFocus", old_path[1].name);
+}
+
+// ---------------------------------------------------------------------------
+// Tree Traversal Tests (~10 tests)
+// ---------------------------------------------------------------------------
+
+test "WidgetInspector traverse visits all nodes in depth-first order" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    _ = try inspector.beginWidget("Child1", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    inspector.endWidget();
+    _ = try inspector.beginWidget("Child2", .{ .x = 0, .y = 12, .width = 40, .height = 12 }, Style{});
+    inspector.endWidget();
+    inspector.endWidget();
+
+    var visited: std.ArrayList([]const u8) = .{};
+    defer visited.deinit(std.testing.allocator);
+
+    const Visitor = struct {
+        list: *std.ArrayList([]const u8),
+        allocator: std.mem.Allocator,
+
+        pub fn visit(self: *@This(), node: *const WidgetNode) void {
+            self.list.append(self.allocator, node.name) catch unreachable;
+        }
+    };
+
+    var visitor = Visitor{ .list = &visited, .allocator = std.testing.allocator };
+    inspector.traverse(&visitor);
+
+    try std.testing.expectEqual(@as(usize, 3), visited.items.len);
+    try std.testing.expectEqualStrings("Root", visited.items[0]);
+    try std.testing.expectEqualStrings("Child1", visited.items[1]);
+    try std.testing.expectEqualStrings("Child2", visited.items[2]);
+}
+
+test "WidgetInspector traverse on empty tree does nothing" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    var visited: std.ArrayList([]const u8) = .{};
+    defer visited.deinit(std.testing.allocator);
+
+    const Visitor = struct {
+        list: *std.ArrayList([]const u8),
+        allocator: std.mem.Allocator,
+
+        pub fn visit(self: *@This(), node: *const WidgetNode) void {
+            self.list.append(self.allocator, node.name) catch unreachable;
+        }
+    };
+
+    var visitor = Visitor{ .list = &visited, .allocator = std.testing.allocator };
+    inspector.traverse(&visitor);
+
+    try std.testing.expectEqual(@as(usize, 0), visited.items.len);
+}
+
+test "WidgetInspector find returns node when name matches" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    _ = try inspector.beginWidget("Target", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    inspector.endWidget();
+    inspector.endWidget();
+
+    const found = inspector.find("Target");
+    try std.testing.expect(found != null);
+    try std.testing.expectEqualStrings("Target", found.?.name);
+}
+
+test "WidgetInspector find returns null when name not found" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    inspector.endWidget();
+
+    const found = inspector.find("NotFound");
+    try std.testing.expectEqual(@as(?*WidgetNode, null), found);
+}
+
+test "WidgetInspector find returns null on empty tree" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    const found = inspector.find("Any");
+    try std.testing.expectEqual(@as(?*WidgetNode, null), found);
+}
+
+test "WidgetInspector find returns first match when multiple nodes have same name" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    const first = try inspector.beginWidget("Block", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    first.memory_bytes = 100;
+    inspector.endWidget();
+    const second = try inspector.beginWidget("Block", .{ .x = 40, .y = 0, .width = 40, .height = 12 }, Style{});
+    second.memory_bytes = 200;
+    inspector.endWidget();
+    inspector.endWidget();
+
+    const found = inspector.find("Block");
+    try std.testing.expect(found != null);
+    try std.testing.expectEqual(@as(usize, 100), found.?.memory_bytes);
+}
+
+test "WidgetInspector focusPath returns path from root to focused widget" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    _ = try inspector.beginWidget("Child", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    const grandchild = try inspector.beginWidget("Grandchild", .{ .x = 0, .y = 0, .width = 20, .height = 6 }, Style{});
+    grandchild.focused = true;
+    inspector.endWidget();
+    inspector.endWidget();
+    inspector.endWidget();
+
+    const path = inspector.focusPath();
+    try std.testing.expectEqual(@as(usize, 3), path.len);
+    try std.testing.expectEqualStrings("Root", path[0].name);
+    try std.testing.expectEqualStrings("Child", path[1].name);
+    try std.testing.expectEqualStrings("Grandchild", path[2].name);
+}
+
+test "WidgetInspector focusPath returns empty when no widget is focused" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    _ = try inspector.beginWidget("Child", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    inspector.endWidget();
+    inspector.endWidget();
+
+    const path = inspector.focusPath();
+    try std.testing.expectEqual(@as(usize, 0), path.len);
+}
+
+test "WidgetInspector focusPath returns single node when root is focused" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    const root = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    root.focused = true;
+    inspector.endWidget();
+
+    const path = inspector.focusPath();
+    try std.testing.expectEqual(@as(usize, 1), path.len);
+    try std.testing.expectEqualStrings("Root", path[0].name);
+}
+
+test "WidgetInspector focusPath with multiple focused widgets returns last one" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    const root = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    root.focused = true;
+    const child = try inspector.beginWidget("Child", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    child.focused = true;
+    inspector.endWidget();
+    inspector.endWidget();
+
+    const path = inspector.focusPath();
+    try std.testing.expectEqual(@as(usize, 2), path.len);
+    try std.testing.expectEqualStrings("Child", path[path.len - 1].name);
+}
+
+// ---------------------------------------------------------------------------
+// Statistics Tests (~8 tests)
+// ---------------------------------------------------------------------------
+
+test "WidgetInspector totalMemory sums all widget memory" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    const root = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    root.memory_bytes = 1024;
+    const child1 = try inspector.beginWidget("Child1", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    child1.memory_bytes = 512;
+    inspector.endWidget();
+    const child2 = try inspector.beginWidget("Child2", .{ .x = 40, .y = 0, .width = 40, .height = 12 }, Style{});
+    child2.memory_bytes = 256;
+    inspector.endWidget();
+    inspector.endWidget();
+
+    try std.testing.expectEqual(@as(usize, 1792), inspector.totalMemory());
+}
+
+test "WidgetInspector totalMemory returns 0 for empty tree" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    try std.testing.expectEqual(@as(usize, 0), inspector.totalMemory());
+}
+
+test "WidgetInspector totalRenderTime sums all widget render times" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    const root = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    root.render_ns = 1_000_000;
+    const child1 = try inspector.beginWidget("Child1", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    child1.render_ns = 500_000;
+    inspector.endWidget();
+    const child2 = try inspector.beginWidget("Child2", .{ .x = 40, .y = 0, .width = 40, .height = 12 }, Style{});
+    child2.render_ns = 250_000;
+    inspector.endWidget();
+    inspector.endWidget();
+
+    try std.testing.expectEqual(@as(u64, 1_750_000), inspector.totalRenderTime());
+}
+
+test "WidgetInspector totalRenderTime returns 0 for empty tree" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    try std.testing.expectEqual(@as(u64, 0), inspector.totalRenderTime());
+}
+
+test "WidgetInspector widgetCount counts all widgets including root" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    _ = try inspector.beginWidget("Child1", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    inspector.endWidget();
+    _ = try inspector.beginWidget("Child2", .{ .x = 40, .y = 0, .width = 40, .height = 12 }, Style{});
+    _ = try inspector.beginWidget("Grandchild", .{ .x = 40, .y = 0, .width = 20, .height = 6 }, Style{});
+    inspector.endWidget();
+    inspector.endWidget();
+    inspector.endWidget();
+
+    try std.testing.expectEqual(@as(usize, 4), inspector.widgetCount());
+}
+
+test "WidgetInspector widgetCount returns 0 for empty tree" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    try std.testing.expectEqual(@as(usize, 0), inspector.widgetCount());
+}
+
+test "WidgetInspector widgetCount returns 1 for single root node" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    inspector.endWidget();
+
+    try std.testing.expectEqual(@as(usize, 1), inspector.widgetCount());
+}
+
+test "WidgetInspector statistics on complex tree" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    const root = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    root.memory_bytes = 1000;
+    root.render_ns = 1_000_000;
+
+    const child1 = try inspector.beginWidget("Child1", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    child1.memory_bytes = 500;
+    child1.render_ns = 500_000;
+
+    const gc1 = try inspector.beginWidget("Grandchild1", .{ .x = 0, .y = 0, .width = 20, .height = 6 }, Style{});
+    gc1.memory_bytes = 250;
+    gc1.render_ns = 250_000;
+    inspector.endWidget();
+
+    inspector.endWidget();
+
+    const child2 = try inspector.beginWidget("Child2", .{ .x = 40, .y = 0, .width = 40, .height = 12 }, Style{});
+    child2.memory_bytes = 300;
+    child2.render_ns = 300_000;
+    inspector.endWidget();
+
+    inspector.endWidget();
+
+    try std.testing.expectEqual(@as(usize, 2050), inspector.totalMemory());
+    try std.testing.expectEqual(@as(u64, 2_050_000), inspector.totalRenderTime());
+    try std.testing.expectEqual(@as(usize, 4), inspector.widgetCount());
+}
+
+// ---------------------------------------------------------------------------
+// Edge Cases (~5 tests)
+// ---------------------------------------------------------------------------
+
+test "WidgetInspector large widget tree (100+ widgets)" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+
+    // Create 100 child widgets
+    var i: usize = 0;
+    while (i < 100) : (i += 1) {
+        var name_buf: [32]u8 = undefined;
+        const name = try std.fmt.bufPrint(&name_buf, "Child{d}", .{i});
+        _ = try inspector.beginWidget(name, .{ .x = 0, .y = 0, .width = 1, .height = 1 }, Style{});
+        inspector.endWidget();
+    }
+
+    inspector.endWidget();
+
+    try std.testing.expectEqual(@as(usize, 101), inspector.widgetCount());
+}
+
+test "WidgetInspector Unicode widget names" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("루트", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    _ = try inspector.beginWidget("子ども", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    inspector.endWidget();
+    _ = try inspector.beginWidget("🎨", .{ .x = 40, .y = 0, .width = 40, .height = 12 }, Style{});
+    inspector.endWidget();
+    inspector.endWidget();
+
+    const found1 = inspector.find("루트");
+    try std.testing.expect(found1 != null);
+
+    const found2 = inspector.find("子ども");
+    try std.testing.expect(found2 != null);
+
+    const found3 = inspector.find("🎨");
+    try std.testing.expect(found3 != null);
+}
+
+test "WidgetInspector zero-size bounds" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 0, .height = 0 }, Style{});
+    inspector.endWidget();
+
+    try std.testing.expectEqual(@as(u16, 0), inspector.root.?.bounds.width);
+    try std.testing.expectEqual(@as(u16, 0), inspector.root.?.bounds.height);
+}
+
+test "WidgetInspector very large render times (overflow handling)" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    const root = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    root.render_ns = std.math.maxInt(u64) - 1000;
+
+    const child = try inspector.beginWidget("Child", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    child.render_ns = 500;
+    inspector.endWidget();
+    inspector.endWidget();
+
+    // Should not overflow
+    const total = inspector.totalRenderTime();
+    try std.testing.expect(total >= root.render_ns);
+}
+
+test "WidgetInspector rapid begin/end sequences" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
+    defer inspector.deinit();
+
+    _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+
+    var i: usize = 0;
     while (i < 10) : (i += 1) {
-        inspector.recordEvent(EventData{ .keyboard = i });
+        var name_buf: [32]u8 = undefined;
+        const name = try std.fmt.bufPrint(&name_buf, "Widget{d}", .{i});
+        _ = try inspector.beginWidget(name, .{ .x = 0, .y = 0, .width = 10, .height = 2 }, Style{});
+        inspector.endWidget();
     }
 
-    const events = inspector.getEvents();
-    try std.testing.expectEqual(@as(usize, 5), events.len);
-    try std.testing.expectEqual(@as(u8, 5), events[0].data.keyboard); // Oldest kept
-    try std.testing.expectEqual(@as(u8, 9), events[4].data.keyboard); // Newest
+    inspector.endWidget();
+
+    try std.testing.expectEqual(@as(usize, 11), inspector.widgetCount());
+    try std.testing.expectEqual(@as(usize, 10), inspector.root.?.children.len);
 }
 
-test "Inspector.getEventsByType filters events correctly" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
+test "WidgetInspector memory allocation tracking is accurate" {
+    var inspector = WidgetInspector.init(std.testing.allocator);
     defer inspector.deinit();
 
-    inspector.enable();
+    const root = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    root.memory_bytes = 0; // Root has no allocation overhead
 
-    inspector.recordEvent(EventData{ .keyboard = 'a' });
-    inspector.recordEvent(EventData{ .mouse_move = .{ .x = 10, .y = 20 } });
-    inspector.recordEvent(EventData{ .keyboard = 'b' });
-    inspector.recordEvent(EventData{ .resize = .{ .cols = 80, .rows = 24 } });
+    const child = try inspector.beginWidget("Buffer", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
+    // Simulating a 80x24 cell buffer: 80 * 24 * sizeof(Cell) where Cell ~= 8 bytes
+    child.memory_bytes = 80 * 24 * 8;
+    inspector.endWidget();
 
-    const keyboard_events = try inspector.getEventsByType(.keyboard);
-    defer allocator.free(keyboard_events);
+    inspector.endWidget();
 
-    try std.testing.expectEqual(@as(usize, 2), keyboard_events.len);
-    try std.testing.expectEqual(@as(u8, 'a'), keyboard_events[0].data.keyboard);
-    try std.testing.expectEqual(@as(u8, 'b'), keyboard_events[1].data.keyboard);
-}
-
-test "Inspector.clearEvents removes all events" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    inspector.recordEvent(EventData{ .keyboard = 'a' });
-    inspector.recordEvent(EventData{ .keyboard = 'b' });
-
-    try std.testing.expectEqual(@as(usize, 2), inspector.getEvents().len);
-
-    inspector.clearEvents();
-    try std.testing.expectEqual(@as(usize, 0), inspector.getEvents().len);
-}
-
-test "Inspector.getWidgetDepth calculates hierarchy depth" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
-    const root = inspector.recordWidget("root", area);
-    const child = inspector.recordWidgetWithParent("child", area, root);
-    const grandchild = inspector.recordWidgetWithParent("grandchild", area, child);
-
-    try std.testing.expectEqual(@as(usize, 0), inspector.getWidgetDepth(root));
-    try std.testing.expectEqual(@as(usize, 1), inspector.getWidgetDepth(child));
-    try std.testing.expectEqual(@as(usize, 2), inspector.getWidgetDepth(grandchild));
-}
-
-test "Inspector.getSiblings returns sibling widget IDs" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
-    const parent = inspector.recordWidget("parent", area);
-    const child1 = inspector.recordWidgetWithParent("child1", area, parent);
-    const child2 = inspector.recordWidgetWithParent("child2", area, parent);
-    const child3 = inspector.recordWidgetWithParent("child3", area, parent);
-
-    var siblings = try inspector.getSiblings(allocator, child2);
-    defer siblings.deinit(allocator);
-
-    try std.testing.expectEqual(@as(usize, 2), siblings.items.len);
-    try std.testing.expect(std.mem.indexOfScalar(u32, siblings.items, child1) != null);
-    try std.testing.expect(std.mem.indexOfScalar(u32, siblings.items, child3) != null);
-    try std.testing.expect(std.mem.indexOfScalar(u32, siblings.items, child2) == null);
-}
-
-test "Inspector.detectLayoutViolations detects overflow" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    const parent_area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
-    const overflow_area = Rect{ .x = 50, .y = 50, .width = 100, .height = 100 }; // Extends beyond parent
-
-    const parent = inspector.recordWidget("parent", parent_area);
-    _ = inspector.recordWidgetWithParent("overflow_child", overflow_area, parent);
-
-    var violations = try inspector.detectLayoutViolations(allocator);
-    defer {
-        for (violations.items) |*v| {
-            v.deinit();
-        }
-        violations.deinit(allocator);
-    }
-
-    try std.testing.expectEqual(@as(usize, 1), violations.items.len);
-    try std.testing.expectEqualStrings("overflow", violations.items[0].violation_type);
-}
-
-test "Inspector.beginFrame and endFrame manage frame snapshots" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
-
-    // Frame 1
-    inspector.beginFrame();
-    const id1 = inspector.recordWidget("widget1", area);
-    inspector.endFrame();
-
-    // Frame 2
-    inspector.beginFrame();
-    const id2 = inspector.recordWidget("widget2", area);
-    inspector.endFrame();
-
-    try std.testing.expectEqual(@as(usize, 2), inspector.getFrameCount());
-
-    const frame0_widgets = inspector.getFrameWidgets(0);
-    try std.testing.expectEqual(@as(usize, 1), frame0_widgets.len);
-    try std.testing.expectEqual(id1, frame0_widgets[0]);
-
-    const frame1_widgets = inspector.getFrameWidgets(1);
-    try std.testing.expectEqual(@as(usize, 1), frame1_widgets.len);
-    try std.testing.expectEqual(id2, frame1_widgets[0]);
-}
-
-test "Inspector.getFrameWidgets returns empty for invalid index" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    const widgets = inspector.getFrameWidgets(999);
-    try std.testing.expectEqual(@as(usize, 0), widgets.len);
-}
-
-test "Inspector.writeWidgetTree outputs empty tree message" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    var buf = ArrayList(u8){};
-    defer buf.deinit(allocator);
-
-    try inspector.writeWidgetTree(buf.writer(allocator));
-    try std.testing.expectEqualStrings("(empty widget tree)\n", buf.items);
-}
-
-test "Inspector.writeWidgetTree outputs hierarchy" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    const area = Rect{ .x = 10, .y = 20, .width = 100, .height = 50 };
-    const parent = inspector.recordWidget("parent", area);
-    _ = inspector.recordWidgetWithParent("child", area, parent);
-
-    var buf = ArrayList(u8){};
-    defer buf.deinit(allocator);
-
-    try inspector.writeWidgetTree(buf.writer(allocator));
-
-    try std.testing.expect(std.mem.indexOf(u8, buf.items, "parent") != null);
-    try std.testing.expect(std.mem.indexOf(u8, buf.items, "child") != null);
-    try std.testing.expect(std.mem.indexOf(u8, buf.items, "100x50") != null);
-}
-
-test "Inspector.writeLayoutInfo outputs layout details" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
-    const id = inspector.recordWidget("test_widget", area);
-
-    const constraint = Constraint{ .percentage = 50 };
-    inspector.recordConstraint(id, constraint, .horizontal, 200);
-
-    var buf = ArrayList(u8){};
-    defer buf.deinit(allocator);
-
-    try inspector.writeLayoutInfo(buf.writer(allocator));
-
-    try std.testing.expect(std.mem.indexOf(u8, buf.items, "test_widget") != null);
-    try std.testing.expect(std.mem.indexOf(u8, buf.items, "percentage(50%)") != null);
-    try std.testing.expect(std.mem.indexOf(u8, buf.items, "available=200") != null);
-}
-
-test "Inspector.writeEventLog outputs events" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    inspector.recordEvent(EventData{ .keyboard = 'x' });
-    inspector.recordEvent(EventData{ .mouse_click = .{ .x = 50, .y = 30, .button = .left } });
-
-    var buf = ArrayList(u8){};
-    defer buf.deinit(allocator);
-
-    try inspector.writeEventLog(buf.writer(allocator));
-
-    try std.testing.expect(std.mem.indexOf(u8, buf.items, "keyboard") != null);
-    try std.testing.expect(std.mem.indexOf(u8, buf.items, "mouse click") != null);
-    try std.testing.expect(std.mem.indexOf(u8, buf.items, "left") != null);
-}
-
-test "Inspector.writeJSON outputs valid JSON structure" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    const area = Rect{ .x = 10, .y = 20, .width = 100, .height = 50 };
-    _ = inspector.recordWidget("widget1", area);
-
-    inspector.recordEvent(EventData{ .keyboard = 'a' });
-
-    var buf = ArrayList(u8){};
-    defer buf.deinit(allocator);
-
-    try inspector.writeJSON(buf.writer(allocator));
-
-    // Basic JSON structure validation
-    try std.testing.expect(std.mem.startsWith(u8, buf.items, "{"));
-    try std.testing.expect(std.mem.endsWith(u8, buf.items, "}"));
-    try std.testing.expect(std.mem.indexOf(u8, buf.items, "\"widgets\"") != null);
-    try std.testing.expect(std.mem.indexOf(u8, buf.items, "\"events\"") != null);
-    try std.testing.expect(std.mem.indexOf(u8, buf.items, "widget1") != null);
-}
-
-test "Inspector.getWidgetTree builds tree structure" {
-    const allocator = std.testing.allocator;
-    var inspector = try Inspector.init(allocator);
-    defer inspector.deinit();
-
-    inspector.enable();
-
-    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
-    const root = inspector.recordWidget("root", area);
-    const child1 = inspector.recordWidgetWithParent("child1", area, root);
-    _ = inspector.recordWidgetWithParent("child2", area, root);
-
-    const tree = inspector.getWidgetTree();
-    try std.testing.expect(tree != null);
-
-    const root_node = tree.?;
-    defer {
-        const mutable_node = @constCast(root_node);
-        mutable_node.deinit(allocator);
-        allocator.destroy(mutable_node);
-    }
-
-    try std.testing.expectEqualStrings("root", root_node.name);
-    try std.testing.expectEqual(@as(usize, 2), root_node.children.len);
-
-    // Verify children IDs
-    const child1_found = for (root_node.children) |child| {
-        if (child.id == child1) break true;
-    } else false;
-    try std.testing.expect(child1_found);
+    const total = inspector.totalMemory();
+    try std.testing.expectEqual(@as(usize, 15360), total); // 80 * 24 * 8 = 15360
 }

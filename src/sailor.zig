@@ -59,7 +59,8 @@ pub const termcap = @import("termcap.zig");
 
 // v1.18.0 — Developer Experience & Tooling
 pub const ThemeWatcher = @import("tui/hotreload.zig").ThemeWatcher;
-pub const Inspector = @import("tui/inspector.zig").Inspector;
+pub const WidgetInspector = @import("tui/inspector.zig").WidgetInspector;
+pub const WidgetNode = @import("tui/inspector.zig").WidgetNode;
 pub const docgen = @import("docgen.zig");
 
 // v1.20.0 — Quality & Completeness

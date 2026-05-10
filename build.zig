@@ -222,13 +222,15 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
-    const inspector_tests = b.addTest(.{
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("tests/inspector_test.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
+    // NOTE: Old inspector_tests disabled - replaced by v2.9.0 WidgetInspector API
+    // Tests are now in src/tui/inspector.zig itself
+    // const inspector_tests = b.addTest(.{
+    //     .root_module = b.createModule(.{
+    //         .root_source_file = b.path("tests/inspector_test.zig"),
+    //         .target = target,
+    //         .optimize = optimize,
+    //     }),
+    // });
 
     const docgen_tests = b.addTest(.{
         .root_module = b.createModule(.{
@@ -433,7 +435,7 @@ pub fn build(b: *std.Build) void {
     filebrowser_tests.root_module.addImport("sailor", sailor_module_for_tests);
     terminal_widget_tests.root_module.addImport("sailor", sailor_module_for_tests);
     markdown_tests.root_module.addImport("sailor", sailor_module_for_tests);
-    inspector_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    // inspector_tests.root_module.addImport("sailor", sailor_module_for_tests); // disabled
     docgen_tests.root_module.addImport("sailor", sailor_module_for_tests);
     arg_groups_tests.root_module.addImport("sailor", sailor_module_for_tests);
     color_theme_tests.root_module.addImport("sailor", sailor_module_for_tests);
@@ -480,7 +482,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(filebrowser_tests).step);
     test_step.dependOn(&b.addRunArtifact(terminal_widget_tests).step);
     test_step.dependOn(&b.addRunArtifact(markdown_tests).step);
-    test_step.dependOn(&b.addRunArtifact(inspector_tests).step);
+    // test_step.dependOn(&b.addRunArtifact(inspector_tests).step); // disabled
     test_step.dependOn(&b.addRunArtifact(docgen_tests).step);
     test_step.dependOn(&b.addRunArtifact(arg_groups_tests).step);
     test_step.dependOn(&b.addRunArtifact(color_theme_tests).step);
