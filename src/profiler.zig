@@ -59,6 +59,7 @@ pub const WidgetMetrics = struct {
 pub const Profiler = struct {
     allocator: Allocator,
     profiles: std.ArrayList(RenderProfile),
+    all_profiles: std.ArrayList(RenderProfile), // All historical profiles across frames
     current_frame: u64,
     threshold_ms: f64, // Bottleneck threshold in milliseconds
 
@@ -107,6 +108,7 @@ pub const Profiler = struct {
         return Self{
             .allocator = allocator,
             .profiles = .{},
+            .all_profiles = .{},
             .current_frame = 0,
             .threshold_ms = threshold_ms,
             .scope_stack = .{},
@@ -117,6 +119,7 @@ pub const Profiler = struct {
     /// Deinitialize and free resources
     pub fn deinit(self: *Self) void {
         self.profiles.deinit(self.allocator);
+        self.all_profiles.deinit(self.allocator);
         for (self.scope_stack.items) |*scope| {
             scope.deinit(self.allocator);
         }
@@ -137,23 +140,27 @@ pub const Profiler = struct {
     }
 
     /// Record a completed profile entry
-    fn record(self: *Self, widget_name: []const u8, duration_ns: u64) !void {
-        try self.profiles.append(self.allocator, .{
+    pub fn record(self: *Self, widget_name: []const u8, duration_ns: u64) !void {
+        const entry: RenderProfile = .{
             .widget_name = widget_name,
             .duration_ns = duration_ns,
             .timestamp = std.time.milliTimestamp(),
             .is_cache_hit = false,
-        });
+        };
+        try self.profiles.append(self.allocator, entry);
+        try self.all_profiles.append(self.allocator, entry);
     }
 
     /// Record a completed profile entry with cache information
     pub fn recordWithCache(self: *Self, widget_name: []const u8, duration_ns: u64, is_cache_hit: bool) !void {
-        try self.profiles.append(self.allocator, .{
+        const entry: RenderProfile = .{
             .widget_name = widget_name,
             .duration_ns = duration_ns,
             .timestamp = std.time.milliTimestamp(),
             .is_cache_hit = is_cache_hit,
-        });
+        };
+        try self.profiles.append(self.allocator, entry);
+        try self.all_profiles.append(self.allocator, entry);
     }
 
     /// Get profiles for the current frame
@@ -175,14 +182,14 @@ pub const Profiler = struct {
         return bottlenecks.toOwnedSlice(allocator);
     }
 
-    /// Get statistics for widget render times
+    /// Get statistics for widget render times (includes all historical data)
     pub fn getStats(self: *Self, widget_name: []const u8) Stats {
         var total_ns: u64 = 0;
         var count: usize = 0;
         var min_ns: u64 = std.math.maxInt(u64);
         var max_ns: u64 = 0;
 
-        for (self.profiles.items) |profile| {
+        for (self.all_profiles.items) |profile| {
             if (std.mem.eql(u8, profile.widget_name, widget_name)) {
                 total_ns += profile.duration_ns;
                 count += 1;
@@ -211,7 +218,19 @@ pub const Profiler = struct {
     /// Reset profiler state
     pub fn reset(self: *Self) void {
         self.profiles.clearRetainingCapacity();
+        self.all_profiles.clearRetainingCapacity();
         self.current_frame = 0;
+
+        // Also clear flame graph state
+        for (self.scope_stack.items) |*scope| {
+            scope.deinit(self.allocator);
+        }
+        self.scope_stack.clearRetainingCapacity();
+
+        for (self.root_scopes.items) |*scope| {
+            scope.deinit(self.allocator);
+        }
+        self.root_scopes.clearRetainingCapacity();
     }
 
     /// Get the slowest widget in current frame
@@ -780,6 +799,7 @@ pub const MemoryTracker = struct {
     current_allocated: std.StringHashMap(usize), // location -> bytes
     peak_allocated: std.StringHashMap(usize), // location -> peak bytes
     enabled: bool,
+    location_strings: std.StringHashMap(void), // Deduplicated location strings
 
     const Self = @This();
 
@@ -790,12 +810,39 @@ pub const MemoryTracker = struct {
             .events = .{},
             .current_allocated = std.StringHashMap(usize).init(allocator),
             .peak_allocated = std.StringHashMap(usize).init(allocator),
+            .location_strings = std.StringHashMap(void).init(allocator),
             .enabled = true,
         };
     }
 
+    /// Get or create a deduplicated location string
+    fn getOrDupeLocation(self: *Self, location: []const u8) ![]const u8 {
+        // Check if we already have this location
+        if (self.location_strings.contains(location)) {
+            var iter = self.location_strings.keyIterator();
+            while (iter.next()) |key| {
+                if (std.mem.eql(u8, key.*, location)) {
+                    return key.*;
+                }
+            }
+        }
+
+        // New location - dupe and store it
+        const location_copy = try self.allocator.dupe(u8, location);
+        errdefer self.allocator.free(location_copy);
+        try self.location_strings.put(location_copy, {});
+        return location_copy;
+    }
+
     /// Deinitialize and free resources
     pub fn deinit(self: *Self) void {
+        // Free all location strings
+        var iter = self.location_strings.keyIterator();
+        while (iter.next()) |key| {
+            self.allocator.free(key.*);
+        }
+        self.location_strings.deinit();
+
         self.events.deinit(self.allocator);
         self.current_allocated.deinit();
         self.peak_allocated.deinit();
@@ -805,22 +852,24 @@ pub const MemoryTracker = struct {
     pub fn recordAlloc(self: *Self, location: []const u8, size: usize) !void {
         if (!self.enabled) return;
 
+        const location_str = try self.getOrDupeLocation(location);
+
         try self.events.append(self.allocator, .{
-            .location = location,
+            .location = location_str,
             .size = size,
             .timestamp = std.time.nanoTimestamp(),
             .allocation_type = .allocate,
         });
 
         // Update current allocated
-        const current = self.current_allocated.get(location) orelse 0;
+        const current = self.current_allocated.get(location_str) orelse 0;
         const new_current = current + size;
-        try self.current_allocated.put(location, new_current);
+        try self.current_allocated.put(location_str, new_current);
 
         // Update peak if needed
-        const peak = self.peak_allocated.get(location) orelse 0;
+        const peak = self.peak_allocated.get(location_str) orelse 0;
         if (new_current > peak) {
-            try self.peak_allocated.put(location, new_current);
+            try self.peak_allocated.put(location_str, new_current);
         }
     }
 
@@ -828,17 +877,19 @@ pub const MemoryTracker = struct {
     pub fn recordFree(self: *Self, location: []const u8, size: usize) !void {
         if (!self.enabled) return;
 
+        const location_str = try self.getOrDupeLocation(location);
+
         try self.events.append(self.allocator, .{
-            .location = location,
+            .location = location_str,
             .size = size,
             .timestamp = std.time.nanoTimestamp(),
             .allocation_type = .free,
         });
 
         // Update current allocated
-        const current = self.current_allocated.get(location) orelse 0;
+        const current = self.current_allocated.get(location_str) orelse 0;
         if (current >= size) {
-            try self.current_allocated.put(location, current - size);
+            try self.current_allocated.put(location_str, current - size);
         }
     }
 
@@ -846,23 +897,25 @@ pub const MemoryTracker = struct {
     pub fn recordResize(self: *Self, location: []const u8, old_size: usize, new_size: usize) !void {
         if (!self.enabled) return;
 
+        const location_str = try self.getOrDupeLocation(location);
+
         try self.events.append(self.allocator, .{
-            .location = location,
+            .location = location_str,
             .size = new_size,
             .timestamp = std.time.nanoTimestamp(),
             .allocation_type = .resize,
         });
 
         // Update current allocated (net change)
-        const current = self.current_allocated.get(location) orelse 0;
+        const current = self.current_allocated.get(location_str) orelse 0;
         const net_change = if (new_size > old_size) new_size - old_size else 0;
         const new_current = current + net_change;
-        try self.current_allocated.put(location, new_current);
+        try self.current_allocated.put(location_str, new_current);
 
         // Update peak if needed
-        const peak = self.peak_allocated.get(location) orelse 0;
+        const peak = self.peak_allocated.get(location_str) orelse 0;
         if (new_current > peak) {
-            try self.peak_allocated.put(location, new_current);
+            try self.peak_allocated.put(location_str, new_current);
         }
     }
 
@@ -886,8 +939,8 @@ pub const MemoryTracker = struct {
                     free_count += 1;
                 },
                 .resize => {
-                    // Resize counts as both alloc and free
-                    alloc_count += 1;
+                    // Resize is tracked but doesn't increment allocation count
+                    // Only the initial .allocate counts toward alloc_count
                 },
             }
         }
@@ -1110,7 +1163,7 @@ test "memory tracker resize updates correctly" {
 
     const stats = try tracker.getStats("buffer");
     try testing.expectEqual(@as(usize, 1000), stats.total_allocated); // Original alloc
-    try testing.expectEqual(@as(usize, 2), stats.alloc_count); // alloc + resize
+    try testing.expectEqual(@as(usize, 1), stats.alloc_count); // Only the initial allocate
 }
 
 test "memory tracker total allocated" {
@@ -1239,7 +1292,7 @@ pub const EventLoopProfiler = struct {
     }
 
     /// Record a completed event processing
-    fn recordEvent(self: *Self, event_type: []const u8, processing_time_ns: u64, queue_depth: usize) !void {
+    pub fn recordEvent(self: *Self, event_type: []const u8, processing_time_ns: u64, queue_depth: usize) !void {
         if (!self.enabled) return;
 
         try self.records.append(self.allocator, .{
