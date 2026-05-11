@@ -2,70 +2,23 @@
 
 ## Current Status
 
-- **Latest release**: v2.8.0 (2026-05-10) — Cross-Platform Improvements
-- **Latest minor**: v2.8.0 (2026-05-10) — Windows Console API, Platform Optimizations, Multi-Platform CI
-- **Next milestone**: v2.9.0 (Developer Experience & Debugging Tools)
-- **Active milestones**: 2 (v2.2.0, v2.9.0)
+- **Latest release**: v2.9.0 (2026-05-12) — Developer Experience & Debugging Tools
+- **Latest minor**: v2.9.0 (2026-05-12) — Live Widget Inspector, Advanced Profiling, Error Recovery, Developer Console
+- **Next milestone**: TBD (awaiting consumer feedback or new milestone establishment)
+- **Active milestones**: 1 (v2.2.0)
 - **Blockers**: None
 
 ## Active Milestones
-
-### v2.9.0 — Developer Experience & Debugging Tools (Target: 2026-05-24)
-
-**Theme**: Enhanced debugging capabilities, developer tooling, and runtime introspection
-
-**Checklist**:
-- [x] **Live Widget Inspector**: Runtime widget tree visualization (COMPLETE - commit 6778b3c)
-  - Hierarchical tree view of active widgets ✅
-  - Real-time property inspection (bounds, styles, state) ✅
-  - Focus path tracking and navigation ✅
-  - Memory usage per widget ✅
-  - Render timing breakdown ✅
-- [x] **Advanced Profiling**: Deep performance insights (COMPLETE - commit 7cd7ede)
-  - Widget render flamegraphs ✅
-  - Event propagation traces ✅
-  - Layout constraint solver visualization ✅
-  - Memory allocation heatmaps ✅
-  - Export profiles to Chrome DevTools format ✅
-- [ ] **Error Recovery & Resilience**: Robust error handling
-  - Widget render error boundaries (isolated failures)
-  - Automatic state recovery on panic
-  - Error reporting hooks for custom logging
-  - Graceful degradation modes
-  - Test utilities for error injection
-- [ ] **Developer Console**: In-app REPL for debugging
-  - Live evaluation of Zig expressions
-  - Widget query language (CSS-like selectors)
-  - State mutation commands
-  - Screenshot/recording triggers
-  - Keyboard shortcut: Ctrl+Shift+D
-- [ ] **Testing**: Comprehensive test coverage
-  - Widget inspector tests (tree traversal, property access)
-  - Profiler tests (data collection, export formats)
-  - Error boundary tests (isolation, recovery)
-  - Developer console tests (REPL, query language)
-
-**Success Criteria**:
-- Widget inspector can introspect 100+ widget trees
-- Profiler exports valid Chrome DevTools JSON
-- Error boundaries prevent cascade failures in all widgets
-- Developer console supports 20+ query selectors
-- All features documented with examples
-
-**Notes**:
-- Inspired by React DevTools, Chrome DevTools, and Elm debugger
-- Aims to make sailor the most debuggable TUI framework
-- Consumer projects can integrate inspector into production builds (behind feature flag)
 
 ### v2.2.0 — Consumer Feedback & Bug Fixes (Target: 2026-05-15)
 
 **Theme**: Address real-world usage feedback from zr, zoltraak, silica migrations
 
 **Checklist**:
-- [ ] **Monitor consumer migrations**: Track progress of v2.4.0/v2.5.0/v2.6.0/v2.7.0/v2.8.0 migrations
-  - zr#58, zr#59, zr#60: v2.6.0, v2.7.0, v2.8.0 migrations (2026-05-04, 2026-05-07, 2026-05-10)
-  - zoltraak#33, zoltraak#34, zoltraak#35, zoltraak#36, zoltraak#37: v2.4.0-v2.8.0 migrations
-  - silica#44, silica#45, silica#47: v2.6.0, v2.7.0, v2.8.0 migrations (2026-05-04, 2026-05-07, 2026-05-10)
+- [ ] **Monitor consumer migrations**: Track progress of v2.4.0-v2.9.0 migrations
+  - zr#58, zr#59, zr#60, zr#61: v2.6.0, v2.7.0, v2.8.0, v2.9.0 migrations (2026-05-04, 2026-05-07, 2026-05-10, 2026-05-12)
+  - zoltraak#33, zoltraak#34, zoltraak#35, zoltraak#36, zoltraak#37, zoltraak#38: v2.4.0-v2.9.0 migrations
+  - silica#44, silica#45, silica#47, silica#48: v2.6.0, v2.7.0, v2.8.0, v2.9.0 migrations (2026-05-04, 2026-05-07, 2026-05-10, 2026-05-12)
   - Help resolve any migration blockers
   - Document common migration patterns
 - [ ] **Bug fixes**: Fix any issues discovered during real-world usage
@@ -96,6 +49,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v2.9.0 | Developer Experience & Debugging Tools | 2026-05-12 | Live Widget Inspector (hierarchical tree view, real-time property inspection, focus tracking, memory/render metrics, 55 tests), Advanced Profiling (widget flamegraphs, event traces, layout visualization, memory heatmaps, Chrome DevTools export, 38 tests), Error Recovery & Resilience (render error boundaries, auto-recovery, error hooks, graceful degradation, test utilities, 58 tests), Developer Console (Zig expression eval, CSS-like query language, state mutation, screenshot/recording, Ctrl+Shift+D, REPL with history/undo, 40 tests). Total: +191 tests (~4200 passing), 6 cross-platform targets, 0 breaking changes. Inspired by React DevTools, Chrome DevTools, Elm debugger. Consumer migrations: zr#61, zoltraak#38, silica#48 |
 | v2.8.0 | Cross-Platform Improvements | 2026-05-10 | Windows Console API (ConPTY integration, legacy fallback, ANSI emulation, UTF-16 encoding), Platform-specific optimizations (Linux zero-overhead ANSI, macOS Metal detection, Windows batch console API), CI enhancements (Windows/macOS/Linux native tests, platform-specific test suites), Documentation (platform-specific setup guides, terminal compatibility matrix), Testing (27 Windows console tests, platform quirks tests, UTF-16 tests). Total: ~4130 passing tests (+27), 6 cross-platform targets, 0 breaking changes. Consumer migrations: zr#60, zoltraak#37, silica#47 |
 | v2.7.0 | Event System & Async Integration | 2026-05-07 | Event Bus (publish-subscribe pattern, filtering, transformation, scoped subscriptions, thread-safety, 48 tests), Command Pattern (undo/redo, BatchCommand, compression, 29 tests), Async Task Runner (cooperative multitasking, priority queue, cancellation, progress tracking, 21 tests), Event Debouncing & Throttling (zero-allocation rate limiting, 25 tests). Total: +123 tests (~4100 passing), 6 cross-platform targets, 0 breaking changes. Consumer migrations: zr#59, zoltraak#36, silica#45 |
 | v2.6.0 | Advanced Input & Clipboard | 2026-05-04 | Multi-line TextArea (line wrapping WrapMode, selection support, syntax highlighting hooks, +31 tests), Clipboard operations (ClipboardHistory FIFO buffer, SystemClipboard cross-platform integration macOS/Linux/Windows, OSC 52 support, +71 tests), Input validation framework (email/URL/phone validators, regex, min/max length, visual feedback, async support, +79 tests), Autocomplete enhancements (fuzzy matching, context-aware suggestions, multi-column popup, docs preview, +23 tests). Total: +204 tests (~3900 passing), 6 cross-platform targets, 0 breaking changes |
