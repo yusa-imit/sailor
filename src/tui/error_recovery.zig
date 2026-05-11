@@ -87,7 +87,7 @@ pub const ErrorBoundary = struct {
             // Capture error (ignore if capture fails)
             self.captureError(err, name, area) catch {};
 
-            // Invoke callback (catch panics)
+            // Invoke callback (note: callbacks must not panic)
             if (self.error_callback) |callback| {
                 callback(self.callback_context, err, name, area);
             }
@@ -127,10 +127,15 @@ pub const ErrorBoundary = struct {
     /// Render fallback message
     fn renderFallback(self: *ErrorBoundary, buf: *Buffer, area: Rect) void {
         var x = area.x;
-        for (self.fallback_message) |ch| {
+        var i: usize = 0;
+        while (i < self.fallback_message.len) {
             if (x >= area.x + area.width) break;
-            buf.set(x, area.y, .{ .char = ch, .style = .{} });
+            const len = std.unicode.utf8ByteSequenceLength(self.fallback_message[i]) catch break;
+            if (i + len > self.fallback_message.len) break;
+            const codepoint = std.unicode.utf8Decode(self.fallback_message[i .. i + len]) catch break;
+            buf.set(x, area.y, .{ .char = codepoint, .style = .{} });
             x += 1;
+            i += len;
         }
     }
 
@@ -659,7 +664,29 @@ pub const GracefulDegradation = struct {
 
     /// Render widget with fallback
     pub fn renderWithFallback(self: *GracefulDegradation, widget: anytype, buf: *Buffer, area: Rect, fallback_text: []const u8) RenderResult {
+        return self.renderWithFallbackNamed(widget, buf, area, fallback_text, null);
+    }
+
+    /// Render widget with fallback and widget name (for non-critical widget skipping)
+    pub fn renderWithFallbackNamed(self: *GracefulDegradation, widget: anytype, buf: *Buffer, area: Rect, fallback_text: []const u8, name: ?[]const u8) RenderResult {
         self.stats.total_renders += 1;
+
+        // Check if non-critical widget should be skipped
+        if (name) |widget_name| {
+            if (self.non_critical_widgets.contains(widget_name)) {
+                // Try to render, but if it fails, skip instead of failing
+                if (widget.render(buf, area)) |_| {
+                    self.stats.successes += 1;
+                    self.consecutive_successes += 1;
+                    self.consecutive_failures = 0;
+                    self.checkAutoRecover();
+                    return .success;
+                } else |_| {
+                    // Non-critical widget failed, skip it
+                    return .skipped;
+                }
+            }
+        }
 
         if (widget.render(buf, area)) |_| {
             self.stats.successes += 1;
@@ -676,10 +703,15 @@ pub const GracefulDegradation = struct {
             // Render fallback
             if (fallback_text.len > 0) {
                 var x = area.x;
-                for (fallback_text) |ch| {
+                var i: usize = 0;
+                while (i < fallback_text.len) {
                     if (x >= area.x + area.width) break;
-                    buf.set(x, area.y, .{ .char = ch, .style = .{} });
+                    const len = std.unicode.utf8ByteSequenceLength(fallback_text[i]) catch break;
+                    if (i + len > fallback_text.len) break;
+                    const codepoint = std.unicode.utf8Decode(fallback_text[i .. i + len]) catch break;
+                    buf.set(x, area.y, .{ .char = codepoint, .style = .{} });
                     x += 1;
+                    i += len;
                 }
             }
             return .failed;
@@ -744,7 +776,7 @@ pub const GracefulDegradation = struct {
     /// Check and apply auto-degrade
     fn checkAutoDegrade(self: *GracefulDegradation) void {
         if (!self.auto_degrade_enabled) return;
-        if (self.consecutive_failures >= self.auto_degrade_threshold) {
+        if (self.consecutive_failures == self.auto_degrade_threshold) {
             if (self.quality_level == .normal) {
                 self.quality_level = .low;
             } else if (self.quality_level == .low) {
