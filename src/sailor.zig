@@ -114,6 +114,12 @@ pub const ErrorReporter = @import("tui/error_recovery.zig").ErrorReporter;
 pub const GracefulDegradation = @import("tui/error_recovery.zig").GracefulDegradation;
 pub const ErrorInjector = @import("tui/error_recovery.zig").ErrorInjector;
 
+pub const DeveloperConsole = @import("developer_console.zig").DeveloperConsole;
+pub const WidgetInfo = @import("developer_console.zig").WidgetInfo;
+pub const Recording = @import("developer_console.zig").Recording;
+pub const Keypress = @import("developer_console.zig").Keypress;
+pub const ExportFormat = @import("developer_console.zig").ExportFormat;
+
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;
 pub const Cell = tui.buffer.Cell;
