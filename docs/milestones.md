@@ -4,11 +4,105 @@
 
 - **Latest release**: v2.9.0 (2026-05-12) — Developer Experience & Debugging Tools
 - **Latest minor**: v2.9.0 (2026-05-12) — Live Widget Inspector, Advanced Profiling, Error Recovery, Developer Console
-- **Next milestone**: TBD (awaiting consumer feedback or new milestone establishment)
-- **Active milestones**: 1 (v2.2.0)
+- **Next milestone**: v2.10.0 (AI/ML Integration & Smart Features)
+- **Active milestones**: 3 (v2.2.0, v2.10.0, v2.11.0)
 - **Blockers**: None
 
 ## Active Milestones
+
+### v2.10.0 — AI/ML Integration & Smart Features (Target: 2026-05-31)
+
+**Theme**: Integrate AI capabilities and intelligent automation into sailor applications
+
+**Checklist**:
+- [ ] **LLM Integration Layer**: Connect to Claude/GPT APIs
+  - HTTP client with streaming support
+  - Token counting and budget management
+  - Rate limiting and retry logic
+  - Prompt template system
+  - Response streaming widget
+- [ ] **Smart Autocomplete**: AI-powered suggestions
+  - Context-aware completion (code, prose, commands)
+  - Multi-source aggregation (local + API)
+  - Learning from user patterns
+  - Semantic ranking
+  - Inline preview with ghost text
+- [ ] **Layout Intelligence**: AI-assisted layout optimization
+  - Analyze widget tree for layout inefficiencies
+  - Suggest constraint improvements
+  - Auto-adjust for screen sizes
+  - Accessibility recommendations
+  - Performance optimization hints
+- [ ] **Natural Language Commands**: Voice-like command interface
+  - Parse natural language to widget actions
+  - Intent recognition for common tasks
+  - Context-aware command disambiguation
+  - Command history with semantic search
+  - Tutorial mode with suggestions
+- [ ] **Testing**: Comprehensive test coverage
+  - LLM client mocking (no real API calls in tests)
+  - Autocomplete ranking tests
+  - Layout analyzer tests
+  - NL parser tests (intent recognition)
+
+**Success Criteria**:
+- LLM client supports streaming with <100ms first token
+- Autocomplete achieves >80% acceptance rate in testing
+- Layout analyzer detects 10+ common anti-patterns
+- NL parser handles 50+ command patterns
+- Zero real API calls during test suite
+
+**Notes**:
+- API keys optional — features degrade gracefully
+- Privacy-first: user data stays local unless explicitly sent
+- Consumer projects can use AI features without hard dependency
+
+### v2.11.0 — Extended Graphics & Protocol Support (Target: 2026-06-15)
+
+**Theme**: Advanced terminal graphics protocols and visual enhancements
+
+**Checklist**:
+- [ ] **Sixel Enhancements**: Full sixel protocol implementation
+  - Sixel encoder/decoder improvements
+  - Color palette optimization (256-color quantization)
+  - Animation support (GIF-like frame sequences)
+  - Compression for network efficiency
+  - Fallback to ANSI art for unsupported terminals
+- [ ] **Kitty Graphics Protocol**: Modern image protocol
+  - Kitty protocol implementation (transmit/display/delete)
+  - Unicode placeholder support
+  - Z-index and layering
+  - Virtual image management
+  - Performance optimizations (chunked transmission)
+- [ ] **ANSI Art Rendering**: High-quality text art
+  - Image to ANSI converter (multiple algorithms: block, braille, ascii)
+  - Color quantization for 256-color terminals
+  - Dithering options (Floyd-Steinberg, ordered)
+  - Real-time video frame conversion
+  - ASCII animation player
+- [ ] **Advanced Effects**: Visual polish
+  - Gradient backgrounds (linear, radial, conic)
+  - Blur and transparency emulation
+  - Custom border patterns (dotted, wavy, 3D)
+  - Particle effects (fire, rain, snow, sparkles)
+  - Transition animations (fade, wipe, slide)
+- [ ] **Testing**: Comprehensive test coverage
+  - Sixel encoder/decoder round-trip tests
+  - Kitty protocol message generation
+  - ANSI art quality metrics (PSNR, SSIM)
+  - Effect rendering tests (pixel-perfect comparison)
+
+**Success Criteria**:
+- Sixel encoder produces valid output for 100+ test images
+- Kitty protocol compatible with latest Kitty terminal
+- ANSI art converter achieves PSNR >20dB for test images
+- Effects library includes 20+ presets
+- All features work across 6 platform targets
+
+**Notes**:
+- Graphics features auto-detect terminal capabilities
+- Graceful fallback to text-only mode
+- Optimized for low-latency streaming
 
 ### v2.2.0 — Consumer Feedback & Bug Fixes (Target: 2026-05-15)
 
