@@ -107,6 +107,13 @@ pub const validation = @import("validation.zig");
 // v2.8.0 — Event System & Async Integration
 pub const taskrunner = @import("taskrunner.zig");
 
+// v2.9.0 — Error Recovery & Resilience
+pub const ErrorBoundary = @import("tui/error_recovery.zig").ErrorBoundary;
+pub const StateRecovery = @import("tui/error_recovery.zig").StateRecovery;
+pub const ErrorReporter = @import("tui/error_recovery.zig").ErrorReporter;
+pub const GracefulDegradation = @import("tui/error_recovery.zig").GracefulDegradation;
+pub const ErrorInjector = @import("tui/error_recovery.zig").ErrorInjector;
+
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;
 pub const Cell = tui.buffer.Cell;
