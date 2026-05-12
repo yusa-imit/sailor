@@ -21,12 +21,12 @@
   - ✅ Prompt template system (PromptTemplate: 7/7 tests)
   - ✅ Response streaming widget (ResponseStreamWidget: 9/10 tests)
   - ⚠️ HTTP client with streaming support (LlmClient: 4/10 integration tests, 15 HTTP tests blocked by Zig type system)
-- [ ] **Smart Autocomplete**: AI-powered suggestions
-  - Context-aware completion (code, prose, commands)
-  - Multi-source aggregation (local + API)
-  - Learning from user patterns
-  - Semantic ranking
-  - Inline preview with ghost text
+- ✅ **Smart Autocomplete**: AI-powered suggestions (COMPLETE — 52 tests)
+  - ✅ Context-aware completion (CompletionContext with code/prose/command modes)
+  - ✅ Multi-source aggregation (LocalSource, LlmSource, PatternSource)
+  - ✅ Learning from user patterns (PatternSource with frequency tracking)
+  - ✅ Semantic ranking (score-based sorting, top 10 results)
+  - ✅ Inline preview with ghost text (getGhostText returns highest-scored suggestion)
 - [ ] **Layout Intelligence**: AI-assisted layout optimization
   - Analyze widget tree for layout inefficiencies
   - Suggest constraint improvements
