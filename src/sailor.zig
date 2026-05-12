@@ -120,6 +120,13 @@ pub const Recording = @import("developer_console.zig").Recording;
 pub const Keypress = @import("developer_console.zig").Keypress;
 pub const ExportFormat = @import("developer_console.zig").ExportFormat;
 
+// v2.10.0 — LLM Integration Layer
+pub const LlmClient = @import("llm_client.zig").LlmClient;
+pub const TokenBudget = @import("llm_client.zig").TokenBudget;
+pub const RateLimiter = @import("llm_client.zig").RateLimiter;
+pub const PromptTemplate = @import("llm_client.zig").PromptTemplate;
+pub const ResponseStreamWidget = @import("llm_client.zig").ResponseStreamWidget;
+
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;
 pub const Cell = tui.buffer.Cell;
