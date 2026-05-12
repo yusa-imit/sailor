@@ -127,6 +127,16 @@ pub const RateLimiter = @import("llm_client.zig").RateLimiter;
 pub const PromptTemplate = @import("llm_client.zig").PromptTemplate;
 pub const ResponseStreamWidget = @import("llm_client.zig").ResponseStreamWidget;
 
+// v2.10.0 — Smart Autocomplete
+pub const smart_autocomplete = @import("smart_autocomplete.zig");
+pub const CompletionContext = smart_autocomplete.CompletionContext;
+pub const Suggestion = smart_autocomplete.Suggestion;
+pub const LocalSource = smart_autocomplete.LocalSource;
+pub const LlmSource = smart_autocomplete.LlmSource;
+pub const PatternSource = smart_autocomplete.PatternSource;
+pub const SmartAutocomplete = smart_autocomplete.SmartAutocomplete;
+pub const CompletionMode = smart_autocomplete.CompletionMode;
+
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;
 pub const Cell = tui.buffer.Cell;
