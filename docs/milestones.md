@@ -15,12 +15,12 @@
 **Theme**: Integrate AI capabilities and intelligent automation into sailor applications
 
 **Checklist**:
-- [ ] **LLM Integration Layer**: Connect to Claude/GPT APIs
-  - HTTP client with streaming support
-  - Token counting and budget management
-  - Rate limiting and retry logic
-  - Prompt template system
-  - Response streaming widget
+- ⏳ **LLM Integration Layer**: Connect to Claude/GPT APIs (PARTIAL — 35/50 tests, 70%)
+  - ✅ Token counting and budget management (TokenBudget: 7/7 tests)
+  - ✅ Rate limiting and retry logic (RateLimiter: 8/8 tests)
+  - ✅ Prompt template system (PromptTemplate: 7/7 tests)
+  - ✅ Response streaming widget (ResponseStreamWidget: 9/10 tests)
+  - ⚠️ HTTP client with streaming support (LlmClient: 4/10 integration tests, 15 HTTP tests blocked by Zig type system)
 - [ ] **Smart Autocomplete**: AI-powered suggestions
   - Context-aware completion (code, prose, commands)
   - Multi-source aggregation (local + API)
