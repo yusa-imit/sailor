@@ -145,6 +145,14 @@ pub const ResponsivenessChecker = layout_intelligence.ResponsivenessChecker;
 pub const AccessibilityChecker = layout_intelligence.AccessibilityChecker;
 pub const PerformanceAnalyzer = layout_intelligence.PerformanceAnalyzer;
 
+// v2.10.0 — Natural Language Commands
+pub const natural_language_commands = @import("natural_language_commands.zig");
+pub const Intent = natural_language_commands.Intent;
+pub const CommandParser = natural_language_commands.CommandParser;
+pub const CommandHistory = natural_language_commands.CommandHistory;
+pub const TutorialMode = natural_language_commands.TutorialMode;
+pub const Context = natural_language_commands.Context;
+
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;
 pub const Cell = tui.buffer.Cell;
