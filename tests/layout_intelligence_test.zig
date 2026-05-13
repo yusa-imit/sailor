@@ -968,7 +968,14 @@ test "Combined accessibility and performance analysis" {
     const perf_issues = try perf_analyzer.analyze(testing.allocator, inspector.root.?);
     defer testing.allocator.free(perf_issues);
     const access_issues = try access_checker.checkTree(testing.allocator, inspector.root.?);
-    defer testing.allocator.free(access_issues);
+    defer {
+        for (access_issues) |issue| {
+            testing.allocator.free(issue.description);
+            testing.allocator.free(issue.widget_path);
+            testing.allocator.free(issue.suggestion);
+        }
+        testing.allocator.free(access_issues);
+    }
 
     // Should find issues in both categories
     try testing.expect(perf_issues.len > 0 or access_issues.len > 0);

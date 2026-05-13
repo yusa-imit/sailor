@@ -833,7 +833,9 @@ test "ResponseStreamWidget - auto scroll shows latest content" {
     var i: usize = 0;
     while (i < 20) : (i += 1) {
         try widget.appendChunk("Line ");
-        try widget.appendChunk(try std.fmt.allocPrint(allocator, "{d}\n", .{i}));
+        const num_str = try std.fmt.allocPrint(allocator, "{d}\n", .{i});
+        defer allocator.free(num_str);
+        try widget.appendChunk(num_str);
     }
 
     var buf = try Buffer.init(allocator, 40, 5); // Only 5 lines visible
@@ -890,7 +892,9 @@ test "ResponseStreamWidget - scroll up shows earlier content" {
     // Add content
     var i: usize = 0;
     while (i < 20) : (i += 1) {
-        try widget.appendChunk(try std.fmt.allocPrint(allocator, "Line {d}\n", .{i}));
+        const line = try std.fmt.allocPrint(allocator, "Line {d}\n", .{i});
+        defer allocator.free(line);
+        try widget.appendChunk(line);
     }
 
     // Scroll to bottom first
