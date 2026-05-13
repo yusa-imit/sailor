@@ -27,6 +27,7 @@ pub const LlmError = error{
     Forbidden,
     NotFound,
     ServiceUnavailable,
+    NotImplemented,
     // Circuit breaker
     CircuitBreakerOpen,
     // Token budget
@@ -337,7 +338,7 @@ pub const LlmClient = struct {
             try writer.writeAll("");
         }
 
-        return error.ConnectionFailed;
+        return error.NotImplemented;
     }
 
     /// Stream with retry logic and circuit breaker.
