@@ -137,6 +137,14 @@ pub const PatternSource = smart_autocomplete.PatternSource;
 pub const SmartAutocomplete = smart_autocomplete.SmartAutocomplete;
 pub const CompletionMode = smart_autocomplete.CompletionMode;
 
+// v2.10.0 — Layout Intelligence
+pub const layout_intelligence = @import("layout_intelligence.zig");
+pub const LayoutIssue = layout_intelligence.LayoutIssue;
+pub const LayoutAnalyzer = layout_intelligence.LayoutAnalyzer;
+pub const ResponsivenessChecker = layout_intelligence.ResponsivenessChecker;
+pub const AccessibilityChecker = layout_intelligence.AccessibilityChecker;
+pub const PerformanceAnalyzer = layout_intelligence.PerformanceAnalyzer;
+
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;
 pub const Cell = tui.buffer.Cell;
