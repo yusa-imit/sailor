@@ -870,10 +870,12 @@ test "ResponseStreamWidget - loading spinner shows when waiting" {
     const cell = buf.getConst(area.width - 1, 0); // Top-right corner
     try testing.expect(cell != null);
 
-    // Should be one of the spinner characters
+    // Should be one of the spinner characters (iterate as UTF-8 codepoints)
     var found = false;
-    for (spinner_chars) |c| {
-        if (cell.?.char == c) {
+    const view = try std.unicode.Utf8View.init(spinner_chars);
+    var iter = view.iterator();
+    while (iter.nextCodepoint()) |cp| {
+        if (cell.?.char == cp) {
             found = true;
             break;
         }
