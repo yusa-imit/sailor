@@ -416,7 +416,7 @@ pub const CommandHistory = struct {
             .count = 1,
         };
 
-        try self.entries.append(entry);
+        try self.entries.append(self.allocator, entry);
 
         // Enforce max size
         while (self.entries.items.len > self.max_size) {
@@ -478,7 +478,7 @@ pub const CommandHistory = struct {
 
     pub fn loadFromString(self: *CommandHistory, data: []const u8) !void {
         // Simple JSON-like parser (manual, no std.json)
-        var lines = std.mem.split(u8, data, "\n");
+        var lines = std.mem.splitScalar(u8, data, '\n');
         while (lines.next()) |line| {
             const trimmed = std.mem.trim(u8, line, " \t\r");
             if (trimmed.len == 0 or trimmed[0] == '[' or trimmed[0] == ']') continue;
@@ -520,7 +520,7 @@ pub const CommandHistory = struct {
                         .count = count,
                     };
 
-                    try self.entries.append(entry);
+                    try self.entries.append(self.allocator, entry);
                 }
             }
         }
@@ -665,7 +665,7 @@ fn normalize(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
         }
     }
 
-    return result.toOwnedSlice();
+    return result.toOwnedSlice(allocator);
 }
 
 fn splitWords(allocator: std.mem.Allocator, input: []const u8) ![][]const u8 {
