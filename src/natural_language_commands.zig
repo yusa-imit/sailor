@@ -569,7 +569,7 @@ fn scoreMatch(query: []const u8, command: []const u8) u32 {
 fn countWordOverlap(a: []const u8, b: []const u8) u32 {
     // Simple word overlap count
     var count: u32 = 0;
-    var words_a = std.mem.tokenize(u8, a, " ");
+    var words_a = std.mem.tokenizeScalar(u8, a, ' ');
     while (words_a.next()) |word_a| {
         if (std.mem.indexOf(u8, b, word_a)) |_| {
             count += 1;
@@ -672,13 +672,13 @@ fn splitWords(allocator: std.mem.Allocator, input: []const u8) ![][]const u8 {
     var words = std.ArrayList([]const u8){};
     defer words.deinit(allocator);
 
-    var iter = std.mem.tokenize(u8, input, " ");
+    var iter = std.mem.tokenizeScalar(u8, input, ' ');
     while (iter.next()) |word| {
         const owned = try allocator.dupe(u8, word);
         try words.append(allocator, owned);
     }
 
-    return words.toOwnedSlice();
+    return words.toOwnedSlice(allocator);
 }
 
 fn extractNumber(input: []const u8) ?u32 {
@@ -707,44 +707,52 @@ fn levenshteinDistance(a: []const u8, b: []const u8) u32 {
     if (b.len == 0) return @intCast(a.len);
 
     const max_len = @max(a.len, b.len) + 1;
-    var prev_row = std.BoundedArray(u32, 256).init(0) catch unreachable;
-    var curr_row = std.BoundedArray(u32, 256).init(0) catch unreachable;
-
     if (max_len > 256) {
         // Fallback for very long strings
         return @intCast(@max(a.len, b.len));
     }
 
+    var prev_row: [256]u32 = undefined;
+    var prev_len: usize = 0;
+    var curr_row: [256]u32 = undefined;
+    var curr_len: usize = 0;
+
     // Initialize first row
     for (0..b.len + 1) |i| {
-        prev_row.append(@intCast(i)) catch unreachable;
+        prev_row[prev_len] = @intCast(i);
+        prev_len += 1;
     }
 
     // Calculate distance
     for (a, 0..) |char_a, i| {
-        curr_row.resize(0) catch unreachable;
-        curr_row.append(@intCast(i + 1)) catch unreachable;
+        curr_len = 0;
+        curr_row[curr_len] = @intCast(i + 1);
+        curr_len += 1;
 
         for (b, 0..) |char_b, j| {
             const cost: u32 = if (char_a == char_b) 0 else 1;
-            const deletion = prev_row.get(j + 1) + 1;
-            const insertion = curr_row.get(j) + 1;
-            const substitution = prev_row.get(j) + cost;
+            const deletion = prev_row[j + 1] + 1;
+            const insertion = curr_row[j] + 1;
+            const substitution = prev_row[j] + cost;
             const min_val = @min(deletion, @min(insertion, substitution));
-            curr_row.append(min_val) catch unreachable;
+            curr_row[curr_len] = min_val;
+            curr_len += 1;
         }
 
         // Swap rows
-        const tmp = prev_row;
+        const tmp_row = prev_row;
+        const tmp_len = prev_len;
         prev_row = curr_row;
-        curr_row = tmp;
+        prev_len = curr_len;
+        curr_row = tmp_row;
+        curr_len = tmp_len;
     }
 
-    return prev_row.get(b.len);
+    return prev_row[b.len];
 }
 
 fn containsWord(haystack: []const u8, needle: []const u8) bool {
-    var iter = std.mem.tokenize(u8, haystack, " ");
+    var iter = std.mem.tokenizeScalar(u8, haystack, ' ');
     while (iter.next()) |word| {
         if (std.mem.eql(u8, word, needle)) {
             return true;
