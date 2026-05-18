@@ -55,7 +55,7 @@ pub const TerminalInfo = struct {
                     key_buf[i] = 0; // null terminator
 
                     // Get environment variable using Windows API
-                    const len = std.os.windows.kernel32.GetEnvironmentVariableW(
+                    const len = std.os.windows.GetEnvironmentVariableW(
                         &key_buf,
                         @ptrCast(&buf),
                         buf.len / 2,

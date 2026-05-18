@@ -352,7 +352,9 @@ pub const SystemClipboard = struct {
         child.stdout_behavior = .Ignore;
         child.stderr_behavior = .Ignore;
 
-        try child.spawn();
+        child.spawn() catch |err| {
+            return if (err == error.FileNotFound) error.ClipboardUnavailable else err;
+        };
 
         const stdin = child.stdin.?;
         try stdin.writeAll(text);
@@ -394,7 +396,9 @@ pub const SystemClipboard = struct {
         child.stdout_behavior = .Ignore;
         child.stderr_behavior = .Ignore;
 
-        try child.spawn();
+        child.spawn() catch |err| {
+            return if (err == error.FileNotFound) error.ClipboardUnavailable else err;
+        };
 
         const stdin = child.stdin.?;
         try stdin.writeAll(text);

@@ -319,16 +319,19 @@ test "Windows WindowsConsoleBuffer handles buffer overflow gracefully" {
 
     // Should not panic or crash when adding many calls
     for (0..1000) |i| {
-        _ = buf.addCall(.{
+        const result = buf.addCall(.{
             .set_text_attribute = .{
                 .foreground = @as(u8, @truncate(i % 16)),
                 .background = 0
             }
-        }) catch |err| {
+        });
+        if (result) |_| {
+            // Success, continue
+        } else |err| {
             // Either succeeds or returns error gracefully
-            try testing.expectError(error.BufferFull, err);
+            try testing.expectEqual(error.BufferFull, err);
             break;
-        };
+        }
     }
 }
 
@@ -360,7 +363,7 @@ test "Linux direct ANSI overhead < 5ns per sequence" {
     }
 
     const elapsed = std.time.nanoTimestamp() - start;
-    const avg_ns = @as(u64, @intCast(elapsed / iterations));
+    const avg_ns = @as(u64, @intCast(@divTrunc(elapsed, iterations)));
 
     // Allow some flexibility for CI environments
     // This is a soft benchmark, not a hard assertion
