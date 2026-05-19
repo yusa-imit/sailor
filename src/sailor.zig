@@ -153,6 +153,15 @@ pub const CommandHistory = natural_language_commands.CommandHistory;
 pub const TutorialMode = natural_language_commands.TutorialMode;
 pub const Context = natural_language_commands.Context;
 
+// v2.11.0 — Extended Graphics & Protocol Support
+pub const sixel = @import("tui/sixel.zig");
+pub const SixelImage = sixel.SixelImage;
+pub const SixelEncoder = sixel.SixelEncoder;
+pub const SixelDecoder = sixel.SixelDecoder;
+pub const ColorPalette = sixel.ColorPalette;
+pub const QuantizationAlgorithm = sixel.QuantizationAlgorithm;
+pub const DistanceMetric = sixel.DistanceMetric;
+
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;
 pub const Cell = tui.buffer.Cell;
