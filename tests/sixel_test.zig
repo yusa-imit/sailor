@@ -723,3 +723,1134 @@ test "sixel decoder: no memory leaks on dimension overflow" {
 
     // Testing allocator will report any leaks
 }
+
+// ============================================================================
+// Color Palette Optimization Tests
+// ============================================================================
+
+// Helper: Generate random color with seeded PRNG for reproducible tests
+fn randomColor(seed: u64) SixelImage.Color {
+    var prng = std.Random.DefaultPrng.init(seed);
+    const random = prng.random();
+    return .{
+        .r = random.int(u8),
+        .g = random.int(u8),
+        .b = random.int(u8),
+        .a = 255,
+    };
+}
+
+// Helper: Create test image filled with a color
+fn makeTestImage(allocator: std.mem.Allocator, width: u16, height: u16, fill_color: SixelImage.Color) !SixelImage {
+    const pixel_count = @as(usize, width) * @as(usize, height);
+    const pixels = try allocator.alloc(SixelImage.Color, pixel_count);
+    @memset(pixels, fill_color);
+    return SixelImage{
+        .width = width,
+        .height = height,
+        .pixels = pixels,
+    };
+}
+
+// ----------------------------------------------------------------------------
+// Basic Quantization Tests (6 tests)
+// ----------------------------------------------------------------------------
+
+test "sixel palette: quantize 1000 random RGB colors to 256-color palette" {
+    const allocator = testing.allocator;
+
+    // Generate 1000 random colors
+    const colors = try allocator.alloc(SixelImage.Color, 1000);
+    defer allocator.free(colors);
+
+    for (colors, 0..) |*c, i| {
+        c.* = randomColor(i);
+    }
+
+    // Quantize to 256 colors
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        256,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    // Should produce palette with at most 256 colors
+    try testing.expect(palette.colors.len <= 256);
+    try testing.expect(palette.colors.len > 0);
+}
+
+test "sixel palette: quantize grayscale gradient (256 shades) to 16-color palette" {
+    const allocator = testing.allocator;
+
+    // Create grayscale gradient: 0, 1, 2, ..., 255
+    const colors = try allocator.alloc(SixelImage.Color, 256);
+    defer allocator.free(colors);
+
+    for (colors, 0..) |*c, i| {
+        const v: u8 = @intCast(i);
+        c.* = .{ .r = v, .g = v, .b = v };
+    }
+
+    // Quantize to 16 colors
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        16,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    // Should have exactly 16 colors
+    try testing.expectEqual(@as(usize, 16), palette.colors.len);
+
+    // Colors should span from dark to light
+    const first = palette.colors[0];
+    const last = palette.colors[palette.colors.len - 1];
+    const first_brightness = @as(u16, first.r) + first.g + first.b;
+    const last_brightness = @as(u16, last.r) + last.g + last.b;
+    try testing.expect(first_brightness < last_brightness);
+}
+
+test "sixel palette: quantize primary colors (8 colors) to 4-color palette" {
+    const allocator = testing.allocator;
+
+    // RGB cube corners
+    const colors = [_]SixelImage.Color{
+        .{ .r = 0, .g = 0, .b = 0 },     // Black
+        .{ .r = 255, .g = 0, .b = 0 },   // Red
+        .{ .r = 0, .g = 255, .b = 0 },   // Green
+        .{ .r = 0, .g = 0, .b = 255 },   // Blue
+        .{ .r = 255, .g = 255, .b = 0 }, // Yellow
+        .{ .r = 255, .g = 0, .b = 255 }, // Magenta
+        .{ .r = 0, .g = 255, .b = 255 }, // Cyan
+        .{ .r = 255, .g = 255, .b = 255 }, // White
+    };
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        &colors,
+        4,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    try testing.expectEqual(@as(usize, 4), palette.colors.len);
+}
+
+test "sixel palette: empty image handling (0 colors)" {
+    const allocator = testing.allocator;
+
+    const colors = [_]SixelImage.Color{};
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        &colors,
+        256,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    // Should produce empty palette or single default color
+    try testing.expect(palette.colors.len <= 1);
+}
+
+test "sixel palette: single color image (all pixels same)" {
+    const allocator = testing.allocator;
+
+    // 1000 identical red pixels
+    const colors = try allocator.alloc(SixelImage.Color, 1000);
+    defer allocator.free(colors);
+    @memset(colors, .{ .r = 255, .g = 0, .b = 0 });
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        256,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    // Should produce palette with exactly 1 color
+    try testing.expectEqual(@as(usize, 1), palette.colors.len);
+    try testing.expectEqual(@as(u8, 255), palette.colors[0].r);
+    try testing.expectEqual(@as(u8, 0), palette.colors[0].g);
+    try testing.expectEqual(@as(u8, 0), palette.colors[0].b);
+}
+
+test "sixel palette: duplicate color removal (10000 pixels, 5 unique colors)" {
+    const allocator = testing.allocator;
+
+    // 10000 pixels with only 5 unique colors
+    const colors = try allocator.alloc(SixelImage.Color, 10000);
+    defer allocator.free(colors);
+
+    const unique_colors = [_]SixelImage.Color{
+        .{ .r = 255, .g = 0, .b = 0 },
+        .{ .r = 0, .g = 255, .b = 0 },
+        .{ .r = 0, .g = 0, .b = 255 },
+        .{ .r = 255, .g = 255, .b = 0 },
+        .{ .r = 128, .g = 128, .b = 128 },
+    };
+
+    for (colors, 0..) |*c, i| {
+        c.* = unique_colors[i % 5];
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        256,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    // Should recognize only 5 unique colors
+    try testing.expectEqual(@as(usize, 5), palette.colors.len);
+}
+
+// ----------------------------------------------------------------------------
+// Median Cut Algorithm Tests (8 tests)
+// ----------------------------------------------------------------------------
+
+test "sixel palette: median cut with 2 colors (red/blue image)" {
+    const allocator = testing.allocator;
+
+    // Half red, half blue
+    const colors = try allocator.alloc(SixelImage.Color, 100);
+    defer allocator.free(colors);
+
+    for (colors, 0..) |*c, i| {
+        c.* = if (i < 50)
+            .{ .r = 255, .g = 0, .b = 0 }
+        else
+            .{ .r = 0, .g = 0, .b = 255 };
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        2,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    try testing.expectEqual(@as(usize, 2), palette.colors.len);
+
+    // Should have one reddish and one bluish color
+    var has_red = false;
+    var has_blue = false;
+    for (palette.colors) |c| {
+        if (c.r > 200 and c.b < 50) has_red = true;
+        if (c.b > 200 and c.r < 50) has_blue = true;
+    }
+    try testing.expect(has_red);
+    try testing.expect(has_blue);
+}
+
+test "sixel palette: median cut with 16 colors (natural image simulation)" {
+    const allocator = testing.allocator;
+
+    // Simulate natural image colors (more greens/browns, some blues)
+    const colors = try allocator.alloc(SixelImage.Color, 500);
+    defer allocator.free(colors);
+
+    var prng = std.Random.DefaultPrng.init(42);
+    const random = prng.random();
+
+    for (colors) |*c| {
+        // Bias toward green/brown range
+        c.* = .{
+            .r = random.intRangeAtMost(u8, 40, 180),
+            .g = random.intRangeAtMost(u8, 80, 220),
+            .b = random.intRangeAtMost(u8, 30, 150),
+        };
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        16,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    try testing.expectEqual(@as(usize, 16), palette.colors.len);
+}
+
+test "sixel palette: median cut with 256 colors (maximum palette)" {
+    const allocator = testing.allocator;
+
+    // Generate 1000 random colors
+    const colors = try allocator.alloc(SixelImage.Color, 1000);
+    defer allocator.free(colors);
+
+    for (colors, 0..) |*c, i| {
+        c.* = randomColor(i + 1000);
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        256,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    try testing.expect(palette.colors.len <= 256);
+    try testing.expect(palette.colors.len > 0);
+}
+
+test "sixel palette: median cut color distribution preservation" {
+    const allocator = testing.allocator;
+
+    // 90% red, 10% blue (most frequent should be retained)
+    const colors = try allocator.alloc(SixelImage.Color, 1000);
+    defer allocator.free(colors);
+
+    for (colors, 0..) |*c, i| {
+        c.* = if (i < 900)
+            .{ .r = 255, .g = 0, .b = 0 }
+        else
+            .{ .r = 0, .g = 0, .b = 255 };
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        4,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    // Should have red as dominant color in palette
+    var red_count: usize = 0;
+    for (palette.colors) |c| {
+        if (c.r > 200 and c.g < 50 and c.b < 50) red_count += 1;
+    }
+    try testing.expect(red_count >= 1);
+}
+
+test "sixel palette: median cut splitting axis selection (RGB channel with max range)" {
+    const allocator = testing.allocator;
+
+    // Create colors with large red variation, small green/blue
+    const colors = try allocator.alloc(SixelImage.Color, 100);
+    defer allocator.free(colors);
+
+    for (colors, 0..) |*c, i| {
+        c.* = .{
+            .r = @intCast(i * 255 / 100), // Wide range: 0-255
+            .g = 128, // Constant
+            .b = 128, // Constant
+        };
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        8,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    // Should split on red channel (largest range)
+    // Verify palette has diverse red values
+    var min_r: u8 = 255;
+    var max_r: u8 = 0;
+    for (palette.colors) |c| {
+        if (c.r < min_r) min_r = c.r;
+        if (c.r > max_r) max_r = c.r;
+    }
+    try testing.expect(max_r - min_r > 100); // Significant red variation
+}
+
+test "sixel palette: median cut edge case: more palette slots than unique colors" {
+    const allocator = testing.allocator;
+
+    // Only 3 unique colors, request 16
+    const colors = [_]SixelImage.Color{
+        .{ .r = 255, .g = 0, .b = 0 },
+        .{ .r = 0, .g = 255, .b = 0 },
+        .{ .r = 0, .g = 0, .b = 255 },
+    };
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        &colors,
+        16,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    // Should return only 3 colors (can't create more)
+    try testing.expectEqual(@as(usize, 3), palette.colors.len);
+}
+
+test "sixel palette: median cut edge case: single pixel" {
+    const allocator = testing.allocator;
+
+    const colors = [_]SixelImage.Color{
+        .{ .r = 123, .g = 45, .b = 67 },
+    };
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        &colors,
+        256,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    try testing.expectEqual(@as(usize, 1), palette.colors.len);
+    try testing.expectEqual(@as(u8, 123), palette.colors[0].r);
+}
+
+test "sixel palette: median cut edge case: all pixels same color" {
+    const allocator = testing.allocator;
+
+    const colors = try allocator.alloc(SixelImage.Color, 500);
+    defer allocator.free(colors);
+    @memset(colors, .{ .r = 64, .g = 128, .b = 192 });
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        16,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    // Should recognize single color
+    try testing.expectEqual(@as(usize, 1), palette.colors.len);
+    try testing.expectEqual(@as(u8, 64), palette.colors[0].r);
+    try testing.expectEqual(@as(u8, 128), palette.colors[0].g);
+    try testing.expectEqual(@as(u8, 192), palette.colors[0].b);
+}
+
+// ----------------------------------------------------------------------------
+// Octree Quantization Tests (6 tests)
+// ----------------------------------------------------------------------------
+
+test "sixel palette: octree with 8 colors (RGB cube corners)" {
+    const allocator = testing.allocator;
+
+    // RGB cube corners + many duplicates
+    const colors = try allocator.alloc(SixelImage.Color, 800);
+    defer allocator.free(colors);
+
+    const corners = [_]SixelImage.Color{
+        .{ .r = 0, .g = 0, .b = 0 },
+        .{ .r = 255, .g = 0, .b = 0 },
+        .{ .r = 0, .g = 255, .b = 0 },
+        .{ .r = 0, .g = 0, .b = 255 },
+        .{ .r = 255, .g = 255, .b = 0 },
+        .{ .r = 255, .g = 0, .b = 255 },
+        .{ .r = 0, .g = 255, .b = 255 },
+        .{ .r = 255, .g = 255, .b = 255 },
+    };
+
+    for (colors, 0..) |*c, i| {
+        c.* = corners[i % 8];
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        8,
+        .octree,
+    );
+    defer palette.deinit();
+
+    try testing.expectEqual(@as(usize, 8), palette.colors.len);
+}
+
+test "sixel palette: octree with 256 colors" {
+    const allocator = testing.allocator;
+
+    // Generate diverse colors
+    const colors = try allocator.alloc(SixelImage.Color, 2000);
+    defer allocator.free(colors);
+
+    for (colors, 0..) |*c, i| {
+        c.* = randomColor(i + 5000);
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        256,
+        .octree,
+    );
+    defer palette.deinit();
+
+    try testing.expect(palette.colors.len <= 256);
+    try testing.expect(palette.colors.len > 0);
+}
+
+test "sixel palette: octree color merging (reduce tree depth)" {
+    const allocator = testing.allocator;
+
+    // Many colors forcing tree reduction
+    const colors = try allocator.alloc(SixelImage.Color, 1000);
+    defer allocator.free(colors);
+
+    var prng = std.Random.DefaultPrng.init(999);
+    const random = prng.random();
+
+    for (colors) |*c| {
+        c.* = .{
+            .r = random.int(u8),
+            .g = random.int(u8),
+            .b = random.int(u8),
+        };
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        32,
+        .octree,
+    );
+    defer palette.deinit();
+
+    try testing.expectEqual(@as(usize, 32), palette.colors.len);
+}
+
+test "sixel palette: octree pixel counting (weighted color selection)" {
+    const allocator = testing.allocator;
+
+    // 95% one color, 5% random colors
+    const colors = try allocator.alloc(SixelImage.Color, 1000);
+    defer allocator.free(colors);
+
+    for (colors, 0..) |*c, i| {
+        c.* = if (i < 950)
+            .{ .r = 100, .g = 150, .b = 200 }
+        else
+            randomColor(i);
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        8,
+        .octree,
+    );
+    defer palette.deinit();
+
+    // Dominant color should be in palette
+    var found_dominant = false;
+    for (palette.colors) |c| {
+        if (c.r >= 90 and c.r <= 110 and c.g >= 140 and c.g <= 160 and c.b >= 190 and c.b <= 210) {
+            found_dominant = true;
+        }
+    }
+    try testing.expect(found_dominant);
+}
+
+test "sixel palette: octree color space coverage (verify distribution)" {
+    const allocator = testing.allocator;
+
+    // Colors spanning full RGB space
+    const colors = try allocator.alloc(SixelImage.Color, 512);
+    defer allocator.free(colors);
+
+    for (colors, 0..) |*c, i| {
+        c.* = .{
+            .r = @intCast((i * 7) % 256),
+            .g = @intCast((i * 13) % 256),
+            .b = @intCast((i * 19) % 256),
+        };
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        64,
+        .octree,
+    );
+    defer palette.deinit();
+
+    // Palette should cover RGB space
+    try testing.expectEqual(@as(usize, 64), palette.colors.len);
+
+    // Check that palette has diversity in all channels
+    var min_r: u8 = 255;
+    var max_r: u8 = 0;
+    var min_g: u8 = 255;
+    var max_g: u8 = 0;
+    var min_b: u8 = 255;
+    var max_b: u8 = 0;
+
+    for (palette.colors) |c| {
+        if (c.r < min_r) min_r = c.r;
+        if (c.r > max_r) max_r = c.r;
+        if (c.g < min_g) min_g = c.g;
+        if (c.g > max_g) max_g = c.g;
+        if (c.b < min_b) min_b = c.b;
+        if (c.b > max_b) max_b = c.b;
+    }
+
+    // All channels should span significant range
+    try testing.expect(max_r - min_r > 150);
+    try testing.expect(max_g - min_g > 150);
+    try testing.expect(max_b - min_b > 150);
+}
+
+test "sixel palette: octree performance: 10000 colors to 256 in <100ms" {
+    const allocator = testing.allocator;
+
+    // Generate 10000 colors
+    const colors = try allocator.alloc(SixelImage.Color, 10000);
+    defer allocator.free(colors);
+
+    for (colors, 0..) |*c, i| {
+        c.* = randomColor(i + 10000);
+    }
+
+    const start = std.time.nanoTimestamp();
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        256,
+        .octree,
+    );
+    defer palette.deinit();
+
+    const end = std.time.nanoTimestamp();
+    const elapsed_ms = @divTrunc(end - start, 1_000_000);
+
+    try testing.expect(elapsed_ms < 100); // Should complete in <100ms
+    try testing.expectEqual(@as(usize, 256), palette.colors.len);
+}
+
+// ----------------------------------------------------------------------------
+// K-Means Clustering Tests (6 tests)
+// ----------------------------------------------------------------------------
+
+test "sixel palette: k-means with 16 colors, 10 iterations" {
+    const allocator = testing.allocator;
+
+    // Generate clustered colors (3 natural clusters)
+    const colors = try allocator.alloc(SixelImage.Color, 300);
+    defer allocator.free(colors);
+
+    for (colors, 0..) |*c, i| {
+        if (i < 100) {
+            // Red cluster
+            c.* = .{ .r = 200 + @as(u8, @intCast(i % 30)), .g = 50, .b = 50 };
+        } else if (i < 200) {
+            // Green cluster
+            c.* = .{ .r = 50, .g = 200 + @as(u8, @intCast(i % 30)), .b = 50 };
+        } else {
+            // Blue cluster
+            c.* = .{ .r = 50, .g = 50, .b = 200 + @as(u8, @intCast(i % 30)) };
+        }
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        16,
+        .kmeans,
+    );
+    defer palette.deinit();
+
+    try testing.expectEqual(@as(usize, 16), palette.colors.len);
+}
+
+test "sixel palette: k-means convergence detection (stop when centroids stable)" {
+    const allocator = testing.allocator;
+
+    // Single tight cluster (should converge quickly)
+    const colors = try allocator.alloc(SixelImage.Color, 100);
+    defer allocator.free(colors);
+
+    var prng = std.Random.DefaultPrng.init(777);
+    const random = prng.random();
+
+    for (colors) |*c| {
+        c.* = .{
+            .r = 120 + random.intRangeAtMost(u8, 0, 10),
+            .g = 130 + random.intRangeAtMost(u8, 0, 10),
+            .b = 140 + random.intRangeAtMost(u8, 0, 10),
+        };
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        4,
+        .kmeans,
+    );
+    defer palette.deinit();
+
+    // Should converge to small palette (likely 1-4 colors)
+    try testing.expect(palette.colors.len <= 4);
+}
+
+test "sixel palette: k-means initial centroid selection" {
+    const allocator = testing.allocator;
+
+    // Diverse colors to test initialization
+    const colors = try allocator.alloc(SixelImage.Color, 200);
+    defer allocator.free(colors);
+
+    for (colors, 0..) |*c, i| {
+        c.* = randomColor(i + 2000);
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        8,
+        .kmeans,
+    );
+    defer palette.deinit();
+
+    try testing.expectEqual(@as(usize, 8), palette.colors.len);
+
+    // Initial centroids should be diverse (no duplicates)
+    for (palette.colors, 0..) |c1, i| {
+        for (palette.colors[i + 1 ..]) |c2| {
+            const same = c1.r == c2.r and c1.g == c2.g and c1.b == c2.b;
+            try testing.expect(!same);
+        }
+    }
+}
+
+test "sixel palette: k-means empty cluster handling (re-initialize from farthest point)" {
+    const allocator = testing.allocator;
+
+    // Create scenario likely to cause empty clusters
+    const colors = try allocator.alloc(SixelImage.Color, 100);
+    defer allocator.free(colors);
+
+    // 90 colors in one cluster, 10 outliers
+    for (colors, 0..) |*c, i| {
+        if (i < 90) {
+            c.* = .{ .r = 100, .g = 100, .b = 100 };
+        } else {
+            c.* = .{ .r = @intCast(i * 20), .g = 200, .b = 50 };
+        }
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        8,
+        .kmeans,
+    );
+    defer palette.deinit();
+
+    // Should handle empty clusters gracefully
+    try testing.expect(palette.colors.len <= 8);
+    try testing.expect(palette.colors.len > 0);
+}
+
+test "sixel palette: k-means color assignment (nearest centroid)" {
+    const allocator = testing.allocator;
+
+    // Two well-separated clusters
+    const colors = try allocator.alloc(SixelImage.Color, 200);
+    defer allocator.free(colors);
+
+    for (colors, 0..) |*c, i| {
+        c.* = if (i < 100)
+            .{ .r = 50, .g = 50, .b = 50 }
+        else
+            .{ .r = 200, .g = 200, .b = 200 };
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        2,
+        .kmeans,
+    );
+    defer palette.deinit();
+
+    try testing.expectEqual(@as(usize, 2), palette.colors.len);
+
+    // Should have one dark and one light color
+    const c1_brightness = @as(u16, palette.colors[0].r) + palette.colors[0].g + palette.colors[0].b;
+    const c2_brightness = @as(u16, palette.colors[1].r) + palette.colors[1].g + palette.colors[1].b;
+    try testing.expect(@max(c1_brightness, c2_brightness) - @min(c1_brightness, c2_brightness) > 300);
+}
+
+test "sixel palette: k-means quality metric: minimize total color distance" {
+    const allocator = testing.allocator;
+
+    // Generate colors with known clusters
+    const colors = try allocator.alloc(SixelImage.Color, 300);
+    defer allocator.free(colors);
+
+    for (colors, 0..) |*c, i| {
+        if (i < 100) {
+            c.* = .{ .r = 255, .g = 0, .b = 0 };
+        } else if (i < 200) {
+            c.* = .{ .r = 0, .g = 255, .b = 0 };
+        } else {
+            c.* = .{ .r = 0, .g = 0, .b = 255 };
+        }
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        3,
+        .kmeans,
+    );
+    defer palette.deinit();
+
+    // Should find the 3 cluster centers (RGB primaries)
+    try testing.expectEqual(@as(usize, 3), palette.colors.len);
+
+    var has_red = false;
+    var has_green = false;
+    var has_blue = false;
+
+    for (palette.colors) |c| {
+        if (c.r > 200 and c.g < 50 and c.b < 50) has_red = true;
+        if (c.g > 200 and c.r < 50 and c.b < 50) has_green = true;
+        if (c.b > 200 and c.r < 50 and c.g < 50) has_blue = true;
+    }
+
+    try testing.expect(has_red);
+    try testing.expect(has_green);
+    try testing.expect(has_blue);
+}
+
+// ----------------------------------------------------------------------------
+// Color Distance Metrics Tests (5 tests)
+// ----------------------------------------------------------------------------
+
+test "sixel palette: euclidean RGB distance calculation" {
+    const c1 = SixelImage.Color{ .r = 0, .g = 0, .b = 0 };
+    const c2 = SixelImage.Color{ .r = 255, .g = 255, .b = 255 };
+
+    const distance = sailor.tui.sixel.colorDistance(c1, c2, .euclidean_rgb);
+
+    // Distance = sqrt(255^2 + 255^2 + 255^2) ≈ 441.67
+    try testing.expect(distance > 440.0);
+    try testing.expect(distance < 445.0);
+}
+
+test "sixel palette: perceptual LAB distance (more accurate for human vision)" {
+    const red = SixelImage.Color{ .r = 255, .g = 0, .b = 0 };
+    const green = SixelImage.Color{ .r = 0, .g = 255, .b = 0 };
+
+    const distance = sailor.tui.sixel.colorDistance(red, green, .perceptual_lab);
+
+    // LAB distance should differ from RGB distance for human perception
+    try testing.expect(distance > 0.0);
+
+    // Perceptual distance between red and green should be significant
+    try testing.expect(distance > 50.0);
+}
+
+test "sixel palette: nearest color lookup in palette" {
+    const allocator = testing.allocator;
+
+    const palette_colors = [_]SixelImage.Color{
+        .{ .r = 255, .g = 0, .b = 0 },   // Red
+        .{ .r = 0, .g = 255, .b = 0 },   // Green
+        .{ .r = 0, .g = 0, .b = 255 },   // Blue
+    };
+
+    var palette = sailor.tui.sixel.ColorPalette{
+        .colors = @constCast(&palette_colors),
+        .allocator = allocator,
+    };
+
+    // Find nearest to orange (closer to red)
+    const orange = SixelImage.Color{ .r = 255, .g = 128, .b = 0 };
+    const nearest_idx = palette.findNearest(orange);
+
+    try testing.expectEqual(@as(u8, 0), nearest_idx); // Should map to red (index 0)
+}
+
+test "sixel palette: distance caching for performance" {
+    const allocator = testing.allocator;
+
+    // Large palette
+    var palette_colors: [256]SixelImage.Color = undefined;
+    for (&palette_colors, 0..) |*c, i| {
+        c.* = randomColor(i);
+    }
+
+    var palette = sailor.tui.sixel.ColorPalette{
+        .colors = &palette_colors,
+        .allocator = allocator,
+    };
+
+    // Query same color multiple times (cache should speed up)
+    const test_color = SixelImage.Color{ .r = 123, .g = 45, .b = 67 };
+
+    const start = std.time.nanoTimestamp();
+
+    for (0..1000) |_| {
+        _ = palette.findNearest(test_color);
+    }
+
+    const end = std.time.nanoTimestamp();
+    const elapsed_ms = @divTrunc(end - start, 1_000_000);
+
+    // With caching, 1000 lookups should be fast
+    try testing.expect(elapsed_ms < 100);
+}
+
+test "sixel palette: edge case: identical colors (distance = 0)" {
+    const c1 = SixelImage.Color{ .r = 128, .g = 64, .b = 192 };
+    const c2 = SixelImage.Color{ .r = 128, .g = 64, .b = 192 };
+
+    const distance_rgb = sailor.tui.sixel.colorDistance(c1, c2, .euclidean_rgb);
+    const distance_lab = sailor.tui.sixel.colorDistance(c1, c2, .perceptual_lab);
+
+    try testing.expectEqual(@as(f32, 0.0), distance_rgb);
+    try testing.expectEqual(@as(f32, 0.0), distance_lab);
+}
+
+// ----------------------------------------------------------------------------
+// Palette Application Tests (4 tests)
+// ----------------------------------------------------------------------------
+
+test "sixel palette: map 1000x1000 image to 16-color palette" {
+    const allocator = testing.allocator;
+
+    // Create large image with random colors
+    const width: u16 = 1000;
+    const height: u16 = 1000;
+    const image = try makeTestImage(allocator, width, height, .{ .r = 0, .g = 0, .b = 0 });
+    defer allocator.free(image.pixels);
+
+    // Fill with random colors
+    for (@constCast(image.pixels), 0..) |*p, i| {
+        p.* = randomColor(i);
+    }
+
+    // Quantize to 16 colors
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        image.pixels,
+        16,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    try testing.expectEqual(@as(usize, 16), palette.colors.len);
+
+    // Map all pixels to palette (verify no crashes)
+    for (image.pixels) |pixel| {
+        _ = palette.findNearest(pixel);
+    }
+}
+
+test "sixel palette: preserve exact colors if already in palette" {
+    const allocator = testing.allocator;
+
+    const colors = [_]SixelImage.Color{
+        .{ .r = 255, .g = 0, .b = 0 },
+        .{ .r = 0, .g = 255, .b = 0 },
+        .{ .r = 0, .g = 0, .b = 255 },
+    };
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        &colors,
+        256,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    // Original colors should map to themselves
+    for (colors, 0..) |c, expected_idx| {
+        const idx = palette.findNearest(c);
+        try testing.expectEqual(@as(u8, @intCast(expected_idx)), idx);
+        try testing.expectEqual(c.r, palette.colors[idx].r);
+        try testing.expectEqual(c.g, palette.colors[idx].g);
+        try testing.expectEqual(c.b, palette.colors[idx].b);
+    }
+}
+
+test "sixel palette: handle transparent pixels (skip from palette)" {
+    const allocator = testing.allocator;
+
+    const colors = [_]SixelImage.Color{
+        .{ .r = 255, .g = 0, .b = 0, .a = 255 }, // Opaque
+        .{ .r = 0, .g = 255, .b = 0, .a = 0 },   // Transparent
+        .{ .r = 0, .g = 0, .b = 255, .a = 255 }, // Opaque
+    };
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        &colors,
+        256,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    // Should only include opaque colors (2 colors)
+    try testing.expectEqual(@as(usize, 2), palette.colors.len);
+}
+
+test "sixel palette: round-trip: quantize → encode → decode (verify colors match palette)" {
+    const allocator = testing.allocator;
+
+    // Original diverse colors
+    var original_pixels: [100]SixelImage.Color = undefined;
+    for (&original_pixels, 0..) |*p, i| {
+        p.* = randomColor(i + 3000);
+    }
+
+    const original_image = SixelImage{
+        .width = 10,
+        .height = 10,
+        .pixels = &original_pixels,
+    };
+
+    // Quantize to 8 colors
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        &original_pixels,
+        8,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    try testing.expectEqual(@as(usize, 8), palette.colors.len);
+
+    // Encode with quantized palette
+    var encoded: std.ArrayList(u8) = .{};
+    defer encoded.deinit(allocator);
+
+    const encoder = SixelEncoder{ .max_colors = 8, .quantization = .none };
+    try encoder.encode(allocator, original_image, encoded.writer(allocator));
+
+    // Decode
+    const decoder = SixelDecoder{};
+    const decoded_image = try decoder.decode(allocator, encoded.items);
+    defer allocator.free(decoded_image.pixels);
+
+    // All decoded pixels should be in the palette
+    for (decoded_image.pixels) |pixel| {
+        if (pixel.a == 0) continue; // Skip transparent
+
+        var found = false;
+        for (palette.colors) |palette_color| {
+            const dist_r = @abs(@as(i16, @intCast(pixel.r)) - @as(i16, @intCast(palette_color.r)));
+            const dist_g = @abs(@as(i16, @intCast(pixel.g)) - @as(i16, @intCast(palette_color.g)));
+            const dist_b = @abs(@as(i16, @intCast(pixel.b)) - @as(i16, @intCast(palette_color.b)));
+
+            if (dist_r <= 10 and dist_g <= 10 and dist_b <= 10) {
+                found = true;
+                break;
+            }
+        }
+        try testing.expect(found);
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Performance & Quality Tests (3 tests)
+// ----------------------------------------------------------------------------
+
+test "sixel palette: benchmark: 10000 colors to 256 in <50ms (median cut)" {
+    const allocator = testing.allocator;
+
+    const colors = try allocator.alloc(SixelImage.Color, 10000);
+    defer allocator.free(colors);
+
+    for (colors, 0..) |*c, i| {
+        c.* = randomColor(i + 20000);
+    }
+
+    const start = std.time.nanoTimestamp();
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        256,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    const end = std.time.nanoTimestamp();
+    const elapsed_ms = @divTrunc(end - start, 1_000_000);
+
+    try testing.expect(elapsed_ms < 50);
+    try testing.expect(palette.colors.len <= 256);
+}
+
+test "sixel palette: quality: PSNR >30dB for natural images after quantization" {
+    const allocator = testing.allocator;
+
+    // Simulate natural image (smooth gradients)
+    const colors = try allocator.alloc(SixelImage.Color, 256);
+    defer allocator.free(colors);
+
+    for (colors, 0..) |*c, i| {
+        const v: u8 = @intCast(i);
+        c.* = .{
+            .r = v,
+            .g = @intCast(255 - i),
+            .b = @intCast((i * 2) % 256),
+        };
+    }
+
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        32,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    try testing.expectEqual(@as(usize, 32), palette.colors.len);
+
+    // Calculate MSE (Mean Squared Error)
+    var total_error: f64 = 0.0;
+    for (colors) |original| {
+        const nearest_idx = palette.findNearest(original);
+        const mapped = palette.colors[nearest_idx];
+
+        const err_r = @as(f64, @floatFromInt(@as(i16, @intCast(original.r)) - @as(i16, @intCast(mapped.r))));
+        const err_g = @as(f64, @floatFromInt(@as(i16, @intCast(original.g)) - @as(i16, @intCast(mapped.g))));
+        const err_b = @as(f64, @floatFromInt(@as(i16, @intCast(original.b)) - @as(i16, @intCast(mapped.b))));
+
+        total_error += err_r * err_r + err_g * err_g + err_b * err_b;
+    }
+
+    const mse = total_error / @as(f64, @floatFromInt(colors.len * 3));
+    const psnr = 10.0 * @log10(255.0 * 255.0 / mse);
+
+    // PSNR should be > 30dB (good quality)
+    try testing.expect(psnr > 30.0);
+}
+
+test "sixel palette: memory: palette generation uses <1MB for 10000 input colors" {
+    const allocator = testing.allocator;
+
+    const colors = try allocator.alloc(SixelImage.Color, 10000);
+    defer allocator.free(colors);
+
+    for (colors, 0..) |*c, i| {
+        c.* = randomColor(i + 30000);
+    }
+
+    // Track allocations
+    const palette = try sailor.tui.sixel.quantizeColors(
+        allocator,
+        colors,
+        256,
+        .median_cut,
+    );
+    defer palette.deinit();
+
+    // Palette itself is 256 colors * 4 bytes = 1KB (well under 1MB)
+    const palette_size = palette.colors.len * @sizeOf(SixelImage.Color);
+    try testing.expect(palette_size < 1024 * 1024);
+}

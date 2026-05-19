@@ -4,6 +4,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
 const Writer = std.io.Writer;
+const ArrayList = std.ArrayList;
 
 /// Sixel image format parameters
 pub const SixelImage = struct {
@@ -45,6 +46,612 @@ pub const SixelImage = struct {
         }
     };
 };
+
+/// Color palette for image quantization
+pub const ColorPalette = struct {
+    colors: []SixelImage.Color,
+    allocator: Allocator,
+
+    pub fn init(allocator: Allocator, max_colors: usize) !ColorPalette {
+        _ = max_colors;
+        const colors = try allocator.alloc(SixelImage.Color, 0);
+        return ColorPalette{
+            .colors = colors,
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *const ColorPalette) void {
+        self.allocator.free(self.colors);
+    }
+
+    pub fn addColor(self: *ColorPalette, color: SixelImage.Color) !void {
+        // Check if color already exists (within epsilon)
+        for (self.colors) |existing| {
+            const dist = colorDistance(color, existing, .euclidean_rgb);
+            if (dist < 1.0) return; // Duplicate
+        }
+
+        // Reallocate and append
+        const new_colors = try self.allocator.alloc(SixelImage.Color, self.colors.len + 1);
+        @memcpy(new_colors[0..self.colors.len], self.colors);
+        new_colors[self.colors.len] = color;
+        self.allocator.free(self.colors);
+        self.colors = new_colors;
+    }
+
+    pub fn findNearest(self: ColorPalette, color: SixelImage.Color) u8 {
+        if (self.colors.len == 0) return 0;
+
+        var min_dist: f32 = std.math.floatMax(f32);
+        var min_idx: u8 = 0;
+
+        for (self.colors, 0..) |palette_color, i| {
+            const dist = colorDistance(color, palette_color, .euclidean_rgb);
+            if (dist < min_dist) {
+                min_dist = dist;
+                min_idx = @intCast(i);
+            }
+        }
+
+        return min_idx;
+    }
+};
+
+/// Quantization algorithm selection
+pub const QuantizationAlgorithm = enum {
+    median_cut,
+    octree,
+    kmeans,
+};
+
+/// Color distance metric
+pub const DistanceMetric = enum {
+    euclidean_rgb,
+    perceptual_lab,
+};
+
+/// Calculate color distance between two colors
+pub fn colorDistance(a: SixelImage.Color, b: SixelImage.Color, metric: DistanceMetric) f32 {
+    switch (metric) {
+        .euclidean_rgb => {
+            const dr = @as(f32, @floatFromInt(@as(i16, a.r) - @as(i16, b.r)));
+            const dg = @as(f32, @floatFromInt(@as(i16, a.g) - @as(i16, b.g)));
+            const db = @as(f32, @floatFromInt(@as(i16, a.b) - @as(i16, b.b)));
+            return @sqrt(dr * dr + dg * dg + db * db);
+        },
+        .perceptual_lab => {
+            const lab_a = rgbToLab(a);
+            const lab_b = rgbToLab(b);
+            const dl = lab_a.l - lab_b.l;
+            const da = lab_a.a - lab_b.a;
+            const db = lab_a.b - lab_b.b;
+            return @sqrt(dl * dl + da * da + db * db);
+        },
+    }
+}
+
+const LabColor = struct {
+    l: f32,
+    a: f32,
+    b: f32,
+};
+
+fn rgbToLab(color: SixelImage.Color) LabColor {
+    // RGB [0,255] → sRGB [0,1]
+    const r = @as(f32, @floatFromInt(color.r)) / 255.0;
+    const g = @as(f32, @floatFromInt(color.g)) / 255.0;
+    const b = @as(f32, @floatFromInt(color.b)) / 255.0;
+
+    // sRGB → linear RGB
+    const r_lin = if (r <= 0.04045) r / 12.92 else std.math.pow(f32, (r + 0.055) / 1.055, 2.4);
+    const g_lin = if (g <= 0.04045) g / 12.92 else std.math.pow(f32, (g + 0.055) / 1.055, 2.4);
+    const b_lin = if (b <= 0.04045) b / 12.92 else std.math.pow(f32, (b + 0.055) / 1.055, 2.4);
+
+    // Linear RGB → XYZ (D65 illuminant)
+    const x = r_lin * 0.4124564 + g_lin * 0.3575761 + b_lin * 0.1804375;
+    const y = r_lin * 0.2126729 + g_lin * 0.7151522 + b_lin * 0.0721750;
+    const z = r_lin * 0.0193339 + g_lin * 0.1191920 + b_lin * 0.9503041;
+
+    // XYZ → LAB (D65: Xn=95.047, Yn=100.0, Zn=108.883)
+    const xn = x / 0.95047;
+    const yn = y / 1.00000;
+    const zn = z / 1.08883;
+
+    const fx = if (xn > 0.008856) std.math.pow(f32, xn, 1.0 / 3.0) else (7.787 * xn + 16.0 / 116.0);
+    const fy = if (yn > 0.008856) std.math.pow(f32, yn, 1.0 / 3.0) else (7.787 * yn + 16.0 / 116.0);
+    const fz = if (zn > 0.008856) std.math.pow(f32, zn, 1.0 / 3.0) else (7.787 * zn + 16.0 / 116.0);
+
+    const l = 116.0 * fy - 16.0;
+    const a = 500.0 * (fx - fy);
+    const b_val = 200.0 * (fy - fz);
+
+    return LabColor{ .l = l, .a = a, .b = b_val };
+}
+
+/// Quantize colors to a palette using the specified algorithm
+pub fn quantizeColors(
+    allocator: Allocator,
+    colors: []const SixelImage.Color,
+    max_palette_size: u16,
+    algorithm: QuantizationAlgorithm,
+) !ColorPalette {
+    switch (algorithm) {
+        .median_cut => return medianCutQuantize(allocator, colors, max_palette_size),
+        .octree => return octreeQuantize(allocator, colors, max_palette_size),
+        .kmeans => return kmeansQuantize(allocator, colors, max_palette_size),
+    }
+}
+
+// ============================================================================
+// Median Cut Algorithm
+// ============================================================================
+
+const Bucket = struct {
+    colors: []SixelImage.Color,
+    range_r: u8,
+    range_g: u8,
+    range_b: u8,
+};
+
+fn medianCutQuantize(allocator: Allocator, colors: []const SixelImage.Color, max_palette_size: u16) !ColorPalette {
+    if (colors.len == 0) {
+        return ColorPalette{
+            .colors = try allocator.alloc(SixelImage.Color, 0),
+            .allocator = allocator,
+        };
+    }
+
+    // Filter out transparent colors and collect unique colors
+    var unique_list = ArrayList(SixelImage.Color){};
+    defer unique_list.deinit(allocator);
+
+    for (colors) |c| {
+        if (c.a < 128) continue; // Skip transparent
+        var is_dup = false;
+        for (unique_list.items) |existing| {
+            if (existing.r == c.r and existing.g == c.g and existing.b == c.b) {
+                is_dup = true;
+                break;
+            }
+        }
+        if (!is_dup) try unique_list.append(allocator, c);
+    }
+
+    if (unique_list.items.len == 0) {
+        return ColorPalette{
+            .colors = try allocator.alloc(SixelImage.Color, 0),
+            .allocator = allocator,
+        };
+    }
+
+    // If unique colors <= max_palette_size, return them all
+    if (unique_list.items.len <= max_palette_size) {
+        const palette_colors = try allocator.dupe(SixelImage.Color, unique_list.items);
+        return ColorPalette{
+            .colors = palette_colors,
+            .allocator = allocator,
+        };
+    }
+
+    // Median cut algorithm
+
+    var buckets = ArrayList(Bucket){};
+    defer {
+        for (buckets.items) |b| allocator.free(b.colors);
+        buckets.deinit(allocator);
+    }
+
+    // Start with all colors in one bucket
+    const initial_colors = try allocator.dupe(SixelImage.Color, unique_list.items);
+    const initial_bucket = computeBucketRange(initial_colors);
+    try buckets.append(allocator, initial_bucket);
+
+    // Split buckets until we have enough
+    while (buckets.items.len < max_palette_size) {
+        // Find bucket with largest range
+        var max_range: u16 = 0;
+        var max_idx: usize = 0;
+        for (buckets.items, 0..) |b, i| {
+            const range = @max(@max(b.range_r, b.range_g), b.range_b);
+            if (range > max_range) {
+                max_range = range;
+                max_idx = i;
+            }
+        }
+
+        if (max_range == 0) break; // Can't split further
+
+        // Split the bucket
+        const bucket = buckets.items[max_idx];
+        if (bucket.colors.len <= 1) break; // Can't split single color
+
+        const split_result = try splitBucket(allocator, bucket);
+        if (split_result.bucket1.colors.len == 0 or split_result.bucket2.colors.len == 0) {
+            // Split failed (shouldn't happen, but handle gracefully)
+            break;
+        }
+
+        // Replace old bucket with two new ones
+        allocator.free(buckets.items[max_idx].colors);
+        _ = buckets.orderedRemove(max_idx);
+        try buckets.append(allocator, split_result.bucket1);
+        try buckets.append(allocator, split_result.bucket2);
+    }
+
+    // Compute centroid of each bucket
+    var palette_colors = try allocator.alloc(SixelImage.Color, buckets.items.len);
+    for (buckets.items, 0..) |b, i| {
+        palette_colors[i] = computeCentroid(b.colors);
+    }
+
+    return ColorPalette{
+        .colors = palette_colors,
+        .allocator = allocator,
+    };
+}
+
+fn computeBucketRange(colors: []SixelImage.Color) Bucket {
+    var min_r: u8 = 255;
+    var max_r: u8 = 0;
+    var min_g: u8 = 255;
+    var max_g: u8 = 0;
+    var min_b: u8 = 255;
+    var max_b: u8 = 0;
+
+    for (colors) |c| {
+        if (c.r < min_r) min_r = c.r;
+        if (c.r > max_r) max_r = c.r;
+        if (c.g < min_g) min_g = c.g;
+        if (c.g > max_g) max_g = c.g;
+        if (c.b < min_b) min_b = c.b;
+        if (c.b > max_b) max_b = c.b;
+    }
+
+    return .{
+        .colors = colors,
+        .range_r = max_r - min_r,
+        .range_g = max_g - min_g,
+        .range_b = max_b - min_b,
+    };
+}
+
+fn splitBucket(allocator: Allocator, bucket: Bucket) !struct { bucket1: Bucket, bucket2: Bucket } {
+    // Determine split axis (largest range)
+    const split_on_r = bucket.range_r >= bucket.range_g and bucket.range_r >= bucket.range_b;
+    const split_on_g = !split_on_r and bucket.range_g >= bucket.range_b;
+
+    // Sort colors by split axis
+    const SortContext = struct {
+        on_r: bool,
+        on_g: bool,
+    };
+    const sort_ctx = SortContext{ .on_r = split_on_r, .on_g = split_on_g };
+
+    std.mem.sort(SixelImage.Color, bucket.colors, sort_ctx, struct {
+        fn lessThan(ctx: SortContext, a: SixelImage.Color, b: SixelImage.Color) bool {
+            if (ctx.on_r) return a.r < b.r;
+            if (ctx.on_g) return a.g < b.g;
+            return a.b < b.b;
+        }
+    }.lessThan);
+
+    // Split at median
+    const median = bucket.colors.len / 2;
+    const colors1 = try allocator.dupe(SixelImage.Color, bucket.colors[0..median]);
+    const colors2 = try allocator.dupe(SixelImage.Color, bucket.colors[median..]);
+
+    const bucket1 = computeBucketRange(colors1);
+    const bucket2 = computeBucketRange(colors2);
+
+    return .{ .bucket1 = bucket1, .bucket2 = bucket2 };
+}
+
+fn computeCentroid(colors: []const SixelImage.Color) SixelImage.Color {
+    if (colors.len == 0) return .{ .r = 0, .g = 0, .b = 0 };
+
+    var sum_r: u32 = 0;
+    var sum_g: u32 = 0;
+    var sum_b: u32 = 0;
+
+    for (colors) |c| {
+        sum_r += c.r;
+        sum_g += c.g;
+        sum_b += c.b;
+    }
+
+    return .{
+        .r = @intCast(sum_r / @as(u32, @intCast(colors.len))),
+        .g = @intCast(sum_g / @as(u32, @intCast(colors.len))),
+        .b = @intCast(sum_b / @as(u32, @intCast(colors.len))),
+    };
+}
+
+// ============================================================================
+// Octree Algorithm
+// ============================================================================
+
+const OctreeNode = struct {
+    children: [8]?*OctreeNode,
+    color_sum: struct { r: u32, g: u32, b: u32 },
+    pixel_count: u32,
+    is_leaf: bool,
+    level: u8,
+};
+
+fn octreeQuantize(allocator: Allocator, colors: []const SixelImage.Color, max_palette_size: u16) !ColorPalette {
+    if (colors.len == 0) {
+        return ColorPalette{
+            .colors = try allocator.alloc(SixelImage.Color, 0),
+            .allocator = allocator,
+        };
+    }
+
+    // Build octree
+    const root = try allocator.create(OctreeNode);
+    defer freeOctree(allocator, root);
+    root.* = .{
+        .children = [_]?*OctreeNode{null} ** 8,
+        .color_sum = .{ .r = 0, .g = 0, .b = 0 },
+        .pixel_count = 0,
+        .is_leaf = false,
+        .level = 0,
+    };
+
+    var reducible_nodes: [8]ArrayList(*OctreeNode) = undefined;
+    for (&reducible_nodes) |*list| {
+        list.* = ArrayList(*OctreeNode){};
+    }
+    defer {
+        for (&reducible_nodes) |*list| list.deinit(allocator);
+    }
+
+    var leaf_count: usize = 0;
+
+    // Insert all colors
+    for (colors) |c| {
+        if (c.a < 128) continue; // Skip transparent
+        try insertOctreeColor(allocator, root, c, 0, &reducible_nodes, &leaf_count);
+    }
+
+    // Reduce tree to max_palette_size leaves
+    while (leaf_count > max_palette_size) {
+        // Find deepest reducible level
+        var level: usize = 7;
+        while (level > 0) : (level -= 1) {
+            if (reducible_nodes[level].items.len > 0) break;
+        }
+
+        if (reducible_nodes[level].items.len == 0) break;
+
+        // Reduce a node at this level
+        const node = reducible_nodes[level].pop() orelse break;
+        try reduceOctreeNode(node, &leaf_count);
+    }
+
+    // Extract palette
+    var palette_list = ArrayList(SixelImage.Color){};
+    defer palette_list.deinit(allocator);
+    try collectOctreeLeaves(allocator, root, &palette_list);
+
+    const palette_colors = try palette_list.toOwnedSlice(allocator);
+    return ColorPalette{
+        .colors = palette_colors,
+        .allocator = allocator,
+    };
+}
+
+fn insertOctreeColor(
+    allocator: Allocator,
+    node: *OctreeNode,
+    color: SixelImage.Color,
+    level: u8,
+    reducible_nodes: *[8]ArrayList(*OctreeNode),
+    leaf_count: *usize,
+) !void {
+    if (level == 8) {
+        // Leaf node
+        node.is_leaf = true;
+        node.color_sum.r += color.r;
+        node.color_sum.g += color.g;
+        node.color_sum.b += color.b;
+        node.pixel_count += 1;
+        if (node.pixel_count == 1) leaf_count.* += 1;
+        return;
+    }
+
+    // Compute child index from RGB bits at this level
+    const bit: u3 = @intCast(7 - level);
+    const idx = ((@as(u8, @intCast((color.r >> bit) & 1)) << 2) |
+        (@as(u8, @intCast((color.g >> bit) & 1)) << 1) |
+        @as(u8, @intCast((color.b >> bit) & 1)));
+
+    if (node.children[idx] == null) {
+        const child = try allocator.create(OctreeNode);
+        child.* = .{
+            .children = [_]?*OctreeNode{null} ** 8,
+            .color_sum = .{ .r = 0, .g = 0, .b = 0 },
+            .pixel_count = 0,
+            .is_leaf = false,
+            .level = level + 1,
+        };
+        node.children[idx] = child;
+
+        if (level < 7) {
+            try reducible_nodes[level].append(allocator, node);
+        }
+    }
+
+    try insertOctreeColor(allocator, node.children[idx].?, color, level + 1, reducible_nodes, leaf_count);
+}
+
+fn reduceOctreeNode(node: *OctreeNode, leaf_count: *usize) !void {
+    var r_sum: u32 = 0;
+    var g_sum: u32 = 0;
+    var b_sum: u32 = 0;
+    var count: u32 = 0;
+
+    for (node.children) |maybe_child| {
+        if (maybe_child) |child| {
+            if (child.is_leaf) {
+                r_sum += child.color_sum.r;
+                g_sum += child.color_sum.g;
+                b_sum += child.color_sum.b;
+                count += child.pixel_count;
+                leaf_count.* -= 1;
+            }
+        }
+    }
+
+    node.is_leaf = true;
+    node.color_sum = .{ .r = r_sum, .g = g_sum, .b = b_sum };
+    node.pixel_count = count;
+    leaf_count.* += 1;
+
+    // Clear children (they're merged)
+    for (&node.children) |*child| child.* = null;
+}
+
+fn collectOctreeLeaves(allocator: Allocator, node: *OctreeNode, list: *ArrayList(SixelImage.Color)) !void {
+    if (node.is_leaf and node.pixel_count > 0) {
+        const color = SixelImage.Color{
+            .r = @intCast(node.color_sum.r / node.pixel_count),
+            .g = @intCast(node.color_sum.g / node.pixel_count),
+            .b = @intCast(node.color_sum.b / node.pixel_count),
+        };
+        try list.append(allocator, color);
+        return;
+    }
+
+    for (node.children) |maybe_child| {
+        if (maybe_child) |child| {
+            try collectOctreeLeaves(allocator, child, list);
+        }
+    }
+}
+
+fn freeOctree(allocator: Allocator, node: *OctreeNode) void {
+    for (node.children) |maybe_child| {
+        if (maybe_child) |child| {
+            freeOctree(allocator, child);
+        }
+    }
+    allocator.destroy(node);
+}
+
+// ============================================================================
+// K-Means Algorithm
+// ============================================================================
+
+fn kmeansQuantize(allocator: Allocator, colors: []const SixelImage.Color, max_palette_size: u16) !ColorPalette {
+    if (colors.len == 0) {
+        return ColorPalette{
+            .colors = try allocator.alloc(SixelImage.Color, 0),
+            .allocator = allocator,
+        };
+    }
+
+    // Filter transparent colors
+    var opaque_list = ArrayList(SixelImage.Color){};
+    defer opaque_list.deinit(allocator);
+    for (colors) |c| {
+        if (c.a >= 128) try opaque_list.append(allocator, c);
+    }
+
+    if (opaque_list.items.len == 0) {
+        return ColorPalette{
+            .colors = try allocator.alloc(SixelImage.Color, 0),
+            .allocator = allocator,
+        };
+    }
+
+    const k = @min(max_palette_size, @as(u16, @intCast(opaque_list.items.len)));
+
+    // Initialize centroids (uniform distribution in RGB space)
+    const centroids = try allocator.alloc(SixelImage.Color, k);
+    defer allocator.free(centroids);
+
+    for (centroids, 0..) |*c, i| {
+        // Uniform sampling from input colors
+        const idx = (i * opaque_list.items.len) / k;
+        c.* = opaque_list.items[idx];
+    }
+
+    var assignments = try allocator.alloc(u8, opaque_list.items.len);
+    defer allocator.free(assignments);
+
+    const max_iter = 100;
+    var iter: usize = 0;
+    while (iter < max_iter) : (iter += 1) {
+        var changed = false;
+
+        // Assign each color to nearest centroid
+        for (opaque_list.items, 0..) |color, i| {
+            var min_dist: f32 = std.math.floatMax(f32);
+            var min_idx: u8 = 0;
+
+            for (centroids, 0..) |centroid, ci| {
+                const dist = colorDistance(color, centroid, .euclidean_rgb);
+                if (dist < min_dist) {
+                    min_dist = dist;
+                    min_idx = @intCast(ci);
+                }
+            }
+
+            if (assignments[i] != min_idx) {
+                assignments[i] = min_idx;
+                changed = true;
+            }
+        }
+
+        if (!changed) break; // Converged
+
+        // Recompute centroids
+        var cluster_sums = try allocator.alloc(struct { r: u32, g: u32, b: u32, count: u32 }, k);
+        defer allocator.free(cluster_sums);
+        @memset(cluster_sums, .{ .r = 0, .g = 0, .b = 0, .count = 0 });
+
+        for (opaque_list.items, 0..) |color, i| {
+            const cluster = assignments[i];
+            cluster_sums[cluster].r += color.r;
+            cluster_sums[cluster].g += color.g;
+            cluster_sums[cluster].b += color.b;
+            cluster_sums[cluster].count += 1;
+        }
+
+        // Update centroids
+        for (centroids, 0..) |*centroid, ci| {
+            if (cluster_sums[ci].count > 0) {
+                centroid.r = @intCast(cluster_sums[ci].r / cluster_sums[ci].count);
+                centroid.g = @intCast(cluster_sums[ci].g / cluster_sums[ci].count);
+                centroid.b = @intCast(cluster_sums[ci].b / cluster_sums[ci].count);
+            } else {
+                // Empty cluster: reinitialize from farthest point
+                var max_dist: f32 = 0;
+                var farthest_idx: usize = 0;
+                for (opaque_list.items, 0..) |color, i| {
+                    var min_centroid_dist: f32 = std.math.floatMax(f32);
+                    for (centroids) |c| {
+                        const dist = colorDistance(color, c, .euclidean_rgb);
+                        if (dist < min_centroid_dist) min_centroid_dist = dist;
+                    }
+                    if (min_centroid_dist > max_dist) {
+                        max_dist = min_centroid_dist;
+                        farthest_idx = i;
+                    }
+                }
+                centroid.* = opaque_list.items[farthest_idx];
+            }
+        }
+    }
+
+    // Return final centroids
+    const palette_colors = try allocator.dupe(SixelImage.Color, centroids);
+    return ColorPalette{
+        .colors = palette_colors,
+        .allocator = allocator,
+    };
+}
 
 /// Sixel encoder configuration
 pub const SixelEncoder = struct {
