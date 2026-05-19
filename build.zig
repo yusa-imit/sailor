@@ -457,6 +457,14 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    const sixel_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/sixel_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
     // TODO: Re-enable migration tests after updating for v2.0.0 scope
     // (removed Color/Constraint simplification patterns)
     // const migration_script_tests = b.addTest(.{
@@ -520,6 +528,7 @@ pub fn build(b: *std.Build) void {
     smart_autocomplete_tests.root_module.addImport("sailor", sailor_module_for_tests);
     layout_intelligence_tests.root_module.addImport("sailor", sailor_module_for_tests);
     natural_language_commands_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    sixel_tests.root_module.addImport("sailor", sailor_module_for_tests);
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&b.addRunArtifact(lib_tests).step);
@@ -574,6 +583,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(smart_autocomplete_tests).step);
     test_step.dependOn(&b.addRunArtifact(layout_intelligence_tests).step);
     test_step.dependOn(&b.addRunArtifact(natural_language_commands_tests).step);
+    test_step.dependOn(&b.addRunArtifact(sixel_tests).step);
     // test_step.dependOn(&b.addRunArtifact(migration_script_tests).step); // Disabled for v2.0.0 work
 
     // Benchmark executable

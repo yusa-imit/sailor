@@ -221,6 +221,174 @@ pub const SixelEncoder = struct {
     }
 };
 
+/// Sixel decoder for parsing Sixel sequences back into images
+pub const SixelDecoder = struct {
+    /// Maximum allowed image width (prevents DoS via huge allocations)
+    max_width: u16 = 4096,
+
+    /// Maximum allowed image height
+    max_height: u16 = 4096,
+
+    /// Decode a Sixel sequence into an image
+    pub fn decode(self: SixelDecoder, allocator: Allocator, data: []const u8) !SixelImage {
+        // Validate Sixel sequence markers
+        if (data.len < 5) return error.InvalidSixelFormat;
+        if (!std.mem.startsWith(u8, data, "\x1bPq")) return error.InvalidSixelFormat;
+        if (!std.mem.endsWith(u8, data, "\x1b\\")) return error.InvalidSixelFormat;
+
+        // Extract payload (strip \x1bPq and \x1b\)
+        const payload = data[3 .. data.len - 2];
+
+        // Parse raster attributes: "Pan;Pad;Ph;Pv (width=Ph, height=Pv)
+        var width: u16 = 0;
+        var height: u16 = 0;
+        var pos: usize = 0;
+
+        if (std.mem.indexOfScalar(u8, payload, '"')) |raster_start| {
+            pos = raster_start + 1;
+
+            // Find end of raster attributes (first non-digit/semicolon char)
+            var raster_end = pos;
+            while (raster_end < payload.len) : (raster_end += 1) {
+                const c = payload[raster_end];
+                if (c != ';' and (c < '0' or c > '9')) break;
+            }
+
+            const raster_str = payload[pos..raster_end];
+            var attr_parts = std.mem.tokenizeScalar(u8, raster_str, ';');
+
+            // Skip Pan (aspect ratio) parameters if present
+            _ = attr_parts.next() orelse return error.InvalidRasterAttributes;
+            _ = attr_parts.next() orelse return error.InvalidRasterAttributes;
+
+            // Parse width and height
+            const width_str = attr_parts.next() orelse return error.InvalidRasterAttributes;
+            const height_str = attr_parts.next() orelse return error.InvalidRasterAttributes;
+
+            width = std.fmt.parseInt(u16, width_str, 10) catch return error.InvalidRasterAttributes;
+            height = std.fmt.parseInt(u16, height_str, 10) catch return error.InvalidRasterAttributes;
+
+            // Validate dimensions
+            if (width == 0 or height == 0) return error.InvalidDimensions;
+            if (width > self.max_width or height > self.max_height) return error.DimensionsTooLarge;
+
+            pos = raster_end;
+        } else {
+            return error.InvalidRasterAttributes;
+        }
+
+        // Allocate pixel buffer (initialized to transparent black)
+        const pixel_count = @as(usize, width) * @as(usize, height);
+        const pixels = try allocator.alloc(SixelImage.Color, pixel_count);
+        errdefer allocator.free(pixels);
+        @memset(pixels, .{ .r = 0, .g = 0, .b = 0, .a = 0 }); // Transparent by default
+
+        // Parse color palette and pixel data
+        var palette: [256]SixelImage.Color = undefined;
+        var current_color: u8 = 0;
+        var x: u16 = 0;
+        var y: u16 = 0; // Current sixel row (6-pixel units)
+
+        while (pos < payload.len) {
+            const c = payload[pos];
+            pos += 1;
+
+            switch (c) {
+                '#' => {
+                    // Color definition or selection: #index;2;r;g;b OR #index
+                    const semicolon1 = std.mem.indexOfScalarPos(u8, payload, pos, ';') orelse {
+                        // Just color selection: #index (no semicolon)
+                        const num_end = pos;
+                        while (num_end < payload.len and payload[num_end] >= '0' and payload[num_end] <= '9') : (pos += 1) {}
+                        const index_str = payload[pos - 1 .. num_end];
+                        current_color = std.fmt.parseInt(u8, index_str, 10) catch return error.InvalidColorDefinition;
+                        continue;
+                    };
+
+                    const index_str = payload[pos..semicolon1];
+                    const color_index = std.fmt.parseInt(u8, index_str, 10) catch return error.InvalidColorDefinition;
+                    pos = semicolon1 + 1;
+
+                    // Check if this is a definition (";2;r;g;b") or just selection
+                    if (pos < payload.len and payload[pos] == '2') {
+                        pos += 1; // Skip '2'
+                        if (pos >= payload.len or payload[pos] != ';') return error.InvalidColorDefinition;
+                        pos += 1; // Skip ';'
+
+                        // Parse R
+                        const semicolon2 = std.mem.indexOfScalarPos(u8, payload, pos, ';') orelse return error.InvalidColorDefinition;
+                        const r_str = payload[pos..semicolon2];
+                        const r_val = std.fmt.parseInt(u16, r_str, 10) catch return error.InvalidColorDefinition;
+                        if (r_val > 100) return error.ColorValueOutOfRange;
+                        pos = semicolon2 + 1;
+
+                        // Parse G
+                        const semicolon3 = std.mem.indexOfScalarPos(u8, payload, pos, ';') orelse return error.InvalidColorDefinition;
+                        const g_str = payload[pos..semicolon3];
+                        const g_val = std.fmt.parseInt(u16, g_str, 10) catch return error.InvalidColorDefinition;
+                        if (g_val > 100) return error.ColorValueOutOfRange;
+                        pos = semicolon3 + 1;
+
+                        // Parse B (may end with any non-digit char)
+                        var b_end = pos;
+                        while (b_end < payload.len and payload[b_end] >= '0' and payload[b_end] <= '9') : (b_end += 1) {}
+                        const b_str = payload[pos..b_end];
+                        const b_val = std.fmt.parseInt(u16, b_str, 10) catch return error.InvalidColorDefinition;
+                        if (b_val > 100) return error.ColorValueOutOfRange;
+                        pos = b_end;
+
+                        // Scale from 0-100 to 0-255
+                        palette[color_index] = .{
+                            .r = @intCast(r_val * 255 / 100),
+                            .g = @intCast(g_val * 255 / 100),
+                            .b = @intCast(b_val * 255 / 100),
+                            .a = 255,
+                        };
+                    }
+
+                    current_color = color_index;
+                },
+                '$' => {
+                    // Carriage return (move to start of current sixel row)
+                    x = 0;
+                },
+                '-' => {
+                    // Line feed (move to next sixel row)
+                    y += 1;
+                    x = 0;
+                },
+                '?' ... '~' => {
+                    // Sixel data: '?' (0x3f) represents 0, '~' (0x7e) represents 63
+                    const sixel_value = c - 0x3f;
+
+                    // Decode 6 vertical pixels
+                    var bit: u8 = 0;
+                    while (bit < 6) : (bit += 1) {
+                        if ((sixel_value & (@as(u8, 1) << @as(u3, @intCast(bit)))) != 0) {
+                            const pixel_y = y * 6 + bit;
+                            if (pixel_y < height and x < width) {
+                                const pixel_idx = @as(usize, pixel_y) * width + x;
+                                pixels[pixel_idx] = palette[current_color];
+                            }
+                        }
+                    }
+
+                    x += 1;
+                },
+                else => {
+                    // Ignore other characters (whitespace, unknown control codes)
+                },
+            }
+        }
+
+        return SixelImage{
+            .width = width,
+            .height = height,
+            .pixels = pixels,
+        };
+    }
+};
+
 /// Detect if terminal supports Sixel graphics
 pub fn detectSixelSupport() bool {
     const term_mod = @import("../term.zig");
