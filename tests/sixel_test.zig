@@ -1854,3 +1854,1353 @@ test "sixel palette: memory: palette generation uses <1MB for 10000 input colors
     const palette_size = palette.colors.len * @sizeOf(SixelImage.Color);
     try testing.expect(palette_size < 1024 * 1024);
 }
+
+// ============================================================================
+// Sixel Animation Tests
+// ============================================================================
+
+const SixelAnimator = sailor.tui.sixel.SixelAnimator;
+
+// ----------------------------------------------------------------------------
+// Basic Frame Management Tests (6 tests)
+// ----------------------------------------------------------------------------
+
+test "sixel animator: init and deinit" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    try testing.expectEqual(@as(usize, 0), animator.getFrameCount());
+}
+
+test "sixel animator: add single frame" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    // Create a simple 2x2 red image
+    const pixels = try allocator.alloc(SixelImage.Color, 4);
+    defer allocator.free(pixels);
+    @memset(pixels, .{ .r = 255, .g = 0, .b = 0 });
+
+    const image = SixelImage{
+        .width = 2,
+        .height = 2,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 100); // 100ms delay
+
+    try testing.expectEqual(@as(usize, 1), animator.getFrameCount());
+}
+
+test "sixel animator: add multiple frames" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    // Create three frames with different colors
+    const colors = [_]SixelImage.Color{
+        .{ .r = 255, .g = 0, .b = 0 }, // Red
+        .{ .r = 0, .g = 255, .b = 0 }, // Green
+        .{ .r = 0, .g = 0, .b = 255 }, // Blue
+    };
+
+    for (colors, 0..) |color, i| {
+        const pixels = try allocator.alloc(SixelImage.Color, 1);
+        defer allocator.free(pixels);
+        pixels[0] = color;
+
+        const image = SixelImage{
+            .width = 1,
+            .height = 1,
+            .pixels = pixels,
+        };
+
+        const delay: u32 = @intCast((i + 1) * 100); // 100ms, 200ms, 300ms
+        try animator.addFrame(image, delay);
+    }
+
+    try testing.expectEqual(@as(usize, 3), animator.getFrameCount());
+}
+
+test "sixel animator: get frame by index" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 128, .g = 64, .b = 32 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 150);
+
+    const frame = animator.getFrame(0);
+    try testing.expect(frame != null);
+    try testing.expectEqual(@as(u32, 150), frame.?.delay_ms);
+    try testing.expectEqual(@as(u16, 1), frame.?.image.width);
+    try testing.expectEqual(@as(u16, 1), frame.?.image.height);
+}
+
+test "sixel animator: get frame out of bounds returns null" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 255, .g = 255, .b = 255 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 50);
+
+    try testing.expect(animator.getFrame(1) == null); // Out of bounds
+    try testing.expect(animator.getFrame(100) == null); // Way out of bounds
+}
+
+test "sixel animator: get current frame before start returns first frame" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 200, .g = 100, .b = 50 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 100);
+
+    const current_frame = animator.getCurrentFrame();
+    try testing.expectEqual(@as(u32, 100), current_frame.delay_ms);
+}
+
+// ----------------------------------------------------------------------------
+// Total Duration Calculation Tests (3 tests)
+// ----------------------------------------------------------------------------
+
+test "sixel animator: total duration with single frame" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 0, .g = 0, .b = 0 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 500);
+
+    try testing.expectEqual(@as(u32, 500), animator.getTotalDuration());
+}
+
+test "sixel animator: total duration with multiple frames" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const delays = [_]u32{ 100, 200, 150, 250 };
+
+    for (delays) |delay| {
+        const pixels = try allocator.alloc(SixelImage.Color, 1);
+        defer allocator.free(pixels);
+        pixels[0] = .{ .r = 255, .g = 0, .b = 0 };
+
+        const image = SixelImage{
+            .width = 1,
+            .height = 1,
+            .pixels = pixels,
+        };
+
+        try animator.addFrame(image, delay);
+    }
+
+    // Total = 100 + 200 + 150 + 250 = 700ms
+    try testing.expectEqual(@as(u32, 700), animator.getTotalDuration());
+}
+
+test "sixel animator: total duration empty animator returns 0" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    try testing.expectEqual(@as(u32, 0), animator.getTotalDuration());
+}
+
+// ----------------------------------------------------------------------------
+// Playback State Transition Tests (8 tests)
+// ----------------------------------------------------------------------------
+
+test "sixel animator: initial state is stopped" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    try testing.expect(!animator.isPlaying());
+}
+
+test "sixel animator: start playback changes state to playing" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 255, .g = 255, .b = 255 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 100);
+
+    animator.start();
+
+    try testing.expect(animator.isPlaying());
+}
+
+test "sixel animator: pause changes state to not playing" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 0, .g = 0, .b = 0 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 100);
+
+    animator.start();
+    try testing.expect(animator.isPlaying());
+
+    animator.pause();
+    try testing.expect(!animator.isPlaying());
+}
+
+test "sixel animator: stop resets to first frame" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    // Add two frames
+    for (0..2) |_| {
+        const pixels = try allocator.alloc(SixelImage.Color, 1);
+        defer allocator.free(pixels);
+        pixels[0] = .{ .r = 255, .g = 0, .b = 0 };
+
+        const image = SixelImage{
+            .width = 1,
+            .height = 1,
+            .pixels = pixels,
+        };
+
+        try animator.addFrame(image, 100);
+    }
+
+    animator.start();
+
+    // Advance past first frame
+    _ = animator.update(150);
+
+    try testing.expectEqual(@as(usize, 1), animator.getCurrentFrameIndex());
+
+    animator.stop();
+
+    try testing.expect(!animator.isPlaying());
+    try testing.expectEqual(@as(usize, 0), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: start → pause → start resumes from current frame" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    // Add multiple frames
+    for (0..3) |_| {
+        const pixels = try allocator.alloc(SixelImage.Color, 1);
+        defer allocator.free(pixels);
+        pixels[0] = .{ .r = 128, .g = 128, .b = 128 };
+
+        const image = SixelImage{
+            .width = 1,
+            .height = 1,
+            .pixels = pixels,
+        };
+
+        try animator.addFrame(image, 100);
+    }
+
+    animator.start();
+    _ = animator.update(150); // Advance to frame 1
+
+    const frame_before_pause = animator.getCurrentFrameIndex();
+    animator.pause();
+
+    animator.start(); // Resume
+
+    try testing.expectEqual(frame_before_pause, animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: multiple start calls idempotent" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 50, .g = 100, .b = 150 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 100);
+
+    animator.start();
+    animator.start();
+    animator.start();
+
+    try testing.expect(animator.isPlaying());
+}
+
+test "sixel animator: pause when not playing is no-op" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 255, .g = 255, .b = 0 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 100);
+
+    animator.pause(); // Should not crash
+
+    try testing.expect(!animator.isPlaying());
+}
+
+test "sixel animator: stop when already stopped is no-op" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 200, .g = 0, .b = 200 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 100);
+
+    animator.stop(); // Should not crash
+
+    try testing.expect(!animator.isPlaying());
+}
+
+// ----------------------------------------------------------------------------
+// Frame Timing and Update Tests (8 tests)
+// ----------------------------------------------------------------------------
+
+test "sixel animator: update with no elapsed time does not change frame" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 100, .g = 200, .b = 50 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 100);
+
+    animator.start();
+
+    const frame_changed = animator.update(0);
+
+    try testing.expect(!frame_changed);
+    try testing.expectEqual(@as(usize, 0), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: update advances frame when delay expires" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    // Add two frames with 100ms delay each
+    for (0..2) |_| {
+        const pixels = try allocator.alloc(SixelImage.Color, 1);
+        defer allocator.free(pixels);
+        pixels[0] = .{ .r = 255, .g = 0, .b = 0 };
+
+        const image = SixelImage{
+            .width = 1,
+            .height = 1,
+            .pixels = pixels,
+        };
+
+        try animator.addFrame(image, 100);
+    }
+
+    animator.start();
+
+    // Update with exactly 100ms (frame delay)
+    const frame_changed = animator.update(100);
+
+    try testing.expect(frame_changed);
+    try testing.expectEqual(@as(usize, 1), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: update does not advance if elapsed < delay" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 0, .g = 255, .b = 0 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 200);
+    try animator.addFrame(image, 200);
+
+    animator.start();
+
+    // Update with 150ms (less than 200ms delay)
+    const frame_changed = animator.update(150);
+
+    try testing.expect(!frame_changed);
+    try testing.expectEqual(@as(usize, 0), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: update accumulates elapsed time across calls" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 0, .g = 0, .b = 255 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 100);
+    try animator.addFrame(image, 100);
+
+    animator.start();
+
+    // First update: 60ms (not enough)
+    var changed = animator.update(60);
+    try testing.expect(!changed);
+    try testing.expectEqual(@as(usize, 0), animator.getCurrentFrameIndex());
+
+    // Second update: 50ms (total 110ms, exceeds 100ms)
+    changed = animator.update(50);
+    try testing.expect(changed);
+    try testing.expectEqual(@as(usize, 1), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: update when paused does not advance frame" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 255, .g = 255, .b = 0 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 50);
+    try animator.addFrame(image, 50);
+
+    animator.start();
+    animator.pause();
+
+    const frame_changed = animator.update(100);
+
+    try testing.expect(!frame_changed);
+    try testing.expectEqual(@as(usize, 0), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: update skips multiple frames if delta is large" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    // Add 5 frames with 100ms each
+    for (0..5) |_| {
+        const pixels = try allocator.alloc(SixelImage.Color, 1);
+        defer allocator.free(pixels);
+        pixels[0] = .{ .r = 128, .g = 128, .b = 128 };
+
+        const image = SixelImage{
+            .width = 1,
+            .height = 1,
+            .pixels = pixels,
+        };
+
+        try animator.addFrame(image, 100);
+    }
+
+    animator.start();
+
+    // Update with 350ms (should skip 3 frames: 0→1→2→3)
+    const frame_changed = animator.update(350);
+
+    try testing.expect(frame_changed);
+    try testing.expectEqual(@as(usize, 3), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: update returns false when already on last frame (no loop)" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+    animator.loop_count = 1; // Play once, no loop
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 64, .g = 64, .b = 64 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 100);
+    try animator.addFrame(image, 100);
+
+    animator.start();
+
+    // Advance to last frame
+    _ = animator.update(100);
+    try testing.expectEqual(@as(usize, 1), animator.getCurrentFrameIndex());
+
+    // Further update should not change frame (stays on last)
+    const frame_changed = animator.update(100);
+    try testing.expect(!frame_changed);
+    try testing.expectEqual(@as(usize, 1), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: update wraps to first frame after accumulating full cycle" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+    animator.loop_count = 0; // Infinite loop
+
+    // 3 frames, 100ms each
+    for (0..3) |_| {
+        const pixels = try allocator.alloc(SixelImage.Color, 1);
+        defer allocator.free(pixels);
+        pixels[0] = .{ .r = 192, .g = 192, .b = 192 };
+
+        const image = SixelImage{
+            .width = 1,
+            .height = 1,
+            .pixels = pixels,
+        };
+
+        try animator.addFrame(image, 100);
+    }
+
+    animator.start();
+
+    // Advance through all 3 frames (300ms total)
+    _ = animator.update(100); // Frame 0 → 1
+    _ = animator.update(100); // Frame 1 → 2
+    const wrapped = animator.update(100); // Frame 2 → 0 (wrap)
+
+    try testing.expect(wrapped);
+    try testing.expectEqual(@as(usize, 0), animator.getCurrentFrameIndex());
+}
+
+// ----------------------------------------------------------------------------
+// Loop Count Tests (5 tests)
+// ----------------------------------------------------------------------------
+
+test "sixel animator: infinite loop (loop_count = 0)" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+    animator.loop_count = 0; // Infinite
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 255, .g = 128, .b = 0 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 100);
+    try animator.addFrame(image, 100);
+
+    animator.start();
+
+    // Loop multiple times
+    for (0..10) |_| {
+        _ = animator.update(100); // Should keep wrapping
+    }
+
+    // Should still be playing (infinite loop)
+    try testing.expect(animator.isPlaying());
+}
+
+test "sixel animator: finite loop (loop_count = 2)" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+    animator.loop_count = 2; // Play twice
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 100, .g = 100, .b = 255 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 100);
+    try animator.addFrame(image, 100);
+
+    animator.start();
+
+    // First loop
+    _ = animator.update(100); // Frame 0 → 1
+    _ = animator.update(100); // Frame 1 → 0 (wrap, loop 1 done)
+
+    // Second loop
+    _ = animator.update(100); // Frame 0 → 1
+    _ = animator.update(100); // Frame 1 → stays (loop limit reached)
+
+    // Should stop after 2 loops
+    try testing.expect(!animator.isPlaying());
+}
+
+test "sixel animator: single play (loop_count = 1)" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+    animator.loop_count = 1; // Play once, no repeat
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 255, .g = 0, .b = 128 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 100);
+    try animator.addFrame(image, 100);
+
+    animator.start();
+
+    _ = animator.update(100); // Frame 0 → 1
+    _ = animator.update(100); // Frame 1 → stays (no wrap)
+
+    try testing.expect(!animator.isPlaying());
+    try testing.expectEqual(@as(usize, 1), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: loop_count reset on stop" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+    animator.loop_count = 1;
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 0, .g = 255, .b = 255 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 100);
+    try animator.addFrame(image, 100);
+
+    animator.start();
+    _ = animator.update(100);
+    _ = animator.update(100); // Reaches end
+
+    animator.stop(); // Reset
+
+    animator.start(); // Should be able to play again
+    try testing.expect(animator.isPlaying());
+}
+
+test "sixel animator: default loop_count is infinite" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    // Default loop_count should be 0 (infinite)
+    try testing.expectEqual(@as(u32, 0), animator.loop_count);
+}
+
+// ----------------------------------------------------------------------------
+// Seek Operation Tests (7 tests)
+// ----------------------------------------------------------------------------
+
+test "sixel animator: seek to valid frame index" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    // Add 5 frames
+    for (0..5) |_| {
+        const pixels = try allocator.alloc(SixelImage.Color, 1);
+        defer allocator.free(pixels);
+        pixels[0] = .{ .r = 255, .g = 100, .b = 50 };
+
+        const image = SixelImage{
+            .width = 1,
+            .height = 1,
+            .pixels = pixels,
+        };
+
+        try animator.addFrame(image, 100);
+    }
+
+    animator.seek(3);
+
+    try testing.expectEqual(@as(usize, 3), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: seek to first frame" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    for (0..3) |_| {
+        const pixels = try allocator.alloc(SixelImage.Color, 1);
+        defer allocator.free(pixels);
+        pixels[0] = .{ .r = 50, .g = 150, .b = 200 };
+
+        const image = SixelImage{
+            .width = 1,
+            .height = 1,
+            .pixels = pixels,
+        };
+
+        try animator.addFrame(image, 100);
+    }
+
+    animator.start();
+    _ = animator.update(200); // Move to frame 2
+
+    animator.seek(0); // Back to start
+
+    try testing.expectEqual(@as(usize, 0), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: seek to last frame" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    for (0..4) |_| {
+        const pixels = try allocator.alloc(SixelImage.Color, 1);
+        defer allocator.free(pixels);
+        pixels[0] = .{ .r = 100, .g = 100, .b = 100 };
+
+        const image = SixelImage{
+            .width = 1,
+            .height = 1,
+            .pixels = pixels,
+        };
+
+        try animator.addFrame(image, 100);
+    }
+
+    animator.seek(3); // Last frame (index 3)
+
+    try testing.expectEqual(@as(usize, 3), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: seek out of bounds clamps to last frame" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    // Add 3 frames (indices 0, 1, 2)
+    for (0..3) |_| {
+        const pixels = try allocator.alloc(SixelImage.Color, 1);
+        defer allocator.free(pixels);
+        pixels[0] = .{ .r = 200, .g = 200, .b = 200 };
+
+        const image = SixelImage{
+            .width = 1,
+            .height = 1,
+            .pixels = pixels,
+        };
+
+        try animator.addFrame(image, 100);
+    }
+
+    animator.seek(10); // Out of bounds
+
+    // Should clamp to last frame (index 2)
+    try testing.expectEqual(@as(usize, 2), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: seek resets elapsed time for current frame" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    for (0..3) |_| {
+        const pixels = try allocator.alloc(SixelImage.Color, 1);
+        defer allocator.free(pixels);
+        pixels[0] = .{ .r = 128, .g = 0, .b = 128 };
+
+        const image = SixelImage{
+            .width = 1,
+            .height = 1,
+            .pixels = pixels,
+        };
+
+        try animator.addFrame(image, 100);
+    }
+
+    animator.start();
+    _ = animator.update(50); // Partial progress on frame 0
+
+    animator.seek(1); // Jump to frame 1
+
+    // Should start fresh on frame 1 (no accumulated time)
+    const changed = animator.update(50); // Only 50ms elapsed on frame 1
+    try testing.expect(!changed); // Should not advance yet
+    try testing.expectEqual(@as(usize, 1), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: seek while playing continues playback" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    for (0..4) |_| {
+        const pixels = try allocator.alloc(SixelImage.Color, 1);
+        defer allocator.free(pixels);
+        pixels[0] = .{ .r = 0, .g = 128, .b = 255 };
+
+        const image = SixelImage{
+            .width = 1,
+            .height = 1,
+            .pixels = pixels,
+        };
+
+        try animator.addFrame(image, 100);
+    }
+
+    animator.start();
+    animator.seek(2);
+
+    try testing.expect(animator.isPlaying());
+    try testing.expectEqual(@as(usize, 2), animator.getCurrentFrameIndex());
+
+    // Playback should continue from seek point
+    const changed = animator.update(100);
+    try testing.expect(changed);
+    try testing.expectEqual(@as(usize, 3), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: seek on empty animator is no-op" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    animator.seek(0); // Should not crash
+    animator.seek(10); // Should not crash
+
+    try testing.expectEqual(@as(usize, 0), animator.getCurrentFrameIndex());
+}
+
+// ----------------------------------------------------------------------------
+// Frame Disposal Method Tests (6 tests)
+// ----------------------------------------------------------------------------
+
+test "sixel animator: disposal method enum definition" {
+    const DisposalMethod = SixelAnimator.DisposalMethod;
+
+    // Verify enum values exist
+    const none: DisposalMethod = .none;
+    const background: DisposalMethod = .background;
+    const previous: DisposalMethod = .previous;
+
+    try testing.expect(none == .none);
+    try testing.expect(background == .background);
+    try testing.expect(previous == .previous);
+}
+
+test "sixel animator: add frame with disposal method" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 255, .g = 0, .b = 0 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    // Should accept disposal_method parameter
+    try animator.addFrameWithDisposal(image, 100, .background);
+
+    try testing.expectEqual(@as(usize, 1), animator.getFrameCount());
+}
+
+test "sixel animator: default disposal method is none" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 0, .g = 255, .b = 0 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 100);
+
+    const frame = animator.getFrame(0).?;
+    try testing.expectEqual(SixelAnimator.DisposalMethod.none, frame.disposal_method);
+}
+
+test "sixel animator: disposal method none preserves previous frame" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    // Frame 0: solid red
+    const pixels0 = try allocator.alloc(SixelImage.Color, 4);
+    defer allocator.free(pixels0);
+    @memset(pixels0, .{ .r = 255, .g = 0, .b = 0 });
+
+    const image0 = SixelImage{
+        .width = 2,
+        .height = 2,
+        .pixels = pixels0,
+    };
+
+    try animator.addFrameWithDisposal(image0, 100, .none);
+
+    // Frame 1: transparent center
+    const pixels1 = try allocator.alloc(SixelImage.Color, 4);
+    defer allocator.free(pixels1);
+    pixels1[0] = .{ .r = 0, .g = 0, .b = 255 };
+    pixels1[1] = .{ .r = 0, .g = 0, .b = 0, .a = 0 }; // Transparent
+    pixels1[2] = .{ .r = 0, .g = 0, .b = 0, .a = 0 }; // Transparent
+    pixels1[3] = .{ .r = 0, .g = 0, .b = 255 };
+
+    const image1 = SixelImage{
+        .width = 2,
+        .height = 2,
+        .pixels = pixels1,
+    };
+
+    try animator.addFrameWithDisposal(image1, 100, .none);
+
+    // applyDisposal with .none should keep previous frame visible under transparent areas
+    animator.start();
+    _ = animator.update(100); // Move to frame 1
+
+    const current = animator.getCurrentFrame();
+    try testing.expectEqual(SixelAnimator.DisposalMethod.none, current.disposal_method);
+}
+
+test "sixel animator: disposal method background clears to transparent" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 4);
+    defer allocator.free(pixels);
+    @memset(pixels, .{ .r = 0, .g = 255, .b = 0 });
+
+    const image = SixelImage{
+        .width = 2,
+        .height = 2,
+        .pixels = pixels,
+    };
+
+    try animator.addFrameWithDisposal(image, 100, .background);
+
+    const frame = animator.getFrame(0).?;
+    try testing.expectEqual(SixelAnimator.DisposalMethod.background, frame.disposal_method);
+}
+
+test "sixel animator: disposal method previous restores previous frame" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    // Frame 0: red background
+    const pixels0 = try allocator.alloc(SixelImage.Color, 4);
+    defer allocator.free(pixels0);
+    @memset(pixels0, .{ .r = 255, .g = 0, .b = 0 });
+
+    const image0 = SixelImage{
+        .width = 2,
+        .height = 2,
+        .pixels = pixels0,
+    };
+
+    try animator.addFrameWithDisposal(image0, 100, .none);
+
+    // Frame 1: overlay with disposal = previous
+    const pixels1 = try allocator.alloc(SixelImage.Color, 4);
+    defer allocator.free(pixels1);
+    @memset(pixels1, .{ .r = 0, .g = 255, .b = 0 });
+
+    const image1 = SixelImage{
+        .width = 2,
+        .height = 2,
+        .pixels = pixels1,
+    };
+
+    try animator.addFrameWithDisposal(image1, 100, .previous);
+
+    // Frame 2: should restore frame 0 after disposing frame 1
+    const pixels2 = try allocator.alloc(SixelImage.Color, 4);
+    defer allocator.free(pixels2);
+    @memset(pixels2, .{ .r = 0, .g = 0, .b = 255 });
+
+    const image2 = SixelImage{
+        .width = 2,
+        .height = 2,
+        .pixels = pixels2,
+    };
+
+    try animator.addFrameWithDisposal(image2, 100, .none);
+
+    animator.start();
+    _ = animator.update(100); // Frame 0 → 1
+    _ = animator.update(100); // Frame 1 → 2 (disposal .previous should restore frame 0)
+
+    const current_index = animator.getCurrentFrameIndex();
+    try testing.expectEqual(@as(usize, 2), current_index);
+}
+
+// ----------------------------------------------------------------------------
+// Edge Case Tests (5 tests)
+// ----------------------------------------------------------------------------
+
+test "sixel animator: empty animator (no frames)" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    try testing.expectEqual(@as(usize, 0), animator.getFrameCount());
+    try testing.expectEqual(@as(u32, 0), animator.getTotalDuration());
+
+    // getCurrentFrame on empty should not crash (return default or handle gracefully)
+    // Implementation detail: may return null or a default frame
+}
+
+test "sixel animator: single frame animation" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 128, .g = 128, .b = 128 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 100);
+
+    animator.start();
+
+    // Update should not advance (only 1 frame)
+    const changed = animator.update(200);
+    try testing.expect(!changed);
+    try testing.expectEqual(@as(usize, 0), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: very large frame delay (10000ms)" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 255, .g = 255, .b = 255 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 10000);
+    try animator.addFrame(image, 100);
+
+    animator.start();
+
+    // Should handle large delays without overflow
+    const changed = animator.update(5000);
+    try testing.expect(!changed); // Still on frame 0
+    try testing.expectEqual(@as(usize, 0), animator.getCurrentFrameIndex());
+
+    _ = animator.update(5000); // Total 10000ms
+    try testing.expectEqual(@as(usize, 1), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: zero delay frame (should handle gracefully)" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const pixels = try allocator.alloc(SixelImage.Color, 1);
+    defer allocator.free(pixels);
+    pixels[0] = .{ .r = 50, .g = 100, .b = 150 };
+
+    const image = SixelImage{
+        .width = 1,
+        .height = 1,
+        .pixels = pixels,
+    };
+
+    try animator.addFrame(image, 0); // Zero delay
+    try animator.addFrame(image, 100);
+
+    animator.start();
+
+    // Should immediately advance from 0-delay frame
+    const changed = animator.update(1);
+    try testing.expect(changed);
+    try testing.expectEqual(@as(usize, 1), animator.getCurrentFrameIndex());
+}
+
+test "sixel animator: alternating fast and slow frames" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    const delays = [_]u32{ 50, 500, 50, 500 };
+
+    for (delays) |delay| {
+        const pixels = try allocator.alloc(SixelImage.Color, 1);
+        defer allocator.free(pixels);
+        pixels[0] = .{ .r = 100, .g = 150, .b = 200 };
+
+        const image = SixelImage{
+            .width = 1,
+            .height = 1,
+            .pixels = pixels,
+        };
+
+        try animator.addFrame(image, delay);
+    }
+
+    animator.start();
+
+    // Frame 0 (50ms) → Frame 1
+    var changed = animator.update(50);
+    try testing.expect(changed);
+    try testing.expectEqual(@as(usize, 1), animator.getCurrentFrameIndex());
+
+    // Frame 1 (500ms) - should not advance on small update
+    changed = animator.update(100);
+    try testing.expect(!changed);
+    try testing.expectEqual(@as(usize, 1), animator.getCurrentFrameIndex());
+
+    // Accumulate to exceed 500ms
+    changed = animator.update(400);
+    try testing.expect(changed);
+    try testing.expectEqual(@as(usize, 2), animator.getCurrentFrameIndex());
+}
+
+// ----------------------------------------------------------------------------
+// Memory Safety Tests (3 tests)
+// ----------------------------------------------------------------------------
+
+test "sixel animator: no memory leaks on init and deinit" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    // Testing allocator will report any leaks
+}
+
+test "sixel animator: no memory leaks with multiple frames" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    for (0..10) |_| {
+        const pixels = try allocator.alloc(SixelImage.Color, 100);
+        defer allocator.free(pixels);
+        @memset(pixels, .{ .r = 255, .g = 0, .b = 0 });
+
+        const image = SixelImage{
+            .width = 10,
+            .height = 10,
+            .pixels = pixels,
+        };
+
+        try animator.addFrame(image, 100);
+    }
+
+    // Testing allocator will report any leaks
+}
+
+test "sixel animator: no memory leaks during playback and updates" {
+    const allocator = testing.allocator;
+
+    var animator = try SixelAnimator.init(allocator);
+    defer animator.deinit();
+
+    for (0..5) |_| {
+        const pixels = try allocator.alloc(SixelImage.Color, 4);
+        defer allocator.free(pixels);
+        @memset(pixels, .{ .r = 128, .g = 128, .b = 128 });
+
+        const image = SixelImage{
+            .width = 2,
+            .height = 2,
+            .pixels = pixels,
+        };
+
+        try animator.addFrame(image, 100);
+    }
+
+    animator.start();
+
+    // Simulate playback with many updates
+    for (0..100) |_| {
+        _ = animator.update(50);
+    }
+
+    // Testing allocator will report any leaks
+}

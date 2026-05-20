@@ -1446,3 +1446,213 @@ test "SixelEncoder tall image (multiple sixel rows)" {
     try std.testing.expect(std.mem.indexOf(u8, result, "-") != null);
     try std.testing.expect(std.mem.indexOf(u8, result, "\"1;1;1;12") != null); // 1x12 raster
 }
+
+// ============================================================================
+// Animation Support
+// ============================================================================
+
+/// Sixel animator for GIF-like frame sequences
+pub const SixelAnimator = struct {
+    /// Frame disposal method (GIF-like frame transition control)
+    pub const DisposalMethod = enum {
+        /// Do not dispose - overlay on previous frame
+        none,
+        /// Clear to background/transparent before next frame
+        background,
+        /// Restore to previous frame state
+        previous,
+    };
+
+    /// Sixel animation frame
+    pub const Frame = struct {
+        image: SixelImage,
+        delay_ms: u32, // Frame display duration in milliseconds
+        disposal_method: DisposalMethod,
+    };
+
+    allocator: Allocator,
+    frames: ArrayList(Frame),
+    current_frame_index: usize,
+    elapsed_ms: u32, // Time elapsed in current frame
+    playing: bool,
+    loop_count: u32, // 0 = infinite loop, N = play N times
+    current_loop: u32, // Current loop iteration (1-based)
+
+    /// Initialize empty animator
+    pub fn init(allocator: Allocator) !SixelAnimator {
+        return SixelAnimator{
+            .allocator = allocator,
+            .frames = ArrayList(Frame){},
+            .current_frame_index = 0,
+            .elapsed_ms = 0,
+            .playing = false,
+            .loop_count = 0, // Default: infinite loop
+            .current_loop = 1,
+        };
+    }
+
+    /// Free all resources
+    pub fn deinit(self: *SixelAnimator) void {
+        // Free pixel data for all frames
+        for (self.frames.items) |frame| {
+            self.allocator.free(frame.image.pixels);
+        }
+        self.frames.deinit(self.allocator);
+    }
+
+    /// Add frame with default disposal method (.none)
+    pub fn addFrame(self: *SixelAnimator, image: SixelImage, delay_ms: u32) !void {
+        try self.addFrameWithDisposal(image, delay_ms, .none);
+    }
+
+    /// Add frame with explicit disposal method
+    pub fn addFrameWithDisposal(
+        self: *SixelAnimator,
+        image: SixelImage,
+        delay_ms: u32,
+        disposal_method: DisposalMethod,
+    ) !void {
+        // Clone pixel data (caller retains ownership of input)
+        const pixels_copy = try self.allocator.alloc(SixelImage.Color, image.pixels.len);
+        @memcpy(pixels_copy, image.pixels);
+
+        const frame = Frame{
+            .image = SixelImage{
+                .width = image.width,
+                .height = image.height,
+                .pixels = pixels_copy,
+            },
+            .delay_ms = delay_ms,
+            .disposal_method = disposal_method,
+        };
+
+        try self.frames.append(self.allocator, frame);
+    }
+
+    /// Get number of frames
+    pub fn getFrameCount(self: SixelAnimator) usize {
+        return self.frames.items.len;
+    }
+
+    /// Get frame by index (returns null if out of bounds)
+    pub fn getFrame(self: SixelAnimator, index: usize) ?Frame {
+        if (index >= self.frames.items.len) return null;
+        return self.frames.items[index];
+    }
+
+    /// Get current frame index
+    pub fn getCurrentFrameIndex(self: SixelAnimator) usize {
+        return self.current_frame_index;
+    }
+
+    /// Get current frame
+    pub fn getCurrentFrame(self: SixelAnimator) Frame {
+        if (self.frames.items.len == 0) {
+            // Return dummy frame for empty animator
+            return Frame{
+                .image = SixelImage{
+                    .width = 0,
+                    .height = 0,
+                    .pixels = &[_]SixelImage.Color{},
+                },
+                .delay_ms = 0,
+                .disposal_method = .none,
+            };
+        }
+        return self.frames.items[self.current_frame_index];
+    }
+
+    /// Calculate total duration of all frames
+    pub fn getTotalDuration(self: SixelAnimator) u32 {
+        var total: u32 = 0;
+        for (self.frames.items) |frame| {
+            total += frame.delay_ms;
+        }
+        return total;
+    }
+
+    /// Start playback (idempotent)
+    pub fn start(self: *SixelAnimator) void {
+        self.playing = true;
+    }
+
+    /// Pause playback (does not reset position)
+    pub fn pause(self: *SixelAnimator) void {
+        self.playing = false;
+    }
+
+    /// Stop playback (resets to first frame)
+    pub fn stop(self: *SixelAnimator) void {
+        self.playing = false;
+        self.current_frame_index = 0;
+        self.elapsed_ms = 0;
+        self.current_loop = 1;
+    }
+
+    /// Check if currently playing
+    pub fn isPlaying(self: SixelAnimator) bool {
+        return self.playing;
+    }
+
+    /// Jump to specific frame (clamps out-of-bounds)
+    pub fn seek(self: *SixelAnimator, frame_index: usize) void {
+        if (self.frames.items.len == 0) return; // No-op on empty animator
+
+        // Clamp to valid range
+        self.current_frame_index = @min(frame_index, self.frames.items.len - 1);
+        self.elapsed_ms = 0; // Reset timing for new frame
+    }
+
+    /// Update animation state with elapsed time
+    /// Returns true if frame changed
+    pub fn update(self: *SixelAnimator, delta_ms: u32) bool {
+        if (!self.playing) return false;
+        if (self.frames.items.len == 0) return false;
+
+        self.elapsed_ms += delta_ms;
+
+        const current_frame = self.frames.items[self.current_frame_index];
+        var frame_changed = false;
+
+        // Advance through frames while elapsed time exceeds current frame delay
+        while (self.elapsed_ms >= current_frame.delay_ms) {
+            self.elapsed_ms -= current_frame.delay_ms;
+
+            // Check if we can advance to next frame
+            if (self.current_frame_index + 1 < self.frames.items.len) {
+                // Move to next frame
+                self.current_frame_index += 1;
+                frame_changed = true;
+            } else {
+                // Reached last frame
+                if (self.loop_count == 0) {
+                    // Infinite loop: wrap to first frame
+                    self.current_frame_index = 0;
+                    frame_changed = true;
+                } else {
+                    // Finite loop: check if we've completed all iterations
+                    if (self.current_loop < self.loop_count) {
+                        // Start next loop
+                        self.current_loop += 1;
+                        self.current_frame_index = 0;
+                        frame_changed = true;
+                    } else {
+                        // Completed all loops: stop
+                        self.playing = false;
+                        self.elapsed_ms = 0; // Stay on last frame
+                        return frame_changed;
+                    }
+                }
+            }
+
+            // Update current_frame reference after index change
+            const new_frame = self.frames.items[self.current_frame_index];
+            if (self.elapsed_ms < new_frame.delay_ms) {
+                // Not enough time to skip this frame too
+                break;
+            }
+        }
+
+        return frame_changed;
+    }
+};
