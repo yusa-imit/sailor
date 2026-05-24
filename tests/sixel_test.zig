@@ -6,6 +6,7 @@ const sailor = @import("sailor");
 const SixelImage = sailor.tui.sixel.SixelImage;
 const SixelEncoder = sailor.tui.sixel.SixelEncoder;
 const SixelDecoder = sailor.tui.sixel.SixelDecoder;
+const SixelCompressor = sailor.tui.sixel.SixelCompressor;
 
 // ============================================================================
 // Basic Decoding Tests
@@ -3203,4 +3204,518 @@ test "sixel animator: no memory leaks during playback and updates" {
     }
 
     // Testing allocator will report any leaks
+}
+
+// ============================================================================
+// Run-Length Encoding (RLE) Compression Tests
+// ============================================================================
+
+// ============================================================================
+// 1. Basic RLE Compression (5 tests)
+// ============================================================================
+
+test "sixel compressor: compress repeated sixel characters" {
+    const allocator = testing.allocator;
+    const input = "??????";
+
+    const compressed = try SixelCompressor.compress(allocator, input);
+    defer allocator.free(compressed);
+
+    // Expected: "!6?" (repeat count 6, character '?')
+    try testing.expectEqualStrings("!6?", compressed);
+}
+
+test "sixel compressor: compress mixed runs (alternating pattern)" {
+    const allocator = testing.allocator;
+    const input = "??#####??";
+
+    const compressed = try SixelCompressor.compress(allocator, input);
+    defer allocator.free(compressed);
+
+    // Expected: "!2?!5#!2?" (2x?, 5x#, 2x?)
+    try testing.expectEqualStrings("!2?!5#!2?", compressed);
+}
+
+test "sixel compressor: no compression for single characters" {
+    const allocator = testing.allocator;
+    const input = "?#-";
+
+    const compressed = try SixelCompressor.compress(allocator, input);
+    defer allocator.free(compressed);
+
+    // No compression: input unchanged (different chars)
+    try testing.expectEqualStrings("?#-", compressed);
+}
+
+test "sixel compressor: empty input returns empty output" {
+    const allocator = testing.allocator;
+    const input = "";
+
+    const compressed = try SixelCompressor.compress(allocator, input);
+    defer allocator.free(compressed);
+
+    try testing.expectEqualStrings("", compressed);
+}
+
+test "sixel compressor: very long run exceeds 255 (splits into multiple sequences)" {
+    const allocator = testing.allocator;
+
+    // Create string with 300 'x' characters
+    var input_buf: [300]u8 = undefined;
+    @memset(&input_buf, 'x');
+    const input = &input_buf;
+
+    const compressed = try SixelCompressor.compress(allocator, input);
+    defer allocator.free(compressed);
+
+    // Should split into multiple: e.g., "!255x!45x" or similar
+    // The compressed output must be valid and contain multiple repeat counts
+    try testing.expect(compressed.len > 0);
+    try testing.expect(std.mem.count(u8, compressed, "!") >= 2); // At least 2 repeat sequences
+}
+
+// ============================================================================
+// 2. RLE Decompression (5 tests)
+// ============================================================================
+
+test "sixel compressor: decompress simple repeated sequence" {
+    const allocator = testing.allocator;
+    const compressed = "!6?";
+
+    const decompressed = try SixelCompressor.decompress(allocator, compressed);
+    defer allocator.free(decompressed);
+
+    // Expected: "??????"
+    try testing.expectEqualStrings("??????", decompressed);
+}
+
+test "sixel compressor: decompress mixed sequence" {
+    const allocator = testing.allocator;
+    const compressed = "!2?!5#!2?";
+
+    const decompressed = try SixelCompressor.decompress(allocator, compressed);
+    defer allocator.free(decompressed);
+
+    // Expected: "??#####??"
+    try testing.expectEqualStrings("??#####??", decompressed);
+}
+
+test "sixel compressor: decompress literal characters (no repeat)" {
+    const allocator = testing.allocator;
+    const compressed = "?#-";
+
+    const decompressed = try SixelCompressor.decompress(allocator, compressed);
+    defer allocator.free(decompressed);
+
+    // Expected: "?#-"
+    try testing.expectEqualStrings("?#-", decompressed);
+}
+
+test "sixel compressor: decompress empty compressed input" {
+    const allocator = testing.allocator;
+    const compressed = "";
+
+    const decompressed = try SixelCompressor.decompress(allocator, compressed);
+    defer allocator.free(decompressed);
+
+    try testing.expectEqualStrings("", decompressed);
+}
+
+test "sixel compressor: decompress large repeat counts" {
+    const allocator = testing.allocator;
+    const compressed = "!255?!100#";
+
+    const decompressed = try SixelCompressor.decompress(allocator, compressed);
+    defer allocator.free(decompressed);
+
+    // Expected: 255 '?' followed by 100 '#'
+    try testing.expectEqual(@as(usize, 355), decompressed.len);
+
+    // Check first 255 chars are '?'
+    for (decompressed[0..255]) |c| {
+        try testing.expectEqual('?', c);
+    }
+
+    // Check next 100 chars are '#'
+    for (decompressed[255..]) |c| {
+        try testing.expectEqual('#', c);
+    }
+}
+
+// ============================================================================
+// 3. Round-Trip (Compress + Decompress) (5 tests)
+// ============================================================================
+
+test "sixel compressor: round-trip simple data" {
+    const allocator = testing.allocator;
+    const original = "??????";
+
+    const compressed = try SixelCompressor.compress(allocator, original);
+    defer allocator.free(compressed);
+
+    const decompressed = try SixelCompressor.decompress(allocator, compressed);
+    defer allocator.free(decompressed);
+
+    try testing.expectEqualStrings(original, decompressed);
+}
+
+test "sixel compressor: round-trip complex sixel data" {
+    const allocator = testing.allocator;
+    const original = "??????##########??--$$$$";
+
+    const compressed = try SixelCompressor.compress(allocator, original);
+    defer allocator.free(compressed);
+
+    const decompressed = try SixelCompressor.decompress(allocator, compressed);
+    defer allocator.free(decompressed);
+
+    try testing.expectEqualStrings(original, decompressed);
+}
+
+test "sixel compressor: round-trip all same character" {
+    const allocator = testing.allocator;
+
+    var input_buf: [1000]u8 = undefined;
+    @memset(&input_buf, '?');
+    const original = &input_buf;
+
+    const compressed = try SixelCompressor.compress(allocator, original);
+    defer allocator.free(compressed);
+
+    const decompressed = try SixelCompressor.decompress(allocator, compressed);
+    defer allocator.free(decompressed);
+
+    try testing.expectEqualStrings(original, decompressed);
+}
+
+test "sixel compressor: round-trip all different characters" {
+    const allocator = testing.allocator;
+
+    // Create string with all different ASCII sixel chars (? to ~)
+    var input_buf: [64]u8 = undefined;
+    for (&input_buf, 0..) |*c, i| {
+        c.* = @intCast(0x3f + i); // ? to ~
+    }
+    const original = &input_buf;
+
+    const compressed = try SixelCompressor.compress(allocator, original);
+    defer allocator.free(compressed);
+
+    const decompressed = try SixelCompressor.decompress(allocator, compressed);
+    defer allocator.free(decompressed);
+
+    try testing.expectEqualStrings(original, decompressed);
+}
+
+test "sixel compressor: round-trip with sixel control characters" {
+    const allocator = testing.allocator;
+    const original = "\x1bPq???#####$-???\x1b\\";
+
+    const compressed = try SixelCompressor.compress(allocator, original);
+    defer allocator.free(compressed);
+
+    const decompressed = try SixelCompressor.decompress(allocator, compressed);
+    defer allocator.free(decompressed);
+
+    try testing.expectEqualStrings(original, decompressed);
+}
+
+// ============================================================================
+// 4. Compression Ratio (3 tests)
+// ============================================================================
+
+test "sixel compressor: compression ratio high for repeated data" {
+    const allocator = testing.allocator;
+
+    var input_buf: [300]u8 = undefined;
+    @memset(&input_buf, '?');
+    const original = &input_buf;
+
+    const compressed = try SixelCompressor.compress(allocator, original);
+    defer allocator.free(compressed);
+
+    const ratio = SixelCompressor.compressionRatio(original, compressed);
+
+    // High repetition should yield good compression (ratio > 2.0)
+    try testing.expect(ratio > 2.0);
+}
+
+test "sixel compressor: compression ratio low for random data" {
+    const allocator = testing.allocator;
+
+    var input_buf: [64]u8 = undefined;
+    for (&input_buf, 0..) |*c, i| {
+        c.* = @intCast(0x3f + (i % 64)); // Cycle through all ASCII sixel chars
+    }
+    const original = &input_buf;
+
+    const compressed = try SixelCompressor.compress(allocator, original);
+    defer allocator.free(compressed);
+
+    const ratio = SixelCompressor.compressionRatio(original, compressed);
+
+    // Low repetition should yield poor compression (ratio ≈ 1.0 or less)
+    try testing.expect(ratio <= 1.5);
+}
+
+test "sixel compressor: compression ratio calculation is correct" {
+    const original = "??????";
+    const compressed = "!6?";
+
+    const ratio = SixelCompressor.compressionRatio(original, compressed);
+
+    // Expected: 6 / 3 = 2.0
+    try testing.expectApproxEqAbs(@as(f32, 2.0), ratio, 0.01);
+}
+
+// ============================================================================
+// 5. Integration with SixelEncoder (3 tests)
+// ============================================================================
+
+test "sixel compressor: SixelEncoder.encodeCompressed produces valid sixel" {
+    const allocator = testing.allocator;
+
+    // Create simple 2x2 red image
+    const pixels = [_]SixelImage.Color{
+        .{ .r = 255, .g = 0, .b = 0 }, .{ .r = 255, .g = 0, .b = 0 },
+        .{ .r = 255, .g = 0, .b = 0 }, .{ .r = 255, .g = 0, .b = 0 },
+    };
+
+    const image = SixelImage{
+        .width = 2,
+        .height = 2,
+        .pixels = &pixels,
+    };
+
+    var output: std.ArrayList(u8) = .{};
+    defer output.deinit(allocator);
+
+    const encoder = SixelEncoder{};
+    try encoder.encodeCompressed(allocator, image, output.writer(allocator));
+
+    const compressed_sixel = output.items;
+
+    // Should start with compressed sixel marker (after sixel start)
+    try testing.expect(compressed_sixel.len > 0);
+    try testing.expect(std.mem.startsWith(u8, compressed_sixel, "\x1bPq"));
+}
+
+test "sixel compressor: compressed output can be decompressed and decoded" {
+    const allocator = testing.allocator;
+
+    const pixels = [_]SixelImage.Color{
+        .{ .r = 255, .g = 0, .b = 0 }, .{ .r = 255, .g = 0, .b = 0 },
+        .{ .r = 255, .g = 0, .b = 0 }, .{ .r = 255, .g = 0, .b = 0 },
+    };
+
+    const image = SixelImage{
+        .width = 2,
+        .height = 2,
+        .pixels = &pixels,
+    };
+
+    var encoded: std.ArrayList(u8) = .{};
+    defer encoded.deinit(allocator);
+
+    const encoder = SixelEncoder{};
+    try encoder.encode(allocator, image, encoded.writer(allocator));
+
+    const original_sixel = encoded.items;
+
+    // Compress
+    const compressed = try SixelCompressor.compress(allocator, original_sixel);
+    defer allocator.free(compressed);
+
+    // Decompress
+    const decompressed = try SixelCompressor.decompress(allocator, compressed);
+    defer allocator.free(decompressed);
+
+    // Should match original
+    try testing.expectEqualStrings(original_sixel, decompressed);
+}
+
+test "sixel compressor: compression achieves significant reduction for typical image" {
+    const allocator = testing.allocator;
+
+    // Create larger 10x10 image with repeating pattern
+    var pixels: [100]SixelImage.Color = undefined;
+    for (&pixels) |*p| {
+        p.* = .{ .r = 255, .g = 0, .b = 0 };
+    }
+
+    const image = SixelImage{
+        .width = 10,
+        .height = 10,
+        .pixels = &pixels,
+    };
+
+    var encoded: std.ArrayList(u8) = .{};
+    defer encoded.deinit(allocator);
+
+    const encoder = SixelEncoder{};
+    try encoder.encode(allocator, image, encoded.writer(allocator));
+
+    const original_sixel = encoded.items;
+
+    const compressed = try SixelCompressor.compress(allocator, original_sixel);
+    defer allocator.free(compressed);
+
+    const ratio = SixelCompressor.compressionRatio(original_sixel, compressed);
+
+    // Should achieve at least 20% reduction (ratio > 1.2)
+    try testing.expect(ratio > 1.2);
+}
+
+// ============================================================================
+// 6. Error Handling (3 tests)
+// ============================================================================
+
+test "sixel compressor: invalid repeat count format returns error" {
+    const allocator = testing.allocator;
+    const compressed = "!ABC?"; // Invalid: ABC is not a valid number
+
+    const result = SixelCompressor.decompress(allocator, compressed);
+
+    // Should return an error
+    try testing.expectError(error.InvalidRepeatCount, result);
+}
+
+test "sixel compressor: malformed compressed data returns error" {
+    const allocator = testing.allocator;
+    const compressed = "!3"; // Incomplete: missing character after repeat count
+
+    const result = SixelCompressor.decompress(allocator, compressed);
+
+    // Should return an error
+    try testing.expectError(error.IncompleteCompressedData, result);
+}
+
+test "sixel compressor: repeat count overflow returns error" {
+    const allocator = testing.allocator;
+    const compressed = "!99999?"; // Too large: exceeds u16 max
+
+    const result = SixelCompressor.decompress(allocator, compressed);
+
+    // Should return an error or handle gracefully
+    try testing.expect(result == error.RepeatCountTooLarge or result == error.InvalidRepeatCount);
+}
+
+// ============================================================================
+// 7. Performance (2 tests)
+// ============================================================================
+
+test "sixel compressor: compression completes in reasonable time (<100ms for 10KB)" {
+    const allocator = testing.allocator;
+
+    // Create 10KB of repeated data
+    const large_input = try allocator.alloc(u8, 10240);
+    defer allocator.free(large_input);
+    @memset(large_input, '?');
+
+    const start = std.time.microTimestamp();
+    const compressed = try SixelCompressor.compress(allocator, large_input);
+    defer allocator.free(compressed);
+    const elapsed_us = std.time.microTimestamp() - start;
+    const elapsed_ms = @as(f32, @floatFromInt(elapsed_us)) / 1000.0;
+
+    // Should complete in < 100ms
+    try testing.expect(elapsed_ms < 100.0);
+}
+
+test "sixel compressor: decompression completes in reasonable time (<50ms for 5KB)" {
+    const allocator = testing.allocator;
+
+    // Create a 5KB compressed sequence
+    const large_compressed = try allocator.alloc(u8, 5120);
+    defer allocator.free(large_compressed);
+    @memset(large_compressed, '?');
+
+    const start = std.time.microTimestamp();
+    const decompressed = try SixelCompressor.decompress(allocator, large_compressed);
+    defer allocator.free(decompressed);
+    const elapsed_us = std.time.microTimestamp() - start;
+    const elapsed_ms = @as(f32, @floatFromInt(elapsed_us)) / 1000.0;
+
+    // Should complete in < 50ms
+    try testing.expect(elapsed_ms < 50.0);
+}
+
+// ============================================================================
+// 8. Edge Cases (4 tests)
+// ============================================================================
+
+test "sixel compressor: compress single character repeated 1000+ times" {
+    const allocator = testing.allocator;
+
+    const large_input = try allocator.alloc(u8, 1500);
+    defer allocator.free(large_input);
+    @memset(large_input, 'x');
+
+    const compressed = try SixelCompressor.compress(allocator, large_input);
+    defer allocator.free(compressed);
+
+    // Should be much smaller than input
+    try testing.expect(compressed.len < large_input.len / 10);
+
+    // Decompress and verify
+    const decompressed = try SixelCompressor.decompress(allocator, compressed);
+    defer allocator.free(decompressed);
+
+    try testing.expectEqualStrings(large_input, decompressed);
+}
+
+test "sixel compressor: compress alternating pattern (worst case for RLE)" {
+    const allocator = testing.allocator;
+
+    var input_buf: [100]u8 = undefined;
+    for (&input_buf, 0..) |*c, i| {
+        c.* = if (i % 2 == 0) '?' else '#';
+    }
+    const original = &input_buf;
+
+    const compressed = try SixelCompressor.compress(allocator, original);
+    defer allocator.free(compressed);
+
+    // For alternating pattern, compression may not help much
+    // But should still round-trip correctly
+    const decompressed = try SixelCompressor.decompress(allocator, compressed);
+    defer allocator.free(decompressed);
+
+    try testing.expectEqualStrings(original, decompressed);
+}
+
+test "sixel compressor: UTF-8 safety (ASCII sixel characters only)" {
+    const allocator = testing.allocator;
+
+    // All valid sixel ASCII chars: ? to ~ (0x3f to 0x7e)
+    var input_buf: [64]u8 = undefined;
+    for (&input_buf, 0..) |*c, i| {
+        c.* = @intCast(0x3f + i);
+    }
+    const original = &input_buf;
+
+    const compressed = try SixelCompressor.compress(allocator, original);
+    defer allocator.free(compressed);
+
+    const decompressed = try SixelCompressor.decompress(allocator, compressed);
+    defer allocator.free(decompressed);
+
+    // All ASCII, should be safe
+    try testing.expectEqualStrings(original, decompressed);
+}
+
+test "sixel compressor: preserve sixel control characters (ESC, $, -, etc)" {
+    const allocator = testing.allocator;
+
+    // Typical sixel sequence fragment
+    const original = "\x1bPq???$###-\x1b\\";
+
+    const compressed = try SixelCompressor.compress(allocator, original);
+    defer allocator.free(compressed);
+
+    const decompressed = try SixelCompressor.decompress(allocator, compressed);
+    defer allocator.free(decompressed);
+
+    // All chars preserved including control chars
+    try testing.expectEqualStrings(original, decompressed);
 }

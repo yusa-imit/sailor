@@ -158,9 +158,19 @@ pub const sixel = @import("tui/sixel.zig");
 pub const SixelImage = sixel.SixelImage;
 pub const SixelEncoder = sixel.SixelEncoder;
 pub const SixelDecoder = sixel.SixelDecoder;
+pub const SixelCompressor = sixel.SixelCompressor;
+pub const SixelAnimator = sixel.SixelAnimator;
 pub const ColorPalette = sixel.ColorPalette;
 pub const QuantizationAlgorithm = sixel.QuantizationAlgorithm;
 pub const DistanceMetric = sixel.DistanceMetric;
+pub const KittyGraphics = tui.kitty.KittyGraphics;
+pub const ansi_art = @import("tui/ansi_art.zig");
+pub const AnsiArtRenderer = ansi_art.AnsiArtRenderer;
+pub const particles = @import("tui/particles.zig");
+pub const ParticleKind = particles.ParticleKind;
+pub const ParticleConfig = particles.ParticleConfig;
+pub const ParticleSystem = particles.ParticleSystem;
+pub const ConicGradient = @import("tui/gradient.zig").ConicGradient;
 
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;

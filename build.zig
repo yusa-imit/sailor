@@ -530,6 +530,33 @@ pub fn build(b: *std.Build) void {
     natural_language_commands_tests.root_module.addImport("sailor", sailor_module_for_tests);
     sixel_tests.root_module.addImport("sailor", sailor_module_for_tests);
 
+    const kitty_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/kitty_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    kitty_tests.root_module.addImport("sailor", sailor_module_for_tests);
+
+    const ansi_art_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/ansi_art_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    ansi_art_tests.root_module.addImport("sailor", sailor_module_for_tests);
+
+    const particles_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/particles_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    particles_tests.root_module.addImport("sailor", sailor_module_for_tests);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&b.addRunArtifact(lib_tests).step);
     test_step.dependOn(&b.addRunArtifact(smoke_tests).step);
@@ -584,6 +611,9 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(layout_intelligence_tests).step);
     test_step.dependOn(&b.addRunArtifact(natural_language_commands_tests).step);
     test_step.dependOn(&b.addRunArtifact(sixel_tests).step);
+    test_step.dependOn(&b.addRunArtifact(kitty_tests).step);
+    test_step.dependOn(&b.addRunArtifact(ansi_art_tests).step);
+    test_step.dependOn(&b.addRunArtifact(particles_tests).step);
     // test_step.dependOn(&b.addRunArtifact(migration_script_tests).step); // Disabled for v2.0.0 work
 
     // Benchmark executable

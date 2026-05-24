@@ -149,6 +149,58 @@ pub const RadialGradient = struct {
 
 };
 
+/// Conic gradient configuration (color transitions by angle)
+pub const ConicGradient = struct {
+    stops: []const ColorStop,
+    center_x: f64 = 0.5,           // Center X (0.0 to 1.0)
+    center_y: f64 = 0.5,           // Center Y (0.0 to 1.0)
+    start_angle: f64 = 0.0,        // Starting angle in degrees (0=right, 90=down)
+    interpolation: Interpolation = .rgb,
+
+    /// Get color at a specific angle (0..360 degrees)
+    pub fn colorAt(self: ConicGradient, angle_deg: f64) Color {
+        if (self.stops.len == 0) return Color.default;
+        if (self.stops.len == 1) return self.stops[0].color;
+
+        // Normalize angle to 0..360
+        var normalized_angle = @mod(angle_deg, 360.0);
+        if (normalized_angle < 0.0) normalized_angle += 360.0;
+
+        // Map angle to 0..1 range
+        const position = normalized_angle / 360.0;
+
+        // Use linear gradient logic to find color at this position
+        const linear = LinearGradient{
+            .direction = .horizontal,
+            .stops = self.stops,
+            .interpolation = self.interpolation,
+        };
+
+        return linear.colorAt(position);
+    }
+
+    /// Get color at a normalized position relative to center
+    pub fn colorAtPoint(self: ConicGradient, x: f64, y: f64) Color {
+        // Calculate angle from center
+        const dx = x - self.center_x;
+        const dy = y - self.center_y;
+
+        // atan2 returns radians in range -π to π
+        const angle_rad = std.math.atan2(f64, dy, dx);
+
+        // Convert to degrees (0 = right, 90 = down, etc)
+        var angle_deg = angle_rad * 180.0 / std.math.pi;
+
+        // Normalize to 0..360 where 0=right, 90=down, 180=left, 270=up
+        if (angle_deg < 0.0) angle_deg += 360.0;
+
+        // Apply start angle offset
+        angle_deg = @mod(angle_deg + self.start_angle, 360.0);
+
+        return self.colorAt(angle_deg);
+    }
+};
+
 /// Interpolate between two colors
 fn interpolateColor(a: Color, b: Color, t: f64, method: Interpolation) Color {
     return switch (method) {
@@ -534,4 +586,71 @@ test "interpolateHSV - red to blue" {
     // HSV interpolation should go through magenta (hue ~300)
     try std.testing.expect(mid_rgb.r > 0);
     try std.testing.expect(mid_rgb.b > 0);
+}
+
+test "ConicGradient.colorAt - angle normalization" {
+    const stops = [_]ColorStop{
+        .{ .offset = 0.0, .color = Color.fromRgb(255, 0, 0) },   // Red (0°)
+        .{ .offset = 1.0, .color = Color.fromRgb(0, 0, 255) },   // Blue (360°)
+    };
+
+    const gradient = ConicGradient{
+        .stops = &stops,
+    };
+
+    // 0° and 360° should be equivalent (red)
+    const color_0 = gradient.colorAt(0.0);
+    const color_360 = gradient.colorAt(360.0);
+    try std.testing.expectEqual(color_0, color_360);
+
+    // Negative angles should wrap
+    const color_neg = gradient.colorAt(-90.0);
+    const color_equiv = gradient.colorAt(270.0);
+    try std.testing.expectEqual(color_neg, color_equiv);
+}
+
+test "ConicGradient.colorAtPoint - center" {
+    const stops = [_]ColorStop{
+        .{ .offset = 0.0, .color = Color.fromRgb(255, 0, 0) },   // Red
+        .{ .offset = 1.0, .color = Color.fromRgb(0, 0, 255) },   // Blue
+    };
+
+    const gradient = ConicGradient{
+        .center_x = 0.5,
+        .center_y = 0.5,
+        .stops = &stops,
+    };
+
+    // At center, angle is 0° (to the right) — should be red
+    const center_right = gradient.colorAtPoint(0.6, 0.5);
+    try std.testing.expectEqual(Color.fromRgb(255, 0, 0), center_right);
+
+    // Below center (180°) should be opposite on color wheel — should be blue-ish
+    const center_down = gradient.colorAtPoint(0.5, 0.6);
+    const down_rgb = switch (center_down) { .rgb => |val| val, else => unreachable };
+    try std.testing.expect(down_rgb.b > down_rgb.r);
+}
+
+test "ConicGradient.colorAt - no stops" {
+    const gradient = ConicGradient{
+        .stops = &.{},
+    };
+
+    const color = gradient.colorAt(45.0);
+    try std.testing.expectEqual(Color.default, color);
+}
+
+test "ConicGradient - single stop" {
+    const stops = [_]ColorStop{
+        .{ .offset = 0.0, .color = Color.fromRgb(100, 150, 200) },
+    };
+
+    const gradient = ConicGradient{
+        .stops = &stops,
+    };
+
+    // All angles should return the single color
+    try std.testing.expectEqual(Color.fromRgb(100, 150, 200), gradient.colorAt(0.0));
+    try std.testing.expectEqual(Color.fromRgb(100, 150, 200), gradient.colorAt(180.0));
+    try std.testing.expectEqual(Color.fromRgb(100, 150, 200), gradient.colorAt(359.0));
 }

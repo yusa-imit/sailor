@@ -66,3 +66,8 @@
 {"timestamp":"2026-05-20T12:35:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement SixelAnimator with complete API (240 lines)","project":"sailor"}
 {"timestamp":"2026-05-21T21:04:10Z","action":"subagent","agent_type":"test-writer","task":"Write ANSI art fallback tests for sixel.zig","project":"sailor"}
 {"timestamp":"2026-05-23T12:15:00Z","action":"subagent","agent_type":"test-writer","task":"Write comprehensive failing tests for ANSI Art Fallback (50 tests covering capability detection, 4 render modes, color quantization, performance, edge cases)","project":"sailor"}
+{"timestamp":"2026-05-23T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for Kitty Graphics Protocol (transmit/display/delete/Unicode placeholder)","project":"sailor"}
+{"timestamp":"2026-05-24T00:00:00Z","action":"subagent","agent_type":"general-purpose","task":"Analyzing test files and planning ANSI art implementation","project":"sailor"}
+{"timestamp":"2026-05-24T15:10:00Z","action":"subagent","agent_type":"test-writer","task":"Write 27 failing tests for ParticleSystem (fire/rain/snow/sparkle) in tests/particles_test.zig","project":"sailor"}
+{"timestamp":"2026-05-24T15:12:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement ParticleSystem in src/tui/particles.zig (fire/rain/snow/sparkle) and ConicGradient in gradient.zig","project":"sailor"}
+{"timestamp":"2026-05-24T12:00:00Z","action":"subagent","agent_type":"Explore","task":"Review uncommitted v2.11.0 work: gradient ConicGradient, KittyGraphics API, SixelCompressor RLE, ANSI art renderer, particle system","project":"sailor"}

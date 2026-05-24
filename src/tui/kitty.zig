@@ -602,3 +602,187 @@ test "KittyEncoder: custom chunk size" {
     // With small chunk size, should have chunking markers
     try testing.expect(output.len > 0);
 }
+
+// ============================================================================
+// KittyGraphics — high-level protocol API (transmit/display/delete)
+// ============================================================================
+
+/// High-level Kitty graphics protocol API.
+/// All output goes through a user-provided writer (no stdout/stderr).
+pub const KittyGraphics = struct {
+    pub const ImageFormat = enum(u8) {
+        rgba = 32,
+        rgb = 24,
+        png = 100,
+    };
+
+    pub const ScaleMode = enum { none, contain, cover, fill };
+
+    pub const TransmitOptions = struct {
+        image_id: ?u32 = null,
+        format: ImageFormat = .png,
+        quiet: bool = false,
+        chunk_size: usize = 4096,
+    };
+
+    pub const DisplayOptions = struct {
+        image_id: u32,
+        placement_id: ?u32 = null,
+        x: ?u32 = null,
+        y: ?u32 = null,
+        w: ?u32 = null,
+        h: ?u32 = null,
+        z_index: i32 = 0,
+        unicode_placeholder: bool = false,
+    };
+
+    pub const DeleteScope = enum { image, placement, all };
+
+    pub const DeleteOptions = struct {
+        scope: DeleteScope = .image,
+        image_id: ?u32 = null,
+        placement_id: ?u32 = null,
+    };
+
+    /// Write a single Kitty APC escape sequence.
+    /// payload: raw bytes that are base64-encoded into the sequence.
+    ///   null  → no semicolon, no payload  (e.g. pure control commands)
+    ///   slice → semicolon + base64(slice)  (even if slice is empty)
+    pub fn writeApc(params: []const u8, payload: ?[]const u8, writer: anytype) !void {
+        try writer.writeAll("\x1b_G");
+        try writer.writeAll(params);
+        if (payload) |p| {
+            try writer.writeByte(';');
+            try writeBase64(p, writer);
+        }
+        try writer.writeAll("\x1b\\");
+    }
+
+    /// Transmit image data to the terminal.
+    /// Splits into 3-byte-aligned raw chunks (so each chunk's base64 has no
+    /// internal padding) and wraps each in an APC sequence.
+    /// Returns the image_id used (from options, or 1 if not specified).
+    pub fn transmit(allocator: Allocator, data: []const u8, options: TransmitOptions, writer: anytype) !u32 {
+        _ = allocator;
+
+        const image_id = options.image_id orelse 1;
+        const format_val = @intFromEnum(options.format);
+
+        // Align to multiples of 3 so each chunk base64-encodes without padding
+        // (avoids invalid concatenated base64 across chunk boundaries).
+        const aligned = (options.chunk_size / 3) * 3;
+        const raw_chunk_size: usize = if (aligned == 0) 3 else aligned;
+
+        const total_chunks: usize = if (data.len == 0)
+            1
+        else
+            (data.len + raw_chunk_size - 1) / raw_chunk_size;
+
+        var offset: usize = 0;
+        var chunk_idx: usize = 0;
+        while (chunk_idx < total_chunks) : (chunk_idx += 1) {
+            const chunk_end = @min(offset + raw_chunk_size, data.len);
+            const chunk = data[offset..chunk_end];
+            const is_last = (chunk_idx + 1 == total_chunks);
+            const m_val: u8 = if (is_last) 0 else 1;
+
+            var params_buf: [128]u8 = undefined;
+            const params: []u8 = if (chunk_idx == 0) blk: {
+                if (options.quiet) {
+                    break :blk try std.fmt.bufPrint(&params_buf, "a=T,f={},i={},m={},q=2", .{ format_val, image_id, m_val });
+                } else {
+                    break :blk try std.fmt.bufPrint(&params_buf, "a=T,f={},i={},m={}", .{ format_val, image_id, m_val });
+                }
+            } else blk: {
+                break :blk try std.fmt.bufPrint(&params_buf, "m={}", .{m_val});
+            };
+
+            try writeApc(params, chunk, writer);
+            offset = chunk_end;
+        }
+
+        return image_id;
+    }
+
+    /// Display a previously transmitted image.
+    /// Returns error.InvalidImageId if image_id == 0.
+    pub fn display(options: DisplayOptions, writer: anytype) !void {
+        if (options.image_id == 0) return error.InvalidImageId;
+
+        var params_buf: [256]u8 = undefined;
+        var fbs = std.io.fixedBufferStream(&params_buf);
+        const pw = fbs.writer();
+
+        try pw.writeAll("a=p");
+        try pw.print(",i={}", .{options.image_id});
+        if (options.placement_id) |pid| try pw.print(",p={}", .{pid});
+        if (options.x) |x| try pw.print(",x={}", .{x});
+        if (options.y) |y| try pw.print(",y={}", .{y});
+        if (options.w) |w| try pw.print(",w={}", .{w});
+        if (options.h) |h| try pw.print(",h={}", .{h});
+        if (options.z_index != 0) try pw.print(",z={}", .{options.z_index});
+        if (options.unicode_placeholder) try pw.writeAll(",U=1");
+
+        try writeApc(fbs.getWritten(), null, writer);
+    }
+
+    /// Delete image(s) from terminal memory.
+    /// Returns error.MissingImageId if scope is .image and no image_id given.
+    pub fn delete(options: DeleteOptions, writer: anytype) !void {
+        var params_buf: [128]u8 = undefined;
+        var fbs = std.io.fixedBufferStream(&params_buf);
+        const pw = fbs.writer();
+
+        try pw.writeAll("a=d");
+        switch (options.scope) {
+            .image => {
+                const img_id = options.image_id orelse return error.MissingImageId;
+                try pw.writeAll(",d=I");
+                try pw.print(",i={}", .{img_id});
+                if (options.placement_id) |pid| try pw.print(",p={}", .{pid});
+            },
+            .placement => {
+                try pw.writeAll(",d=p");
+                if (options.placement_id) |pid| try pw.print(",p={}", .{pid});
+                if (options.image_id) |iid| try pw.print(",i={}", .{iid});
+            },
+            .all => {
+                try pw.writeAll(",d=A");
+            },
+        }
+
+        try writeApc(fbs.getWritten(), null, writer);
+    }
+
+    /// Allocation-free base64 encoder writing directly to the writer.
+    fn writeBase64(data: []const u8, writer: anytype) !void {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        var i: usize = 0;
+        while (i + 3 <= data.len) : (i += 3) {
+            const b0 = data[i];
+            const b1 = data[i + 1];
+            const b2 = data[i + 2];
+            const group: [4]u8 = .{
+                chars[b0 >> 2],
+                chars[((b0 & 3) << 4) | (b1 >> 4)],
+                chars[((b1 & 0xf) << 2) | (b2 >> 6)],
+                chars[b2 & 0x3f],
+            };
+            try writer.writeAll(&group);
+        }
+        const rem = data.len % 3;
+        if (rem == 1) {
+            const b0 = data[i];
+            try writer.writeByte(chars[b0 >> 2]);
+            try writer.writeByte(chars[(b0 & 3) << 4]);
+            try writer.writeAll("==");
+        } else if (rem == 2) {
+            const b0 = data[i];
+            const b1 = data[i + 1];
+            try writer.writeByte(chars[b0 >> 2]);
+            try writer.writeByte(chars[((b0 & 3) << 4) | (b1 >> 4)]);
+            try writer.writeByte(chars[(b1 & 0xf) << 2]);
+            try writer.writeByte('=');
+        }
+    }
+};

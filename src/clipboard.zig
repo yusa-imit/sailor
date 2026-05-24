@@ -1288,6 +1288,9 @@ test "SystemClipboard.write large text on macOS" {
 
 test "SystemClipboard.read on macOS returns allocated string" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
+    // Pasteboard requires a live GUI session; skip in non-interactive (--listen=-) mode
+    const term_mod = @import("term.zig");
+    if (!term_mod.isatty(std.posix.STDOUT_FILENO)) return error.SkipZigTest;
 
     const allocator = testing.allocator;
 
@@ -1303,6 +1306,9 @@ test "SystemClipboard.read on macOS returns allocated string" {
 
 test "SystemClipboard.read returns empty string when clipboard empty on macOS" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
+    // Pasteboard requires a live GUI session; skip in non-interactive (--listen=-) mode
+    const term_mod = @import("term.zig");
+    if (!term_mod.isatty(std.posix.STDOUT_FILENO)) return error.SkipZigTest;
 
     const allocator = testing.allocator;
 
@@ -1317,6 +1323,9 @@ test "SystemClipboard.read returns empty string when clipboard empty on macOS" {
 
 test "SystemClipboard.read preserves Unicode on macOS" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
+    // Pasteboard requires a live GUI session; skip in non-interactive (--listen=-) mode
+    const term_mod = @import("term.zig");
+    if (!term_mod.isatty(std.posix.STDOUT_FILENO)) return error.SkipZigTest;
 
     const allocator = testing.allocator;
 
@@ -1331,6 +1340,9 @@ test "SystemClipboard.read preserves Unicode on macOS" {
 
 test "SystemClipboard.read preserves newlines on macOS" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
+    // Pasteboard requires a live GUI session; skip in non-interactive (--listen=-) mode
+    const term_mod = @import("term.zig");
+    if (!term_mod.isatty(std.posix.STDOUT_FILENO)) return error.SkipZigTest;
 
     const allocator = testing.allocator;
 

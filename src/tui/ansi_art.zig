@@ -1,0 +1,366 @@
+const std = @import("std");
+const Allocator = std.mem.Allocator;
+
+/// Detect terminal color mode from environment variables.
+pub fn detectColorMode() AnsiArtRenderer.ColorMode {
+    const alloc = std.heap.page_allocator;
+
+    if (std.process.getEnvVarOwned(alloc, "COLORTERM")) |val| {
+        defer alloc.free(val);
+        if (std.mem.eql(u8, val, "truecolor") or std.mem.eql(u8, val, "24bit")) {
+            return .truecolor;
+        }
+    } else |_| {}
+
+    if (std.process.getEnvVarOwned(alloc, "TERM")) |val| {
+        defer alloc.free(val);
+        if (std.mem.indexOf(u8, val, "256color") != null) return .colors256;
+        if (std.mem.startsWith(u8, val, "xterm") or
+            std.mem.startsWith(u8, val, "screen") or
+            std.mem.startsWith(u8, val, "tmux")) return .colors16;
+    } else |_| {}
+
+    return .colors16;
+}
+
+/// Map RGB to the nearest xterm 256-color index.
+pub fn rgb256(r: u8, g: u8, b: u8) u8 {
+    // Special case: pure black and white
+    if (r == 0 and g == 0 and b == 0) return 16;
+    if (r == 255 and g == 255 and b == 255) return 231;
+
+    // 6×6×6 colour cube (indices 16–231)
+    const ri: u8 = @intCast((@as(u32, r) * 5 + 127) / 255);
+    const gi: u8 = @intCast((@as(u32, g) * 5 + 127) / 255);
+    const bi: u8 = @intCast((@as(u32, b) * 5 + 127) / 255);
+    return 16 + 36 * ri + 6 * gi + bi;
+}
+
+/// Map RGB to the nearest 16-color ANSI index.
+pub fn rgb16(r: u8, g: u8, b: u8) u8 {
+    const brightness = (@as(u32, r) + @as(u32, g) + @as(u32, b)) / 3;
+
+    if (r == 0 and g == 0 and b == 0) return 0;
+    if (r == 255 and g == 255 and b == 255) return 15;
+
+    const is_bright = brightness > 127;
+
+    // Achromatic
+    const max_ch = @max(r, @max(g, b));
+    const min_ch = @min(r, @min(g, b));
+    const chroma = @as(u32, max_ch) -| @as(u32, min_ch);
+    if (chroma < 40) {
+        if (brightness < 64) return 0;
+        if (brightness >= 192) return if (is_bright) 15 else 7;
+        return if (is_bright) 8 else 7;
+    }
+
+    // Hue determination
+    const rr = @as(i32, r);
+    const gg = @as(i32, g);
+    const bb = @as(i32, b);
+
+    if (rr >= gg and rr >= bb and rr - gg > 30 and rr - bb > 30)
+        return if (is_bright) 9 else 1; // red
+    if (gg >= rr and gg >= bb and gg - rr > 30 and gg - bb > 30)
+        return if (is_bright) 10 else 2; // green
+    if (bb >= rr and bb >= gg and bb - rr > 30 and bb - gg > 30)
+        return if (is_bright) 12 else 4; // blue
+    if (rr > 150 and gg > 150 and bb < 80)
+        return if (is_bright) 11 else 3; // yellow
+    if (gg > 150 and bb > 150 and rr < 80)
+        return if (is_bright) 14 else 6; // cyan
+    if (rr > 150 and bb > 150 and gg < 80)
+        return if (is_bright) 13 else 5; // magenta
+
+    return if (is_bright) 7 else 0;
+}
+
+pub const AnsiArtRenderer = struct {
+    pub const Algorithm = enum { block, braille, ascii };
+
+    pub const ColorMode = enum { truecolor, colors256, colors16, grayscale };
+
+    pub const Dithering = enum { none, floyd_steinberg, ordered };
+
+    pub const RenderOptions = struct {
+        algorithm: Algorithm = .block,
+        color_mode: ColorMode = .truecolor,
+        output_width: u32 = 80,
+        output_height: ?u32 = null,
+        dithering: Dithering = .none,
+    };
+
+    pub fn render(
+        allocator: Allocator,
+        pixels: []const u8,
+        width: u32,
+        height: u32,
+        options: RenderOptions,
+        writer: anytype,
+    ) !void {
+        if (options.output_width == 0 or height == 0 or width == 0)
+            return error.InvalidDimensions;
+        if (pixels.len < @as(usize, width) * height * 3)
+            return error.BufferTooSmall;
+
+        switch (options.algorithm) {
+            .block => try renderBlock(allocator, pixels, width, height, options, writer),
+            .braille => try renderBraille(pixels, width, height, options, writer),
+            .ascii => try renderAscii(allocator, pixels, width, height, options, writer),
+        }
+    }
+
+    pub fn renderAuto(
+        allocator: Allocator,
+        pixels: []const u8,
+        width: u32,
+        height: u32,
+        output_width: u32,
+        writer: anytype,
+    ) !void {
+        try render(allocator, pixels, width, height, .{
+            .algorithm = .block,
+            .color_mode = detectColorMode(),
+            .output_width = output_width,
+        }, writer);
+    }
+
+    // -------------------------------------------------------------------------
+
+    fn renderBlock(
+        _: Allocator,
+        pixels: []const u8,
+        width: u32,
+        height: u32,
+        options: RenderOptions,
+        writer: anytype,
+    ) !void {
+        const out_w = options.output_width;
+        const out_h = options.output_height orelse (height + 1) / 2;
+
+        const scale_x = @as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(out_w));
+        const scale_y = @as(f32, @floatFromInt(height)) / @as(f32, @floatFromInt(out_h * 2));
+
+        for (0..out_h) |row_usize| {
+            const row: u32 = @intCast(row_usize);
+            for (0..out_w) |col_usize| {
+                const col: u32 = @intCast(col_usize);
+
+                const src_x = @min(
+                    @as(u32, @intFromFloat(@as(f32, @floatFromInt(col)) * scale_x)),
+                    width - 1,
+                );
+                const src_y_top = @min(
+                    @as(u32, @intFromFloat(@as(f32, @floatFromInt(row * 2)) * scale_y)),
+                    height - 1,
+                );
+                const src_y_bot = @min(
+                    @as(u32, @intFromFloat(@as(f32, @floatFromInt(row * 2 + 1)) * scale_y)),
+                    height - 1,
+                );
+
+                const ti = (src_y_top * width + src_x) * 3;
+                const bi = (src_y_bot * width + src_x) * 3;
+
+                const tr = pixels[ti];
+                const tg = pixels[ti + 1];
+                const tb = pixels[ti + 2];
+                const br = pixels[bi];
+                const bg_c = pixels[bi + 1];
+                const bb = pixels[bi + 2];
+
+                if (options.color_mode != .grayscale) {
+                    switch (options.color_mode) {
+                        .truecolor => {
+                            try writer.print("\x1b[38;2;{};{};{}m", .{ tr, tg, tb });
+                            try writer.print("\x1b[48;2;{};{};{}m", .{ br, bg_c, bb });
+                        },
+                        .colors256 => {
+                            try writer.print("\x1b[38;5;{}m", .{rgb256(tr, tg, tb)});
+                            try writer.print("\x1b[48;5;{}m", .{rgb256(br, bg_c, bb)});
+                        },
+                        .colors16 => {
+                            try writer.print("\x1b[38;5;{}m", .{rgb16(tr, tg, tb)});
+                            try writer.print("\x1b[48;5;{}m", .{rgb16(br, bg_c, bb)});
+                        },
+                        .grayscale => unreachable,
+                    }
+                }
+
+                if (tr == br and tg == bg_c and tb == bb) {
+                    try writer.writeAll("█"); // U+2588 FULL BLOCK
+                } else {
+                    try writer.writeAll("▀"); // U+2580 UPPER HALF BLOCK
+                }
+            }
+
+            if (options.color_mode != .grayscale) try writer.writeAll("\x1b[0m");
+            try writer.writeByte('\n');
+        }
+
+        if (options.color_mode != .grayscale) try writer.writeAll("\x1b[0m");
+    }
+
+    fn renderBraille(
+        pixels: []const u8,
+        width: u32,
+        height: u32,
+        options: RenderOptions,
+        writer: anytype,
+    ) !void {
+        const out_w = options.output_width;
+        // 2 pixel cols × 4 pixel rows per braille char
+        const out_h = options.output_height orelse (height + 3) / 4;
+
+        const scale_x = @as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(out_w * 2));
+        const scale_y = @as(f32, @floatFromInt(height)) / @as(f32, @floatFromInt(out_h * 4));
+
+        // Braille dot→bit mapping (Unicode order):
+        // bit 0:(dx=0,dy=0) bit 1:(0,1) bit 2:(0,2) bit 3:(1,0)
+        // bit 4:(1,1)       bit 5:(1,2) bit 6:(0,3) bit 7:(1,3)
+        const DX = [8]u32{ 0, 0, 0, 1, 1, 1, 0, 1 };
+        const DY = [8]u32{ 0, 1, 2, 0, 1, 2, 3, 3 };
+
+        for (0..out_h) |row_usize| {
+            const row: u32 = @intCast(row_usize);
+            for (0..out_w) |col_usize| {
+                const col: u32 = @intCast(col_usize);
+                var bits: u8 = 0;
+
+                for (0..8) |bit| {
+                    const dx = DX[bit];
+                    const dy = DY[bit];
+                    const sx = @min(
+                        @as(u32, @intFromFloat((@as(f32, @floatFromInt(col * 2 + dx)) + 0.5) * scale_x)),
+                        width - 1,
+                    );
+                    const sy = @min(
+                        @as(u32, @intFromFloat((@as(f32, @floatFromInt(row * 4 + dy)) + 0.5) * scale_y)),
+                        height - 1,
+                    );
+
+                    const idx = (sy * width + sx) * 3;
+                    const lum = (@as(u32, pixels[idx]) * 2126 +
+                        @as(u32, pixels[idx + 1]) * 7152 +
+                        @as(u32, pixels[idx + 2]) * 722) / 10000;
+
+                    if (lum > 127) bits |= @as(u8, 1) << @intCast(bit);
+                }
+
+                var utf8_buf: [4]u8 = undefined;
+                const cp: u21 = 0x2800 + @as(u21, bits);
+                const len = try std.unicode.utf8Encode(cp, &utf8_buf);
+                try writer.writeAll(utf8_buf[0..len]);
+            }
+            try writer.writeByte('\n');
+        }
+    }
+
+    fn renderAscii(
+        allocator: Allocator,
+        pixels: []const u8,
+        width: u32,
+        height: u32,
+        options: RenderOptions,
+        writer: anytype,
+    ) !void {
+        const palette = " .,:;i1tfLCG08@";
+        const palette_max: f32 = @floatFromInt(palette.len - 1);
+
+        const out_w = options.output_width;
+        const out_h = options.output_height orelse height;
+
+        const scale_x = @as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(out_w));
+        const scale_y = @as(f32, @floatFromInt(height)) / @as(f32, @floatFromInt(out_h));
+
+        var err_buf: ?[]f32 = null;
+        defer if (err_buf) |buf| allocator.free(buf);
+        if (options.dithering == .floyd_steinberg) {
+            err_buf = try allocator.alloc(f32, out_w * out_h);
+            @memset(err_buf.?, 0);
+        }
+
+        // 4×4 Bayer matrix (values 0..15, normalised to 0..1 at use time)
+        const bayer = [4][4]u8{
+            .{ 0, 8, 2, 10 },
+            .{ 12, 4, 14, 6 },
+            .{ 3, 11, 1, 9 },
+            .{ 15, 7, 13, 5 },
+        };
+
+        for (0..out_h) |row_usize| {
+            const row: u32 = @intCast(row_usize);
+            for (0..out_w) |col_usize| {
+                const col: u32 = @intCast(col_usize);
+
+                const sx = @min(
+                    @as(u32, @intFromFloat(@as(f32, @floatFromInt(col)) * scale_x)),
+                    width - 1,
+                );
+                const sy = @min(
+                    @as(u32, @intFromFloat(@as(f32, @floatFromInt(row)) * scale_y)),
+                    height - 1,
+                );
+                const idx = (sy * width + sx) * 3;
+                const r = pixels[idx];
+                const g = pixels[idx + 1];
+                const b = pixels[idx + 2];
+
+                var lum = (@as(f32, @floatFromInt(r)) * 0.2126 +
+                    @as(f32, @floatFromInt(g)) * 0.7152 +
+                    @as(f32, @floatFromInt(b)) * 0.0722) / 255.0;
+
+                switch (options.dithering) {
+                    .none => {},
+                    .floyd_steinberg => {
+                        if (err_buf) |buf| {
+                            lum = std.math.clamp(lum + buf[row * out_w + col], 0.0, 1.0);
+                        }
+                    },
+                    .ordered => {
+                        const thresh = @as(f32, @floatFromInt(bayer[row % 4][col % 4])) / 16.0;
+                        lum = if (lum > thresh) 1.0 else 0.0;
+                    },
+                }
+
+                const pi = @min(
+                    @as(u32, @intFromFloat(lum * palette_max + 0.5)),
+                    @as(u32, palette.len - 1),
+                );
+
+                if (options.dithering == .floyd_steinberg) {
+                    if (err_buf) |buf| {
+                        const quantized = @as(f32, @floatFromInt(pi)) / palette_max;
+                        const ferr = lum - quantized;
+                        if (col + 1 < out_w)
+                            buf[row * out_w + col + 1] += ferr * 7.0 / 16.0;
+                        if (row + 1 < out_h) {
+                            if (col > 0)
+                                buf[(row + 1) * out_w + col - 1] += ferr * 3.0 / 16.0;
+                            buf[(row + 1) * out_w + col] += ferr * 5.0 / 16.0;
+                            if (col + 1 < out_w)
+                                buf[(row + 1) * out_w + col + 1] += ferr * 1.0 / 16.0;
+                        }
+                    }
+                }
+
+                if (options.color_mode != .grayscale) {
+                    switch (options.color_mode) {
+                        .truecolor => try writer.print("\x1b[38;2;{};{};{}m", .{ r, g, b }),
+                        .colors256 => try writer.print("\x1b[38;5;{}m", .{rgb256(r, g, b)}),
+                        .colors16 => try writer.print("\x1b[38;5;{}m", .{rgb16(r, g, b)}),
+                        .grayscale => unreachable,
+                    }
+                }
+
+                try writer.writeByte(palette[pi]);
+            }
+
+            if (options.color_mode != .grayscale) try writer.writeAll("\x1b[0m");
+            try writer.writeByte('\n');
+        }
+
+        if (options.color_mode != .grayscale) try writer.writeAll("\x1b[0m");
+    }
+};

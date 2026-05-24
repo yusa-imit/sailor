@@ -707,6 +707,33 @@ pub const SixelEncoder = struct {
         try writer.writeAll("\x1b\\");
     }
 
+    /// Encode image to compressed Sixel format
+    /// Applies RLE compression to the sixel data (not headers/footers)
+    /// for reduced bandwidth transmission.
+    ///
+    /// Args:
+    ///   allocator: Memory allocator for temporary buffers
+    ///   image: Image to encode
+    ///   writer: Output writer for compressed sixel data
+    ///
+    /// Errors:
+    ///   Propagates errors from encode() and compression
+    pub fn encodeCompressed(self: SixelEncoder, allocator: Allocator, image: SixelImage, writer: anytype) !void {
+        // First, encode normally to a buffer
+        var encoded_buf = std.ArrayList(u8){};
+        defer encoded_buf.deinit(allocator);
+
+        try self.encode(allocator, image, encoded_buf.writer(allocator));
+        const encoded_data = encoded_buf.items;
+
+        // Compress the encoded data
+        const compressed = try SixelCompressor.compress(allocator, encoded_data);
+        defer allocator.free(compressed);
+
+        // Write compressed data directly
+        try writer.writeAll(compressed);
+    }
+
     fn buildPalette(self: SixelEncoder, allocator: Allocator, image: SixelImage) ![]SixelImage.Color {
         if (self.quantization == .none) {
             // No quantization, collect unique colors (up to max_colors)
@@ -1654,5 +1681,161 @@ pub const SixelAnimator = struct {
         }
 
         return frame_changed;
+    }
+};
+
+// ============================================================================
+// Run-Length Encoding (RLE) Compression
+// ============================================================================
+
+/// Sixel compression using Run-Length Encoding (RLE)
+/// Repeated characters are encoded as "!<count><char>" where count is decimal.
+/// Reduces bandwidth for sixel data with high repetition (common with solid colors).
+pub const SixelCompressor = struct {
+    /// Compress sixel data using RLE
+    /// Runs of 2+ identical characters are compressed as "!<count><char>"
+    /// Single characters are left as literals
+    ///
+    /// Args:
+    ///   allocator: Memory allocator for result buffer
+    ///   data: Uncompressed sixel data (or any data)
+    ///
+    /// Returns:
+    ///   Compressed data (caller owns, must free)
+    ///
+    /// Errors:
+    ///   error.OutOfMemory if allocation fails
+    pub fn compress(allocator: Allocator, data: []const u8) ![]u8 {
+        if (data.len == 0) {
+            return try allocator.alloc(u8, 0);
+        }
+
+        var result = std.ArrayList(u8){};
+        errdefer result.deinit(allocator);
+
+        var i: usize = 0;
+        while (i < data.len) {
+            const current_char = data[i];
+            var run_length: usize = 1;
+
+            // Count consecutive identical characters
+            while (i + run_length < data.len and data[i + run_length] == current_char) {
+                run_length += 1;
+            }
+
+            if (run_length >= 2) {
+                // Compress runs >= 2 characters
+                // Split runs > 255 into multiple sequences
+                var remaining = run_length;
+                while (remaining > 0) {
+                    const chunk_size = if (remaining > 255) 255 else remaining;
+
+                    // Write "!" prefix
+                    try result.append(allocator, '!');
+
+                    // Write count as decimal string
+                    var buf: [6]u8 = undefined;
+                    const count_str = try std.fmt.bufPrint(&buf, "{}", .{chunk_size});
+                    try result.appendSlice(allocator, count_str);
+
+                    // Write character
+                    try result.append(allocator, current_char);
+
+                    remaining -= chunk_size;
+                }
+            } else {
+                // Keep runs < 3 as literals
+                try result.appendSlice(allocator, data[i .. i + run_length]);
+            }
+
+            i += run_length;
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+
+    /// Decompress RLE-compressed data
+    /// Format: "!<decimal-count><char>" for repeated sequences
+    /// All other characters are literals
+    ///
+    /// Args:
+    ///   allocator: Memory allocator for result buffer
+    ///   compressed: RLE-compressed data
+    ///
+    /// Returns:
+    ///   Original uncompressed data (caller owns, must free)
+    ///
+    /// Errors:
+    ///   error.InvalidRepeatCount if count after "!" is not valid decimal
+    ///   error.IncompleteCompressedData if data ends prematurely (e.g., "!3" with no char)
+    ///   error.RepeatCountTooLarge if count exceeds 65535
+    pub fn decompress(allocator: Allocator, compressed: []const u8) ![]u8 {
+        if (compressed.len == 0) {
+            return try allocator.alloc(u8, 0);
+        }
+
+        var result = std.ArrayList(u8){};
+        errdefer result.deinit(allocator);
+
+        var i: usize = 0;
+        while (i < compressed.len) {
+            if (compressed[i] == '!') {
+                // Parse repeat sequence
+                i += 1;
+
+                // Parse decimal count
+                var count_end = i;
+                while (count_end < compressed.len and compressed[count_end] >= '0' and compressed[count_end] <= '9') {
+                    count_end += 1;
+                }
+
+                if (count_end == i) {
+                    // No digits found after '!'
+                    return error.InvalidRepeatCount;
+                }
+
+                const count_str = compressed[i..count_end];
+                const count = std.fmt.parseInt(u32, count_str, 10) catch return error.InvalidRepeatCount;
+
+                if (count > 65535) {
+                    return error.RepeatCountTooLarge;
+                }
+
+                // Next character is the one to repeat
+                if (count_end >= compressed.len) {
+                    return error.IncompleteCompressedData;
+                }
+
+                const char_to_repeat = compressed[count_end];
+
+                // Append character 'count' times
+                try result.appendNTimes(allocator, char_to_repeat, count);
+
+                i = count_end + 1;
+            } else {
+                // Literal character
+                try result.append(allocator, compressed[i]);
+                i += 1;
+            }
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+
+    /// Calculate compression ratio (original size / compressed size)
+    /// Higher ratio = better compression
+    ///
+    /// Args:
+    ///   original: Uncompressed data
+    ///   compressed: Compressed data
+    ///
+    /// Returns:
+    ///   Ratio as f32 (original.len / compressed.len)
+    pub fn compressionRatio(original: []const u8, compressed: []const u8) f32 {
+        if (compressed.len == 0) {
+            if (original.len == 0) return 1.0;
+            return std.math.inf(f32);
+        }
+        return @as(f32, @floatFromInt(original.len)) / @as(f32, @floatFromInt(compressed.len));
     }
 };
