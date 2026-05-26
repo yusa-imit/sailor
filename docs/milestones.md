@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v2.10.2 (2026-05-18) — Natural Language Commands Bug Fixes (patch)
-- **Latest minor**: v2.10.0 (2026-05-13) — AI/ML Integration & Smart Features
-- **Next milestone**: v2.11.0 (Extended Graphics & Protocol Support)
-- **Active milestones**: 2 (v2.2.0, v2.11.0)
+- **Latest release**: v2.11.0 (2026-05-27) — Extended Graphics & Protocol Support
+- **Latest minor**: v2.11.0 (2026-05-27) — Extended Graphics & Protocol Support
+- **Next milestone**: v2.12.0 (TBD)
+- **Active milestones**: 1 (v2.2.0)
 - **Blockers**: None
 
 ## Active Milestones
@@ -62,35 +62,35 @@
 **Theme**: Advanced terminal graphics protocols and visual enhancements
 
 **Checklist**:
-- [ ] **Sixel Enhancements**: Full sixel protocol implementation
-  - Sixel encoder/decoder improvements
-  - Color palette optimization (256-color quantization)
-  - Animation support (GIF-like frame sequences)
-  - Compression for network efficiency
-  - Fallback to ANSI art for unsupported terminals
-- [ ] **Kitty Graphics Protocol**: Modern image protocol
-  - Kitty protocol implementation (transmit/display/delete)
-  - Unicode placeholder support
-  - Z-index and layering
-  - Virtual image management
-  - Performance optimizations (chunked transmission)
-- [ ] **ANSI Art Rendering**: High-quality text art
-  - Image to ANSI converter (multiple algorithms: block, braille, ascii)
-  - Color quantization for 256-color terminals
-  - Dithering options (Floyd-Steinberg, ordered)
-  - Real-time video frame conversion
-  - ASCII animation player
-- [ ] **Advanced Effects**: Visual polish
-  - Gradient backgrounds (linear, radial, conic)
-  - Blur and transparency emulation
-  - Custom border patterns (dotted, wavy, 3D)
-  - Particle effects (fire, rain, snow, sparkles)
-  - Transition animations (fade, wipe, slide)
-- [ ] **Testing**: Comprehensive test coverage
-  - Sixel encoder/decoder round-trip tests
-  - Kitty protocol message generation
-  - ANSI art quality metrics (PSNR, SSIM)
-  - Effect rendering tests (pixel-perfect comparison)
+- [x] **Sixel Enhancements**: Full sixel protocol implementation (COMPLETE)
+  - Sixel encoder/decoder improvements (SixelEncoder, SixelDecoder)
+  - Color palette optimization (256-color quantization, median cut, octree)
+  - Animation support (GIF-like frame sequences — SixelAnimator, DisposalMethod)
+  - Compression for network efficiency (SixelCompressor)
+  - Fallback to ANSI art for unsupported terminals (image_renderer.zig)
+- [x] **Kitty Graphics Protocol**: Modern image protocol (COMPLETE)
+  - Kitty protocol implementation (transmit/display/delete — KittyEncoder, KittyGraphics)
+  - Unicode placeholder support (DisplayOptions.unicode_placeholder)
+  - Z-index and layering (DisplayOptions.z_index)
+  - Virtual image management (KittyImageManager)
+  - Performance optimizations (chunked transmission — KittyEncoder.chunk_size)
+- [x] **ANSI Art Rendering**: High-quality text art (COMPLETE)
+  - Image to ANSI converter (multiple algorithms: block, braille, ascii — AnsiArtRenderer)
+  - Color quantization for 256-color terminals (rgb256(), rgb16())
+  - Dithering options (Floyd-Steinberg, ordered — AnsiArtRenderer.Dithering)
+  - Real-time video frame conversion (convertVideoFrame())
+  - ASCII animation player (AnsiArtPlayer)
+- [x] **Advanced Effects**: Visual polish (COMPLETE)
+  - Gradient backgrounds (linear, radial, conic — gradient.zig)
+  - Blur and transparency emulation (applyBlur, applyTransparency in effects.zig)
+  - Custom border patterns (dotted, wavy, 3D — BorderStyle3D, custom BoxSet borders)
+  - Particle effects (fire, rain, snow, sparkles — particles.zig)
+  - Transition animations (fade, wipe, slide — transition.zig, WipeTransition)
+- [x] **Testing**: Comprehensive test coverage (COMPLETE)
+  - Sixel encoder/decoder round-trip tests (sixel_test.zig — 57 tests)
+  - Kitty protocol message generation (kitty_test.zig)
+  - ANSI art quality metrics (PSNR, SSIM — ansi_art_test.zig — 76 tests)
+  - Effect rendering tests (particles_test.zig, transition_test.zig, inline tests)
 
 **Success Criteria**:
 - Sixel encoder produces valid output for 100+ test images
