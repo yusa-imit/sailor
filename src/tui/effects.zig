@@ -560,3 +560,517 @@ test "applyBorderEffect small area (no-op)" {
     // Should not panic
     applyBorderEffect(&buf, area, effect, .{});
 }
+
+/// Blur configuration for box blur effect
+pub const BlurConfig = struct {
+    /// Blur radius (1 = 3×3 kernel, 2 = 5×5 kernel)
+    radius: u8 = 1,
+    /// Only process fg colors (true) or ignore bg
+    fg_only: bool = true,
+};
+
+/// Transparency blend configuration
+pub const TransparencyConfig = struct {
+    /// 1.0 = fully opaque (no change), 0.0 = blend fully to background
+    alpha: f32 = 0.5,
+    /// Background color to blend toward; null defaults to black (0,0,0)
+    background: ?Color = null,
+};
+
+/// Apply box blur to area — averages neighboring RGB fg colors.
+/// Non-RGB colors are left unchanged.
+pub fn applyBlur(buf: *Buffer, area: Rect, config: BlurConfig) void {
+    if (area.width == 0 or area.height == 0) return;
+    const r: i32 = config.radius;
+    var y: u16 = area.y;
+    while (y < area.y + area.height and y < buf.height) : (y += 1) {
+        var x: u16 = area.x;
+        while (x < area.x + area.width and x < buf.width) : (x += 1) {
+            const cell = buf.getConst(x, y) orelse continue;
+            const fg = cell.style.fg orelse continue;
+            switch (fg) {
+                .rgb => {},
+                else => continue,
+            }
+            var sum_r: u32 = 0;
+            var sum_g: u32 = 0;
+            var sum_b: u32 = 0;
+            var count: u32 = 0;
+            var ny: i32 = @as(i32, y) - r;
+            while (ny <= @as(i32, y) + r) : (ny += 1) {
+                if (ny < 0 or ny >= @as(i32, buf.height)) continue;
+                var nx: i32 = @as(i32, x) - r;
+                while (nx <= @as(i32, x) + r) : (nx += 1) {
+                    if (nx < 0 or nx >= @as(i32, buf.width)) continue;
+                    const nc = buf.getConst(@intCast(nx), @intCast(ny)) orelse continue;
+                    const nfg = nc.style.fg orelse continue;
+                    switch (nfg) {
+                        .rgb => |c| {
+                            sum_r += c.r;
+                            sum_g += c.g;
+                            sum_b += c.b;
+                            count += 1;
+                        },
+                        else => {},
+                    }
+                }
+            }
+            if (count > 0) {
+                buf.set(x, y, .{
+                    .char = cell.char,
+                    .style = cell.style.withFg(Color.fromRgb(
+                        @intCast(sum_r / count),
+                        @intCast(sum_g / count),
+                        @intCast(sum_b / count),
+                    )),
+                });
+            }
+        }
+    }
+}
+
+/// Apply transparency to area — blends RGB fg colors toward background using alpha.
+/// Non-RGB colors are left unchanged.
+pub fn applyTransparency(buf: *Buffer, area: Rect, config: TransparencyConfig) void {
+    if (area.width == 0 or area.height == 0) return;
+    const bg_r: f32 = if (config.background) |bg| switch (bg) {
+        .rgb => |c| @floatFromInt(c.r),
+        else => 0.0,
+    } else 0.0;
+    const bg_g: f32 = if (config.background) |bg| switch (bg) {
+        .rgb => |c| @floatFromInt(c.g),
+        else => 0.0,
+    } else 0.0;
+    const bg_b: f32 = if (config.background) |bg| switch (bg) {
+        .rgb => |c| @floatFromInt(c.b),
+        else => 0.0,
+    } else 0.0;
+    const alpha = @min(1.0, @max(0.0, config.alpha));
+    var y: u16 = area.y;
+    while (y < area.y + area.height and y < buf.height) : (y += 1) {
+        var x: u16 = area.x;
+        while (x < area.x + area.width and x < buf.width) : (x += 1) {
+            const cell = buf.getConst(x, y) orelse continue;
+            const fg = cell.style.fg orelse continue;
+            switch (fg) {
+                .rgb => |c| {
+                    const new_r: u8 = @intFromFloat(@as(f32, @floatFromInt(c.r)) * alpha + bg_r * (1.0 - alpha));
+                    const new_g: u8 = @intFromFloat(@as(f32, @floatFromInt(c.g)) * alpha + bg_g * (1.0 - alpha));
+                    const new_b: u8 = @intFromFloat(@as(f32, @floatFromInt(c.b)) * alpha + bg_b * (1.0 - alpha));
+                    buf.set(x, y, .{
+                        .char = cell.char,
+                        .style = cell.style.withFg(Color.fromRgb(new_r, new_g, new_b)),
+                    });
+                },
+                else => {},
+            }
+        }
+    }
+}
+
+// ============================================================================
+// Tests for applyBlur and applyTransparency
+// ============================================================================
+
+test "BlurConfig default values" {
+    const config = BlurConfig{};
+    try std.testing.expectEqual(@as(u8, 1), config.radius);
+    try std.testing.expect(config.fg_only);
+}
+
+test "BlurConfig custom values" {
+    const config = BlurConfig{
+        .radius = 2,
+        .fg_only = false,
+    };
+    try std.testing.expectEqual(@as(u8, 2), config.radius);
+    try std.testing.expect(!config.fg_only);
+}
+
+test "TransparencyConfig default values" {
+    const config = TransparencyConfig{};
+    try std.testing.expectEqual(@as(f32, 0.5), config.alpha);
+    try std.testing.expectEqual(@as(?Color, null), config.background);
+}
+
+test "TransparencyConfig custom values" {
+    const config = TransparencyConfig{
+        .alpha = 0.75,
+        .background = Color.white,
+    };
+    try std.testing.expectEqual(@as(f32, 0.75), config.alpha);
+    try std.testing.expectEqual(Color.white, config.background.?);
+}
+
+test "applyBlur single cell area unchanged" {
+    var buf = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    // Set single cell with RGB color
+    const original_color = Color.fromRgb(200, 100, 50);
+    buf.set(5, 5, .{
+        .char = 'X',
+        .style = .{ .fg = original_color },
+    });
+
+    const area = Rect{ .x = 5, .y = 5, .width = 1, .height = 1 };
+    const config = BlurConfig{};
+    applyBlur(&buf, area, config);
+
+    // Single cell should be unchanged (nothing to average with)
+    const cell = buf.getConst(5, 5).?;
+    try std.testing.expectEqual(@as(u21, 'X'), cell.char);
+    if (cell.style.fg) |fg| {
+        switch (fg) {
+            .rgb => |c| {
+                try std.testing.expectEqual(@as(u8, 200), c.r);
+                try std.testing.expectEqual(@as(u8, 100), c.g);
+                try std.testing.expectEqual(@as(u8, 50), c.b);
+            },
+            else => try std.testing.expect(false), // Should be RGB
+        }
+    } else {
+        try std.testing.expect(false); // Should have color
+    }
+}
+
+test "applyBlur 3x3 uniform color unchanged" {
+    var buf = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    // Fill 3x3 area with same RGB color
+    const uniform_color = Color.fromRgb(150, 150, 150);
+    var y: u16 = 2;
+    while (y < 5) : (y += 1) {
+        var x: u16 = 2;
+        while (x < 5) : (x += 1) {
+            buf.set(x, y, .{
+                .char = 'U',
+                .style = .{ .fg = uniform_color },
+            });
+        }
+    }
+
+    const area = Rect{ .x = 2, .y = 2, .width = 3, .height = 3 };
+    const config = BlurConfig{ .radius = 1 };
+    applyBlur(&buf, area, config);
+
+    // All colors should remain the same (uniform color averages to itself)
+    y = 2;
+    while (y < 5) : (y += 1) {
+        var x: u16 = 2;
+        while (x < 5) : (x += 1) {
+            const cell = buf.getConst(x, y).?;
+            if (cell.style.fg) |fg| {
+                switch (fg) {
+                    .rgb => |c| {
+                        try std.testing.expectEqual(@as(u8, 150), c.r);
+                        try std.testing.expectEqual(@as(u8, 150), c.g);
+                        try std.testing.expectEqual(@as(u8, 150), c.b);
+                    },
+                    else => try std.testing.expect(false),
+                }
+            }
+        }
+    }
+}
+
+test "applyBlur softens bright center surrounded by dark" {
+    var buf = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    // Create 3x3 area: center is bright white, surrounding is black
+    const black = Color.fromRgb(0, 0, 0);
+    const white = Color.fromRgb(255, 255, 255);
+
+    // Set all to black first
+    var y: u16 = 2;
+    while (y < 5) : (y += 1) {
+        var x: u16 = 2;
+        while (x < 5) : (x += 1) {
+            buf.set(x, y, .{
+                .char = 'X',
+                .style = .{ .fg = black },
+            });
+        }
+    }
+
+    // Set center to white
+    buf.set(3, 3, .{
+        .char = 'X',
+        .style = .{ .fg = white },
+    });
+
+    const area = Rect{ .x = 2, .y = 2, .width = 3, .height = 3 };
+    const config = BlurConfig{ .radius = 1 };
+    applyBlur(&buf, area, config);
+
+    // Center should now be closer to black (blurred toward neighbors)
+    // The exact value depends on implementation, but should be < 255
+    const center_cell = buf.getConst(3, 3).?;
+    if (center_cell.style.fg) |fg| {
+        switch (fg) {
+            .rgb => |c| {
+                // After blur, center should be reduced (not pure white anymore)
+                try std.testing.expect(c.r < 255 or c.g < 255 or c.b < 255);
+            },
+            else => try std.testing.expect(false),
+        }
+    }
+}
+
+test "applyBlur at buffer edge no panic" {
+    var buf = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    // Apply blur to area at buffer edge
+    const area = Rect{ .x = 8, .y = 8, .width = 2, .height = 2 };
+    const config = BlurConfig{ .radius = 1 };
+
+    // Should not panic or crash
+    applyBlur(&buf, area, config);
+}
+
+test "applyBlur preserves non-RGB named colors" {
+    var buf = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    // Fill 3x3 area with named color (not RGB)
+    var y: u16 = 2;
+    while (y < 5) : (y += 1) {
+        var x: u16 = 2;
+        while (x < 5) : (x += 1) {
+            buf.set(x, y, .{
+                .char = 'C',
+                .style = .{ .fg = Color.red },
+            });
+        }
+    }
+
+    const area = Rect{ .x = 2, .y = 2, .width = 3, .height = 3 };
+    const config = BlurConfig{ .radius = 1 };
+    applyBlur(&buf, area, config);
+
+    // Named colors should be unchanged
+    y = 2;
+    while (y < 5) : (y += 1) {
+        var x: u16 = 2;
+        while (x < 5) : (x += 1) {
+            const cell = buf.getConst(x, y).?;
+            try std.testing.expectEqual(Color.red, cell.style.fg.?);
+        }
+    }
+}
+
+test "applyBlur maintains non-null fg after blur" {
+    var buf = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    // Fill area with RGB colors
+    const color1 = Color.fromRgb(100, 100, 100);
+    const color2 = Color.fromRgb(200, 200, 200);
+
+    var y: u16 = 2;
+    while (y < 5) : (y += 1) {
+        var x: u16 = 2;
+        while (x < 5) : (x += 1) {
+            const c = if ((x + y) % 2 == 0) color1 else color2;
+            buf.set(x, y, .{
+                .char = 'C',
+                .style = .{ .fg = c },
+            });
+        }
+    }
+
+    const area = Rect{ .x = 2, .y = 2, .width = 3, .height = 3 };
+    const config = BlurConfig{ .radius = 1 };
+    applyBlur(&buf, area, config);
+
+    // All cells should still have non-null foreground
+    y = 2;
+    while (y < 5) : (y += 1) {
+        var x: u16 = 2;
+        while (x < 5) : (x += 1) {
+            const cell = buf.getConst(x, y).?;
+            try std.testing.expect(cell.style.fg != null);
+        }
+    }
+}
+
+test "applyTransparency alpha 1.0 no change" {
+    var buf = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    // Set cell with RGB color
+    const original_color = Color.fromRgb(100, 150, 200);
+    buf.set(5, 5, .{
+        .char = 'A',
+        .style = .{ .fg = original_color },
+    });
+
+    const area = Rect{ .x = 5, .y = 5, .width = 1, .height = 1 };
+    const config = TransparencyConfig{ .alpha = 1.0, .background = Color.black };
+    applyTransparency(&buf, area, config);
+
+    // With alpha=1.0 (fully opaque), color should be unchanged
+    const cell = buf.getConst(5, 5).?;
+    if (cell.style.fg) |fg| {
+        switch (fg) {
+            .rgb => |c| {
+                try std.testing.expectEqual(@as(u8, 100), c.r);
+                try std.testing.expectEqual(@as(u8, 150), c.g);
+                try std.testing.expectEqual(@as(u8, 200), c.b);
+            },
+            else => try std.testing.expect(false),
+        }
+    }
+}
+
+test "applyTransparency alpha 0.0 becomes background" {
+    var buf = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    // Set cell with RGB color
+    const fg_color = Color.fromRgb(255, 0, 0);
+    buf.set(5, 5, .{
+        .char = 'T',
+        .style = .{ .fg = fg_color },
+    });
+
+    const bg_color = Color.fromRgb(50, 50, 50);
+    const area = Rect{ .x = 5, .y = 5, .width = 1, .height = 1 };
+    const config = TransparencyConfig{ .alpha = 0.0, .background = bg_color };
+    applyTransparency(&buf, area, config);
+
+    // With alpha=0.0 (fully transparent), color should become background
+    const cell = buf.getConst(5, 5).?;
+    if (cell.style.fg) |fg| {
+        switch (fg) {
+            .rgb => |c| {
+                try std.testing.expectEqual(@as(u8, 50), c.r);
+                try std.testing.expectEqual(@as(u8, 50), c.g);
+                try std.testing.expectEqual(@as(u8, 50), c.b);
+            },
+            else => try std.testing.expect(false),
+        }
+    }
+}
+
+test "applyTransparency alpha 0.0 with null background becomes black" {
+    var buf = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    // Set cell with RGB color
+    const fg_color = Color.fromRgb(200, 100, 50);
+    buf.set(5, 5, .{
+        .char = 'N',
+        .style = .{ .fg = fg_color },
+    });
+
+    const area = Rect{ .x = 5, .y = 5, .width = 1, .height = 1 };
+    const config = TransparencyConfig{ .alpha = 0.0, .background = null };
+    applyTransparency(&buf, area, config);
+
+    // With alpha=0.0 and background=null, should blend to black
+    const cell = buf.getConst(5, 5).?;
+    if (cell.style.fg) |fg| {
+        switch (fg) {
+            .rgb => |c| {
+                try std.testing.expectEqual(@as(u8, 0), c.r);
+                try std.testing.expectEqual(@as(u8, 0), c.g);
+                try std.testing.expectEqual(@as(u8, 0), c.b);
+            },
+            else => try std.testing.expect(false),
+        }
+    }
+}
+
+test "applyTransparency alpha 0.5 midpoint blend" {
+    var buf = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    // Set cell with RGB color
+    const fg_color = Color.fromRgb(200, 100, 0);
+    buf.set(5, 5, .{
+        .char = 'M',
+        .style = .{ .fg = fg_color },
+    });
+
+    const bg_color = Color.fromRgb(0, 100, 200);
+    const area = Rect{ .x = 5, .y = 5, .width = 1, .height = 1 };
+    const config = TransparencyConfig{ .alpha = 0.5, .background = bg_color };
+    applyTransparency(&buf, area, config);
+
+    // With alpha=0.5, should be midpoint: (200+0)/2=100, (100+100)/2=100, (0+200)/2=100
+    const cell = buf.getConst(5, 5).?;
+    if (cell.style.fg) |fg| {
+        switch (fg) {
+            .rgb => |c| {
+                // Allow 1 unit rounding error
+                try std.testing.expect(c.r >= 99 and c.r <= 101);
+                try std.testing.expectEqual(@as(u8, 100), c.g);
+                try std.testing.expect(c.b >= 99 and c.b <= 101);
+            },
+            else => try std.testing.expect(false),
+        }
+    }
+}
+
+test "applyTransparency preserves non-RGB colors" {
+    var buf = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    // Set cells with named colors
+    buf.set(5, 5, .{
+        .char = 'C',
+        .style = .{ .fg = Color.blue },
+    });
+    buf.set(6, 5, .{
+        .char = 'C',
+        .style = .{ .fg = Color.green },
+    });
+
+    const area = Rect{ .x = 5, .y = 5, .width = 2, .height = 1 };
+    const config = TransparencyConfig{ .alpha = 0.5, .background = Color.red };
+    applyTransparency(&buf, area, config);
+
+    // Named colors should be unchanged
+    try std.testing.expectEqual(Color.blue, buf.getConst(5, 5).?.style.fg.?);
+    try std.testing.expectEqual(Color.green, buf.getConst(6, 5).?.style.fg.?);
+}
+
+test "applyTransparency empty area no panic" {
+    var buf = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    // Apply to empty area (width=0)
+    const area = Rect{ .x = 5, .y = 5, .width = 0, .height = 1 };
+    const config = TransparencyConfig{ .alpha = 0.5, .background = Color.white };
+
+    // Should not panic
+    applyTransparency(&buf, area, config);
+}
+
+test "applyTransparency zero height no panic" {
+    var buf = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    // Apply to empty area (height=0)
+    const area = Rect{ .x = 5, .y = 5, .width = 5, .height = 0 };
+    const config = TransparencyConfig{ .alpha = 0.5, .background = Color.white };
+
+    // Should not panic
+    applyTransparency(&buf, area, config);
+}
+
+test "applyTransparency at buffer boundary no panic" {
+    var buf = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    // Apply to area at buffer edge
+    const area = Rect{ .x = 8, .y = 8, .width = 2, .height = 2 };
+    const config = TransparencyConfig{ .alpha = 0.5, .background = Color.white };
+
+    // Should not panic
+    applyTransparency(&buf, area, config);
+}

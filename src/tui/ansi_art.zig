@@ -460,7 +460,7 @@ pub const AnsiArtPlayer = struct {
     };
 
     allocator: Allocator,
-    frames: std.ArrayList(Frame),
+    frames: std.ArrayListUnmanaged(Frame),
     current_frame: usize,
     elapsed_ms: u64,
     is_playing: bool,
@@ -471,7 +471,7 @@ pub const AnsiArtPlayer = struct {
     pub fn init(allocator: Allocator, options: AnsiArtRenderer.RenderOptions) AnsiArtPlayer {
         return AnsiArtPlayer{
             .allocator = allocator,
-            .frames = std.ArrayList(Frame).init(allocator),
+            .frames = .{},
             .current_frame = 0,
             .elapsed_ms = 0,
             .is_playing = false,
@@ -485,12 +485,12 @@ pub const AnsiArtPlayer = struct {
         for (self.frames.items) |frame| {
             self.allocator.free(frame.pixels);
         }
-        self.frames.deinit();
+        self.frames.deinit(self.allocator);
     }
 
     pub fn addFrame(self: *AnsiArtPlayer, pixels: []const u8, width: u32, height: u32, duration_ms: u64) !void {
         const cloned = try self.allocator.dupe(u8, pixels);
-        try self.frames.append(Frame{
+        try self.frames.append(self.allocator, Frame{
             .pixels = cloned,
             .width = width,
             .height = height,

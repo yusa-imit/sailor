@@ -179,6 +179,20 @@ pub const ParticleKind = particles.ParticleKind;
 pub const ParticleConfig = particles.ParticleConfig;
 pub const ParticleSystem = particles.ParticleSystem;
 pub const ConicGradient = @import("tui/gradient.zig").ConicGradient;
+pub const LinearGradient = @import("tui/gradient.zig").LinearGradient;
+pub const RadialGradient = @import("tui/gradient.zig").RadialGradient;
+pub const effects = @import("tui/effects.zig");
+pub const BlurConfig = effects.BlurConfig;
+pub const TransparencyConfig = effects.TransparencyConfig;
+pub const applyBlur = effects.applyBlur;
+pub const applyTransparency = effects.applyTransparency;
+pub const ShadowStyle = effects.ShadowStyle;
+pub const BorderStyle3D = effects.BorderStyle3D;
+pub const image_renderer = @import("tui/image_renderer.zig");
+pub const ImageRenderOptions = image_renderer.RenderOptions;
+pub const ImageProtocol = image_renderer.Protocol;
+pub const renderImage = image_renderer.renderImage;
+pub const detectImageProtocol = image_renderer.detectProtocol;
 
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;

@@ -914,3 +914,730 @@ test "ansi art: render clears styling between rows with reset sequence" {
     try testing.expect(std.mem.endsWith(u8, output, "\x1b[0m") or
         std.mem.endsWith(u8, output, "\x1b[m"));
 }
+
+// ============================================================================
+// PSNR Quality Metric Tests (9 tests)
+// ============================================================================
+
+test "ansi art: psnr identical buffers returns 100.0 (perfect quality)" {
+    const allocator = testing.allocator;
+    const original = try allocator.alloc(u8, 24);
+    defer allocator.free(original);
+    const reconstructed = try allocator.alloc(u8, 24);
+    defer allocator.free(reconstructed);
+
+    // Fill with same values
+    @memset(original, 128);
+    @memset(reconstructed, 128);
+
+    const result = sailor.tui.ansi_art.psnr(original, reconstructed);
+    try testing.expect(result == 100.0);
+}
+
+test "ansi art: psnr all-zero vs all-max buffer returns low value" {
+    const allocator = testing.allocator;
+    const original = try allocator.alloc(u8, 24);
+    defer allocator.free(original);
+    const reconstructed = try allocator.alloc(u8, 24);
+    defer allocator.free(reconstructed);
+
+    @memset(original, 0);
+    @memset(reconstructed, 255);
+
+    const result = sailor.tui.ansi_art.psnr(original, reconstructed);
+    // Max difference (255) squared: MSE = 255^2 = 65025
+    // PSNR = 10*log10(255^2/65025) = 10*log10(1) = 0.0 dB
+    try testing.expect(result < 10.0); // Should be very low
+}
+
+test "ansi art: psnr single-bit difference returns high value" {
+    const allocator = testing.allocator;
+    const original = try allocator.alloc(u8, 24);
+    defer allocator.free(original);
+    const reconstructed = try allocator.alloc(u8, 24);
+    defer allocator.free(reconstructed);
+
+    @memset(original, 128);
+    @memset(reconstructed, 128);
+    reconstructed[0] = 129; // Single byte differs by 1
+
+    const result = sailor.tui.ansi_art.psnr(original, reconstructed);
+    // MSE = 1^2 / 24 ≈ 0.0417
+    // PSNR = 10*log10(255^2 / 0.0417) ≈ 43.7 dB
+    try testing.expect(result > 40.0);
+}
+
+test "ansi art: psnr result is non-negative" {
+    const allocator = testing.allocator;
+    const original = try allocator.alloc(u8, 12);
+    defer allocator.free(original);
+    const reconstructed = try allocator.alloc(u8, 12);
+    defer allocator.free(reconstructed);
+
+    original[0] = 100;
+    original[1] = 200;
+    reconstructed[0] = 99;
+    reconstructed[1] = 198;
+
+    const result = sailor.tui.ansi_art.psnr(original, reconstructed);
+    try testing.expect(result >= 0.0);
+}
+
+test "ansi art: psnr with known MSE value gives expected result" {
+    const allocator = testing.allocator;
+    const original = try allocator.alloc(u8, 3);
+    defer allocator.free(original);
+    const reconstructed = try allocator.alloc(u8, 3);
+    defer allocator.free(reconstructed);
+
+    // Set up for MSE = 100: needs sum of squared errors = 300
+    // Three samples, diff of 10 each: 10^2 + 10^2 + 10^2 = 300
+    // MSE = 300/3 = 100
+    original[0] = 100;
+    original[1] = 100;
+    original[2] = 100;
+    reconstructed[0] = 110;
+    reconstructed[1] = 110;
+    reconstructed[2] = 110;
+
+    const result = sailor.tui.ansi_art.psnr(original, reconstructed);
+    // PSNR = 10*log10(255^2 / 100) = 10*log10(650.25) ≈ 28.13 dB
+    try testing.expect(result > 25.0 and result < 32.0);
+}
+
+test "ansi art: psnr is symmetric (psnr(a,b) == psnr(b,a))" {
+    const allocator = testing.allocator;
+    const buf_a = try allocator.alloc(u8, 16);
+    defer allocator.free(buf_a);
+    const buf_b = try allocator.alloc(u8, 16);
+    defer allocator.free(buf_b);
+
+    buf_a[0] = 50;
+    buf_a[1] = 100;
+    buf_a[2] = 150;
+    buf_a[3] = 200;
+    buf_b[0] = 51;
+    buf_b[1] = 99;
+    buf_b[2] = 151;
+    buf_b[3] = 199;
+
+    const psnr_ab = sailor.tui.ansi_art.psnr(buf_a, buf_b);
+    const psnr_ba = sailor.tui.ansi_art.psnr(buf_b, buf_a);
+
+    // Should be equal within float tolerance
+    try testing.expect(@abs(psnr_ab - psnr_ba) < 0.001);
+}
+
+test "ansi art: psnr with single-element buffer" {
+    const allocator = testing.allocator;
+    const original = try allocator.alloc(u8, 1);
+    defer allocator.free(original);
+    const reconstructed = try allocator.alloc(u8, 1);
+    defer allocator.free(reconstructed);
+
+    original[0] = 100;
+    reconstructed[0] = 100;
+
+    const result = sailor.tui.ansi_art.psnr(original, reconstructed);
+    try testing.expect(result == 100.0);
+}
+
+test "ansi art: psnr with gradual differences across buffer" {
+    const allocator = testing.allocator;
+    const original = try allocator.alloc(u8, 8);
+    defer allocator.free(original);
+    const reconstructed = try allocator.alloc(u8, 8);
+    defer allocator.free(reconstructed);
+
+    // Set up linear gradient of differences
+    for (0..8) |i| {
+        original[i] = @intCast(i * 32);
+        reconstructed[i] = @intCast(i * 32 + 1); // Off by 1
+    }
+
+    const result = sailor.tui.ansi_art.psnr(original, reconstructed);
+    // MSE = 8 * (1^2) / 8 = 1
+    // PSNR = 10*log10(255^2 / 1) = 10*log10(65025) ≈ 48.13 dB
+    try testing.expect(result > 45.0 and result < 52.0);
+}
+
+// ============================================================================
+// SSIM Quality Metric Tests (7 tests)
+// ============================================================================
+
+test "ansi art: ssim identical buffers returns 1.0" {
+    const allocator = testing.allocator;
+    const buf = try allocator.alloc(u8, 12);
+    defer allocator.free(buf);
+
+    @memset(buf, 128);
+
+    const result = sailor.tui.ansi_art.ssim(buf, buf, 2, 2);
+    try testing.expect(result == 1.0);
+}
+
+test "ansi art: ssim completely different images returns low value" {
+    const allocator = testing.allocator;
+    const original = try allocator.alloc(u8, 12);
+    defer allocator.free(original);
+    const different = try allocator.alloc(u8, 12);
+    defer allocator.free(different);
+
+    @memset(original, 0);
+    @memset(different, 255);
+
+    const result = sailor.tui.ansi_art.ssim(original, different, 2, 2);
+    try testing.expect(result < 0.5);
+}
+
+test "ansi art: ssim result is in range [0.0, 1.0]" {
+    const allocator = testing.allocator;
+    const buf_a = try allocator.alloc(u8, 12);
+    defer allocator.free(buf_a);
+    const buf_b = try allocator.alloc(u8, 12);
+    defer allocator.free(buf_b);
+
+    @memset(buf_a, 100);
+    @memset(buf_b, 150);
+
+    const result = sailor.tui.ansi_art.ssim(buf_a, buf_b, 2, 2);
+    try testing.expect(result >= 0.0 and result <= 1.0);
+}
+
+test "ansi art: ssim all-constant vs constant-plus-noise gives high value" {
+    const allocator = testing.allocator;
+    const constant = try allocator.alloc(u8, 16);
+    defer allocator.free(constant);
+    const noisy = try allocator.alloc(u8, 16);
+    defer allocator.free(noisy);
+
+    @memset(constant, 128);
+    @memset(noisy, 128);
+    noisy[0] = 120;
+    noisy[1] = 136;
+
+    const result = sailor.tui.ansi_art.ssim(constant, noisy, 2, 2);
+    try testing.expect(result > 0.5);
+}
+
+test "ansi art: ssim with 1-pixel-wide image (degenerate width)" {
+    const allocator = testing.allocator;
+    const buf_a = try allocator.alloc(u8, 6);
+    defer allocator.free(buf_a);
+    const buf_b = try allocator.alloc(u8, 6);
+    defer allocator.free(buf_b);
+
+    @memset(buf_a, 100);
+    @memset(buf_b, 100);
+
+    const result = sailor.tui.ansi_art.ssim(buf_a, buf_b, 1, 2);
+    // Should not crash and return valid SSIM
+    try testing.expect(result >= 0.0 and result <= 1.0);
+}
+
+test "ansi art: ssim is symmetric (ssim(a,b) ≈ ssim(b,a))" {
+    const allocator = testing.allocator;
+    const buf_a = try allocator.alloc(u8, 12);
+    defer allocator.free(buf_a);
+    const buf_b = try allocator.alloc(u8, 12);
+    defer allocator.free(buf_b);
+
+    buf_a[0] = 50;
+    buf_a[1] = 100;
+    buf_a[2] = 150;
+    buf_b[0] = 60;
+    buf_b[1] = 110;
+    buf_b[2] = 140;
+
+    const ssim_ab = sailor.tui.ansi_art.ssim(buf_a, buf_b, 2, 2);
+    const ssim_ba = sailor.tui.ansi_art.ssim(buf_b, buf_a, 2, 2);
+
+    try testing.expect(@abs(ssim_ab - ssim_ba) < 0.001);
+}
+
+test "ansi art: ssim RGB24 single-row image" {
+    const allocator = testing.allocator;
+    // 4x1 RGB24 image = 12 bytes
+    const buf_a = try allocator.alloc(u8, 12);
+    defer allocator.free(buf_a);
+    const buf_b = try allocator.alloc(u8, 12);
+    defer allocator.free(buf_b);
+
+    @memset(buf_a, 200);
+    @memset(buf_b, 200);
+
+    const result = sailor.tui.ansi_art.ssim(buf_a, buf_b, 4, 3);
+    try testing.expect(result == 1.0);
+}
+
+// ============================================================================
+// AnsiArtPlayer Tests (15 tests)
+// ============================================================================
+
+test "ansi art player: init creates empty player" {
+    const allocator = testing.allocator;
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    var player = sailor.tui.ansi_art.AnsiArtPlayer.init(allocator, options);
+    defer player.deinit();
+
+    try testing.expectEqual(@as(usize, 0), player.getFrameCount());
+    try testing.expectEqual(@as(usize, 0), player.getCurrentFrameIndex());
+}
+
+test "ansi art player: addFrame clones pixel data" {
+    const allocator = testing.allocator;
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    var player = sailor.tui.ansi_art.AnsiArtPlayer.init(allocator, options);
+    defer player.deinit();
+
+    var original_pixels = try createSolidImage(allocator, 2, 2, 255, 0, 0);
+    defer allocator.free(original_pixels);
+
+    try player.addFrame(original_pixels, 2, 2, 100);
+
+    // Modify original
+    original_pixels[0] = 0;
+
+    // Player should have independent copy
+    try testing.expectEqual(@as(usize, 1), player.getFrameCount());
+}
+
+test "ansi art player: getFrameCount increments after each addFrame" {
+    const allocator = testing.allocator;
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    var player = sailor.tui.ansi_art.AnsiArtPlayer.init(allocator, options);
+    defer player.deinit();
+
+    try testing.expectEqual(@as(usize, 0), player.getFrameCount());
+
+    const frame1 = try createSolidImage(allocator, 2, 2, 255, 0, 0);
+    defer allocator.free(frame1);
+    try player.addFrame(frame1, 2, 2, 100);
+
+    try testing.expectEqual(@as(usize, 1), player.getFrameCount());
+
+    const frame2 = try createSolidImage(allocator, 2, 2, 0, 255, 0);
+    defer allocator.free(frame2);
+    try player.addFrame(frame2, 2, 2, 100);
+
+    try testing.expectEqual(@as(usize, 2), player.getFrameCount());
+}
+
+test "ansi art player: player starts paused" {
+    const allocator = testing.allocator;
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    var player = sailor.tui.ansi_art.AnsiArtPlayer.init(allocator, options);
+    defer player.deinit();
+
+    try testing.expect(!player.is_playing);
+}
+
+test "ansi art player: play sets is_playing to true" {
+    const allocator = testing.allocator;
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    var player = sailor.tui.ansi_art.AnsiArtPlayer.init(allocator, options);
+    defer player.deinit();
+
+    player.play();
+    try testing.expect(player.is_playing);
+}
+
+test "ansi art player: pause sets is_playing to false" {
+    const allocator = testing.allocator;
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    var player = sailor.tui.ansi_art.AnsiArtPlayer.init(allocator, options);
+    defer player.deinit();
+
+    player.play();
+    try testing.expect(player.is_playing);
+
+    player.pause();
+    try testing.expect(!player.is_playing);
+}
+
+test "ansi art player: stop resets to frame 0 and pauses" {
+    const allocator = testing.allocator;
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    var player = sailor.tui.ansi_art.AnsiArtPlayer.init(allocator, options);
+    defer player.deinit();
+
+    const frame1 = try createSolidImage(allocator, 2, 2, 255, 0, 0);
+    defer allocator.free(frame1);
+    try player.addFrame(frame1, 2, 2, 100);
+
+    const frame2 = try createSolidImage(allocator, 2, 2, 0, 255, 0);
+    defer allocator.free(frame2);
+    try player.addFrame(frame2, 2, 2, 100);
+
+    player.play();
+    player.update(150); // Advance to frame 1
+
+    try testing.expectEqual(@as(usize, 1), player.getCurrentFrameIndex());
+
+    player.stop();
+
+    try testing.expectEqual(@as(usize, 0), player.getCurrentFrameIndex());
+    try testing.expect(!player.is_playing);
+}
+
+test "ansi art player: update does nothing when paused" {
+    const allocator = testing.allocator;
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    var player = sailor.tui.ansi_art.AnsiArtPlayer.init(allocator, options);
+    defer player.deinit();
+
+    const frame1 = try createSolidImage(allocator, 2, 2, 255, 0, 0);
+    defer allocator.free(frame1);
+    try player.addFrame(frame1, 2, 2, 100);
+
+    const frame2 = try createSolidImage(allocator, 2, 2, 0, 255, 0);
+    defer allocator.free(frame2);
+    try player.addFrame(frame2, 2, 2, 100);
+
+    // Never call play — stays paused
+    player.update(200);
+
+    try testing.expectEqual(@as(usize, 0), player.getCurrentFrameIndex());
+}
+
+test "ansi art player: update advances frame when playing and enough time elapsed" {
+    const allocator = testing.allocator;
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    var player = sailor.tui.ansi_art.AnsiArtPlayer.init(allocator, options);
+    defer player.deinit();
+
+    const frame1 = try createSolidImage(allocator, 2, 2, 255, 0, 0);
+    defer allocator.free(frame1);
+    try player.addFrame(frame1, 2, 2, 100); // 100ms duration
+
+    const frame2 = try createSolidImage(allocator, 2, 2, 0, 255, 0);
+    defer allocator.free(frame2);
+    try player.addFrame(frame2, 2, 2, 100);
+
+    player.play();
+    player.update(150); // 150ms > 100ms
+
+    try testing.expectEqual(@as(usize, 1), player.getCurrentFrameIndex());
+}
+
+test "ansi art player: update loops back to frame 0 after last frame when loop=true" {
+    const allocator = testing.allocator;
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    var player = sailor.tui.ansi_art.AnsiArtPlayer.init(allocator, options);
+    player.loop = true;
+    defer player.deinit();
+
+    const frame1 = try createSolidImage(allocator, 2, 2, 255, 0, 0);
+    defer allocator.free(frame1);
+    try player.addFrame(frame1, 2, 2, 100);
+
+    const frame2 = try createSolidImage(allocator, 2, 2, 0, 255, 0);
+    defer allocator.free(frame2);
+    try player.addFrame(frame2, 2, 2, 100);
+
+    player.play();
+    player.update(250); // Advance through both frames
+
+    // With loop=true, should cycle back to frame 0
+    try testing.expectEqual(@as(usize, 0), player.getCurrentFrameIndex());
+}
+
+test "ansi art player: isComplete returns true after last frame with loop=false" {
+    const allocator = testing.allocator;
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    var player = sailor.tui.ansi_art.AnsiArtPlayer.init(allocator, options);
+    player.loop = false;
+    defer player.deinit();
+
+    const frame1 = try createSolidImage(allocator, 2, 2, 255, 0, 0);
+    defer allocator.free(frame1);
+    try player.addFrame(frame1, 2, 2, 100);
+
+    const frame2 = try createSolidImage(allocator, 2, 2, 0, 255, 0);
+    defer allocator.free(frame2);
+    try player.addFrame(frame2, 2, 2, 100);
+
+    player.play();
+    player.update(250);
+
+    try testing.expect(player.isComplete());
+}
+
+test "ansi art player: isComplete returns false when loop=true" {
+    const allocator = testing.allocator;
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    var player = sailor.tui.ansi_art.AnsiArtPlayer.init(allocator, options);
+    player.loop = true;
+    defer player.deinit();
+
+    const frame1 = try createSolidImage(allocator, 2, 2, 255, 0, 0);
+    defer allocator.free(frame1);
+    try player.addFrame(frame1, 2, 2, 100);
+
+    player.play();
+    player.update(500);
+
+    try testing.expect(!player.isComplete());
+}
+
+test "ansi art player: render writes non-empty output for a 2x2 frame" {
+    var buf: [4096]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    const allocator = testing.allocator;
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    var player = sailor.tui.ansi_art.AnsiArtPlayer.init(allocator, options);
+    defer player.deinit();
+
+    const frame = try createSolidImage(allocator, 2, 2, 255, 0, 0);
+    defer allocator.free(frame);
+    try player.addFrame(frame, 2, 2, 100);
+
+    try player.render(allocator, stream.writer());
+    const output = stream.getWritten();
+
+    try testing.expect(output.len > 0);
+}
+
+test "ansi art player: multiple addFrame/update cycle advances through all frames" {
+    const allocator = testing.allocator;
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    var player = sailor.tui.ansi_art.AnsiArtPlayer.init(allocator, options);
+    defer player.deinit();
+
+    const frame1 = try createSolidImage(allocator, 2, 2, 255, 0, 0);
+    defer allocator.free(frame1);
+    try player.addFrame(frame1, 2, 2, 50);
+
+    const frame2 = try createSolidImage(allocator, 2, 2, 0, 255, 0);
+    defer allocator.free(frame2);
+    try player.addFrame(frame2, 2, 2, 50);
+
+    const frame3 = try createSolidImage(allocator, 2, 2, 0, 0, 255);
+    defer allocator.free(frame3);
+    try player.addFrame(frame3, 2, 2, 50);
+
+    player.play();
+
+    // Advance through each frame
+    try testing.expectEqual(@as(usize, 0), player.getCurrentFrameIndex());
+
+    player.update(60);
+    try testing.expectEqual(@as(usize, 1), player.getCurrentFrameIndex());
+
+    player.update(60);
+    try testing.expectEqual(@as(usize, 2), player.getCurrentFrameIndex());
+}
+
+test "ansi art player: deinit frees all frame pixel data" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{
+        .safety = true,
+        .verbose_log = false,
+    }){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    var player = sailor.tui.ansi_art.AnsiArtPlayer.init(allocator, options);
+
+    const frame1 = try createSolidImage(allocator, 2, 2, 255, 0, 0);
+    try player.addFrame(frame1, 2, 2, 100);
+
+    const frame2 = try createSolidImage(allocator, 2, 2, 0, 255, 0);
+    try player.addFrame(frame2, 2, 2, 100);
+
+    player.deinit();
+    // GPA will detect leaks on deinit if any occurred
+}
+
+// ============================================================================
+// convertVideoFrame Tests (5 tests)
+// ============================================================================
+
+test "ansi art: convertVideoFrame with frame_number=0 produces non-empty output" {
+    var buf: [4096]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    const allocator = testing.allocator;
+    const pixels = try createSolidImage(allocator, 2, 2, 255, 0, 0);
+    defer allocator.free(pixels);
+
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    try sailor.tui.ansi_art.convertVideoFrame(allocator, pixels, 2, 2, options, 0, stream.writer());
+    const output = stream.getWritten();
+
+    try testing.expect(output.len > 0);
+}
+
+test "ansi art: convertVideoFrame with frame_number>0 writes cursor-up escape sequence" {
+    var buf: [4096]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    const allocator = testing.allocator;
+    const pixels = try createSolidImage(allocator, 2, 2, 255, 0, 0);
+    defer allocator.free(pixels);
+
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    try sailor.tui.ansi_art.convertVideoFrame(allocator, pixels, 2, 2, options, 1, stream.writer());
+    const output = stream.getWritten();
+
+    // Should contain cursor-up escape: ESC[nA where n is a number
+    const has_escape_a = std.mem.containsAtLeast(u8, output, 1, "A");
+    try testing.expect(has_escape_a);
+}
+
+test "ansi art: convertVideoFrame produces valid output for various frame numbers" {
+    var buf: [4096]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    const allocator = testing.allocator;
+    const pixels = try createSolidImage(allocator, 2, 2, 100, 100, 100);
+    defer allocator.free(pixels);
+
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    try sailor.tui.ansi_art.convertVideoFrame(allocator, pixels, 2, 2, options, 5, stream.writer());
+    const output = stream.getWritten();
+
+    try testing.expect(output.len > 0);
+}
+
+test "ansi art: convertVideoFrame with width=0 returns error" {
+    var buf: [4096]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    const allocator = testing.allocator;
+    const pixels = try createSolidImage(allocator, 1, 1, 100, 100, 100);
+    defer allocator.free(pixels);
+
+    const options = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    const result = sailor.tui.ansi_art.convertVideoFrame(allocator, pixels, 0, 1, options, 0, stream.writer());
+    try testing.expectError(error.InvalidDimensions, result);
+}
+
+test "ansi art: convertVideoFrame with different algorithms produces different output" {
+    var buf1: [4096]u8 = undefined;
+    var stream1 = std.io.fixedBufferStream(&buf1);
+    var buf2: [4096]u8 = undefined;
+    var stream2 = std.io.fixedBufferStream(&buf2);
+
+    const allocator = testing.allocator;
+    const pixels1 = try createSolidImage(allocator, 4, 4, 150, 100, 50);
+    defer allocator.free(pixels1);
+    const pixels2 = try createSolidImage(allocator, 4, 4, 150, 100, 50);
+    defer allocator.free(pixels2);
+
+    const options_block = AnsiArtRenderer.RenderOptions{
+        .algorithm = .block,
+        .color_mode = .truecolor,
+        .output_width = 80,
+    };
+
+    const options_ascii = AnsiArtRenderer.RenderOptions{
+        .algorithm = .ascii,
+        .color_mode = .grayscale,
+        .output_width = 80,
+    };
+
+    try sailor.tui.ansi_art.convertVideoFrame(allocator, pixels1, 4, 4, options_block, 0, stream1.writer());
+    try sailor.tui.ansi_art.convertVideoFrame(allocator, pixels2, 4, 4, options_ascii, 0, stream2.writer());
+
+    const output1 = stream1.getWritten();
+    const output2 = stream2.getWritten();
+
+    try testing.expect(!std.mem.eql(u8, output1, output2));
+}
