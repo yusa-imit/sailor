@@ -159,7 +159,7 @@ test "FadeTransition - reset and restart" {
 
 test "SlideTransition - slide in from top (Y position)" {
     const start_rect = Rect{ .x = 10, .y = 0, .width = 50, .height = 20 }; // Start at Y=0 (off-screen top)
-    const end_rect = Rect{ .x = 10, .y = 30, .width = 50, .height = 20 };  // End at Y=30
+    const end_rect = Rect{ .x = 10, .y = 30, .width = 50, .height = 20 }; // End at Y=30
 
     var slide = SlideTransition.slideIn(.top, start_rect, end_rect, 1000, animation.linear);
     slide.begin(0);
@@ -184,7 +184,7 @@ test "SlideTransition - slide in from top (Y position)" {
 
 test "SlideTransition - slide in from bottom (Y position)" {
     const start_rect = Rect{ .x = 10, .y = 100, .width = 50, .height = 20 }; // Start at Y=100 (off-screen bottom)
-    const end_rect = Rect{ .x = 10, .y = 30, .width = 50, .height = 20 };    // End at Y=30
+    const end_rect = Rect{ .x = 10, .y = 30, .width = 50, .height = 20 }; // End at Y=30
 
     var slide = SlideTransition.slideIn(.bottom, start_rect, end_rect, 1000, animation.linear);
     slide.begin(0);
@@ -203,8 +203,8 @@ test "SlideTransition - slide in from bottom (Y position)" {
 }
 
 test "SlideTransition - slide in from left (X position)" {
-    const start_rect = Rect{ .x = 0, .y = 10, .width = 50, .height = 20 };  // Start at X=0 (off-screen left)
-    const end_rect = Rect{ .x = 40, .y = 10, .width = 50, .height = 20 };   // End at X=40
+    const start_rect = Rect{ .x = 0, .y = 10, .width = 50, .height = 20 }; // Start at X=0 (off-screen left)
+    const end_rect = Rect{ .x = 40, .y = 10, .width = 50, .height = 20 }; // End at X=40
 
     var slide = SlideTransition.slideIn(.left, start_rect, end_rect, 1000, animation.linear);
     slide.begin(0);
@@ -229,7 +229,7 @@ test "SlideTransition - slide in from left (X position)" {
 
 test "SlideTransition - slide in from right (X position)" {
     const start_rect = Rect{ .x = 100, .y = 10, .width = 50, .height = 20 }; // Start at X=100 (off-screen right)
-    const end_rect = Rect{ .x = 40, .y = 10, .width = 50, .height = 20 };    // End at X=40
+    const end_rect = Rect{ .x = 40, .y = 10, .width = 50, .height = 20 }; // End at X=40
 
     var slide = SlideTransition.slideIn(.right, start_rect, end_rect, 1000, animation.linear);
     slide.begin(0);
@@ -283,8 +283,8 @@ test "SlideTransition - easing curves for smooth movement" {
 }
 
 test "SlideTransition - diagonal slide (multi-axis)" {
-    const start_rect = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };    // Top-left corner
-    const end_rect = Rect{ .x = 50, .y = 30, .width = 50, .height = 20 };    // Diagonal destination
+    const start_rect = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 }; // Top-left corner
+    const end_rect = Rect{ .x = 50, .y = 30, .width = 50, .height = 20 }; // Diagonal destination
 
     var slide = SlideTransition.init(start_rect, end_rect, 1000, animation.linear);
     slide.begin(0);
@@ -325,8 +325,8 @@ test "SlideTransition - zero distance slide (no movement)" {
 // ============================================================================
 
 test "ExpandTransition - expand width (horizontal growth)" {
-    const start_rect = Rect{ .x = 10, .y = 10, .width = 0, .height = 20 };   // Zero width
-    const end_rect = Rect{ .x = 10, .y = 10, .width = 100, .height = 20 };   // Full width
+    const start_rect = Rect{ .x = 10, .y = 10, .width = 0, .height = 20 }; // Zero width
+    const end_rect = Rect{ .x = 10, .y = 10, .width = 100, .height = 20 }; // Full width
 
     var expand = ExpandTransition.expandWidth(start_rect, end_rect, 1000, animation.linear);
     expand.begin(0);
@@ -350,8 +350,8 @@ test "ExpandTransition - expand width (horizontal growth)" {
 }
 
 test "ExpandTransition - expand height (vertical growth)" {
-    const start_rect = Rect{ .x = 10, .y = 10, .width = 50, .height = 0 };   // Zero height
-    const end_rect = Rect{ .x = 10, .y = 10, .width = 50, .height = 60 };    // Full height
+    const start_rect = Rect{ .x = 10, .y = 10, .width = 50, .height = 0 }; // Zero height
+    const end_rect = Rect{ .x = 10, .y = 10, .width = 50, .height = 60 }; // Full height
 
     var expand = ExpandTransition.expandHeight(start_rect, end_rect, 1000, animation.linear);
     expand.begin(0);
@@ -375,8 +375,8 @@ test "ExpandTransition - expand height (vertical growth)" {
 }
 
 test "ExpandTransition - expand both dimensions (area growth)" {
-    const start_rect = Rect{ .x = 25, .y = 25, .width = 0, .height = 0 };    // Point (no area)
-    const end_rect = Rect{ .x = 25, .y = 25, .width = 50, .height = 50 };    // Square
+    const start_rect = Rect{ .x = 25, .y = 25, .width = 0, .height = 0 }; // Point (no area)
+    const end_rect = Rect{ .x = 25, .y = 25, .width = 50, .height = 50 }; // Square
 
     var expand = ExpandTransition.expand(start_rect, end_rect, 1000, animation.linear);
     expand.begin(0);
@@ -403,7 +403,7 @@ test "ExpandTransition - expand both dimensions (area growth)" {
 
 test "ExpandTransition - collapse width (horizontal shrink)" {
     const start_rect = Rect{ .x = 10, .y = 10, .width = 100, .height = 20 }; // Full width
-    const end_rect = Rect{ .x = 10, .y = 10, .width = 0, .height = 20 };     // Zero width
+    const end_rect = Rect{ .x = 10, .y = 10, .width = 0, .height = 20 }; // Zero width
 
     var collapse = ExpandTransition.collapseWidth(start_rect, end_rect, 1000, animation.linear);
     collapse.begin(0);
@@ -422,8 +422,8 @@ test "ExpandTransition - collapse width (horizontal shrink)" {
 }
 
 test "ExpandTransition - collapse height (vertical shrink)" {
-    const start_rect = Rect{ .x = 10, .y = 10, .width = 50, .height = 60 };  // Full height
-    const end_rect = Rect{ .x = 10, .y = 10, .width = 50, .height = 0 };     // Zero height
+    const start_rect = Rect{ .x = 10, .y = 10, .width = 50, .height = 60 }; // Full height
+    const end_rect = Rect{ .x = 10, .y = 10, .width = 50, .height = 0 }; // Zero height
 
     var collapse = ExpandTransition.collapseHeight(start_rect, end_rect, 1000, animation.linear);
     collapse.begin(0);
@@ -442,8 +442,8 @@ test "ExpandTransition - collapse height (vertical shrink)" {
 }
 
 test "ExpandTransition - collapse both dimensions" {
-    const start_rect = Rect{ .x = 25, .y = 25, .width = 50, .height = 50 };  // Square
-    const end_rect = Rect{ .x = 25, .y = 25, .width = 0, .height = 0 };      // Point
+    const start_rect = Rect{ .x = 25, .y = 25, .width = 50, .height = 50 }; // Square
+    const end_rect = Rect{ .x = 25, .y = 25, .width = 0, .height = 0 }; // Point
 
     var collapse = ExpandTransition.collapse(start_rect, end_rect, 1000, animation.linear);
     collapse.begin(0);
@@ -540,13 +540,13 @@ test "Composition - fade + slide combined (slide in while fading)" {
 
 test "Composition - slide + expand combined (growing while moving)" {
     // Slide from left
-    const slide_start = Rect{ .x = 0, .y = 30, .width = 10, .height = 10 };   // Small, at left
-    const slide_end = Rect{ .x = 50, .y = 30, .width = 10, .height = 10 };    // Same size, at center
+    const slide_start = Rect{ .x = 0, .y = 30, .width = 10, .height = 10 }; // Small, at left
+    const slide_end = Rect{ .x = 50, .y = 30, .width = 10, .height = 10 }; // Same size, at center
     var slide = SlideTransition.slideIn(.left, slide_start, slide_end, 1000, animation.linear);
 
     // Expand size
-    const expand_start = Rect{ .x = 0, .y = 30, .width = 10, .height = 10 };  // Small
-    const expand_end = Rect{ .x = 0, .y = 30, .width = 50, .height = 50 };    // Large
+    const expand_start = Rect{ .x = 0, .y = 30, .width = 10, .height = 10 }; // Small
+    const expand_end = Rect{ .x = 0, .y = 30, .width = 50, .height = 50 }; // Large
     var expand = ExpandTransition.expand(expand_start, expand_end, 1000, animation.linear);
 
     slide.begin(0);
@@ -557,7 +557,7 @@ test "Composition - slide + expand combined (growing while moving)" {
     const expand_mid = expand.update(500);
 
     try testing.expectEqual(@as(u16, 25), slide_mid.x); // X: 0→50, mid=25
-    try testing.expectEqual(@as(u16, 30), expand_mid.width);  // W: 10→50, mid=30
+    try testing.expectEqual(@as(u16, 30), expand_mid.width); // W: 10→50, mid=30
     try testing.expectEqual(@as(u16, 30), expand_mid.height); // H: 10→50, mid=30
 
     // Combined effect: widget slides while growing
@@ -621,7 +621,7 @@ test "Composition - parallel transitions (multiple effects at once)" {
 
     try testing.expectEqual(@as(f32, 0.5), opacity_mid);
     try testing.expectEqual(@as(u16, 25), slide_mid.x);
-    try testing.expectEqual(@as(u16, 40), expand_mid.width);  // 20→60, mid=40
+    try testing.expectEqual(@as(u16, 40), expand_mid.width); // 20→60, mid=40
     try testing.expectEqual(@as(u16, 20), expand_mid.height); // 10→30, mid=20
 }
 
@@ -682,13 +682,133 @@ test "Composition - complex multi-stage transition" {
     // Stage 3: Expand (700-1000ms)
     expand.begin(700);
     const expand_stage3_mid = expand.update(850); // 150ms elapsed
-    try testing.expectEqual(@as(u16, 35), expand_stage3_mid.width);  // 20→50, 150/300=0.5
+    try testing.expectEqual(@as(u16, 35), expand_stage3_mid.width); // 20→50, 150/300=0.5
     try testing.expectEqual(@as(u16, 20), expand_stage3_mid.height); // 10→30, 150/300=0.5
 
     const expand_stage3_end = expand.update(1000);
     try testing.expectEqual(@as(u16, 50), expand_stage3_end.width);
     try testing.expectEqual(@as(u16, 30), expand_stage3_end.height);
     try testing.expect(expand.isComplete());
+}
+
+// ============================================================================
+// Wipe Transition Tests (8 tests)
+// ============================================================================
+
+test "WipeTransition - wipe left to right reveals progressively" {
+    var wipe = transition.WipeTransition.init(1000, .left, animation.linear);
+
+    wipe.begin(0);
+
+    // At start: 0% revealed
+    const progress_start = wipe.update(0);
+    try testing.expectEqual(@as(f32, 0.0), progress_start);
+    try testing.expect(!wipe.isComplete());
+
+    // At 25%: 25% revealed
+    const progress_25 = wipe.update(250);
+    try testing.expect(progress_25 > 0.0 and progress_25 <= 0.3); // Allow small tolerance
+
+    // At 50%: 50% revealed
+    const progress_mid = wipe.update(500);
+    try testing.expect(progress_mid >= 0.45 and progress_mid <= 0.55);
+
+    // At 100%: 100% revealed
+    const progress_end = wipe.update(1000);
+    try testing.expectEqual(@as(f32, 1.0), progress_end);
+    try testing.expect(wipe.isComplete());
+}
+
+test "WipeTransition - wipe right to left reveals progressively" {
+    var wipe = transition.WipeTransition.init(1000, .right, animation.linear);
+
+    wipe.begin(0);
+
+    const progress_start = wipe.update(0);
+    try testing.expectEqual(@as(f32, 0.0), progress_start);
+
+    const progress_end = wipe.update(1000);
+    try testing.expectEqual(@as(f32, 1.0), progress_end);
+    try testing.expect(wipe.isComplete());
+}
+
+test "WipeTransition - wipe top to bottom reveals progressively" {
+    var wipe = transition.WipeTransition.init(1000, .top, animation.linear);
+
+    wipe.begin(0);
+
+    const progress_start = wipe.update(0);
+    try testing.expectEqual(@as(f32, 0.0), progress_start);
+
+    const progress_end = wipe.update(1000);
+    try testing.expectEqual(@as(f32, 1.0), progress_end);
+    try testing.expect(wipe.isComplete());
+}
+
+test "WipeTransition - wipe bottom to top reveals progressively" {
+    var wipe = transition.WipeTransition.init(1000, .bottom, animation.linear);
+
+    wipe.begin(0);
+
+    const progress_start = wipe.update(0);
+    try testing.expectEqual(@as(f32, 0.0), progress_start);
+
+    const progress_end = wipe.update(1000);
+    try testing.expectEqual(@as(f32, 1.0), progress_end);
+    try testing.expect(wipe.isComplete());
+}
+
+test "WipeTransition - progress is monotonically increasing" {
+    var wipe = transition.WipeTransition.init(1000, .left, animation.linear);
+
+    wipe.begin(0);
+
+    var prev_progress: f32 = 0.0;
+    var i: u64 = 0;
+    while (i <= 1000) : (i += 100) {
+        const progress = wipe.update(i);
+        try testing.expect(progress >= prev_progress); // Monotonically increasing
+        prev_progress = progress;
+    }
+}
+
+test "WipeTransition - easing curves affect wipe speed" {
+    var wipe_linear = transition.WipeTransition.init(1000, .left, animation.linear);
+    var wipe_easeOut = transition.WipeTransition.init(1000, .left, animation.easeOut);
+
+    wipe_linear.begin(0);
+    wipe_easeOut.begin(0);
+
+    // At 25% time: easeOut should be further along than linear
+    const linear_25 = wipe_linear.update(250);
+    const easeOut_25 = wipe_easeOut.update(250);
+
+    try testing.expectEqual(@as(f32, 0.25), linear_25);
+    try testing.expect(easeOut_25 > linear_25); // Ease-out faster at start
+}
+
+test "WipeTransition - reset restarts animation" {
+    var wipe = transition.WipeTransition.init(1000, .left, animation.linear);
+
+    wipe.begin(0);
+    _ = wipe.update(1000);
+    try testing.expect(wipe.isComplete());
+
+    wipe.reset();
+    try testing.expect(!wipe.isComplete());
+
+    wipe.begin(2000);
+    const progress = wipe.update(2500);
+    try testing.expectEqual(@as(f32, 0.5), progress);
+}
+
+test "WipeTransition - zero duration completes immediately" {
+    var wipe = transition.WipeTransition.init(0, .left, animation.linear);
+
+    wipe.begin(0);
+    const progress = wipe.update(0);
+    try testing.expectEqual(@as(f32, 1.0), progress);
+    try testing.expect(wipe.isComplete());
 }
 
 // ============================================================================
@@ -730,9 +850,9 @@ test "Integration - Rect size interpolation for expand/collapse" {
     // Verify linear interpolation of size
     const sizes = [_]struct { time: u64, w: u16, h: u16 }{
         .{ .time = 0, .w = 10, .h = 10 },
-        .{ .time = 250, .w = 32, .h = 32 },   // 10 + (100-10)*0.25 = 32.5 → 32
-        .{ .time = 500, .w = 55, .h = 55 },   // 10 + (100-10)*0.5 = 55
-        .{ .time = 750, .w = 77, .h = 77 },   // 10 + (100-10)*0.75 = 77.5 → 77
+        .{ .time = 250, .w = 32, .h = 32 }, // 10 + (100-10)*0.25 = 32.5 → 32
+        .{ .time = 500, .w = 55, .h = 55 }, // 10 + (100-10)*0.5 = 55
+        .{ .time = 750, .w = 77, .h = 77 }, // 10 + (100-10)*0.75 = 77.5 → 77
         .{ .time = 1000, .w = 100, .h = 100 },
     };
 
@@ -748,8 +868,8 @@ test "Integration - clipping to parent bounds during transitions" {
     const parent = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 }; // Terminal area
 
     // Widget slides from above (off-screen) into view
-    const start = Rect{ .x = 10, .y = 0, .width = 60, .height = 10 };  // Top edge at Y=0 (partially visible)
-    const end = Rect{ .x = 10, .y = 7, .width = 60, .height = 10 };    // Fully visible at Y=7
+    const start = Rect{ .x = 10, .y = 0, .width = 60, .height = 10 }; // Top edge at Y=0 (partially visible)
+    const end = Rect{ .x = 10, .y = 7, .width = 60, .height = 10 }; // Fully visible at Y=7
 
     var slide = SlideTransition.slideIn(.top, start, end, 1000, animation.linear);
     slide.begin(0);
@@ -767,7 +887,7 @@ test "Integration - clipping to parent bounds during transitions" {
         // At end, widget should be fully within parent
         if (time == 1000) {
             const final_clipped = clipped.?;
-            try testing.expectEqual(@as(u16, 60), final_clipped.width);  // Full width visible
+            try testing.expectEqual(@as(u16, 60), final_clipped.width); // Full width visible
             try testing.expectEqual(@as(u16, 10), final_clipped.height); // Full height visible
         }
     }
@@ -775,7 +895,7 @@ test "Integration - clipping to parent bounds during transitions" {
 
 test "Integration - full-screen widget transitions" {
     // Test transition of a widget that occupies the full terminal
-    const small = Rect{ .x = 30, .y = 10, .width = 20, .height = 4 };   // Small widget in center
+    const small = Rect{ .x = 30, .y = 10, .width = 20, .height = 4 }; // Small widget in center
     const fullscreen = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 }; // Full terminal
 
     var expand = ExpandTransition.expand(small, fullscreen, 500, animation.easeOutCubic);
@@ -796,6 +916,6 @@ test "Integration - full-screen widget transitions" {
     try testing.expectEqual(@as(u16, 24), rect_end.height);
 
     // Verify area growth
-    try testing.expectEqual(@as(u32, 80), rect_start.area());   // 20*4
-    try testing.expectEqual(@as(u32, 1920), rect_end.area());   // 80*24
+    try testing.expectEqual(@as(u32, 80), rect_start.area()); // 20*4
+    try testing.expectEqual(@as(u32, 1920), rect_end.area()); // 80*24
 }

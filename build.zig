@@ -557,6 +557,24 @@ pub fn build(b: *std.Build) void {
     });
     particles_tests.root_module.addImport("sailor", sailor_module_for_tests);
 
+    const symbols_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/symbols_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    symbols_tests.root_module.addImport("sailor", sailor_module_for_tests);
+
+    const adaptive_renderer_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/adaptive_renderer_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    adaptive_renderer_tests.root_module.addImport("sailor", sailor_module_for_tests);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&b.addRunArtifact(lib_tests).step);
     test_step.dependOn(&b.addRunArtifact(smoke_tests).step);
@@ -614,6 +632,8 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(kitty_tests).step);
     test_step.dependOn(&b.addRunArtifact(ansi_art_tests).step);
     test_step.dependOn(&b.addRunArtifact(particles_tests).step);
+    test_step.dependOn(&b.addRunArtifact(symbols_tests).step);
+    test_step.dependOn(&b.addRunArtifact(adaptive_renderer_tests).step);
     // test_step.dependOn(&b.addRunArtifact(migration_script_tests).step); // Disabled for v2.0.0 work
 
     // Benchmark executable

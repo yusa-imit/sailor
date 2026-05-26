@@ -193,24 +193,26 @@ test "ansi art: render with grayscale mode produces no color codes" {
 }
 
 test "ansi art: render with output_height=null auto-calculates height" {
+    // Use a smaller image to stay within the 4096-byte fixed buffer.
+    // 4x8 image with output_width=4: block mode computes out_h=(8+1)/2=4, 4x4 cells ≈ 700 bytes.
     var buf: [4096]u8 = undefined;
     var stream = std.io.fixedBufferStream(&buf);
     const allocator = testing.allocator;
 
-    const pixels = try createSolidImage(allocator, 10, 20, 50, 100, 150);
+    const pixels = try createSolidImage(allocator, 4, 8, 50, 100, 150);
     defer allocator.free(pixels);
 
     const options = AnsiArtRenderer.RenderOptions{
         .algorithm = .block,
         .color_mode = .truecolor,
-        .output_width = 20,
+        .output_width = 4,
         .output_height = null,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 10, 20, options, stream.writer());
+    try AnsiArtRenderer.render(allocator, pixels, 4, 8, options, stream.writer());
     const output = stream.getWritten();
 
-    // Should compute aspect ratio: 10x20 -> output_width=20, height=40 (maintaining 1:2 ratio)
+    // Block mode auto-height: 8 pixel rows → 4 output rows (pairs); output must be non-empty
     try testing.expect(output.len > 0);
 }
 
@@ -630,10 +632,12 @@ test "ansi art: floyd steinberg dithering produces different output than no dith
 
     const allocator = testing.allocator;
 
-    const pixels1 = try createGradientImage(allocator, 8, 8);
+    // Use solid gray where lum=0.098 sits between palette entries — gradient images produce
+    // nearly zero quantization error so dithering has no visible effect on them.
+    const pixels1 = try createSolidImage(allocator, 8, 8, 25, 25, 25);
     defer allocator.free(pixels1);
 
-    const pixels2 = try createGradientImage(allocator, 8, 8);
+    const pixels2 = try createSolidImage(allocator, 8, 8, 25, 25, 25);
     defer allocator.free(pixels2);
 
     const options_no = AnsiArtRenderer.RenderOptions{

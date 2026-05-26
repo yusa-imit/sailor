@@ -202,20 +202,21 @@ fn medianCutQuantize(allocator: Allocator, colors: []const SixelImage.Color, max
         };
     }
 
-    // Filter out transparent colors and collect unique colors
+    // Filter out transparent colors and collect unique colors using a hash set
+    // for O(n) deduplication instead of O(n²).
     var unique_list = ArrayList(SixelImage.Color){};
     defer unique_list.deinit(allocator);
 
+    var seen = std.AutoHashMap(u32, void).init(allocator);
+    defer seen.deinit();
+
     for (colors) |c| {
-        if (c.a < 128) continue; // Skip transparent
-        var is_dup = false;
-        for (unique_list.items) |existing| {
-            if (existing.r == c.r and existing.g == c.g and existing.b == c.b) {
-                is_dup = true;
-                break;
-            }
+        if (c.a < 128) continue;
+        const key: u32 = (@as(u32, c.r) << 16) | (@as(u32, c.g) << 8) | c.b;
+        const result = try seen.getOrPut(key);
+        if (!result.found_existing) {
+            try unique_list.append(allocator, c);
         }
-        if (!is_dup) try unique_list.append(allocator, c);
     }
 
     if (unique_list.items.len == 0) {

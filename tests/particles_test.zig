@@ -133,10 +133,11 @@ test "particles: particles expire and activeCount decreases over time" {
     const initial_count = sys.activeCount();
     try std.testing.expect(initial_count > 0);
 
-    // Update for a very long time (should exceed any particle lifetime)
+    // Disable spawning so only expiry affects the count (fire max_lifetime_ms = 1500ms)
+    sys.config.spawn_rate = 0;
     sys.update(5000);
     const final_count = sys.activeCount();
-    try std.testing.expect(final_count < initial_count or final_count == 0);
+    try std.testing.expectEqual(@as(u32, 0), final_count);
 }
 
 test "particles: reset clears all particles" {

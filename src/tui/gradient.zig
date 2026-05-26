@@ -186,7 +186,7 @@ pub const ConicGradient = struct {
         const dy = y - self.center_y;
 
         // atan2 returns radians in range -π to π
-        const angle_rad = std.math.atan2(f64, dy, dx);
+        const angle_rad = std.math.atan2(dy, dx);
 
         // Convert to degrees (0 = right, 90 = down, etc)
         var angle_deg = angle_rad * 180.0 / std.math.pi;
@@ -625,10 +625,15 @@ test "ConicGradient.colorAtPoint - center" {
     const center_right = gradient.colorAtPoint(0.6, 0.5);
     try std.testing.expectEqual(Color.fromRgb(255, 0, 0), center_right);
 
-    // Below center (180°) should be opposite on color wheel — should be blue-ish
+    // Below center maps to 90° → 25% through gradient (red still dominates over blue)
     const center_down = gradient.colorAtPoint(0.5, 0.6);
     const down_rgb = switch (center_down) { .rgb => |val| val, else => unreachable };
-    try std.testing.expect(down_rgb.b > down_rgb.r);
+    try std.testing.expect(down_rgb.r > down_rgb.b);
+
+    // Above center maps to 270° → 75% through gradient (blue dominates over red)
+    const center_up = gradient.colorAtPoint(0.5, 0.4);
+    const up_rgb = switch (center_up) { .rgb => |val| val, else => unreachable };
+    try std.testing.expect(up_rgb.b > up_rgb.r);
 }
 
 test "ConicGradient.colorAt - no stops" {

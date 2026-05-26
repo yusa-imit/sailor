@@ -786,3 +786,110 @@ pub const KittyGraphics = struct {
         }
     }
 };
+
+// ============================================================================
+// KittyImageManager — virtual image lifecycle management
+// ============================================================================
+
+/// Manages virtual images transmitted to a Kitty-compatible terminal.
+///
+/// Virtual images are transmitted once and stored in the terminal's image cache.
+/// They can be displayed at multiple positions without re-transmitting the pixel
+/// data, which is critical for animations and repeated image use.
+///
+/// Usage:
+/// ```zig
+/// var mgr = KittyImageManager.init(allocator);
+/// defer mgr.deinit();
+///
+/// const id = try mgr.store(png_data, .png, &buf_writer);
+/// // Display same image at two positions
+/// try mgr.place(id, .{ .image_id = id, .x = 0, .y = 0 }, &buf_writer);
+/// try mgr.place(id, .{ .image_id = id, .x = 20, .y = 0 }, &buf_writer);
+/// // Remove from terminal when done
+/// try mgr.evict(id, &buf_writer);
+/// ```
+pub const KittyImageManager = struct {
+    allocator: Allocator,
+    /// Set of image IDs currently resident in the terminal's image cache.
+    tracked: std.AutoHashMap(u32, void),
+    /// Monotonically increasing ID counter; wraps around at u32 max.
+    next_id: u32,
+
+    pub fn init(allocator: Allocator) KittyImageManager {
+        return .{
+            .allocator = allocator,
+            .tracked = std.AutoHashMap(u32, void).init(allocator),
+            .next_id = 1,
+        };
+    }
+
+    pub fn deinit(self: *KittyImageManager) void {
+        self.tracked.deinit();
+    }
+
+    /// Transmit image data to the terminal without displaying it.
+    /// Returns the image ID assigned to this image.
+    /// The caller must call `evict` (or `evictAll`) when the image is no longer needed.
+    pub fn store(
+        self: *KittyImageManager,
+        data: []const u8,
+        format: KittyGraphics.ImageFormat,
+        writer: anytype,
+    ) !u32 {
+        const id = self.next_id;
+        self.next_id +%= 1;
+        if (self.next_id == 0) self.next_id = 1;
+
+        _ = try KittyGraphics.transmit(self.allocator, data, .{
+            .image_id = id,
+            .format = format,
+            .quiet = true,
+        }, writer);
+
+        try self.tracked.put(id, {});
+        return id;
+    }
+
+    /// Display a previously stored image at the given position.
+    /// Returns `error.UnknownImageId` if the ID has not been stored via `store`.
+    pub fn place(
+        self: *KittyImageManager,
+        image_id: u32,
+        options: KittyGraphics.DisplayOptions,
+        writer: anytype,
+    ) !void {
+        if (!self.tracked.contains(image_id)) return error.UnknownImageId;
+        var opts = options;
+        opts.image_id = image_id;
+        try KittyGraphics.display(opts, writer);
+    }
+
+    /// Remove a single image from the terminal's cache.
+    /// No-ops gracefully if the ID is not tracked.
+    pub fn evict(
+        self: *KittyImageManager,
+        image_id: u32,
+        writer: anytype,
+    ) !void {
+        if (self.tracked.remove(image_id)) {
+            try KittyGraphics.delete(.{ .scope = .image, .image_id = image_id }, writer);
+        }
+    }
+
+    /// Remove all tracked images from the terminal's cache in one command.
+    pub fn evictAll(self: *KittyImageManager, writer: anytype) !void {
+        try KittyGraphics.delete(.{ .scope = .all }, writer);
+        self.tracked.clearRetainingCapacity();
+    }
+
+    /// Number of images currently tracked (resident in terminal cache).
+    pub fn count(self: *const KittyImageManager) usize {
+        return self.tracked.count();
+    }
+
+    /// Returns true if the given image ID is currently tracked.
+    pub fn contains(self: *const KittyImageManager, image_id: u32) bool {
+        return self.tracked.contains(image_id);
+    }
+};

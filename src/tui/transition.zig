@@ -211,6 +211,41 @@ pub const ExpandTransition = struct {
     }
 };
 
+/// Wipe transition — reveals content progressively from one edge to another.
+/// Returns a progress value 0.0..1.0 representing the fraction of content revealed.
+pub const WipeTransition = struct {
+    anim: Animation,
+    direction: Direction,
+
+    /// Create a wipe transition with the given direction and duration.
+    pub fn init(duration_ms: u64, direction: Direction, easing: EasingFn) WipeTransition {
+        return .{
+            .anim = Animation.init(0.0, 1.0, duration_ms, easing),
+            .direction = direction,
+        };
+    }
+
+    /// Begin the wipe animation at the given timestamp.
+    pub fn begin(self: *WipeTransition, time_ms: u64) void {
+        self.anim.begin(time_ms);
+    }
+
+    /// Update and return current progress (0.0 = nothing revealed, 1.0 = fully revealed).
+    pub fn update(self: *WipeTransition, time_ms: u64) f32 {
+        return self.anim.update(time_ms);
+    }
+
+    /// Returns true when the wipe is fully complete.
+    pub fn isComplete(self: WipeTransition) bool {
+        return self.anim.isComplete();
+    }
+
+    /// Reset to initial state (not started, 0% revealed).
+    pub fn reset(self: *WipeTransition) void {
+        self.anim.reset();
+    }
+};
+
 // ============================================================================
 // Tests
 // ============================================================================

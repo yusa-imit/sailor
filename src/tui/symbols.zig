@@ -89,6 +89,52 @@ pub const BoxSet = struct {
         .cross = "┼",
     };
 
+    /// Dotted border style using Unicode dot characters
+    pub const dotted: BoxSet = .{
+        .horizontal = "·",
+        .vertical = "·",
+        .top_left = "·",
+        .top_right = "·",
+        .bottom_left = "·",
+        .bottom_right = "·",
+        .vertical_left = "·",
+        .vertical_right = "·",
+        .horizontal_down = "·",
+        .horizontal_up = "·",
+        .cross = "·",
+    };
+
+    /// Wavy border style using tilde and broken-bar characters
+    pub const wavy: BoxSet = .{
+        .horizontal = "~",
+        .vertical = "¦",
+        .top_left = "~",
+        .top_right = "~",
+        .bottom_left = "~",
+        .bottom_right = "~",
+        .vertical_left = "¦",
+        .vertical_right = "¦",
+        .horizontal_down = "~",
+        .horizontal_up = "~",
+        .cross = "+",
+    };
+
+    /// 3D shading border — uses block shading characters to simulate depth.
+    /// Combine with standard border for top/left highlights and bottom/right shadows.
+    pub const outer_3d: BoxSet = .{
+        .horizontal = "░",
+        .vertical = "░",
+        .top_left = "░",
+        .top_right = "░",
+        .bottom_left = "▓",
+        .bottom_right = "▓",
+        .vertical_left = "░",
+        .vertical_right = "▓",
+        .horizontal_down = "░",
+        .horizontal_up = "▓",
+        .cross = "▒",
+    };
+
     /// ASCII fallback (for terminals without Unicode support)
     pub const ascii: BoxSet = .{
         .horizontal = "-",

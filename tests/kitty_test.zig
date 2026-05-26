@@ -690,3 +690,141 @@ test "kitty: writeApc with very long params still works" {
     try testing.expect(std.mem.startsWith(u8, written, "\x1b_G"));
     try testing.expect(std.mem.endsWith(u8, written, "\x1b\\"));
 }
+
+// ============================================================================
+// KittyImageManager — virtual image lifecycle management (10 tests)
+// ============================================================================
+
+const KittyImageManager = sailor.KittyImageManager;
+
+test "KittyImageManager: init/deinit is memory-safe" {
+    const allocator = testing.allocator;
+    var mgr = KittyImageManager.init(allocator);
+    defer mgr.deinit();
+    try testing.expectEqual(@as(usize, 0), mgr.count());
+}
+
+test "KittyImageManager: store returns a valid non-zero image ID" {
+    const allocator = testing.allocator;
+    var mgr = KittyImageManager.init(allocator);
+    defer mgr.deinit();
+
+    var output = createTestWriter(allocator);
+    defer output.deinit(allocator);
+
+    const id = try mgr.store("PNG\x00data", .png, output.writer(allocator));
+    try testing.expect(id > 0);
+}
+
+test "KittyImageManager: store increments count" {
+    const allocator = testing.allocator;
+    var mgr = KittyImageManager.init(allocator);
+    defer mgr.deinit();
+
+    var output = createTestWriter(allocator);
+    defer output.deinit(allocator);
+
+    _ = try mgr.store("img1", .png, output.writer(allocator));
+    try testing.expectEqual(@as(usize, 1), mgr.count());
+    _ = try mgr.store("img2", .rgb, output.writer(allocator));
+    try testing.expectEqual(@as(usize, 2), mgr.count());
+}
+
+test "KittyImageManager: store produces APC output with image ID" {
+    const allocator = testing.allocator;
+    var mgr = KittyImageManager.init(allocator);
+    defer mgr.deinit();
+
+    var output = createTestWriter(allocator);
+    defer output.deinit(allocator);
+
+    _ = try mgr.store("data", .png, output.writer(allocator));
+    const written = output.items;
+    try testing.expect(written.len > 0);
+    try testing.expect(std.mem.containsAtLeast(u8, written, 1, "\x1b_G"));
+}
+
+test "KittyImageManager: contains returns true after store" {
+    const allocator = testing.allocator;
+    var mgr = KittyImageManager.init(allocator);
+    defer mgr.deinit();
+
+    var output = createTestWriter(allocator);
+    defer output.deinit(allocator);
+
+    const id = try mgr.store("pxl", .rgba, output.writer(allocator));
+    try testing.expect(mgr.contains(id));
+}
+
+test "KittyImageManager: contains returns false for unknown ID" {
+    const allocator = testing.allocator;
+    var mgr = KittyImageManager.init(allocator);
+    defer mgr.deinit();
+    try testing.expect(!mgr.contains(99999));
+}
+
+test "KittyImageManager: place emits display APC sequence" {
+    const allocator = testing.allocator;
+    var mgr = KittyImageManager.init(allocator);
+    defer mgr.deinit();
+
+    var store_out = createTestWriter(allocator);
+    defer store_out.deinit(allocator);
+
+    const id = try mgr.store("px", .png, store_out.writer(allocator));
+
+    var display_out = createTestWriter(allocator);
+    defer display_out.deinit(allocator);
+
+    try mgr.place(id, .{ .image_id = id, .x = 5, .y = 10 }, display_out.writer(allocator));
+    const written = display_out.items;
+    try testing.expect(written.len > 0);
+    try testing.expect(std.mem.containsAtLeast(u8, written, 1, "\x1b_G"));
+}
+
+test "KittyImageManager: place returns error for unknown image ID" {
+    const allocator = testing.allocator;
+    var mgr = KittyImageManager.init(allocator);
+    defer mgr.deinit();
+
+    var output = createTestWriter(allocator);
+    defer output.deinit(allocator);
+
+    try testing.expectError(error.UnknownImageId, mgr.place(42, .{ .image_id = 42 }, output.writer(allocator)));
+}
+
+test "KittyImageManager: evict removes ID from tracking and emits delete" {
+    const allocator = testing.allocator;
+    var mgr = KittyImageManager.init(allocator);
+    defer mgr.deinit();
+
+    var out = createTestWriter(allocator);
+    defer out.deinit(allocator);
+
+    const id = try mgr.store("p", .png, out.writer(allocator));
+    try testing.expect(mgr.contains(id));
+
+    try mgr.evict(id, out.writer(allocator));
+    try testing.expect(!mgr.contains(id));
+    try testing.expectEqual(@as(usize, 0), mgr.count());
+}
+
+test "KittyImageManager: evictAll clears all tracked images" {
+    const allocator = testing.allocator;
+    var mgr = KittyImageManager.init(allocator);
+    defer mgr.deinit();
+
+    var out = createTestWriter(allocator);
+    defer out.deinit(allocator);
+
+    _ = try mgr.store("a", .png, out.writer(allocator));
+    _ = try mgr.store("b", .rgb, out.writer(allocator));
+    _ = try mgr.store("c", .rgba, out.writer(allocator));
+    try testing.expectEqual(@as(usize, 3), mgr.count());
+
+    try mgr.evictAll(out.writer(allocator));
+    try testing.expectEqual(@as(usize, 0), mgr.count());
+    // Should emit a=d,d=A (delete all) APC
+    const written = out.items;
+    try testing.expect(std.mem.containsAtLeast(u8, written, 1, "d=A"));
+}

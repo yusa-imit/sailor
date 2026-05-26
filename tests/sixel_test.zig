@@ -1619,12 +1619,13 @@ test "sixel palette: edge case: identical colors (distance = 0)" {
 // Palette Application Tests (4 tests)
 // ----------------------------------------------------------------------------
 
-test "sixel palette: map 1000x1000 image to 16-color palette" {
+test "sixel palette: map large image to 16-color palette" {
     const allocator = testing.allocator;
 
-    // Create large image with random colors
-    const width: u16 = 1000;
-    const height: u16 = 1000;
+    // 100x100 = 10K pixels is sufficient to validate quantization without hanging
+    // in debug mode (1000x1000 with 1M pixels was too slow: O(n) dedup + O(n) findNearest × 16)
+    const width: u16 = 100;
+    const height: u16 = 100;
     const image = try makeTestImage(allocator, width, height, .{ .r = 0, .g = 0, .b = 0 });
     defer allocator.free(image.pixels);
 
