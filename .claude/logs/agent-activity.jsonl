@@ -76,3 +76,4 @@
 {"timestamp":"2026-05-26T00:30:00Z","action":"subagent","agent_type":"test-writer","task":"Write 35 failing tests for AnsiArtPlayer, psnr(), ssim(), convertVideoFrame() — v2.11.0 remaining items","project":"sailor"}
 {"timestamp":"2026-05-26T15:40:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement PSNR, SSIM, AnsiArtPlayer, convertVideoFrame in ansi_art.zig and export from sailor.zig","project":"sailor"}
 {"timestamp":"2026-05-26T07:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for blur and transparency emulation in effects.zig","project":"sailor"}
+{"timestamp":"2026-05-27T03:40:00Z","action":"subagent","agent_type":"zig-developer","task":"Fix AnsiArtPlayer ArrayList API (Zig 0.15 change), implement image_renderer.zig unified protocol selector, add blur/transparency effects","project":"sailor"}
