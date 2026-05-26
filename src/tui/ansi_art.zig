@@ -364,3 +364,231 @@ pub const AnsiArtRenderer = struct {
         if (options.color_mode != .grayscale) try writer.writeAll("\x1b[0m");
     }
 };
+
+// ============================================================================
+// Quality Metrics
+// ============================================================================
+
+/// Peak Signal-to-Noise Ratio in decibels. Returns 100.0 for identical buffers.
+/// Requires original.len == reconstructed.len.
+pub fn psnr(original: []const u8, reconstructed: []const u8) f64 {
+    if (original.len == 0) return 100.0;
+    if (std.mem.eql(u8, original, reconstructed)) return 100.0;
+
+    var sum_sq_diff: f64 = 0.0;
+    for (original, reconstructed) |o, r| {
+        const diff: f64 = @floatFromInt(@as(i16, @intCast(o)) - @as(i16, @intCast(r)));
+        sum_sq_diff += diff * diff;
+    }
+
+    const mse = sum_sq_diff / @as(f64, @floatFromInt(original.len));
+    if (mse == 0.0) return 100.0;
+
+    const max_val = 255.0;
+    const psnr_val = 10.0 * std.math.log10(max_val * max_val / mse);
+    return psnr_val;
+}
+
+/// Structural Similarity Index Measure (0.0-1.0, higher is better).
+/// width = row stride in pixels, channels = bytes per pixel.
+/// Clamps result to [0.0, 1.0].
+pub fn ssim(original: []const u8, reconstructed: []const u8, width: u32, channels: u32) f64 {
+    _ = width;
+    _ = channels;
+
+    if (original.len == 0) return 1.0;
+    if (original.len != reconstructed.len) return 0.0;
+    if (std.mem.eql(u8, original, reconstructed)) return 1.0;
+
+    const n = @as(f64, @floatFromInt(original.len));
+
+    // Compute global means
+    var sum_x: f64 = 0.0;
+    var sum_y: f64 = 0.0;
+    for (original, reconstructed) |x, y| {
+        sum_x += @floatFromInt(x);
+        sum_y += @floatFromInt(y);
+    }
+    const mu_x = sum_x / n;
+    const mu_y = sum_y / n;
+
+    // Compute global variance and covariance
+    var sum_sq_x: f64 = 0.0;
+    var sum_sq_y: f64 = 0.0;
+    var sum_cov: f64 = 0.0;
+    for (original, reconstructed) |x, y| {
+        const fx = @as(f64, @floatFromInt(x)) - mu_x;
+        const fy = @as(f64, @floatFromInt(y)) - mu_y;
+        sum_sq_x += fx * fx;
+        sum_sq_y += fy * fy;
+        sum_cov += fx * fy;
+    }
+    const sigma_x2 = sum_sq_x / n;
+    const sigma_y2 = sum_sq_y / n;
+    const sigma_xy = sum_cov / n;
+
+    // SSIM constants
+    const C1 = 6.5025; // (0.01 * 255)^2
+    const C2 = 58.5225; // (0.03 * 255)^2
+
+    // Numerator: (2*mu_x*mu_y + C1)*(2*sigma_xy + C2)
+    const num_lum = 2.0 * mu_x * mu_y + C1;
+    const num_struct = 2.0 * sigma_xy + C2;
+    const numerator = num_lum * num_struct;
+
+    // Denominator: (mu_x^2 + mu_y^2 + C1)*(sigma_x2 + sigma_y2 + C2)
+    const denom_lum = mu_x * mu_x + mu_y * mu_y + C1;
+    const denom_struct = sigma_x2 + sigma_y2 + C2;
+    const denominator = denom_lum * denom_struct;
+
+    if (denominator == 0.0) return 1.0;
+
+    const result = numerator / denominator;
+    return std.math.clamp(result, 0.0, 1.0);
+}
+
+// ============================================================================
+// AnsiArtPlayer — Frame-Based Animation Playback
+// ============================================================================
+
+pub const AnsiArtPlayer = struct {
+    pub const Frame = struct {
+        pixels: []u8, // owned clone, freed by deinit
+        width: u32,
+        height: u32,
+        duration_ms: u64,
+    };
+
+    allocator: Allocator,
+    frames: std.ArrayList(Frame),
+    current_frame: usize,
+    elapsed_ms: u64,
+    is_playing: bool,
+    loop: bool,
+    done: bool,
+    options: AnsiArtRenderer.RenderOptions,
+
+    pub fn init(allocator: Allocator, options: AnsiArtRenderer.RenderOptions) AnsiArtPlayer {
+        return AnsiArtPlayer{
+            .allocator = allocator,
+            .frames = std.ArrayList(Frame).init(allocator),
+            .current_frame = 0,
+            .elapsed_ms = 0,
+            .is_playing = false,
+            .loop = false,
+            .done = false,
+            .options = options,
+        };
+    }
+
+    pub fn deinit(self: *AnsiArtPlayer) void {
+        for (self.frames.items) |frame| {
+            self.allocator.free(frame.pixels);
+        }
+        self.frames.deinit();
+    }
+
+    pub fn addFrame(self: *AnsiArtPlayer, pixels: []const u8, width: u32, height: u32, duration_ms: u64) !void {
+        const cloned = try self.allocator.dupe(u8, pixels);
+        try self.frames.append(Frame{
+            .pixels = cloned,
+            .width = width,
+            .height = height,
+            .duration_ms = duration_ms,
+        });
+    }
+
+    pub fn getFrameCount(self: AnsiArtPlayer) usize {
+        return self.frames.items.len;
+    }
+
+    pub fn getCurrentFrameIndex(self: AnsiArtPlayer) usize {
+        return self.current_frame;
+    }
+
+    pub fn play(self: *AnsiArtPlayer) void {
+        self.is_playing = true;
+        self.done = false;
+    }
+
+    pub fn pause(self: *AnsiArtPlayer) void {
+        self.is_playing = false;
+    }
+
+    pub fn stop(self: *AnsiArtPlayer) void {
+        self.is_playing = false;
+        self.current_frame = 0;
+        self.elapsed_ms = 0;
+    }
+
+    pub fn update(self: *AnsiArtPlayer, delta_ms: u64) void {
+        if (!self.is_playing or self.frames.items.len == 0 or self.done) {
+            return;
+        }
+
+        self.elapsed_ms += delta_ms;
+
+        while (self.elapsed_ms >= self.frames.items[self.current_frame].duration_ms) {
+            self.elapsed_ms -= self.frames.items[self.current_frame].duration_ms;
+            self.current_frame += 1;
+
+            if (self.current_frame >= self.frames.items.len) {
+                if (self.loop) {
+                    self.current_frame = 0;
+                } else {
+                    self.current_frame = self.frames.items.len - 1;
+                    self.done = true;
+                    self.is_playing = false;
+                    break;
+                }
+            }
+        }
+    }
+
+    pub fn render(self: AnsiArtPlayer, alloc: Allocator, writer: anytype) !void {
+        if (self.frames.items.len == 0) {
+            return;
+        }
+
+        const frame = self.frames.items[self.current_frame];
+        try AnsiArtRenderer.render(alloc, frame.pixels, frame.width, frame.height, self.options, writer);
+    }
+
+    pub fn isComplete(self: AnsiArtPlayer) bool {
+        return self.done;
+    }
+};
+
+// ============================================================================
+// Video Frame Conversion
+// ============================================================================
+
+/// Render a single video frame. If frame_number > 0, emits cursor-up escape to
+/// overwrite the previous frame in-place.
+pub fn convertVideoFrame(
+    allocator: Allocator,
+    pixels: []const u8,
+    width: u32,
+    height: u32,
+    options: AnsiArtRenderer.RenderOptions,
+    frame_number: u32,
+    writer: anytype,
+) !void {
+    if (width == 0 or height == 0) {
+        return error.InvalidDimensions;
+    }
+
+    if (frame_number > 0) {
+        // Calculate output height based on algorithm
+        const out_h: u32 = switch (options.algorithm) {
+            .block => (height + 1) / 2,
+            .braille => (height + 3) / 4,
+            .ascii => options.output_height orelse height,
+        };
+
+        // Emit cursor-up escape: ESC[nA
+        try writer.print("\x1b[{}A", .{out_h});
+    }
+
+    try AnsiArtRenderer.render(allocator, pixels, width, height, options, writer);
+}

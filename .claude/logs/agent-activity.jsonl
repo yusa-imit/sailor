@@ -73,3 +73,5 @@
 {"timestamp":"2026-05-24T12:00:00Z","action":"subagent","agent_type":"Explore","task":"Review uncommitted v2.11.0 work: gradient ConicGradient, KittyGraphics API, SixelCompressor RLE, ANSI art renderer, particle system","project":"sailor"}
 {"timestamp":"2026-05-24T12:10:00Z","action":"subagent","agent_type":"test-writer","task":"Write tests for WipeTransition and custom border patterns (dotted, wavy, 3D)","project":"sailor"}
 {"timestamp":"2026-05-25T00:42:00Z","action":"subagent","agent_type":"test-writer","task":"Write 18 failing tests for AdaptiveImageRenderer (sixel fallback to ANSI art)","project":"sailor"}
+{"timestamp":"2026-05-26T00:30:00Z","action":"subagent","agent_type":"test-writer","task":"Write 35 failing tests for AnsiArtPlayer, psnr(), ssim(), convertVideoFrame() — v2.11.0 remaining items","project":"sailor"}
+{"timestamp":"2026-05-26T15:40:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement PSNR, SSIM, AnsiArtPlayer, convertVideoFrame in ansi_art.zig and export from sailor.zig","project":"sailor"}
