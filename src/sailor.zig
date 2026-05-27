@@ -211,6 +211,11 @@ pub const EventBus = eventbus.EventBus;
 pub const TaskRunner = taskrunner.TaskRunner;
 pub const Priority = taskrunner.Priority;
 
+// v2.12.0 — Reactive State Management
+pub const signal = @import("signal.zig");
+pub const store = @import("store.zig");
+pub const Store = store.Store;
+
 test {
     // Pull in all module tests
     std.testing.refAllDecls(@This());
