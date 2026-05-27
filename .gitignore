@@ -17,3 +17,6 @@ zig-out
 # OS
 .DS_Store
 Thumbs.db
+
+# Test binaries (built in project root by zig test)
+test_*

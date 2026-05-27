@@ -4,11 +4,54 @@
 
 - **Latest release**: v2.11.0 (2026-05-27) — Extended Graphics & Protocol Support
 - **Latest minor**: v2.11.0 (2026-05-27) — Extended Graphics & Protocol Support
-- **Next milestone**: v2.12.0 (TBD)
-- **Active milestones**: 1 (v2.2.0)
+- **Next milestone**: v2.12.0 (in progress)
+- **Active milestones**: 2 (v2.2.0, v2.12.0)
 - **Blockers**: None
 
 ## Active Milestones
+
+### v2.12.0 — Reactive State Management (Target: 2026-06-10)
+
+**Theme**: Reactive state management primitives for building data-driven TUI applications
+
+**Checklist**:
+- [x] **Signal primitive**: Mutable reactive value with subscriber callbacks (COMPLETE)
+  - Signal(T).init/deinit, get, set with notifications
+  - subscribe(allocator, ctx, callback) → subscription ID
+  - unsubscribe by ID
+  - Batch mode: beginBatch/endBatch to defer notifications
+- [x] **Computed primitive**: Read-only derived value via lazy evaluation (COMPLETE)
+  - Computed(T, S).init with transform function
+  - Lazy get() — no subscription overhead, no dangling pointer risk
+- [x] **Effect primitive**: Side effect callback on signal change (COMPLETE)
+  - Effect(T).init subscribes to signal automatically
+  - Effect(T).deinit unsubscribes automatically
+- [x] **Scope helper**: Batch update context (COMPLETE)
+  - Scope.batch() defers notifications within a function body
+- [x] **Store primitive**: Centralized state with reducer pattern (COMPLETE)
+  - Store(State, Action).init/deinit/getState/dispatch
+  - Reducer: fn(State, Action, Allocator) !State
+  - subscribe/unsubscribe for state change notifications
+- [x] **Reactive widgets**: TUI widgets that auto-bind to Signal values (COMPLETE)
+  - ReactiveGauge: Gauge bound to Signal(f64), with label/style/block options
+  - ReactiveText: Text bound to Signal([]const u8), with alignment/style/block
+  - ReactiveCounter: Formatted i64 counter with prefix/suffix/style
+  - src/tui/widgets/reactive.zig, exported in tui.widgets
+- [x] **Testing**: Comprehensive test coverage (COMPLETE)
+  - Signal lifecycle, batch, computed, effect (signal_test.zig — 24 tests)
+  - Store lifecycle, dispatch, subscribe (store_test.zig — 19 tests)
+  - Reactive widget render tests (reactive_test.zig — 46 tests)
+
+**Success Criteria**:
+- Zero global state — all primitives are caller-owned
+- No @panic in library code — all errors returned to caller
+- Reactive widgets work with any Signal/Store type parameter
+- All tests pass on 6 cross-platform targets
+
+**Notes**:
+- Inspired by SolidJS signals and Redux store patterns
+- Compatible with existing TUI widget system
+- No background threads — notification is synchronous on set()/dispatch()
 
 ### v2.10.0 — AI/ML Integration & Smart Features (Target: 2026-05-31)
 

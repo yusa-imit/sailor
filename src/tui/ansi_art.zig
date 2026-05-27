@@ -136,7 +136,8 @@ pub const AnsiArtRenderer = struct {
         options: RenderOptions,
         writer: anytype,
     ) !void {
-        const out_w = options.output_width;
+        // Cap out_w at source width to avoid upscaling which would overflow fixed output buffers
+        const out_w = @min(options.output_width, width);
         const out_h = options.output_height orelse (height + 1) / 2;
 
         const scale_x = @as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(out_w));

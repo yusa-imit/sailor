@@ -31,16 +31,16 @@ pub fn Signal(T: type) type {
 
         /// Initialize a new Signal with an initial value
         pub fn init(allocator: std.mem.Allocator, initial_value: T) !Self {
+            _ = allocator;
             return Self{
                 .value = initial_value,
-                .subscribers = std.ArrayList(Subscriber).init(allocator),
+                .subscribers = .{},
             };
         }
 
         /// Clean up the signal and free all subscriber memory
         pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
-            _ = allocator;
-            self.subscribers.deinit();
+            self.subscribers.deinit(allocator);
         }
 
         /// Get the current value
@@ -63,13 +63,14 @@ pub fn Signal(T: type) type {
         /// Returns a subscription ID that can be used to unsubscribe
         pub fn subscribe(
             self: *Self,
+            allocator: std.mem.Allocator,
             ctx: ?*anyopaque,
             callback: *const fn (T, ?*anyopaque) void,
         ) !usize {
             const id = self.next_id;
             self.next_id += 1;
 
-            try self.subscribers.append(Subscriber{
+            try self.subscribers.append(allocator, Subscriber{
                 .id = id,
                 .callback = callback,
                 .ctx = ctx,
@@ -113,14 +114,16 @@ pub fn Signal(T: type) type {
 }
 
 /// A read-only computed value derived from a source Signal(S)
+///
+/// Uses lazy evaluation: value is computed on each get() call from the source.
+/// This avoids the dangling-pointer hazard that subscription-based caching creates
+/// when Computed is used as a stack variable (init returns Self by value).
 pub fn Computed(T: type, S: type) type {
     return struct {
         const Self = @This();
 
         source: *Signal(S),
         transform: *const fn (S) T,
-        current_value: T,
-        subscription_id: usize,
 
         /// Initialize a Computed value from a source signal and transform function
         pub fn init(
@@ -129,36 +132,21 @@ pub fn Computed(T: type, S: type) type {
             transform: *const fn (S) T,
         ) !Self {
             _ = allocator;
-            const initial = transform(source.get());
-
-            var self = Self{
+            return Self{
                 .source = source,
                 .transform = transform,
-                .current_value = initial,
-                .subscription_id = undefined,
             };
-
-            // Subscribe to source changes
-            const callback = struct {
-                fn callback(value: S, ctx: ?*anyopaque) void {
-                    const ptr: *Self = @ptrCast(@alignCast(ctx.?));
-                    ptr.current_value = ptr.transform(value);
-                }
-            }.callback;
-
-            self.subscription_id = try source.subscribe(&self, callback);
-            return self;
         }
 
-        /// Clean up and unsubscribe from source
+        /// Clean up (no-op for lazy computed)
         pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
             _ = allocator;
-            self.source.unsubscribe(self.subscription_id);
+            _ = self;
         }
 
-        /// Get the current derived value
+        /// Get the current derived value (computed lazily from source)
         pub fn get(self: Self) T {
-            return self.current_value;
+            return self.transform(self.source.get());
         }
     };
 }
@@ -180,7 +168,6 @@ pub fn Effect(T: type) type {
             ctx: ?*anyopaque,
             callback: *const fn (T, ?*anyopaque) void,
         ) !Self {
-            _ = allocator;
             var self = Self{
                 .signal = signal,
                 .callback = callback,
@@ -189,7 +176,7 @@ pub fn Effect(T: type) type {
             };
 
             // Subscribe to signal changes
-            self.subscription_id = try signal.subscribe(ctx, callback);
+            self.subscription_id = try signal.subscribe(allocator, ctx, callback);
             return self;
         }
 

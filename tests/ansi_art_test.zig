@@ -1516,9 +1516,11 @@ test "ansi art player: deinit frees all frame pixel data" {
     var player = sailor.tui.ansi_art.AnsiArtPlayer.init(allocator, options);
 
     const frame1 = try createSolidImage(allocator, 2, 2, 255, 0, 0);
+    defer allocator.free(frame1);
     try player.addFrame(frame1, 2, 2, 100);
 
     const frame2 = try createSolidImage(allocator, 2, 2, 0, 255, 0);
+    defer allocator.free(frame2);
     try player.addFrame(frame2, 2, 2, 100);
 
     player.deinit();

@@ -77,3 +77,7 @@
 {"timestamp":"2026-05-26T15:40:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement PSNR, SSIM, AnsiArtPlayer, convertVideoFrame in ansi_art.zig and export from sailor.zig","project":"sailor"}
 {"timestamp":"2026-05-26T07:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for blur and transparency emulation in effects.zig","project":"sailor"}
 {"timestamp":"2026-05-27T03:40:00Z","action":"subagent","agent_type":"zig-developer","task":"Fix AnsiArtPlayer ArrayList API (Zig 0.15 change), implement image_renderer.zig unified protocol selector, add blur/transparency effects","project":"sailor"}
+{"timestamp":"2026-05-27T00:26:50Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for Signal/Computed/Effect/Store reactive primitives (v2.12.0)","project":"sailor"}
+{"timestamp":"2026-05-27T00:35:33Z","action":"subagent","agent_type":"zig-developer","task":"Implement Signal/Computed/Effect/Store reactive primitives to pass tests (v2.12.0)","project":"sailor"}
+{"timestamp":"2026-05-27T00:53:02Z","action":"subagent","agent_type":"test-writer","task":"Fix test 1518 in ansi_art_test.zig: add missing defer allocator.free for frame1/frame2 (contradicts clone behavior)","project":"sailor"}
+{"timestamp":"2026-05-27T18:41:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement reactive widgets: ReactiveGauge, ReactiveText, ReactiveCounter (v2.12.0) — 46 tests pass","project":"sailor"}

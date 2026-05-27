@@ -575,6 +575,33 @@ pub fn build(b: *std.Build) void {
     });
     adaptive_renderer_tests.root_module.addImport("sailor", sailor_module_for_tests);
 
+    const signal_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/signal_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    signal_tests.root_module.addImport("sailor", sailor_module_for_tests);
+
+    const store_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/store_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    store_tests.root_module.addImport("sailor", sailor_module_for_tests);
+
+    const reactive_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/reactive_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    reactive_tests.root_module.addImport("sailor", sailor_module_for_tests);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&b.addRunArtifact(lib_tests).step);
     test_step.dependOn(&b.addRunArtifact(smoke_tests).step);
@@ -634,6 +661,9 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(particles_tests).step);
     test_step.dependOn(&b.addRunArtifact(symbols_tests).step);
     test_step.dependOn(&b.addRunArtifact(adaptive_renderer_tests).step);
+    test_step.dependOn(&b.addRunArtifact(signal_tests).step);
+    test_step.dependOn(&b.addRunArtifact(store_tests).step);
+    test_step.dependOn(&b.addRunArtifact(reactive_tests).step);
     // test_step.dependOn(&b.addRunArtifact(migration_script_tests).step); // Disabled for v2.0.0 work
 
     // Benchmark executable

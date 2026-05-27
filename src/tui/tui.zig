@@ -243,9 +243,15 @@ pub const widgets = struct {
 
     // v1.36.0+ widgets (Performance Monitoring & Real-Time Metrics)
     pub const MetricsDashboard = @import("widgets/metrics_dashboard.zig").MetricsDashboard;
+
+    // v2.12.0 — Reactive widgets (auto-bind to Signal values)
+    pub const ReactiveGauge = @import("widgets/reactive.zig").ReactiveGauge;
+    pub const ReactiveText = @import("widgets/reactive.zig").ReactiveText;
+    pub const ReactiveCounter = @import("widgets/reactive.zig").ReactiveCounter;
 };
 
 // Export commonly used types
+pub const Alignment = @import("widgets/paragraph.zig").Alignment;
 pub const Color = style.Color;
 pub const Style = style.Style;
 pub const Span = style.Span;
