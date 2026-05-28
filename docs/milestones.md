@@ -2,150 +2,62 @@
 
 ## Current Status
 
-- **Latest release**: v2.11.0 (2026-05-27) — Extended Graphics & Protocol Support
-- **Latest minor**: v2.11.0 (2026-05-27) — Extended Graphics & Protocol Support
-- **Next milestone**: v2.12.0 (in progress)
-- **Active milestones**: 2 (v2.2.0, v2.12.0)
+- **Latest release**: v2.12.0 (2026-05-28) — Reactive State Management
+- **Latest minor**: v2.12.0 (2026-05-28) — Reactive State Management
+- **Next milestone**: v2.13.0 (planned)
+- **Active milestones**: 2 (v2.2.0, v2.13.0)
 - **Blockers**: None
 
 ## Active Milestones
 
-### v2.12.0 — Reactive State Management (Target: 2026-06-10)
+### v2.13.0 — Store Middleware & Async Actions (Target: 2026-06-20)
 
-**Theme**: Reactive state management primitives for building data-driven TUI applications
-
-**Checklist**:
-- [x] **Signal primitive**: Mutable reactive value with subscriber callbacks (COMPLETE)
-  - Signal(T).init/deinit, get, set with notifications
-  - subscribe(allocator, ctx, callback) → subscription ID
-  - unsubscribe by ID
-  - Batch mode: beginBatch/endBatch to defer notifications
-- [x] **Computed primitive**: Read-only derived value via lazy evaluation (COMPLETE)
-  - Computed(T, S).init with transform function
-  - Lazy get() — no subscription overhead, no dangling pointer risk
-- [x] **Effect primitive**: Side effect callback on signal change (COMPLETE)
-  - Effect(T).init subscribes to signal automatically
-  - Effect(T).deinit unsubscribes automatically
-- [x] **Scope helper**: Batch update context (COMPLETE)
-  - Scope.batch() defers notifications within a function body
-- [x] **Store primitive**: Centralized state with reducer pattern (COMPLETE)
-  - Store(State, Action).init/deinit/getState/dispatch
-  - Reducer: fn(State, Action, Allocator) !State
-  - subscribe/unsubscribe for state change notifications
-- [x] **Reactive widgets**: TUI widgets that auto-bind to Signal values (COMPLETE)
-  - ReactiveGauge: Gauge bound to Signal(f64), with label/style/block options
-  - ReactiveText: Text bound to Signal([]const u8), with alignment/style/block
-  - ReactiveCounter: Formatted i64 counter with prefix/suffix/style
-  - src/tui/widgets/reactive.zig, exported in tui.widgets
-- [x] **Testing**: Comprehensive test coverage (COMPLETE)
-  - Signal lifecycle, batch, computed, effect (signal_test.zig — 24 tests)
-  - Store lifecycle, dispatch, subscribe (store_test.zig — 19 tests)
-  - Reactive widget render tests (reactive_test.zig — 46 tests)
-
-**Success Criteria**:
-- Zero global state — all primitives are caller-owned
-- No @panic in library code — all errors returned to caller
-- Reactive widgets work with any Signal/Store type parameter
-- All tests pass on 6 cross-platform targets
-
-**Notes**:
-- Inspired by SolidJS signals and Redux store patterns
-- Compatible with existing TUI widget system
-- No background threads — notification is synchronous on set()/dispatch()
-
-### v2.10.0 — AI/ML Integration & Smart Features (Target: 2026-05-31)
-
-**Theme**: Integrate AI capabilities and intelligent automation into sailor applications
+**Theme**: Extend the reactive Store with middleware pipeline, async action dispatch, and state persistence
 
 **Checklist**:
-- ✅ **LLM Integration Layer**: Connect to Claude/GPT APIs (COMPLETE — 38/50 tests, 12 HTTP mocking tests blocked by Zig type system)
-  - ✅ Token counting and budget management (TokenBudget: 7/7 tests)
-  - ✅ Rate limiting and retry logic (RateLimiter: 8/8 tests)
-  - ✅ Prompt template system (PromptTemplate: 7/7 tests)
-  - ✅ Response streaming widget (ResponseStreamWidget: 9/10 tests)
-  - ✅ HTTP client with streaming support (LlmClient: 5/10 integration tests, 12 HTTP mocking tests documented as acceptable limitation)
-- ✅ **Smart Autocomplete**: AI-powered suggestions (COMPLETE — 52 tests)
-  - ✅ Context-aware completion (CompletionContext with code/prose/command modes)
-  - ✅ Multi-source aggregation (LocalSource, LlmSource, PatternSource)
-  - ✅ Learning from user patterns (PatternSource with frequency tracking)
-  - ✅ Semantic ranking (score-based sorting, top 10 results)
-  - ✅ Inline preview with ghost text (getGhostText returns highest-scored suggestion)
-- ✅ **Layout Intelligence**: AI-assisted layout optimization (COMPLETE — 52 tests)
-  - ✅ Analyze widget tree for layout inefficiencies (LayoutAnalyzer with tree traversal)
-  - ✅ Suggest constraint improvements (percentage/min/max recommendations)
-  - ✅ Auto-adjust for screen sizes (responsiveness checking, auto-adjustment)
-  - ✅ Accessibility recommendations (focus indicators, ARIA roles, contrast)
-  - ✅ Performance optimization hints (nesting depth, widget count, memory/render analysis)
-- ✅ **Natural Language Commands**: Voice-like command interface (COMPLETE — 59 tests)
-  - ✅ Parse natural language to widget actions (CommandParser with 11 intent types)
-  - ✅ Intent recognition for common tasks (show/search/close/scroll/select/copy/save/undo/help/quit)
-  - ✅ Context-aware command disambiguation (focused_widget, open_dialogs, recent_commands)
-  - ✅ Command history with semantic search (exact/partial/synonym/similarity scoring)
-  - ✅ Tutorial mode with suggestions (progressive disclosure, contextual tips)
-- ✅ **Testing**: Comprehensive test coverage (COMPLETE — 198 total tests)
-  - ✅ LLM client mocking (35 passing tests, 15 HTTP tests blocked by Zig type system)
-  - ✅ Autocomplete ranking tests (52 tests for all features)
-  - ✅ Layout analyzer tests (52 tests for all detection rules)
-  - ✅ NL parser tests (59 tests for intent recognition)
+- [ ] **Store Middleware Pipeline**: Intercept and transform dispatches
+  - Middleware type: `fn(State, Action, NextFn) anyerror!void`
+  - `Store.initWithMiddleware(alloc, state, reducer, middlewares)` constructor
+  - Logger middleware: log every action + state diff to a Writer
+  - Validator middleware: reject invalid actions with typed errors
+- [ ] **Thunk Middleware & Async Actions**: Dispatch functions as actions
+  - Thunk type: `fn(*Store(S, A), Allocator) anyerror!void`
+  - `ThunkAction(S, A)` union: `.action(A)` | `.thunk(ThunkFn)`
+  - Async sequencing: multiple dispatches within one thunk
+  - Error propagation from thunks to caller
+- [ ] **Undo/Redo Middleware**: Time-travel through state history
+  - `UndoMiddleware(State, Action)` wrapping a Store
+  - `undo()` / `redo()` methods
+  - Configurable history depth (default: 50)
+  - `canUndo()` / `canRedo()` predicates
+- [ ] **State Persistence**: Serialize/deserialize store state
+  - `StatePersist(State)` with `save(writer)` / `load(reader)` — JSON format
+  - Pluggable serializer interface (user provides encode/decode fns)
+  - Auto-save middleware: persist state after each dispatch
+  - Load-on-init: restore saved state at startup
+- [ ] **ReactiveList widget**: List auto-bound to Signal([]const T)
+  - Auto-rerenders when signal value changes
+  - Item renderer callback: `fn(item: T, buf: *Buffer, area: Rect) void`
+  - Selection state as Signal(usize) — bidirectional
+  - Optional filtering via Signal([]const u8) filter string
+- [ ] **Testing**: Comprehensive test coverage
+  - Middleware pipeline order tests (middleware_test.zig — 20+ tests)
+  - Thunk async dispatch tests (thunk_test.zig — 15+ tests)
+  - UndoMiddleware history tests (undo_test.zig — 20+ tests)
+  - StatePersist round-trip tests (persist_test.zig — 15+ tests)
+  - ReactiveList render and binding tests (reactive_list_test.zig — 20+ tests)
 
 **Success Criteria**:
-- LLM client supports streaming with <100ms first token
-- Autocomplete achieves >80% acceptance rate in testing
-- Layout analyzer detects 10+ common anti-patterns
-- NL parser handles 50+ command patterns
-- Zero real API calls during test suite
+- Middleware composes without allocation overhead
+- Thunks can dispatch multiple actions and chain async ops
+- UndoMiddleware restores exact state across 50 history entries
+- StatePersist round-trips any serializable State type
+- ReactiveList updates on signal change without full redraw
 
 **Notes**:
-- API keys optional — features degrade gracefully
-- Privacy-first: user data stays local unless explicitly sent
-- Consumer projects can use AI features without hard dependency
-
-### v2.11.0 — Extended Graphics & Protocol Support (Target: 2026-06-15)
-
-**Theme**: Advanced terminal graphics protocols and visual enhancements
-
-**Checklist**:
-- [x] **Sixel Enhancements**: Full sixel protocol implementation (COMPLETE)
-  - Sixel encoder/decoder improvements (SixelEncoder, SixelDecoder)
-  - Color palette optimization (256-color quantization, median cut, octree)
-  - Animation support (GIF-like frame sequences — SixelAnimator, DisposalMethod)
-  - Compression for network efficiency (SixelCompressor)
-  - Fallback to ANSI art for unsupported terminals (image_renderer.zig)
-- [x] **Kitty Graphics Protocol**: Modern image protocol (COMPLETE)
-  - Kitty protocol implementation (transmit/display/delete — KittyEncoder, KittyGraphics)
-  - Unicode placeholder support (DisplayOptions.unicode_placeholder)
-  - Z-index and layering (DisplayOptions.z_index)
-  - Virtual image management (KittyImageManager)
-  - Performance optimizations (chunked transmission — KittyEncoder.chunk_size)
-- [x] **ANSI Art Rendering**: High-quality text art (COMPLETE)
-  - Image to ANSI converter (multiple algorithms: block, braille, ascii — AnsiArtRenderer)
-  - Color quantization for 256-color terminals (rgb256(), rgb16())
-  - Dithering options (Floyd-Steinberg, ordered — AnsiArtRenderer.Dithering)
-  - Real-time video frame conversion (convertVideoFrame())
-  - ASCII animation player (AnsiArtPlayer)
-- [x] **Advanced Effects**: Visual polish (COMPLETE)
-  - Gradient backgrounds (linear, radial, conic — gradient.zig)
-  - Blur and transparency emulation (applyBlur, applyTransparency in effects.zig)
-  - Custom border patterns (dotted, wavy, 3D — BorderStyle3D, custom BoxSet borders)
-  - Particle effects (fire, rain, snow, sparkles — particles.zig)
-  - Transition animations (fade, wipe, slide — transition.zig, WipeTransition)
-- [x] **Testing**: Comprehensive test coverage (COMPLETE)
-  - Sixel encoder/decoder round-trip tests (sixel_test.zig — 57 tests)
-  - Kitty protocol message generation (kitty_test.zig)
-  - ANSI art quality metrics (PSNR, SSIM — ansi_art_test.zig — 76 tests)
-  - Effect rendering tests (particles_test.zig, transition_test.zig, inline tests)
-
-**Success Criteria**:
-- Sixel encoder produces valid output for 100+ test images
-- Kitty protocol compatible with latest Kitty terminal
-- ANSI art converter achieves PSNR >20dB for test images
-- Effects library includes 20+ presets
-- All features work across 6 platform targets
-
-**Notes**:
-- Graphics features auto-detect terminal capabilities
-- Graceful fallback to text-only mode
-- Optimized for low-latency streaming
+- Builds directly on v2.12.0 Signal and Store primitives
+- No background threads — async is cooperative via event loop
+- Perfect for zr (task runner state), zoltraak (Redis live data), silica (SQL results)
 
 ### v2.2.0 — Consumer Feedback & Bug Fixes (Target: 2026-05-15)
 
@@ -186,6 +98,8 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v2.12.0 | Reactive State Management | 2026-05-28 | Signal(T) mutable reactive values with subscriber callbacks (subscribe/unsubscribe/batch), Computed(T,S) read-only derived values via lazy evaluation, Effect(T) side effect callbacks, Scope.batch() deferred notifications, Store(State,Action) centralized state with reducer pattern (dispatch/subscribe), ReactiveGauge/ReactiveText/ReactiveCounter widgets auto-bound to signals. Total: +89 tests (signal_test:24, store_test:19, reactive_test:46), ~4600+ total passing, 0 breaking changes. Consumer migrations: zr, zoltraak, silica |
+| v2.11.0 | Extended Graphics & Protocol Support | 2026-05-27 | Sixel encoder/decoder, color palette optimization, animation support, SixelCompressor. Kitty protocol (transmit/display/delete, unicode placeholder, z-index, KittyImageManager). ANSI art rendering (block/braille/ascii algorithms, dithering, real-time video conversion, AnsiArtPlayer). Advanced effects: gradient backgrounds, blur/transparency, custom borders, particles, transitions. image_renderer.zig (unified protocol selector). Total: +200+ tests (~4600 passing), 6 cross-platform targets, 0 breaking changes. Consumer migrations: zr, zoltraak, silica |
 | v2.10.2 | Natural Language Commands Bug Fixes | 2026-05-18 | PATCH: Fixed Zig 0.15 API compatibility in natural_language_commands (tokenizeScalar, BoundedArray→manual tracking, toOwnedSlice allocator), rewrote 59 meaningless tests with actual API validation (CommandParser intent verification). Zero functional changes, zero breaking changes. Test health: 4426/4478 passing (98.8%). Consumer migrations: None (optional patch) |
 | v2.10.1 | Test Reliability Improvements | 2026-05-16 | PATCH: Fixed timing-sensitive tests (advanced_profiler 5µs→10ms sleep, sanity checks vs strict assertions), documented llm_client HTTP mocking limitations (12 tests skipped, anyopaque-based injection constraints). Zero functional changes, zero breaking changes. Test health: 4426/4478 passing (98.8%). Consumer migrations: None (optional patch) |
 | v2.10.0 | AI/ML Integration & Smart Features | 2026-05-13 | LLM Integration Layer (TokenBudget, RateLimiter, PromptTemplate, ResponseStreamWidget, LlmClient with streaming, 38/50 tests passing), Smart Autocomplete (context-aware CompletionContext, multi-source aggregation LocalSource/LlmSource/PatternSource, pattern learning, semantic ranking, ghost text preview, 52 tests), Layout Intelligence (LayoutAnalyzer tree traversal, constraint suggestions, responsiveness checking, accessibility recommendations, performance analysis, 52 tests), Natural Language Commands (CommandParser with 11 intents, context-aware disambiguation, command history with semantic search, tutorial mode, 59 tests). Total: +198 tests (~4426 passing), 6 cross-platform targets, 0 breaking changes. Consumer migrations: zr#64, zoltraak#41, silica#51 |
