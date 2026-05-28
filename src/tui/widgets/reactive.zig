@@ -199,3 +199,38 @@ pub const ReactiveCounter = struct {
         }
     }
 };
+
+/// A list widget bound to a Signal([]const T) value.
+/// Renders items from the signal's current value, calling a render function per item.
+pub fn ReactiveList(comptime T: type) type {
+    return struct {
+        /// The signal providing the list of items
+        signal: *signal_mod.Signal([]const T),
+
+        /// Function to render each item
+        render_fn: *const fn (T, *Buffer, Rect) void,
+
+        /// Render the list into the buffer at the given area.
+        /// Reads the current signal value at render time and renders each item.
+        pub fn render(self: @This(), buf: *Buffer, area: Rect) void {
+            if (area.width == 0 or area.height == 0) return;
+
+            const items = self.signal.get();
+            var row: u32 = 0;
+
+            for (items) |item| {
+                if (row >= area.height) break;
+
+                const item_area = Rect{
+                    .x = area.x,
+                    .y = area.y + row,
+                    .width = area.width,
+                    .height = 1,
+                };
+
+                self.render_fn(item, buf, item_area);
+                row += 1;
+            }
+        }
+    };
+}

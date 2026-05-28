@@ -20,3 +20,4 @@ Thumbs.db
 
 # Test binaries (built in project root by zig test)
 test_*
+*_test

@@ -602,6 +602,51 @@ pub fn build(b: *std.Build) void {
     });
     reactive_tests.root_module.addImport("sailor", sailor_module_for_tests);
 
+    const middleware_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/middleware_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    middleware_tests.root_module.addImport("sailor", sailor_module_for_tests);
+
+    const thunk_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/thunk_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    thunk_tests.root_module.addImport("sailor", sailor_module_for_tests);
+
+    const undo_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/undo_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    undo_tests.root_module.addImport("sailor", sailor_module_for_tests);
+
+    const persist_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/persist_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    persist_tests.root_module.addImport("sailor", sailor_module_for_tests);
+
+    const reactive_list_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/reactive_list_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    reactive_list_tests.root_module.addImport("sailor", sailor_module_for_tests);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&b.addRunArtifact(lib_tests).step);
     test_step.dependOn(&b.addRunArtifact(smoke_tests).step);
@@ -664,6 +709,11 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(signal_tests).step);
     test_step.dependOn(&b.addRunArtifact(store_tests).step);
     test_step.dependOn(&b.addRunArtifact(reactive_tests).step);
+    test_step.dependOn(&b.addRunArtifact(middleware_tests).step);
+    test_step.dependOn(&b.addRunArtifact(thunk_tests).step);
+    test_step.dependOn(&b.addRunArtifact(undo_tests).step);
+    test_step.dependOn(&b.addRunArtifact(persist_tests).step);
+    test_step.dependOn(&b.addRunArtifact(reactive_list_tests).step);
     // test_step.dependOn(&b.addRunArtifact(migration_script_tests).step); // Disabled for v2.0.0 work
 
     // Benchmark executable

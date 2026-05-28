@@ -81,3 +81,5 @@
 {"timestamp":"2026-05-27T00:35:33Z","action":"subagent","agent_type":"zig-developer","task":"Implement Signal/Computed/Effect/Store reactive primitives to pass tests (v2.12.0)","project":"sailor"}
 {"timestamp":"2026-05-27T00:53:02Z","action":"subagent","agent_type":"test-writer","task":"Fix test 1518 in ansi_art_test.zig: add missing defer allocator.free for frame1/frame2 (contradicts clone behavior)","project":"sailor"}
 {"timestamp":"2026-05-27T18:41:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement reactive widgets: ReactiveGauge, ReactiveText, ReactiveCounter (v2.12.0) — 46 tests pass","project":"sailor"}
+{"timestamp":"2026-05-28T15:45:00Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for v2.13.0 Store Middleware (middleware pipeline, thunk, undo, persist, ReactiveList)","project":"sailor"}
+{"timestamp":"2026-05-28T16:35:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement v2.13.0 middleware.zig, thunk.zig, undo_middleware.zig, state_persist.zig, ReactiveList widget","project":"sailor"}

@@ -217,6 +217,15 @@ pub const signal = @import("signal.zig");
 pub const store = @import("store.zig");
 pub const Store = store.Store;
 
+// v2.13.0 — Store Middleware & Async Actions
+pub const middleware = @import("middleware.zig");
+pub const thunk = @import("thunk.zig");
+pub const undo_middleware = @import("undo_middleware.zig");
+pub const state_persist = @import("state_persist.zig");
+
+// v2.13.0 — Reactive Widgets
+pub const reactive = @import("tui/widgets/reactive.zig");
+
 test {
     // Pull in all module tests
     std.testing.refAllDecls(@This());
