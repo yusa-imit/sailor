@@ -36,7 +36,7 @@ pub fn MiddlewareStore(State: type, Action: type) type {
             return Self{
                 .state = initial_state,
                 .reducer = reducer,
-                .listeners = std.ArrayList(Listener).init(allocator),
+                .listeners = std.ArrayList(Listener){},
                 .allocator = allocator,
             };
         }
@@ -67,7 +67,7 @@ pub fn MiddlewareStore(State: type, Action: type) type {
             const id = self.next_id;
             self.next_id += 1;
 
-            try self.listeners.append(Listener{
+            try self.listeners.append(self.allocator, Listener{
                 .id = id,
                 .callback = callback,
                 .ctx = ctx,

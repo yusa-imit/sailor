@@ -44,27 +44,27 @@ const Task = struct {
 // ============================================================================
 
 fn renderStringItem(item: StringItem, buf: *Buffer, area: Rect) void {
-    var i: u32 = 0;
+    var i: u16 = 0;
     for (item) |c| {
         if (i >= area.width) break;
-        buf.setCell(area.x + i, area.y, .{ .char = c });
+        buf.set(area.x + i, area.y, .{ .char = c });
         i += 1;
     }
 }
 
 fn renderTaskItem(item: Task, buf: *Buffer, area: Rect) void {
     const prefix = if (item.completed) "[x] " else "[ ] ";
-    var col: u32 = 0;
+    var col: u16 = 0;
 
     for (prefix) |c| {
         if (col >= area.width) break;
-        buf.setCell(area.x + col, area.y, .{ .char = c });
+        buf.set(area.x + col, area.y, .{ .char = c });
         col += 1;
     }
 
     for (item.title) |c| {
         if (col >= area.width) break;
-        buf.setCell(area.x + col, area.y, .{ .char = c });
+        buf.set(area.x + col, area.y, .{ .char = c });
         col += 1;
     }
 }
@@ -75,31 +75,31 @@ fn renderTaskItem(item: Task, buf: *Buffer, area: Rect) void {
 
 test "ReactiveList init with signal and render function" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(StringItem).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(StringItem) = .{};
+    defer items.deinit(allocator);
 
-    try items.append("Item 1");
-    try items.append("Item 2");
+    try items.append(allocator, "Item 1");
+    try items.append(allocator, "Item 2");
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
     _ = list;
     // Should initialize without errors
 }
 
 test "ReactiveList deinit cleans up" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(StringItem).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(StringItem) = .{};
+    defer items.deinit(allocator);
 
-    try items.append("Item 1");
+    try items.append(allocator, "Item 1");
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
     _ = list;
     // ReactiveList is typically stack-allocated, no explicit deinit needed
 }
@@ -110,16 +110,16 @@ test "ReactiveList deinit cleans up" {
 
 test "ReactiveList render empty list" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(StringItem).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(StringItem) = .{};
+    defer items.deinit(allocator);
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
 
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     list.render(&buf, area);
@@ -133,24 +133,24 @@ test "ReactiveList render empty list" {
 
 test "ReactiveList render single item" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(StringItem).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(StringItem) = .{};
+    defer items.deinit(allocator);
 
-    try items.append("Hello");
+    try items.append(allocator, "Hello");
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
 
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     list.render(&buf, area);
 
     // Item should be rendered in buffer at position (0, 0)
-    const cell = buf.getCell(0, 0);
+    const cell = buf.getConst(0, 0).?;
     try testing.expectEqual(@as(u21, 'H'), cell.char);
 }
 
@@ -160,20 +160,20 @@ test "ReactiveList render single item" {
 
 test "ReactiveList render multiple items" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(StringItem).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(StringItem) = .{};
+    defer items.deinit(allocator);
 
-    try items.append("Item 1");
-    try items.append("Item 2");
-    try items.append("Item 3");
+    try items.append(allocator, "Item 1");
+    try items.append(allocator, "Item 2");
+    try items.append(allocator, "Item 3");
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
 
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     list.render(&buf, area);
@@ -184,28 +184,28 @@ test "ReactiveList render multiple items" {
 
 test "ReactiveList items render in order" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(StringItem).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(StringItem) = .{};
+    defer items.deinit(allocator);
 
-    try items.append("A");
-    try items.append("B");
-    try items.append("C");
+    try items.append(allocator, "A");
+    try items.append(allocator, "B");
+    try items.append(allocator, "C");
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
 
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     list.render(&buf, area);
 
     // Items should render in order: A at (0,0), B at (0,1), C at (0,2)
-    try testing.expectEqual(@as(u21, 'A'), buf.getCell(0, 0).char);
-    try testing.expectEqual(@as(u21, 'B'), buf.getCell(0, 1).char);
-    try testing.expectEqual(@as(u21, 'C'), buf.getCell(0, 2).char);
+    try testing.expectEqual(@as(u21, 'A'), buf.getConst(0, 0).?.char);
+    try testing.expectEqual(@as(u21, 'B'), buf.getConst(0, 1).?.char);
+    try testing.expectEqual(@as(u21, 'C'), buf.getConst(0, 2).?.char);
 }
 
 // ============================================================================
@@ -214,28 +214,28 @@ test "ReactiveList items render in order" {
 
 test "ReactiveList updates when signal changes" {
     const allocator = testing.allocator;
-    var items1 = std.ArrayList(StringItem).init(allocator);
-    defer items1.deinit();
-    try items1.append("Old");
+    var items1: std.ArrayList(StringItem) = .{};
+    defer items1.deinit(allocator);
+    try items1.append(allocator, "Old");
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items1.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
 
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
 
     // Render with first items
     list.render(&buf, area);
-    try testing.expectEqual(@as(u21, 'O'), buf.getCell(0, 0).char);
+    try testing.expectEqual(@as(u21, 'O'), buf.getConst(0, 0).?.char);
 
     // Update signal with new items
-    var items2 = std.ArrayList(StringItem).init(allocator);
-    defer items2.deinit();
-    try items2.append("New");
+    var items2: std.ArrayList(StringItem) = .{};
+    defer items2.deinit(allocator);
+    try items2.append(allocator, "New");
 
     try signal.set(items2.items);
 
@@ -244,41 +244,41 @@ test "ReactiveList updates when signal changes" {
     list.render(&buf, area);
 
     // Should now show "New"
-    try testing.expectEqual(@as(u21, 'N'), buf.getCell(0, 0).char);
+    try testing.expectEqual(@as(u21, 'N'), buf.getConst(0, 0).?.char);
 }
 
 test "ReactiveList reacts to signal changes" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(StringItem).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(StringItem) = .{};
+    defer items.deinit(allocator);
 
-    try items.append("First");
+    try items.append(allocator, "First");
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
 
     // Verify initial state
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     list.render(&buf, area);
 
-    try testing.expectEqual(@as(u21, 'F'), buf.getCell(0, 0).char);
+    try testing.expectEqual(@as(u21, 'F'), buf.getConst(0, 0).?.char);
 
     // Change signal
-    var new_items = std.ArrayList(StringItem).init(allocator);
-    defer new_items.deinit();
-    try new_items.append("Second");
+    var new_items: std.ArrayList(StringItem) = .{};
+    defer new_items.deinit(allocator);
+    try new_items.append(allocator, "Second");
 
     try signal.set(new_items.items);
 
     buf.clear();
     list.render(&buf, area);
 
-    try testing.expectEqual(@as(u21, 'S'), buf.getCell(0, 0).char);
+    try testing.expectEqual(@as(u21, 'S'), buf.getConst(0, 0).?.char);
 }
 
 // ============================================================================
@@ -287,19 +287,19 @@ test "ReactiveList reacts to signal changes" {
 
 test "ReactiveList with custom render function for struct items" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(Task).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(Task) = .{};
+    defer items.deinit(allocator);
 
-    try items.append(.{ .id = 1, .title = "Buy milk", .completed = false });
-    try items.append(.{ .id = 2, .title = "Read book", .completed = true });
+    try items.append(allocator, .{ .id = 1, .title = "Buy milk", .completed = false });
+    try items.append(allocator, .{ .id = 2, .title = "Read book", .completed = true });
 
     var signal = try signal_mod.Signal([]const Task).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(Task).init(&signal, renderTaskItem);
+    const list = sailor.reactive.ReactiveList(Task).init(&signal, renderTaskItem);
 
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     list.render(&buf, area);
@@ -310,25 +310,25 @@ test "ReactiveList with custom render function for struct items" {
 
 test "ReactiveList render function receives correct area" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(StringItem).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(StringItem) = .{};
+    defer items.deinit(allocator);
 
-    try items.append("Test");
+    try items.append(allocator, "Test");
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
 
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     // Render at offset position
     const area = Rect{ .x = 10, .y = 5, .width = 40, .height = 10 };
     list.render(&buf, area);
 
     // Item should be rendered starting at (10, 5)
-    try testing.expectEqual(@as(u21, 'T'), buf.getCell(10, 5).char);
+    try testing.expectEqual(@as(u21, 'T'), buf.getConst(10, 5).?.char);
 }
 
 // ============================================================================
@@ -337,18 +337,18 @@ test "ReactiveList render function receives correct area" {
 
 test "ReactiveList respects width constraint" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(StringItem).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(StringItem) = .{};
+    defer items.deinit(allocator);
 
-    try items.append("This is a very long text that exceeds width");
+    try items.append(allocator, "This is a very long text that exceeds width");
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
 
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 24 };
     list.render(&buf, area);
@@ -358,22 +358,22 @@ test "ReactiveList respects width constraint" {
 
 test "ReactiveList respects height constraint" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(StringItem).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(StringItem) = .{};
+    defer items.deinit(allocator);
 
     // Create many items
     var i: usize = 0;
     while (i < 100) : (i += 1) {
-        try items.append("Item");
+        try items.append(allocator, "Item");
     }
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
 
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 5 };
     list.render(&buf, area);
@@ -387,20 +387,20 @@ test "ReactiveList respects height constraint" {
 
 test "ReactiveList supports item selection" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(StringItem).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(StringItem) = .{};
+    defer items.deinit(allocator);
 
-    try items.append("Item 1");
-    try items.append("Item 2");
-    try items.append("Item 3");
+    try items.append(allocator, "Item 1");
+    try items.append(allocator, "Item 2");
+    try items.append(allocator, "Item 3");
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
 
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     list.render(&buf, area);
@@ -414,21 +414,21 @@ test "ReactiveList supports item selection" {
 
 test "ReactiveList supports scrolling" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(StringItem).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(StringItem) = .{};
+    defer items.deinit(allocator);
 
     var i: usize = 0;
     while (i < 100) : (i += 1) {
-        try items.append("Item");
+        try items.append(allocator, "Item");
     }
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
 
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     list.render(&buf, area);
@@ -442,41 +442,41 @@ test "ReactiveList supports scrolling" {
 
 test "ReactiveList handles buffer cell updates correctly" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(StringItem).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(StringItem) = .{};
+    defer items.deinit(allocator);
 
-    try items.append("X");
+    try items.append(allocator, "X");
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
 
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     list.render(&buf, area);
 
     // Verify cell was updated
-    const cell = buf.getCell(0, 0);
+    const cell = buf.getConst(0, 0).?;
     try testing.expectEqual(@as(u21, 'X'), cell.char);
 }
 
 test "ReactiveList no crash with empty area" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(StringItem).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(StringItem) = .{};
+    defer items.deinit(allocator);
 
-    try items.append("Item");
+    try items.append(allocator, "Item");
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
 
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
     list.render(&buf, area);
@@ -490,19 +490,19 @@ test "ReactiveList no crash with empty area" {
 
 test "ReactiveList with string items" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(StringItem).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(StringItem) = .{};
+    defer items.deinit(allocator);
 
-    try items.append("hello");
-    try items.append("world");
+    try items.append(allocator, "hello");
+    try items.append(allocator, "world");
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
 
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     list.render(&buf, area);
@@ -510,19 +510,19 @@ test "ReactiveList with string items" {
 
 test "ReactiveList with struct items" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(Task).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(Task) = .{};
+    defer items.deinit(allocator);
 
-    try items.append(.{ .id = 1, .title = "Task 1", .completed = false });
-    try items.append(.{ .id = 2, .title = "Task 2", .completed = true });
+    try items.append(allocator, .{ .id = 1, .title = "Task 1", .completed = false });
+    try items.append(allocator, .{ .id = 2, .title = "Task 2", .completed = true });
 
     var signal = try signal_mod.Signal([]const Task).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(Task).init(&signal, renderTaskItem);
+    const list = sailor.reactive.ReactiveList(Task).init(&signal, renderTaskItem);
 
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     list.render(&buf, area);
@@ -534,21 +534,21 @@ test "ReactiveList with struct items" {
 
 test "ReactiveList renders large list efficiently" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(StringItem).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(StringItem) = .{};
+    defer items.deinit(allocator);
 
     var i: usize = 0;
     while (i < 1000) : (i += 1) {
-        try items.append("Item");
+        try items.append(allocator, "Item");
     }
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
 
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     list.render(&buf, area);
@@ -562,25 +562,25 @@ test "ReactiveList renders large list efficiently" {
 
 test "ReactiveList with single character items" {
     const allocator = testing.allocator;
-    var items = std.ArrayList(StringItem).init(allocator);
-    defer items.deinit();
+    var items: std.ArrayList(StringItem) = .{};
+    defer items.deinit(allocator);
 
-    try items.append("A");
-    try items.append("B");
-    try items.append("C");
+    try items.append(allocator, "A");
+    try items.append(allocator, "B");
+    try items.append(allocator, "C");
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
     defer signal.deinit(allocator);
 
-    var list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
+    const list = sailor.reactive.ReactiveList(StringItem).init(&signal, renderStringItem);
 
-    var buf = try Buffer.init(allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     list.render(&buf, area);
 
-    try testing.expectEqual(@as(u21, 'A'), buf.getCell(0, 0).char);
-    try testing.expectEqual(@as(u21, 'B'), buf.getCell(0, 1).char);
-    try testing.expectEqual(@as(u21, 'C'), buf.getCell(0, 2).char);
+    try testing.expectEqual(@as(u21, 'A'), buf.getConst(0, 0).?.char);
+    try testing.expectEqual(@as(u21, 'B'), buf.getConst(0, 1).?.char);
+    try testing.expectEqual(@as(u21, 'C'), buf.getConst(0, 2).?.char);
 }

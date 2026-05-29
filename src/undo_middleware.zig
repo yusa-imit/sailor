@@ -25,8 +25,8 @@ pub fn UndoStore(State: type, Action: type) type {
             reducer: *const fn (State, Action, std.mem.Allocator) anyerror!State,
             history_limit: usize,
         ) !Self {
-            var history = std.ArrayList(State).init(allocator);
-            try history.append(initial_state);
+            var history: std.ArrayList(State) = .{};
+            try history.append(allocator, initial_state);
 
             return Self{
                 .base_store = try store_mod.Store(State, Action).init(
@@ -35,7 +35,7 @@ pub fn UndoStore(State: type, Action: type) type {
                     reducer,
                 ),
                 .history = history,
-                .redo_history = std.ArrayList(State).init(allocator),
+                .redo_history = std.ArrayList(State){},
                 .allocator = allocator,
                 .history_limit = history_limit,
                 .current_index = 0,
@@ -66,7 +66,7 @@ pub fn UndoStore(State: type, Action: type) type {
                 self.current_index += 1;
             }
 
-            try self.history.append(self.base_store.getState());
+            try self.history.append(self.allocator, self.base_store.getState());
 
             // Clear redo history on new dispatch
             self.redo_history.clearRetainingCapacity();
@@ -79,7 +79,7 @@ pub fn UndoStore(State: type, Action: type) type {
 
             // Save current state to redo history
             const current = self.base_store.getState();
-            self.redo_history.append(current) catch return false;
+            self.redo_history.append(self.allocator, current) catch return false;
 
             self.current_index -= 1;
             self.base_store.state = self.history.items[self.current_index];
@@ -95,7 +95,7 @@ pub fn UndoStore(State: type, Action: type) type {
             if (self.redo_history.items.len == 0) return false;
 
             // Get state from redo history (LIFO)
-            const next_state = self.redo_history.pop();
+            const next_state = self.redo_history.pop() orelse return false;
 
             self.current_index += 1;
             self.base_store.state = next_state;

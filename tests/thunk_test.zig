@@ -35,7 +35,7 @@ const AsyncAction = union(enum) {
     start_load,
     finish_load: []const u8,
     increment,
-    error: []const u8,
+    load_error: []const u8,
 };
 
 fn asyncReducer(state: AsyncState, action: AsyncAction, allocator: std.mem.Allocator) !AsyncState {
@@ -56,7 +56,7 @@ fn asyncReducer(state: AsyncState, action: AsyncAction, allocator: std.mem.Alloc
             .loading = state.loading,
             .data = state.data,
         },
-        .error => |msg| return .{
+        .load_error => |msg| return .{
             .count = state.count,
             .loading = false,
             .data = msg,
@@ -71,14 +71,14 @@ fn asyncReducer(state: AsyncState, action: AsyncAction, allocator: std.mem.Alloc
 const ExecutionLog = struct {
     calls: std.ArrayList([]const u8),
 
-    fn init(allocator: std.mem.Allocator) @This() {
+    fn init(_: std.mem.Allocator) @This() {
         return .{
-            .calls = std.ArrayList([]const u8).init(allocator),
+            .calls = std.ArrayList([]const u8){},
         };
     }
 
-    fn deinit(self: *@This()) void {
-        self.calls.deinit();
+    fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
+        self.calls.deinit(allocator);
     }
 };
 
@@ -215,14 +215,6 @@ test "ThunkStore dispatchThunk executes thunk" {
     );
     defer thunk_store.deinit(allocator);
 
-    var executed = false;
-    const thunk = struct {
-        fn run(_: anytype, _: anytype, _: std.mem.Allocator) !void {
-            var e: *bool = undefined;
-            e.* = true;
-        }
-    }.run;
-
     // This test demonstrates that thunk dispatch should be supported
 }
 
@@ -358,7 +350,8 @@ test "ThunkStore thunk can perform I/O (logging)" {
     defer thunk_store.deinit(allocator);
 
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    const stream = std.io.fixedBufferStream(&buf);
+    _ = stream;
 
     // Thunk could write to the provided stream
     // or perform other side effects
@@ -380,7 +373,7 @@ test "ThunkStore thunk with context data" {
     defer thunk_store.deinit(allocator);
 
     var execution_log = ExecutionLog.init(allocator);
-    defer execution_log.deinit();
+    defer execution_log.deinit(allocator);
 
     // Thunk should be able to access context data
     // and write to it during execution
@@ -599,7 +592,7 @@ test "ThunkStore with complex action payloads" {
     );
     defer thunk_store.deinit(allocator);
 
-    try thunk_store.dispatch(AsyncAction{ .error = "test error" });
+    try thunk_store.dispatch(AsyncAction{ .load_error = "test error" });
     const state = thunk_store.getState();
     try testing.expectEqualStrings("test error", state.data);
 }
@@ -623,8 +616,8 @@ test "ThunkStore executes thunks sequentially" {
     );
     defer thunk_store.deinit(allocator);
 
-    var execution_order = std.ArrayList(u8).init(allocator);
-    defer execution_order.deinit();
+    var execution_order: std.ArrayList(u8) = .{};
+    defer execution_order.deinit(allocator);
 
     // Multiple thunks should execute in order, not in parallel
     // Each thunk sees the state after previous thunk completed

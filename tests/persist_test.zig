@@ -29,11 +29,11 @@ const SimpleState = struct {
     count: i32,
 };
 
-fn encodeSimple(state: SimpleState, writer: anytype) !void {
+fn encodeSimple(state: SimpleState, writer: std.io.AnyWriter) !void {
     try std.fmt.format(writer, "{}", .{state.count});
 }
 
-fn decodeSimple(reader: anytype, allocator: std.mem.Allocator) !SimpleState {
+fn decodeSimple(reader: std.io.AnyReader, allocator: std.mem.Allocator) !SimpleState {
     _ = allocator;
     var buf: [32]u8 = undefined;
     const bytes_read = try reader.readAll(&buf);
@@ -47,15 +47,15 @@ const ComplexState = struct {
     active: bool,
 };
 
-fn encodeComplex(state: ComplexState, writer: anytype) !void {
-    try std.fmt.format(writer, "{}|{}|{}", .{
+fn encodeComplex(state: ComplexState, writer: std.io.AnyWriter) !void {
+    try std.fmt.format(writer, "{s}|{}|{s}", .{
         state.name,
         state.age,
         if (state.active) "1" else "0",
     });
 }
 
-fn decodeComplex(reader: anytype, allocator: std.mem.Allocator) !ComplexState {
+fn decodeComplex(reader: std.io.AnyReader, allocator: std.mem.Allocator) !ComplexState {
     var buf: [256]u8 = undefined;
     const bytes_read = try reader.readAll(&buf);
     const content = buf[0..bytes_read];
@@ -81,8 +81,6 @@ fn decodeComplex(reader: anytype, allocator: std.mem.Allocator) !ComplexState {
 // ============================================================================
 
 test "StatePersist init with encode/decode" {
-    const allocator = testing.allocator;
-
     const persist = sailor.state_persist.StatePersist(SimpleState).init(
         encodeSimple,
         decodeSimple,
@@ -97,7 +95,6 @@ test "StatePersist init with encode/decode" {
 // ============================================================================
 
 test "StatePersist save writes to writer" {
-    const allocator = testing.allocator;
     var buf: [128]u8 = undefined;
     var stream = std.io.fixedBufferStream(&buf);
 
@@ -114,7 +111,6 @@ test "StatePersist save writes to writer" {
 }
 
 test "StatePersist save with zero value" {
-    const allocator = testing.allocator;
     var buf: [128]u8 = undefined;
     var stream = std.io.fixedBufferStream(&buf);
 
@@ -131,7 +127,6 @@ test "StatePersist save with zero value" {
 }
 
 test "StatePersist save with negative value" {
-    const allocator = testing.allocator;
     var buf: [128]u8 = undefined;
     var stream = std.io.fixedBufferStream(&buf);
 
@@ -148,7 +143,6 @@ test "StatePersist save with negative value" {
 }
 
 test "StatePersist save large value" {
-    const allocator = testing.allocator;
     var buf: [128]u8 = undefined;
     var stream = std.io.fixedBufferStream(&buf);
 
@@ -277,7 +271,6 @@ test "StatePersist round-trip multiple values" {
 // ============================================================================
 
 test "StatePersist complex state with strings" {
-    const allocator = testing.allocator;
     var buf: [256]u8 = undefined;
     var stream = std.io.fixedBufferStream(&buf);
 
@@ -309,6 +302,7 @@ test "StatePersist complex state load" {
     );
 
     const state = try persist.load(stream.reader(), allocator);
+    defer allocator.free(state.name);
     try testing.expectEqualStrings("Alice", state.name);
     try testing.expectEqual(@as(u32, 30), state.age);
     try testing.expectEqual(true, state.active);
@@ -325,6 +319,7 @@ test "StatePersist complex state inactive" {
     );
 
     const state = try persist.load(stream.reader(), allocator);
+    defer allocator.free(state.name);
     try testing.expectEqualStrings("Bob", state.name);
     try testing.expectEqual(@as(u32, 25), state.age);
     try testing.expectEqual(false, state.active);
@@ -352,6 +347,7 @@ test "StatePersist complex state round-trip" {
     var load_stream = std.io.fixedBufferStream(written);
 
     const loaded = try persist.load(load_stream.reader(), allocator);
+    defer allocator.free(loaded.name);
     try testing.expectEqualStrings(original.name, loaded.name);
     try testing.expectEqual(original.age, loaded.age);
     try testing.expectEqual(original.active, loaded.active);
@@ -372,7 +368,7 @@ test "StatePersist load invalid format returns error" {
     );
 
     const result = persist.load(stream.reader(), allocator);
-    try testing.expectError(error.InvalidFormat, result);
+    try testing.expectError(error.InvalidCharacter, result);
 }
 
 test "StatePersist complex load missing field" {
@@ -394,7 +390,6 @@ test "StatePersist complex load missing field" {
 // ============================================================================
 
 test "StatePersist multiple saves to different writers" {
-    const allocator = testing.allocator;
     const persist = sailor.state_persist.StatePersist(SimpleState).init(
         encodeSimple,
         decodeSimple,
@@ -441,6 +436,7 @@ test "StatePersist handles UTF-8 strings" {
     var load_stream = std.io.fixedBufferStream(written);
 
     const loaded = try persist.load(load_stream.reader(), allocator);
+    defer allocator.free(loaded.name);
     try testing.expectEqualStrings(original.name, loaded.name);
 }
 
@@ -466,6 +462,7 @@ test "StatePersist handles emoji strings" {
     var load_stream = std.io.fixedBufferStream(written);
 
     const loaded = try persist.load(load_stream.reader(), allocator);
+    defer allocator.free(loaded.name);
     try testing.expectEqualStrings(original.name, loaded.name);
 }
 
@@ -484,7 +481,7 @@ test "StatePersist with empty reader" {
     );
 
     const result = persist.load(stream.reader(), allocator);
-    try testing.expectError(error.InvalidFormat, result);
+    try testing.expectError(error.InvalidCharacter, result);
 }
 
 test "StatePersist with empty string in complex" {
@@ -509,6 +506,7 @@ test "StatePersist with empty string in complex" {
     var load_stream = std.io.fixedBufferStream(written);
 
     const loaded = try persist.load(load_stream.reader(), allocator);
+    defer allocator.free(loaded.name);
     try testing.expectEqualStrings("", loaded.name);
     try testing.expectEqual(@as(u32, 0), loaded.age);
 }

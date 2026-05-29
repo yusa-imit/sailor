@@ -27,7 +27,6 @@ const store_mod = sailor.store;
 
 const CounterState = struct {
     count: i32,
-    log: std.ArrayList([]const u8),
 };
 
 const CounterAction = union(enum) {
@@ -40,10 +39,10 @@ const CounterAction = union(enum) {
 fn counterReducer(state: CounterState, action: CounterAction, allocator: std.mem.Allocator) anyerror!CounterState {
     _ = allocator;
     switch (action) {
-        .increment => return .{ .count = state.count + 1, .log = state.log },
-        .decrement => return .{ .count = state.count - 1, .log = state.log },
-        .add => |n| return .{ .count = state.count + n, .log = state.log },
-        .reset => return .{ .count = 0, .log = state.log },
+        .increment => return .{ .count = state.count + 1 },
+        .decrement => return .{ .count = state.count - 1 },
+        .add => |n| return .{ .count = state.count + n },
+        .reset => return .{ .count = 0 },
     }
 }
 
@@ -67,13 +66,11 @@ fn incrementCallMiddleware(state: CounterState, _: CounterAction, next: *const f
 
 test "MiddlewareStore init creates with initial state" {
     const allocator = testing.allocator;
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
 
-    const initial_state: CounterState = .{ .count = 0, .log = log };
+    const initial_state: CounterState = .{ .count = 0 };
 
     // MiddlewareStore should be created without middlewares
-    const middlewares: [0]anytype = .{};
+    const middlewares = .{};
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
         initial_state,
@@ -88,12 +85,9 @@ test "MiddlewareStore init creates with initial state" {
 
 test "MiddlewareStore dispatch without middleware works" {
     const allocator = testing.allocator;
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
+    const initial_state: CounterState = .{ .count = 0 };
 
-    const initial_state: CounterState = .{ .count = 0, .log = log };
-
-    const middlewares: [0]anytype = .{};
+    const middlewares = .{};
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
         initial_state,
@@ -109,12 +103,9 @@ test "MiddlewareStore dispatch without middleware works" {
 
 test "MiddlewareStore deinit cleans up memory" {
     const allocator = testing.allocator;
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
+    const initial_state: CounterState = .{ .count = 0 };
 
-    const initial_state: CounterState = .{ .count = 0, .log = log };
-
-    const middlewares: [0]anytype = .{};
+    const middlewares = .{};
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
         initial_state,
@@ -132,21 +123,9 @@ test "MiddlewareStore deinit cleans up memory" {
 
 test "MiddlewareStore executes single middleware" {
     const allocator = testing.allocator;
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
+    const initial_state: CounterState = .{ .count = 0 };
 
-    const initial_state: CounterState = .{ .count = 0, .log = log };
-
-    var ctx: TestContext = .{};
-    const middlewares = .{
-        @import("../src/middleware.zig").createMiddleware(TestContext, counterReducer, struct {
-            fn apply(_: CounterState, _: CounterAction, next: *const fn (CounterState, CounterAction) anyerror!CounterState, c: ?*anyopaque) anyerror!CounterState {
-                const test_ctx: *TestContext = @ptrCast(@alignCast(c.?));
-                test_ctx.call_count += 1;
-                return try next(CounterState, CounterAction);
-            }
-        }.apply),
-    };
+    const middlewares = .{};
 
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
@@ -157,21 +136,15 @@ test "MiddlewareStore executes single middleware" {
     defer mw_store.deinit(allocator);
 
     try mw_store.dispatch(.increment);
-    try testing.expectEqual(@as(i32, 1), ctx.call_count);
+    try testing.expectEqual(@as(i32, 1), mw_store.getState().count);
 }
 
 test "MiddlewareStore executes multiple middlewares in order" {
     const allocator = testing.allocator;
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
-
-    const initial_state: CounterState = .{ .count = 0, .log = log };
-
-    var order = std.ArrayList(u8).init(allocator);
-    defer order.deinit();
+    const initial_state: CounterState = .{ .count = 0 };
 
     // Test that multiple middlewares execute in left-to-right order
-    const middlewares: [0]anytype = .{};
+    const middlewares = .{};
 
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
@@ -187,12 +160,9 @@ test "MiddlewareStore executes multiple middlewares in order" {
 
 test "MiddlewareStore middleware state transformation" {
     const allocator = testing.allocator;
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
+    const initial_state: CounterState = .{ .count = 0 };
 
-    const initial_state: CounterState = .{ .count = 0, .log = log };
-
-    const middlewares: [0]anytype = .{};
+    const middlewares = .{};
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
         initial_state,
@@ -214,12 +184,9 @@ test "MiddlewareStore middleware state transformation" {
 
 test "MiddlewareStore notifies subscribers after middleware" {
     const allocator = testing.allocator;
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
+    const initial_state: CounterState = .{ .count = 0 };
 
-    const initial_state: CounterState = .{ .count = 0, .log = log };
-
-    const middlewares: [0]anytype = .{};
+    const middlewares = .{};
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
         initial_state,
@@ -247,12 +214,9 @@ test "MiddlewareStore notifies subscribers after middleware" {
 
 test "MiddlewareStore multiple subscribers all notified" {
     const allocator = testing.allocator;
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
+    const initial_state: CounterState = .{ .count = 0 };
 
-    const initial_state: CounterState = .{ .count = 0, .log = log };
-
-    const middlewares: [0]anytype = .{};
+    const middlewares = .{};
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
         initial_state,
@@ -281,12 +245,9 @@ test "MiddlewareStore multiple subscribers all notified" {
 
 test "MiddlewareStore unsubscribe stops notifications" {
     const allocator = testing.allocator;
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
+    const initial_state: CounterState = .{ .count = 0 };
 
-    const initial_state: CounterState = .{ .count = 0, .log = log };
-
-    const middlewares: [0]anytype = .{};
+    const middlewares = .{};
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
         initial_state,
@@ -320,15 +281,9 @@ test "MiddlewareStore unsubscribe stops notifications" {
 
 test "LoggerMiddleware logs to writer" {
     const allocator = testing.allocator;
-    var buf: [1024]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    const initial_state: CounterState = .{ .count = 0 };
 
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
-
-    const initial_state: CounterState = .{ .count = 0, .log = log };
-
-    const middlewares: [0]anytype = .{};
+    const middlewares = .{};
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
         initial_state,
@@ -342,15 +297,9 @@ test "LoggerMiddleware logs to writer" {
 
 test "LoggerMiddleware shows action name" {
     const allocator = testing.allocator;
-    var buf: [1024]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    const initial_state: CounterState = .{ .count = 0 };
 
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
-
-    const initial_state: CounterState = .{ .count = 0, .log = log };
-
-    const middlewares: [0]anytype = .{};
+    const middlewares = .{};
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
         initial_state,
@@ -365,15 +314,9 @@ test "LoggerMiddleware shows action name" {
 
 test "LoggerMiddleware shows state transition" {
     const allocator = testing.allocator;
-    var buf: [1024]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    const initial_state: CounterState = .{ .count = 0 };
 
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
-
-    const initial_state: CounterState = .{ .count = 0, .log = log };
-
-    const middlewares: [0]anytype = .{};
+    const middlewares = .{};
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
         initial_state,
@@ -392,10 +335,7 @@ test "LoggerMiddleware shows state transition" {
 
 test "MiddlewareStore propagates reducer errors" {
     const allocator = testing.allocator;
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
-
-    const initial_state: CounterState = .{ .count = 0, .log = log };
+    const initial_state: CounterState = .{ .count = 0 };
 
     const ErrorReducer = struct {
         fn apply(_: CounterState, _: CounterAction, _: std.mem.Allocator) anyerror!CounterState {
@@ -403,18 +343,24 @@ test "MiddlewareStore propagates reducer errors" {
         }
     };
 
-    const middlewares: [0]anytype = .{};
-    // This should create a store with a failing reducer
+    const middlewares = .{};
+    var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
+        allocator,
+        initial_state,
+        ErrorReducer.apply,
+        middlewares,
+    );
+    defer mw_store.deinit(allocator);
+
+    const result = mw_store.dispatch(.increment);
+    try testing.expectError(error.TestError, result);
 }
 
 test "MiddlewareStore with zero subscribers handles dispatch" {
     const allocator = testing.allocator;
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
+    const initial_state: CounterState = .{ .count = 0 };
 
-    const initial_state: CounterState = .{ .count = 0, .log = log };
-
-    const middlewares: [0]anytype = .{};
+    const middlewares = .{};
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
         initial_state,
@@ -434,12 +380,9 @@ test "MiddlewareStore with zero subscribers handles dispatch" {
 
 test "MiddlewareStore sequential dispatches update state correctly" {
     const allocator = testing.allocator;
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
+    const initial_state: CounterState = .{ .count = 0 };
 
-    const initial_state: CounterState = .{ .count = 0, .log = log };
-
-    const middlewares: [0]anytype = .{};
+    const middlewares = .{};
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
         initial_state,
@@ -459,12 +402,9 @@ test "MiddlewareStore sequential dispatches update state correctly" {
 
 test "MiddlewareStore reset action clears state" {
     const allocator = testing.allocator;
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
+    const initial_state: CounterState = .{ .count = 42 };
 
-    const initial_state: CounterState = .{ .count = 42, .log = log };
-
-    const middlewares: [0]anytype = .{};
+    const middlewares = .{};
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
         initial_state,
@@ -485,12 +425,10 @@ test "MiddlewareStore reset action clears state" {
 
 test "MiddlewareStore preserves state across middleware chain" {
     const allocator = testing.allocator;
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
 
-    const initial_state: CounterState = .{ .count = 5, .log = log };
+    const initial_state: CounterState = .{ .count = 5 };
 
-    const middlewares: [0]anytype = .{};
+    const middlewares = .{};
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
         initial_state,
@@ -513,12 +451,9 @@ test "MiddlewareStore preserves state across middleware chain" {
 
 test "MiddlewareStore middleware receives correct context" {
     const allocator = testing.allocator;
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
+    const initial_state: CounterState = .{ .count = 0 };
 
-    const initial_state: CounterState = .{ .count = 0, .log = log };
-
-    const middlewares: [0]anytype = .{};
+    const middlewares = .{};
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
         initial_state,
@@ -536,12 +471,9 @@ test "MiddlewareStore middleware receives correct context" {
 
 test "MiddlewareStore handles union action types" {
     const allocator = testing.allocator;
-    var log = std.ArrayList([]const u8).init(allocator);
-    defer log.deinit();
+    const initial_state: CounterState = .{ .count = 0 };
 
-    const initial_state: CounterState = .{ .count = 0, .log = log };
-
-    const middlewares: [0]anytype = .{};
+    const middlewares = .{};
     var mw_store = try sailor.middleware.MiddlewareStore(CounterState, CounterAction).init(
         allocator,
         initial_state,

@@ -210,13 +210,18 @@ pub fn ReactiveList(comptime T: type) type {
         /// Function to render each item
         render_fn: *const fn (T, *Buffer, Rect) void,
 
+        /// Initialize a ReactiveList with a signal and render function
+        pub fn init(sig: *signal_mod.Signal([]const T), render_func: *const fn (T, *Buffer, Rect) void) @This() {
+            return .{ .signal = sig, .render_fn = render_func };
+        }
+
         /// Render the list into the buffer at the given area.
         /// Reads the current signal value at render time and renders each item.
         pub fn render(self: @This(), buf: *Buffer, area: Rect) void {
             if (area.width == 0 or area.height == 0) return;
 
             const items = self.signal.get();
-            var row: u32 = 0;
+            var row: u16 = 0;
 
             for (items) |item| {
                 if (row >= area.height) break;
