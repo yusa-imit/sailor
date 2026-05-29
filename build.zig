@@ -647,6 +647,33 @@ pub fn build(b: *std.Build) void {
     });
     reactive_list_tests.root_module.addImport("sailor", sailor_module_for_tests);
 
+    const fuzzy_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/fuzzy_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    fuzzy_tests.root_module.addImport("sailor", sailor_module_for_tests);
+
+    const command_palette_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/command_palette_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    command_palette_tests.root_module.addImport("sailor", sailor_module_for_tests);
+
+    const filterable_list_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/filterable_list_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    filterable_list_tests.root_module.addImport("sailor", sailor_module_for_tests);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&b.addRunArtifact(lib_tests).step);
     test_step.dependOn(&b.addRunArtifact(smoke_tests).step);
@@ -714,6 +741,9 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(undo_tests).step);
     test_step.dependOn(&b.addRunArtifact(persist_tests).step);
     test_step.dependOn(&b.addRunArtifact(reactive_list_tests).step);
+    test_step.dependOn(&b.addRunArtifact(fuzzy_tests).step);
+    test_step.dependOn(&b.addRunArtifact(command_palette_tests).step);
+    test_step.dependOn(&b.addRunArtifact(filterable_list_tests).step);
     // test_step.dependOn(&b.addRunArtifact(migration_script_tests).step); // Disabled for v2.0.0 work
 
     // Benchmark executable

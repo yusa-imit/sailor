@@ -248,6 +248,13 @@ pub const widgets = struct {
     pub const ReactiveGauge = @import("widgets/reactive.zig").ReactiveGauge;
     pub const ReactiveText = @import("widgets/reactive.zig").ReactiveText;
     pub const ReactiveCounter = @import("widgets/reactive.zig").ReactiveCounter;
+
+    // v2.14.0 — Fuzzy Search & Command Palette
+    pub const CommandPalette = @import("widgets/command_palette.zig").CommandPalette;
+    pub const Command = @import("widgets/command_palette.zig").Command;
+    pub const CommandResult = @import("widgets/command_palette.zig").CommandResult;
+    pub const FilterableList = @import("widgets/filterable_list.zig").FilterableList;
+    pub const FilteredItem = @import("widgets/filterable_list.zig").FilteredItem;
 };
 
 // Export commonly used types

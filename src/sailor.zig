@@ -226,6 +226,9 @@ pub const state_persist = @import("state_persist.zig");
 // v2.13.0 — Reactive Widgets
 pub const reactive = @import("tui/widgets/reactive.zig");
 
+// v2.14.0 — Fuzzy Search & Command Palette
+pub const fuzzy = @import("fuzzy.zig");
+
 test {
     // Pull in all module tests
     std.testing.refAllDecls(@This());

@@ -85,3 +85,4 @@
 {"timestamp":"2026-05-28T16:35:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement v2.13.0 middleware.zig, thunk.zig, undo_middleware.zig, state_persist.zig, ReactiveList widget","project":"sailor"}
 {"timestamp":"2026-05-28T07:00:00Z","action":"subagent","agent_type":"zig-developer","task":"Fix 5 failing test files from v2.13.0: middleware_test, reactive_list_test, thunk_test, undo_test, persist_test","project":"sailor"}
 {"timestamp":"2026-05-29T10:00:00Z","action":"subagent","agent_type":"claude","task":"Fix Zig 0.15 API compatibility in v2.13.0 modules (reactive.zig, undo_middleware.zig, middleware.zig, state_persist.zig, tests)","project":"sailor"}
+{"timestamp":"2026-05-29T00:10:00Z","action":"subagent","agent_type":"test-writer","task":"Write TDD tests for v2.14.0: fuzzy.zig, command_palette.zig, filterable_list.zig","project":"sailor"}

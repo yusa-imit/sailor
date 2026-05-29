@@ -4,9 +4,34 @@
 
 - **Latest release**: v2.13.0 (2026-05-29) — Store Middleware & Async Actions
 - **Latest minor**: v2.13.0 (2026-05-29) — Store Middleware & Async Actions
-- **Next milestone**: v2.14.0 (planned)
-- **Active milestones**: 1 (v2.2.0)
+- **Next milestone**: v2.14.0 (in progress)
+- **Active milestones**: 2 (v2.2.0, v2.14.0)
 - **Blockers**: None
+
+### v2.14.0 — Fuzzy Search & Command Palette (Target: 2026-06-05)
+
+**Theme**: Command palette and fuzzy search infrastructure for all consumer projects
+
+**Checklist**:
+- [ ] **fuzzy.zig** — Core fuzzy matching algorithm (scoring, highlight positions, no-alloc)
+- [ ] **widgets/command_palette.zig** — Modal command palette with fuzzy search, keyboard nav, categories
+- [ ] **widgets/filterable_list.zig** — List widget with built-in real-time fuzzy filtering
+- [ ] **tests/fuzzy_test.zig** — Comprehensive tests for fuzzy matching engine
+- [ ] **tests/command_palette_test.zig** — Command palette tests (register, search, activate)
+- [ ] **tests/filterable_list_test.zig** — FilterableList tests (filter, highlight, score sort)
+- [ ] Export new types in sailor.zig
+
+**Success Criteria**:
+- FuzzyMatcher scores "src" higher for "source" than for "secret" (positional bonus)
+- CommandPalette can register commands and filter by fuzzy query
+- FilterableList renders highlighted match positions in list items
+- All 3 new modules tested with 20+ tests each
+- No breaking changes to existing APIs
+
+**Notes**:
+- FuzzyMatcher is allocation-free for match operations (scores fit in stack buffer)
+- CommandPalette builds on existing Block/Input/List widgets
+- Both consumer-facing: silica (SQL command search), zoltraak (redis command palette)
 
 ### v2.2.0 — Consumer Feedback & Bug Fixes (Target: 2026-05-15)
 
