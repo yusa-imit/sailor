@@ -2,62 +2,11 @@
 
 ## Current Status
 
-- **Latest release**: v2.12.0 (2026-05-28) — Reactive State Management
-- **Latest minor**: v2.12.0 (2026-05-28) — Reactive State Management
-- **Next milestone**: v2.13.0 (planned)
-- **Active milestones**: 2 (v2.2.0, v2.13.0)
+- **Latest release**: v2.13.0 (2026-05-29) — Store Middleware & Async Actions
+- **Latest minor**: v2.13.0 (2026-05-29) — Store Middleware & Async Actions
+- **Next milestone**: v2.14.0 (planned)
+- **Active milestones**: 1 (v2.2.0)
 - **Blockers**: None
-
-## Active Milestones
-
-### v2.13.0 — Store Middleware & Async Actions (Target: 2026-06-20)
-
-**Theme**: Extend the reactive Store with middleware pipeline, async action dispatch, and state persistence
-
-**Checklist**:
-- [ ] **Store Middleware Pipeline**: Intercept and transform dispatches
-  - Middleware type: `fn(State, Action, NextFn) anyerror!void`
-  - `Store.initWithMiddleware(alloc, state, reducer, middlewares)` constructor
-  - Logger middleware: log every action + state diff to a Writer
-  - Validator middleware: reject invalid actions with typed errors
-- [ ] **Thunk Middleware & Async Actions**: Dispatch functions as actions
-  - Thunk type: `fn(*Store(S, A), Allocator) anyerror!void`
-  - `ThunkAction(S, A)` union: `.action(A)` | `.thunk(ThunkFn)`
-  - Async sequencing: multiple dispatches within one thunk
-  - Error propagation from thunks to caller
-- [ ] **Undo/Redo Middleware**: Time-travel through state history
-  - `UndoMiddleware(State, Action)` wrapping a Store
-  - `undo()` / `redo()` methods
-  - Configurable history depth (default: 50)
-  - `canUndo()` / `canRedo()` predicates
-- [ ] **State Persistence**: Serialize/deserialize store state
-  - `StatePersist(State)` with `save(writer)` / `load(reader)` — JSON format
-  - Pluggable serializer interface (user provides encode/decode fns)
-  - Auto-save middleware: persist state after each dispatch
-  - Load-on-init: restore saved state at startup
-- [ ] **ReactiveList widget**: List auto-bound to Signal([]const T)
-  - Auto-rerenders when signal value changes
-  - Item renderer callback: `fn(item: T, buf: *Buffer, area: Rect) void`
-  - Selection state as Signal(usize) — bidirectional
-  - Optional filtering via Signal([]const u8) filter string
-- [ ] **Testing**: Comprehensive test coverage
-  - Middleware pipeline order tests (middleware_test.zig — 20+ tests)
-  - Thunk async dispatch tests (thunk_test.zig — 15+ tests)
-  - UndoMiddleware history tests (undo_test.zig — 20+ tests)
-  - StatePersist round-trip tests (persist_test.zig — 15+ tests)
-  - ReactiveList render and binding tests (reactive_list_test.zig — 20+ tests)
-
-**Success Criteria**:
-- Middleware composes without allocation overhead
-- Thunks can dispatch multiple actions and chain async ops
-- UndoMiddleware restores exact state across 50 history entries
-- StatePersist round-trips any serializable State type
-- ReactiveList updates on signal change without full redraw
-
-**Notes**:
-- Builds directly on v2.12.0 Signal and Store primitives
-- No background threads — async is cooperative via event loop
-- Perfect for zr (task runner state), zoltraak (Redis live data), silica (SQL results)
 
 ### v2.2.0 — Consumer Feedback & Bug Fixes (Target: 2026-05-15)
 
@@ -98,6 +47,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v2.13.0 | Store Middleware & Async Actions | 2026-05-29 | MiddlewareStore pipeline (Logger middleware, subscriber notifications, 19 tests), ThunkStore async dispatch (dispatchThunk, context access, error propagation, 23 tests), UndoStore time-travel (undo/redo with configurable history depth 50, canUndo/canRedo, 23 tests), StatePersist serialization (save/load via pluggable encode/decode fns, round-trip, 22 tests), ReactiveList widget (auto-bound to Signal, render callback, 20 tests). Total: +107 tests (~4700+ passing), 0 breaking changes. Consumer migrations: zr, zoltraak, silica |
 | v2.12.0 | Reactive State Management | 2026-05-28 | Signal(T) mutable reactive values with subscriber callbacks (subscribe/unsubscribe/batch), Computed(T,S) read-only derived values via lazy evaluation, Effect(T) side effect callbacks, Scope.batch() deferred notifications, Store(State,Action) centralized state with reducer pattern (dispatch/subscribe), ReactiveGauge/ReactiveText/ReactiveCounter widgets auto-bound to signals. Total: +89 tests (signal_test:24, store_test:19, reactive_test:46), ~4600+ total passing, 0 breaking changes. Consumer migrations: zr, zoltraak, silica |
 | v2.11.0 | Extended Graphics & Protocol Support | 2026-05-27 | Sixel encoder/decoder, color palette optimization, animation support, SixelCompressor. Kitty protocol (transmit/display/delete, unicode placeholder, z-index, KittyImageManager). ANSI art rendering (block/braille/ascii algorithms, dithering, real-time video conversion, AnsiArtPlayer). Advanced effects: gradient backgrounds, blur/transparency, custom borders, particles, transitions. image_renderer.zig (unified protocol selector). Total: +200+ tests (~4600 passing), 6 cross-platform targets, 0 breaking changes. Consumer migrations: zr, zoltraak, silica |
 | v2.10.2 | Natural Language Commands Bug Fixes | 2026-05-18 | PATCH: Fixed Zig 0.15 API compatibility in natural_language_commands (tokenizeScalar, BoundedArray→manual tracking, toOwnedSlice allocator), rewrote 59 meaningless tests with actual API validation (CommandParser intent verification). Zero functional changes, zero breaking changes. Test health: 4426/4478 passing (98.8%). Consumer migrations: None (optional patch) |
