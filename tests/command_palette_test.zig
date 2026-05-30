@@ -3,11 +3,10 @@ const testing = std.testing;
 const sailor = @import("sailor");
 const Buffer = sailor.tui.buffer.Buffer;
 const Rect = sailor.tui.layout.Rect;
-const command_palette = @import("../src/tui/widgets/command_palette.zig");
 
-const CommandPalette = command_palette.CommandPalette;
-const Command = command_palette.Command;
-const CommandResult = command_palette.CommandResult;
+const CommandPalette = sailor.tui.widgets.CommandPalette;
+const Command = sailor.tui.widgets.Command;
+const CommandResult = sailor.tui.widgets.CommandResult;
 
 // ============================================================================
 // Helper: Command Handler Tracking
@@ -24,7 +23,7 @@ fn test_handler() void {
 // ============================================================================
 
 test "command palette init creates empty palette" {
-    const palette = try CommandPalette.init(testing.allocator);
+    var palette = try CommandPalette.init(testing.allocator);
     defer palette.deinit();
 
     try testing.expectEqual(@as(usize, 0), palette.commands.items.len);
@@ -32,7 +31,7 @@ test "command palette init creates empty palette" {
 }
 
 test "command palette init allocation succeeds" {
-    const palette = try CommandPalette.init(testing.allocator);
+    var palette = try CommandPalette.init(testing.allocator);
     defer palette.deinit();
 
     try testing.expect(palette.commands.capacity > 0);

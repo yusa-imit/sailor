@@ -3,10 +3,9 @@ const testing = std.testing;
 const sailor = @import("sailor");
 const Buffer = sailor.tui.buffer.Buffer;
 const Rect = sailor.tui.layout.Rect;
-const filterable_list = @import("../src/tui/widgets/filterable_list.zig");
 
-const FilterableList = filterable_list.FilterableList;
-const FilteredItem = filterable_list.FilteredItem;
+const FilterableList = sailor.tui.widgets.FilterableList;
+const FilteredItem = sailor.tui.widgets.FilteredItem;
 
 // ============================================================================
 // FilterableList.init Tests
@@ -634,9 +633,9 @@ test "filterable list full workflow" {
     const items = &[_][]const u8{ "apple", "apricot", "banana", "blueberry", "cherry" };
     try list.setItems(items);
 
-    // Filter to "a" items
+    // Filter to "a" items — apple, apricot, banana all contain 'a'
     try list.setFilter("a");
-    try testing.expectEqual(@as(usize, 2), list.getVisible().len);
+    try testing.expectEqual(@as(usize, 3), list.getVisible().len);
 
     // Navigate
     list.selectNext();

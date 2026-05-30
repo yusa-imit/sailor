@@ -162,7 +162,7 @@ test "fuzzy match numeric characters" {
 }
 
 test "fuzzy match mixed alphanumeric" {
-    const result = fuzzy.FuzzyMatcher.match("a1b2", "a0b1c2d3");
+    const result = fuzzy.FuzzyMatcher.match("a1b2", "xa1b2z");
     try testing.expect(result != null);
 }
 
