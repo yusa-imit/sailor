@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v2.13.0 (2026-05-29) — Store Middleware & Async Actions
-- **Latest minor**: v2.13.0 (2026-05-29) — Store Middleware & Async Actions
-- **Next milestone**: v2.14.0 (in progress)
-- **Active milestones**: 2 (v2.2.0, v2.14.0)
+- **Latest release**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
+- **Latest minor**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
+- **Next milestone**: TBD
+- **Active milestones**: 1 (v2.2.0)
 - **Blockers**: None
 
 ### v2.14.0 — Fuzzy Search & Command Palette (Target: 2026-06-05)
@@ -13,13 +13,13 @@
 **Theme**: Command palette and fuzzy search infrastructure for all consumer projects
 
 **Checklist**:
-- [ ] **fuzzy.zig** — Core fuzzy matching algorithm (scoring, highlight positions, no-alloc)
-- [ ] **widgets/command_palette.zig** — Modal command palette with fuzzy search, keyboard nav, categories
-- [ ] **widgets/filterable_list.zig** — List widget with built-in real-time fuzzy filtering
-- [ ] **tests/fuzzy_test.zig** — Comprehensive tests for fuzzy matching engine
-- [ ] **tests/command_palette_test.zig** — Command palette tests (register, search, activate)
-- [ ] **tests/filterable_list_test.zig** — FilterableList tests (filter, highlight, score sort)
-- [ ] Export new types in sailor.zig
+- [x] **fuzzy.zig** — Core fuzzy matching algorithm (scoring, highlight positions, no-alloc)
+- [x] **widgets/command_palette.zig** — Modal command palette with fuzzy search, keyboard nav, categories
+- [x] **widgets/filterable_list.zig** — List widget with built-in real-time fuzzy filtering
+- [x] **tests/fuzzy_test.zig** — Comprehensive tests for fuzzy matching engine (34 tests)
+- [x] **tests/command_palette_test.zig** — Command palette tests (register, search, activate) (38 tests)
+- [x] **tests/filterable_list_test.zig** — FilterableList tests (filter, highlight, score sort) (52 tests)
+- [x] Export new types in sailor.zig
 
 **Success Criteria**:
 - FuzzyMatcher scores "src" higher for "source" than for "secret" (positional bonus)
@@ -72,6 +72,7 @@
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v2.14.0 | Fuzzy Search & Command Palette | 2026-05-31 | FuzzyMatcher (greedy subsequence, prefix/consecutive/word-boundary/camelCase bonuses, score 0.0-1.0, static 512-slot buffer, case-insensitive, 34 tests), CommandPalette widget (register/setQuery/getSelected/activate/render, category search, score-sorted results, 38 tests), FilterableList widget (setItems/setFilter/clearFilter/getSelected/render, match position tracking, fuzzy-sorted display, 52 tests). Total: +124 tests (~4828+ passing), 0 breaking changes. Consumer migrations: zr, zoltraak, silica |
 | v2.13.0 | Store Middleware & Async Actions | 2026-05-29 | MiddlewareStore pipeline (Logger middleware, subscriber notifications, 19 tests), ThunkStore async dispatch (dispatchThunk, context access, error propagation, 23 tests), UndoStore time-travel (undo/redo with configurable history depth 50, canUndo/canRedo, 23 tests), StatePersist serialization (save/load via pluggable encode/decode fns, round-trip, 22 tests), ReactiveList widget (auto-bound to Signal, render callback, 20 tests). Total: +107 tests (~4700+ passing), 0 breaking changes. Consumer migrations: zr, zoltraak, silica |
 | v2.12.0 | Reactive State Management | 2026-05-28 | Signal(T) mutable reactive values with subscriber callbacks (subscribe/unsubscribe/batch), Computed(T,S) read-only derived values via lazy evaluation, Effect(T) side effect callbacks, Scope.batch() deferred notifications, Store(State,Action) centralized state with reducer pattern (dispatch/subscribe), ReactiveGauge/ReactiveText/ReactiveCounter widgets auto-bound to signals. Total: +89 tests (signal_test:24, store_test:19, reactive_test:46), ~4600+ total passing, 0 breaking changes. Consumer migrations: zr, zoltraak, silica |
 | v2.11.0 | Extended Graphics & Protocol Support | 2026-05-27 | Sixel encoder/decoder, color palette optimization, animation support, SixelCompressor. Kitty protocol (transmit/display/delete, unicode placeholder, z-index, KittyImageManager). ANSI art rendering (block/braille/ascii algorithms, dithering, real-time video conversion, AnsiArtPlayer). Advanced effects: gradient backgrounds, blur/transparency, custom borders, particles, transitions. image_renderer.zig (unified protocol selector). Total: +200+ tests (~4600 passing), 6 cross-platform targets, 0 breaking changes. Consumer migrations: zr, zoltraak, silica |
