@@ -54,6 +54,8 @@ pub const CommandPalette = struct {
     query: []const u8,
     /// Index of selected result
     selected_index: usize,
+    /// Fuzzy matcher instance (holds internal buffer — no global state)
+    matcher: FuzzyMatcher,
 
     /// Initialize a new command palette
     pub fn init(alloc: std.mem.Allocator) !CommandPalette {
@@ -66,6 +68,7 @@ pub const CommandPalette = struct {
             .results = results,
             .query = "",
             .selected_index = 0,
+            .matcher = FuzzyMatcher{},
         };
     }
 
@@ -191,23 +194,22 @@ pub const CommandPalette = struct {
         }
 
         // Fuzzy match each command against query
-        // NOTE: FuzzyMatcher uses a static buffer for positions — copy immediately
         for (self.commands.items) |cmd| {
             var best_score: f32 = 0.0;
             var best_positions: []const u16 = &[_]u16{};
             var positions_owned = false;
 
-            // Try title match — copy positions immediately before next match call
-            if (FuzzyMatcher.match(self.query, cmd.title)) |title_match| {
+            // Try title match — copy positions before next match() overwrites the buffer
+            if (self.matcher.match(self.query, cmd.title)) |title_match| {
                 best_score = title_match.score;
                 const owned = try self.allocator.dupe(u16, title_match.positions);
                 best_positions = owned;
                 positions_owned = true;
             }
 
-            // Try category match — may overwrite FuzzyMatcher's static buffer
+            // Try category match
             if (cmd.category) |cat| {
-                if (FuzzyMatcher.match(self.query, cat)) |cat_match| {
+                if (self.matcher.match(self.query, cat)) |cat_match| {
                     if (cat_match.score > best_score) {
                         if (positions_owned) self.allocator.free(best_positions);
                         const owned = try self.allocator.dupe(u16, cat_match.positions);

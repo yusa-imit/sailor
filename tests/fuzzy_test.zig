@@ -2,31 +2,36 @@ const std = @import("std");
 const testing = std.testing;
 const sailor = @import("sailor");
 const fuzzy = sailor.fuzzy;
+const FuzzyMatcher = fuzzy.FuzzyMatcher;
 
 // ============================================================================
 // FuzzyMatcher.match Tests
 // ============================================================================
 
 test "fuzzy match exact string" {
-    const result = fuzzy.FuzzyMatcher.match("hello", "hello");
+    var m = FuzzyMatcher{};
+    const result = m.match("hello", "hello");
     try testing.expect(result != null);
     try testing.expect(result.?.score > 0.8); // Exact match should score very high
 }
 
 test "fuzzy match case insensitive" {
-    const result = fuzzy.FuzzyMatcher.match("HELLO", "hello");
+    var m = FuzzyMatcher{};
+    const result = m.match("HELLO", "hello");
     try testing.expect(result != null);
     try testing.expect(result.?.score > 0.8); // Should match despite case
 }
 
 test "fuzzy match simple subsequence" {
-    const result = fuzzy.FuzzyMatcher.match("src", "source");
+    var m = FuzzyMatcher{};
+    const result = m.match("src", "source");
     try testing.expect(result != null);
     try testing.expect(result.?.positions.len == 3);
 }
 
 test "fuzzy match positions in order" {
-    const result = fuzzy.FuzzyMatcher.match("src", "source");
+    var m = FuzzyMatcher{};
+    const result = m.match("src", "source");
     try testing.expect(result != null);
     // First 's' at index 0
     try testing.expect(result.?.positions[0] == 0);
@@ -37,35 +42,41 @@ test "fuzzy match positions in order" {
 }
 
 test "fuzzy match no match returns null" {
-    const result = fuzzy.FuzzyMatcher.match("abc", "xyz");
+    var m = FuzzyMatcher{};
+    const result = m.match("abc", "xyz");
     try testing.expectEqual(@as(?fuzzy.MatchResult, null), result);
 }
 
 test "fuzzy match pattern longer than text returns null" {
-    const result = fuzzy.FuzzyMatcher.match("longerpattern", "short");
+    var m = FuzzyMatcher{};
+    const result = m.match("longerpattern", "short");
     try testing.expectEqual(@as(?fuzzy.MatchResult, null), result);
 }
 
 test "fuzzy match empty pattern matches everything" {
-    const result = fuzzy.FuzzyMatcher.match("", "hello");
+    var m = FuzzyMatcher{};
+    const result = m.match("", "hello");
     try testing.expect(result != null);
     try testing.expectEqual(@as(f32, 0.0), result.?.score); // Empty pattern has neutral score
 }
 
 test "fuzzy match empty text empty pattern" {
-    const result = fuzzy.FuzzyMatcher.match("", "");
+    var m = FuzzyMatcher{};
+    const result = m.match("", "");
     try testing.expect(result != null);
     try testing.expectEqual(@as(f32, 0.0), result.?.score);
 }
 
 test "fuzzy match empty text non-empty pattern returns null" {
-    const result = fuzzy.FuzzyMatcher.match("a", "");
+    var m = FuzzyMatcher{};
+    const result = m.match("a", "");
     try testing.expectEqual(@as(?fuzzy.MatchResult, null), result);
 }
 
 test "fuzzy match consecutive chars get bonus" {
-    const result1 = fuzzy.FuzzyMatcher.match("ab", "ab_cd");
-    const result2 = fuzzy.FuzzyMatcher.match("ab", "a_b_cd");
+    var m = FuzzyMatcher{};
+    const result1 = m.match("ab", "ab_cd");
+    const result2 = m.match("ab", "a_b_cd");
 
     try testing.expect(result1 != null);
     try testing.expect(result2 != null);
@@ -74,7 +85,8 @@ test "fuzzy match consecutive chars get bonus" {
 }
 
 test "fuzzy match multiple valid positions" {
-    const result = fuzzy.FuzzyMatcher.match("ab", "ab_ab_ab");
+    var m = FuzzyMatcher{};
+    const result = m.match("ab", "ab_ab_ab");
     try testing.expect(result != null);
     // Should return valid positions for a subsequence of 'a' then 'b'
     try testing.expect(result.?.positions.len == 2);
@@ -82,14 +94,16 @@ test "fuzzy match multiple valid positions" {
 }
 
 test "fuzzy match single character" {
-    const result = fuzzy.FuzzyMatcher.match("s", "source");
+    var m = FuzzyMatcher{};
+    const result = m.match("s", "source");
     try testing.expect(result != null);
     try testing.expectEqual(@as(usize, 1), result.?.positions.len);
 }
 
 test "fuzzy match prefix scores higher" {
-    const result1 = fuzzy.FuzzyMatcher.match("src", "source");
-    const result2 = fuzzy.FuzzyMatcher.match("src", "mysource");
+    var m = FuzzyMatcher{};
+    const result1 = m.match("src", "source");
+    const result2 = m.match("src", "mysource");
 
     try testing.expect(result1 != null);
     try testing.expect(result2 != null);
@@ -98,47 +112,51 @@ test "fuzzy match prefix scores higher" {
 }
 
 test "fuzzy match word boundary bonus" {
-    const result1 = fuzzy.FuzzyMatcher.match("src", "src_code");
-    const result2 = fuzzy.FuzzyMatcher.match("src", "source_code");
+    var m = FuzzyMatcher{};
+    const result1 = m.match("src", "src_code");
+    const result2 = m.match("src", "source_code");
 
     try testing.expect(result1 != null);
     try testing.expect(result2 != null);
-    // Word-boundary match after separator may score well
     try testing.expect(result1.?.score > 0.5);
     try testing.expect(result2.?.score > 0.5);
 }
 
 test "fuzzy match camelCase boundary bonus" {
-    const result1 = fuzzy.FuzzyMatcher.match("src", "sourceCode");
-    const result2 = fuzzy.FuzzyMatcher.match("src", "source_code");
+    var m = FuzzyMatcher{};
+    const result1 = m.match("src", "sourceCode");
+    const result2 = m.match("src", "source_code");
 
     try testing.expect(result1 != null);
     try testing.expect(result2 != null);
-    // Both should match, scores indicate preferred style
     try testing.expect(result1.?.score > 0.0);
     try testing.expect(result2.?.score > 0.0);
 }
 
 test "fuzzy match unicode characters" {
-    const result = fuzzy.FuzzyMatcher.match("café", "café");
+    var m = FuzzyMatcher{};
+    const result = m.match("café", "café");
     try testing.expect(result != null);
 }
 
 test "fuzzy match unicode subsequence" {
-    const result = fuzzy.FuzzyMatcher.match("cf", "café");
+    var m = FuzzyMatcher{};
+    const result = m.match("cf", "café");
     try testing.expect(result != null);
 }
 
 test "fuzzy match score is normalized" {
-    const result = fuzzy.FuzzyMatcher.match("a", "aaa");
+    var m = FuzzyMatcher{};
+    const result = m.match("a", "aaa");
     try testing.expect(result != null);
     try testing.expect(result.?.score >= 0.0);
     try testing.expect(result.?.score <= 1.0);
 }
 
 test "fuzzy match exact better than fuzzy" {
-    const exact = fuzzy.FuzzyMatcher.match("hello", "hello");
-    const fuzzy_result = fuzzy.FuzzyMatcher.match("hlo", "hello");
+    var m = FuzzyMatcher{};
+    const exact = m.match("hello", "hello");
+    const fuzzy_result = m.match("hlo", "hello");
 
     try testing.expect(exact != null);
     try testing.expect(fuzzy_result != null);
@@ -146,38 +164,45 @@ test "fuzzy match exact better than fuzzy" {
 }
 
 test "fuzzy match dash separated words" {
-    const result = fuzzy.FuzzyMatcher.match("gm", "go-marks");
+    var m = FuzzyMatcher{};
+    const result = m.match("gm", "go-marks");
     try testing.expect(result != null);
 }
 
 test "fuzzy match slash separated paths" {
-    const result = fuzzy.FuzzyMatcher.match("src", "my/src/index.zig");
+    var m = FuzzyMatcher{};
+    const result = m.match("src", "my/src/index.zig");
     try testing.expect(result != null);
 }
 
 test "fuzzy match numeric characters" {
-    const result = fuzzy.FuzzyMatcher.match("123", "1a2b3c");
+    var m = FuzzyMatcher{};
+    const result = m.match("123", "1a2b3c");
     try testing.expect(result != null);
     try testing.expect(result.?.positions.len == 3);
 }
 
 test "fuzzy match mixed alphanumeric" {
-    const result = fuzzy.FuzzyMatcher.match("a1b2", "xa1b2z");
+    var m = FuzzyMatcher{};
+    const result = m.match("a1b2", "xa1b2z");
     try testing.expect(result != null);
 }
 
 test "fuzzy match whitespace in pattern" {
-    const result = fuzzy.FuzzyMatcher.match("hello world", "hello_world");
+    var m = FuzzyMatcher{};
+    const result = m.match("hello world", "hello_world");
     try testing.expect(result != null);
 }
 
 test "fuzzy match leading underscore" {
-    const result = fuzzy.FuzzyMatcher.match("_foo", "_foo");
+    var m = FuzzyMatcher{};
+    const result = m.match("_foo", "_foo");
     try testing.expect(result != null);
 }
 
 test "fuzzy match all positions valid indices" {
-    const result = fuzzy.FuzzyMatcher.match("abc", "a1b2c3");
+    var m = FuzzyMatcher{};
+    const result = m.match("abc", "a1b2c3");
     try testing.expect(result != null);
     try testing.expect(result.?.positions.len == 3);
 
@@ -188,7 +213,8 @@ test "fuzzy match all positions valid indices" {
 }
 
 test "fuzzy match positions non-decreasing" {
-    const result = fuzzy.FuzzyMatcher.match("abcdef", "aabbccddeeeff");
+    var m = FuzzyMatcher{};
+    const result = m.match("abcdef", "aabbccddeeeff");
     try testing.expect(result != null);
 
     // Positions should be strictly increasing (for valid subsequence)
@@ -201,20 +227,21 @@ test "fuzzy match positions non-decreasing" {
 // Score Comparison Tests
 // ============================================================================
 
-test "fuzzy match scores are comparable" {
-    const r1 = fuzzy.FuzzyMatcher.match("src", "source");
-    const r2 = fuzzy.FuzzyMatcher.match("src", "mysource");
+test "fuzzy match prefix scores higher than infix" {
+    var m = FuzzyMatcher{};
+    const r1 = m.match("src", "source");
+    const r2 = m.match("src", "mysource");
 
     try testing.expect(r1 != null);
     try testing.expect(r2 != null);
-
-    // Should be able to compare scores for sorting
-    _ = r1.?.score > r2.?.score;
+    // Prefix match ("source" starts with 's') should score higher than infix
+    try testing.expect(r1.?.score > r2.?.score);
 }
 
 test "fuzzy match identical text has consistent score" {
-    const result1 = fuzzy.FuzzyMatcher.match("test", "test");
-    const result2 = fuzzy.FuzzyMatcher.match("test", "test");
+    var m = FuzzyMatcher{};
+    const result1 = m.match("test", "test");
+    const result2 = m.match("test", "test");
 
     try testing.expect(result1 != null);
     try testing.expect(result2 != null);
@@ -222,12 +249,14 @@ test "fuzzy match identical text has consistent score" {
 }
 
 test "fuzzy match special characters in text" {
-    const result = fuzzy.FuzzyMatcher.match("foo", "foo::bar");
+    var m = FuzzyMatcher{};
+    const result = m.match("foo", "foo::bar");
     try testing.expect(result != null);
 }
 
 test "fuzzy match only special characters pattern" {
-    const result = fuzzy.FuzzyMatcher.match("::", "foo::bar");
+    var m = FuzzyMatcher{};
+    const result = m.match("::", "foo::bar");
     try testing.expect(result != null);
 }
 
@@ -235,25 +264,72 @@ test "fuzzy match only special characters pattern" {
 // MatchResult Tests
 // ============================================================================
 
-test "match result has score field" {
-    const result = fuzzy.FuzzyMatcher.match("test", "test");
+test "match result score is in valid range" {
+    var m = FuzzyMatcher{};
+    const result = m.match("test", "test");
     try testing.expect(result != null);
 
     const score = result.?.score;
     try testing.expect(score >= 0.0);
+    try testing.expect(score <= 1.0);
 }
 
-test "match result has positions field" {
-    const result = fuzzy.FuzzyMatcher.match("abc", "abc");
+test "match result has positions field with content" {
+    var m = FuzzyMatcher{};
+    const result = m.match("abc", "abc");
     try testing.expect(result != null);
 
     const positions = result.?.positions;
-    try testing.expect(positions.len > 0);
+    try testing.expectEqual(@as(usize, 3), positions.len);
+    // Positions should be 0, 1, 2 for exact consecutive match
+    try testing.expectEqual(@as(u16, 0), positions[0]);
+    try testing.expectEqual(@as(u16, 1), positions[1]);
+    try testing.expectEqual(@as(u16, 2), positions[2]);
 }
 
 test "match result positions length equals pattern length" {
+    var m = FuzzyMatcher{};
     const pattern = "abc";
-    const result = fuzzy.FuzzyMatcher.match(pattern, "aabbcc");
+    const result = m.match(pattern, "aabbcc");
     try testing.expect(result != null);
     try testing.expectEqual(pattern.len, result.?.positions.len);
+}
+
+// ============================================================================
+// Multiple Calls (reuse same instance)
+// ============================================================================
+
+test "fuzzy matcher can be reused across multiple calls" {
+    var m = FuzzyMatcher{};
+
+    const r1 = m.match("he", "hello");
+    try testing.expect(r1 != null);
+    const score1 = r1.?.score;
+
+    const r2 = m.match("wo", "world");
+    try testing.expect(r2 != null);
+
+    // Re-run first match — should get same score
+    const r3 = m.match("he", "hello");
+    try testing.expect(r3 != null);
+    try testing.expectEqual(score1, r3.?.score);
+}
+
+test "fuzzy matcher positions from previous call not corrupted by new call" {
+    var m = FuzzyMatcher{};
+
+    // Get a match result and copy its positions before the next call
+    const r1 = m.match("ab", "ab_xy");
+    try testing.expect(r1 != null);
+    const p0 = r1.?.positions[0];
+    const p1 = r1.?.positions[1];
+
+    // Make another call that overwrites the internal buffer
+    _ = m.match("xy", "ab_xy");
+
+    // Re-match to verify the matcher still works correctly
+    const r3 = m.match("ab", "ab_xy");
+    try testing.expect(r3 != null);
+    try testing.expectEqual(p0, r3.?.positions[0]);
+    try testing.expectEqual(p1, r3.?.positions[1]);
 }

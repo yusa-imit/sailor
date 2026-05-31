@@ -39,6 +39,8 @@ pub const FilterableList = struct {
     filter: []const u8,
     /// Index of selected item in visible list
     selected_index: usize,
+    /// Fuzzy matcher instance (holds internal buffer — no global state)
+    matcher: FuzzyMatcher,
 
     /// Initialize a new filterable list
     pub fn init(alloc: std.mem.Allocator) !FilterableList {
@@ -51,6 +53,7 @@ pub const FilterableList = struct {
             .visible = visible,
             .filter = "",
             .selected_index = 0,
+            .matcher = FuzzyMatcher{},
         };
     }
 
@@ -209,10 +212,9 @@ pub const FilterableList = struct {
             return;
         }
 
-        // Fuzzy match each item
-        // NOTE: FuzzyMatcher uses a static buffer — copy positions before next match call
+        // Fuzzy match each item — copy positions before next match() overwrites the buffer
         for (self.items.items) |item_text| {
-            if (FuzzyMatcher.match(self.filter, item_text)) |match_result| {
+            if (self.matcher.match(self.filter, item_text)) |match_result| {
                 const positions_copy = try self.allocator.dupe(u16, match_result.positions);
                 try self.visible.append(self.allocator, FilteredItem{
                     .text = item_text,

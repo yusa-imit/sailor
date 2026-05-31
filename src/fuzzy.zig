@@ -13,7 +13,8 @@
 //!
 //! ## Example
 //! ```zig
-//! const result = FuzzyMatcher.match("src", "source");
+//! var matcher = FuzzyMatcher{};
+//! const result = matcher.match("src", "source");
 //! // result.score = 0.95 (high score for prefix match)
 //! // result.positions = [0, 3, 4] (byte indices of 's', 'r', 'c')
 //! ```
@@ -21,33 +22,34 @@
 const std = @import("std");
 
 /// Maximum number of match positions tracked
-const MAX_POSITIONS = 512;
-
-/// Static buffer for positions — valid until next call to match()
-var positions_storage: [MAX_POSITIONS]u16 = undefined;
+pub const MAX_POSITIONS = 512;
 
 /// Result of a fuzzy match
 pub const MatchResult = struct {
     /// Score from 0.0 (empty pattern) to 1.0 (perfect match)
     score: f32,
-    /// Byte indices of matched pattern characters in text
-    /// Valid until the next call to match()
+    /// Byte indices of matched pattern characters in text.
+    /// Slice into the FuzzyMatcher's internal buffer — valid until next call to match().
     positions: []const u16,
 };
 
-/// Fuzzy string matcher
+/// Fuzzy string matcher.
+/// Create one instance per thread/context; holds match position buffer.
 pub const FuzzyMatcher = struct {
+    /// Internal buffer for match positions (caller owns lifetime via the struct)
+    positions_buf: [MAX_POSITIONS]u16 = undefined,
+
     /// Fuzzy match pattern against text using greedy left-to-right matching.
     /// Returns null if pattern cannot be matched as a subsequence.
     /// Returns MatchResult with score 0.0 if pattern is empty.
     ///
-    /// The positions slice is valid only until the next call to match().
-    pub fn match(pattern: []const u8, text: []const u8) ?MatchResult {
+    /// The positions slice is valid until the next call to match() on this instance.
+    pub fn match(self: *FuzzyMatcher, pattern: []const u8, text: []const u8) ?MatchResult {
         // Case 1: empty pattern → always match with neutral score
         if (pattern.len == 0) {
             return MatchResult{
                 .score = 0.0,
-                .positions = positions_storage[0..0],
+                .positions = self.positions_buf[0..0],
             };
         }
 
@@ -74,10 +76,9 @@ pub const FuzzyMatcher = struct {
                 if (len >= MAX_POSITIONS) {
                     return null; // Pattern too long for our buffer
                 }
-                positions_storage[len] = @intCast(ti);
+                self.positions_buf[len] = @intCast(ti);
                 len += 1;
 
-                // Calculate quality bonus for this match
                 // Prefix bonus: first character at position 0
                 if (ti == 0) {
                     quality += 3.0;
@@ -106,7 +107,7 @@ pub const FuzzyMatcher = struct {
             return null;
         }
 
-        // Calculate final score using: coverage * 0.3 + quality_ratio * 0.7
+        // Score = coverage * 0.3 + quality_ratio * 0.7
         const coverage = @as(f32, @floatFromInt(pattern.len)) / @as(f32, @floatFromInt(text.len));
         const max_quality = 3.0 + 5.0 * @as(f32, @floatFromInt(pattern.len - 1));
         const quality_ratio = @min(1.0, quality / max_quality);
@@ -114,7 +115,7 @@ pub const FuzzyMatcher = struct {
 
         return MatchResult{
             .score = score,
-            .positions = positions_storage[0..len],
+            .positions = self.positions_buf[0..len],
         };
     }
 
@@ -132,41 +133,48 @@ fn isSeparator(c: u8) bool {
 // ============================================================================
 
 test "fuzzy match exact string" {
-    const result = FuzzyMatcher.match("hello", "hello");
+    var m = FuzzyMatcher{};
+    const result = m.match("hello", "hello");
     try std.testing.expect(result != null);
     try std.testing.expect(result.?.score > 0.8);
 }
 
 test "fuzzy match case insensitive" {
-    const result = FuzzyMatcher.match("HELLO", "hello");
+    var m = FuzzyMatcher{};
+    const result = m.match("HELLO", "hello");
     try std.testing.expect(result != null);
     try std.testing.expect(result.?.score > 0.8);
 }
 
 test "fuzzy match simple subsequence" {
-    const result = FuzzyMatcher.match("src", "source");
+    var m = FuzzyMatcher{};
+    const result = m.match("src", "source");
     try std.testing.expect(result != null);
     try std.testing.expect(result.?.positions.len == 3);
 }
 
 test "fuzzy match empty pattern" {
-    const result = FuzzyMatcher.match("", "hello");
+    var m = FuzzyMatcher{};
+    const result = m.match("", "hello");
     try std.testing.expect(result != null);
     try std.testing.expectEqual(@as(f32, 0.0), result.?.score);
 }
 
 test "fuzzy match empty text empty pattern" {
-    const result = FuzzyMatcher.match("", "");
+    var m = FuzzyMatcher{};
+    const result = m.match("", "");
     try std.testing.expect(result != null);
     try std.testing.expectEqual(@as(f32, 0.0), result.?.score);
 }
 
 test "fuzzy match empty text non-empty pattern" {
-    const result = FuzzyMatcher.match("a", "");
+    var m = FuzzyMatcher{};
+    const result = m.match("a", "");
     try std.testing.expectEqual(@as(?MatchResult, null), result);
 }
 
 test "fuzzy match no match returns null" {
-    const result = FuzzyMatcher.match("abc", "xyz");
+    var m = FuzzyMatcher{};
+    const result = m.match("abc", "xyz");
     try std.testing.expectEqual(@as(?MatchResult, null), result);
 }
