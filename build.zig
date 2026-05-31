@@ -784,6 +784,26 @@ pub fn build(b: *std.Build) void {
     });
     json_browser_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(json_browser_tests).step);
+
+    const editable_table_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/editable_table_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    editable_table_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(editable_table_tests).step);
+
+    const record_editor_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/record_editor_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    record_editor_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(record_editor_tests).step);
     // test_step.dependOn(&b.addRunArtifact(migration_script_tests).step); // Disabled for v2.0.0 work
 
     // Benchmark executable

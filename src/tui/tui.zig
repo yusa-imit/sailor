@@ -269,6 +269,14 @@ pub const widgets = struct {
     pub const JsonBrowser = @import("widgets/json_browser.zig").JsonBrowser;
     pub const JsonBrowserNode = @import("widgets/json_browser.zig").Node;
     pub const JsonBrowserNodeKind = @import("widgets/json_browser.zig").NodeKind;
+
+    // v2.17.0 — Editable Table & Record Editor
+    pub const EditableTable = @import("widgets/editable_table.zig").EditableTable;
+    pub const CellState = @import("widgets/editable_table.zig").CellState;
+    pub const RecordEditor = @import("widgets/record_editor.zig").RecordEditor;
+    pub const RecordEditorField = @import("widgets/record_editor.zig").Field;
+    pub const RecordEditorValidationResult = @import("widgets/record_editor.zig").ValidationResult;
+    pub const RecordEditorValidateFn = @import("widgets/record_editor.zig").ValidateFn;
 };
 
 // Export commonly used types

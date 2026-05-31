@@ -91,3 +91,5 @@
 {"timestamp":"2026-05-31T00:00:00Z","action":"subagent","agent_type":"stabilization","task":"Fix global state in fuzzy.zig, cross-platform verification, test quality audit","project":"sailor"}
 {"timestamp":"2026-05-31T06:44:23Z","action":"subagent","agent_type":"test-writer","task":"Write TDD tests for DagWidget and Pipeline widgets (v2.15.0)","project":"sailor"}
 {"timestamp":"2026-05-31T12:44:17Z","action":"subagent","agent_type":"zig-developer","task":"Implement DiffViewer and JsonBrowser widgets for v2.16.0","project":"sailor"}
+{"timestamp":"2026-06-01T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write TDD tests for EditableTable and RecordEditor widgets (v2.17.0)","project":"sailor"}
+{"timestamp":"2026-06-01T00:05:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement EditableTable and RecordEditor widgets (v2.17.0) to pass TDD tests","project":"sailor"}

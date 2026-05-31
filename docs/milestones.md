@@ -2,11 +2,39 @@
 
 ## Current Status
 
-- **Latest release**: v2.15.0 (2026-05-31) — Dependency Graph & Pipeline Visualization
-- **Latest minor**: v2.15.0 (2026-05-31) — Dependency Graph & Pipeline Visualization
-- **Next milestone**: v2.16.0 — Diff Viewer & JSON Browser
-- **Active milestones**: 3 (v2.2.0, v2.15.0-pending-release, v2.16.0)
+- **Latest release**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
+- **Latest minor**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
+- **Next milestone**: v2.17.0 — Interactive Data Editing
+- **Active milestones**: 3 (v2.2.0, v2.16.0-pending-release, v2.17.0)
 - **Blockers**: None
+
+### v2.17.0 — Interactive Data Editing (Target: 2026-06-14)
+
+**Theme**: Widgets that allow users to edit structured data inline — critical for silica (query result editing), zoltraak (Redis hash editing), and zr (config editing)
+
+**Checklist**:
+- [ ] **widgets/editable_table.zig** — EditableTable: inline cell editing with row/col cursor, edit mode, row CRUD
+- [ ] **widgets/record_editor.zig** — RecordEditor: key-value record editor with field navigation and validation
+- [ ] **tests/editable_table_test.zig** — EditableTable tests (cursor nav, edit mode, confirm/cancel, render)
+- [ ] **tests/record_editor_test.zig** — RecordEditor tests (field nav, edit, validation callback, render)
+- [ ] Export both widgets in tui.zig
+- [ ] Release v2.17.0
+
+**Success Criteria**:
+- EditableTable renders table with cursor highlight on selected cell
+- EditableTable enters edit mode on cell; renders input box in cell area
+- EditableTable confirms edit on Enter, cancels on Escape
+- EditableTable navigates rows/cols with arrow keys (state machine)
+- RecordEditor renders key-value pairs with cursor on active field
+- RecordEditor enters edit mode for value; renders inline input
+- RecordEditor calls validation callback and shows error style on invalid input
+- Both handle zero-area and edge cases without panic
+
+**Notes**:
+- No allocator in render() — caller provides field slices and edit buffer
+- EditableTable extends Table display pattern but adds cursor + edit state
+- RecordEditor is simpler: fixed fields, edit one value at a time
+- Both useful for silica (SQL row editing), zoltraak (hash field editing), zr (config editing)
 
 ### v2.16.0 — Diff Viewer & JSON Browser (Target: 2026-06-07)
 
