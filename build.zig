@@ -764,6 +764,26 @@ pub fn build(b: *std.Build) void {
     });
     pipeline_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(pipeline_tests).step);
+
+    const diff_viewer_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/diff_viewer_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    diff_viewer_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(diff_viewer_tests).step);
+
+    const json_browser_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/json_browser_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    json_browser_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(json_browser_tests).step);
     // test_step.dependOn(&b.addRunArtifact(migration_script_tests).step); // Disabled for v2.0.0 work
 
     // Benchmark executable

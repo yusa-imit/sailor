@@ -261,6 +261,14 @@ pub const widgets = struct {
     pub const Pipeline = @import("widgets/pipeline.zig").Pipeline;
     pub const PipelineStage = @import("widgets/pipeline.zig").Pipeline.PipelineStage;
     pub const StageStatus = @import("widgets/pipeline.zig").Pipeline.StageStatus;
+
+    // v2.16.0 — Diff Viewer & JSON Browser
+    pub const DiffViewer = @import("widgets/diff_viewer.zig").DiffViewer;
+    pub const DiffViewerLineKind = @import("widgets/diff_viewer.zig").LineKind;
+    pub const diffViewerClassifyLine = @import("widgets/diff_viewer.zig").classifyLine;
+    pub const JsonBrowser = @import("widgets/json_browser.zig").JsonBrowser;
+    pub const JsonBrowserNode = @import("widgets/json_browser.zig").Node;
+    pub const JsonBrowserNodeKind = @import("widgets/json_browser.zig").NodeKind;
 };
 
 // Export commonly used types

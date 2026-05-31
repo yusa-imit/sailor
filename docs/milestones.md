@@ -2,11 +2,39 @@
 
 ## Current Status
 
-- **Latest release**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
-- **Latest minor**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
-- **Next milestone**: v2.15.0 — Dependency Graph & Pipeline Visualization
-- **Active milestones**: 2 (v2.2.0, v2.15.0)
+- **Latest release**: v2.15.0 (2026-05-31) — Dependency Graph & Pipeline Visualization
+- **Latest minor**: v2.15.0 (2026-05-31) — Dependency Graph & Pipeline Visualization
+- **Next milestone**: v2.16.0 — Diff Viewer & JSON Browser
+- **Active milestones**: 3 (v2.2.0, v2.15.0-pending-release, v2.16.0)
 - **Blockers**: None
+
+### v2.16.0 — Diff Viewer & JSON Browser (Target: 2026-06-07)
+
+**Theme**: Developer-tool widgets for visualizing code diffs and structured data (JSON/YAML trees)
+
+**Checklist**:
+- [x] **widgets/diff_viewer.zig** — DiffViewer: unified diff rendering with color-coded line types
+- [x] **widgets/json_browser.zig** — JsonBrowser: collapsible JSON tree with cursor navigation
+- [x] **tests/diff_viewer_test.zig** — DiffViewer tests (classify, render, scroll, h_scroll, counts)
+- [x] **tests/json_browser_test.zig** — JsonBrowser tests (collapse, navigate, render, styles)
+- [x] Export both widgets in tui.zig
+- [ ] Release v2.16.0
+
+**Success Criteria**:
+- DiffViewer classifies all unified diff line kinds correctly (diff_header, file_header, hunk_header, removed, added, context, no_newline)
+- DiffViewer renders with color-coded styles per line kind (red/green/cyan/bold)
+- DiffViewer supports vertical and horizontal scroll without allocation
+- JsonBrowser renders flat node list with depth-based indentation
+- JsonBrowser collapse/expand hides subtrees (matching close bracket included)
+- JsonBrowser moveDown/moveUp correctly skip hidden (collapsed) nodes
+- Both widgets handle zero-area and edge cases without panic
+
+**Notes**:
+- DiffViewer: useful for silica (schema migration diffs), zoltraak (config diffs), zr (build output diffs)
+- JsonBrowser: useful for silica (query result inspection), zoltraak (Redis JSON values), zr (config browser)
+- No allocator in render() — caller provides the node slice for JsonBrowser
+- DiffViewer: no allocation at all — iterates the raw diff string line-by-line
+- classifyLine() and DiffViewerLineKind exported as top-level helpers for consumers
 
 ### v2.15.0 — Dependency Graph & Pipeline Visualization (Target: 2026-06-07)
 
@@ -18,7 +46,7 @@
 - [x] **tests/dag_test.zig** — 36 tests for DagWidget (node creation, rendering, edge handling, clipping)
 - [x] **tests/pipeline_test.zig** — 45 tests for Pipeline (status queries, rendering, layout directions)
 - [x] Export both widgets in tui.zig
-- [ ] Release v2.15.0
+- [x] Release v2.15.0
 
 **Success Criteria**:
 - DagWidget renders nodes as boxes with labels, edges as connecting lines
