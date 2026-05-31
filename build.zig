@@ -744,6 +744,26 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(fuzzy_tests).step);
     test_step.dependOn(&b.addRunArtifact(command_palette_tests).step);
     test_step.dependOn(&b.addRunArtifact(filterable_list_tests).step);
+
+    const dag_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/dag_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    dag_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(dag_tests).step);
+
+    const pipeline_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/pipeline_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    pipeline_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(pipeline_tests).step);
     // test_step.dependOn(&b.addRunArtifact(migration_script_tests).step); // Disabled for v2.0.0 work
 
     // Benchmark executable

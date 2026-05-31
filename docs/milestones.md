@@ -4,9 +4,32 @@
 
 - **Latest release**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
 - **Latest minor**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
-- **Next milestone**: TBD
-- **Active milestones**: 1 (v2.2.0)
+- **Next milestone**: v2.15.0 — Dependency Graph & Pipeline Visualization
+- **Active milestones**: 2 (v2.2.0, v2.15.0)
 - **Blockers**: None
+
+### v2.15.0 — Dependency Graph & Pipeline Visualization (Target: 2026-06-07)
+
+**Theme**: Graph and pipeline widgets for dependency visualization and CI/build status display
+
+**Checklist**:
+- [x] **widgets/dag.zig** — DagWidget: directed acyclic graph with nodes as boxes, edges as lines
+- [x] **widgets/pipeline.zig** — Pipeline: linear stage display with status indicators
+- [x] **tests/dag_test.zig** — 36 tests for DagWidget (node creation, rendering, edge handling, clipping)
+- [x] **tests/pipeline_test.zig** — 45 tests for Pipeline (status queries, rendering, layout directions)
+- [x] Export both widgets in tui.zig
+- [ ] Release v2.15.0
+
+**Success Criteria**:
+- DagWidget renders nodes as boxes with labels, edges as connecting lines
+- Pipeline renders `[icon label]` with status-appropriate icons: ✓ ✗ ⊙ · ⊘
+- `isComplete()` / `hasFailed()` / `countByStatus()` work correctly
+- Both widgets handle zero-area and out-of-bounds safely (no panic)
+
+**Notes**:
+- Useful for zr (task dependency graphs), silica (schema relations), zoltraak (monitoring)
+- No allocator required in render() — all stack-based
+- Edges draw horizontal lines with '>' arrow; vertical offset draws '|' stub
 
 ### v2.14.0 — Fuzzy Search & Command Palette (Target: 2026-06-05)
 

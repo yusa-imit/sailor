@@ -255,6 +255,12 @@ pub const widgets = struct {
     pub const CommandResult = @import("widgets/command_palette.zig").CommandResult;
     pub const FilterableList = @import("widgets/filterable_list.zig").FilterableList;
     pub const FilteredItem = @import("widgets/filterable_list.zig").FilteredItem;
+
+    // v2.15.0 — Dependency Graph & Pipeline Visualization
+    pub const DagWidget = @import("widgets/dag.zig").DagWidget;
+    pub const Pipeline = @import("widgets/pipeline.zig").Pipeline;
+    pub const PipelineStage = @import("widgets/pipeline.zig").Pipeline.PipelineStage;
+    pub const StageStatus = @import("widgets/pipeline.zig").Pipeline.StageStatus;
 };
 
 // Export commonly used types
