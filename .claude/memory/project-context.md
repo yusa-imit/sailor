@@ -1,3 +1,43 @@
+✅ **Session 256** — FEATURE MODE (2026-05-31)
+  - **Mode**: FEATURE (session 256, 256 % 5 == 1)
+  - **Achievement**: Implemented v2.15.0 DagWidget and Pipeline visualization widgets
+
+  **Completed Work**:
+    - ✅ CI check: 1 queued (cancel-in-progress expected), 0 failures
+    - ✅ GitHub issues check: 0 open issues
+    - ✅ Implemented `src/tui/widgets/dag.zig`:
+      - DagWidget with Node (id, label, x, y, width, height, selected) and Edge (from_id, to_id, label)
+      - render() draws nodes as boxes (┌─label─┐/│/└───────┘), edges as horizontal lines with '>' arrow
+      - nodeAt() for node lookup, nodeBox() for bounding Rect computation
+      - Safe clipping: out-of-bounds nodes/edges silently skipped
+    - ✅ Implemented `src/tui/widgets/pipeline.zig`:
+      - Pipeline with PipelineStage (label, status, progress) and StageStatus enum
+      - Status icons: ✓ (success), ✗ (failed), ⊙ (running), · (pending), ⊘ (skipped)
+      - countByStatus(), isComplete(), hasFailed() query methods
+      - Horizontal (→ connectors) and vertical (↓ connectors) layouts
+    - ✅ Exported both in `src/tui/tui.zig` widgets struct
+    - ✅ 81 tests: dag_test.zig (36 tests), pipeline_test.zig (45 tests)
+    - ✅ Build passes cleanly, test files compile without errors
+    - ✅ Commit: f118681 feat(v2.15.0): implement DagWidget and Pipeline visualization widgets
+    - ✅ Pushed to main
+
+  **Current State**:
+    - **Latest release**: v2.14.0 (2026-05-31)
+    - **In progress**: v2.15.0 (DagWidget + Pipeline — code done, needs release)
+    - **Active milestones**: 2 (v2.2.0, v2.15.0)
+    - **CI status**: 1 queued (will run v2.15.0 tests)
+    - **Open issues**: 0 (sailor)
+    - **Blockers**: NONE
+    - **Test count**: ~4909+ tests (+81 from v2.15.0)
+
+  **Known Issue**: `zig build test` on local machine tends to hang during full suite execution.
+    - Workaround: rely on CI for full test execution; `zig build` + `zig build-lib` for per-file check
+
+  **Next Priority**:
+    - Monitor CI for v2.15.0 tests
+    - Release v2.15.0 when CI passes (all checklist items done)
+    - v2.16.0 planning
+
 ✅ **Session 255** — STABILIZATION MODE (2026-05-31)
   - **Mode**: STABILIZATION (session 255, 255 % 5 == 0)
   - **Achievement**: Fixed global state violation in fuzzy.zig, improved test quality
