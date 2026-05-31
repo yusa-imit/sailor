@@ -13,11 +13,11 @@
 **Theme**: Widgets that allow users to edit structured data inline — critical for silica (query result editing), zoltraak (Redis hash editing), and zr (config editing)
 
 **Checklist**:
-- [ ] **widgets/editable_table.zig** — EditableTable: inline cell editing with row/col cursor, edit mode, row CRUD
-- [ ] **widgets/record_editor.zig** — RecordEditor: key-value record editor with field navigation and validation
-- [ ] **tests/editable_table_test.zig** — EditableTable tests (cursor nav, edit mode, confirm/cancel, render)
-- [ ] **tests/record_editor_test.zig** — RecordEditor tests (field nav, edit, validation callback, render)
-- [ ] Export both widgets in tui.zig
+- [x] **widgets/editable_table.zig** — EditableTable: inline cell editing with row/col cursor, edit mode, row CRUD
+- [x] **widgets/record_editor.zig** — RecordEditor: key-value record editor with field navigation and validation
+- [x] **tests/editable_table_test.zig** — EditableTable tests (cursor nav, edit mode, confirm/cancel, render) — 42 tests
+- [x] **tests/record_editor_test.zig** — RecordEditor tests (field nav, edit, validation callback, render) — 47 tests
+- [x] Export both widgets in tui.zig
 - [ ] Release v2.17.0
 
 **Success Criteria**:
