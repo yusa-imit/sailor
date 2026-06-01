@@ -392,10 +392,9 @@ test "FlexBox with align_items center and mixed widgets" {
     const hist = Histogram.init(&bins);
     hist.render(&buffer, rects[1]);
 
-    // With center alignment, widgets should be vertically centered
-    // (Testing layout correctness, not visual output)
-    try testing.expect(rects[0].y >= 0);
-    try testing.expect(rects[1].y >= 0);
+    // Items fill the container's vertical extent; y starts at container top
+    try testing.expectEqual(container.y, rects[0].y);
+    try testing.expectEqual(container.y, rects[1].y);
 }
 
 // ============================================================================

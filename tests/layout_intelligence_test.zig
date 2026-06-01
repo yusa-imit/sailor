@@ -852,9 +852,8 @@ test "PerformanceAnalyzer detects unnecessary redraws" {
         }
         testing.allocator.free(issues);
     }
-    // May or may not find issue depending on implementation
-    // Just checking that analyze() returns without error
-    try testing.expect(issues.len >= 0);
+    // analyze() returned without error — issues slice is valid (may be empty)
+    _ = issues.len;
 }
 
 // ============================================================================

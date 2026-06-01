@@ -485,7 +485,8 @@ test "particles: activeCount matches expected behavior over time sequence" {
 
     sys.update(100);
     const after_first_update = sys.activeCount();
-    try std.testing.expect(after_first_update >= 0);
+    // spawn_rate=3 means up to 3 particles spawn per update; count must be <= max_particles
+    try std.testing.expect(after_first_update <= 50);
 
     sys.update(100);
     const after_second_update = sys.activeCount();

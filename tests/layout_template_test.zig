@@ -259,7 +259,7 @@ test "MasterDetail.split returns master and detail rects" {
     const result = layout.split(area);
 
     try testing.expect(result.master.width > 0);
-    try testing.expect(result.detail.width >= 0);
+    try testing.expect(result.detail.width > 0);
 }
 
 test "MasterDetail.split master has correct width" {
@@ -312,22 +312,24 @@ test "MasterDetail.split both panels start at same y" {
     try testing.expectEqual(area.y, result.detail.y);
 }
 
-test "MasterDetail.split with master_width > area.width returns graceful layout" {
+test "MasterDetail.split with master_width > area.width clamps master to area width" {
     const layout = MasterDetail{ .master_width = 200 };
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 30 };
     const result = layout.split(area);
 
-    // Should not crash, gracefully handle overflow
-    try testing.expect(result.master.width <= area.width or result.detail.width >= 0);
+    // master_width is clamped to area.width; detail gets the remaining 0 columns
+    try testing.expectEqual(area.width, result.master.width);
+    try testing.expectEqual(@as(u16, 0), result.detail.width);
 }
 
-test "MasterDetail.split with zero-width area returns graceful layout" {
+test "MasterDetail.split with zero-width area returns zero-width panels" {
     const layout = MasterDetail{};
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 30 };
     const result = layout.split(area);
 
-    // Should not crash
-    try testing.expect(result.master.width >= 0);
+    // Both panels must be zero-width when area is zero-width
+    try testing.expectEqual(@as(u16, 0), result.master.width);
+    try testing.expectEqual(@as(u16, 0), result.detail.width);
 }
 
 test "MasterDetail.split master and detail do not overlap" {

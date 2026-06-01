@@ -933,10 +933,11 @@ pub const SixelDecoder = struct {
                     // Color definition or selection: #index;2;r;g;b OR #index
                     const semicolon1 = std.mem.indexOfScalarPos(u8, payload, pos, ';') orelse {
                         // Just color selection: #index (no semicolon)
-                        const num_end = pos;
-                        while (num_end < payload.len and payload[num_end] >= '0' and payload[num_end] <= '9') : (pos += 1) {}
-                        const index_str = payload[pos - 1 .. num_end];
+                        var num_end = pos;
+                        while (num_end < payload.len and payload[num_end] >= '0' and payload[num_end] <= '9') : (num_end += 1) {}
+                        const index_str = payload[pos..num_end];
                         current_color = std.fmt.parseInt(u8, index_str, 10) catch return error.InvalidColorDefinition;
+                        pos = num_end;
                         continue;
                     };
 

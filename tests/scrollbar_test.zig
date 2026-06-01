@@ -37,16 +37,15 @@ test "Scrollbar default state is vertical orientation" {
     try testing.expectEqual(Orientation.vertical, sb.orientation);
 }
 
-test "Scrollbar default state initializes track_style" {
+test "Scrollbar default track_style has bright_black fg" {
     const sb = Scrollbar{};
-    // Should not be uninitialized; verify struct initialization works
-    _ = sb.track_style;
+    try testing.expect(sb.track_style.fg != null);
+    try testing.expectEqual(sailor.tui.Color.bright_black, sb.track_style.fg.?);
 }
 
-test "Scrollbar default state initializes thumb_style" {
+test "Scrollbar default thumb_style is bold" {
     const sb = Scrollbar{};
-    // Should not be uninitialized; verify struct initialization works
-    _ = sb.thumb_style;
+    try testing.expect(sb.thumb_style.bold);
 }
 
 // ============================================================================
@@ -77,10 +76,10 @@ test "setPosition handles large values gracefully" {
     try testing.expectEqual(@as(usize, 999), sb.position);
 }
 
-test "setPosition with total=0 does not crash" {
+test "setPosition with total=0 clamps position to 0" {
     var sb = Scrollbar{ .total = 0, .position = 0 };
     sb.setPosition(10);
-    // Should not panic
+    try testing.expectEqual(@as(usize, 0), sb.position);
 }
 
 // ============================================================================
@@ -152,8 +151,8 @@ test "thumbSize returns minimum 1 when total > 0" {
 test "thumbSize proportional: small viewport => small thumb" {
     var sb = Scrollbar{ .total = 1000, .viewport = 10 };
     const size = sb.thumbSize(100);
-    // Thumb should be roughly (10 * 100) / 1000 = 1
-    try testing.expect(size >= 0);
+    // max(1, (10 * 100) / 1000) = max(1, 1) = 1
+    try testing.expectEqual(@as(usize, 1), size);
 }
 
 test "thumbSize proportional: large viewport => large thumb" {
@@ -243,7 +242,9 @@ test "thumbOffset at end of content positions thumb at end of track" {
 test "thumbOffset with single item visible" {
     var sb = Scrollbar{ .total = 1000, .position = 500, .viewport = 1 };
     const offset = sb.thumbOffset(100);
-    try testing.expect(offset >= 0 and offset <= 100);
+    // Thumb should be near midpoint of track; offset must not exceed track_len
+    try testing.expect(offset <= 100);
+    try testing.expect(offset >= 40 and offset <= 60);
 }
 
 test "thumbOffset zero when viewport >= total" {
@@ -256,8 +257,8 @@ test "thumbOffset scales with track_len" {
     var sb = Scrollbar{ .total = 100, .position = 50, .viewport = 10 };
     const offset1 = sb.thumbOffset(50);
     const offset2 = sb.thumbOffset(100);
-    // Larger track should allow more offset
-    try testing.expect(offset2 >= offset1 or offset1 == offset2);
+    // Larger track produces larger offset for the same position ratio
+    try testing.expect(offset2 >= offset1);
 }
 
 // ============================================================================

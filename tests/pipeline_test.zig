@@ -44,18 +44,12 @@ test "PipelineStage with progress field" {
 }
 
 test "StageStatus enum has all required values" {
-    const pending = StageStatus.pending;
-    const running = StageStatus.running;
-    const success = StageStatus.success;
-    const failed = StageStatus.failed;
-    const skipped = StageStatus.skipped;
-
-    _ = pending;
-    _ = running;
-    _ = success;
-    _ = failed;
-    _ = skipped;
-    try testing.expect(true);
+    // Verify all status variants exist and are distinct
+    try testing.expect(StageStatus.pending != StageStatus.running);
+    try testing.expect(StageStatus.running != StageStatus.success);
+    try testing.expect(StageStatus.success != StageStatus.failed);
+    try testing.expect(StageStatus.failed != StageStatus.skipped);
+    try testing.expect(StageStatus.skipped != StageStatus.pending);
 }
 
 // ============================================================================
@@ -76,7 +70,8 @@ test "Pipeline with empty stages renders without crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    // Empty stages — buffer should remain unchanged (all spaces)
+    try testing.expectEqual(@as(u21, ' '), buffer.getChar(0, 12));
 }
 
 test "Pipeline with default direction is horizontal" {
@@ -347,8 +342,9 @@ test "success stage renders success indicator" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     pipeline.render(&buffer, area);
 
-    // Render should complete without error
-    try testing.expect(true);
+    // Horizontal render: icon at x=1, mid_y=12; opening bracket at x=0
+    try testing.expectEqual(@as(u21, '['), buffer.getChar(0, 12));
+    try testing.expectEqual(@as(u21, '✓'), buffer.getChar(1, 12));
 }
 
 test "failed stage renders failure indicator" {
@@ -370,7 +366,8 @@ test "failed stage renders failure indicator" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    try testing.expectEqual(@as(u21, '['), buffer.getChar(0, 12));
+    try testing.expectEqual(@as(u21, '✗'), buffer.getChar(1, 12));
 }
 
 test "running stage renders running indicator" {
@@ -393,10 +390,11 @@ test "running stage renders running indicator" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    try testing.expectEqual(@as(u21, '['), buffer.getChar(0, 12));
+    try testing.expectEqual(@as(u21, '⊙'), buffer.getChar(1, 12));
 }
 
-test "pending stage uses dim style" {
+test "pending stage renders pending indicator" {
     const allocator = testing.allocator;
     var buffer = try Buffer.init(allocator, 80, 24);
     defer buffer.deinit();
@@ -415,7 +413,8 @@ test "pending stage uses dim style" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    try testing.expectEqual(@as(u21, '['), buffer.getChar(0, 12));
+    try testing.expectEqual(@as(u21, '·'), buffer.getChar(1, 12));
 }
 
 test "skipped stage renders skipped indicator" {
@@ -437,7 +436,8 @@ test "skipped stage renders skipped indicator" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    try testing.expectEqual(@as(u21, '['), buffer.getChar(0, 12));
+    try testing.expectEqual(@as(u21, '⊘'), buffer.getChar(1, 12));
 }
 
 // ============================================================================

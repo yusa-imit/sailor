@@ -330,8 +330,8 @@ test "unicode stringWidth - invalid UTF-8 sequence" {
     // Invalid UTF-8 should be handled gracefully
     const invalid = [_]u8{ 0xFF, 0xFE, 0xFD };
     const width = unicode.UnicodeWidth.stringWidth(&invalid);
-    // Should not crash, width behavior is implementation-defined for invalid UTF-8
-    try testing.expect(width >= 0);
+    // Width must not exceed byte count — invalid bytes treated as single-width
+    try testing.expect(width <= invalid.len);
 }
 
 test "unicode truncate - exact fit" {

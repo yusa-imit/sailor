@@ -693,7 +693,7 @@ test "chrome devtools export flamegraph data structure" {
     try testing.expect(frames.len > 0);
     try testing.expect(frames[0].name.len > 0);
     try testing.expect(frames[0].total_time_ns > 0);
-    try testing.expect(frames[0].self_time_ns >= 0);
+    try testing.expect(frames[0].self_time_ns <= frames[0].total_time_ns);
 }
 
 test "chrome devtools export json serialization flamegraph" {
