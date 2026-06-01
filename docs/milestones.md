@@ -4,20 +4,20 @@
 
 - **Latest release**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
 - **Latest minor**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
-- **Next milestone**: v2.19.0 — Scrollbar & Breadcrumb Navigation
-- **Active milestones**: 2 (v2.17.0-pending-release, v2.18.0-pending-release)
-- **Blockers**: None
+- **Next milestone**: v2.20.0 — TBD (to be established when releases complete)
+- **Active milestones**: 3 (v2.17.0-pending-release, v2.18.0-pending-release, v2.19.0-pending-release)
+- **Blockers**: CI must pass for v2.15.0-v2.19.0 releases
 
 ### v2.19.0 — Scrollbar & Breadcrumb Navigation (Target: 2026-06-14)
 
 **Theme**: Navigation and scroll indicator widgets for content-heavy TUI applications
 
 **Checklist**:
-- [ ] **widgets/scrollbar.zig** — Scrollbar: explicit vertical/horizontal scroll indicator with position and viewport ratio
-- [ ] **widgets/breadcrumb.zig** — Breadcrumb: horizontal navigation path display with separator and truncation
-- [ ] **tests/scrollbar_test.zig** — Scrollbar tests (position calculation, render modes, edge cases)
-- [ ] **tests/breadcrumb_test.zig** — Breadcrumb tests (path rendering, truncation, separator, zero-area)
-- [ ] Export both widgets in tui.zig
+- [x] **widgets/scrollbar.zig** — Scrollbar: vertical/horizontal scroll indicator with proportional thumb size/offset
+- [x] **widgets/breadcrumb.zig** — Breadcrumb: navigation path display with separator, active highlighting, and left-truncation
+- [x] **tests/scrollbar_test.zig** — Scrollbar tests (thumbSize math, thumbOffset math, render modes, setters, edge cases) — 62 tests
+- [x] **tests/breadcrumb_test.zig** — Breadcrumb tests (totalWidth, builder pattern, render, truncation, zero-area) — 53 tests
+- [x] Export Scrollbar, ScrollbarOrientation, Breadcrumb in tui.zig
 - [ ] Release v2.19.0
 
 **Success Criteria**:
