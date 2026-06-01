@@ -234,9 +234,6 @@ pub const widgets = struct {
     pub const ConfigNode = @import("widgets/configeditor.zig").ConfigNode;
     pub const ValueType = @import("widgets/configeditor.zig").ValueType;
     pub const SplitPane = @import("widgets/splitpane.zig").SplitPane;
-    pub const Breadcrumb = @import("widgets/breadcrumb.zig").Breadcrumb;
-    pub const TruncationMode = @import("widgets/breadcrumb.zig").TruncationMode;
-    pub const BreadcrumbItem = @import("widgets/breadcrumb.zig").Item;
     pub const Tooltip = @import("widgets/tooltip.zig").Tooltip;
     pub const TooltipPosition = @import("widgets/tooltip.zig").Position;
     pub const TooltipTrigger = @import("widgets/tooltip.zig").Trigger;
@@ -284,6 +281,11 @@ pub const widgets = struct {
     pub const Stepper = @import("widgets/stepper.zig").Stepper;
     pub const StepperStatus = @import("widgets/stepper.zig").StepStatus;
     pub const StepperStep = @import("widgets/stepper.zig").Step;
+
+    // v2.19.0 — Scrollbar & Breadcrumb (Simple API)
+    pub const Scrollbar = @import("widgets/scrollbar.zig").Scrollbar;
+    pub const ScrollbarOrientation = @import("widgets/scrollbar.zig").Orientation;
+    pub const Breadcrumb = @import("widgets/breadcrumb.zig").Breadcrumb;
 };
 
 // Export commonly used types

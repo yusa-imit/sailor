@@ -826,6 +826,26 @@ pub fn build(b: *std.Build) void {
     stepper_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(stepper_tests).step);
 
+    const scrollbar_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/scrollbar_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    scrollbar_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(scrollbar_tests).step);
+
+    const breadcrumb_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/breadcrumb_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    breadcrumb_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(breadcrumb_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",
