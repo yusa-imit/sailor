@@ -277,6 +277,13 @@ pub const widgets = struct {
     pub const RecordEditorField = @import("widgets/record_editor.zig").Field;
     pub const RecordEditorValidationResult = @import("widgets/record_editor.zig").ValidationResult;
     pub const RecordEditorValidateFn = @import("widgets/record_editor.zig").ValidateFn;
+
+    // v2.18.0 — Layout Templates & Composite Widgets
+    pub const DashboardLayout = @import("widgets/layout_template.zig").DashboardLayout;
+    pub const MasterDetail = @import("widgets/layout_template.zig").MasterDetail;
+    pub const Stepper = @import("widgets/stepper.zig").Stepper;
+    pub const StepperStatus = @import("widgets/stepper.zig").StepStatus;
+    pub const StepperStep = @import("widgets/stepper.zig").Step;
 };
 
 // Export commonly used types

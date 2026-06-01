@@ -4,9 +4,57 @@
 
 - **Latest release**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
 - **Latest minor**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
-- **Next milestone**: v2.17.0 — Interactive Data Editing
-- **Active milestones**: 3 (v2.2.0, v2.16.0-pending-release, v2.17.0)
+- **Next milestone**: v2.19.0 — Scrollbar & Breadcrumb Navigation
+- **Active milestones**: 2 (v2.17.0-pending-release, v2.18.0-pending-release)
 - **Blockers**: None
+
+### v2.19.0 — Scrollbar & Breadcrumb Navigation (Target: 2026-06-14)
+
+**Theme**: Navigation and scroll indicator widgets for content-heavy TUI applications
+
+**Checklist**:
+- [ ] **widgets/scrollbar.zig** — Scrollbar: explicit vertical/horizontal scroll indicator with position and viewport ratio
+- [ ] **widgets/breadcrumb.zig** — Breadcrumb: horizontal navigation path display with separator and truncation
+- [ ] **tests/scrollbar_test.zig** — Scrollbar tests (position calculation, render modes, edge cases)
+- [ ] **tests/breadcrumb_test.zig** — Breadcrumb tests (path rendering, truncation, separator, zero-area)
+- [ ] Export both widgets in tui.zig
+- [ ] Release v2.19.0
+
+**Success Criteria**:
+- Scrollbar renders correctly at any position (0..total), clamped to viewport
+- Scrollbar.setPosition/setTotal update state; ratio renders track+thumb proportionally
+- Breadcrumb renders `item1 / item2 / item3` with configurable separator
+- Breadcrumb truncates from left when path is wider than area
+- Both handle zero-area and empty input without panic
+
+**Notes**:
+- Scrollbar useful for: silica (long query results), zoltraak (key list), zr (task list)
+- Breadcrumb useful for: silica (schema browser path), zoltraak (key namespace), zr (directory path)
+- No allocator required in render() — all stack-based with slice input
+
+### v2.18.0 — Layout Templates & Stepper (Target: 2026-06-07)
+
+**Theme**: Pre-built layout helpers and multi-step wizard widget for rapid TUI development
+
+**Checklist**:
+- [x] **widgets/layout_template.zig** — DashboardLayout (header+sidebar+main+footer split), MasterDetail (two-panel with divider)
+- [x] **widgets/stepper.zig** — Stepper: multi-step wizard with status tracking (pending/active/completed/failed), horizontal/vertical rendering
+- [x] **tests/layout_template_test.zig** — Layout template tests (split dimensions, edge cases, zero area, offset area) — 41 tests
+- [x] **tests/stepper_test.zig** — Stepper tests (navigation, status tracking, isComplete/hasFailed, rendering) — 66 tests
+- [x] Export DashboardLayout, MasterDetail, Stepper, StepperStatus, StepperStep in tui.zig
+- [ ] Release v2.18.0
+
+**Success Criteria**:
+- DashboardLayout.split() correctly partitions area into header/sidebar/main/footer with no overlap
+- MasterDetail.split() correctly splits into master/detail; render() draws divider line
+- Stepper.moveNext/movePrev navigate steps with bounds clamping
+- Stepper.isComplete/hasFailed query status correctly
+- Both widgets handle zero-area and offset areas without panic
+
+**Notes**:
+- DashboardLayout and MasterDetail are pure layout helpers (no Buffer in split())
+- Stepper uses Direction enum from layout.zig
+- Useful for: zr (wizard setup flows), silica (query builder steps), zoltraak (connection wizard)
 
 ### v2.17.0 — Interactive Data Editing (Target: 2026-06-14)
 

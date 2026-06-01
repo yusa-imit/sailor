@@ -806,6 +806,26 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(record_editor_tests).step);
     // test_step.dependOn(&b.addRunArtifact(migration_script_tests).step); // Disabled for v2.0.0 work
 
+    const layout_template_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/layout_template_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    layout_template_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(layout_template_tests).step);
+
+    const stepper_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/stepper_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    stepper_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(stepper_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",
