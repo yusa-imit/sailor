@@ -1,24 +1,32 @@
-✅ **Session 259** — FEATURE MODE (2026-06-01)
-  - **Mode**: FEATURE (session 259, 259 % 5 == 4)
-  - **Achievement**: Implemented v2.18.0 (LayoutTemplate + Stepper) and v2.19.0 (Scrollbar + Breadcrumb)
+✅ **Session 260** — STABILIZATION MODE (2026-06-01)
+  - **Mode**: STABILIZATION (session 260, 260 % 5 == 0)
+  - **Achievement**: Fixed critical CI-hanging sixel decoder infinite loop; improved 20+ weak test assertions across 9 files; all 6 cross-compile targets pass
 
   **Completed Work**:
-    - ✅ CI check: 1 in_progress, 1 pending (triggered by pushes)
+    - ✅ CI check: ALL prior CI runs were hanging for 6+ hours (run 26729464467 and older)
     - ✅ GitHub issues check: 0 open issues
-    - ✅ Committed v2.18.0 (uncommitted from previous session):
-      - `src/tui/widgets/layout_template.zig`: DashboardLayout + MasterDetail
-      - `src/tui/widgets/stepper.zig`: Stepper (multi-step wizard, horizontal/vertical)
-      - 41 layout_template tests + 66 stepper tests
-      - Fixed weak test in layout_template_test.zig (replaced vacuous `or` assertions)
-      - Fixed .gitignore to add `*-test` pattern; deleted stale `dag-test` artifact
-      - Added v2.18.0 and v2.19.0 milestone definitions to milestones.md
-      - Commit: 93bfd92
-    - ✅ Implemented v2.19.0:
-      - `src/tui/widgets/scrollbar.zig`: Scrollbar with proportional thumbSize/thumbOffset math, vertical/horizontal render
-      - `src/tui/widgets/breadcrumb.zig`: Breadcrumb with left-truncation, active highlight, builder pattern
-      - 62 scrollbar tests + 53 breadcrumb tests
-      - Export: Scrollbar, ScrollbarOrientation, Breadcrumb in tui.zig
-      - Commit: 3e389dc
+    - ✅ CRITICAL FIX: `src/tui/sixel.zig` SixelDecoder.decode infinite loop
+      - Bug: bare color selection branch (`#index` without semicolons) at ~line 936
+      - `const num_end = pos` (const, not var) + `pos += 1` in loop instead of `num_end += 1`
+      - Diagnosis: macOS `sample` on PID 85426 (100% CPU 16+ min) → call stack → sixel.zig:937
+      - Fix: `var num_end`, `num_end += 1`, slice `payload[pos..num_end]`, advance `pos = num_end`
+    - ✅ Fixed 20+ weak test assertions across 9 test files:
+      - `tests/scrollbar_test.zig`: 6 improvements (always-true `>= 0`, no-assertion "does not crash")
+      - `tests/layout_template_test.zig`: 3 improvements (u16 `>= 0` → `> 0`, clamping assertions)
+      - `tests/grapheme_test.zig`: 12 placeholder `expect(true)` → real Buffer API tests
+      - `tests/pipeline_test.zig`: 6 improvements (icon render positions, icon character values)
+      - `tests/advanced_profiler_test.zig`: 1 fix (u64 `>= 0` → `<= total_time_ns`)
+      - `tests/advanced_widgets_test.zig`: 1 fix (u16 `>= 0` → `== container.y`)
+      - `tests/particles_test.zig`: 1 fix (u32 `>= 0` → `<= 50`)
+      - `tests/edge_cases_test.zig`: 1 fix (usize `>= 0` → `<= invalid.len`)
+      - `tests/layout_intelligence_test.zig`: 1 fix (usize `>= 0` → `_ = issues.len`)
+    - ✅ Cross-platform verification: all 6 targets pass (ReleaseSafe)
+      - x86_64-linux-gnu, aarch64-linux-gnu
+      - x86_64-windows-msvc, aarch64-windows-msvc
+      - x86_64-macos-none, aarch64-macos-none
+    - ✅ Commit: cf46247 fix(sixel): fix infinite loop in SixelDecoder.decode bare color selection; improve test quality across 9 files
+    - ✅ Pushed to main
+    - ✅ New CI run 26739597390 triggered (queued)
 
   **Current State**:
     - **Latest release**: v2.14.0 (tagged)
@@ -27,93 +35,38 @@
     - **v2.17.0**: Implementation complete (f114f2e), awaiting CI pass for release
     - **v2.18.0**: Implementation complete (93bfd92), awaiting CI pass for release
     - **v2.19.0**: Implementation complete (3e389dc), awaiting CI pass for release
-    - **CI status**: 1 in_progress (from ~00:29), 1 pending (from ~00:49) — showing progress
+    - **CI status**: Run 26739597390 queued — should pass with sixel fix
     - **Open issues**: 0 (sailor)
-    - **Test count**: ~5065 (v2.17.0) + 41 + 66 (v2.18.0) + 62 + 53 (v2.19.0) = ~5287+ tests
-
-  **Known Issue**: `zig build test` on local machine tends to hang during full suite execution.
-    - Workaround: rely on CI for full test execution; `zig build` for per-change compilation check
 
   **Next Priority**:
-    - Monitor CI run status — if passes, batch-release v2.15.0 → v2.16.0 → v2.17.0 → v2.18.0 → v2.19.0
-    - Plan v2.20.0 milestone after releases complete (active milestones drop to 0 after batch release)
+    - Monitor CI run 26739597390
+    - When CI passes, batch-release v2.15.0 → v2.16.0 → v2.17.0 → v2.18.0 → v2.19.0
+    - Establish v2.20.0+ milestones after batch release
+
+✅ **Session 259** — FEATURE MODE (2026-06-01)
+  - **Mode**: FEATURE (session 259, 259 % 5 == 4)
+  - **Achievement**: Implemented v2.18.0 (LayoutTemplate + Stepper) and v2.19.0 (Scrollbar + Breadcrumb)
+
+  **Completed Work**:
+    - ✅ Committed v2.18.0: DashboardLayout, MasterDetail, Stepper (41+66 tests) — commit 93bfd92
+    - ✅ Implemented v2.19.0: Scrollbar, Breadcrumb (62+53 tests) — commit 3e389dc
 
 ✅ **Session 258** — FEATURE MODE (2026-06-01)
   - **Mode**: FEATURE (session 258, 258 % 5 == 3)
   - **Achievement**: Implemented v2.17.0 EditableTable and RecordEditor widgets
-
-  **Completed Work**:
-    - ✅ CI check: 1 in_progress (26712985640), 1 pending (26721079423, triggered by this push)
-    - ✅ GitHub issues check: 0 open issues
-    - ✅ Established v2.17.0 milestone in docs/milestones.md
-    - ✅ Implemented `src/tui/widgets/editable_table.zig`:
-      - CellState enum: normal, selected, editing
-      - EditableTable with row/col cursor navigation (moveDown/Up/Left/Right)
-      - Edit mode: startEdit (copies cell text), confirmEdit, cancelEdit
-      - Buffer ops: insertChar, deleteChar
-      - Query: currentCell, editText
-      - render() with header/selected/editing styles, scroll support
-      - Builder pattern: withBlock, withScroll
-    - ✅ Implemented `src/tui/widgets/record_editor.zig`:
-      - Field struct: key, value, is_editable
-      - ValidationResult enum (ok/invalid), ValidateFn callback type
-      - RecordEditor with field navigation (moveDown/moveUp)
-      - Edit mode + validation: startEdit, confirmEdit, cancelEdit, isValid
-      - Buffer ops: insertChar, deleteChar
-      - render() with all styles: normal, selected, editing, error, readonly
-      - Builder pattern: withBlock, withValidate
-    - ✅ Created tests/editable_table_test.zig — 42 tests
-    - ✅ Created tests/record_editor_test.zig — 47 tests
-    - ✅ Exported in src/tui/tui.zig:
-      - EditableTable, CellState
-      - RecordEditor, RecordEditorField, RecordEditorValidationResult, RecordEditorValidateFn
-    - ✅ Updated build.zig — registered editable_table_tests and record_editor_tests
-    - ✅ Commit: f114f2e feat(v2.17.0): implement EditableTable and RecordEditor widgets
-    - ✅ Pushed to main
-
-  **Current State**:
-    - **Latest release**: v2.14.0 (tagged)
-    - **v2.15.0**: Implementation complete (f118681), awaiting CI pass for release
-    - **v2.16.0**: Implementation complete (918cc1d), awaiting CI pass for release
-    - **v2.17.0**: Implementation complete (f114f2e), awaiting CI pass for release
-    - **CI status**: Run 26721079423 pending (triggered by latest push); run 26712985640 in_progress
-    - **Open issues**: 0 (sailor)
-    - **Blockers**: NONE
-    - **Test count**: ~4976 + 42 EditableTable + 47 RecordEditor = ~5065+ tests
-
-  **Known Issue**: `zig build test` on local machine tends to hang during full suite execution.
-    - Workaround: rely on CI for full test execution; `zig build` for per-change compilation check
-
-  **Next Priority**:
-    - Monitor CI run 26721079423
-    - When CI passes:
-      1. Release v2.15.0 (tag at f118681, bump build.zig.zon to 2.15.0)
-      2. Release v2.16.0 (tag at 918cc1d, bump to 2.16.0)
-      3. Release v2.17.0 (tag at f114f2e or HEAD, bump to 2.17.0)
-    - Plan v2.18.0 milestone
+  - **Commit**: f114f2e
 
 ✅ **Session 257** — FEATURE MODE (2026-05-31)
   - **Mode**: FEATURE (session 257, 257 % 5 == 2)
   - **Achievement**: Implemented v2.16.0 DiffViewer and JsonBrowser widgets
-
-  **Completed Work**:
-    - ✅ Implemented diff_viewer.zig (30 tests) and json_browser.zig (37 tests)
-    - ✅ Commit: 918cc1d feat(v2.16.0): implement DiffViewer and JsonBrowser widgets
+  - **Commit**: 918cc1d
 
 ✅ **Session 256** — FEATURE MODE (2026-05-31)
   - **Mode**: FEATURE (session 256, 256 % 5 == 1)
   - **Achievement**: Implemented v2.15.0 DagWidget and Pipeline visualization widgets
-
-  **Completed Work**:
-    - ✅ Implemented dag.zig and pipeline.zig
-    - ✅ 81 tests: dag_test.zig (36 tests), pipeline_test.zig (45 tests)
-    - ✅ Commit: f118681 feat(v2.15.0): implement DagWidget and Pipeline visualization widgets
+  - **Commit**: f118681
 
 ✅ **Session 255** — STABILIZATION MODE (2026-05-31)
   - **Mode**: STABILIZATION (session 255, 255 % 5 == 0)
   - **Achievement**: Fixed global state violation in fuzzy.zig, improved test quality
-
-  **Completed Work**:
-    - ✅ Fixed global state in src/fuzzy.zig (FuzzyMatcher now holds instance buffer)
-    - ✅ Commit: 1838c74 fix(fuzzy): remove global state — FuzzyMatcher now holds instance buffer
-    - ✅ Cross-platform verification: all 6 targets (linux/windows/macos x86_64+aarch64) pass
+  - **Commit**: 1838c74
