@@ -84,6 +84,10 @@ pub const audit = @import("audit.zig");
 pub const screen_reader = @import("screen_reader.zig");
 pub const keyboard_nav = @import("keyboard_nav.zig");
 
+// v2.20.0 — App Screen Manager
+pub const screen = @import("screen.zig");
+pub const router = @import("router.zig");
+
 // v1.13.0+ — Advanced Text Editing & Rich Input
 pub const syntax = @import("syntax.zig");
 

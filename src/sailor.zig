@@ -229,6 +229,11 @@ pub const reactive = @import("tui/widgets/reactive.zig");
 // v2.14.0 — Fuzzy Search & Command Palette
 pub const fuzzy = @import("fuzzy.zig");
 
+// v2.20.0 — App Screen Manager
+pub const ScreenHandle = @import("tui/screen.zig").ScreenHandle;
+pub const ScreenResult = @import("tui/screen.zig").ScreenResult;
+pub const ScreenRouter = @import("tui/router.zig").ScreenRouter;
+
 test {
     // Pull in all module tests
     std.testing.refAllDecls(@This());
