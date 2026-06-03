@@ -4,9 +4,37 @@
 
 - **Latest release**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
 - **Latest minor**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
-- **Next milestone**: v2.20.0 — TBD (to be established when releases complete)
-- **Active milestones**: 3 (v2.17.0-pending-release, v2.18.0-pending-release, v2.19.0-pending-release)
+- **Next milestone**: v2.20.0 — App Screen Manager (in progress, session 262)
+- **Active milestones**: 4 (v2.17.0-pending-release, v2.18.0-pending-release, v2.19.0-pending-release, v2.20.0-in-progress)
 - **Blockers**: CI must pass for v2.15.0-v2.19.0 releases
+
+### v2.20.0 — App Screen Manager (Target: 2026-06-14)
+
+**Theme**: Stack-based screen navigation infrastructure for multi-screen TUI applications
+
+**Checklist**:
+- [x] **src/tui/screen.zig** — ScreenHandle: type-erased screen wrapper with vtable; ScreenResult: navigation signal (cont/pop/reset/push/replace)
+- [x] **src/tui/router.zig** — ScreenRouter: allocator-backed stack navigator; push/pop/replace/reset with onEnter/onLeave lifecycle dispatch
+- [x] **tests/screen_test.zig** — ScreenHandle tests (lifecycle dispatch, event routing, render, multi-type) — 12 tests
+- [x] **tests/router_test.zig** — ScreenRouter tests (navigation stack, lifecycle ordering, dispatch routing, render delegation) — 24 tests
+- [x] Export ScreenHandle, ScreenResult, ScreenRouter in sailor.zig; export screen/router modules in tui.zig
+- [ ] Release v2.20.0
+
+**Success Criteria**:
+- ScreenHandle.init(T, ptr) wraps any struct with render/handleEvent/onEnter/onLeave
+- ScreenRouter.push increments depth, suspends current (onLeave), activates new (onEnter)
+- ScreenRouter.pop decrements depth, leaves current, resumes previous (onEnter)
+- ScreenRouter.replace swaps top screen without changing depth
+- ScreenRouter.reset clears entire stack, calls onLeave on all (top-to-bottom), activates new root
+- ScreenRouter.dispatch routes ScreenResult variants to corresponding navigation operations
+- ScreenRouter.render delegates to top-of-stack screen only
+- All edge cases (empty stack, pop-to-empty, replace on empty) handled without panic
+
+**Notes**:
+- Useful for all three consumer projects (zr, zoltraak, silica) to manage multi-screen TUI flows
+- No vtable stored as local: uses Impl struct pattern for static vtable lifetime
+- ScreenHandle works with both stack-allocated and heap-allocated screens
+- Consumer projects can define their own screen types and compose them with ScreenRouter
 
 ### v2.19.0 — Scrollbar & Breadcrumb Navigation (Target: 2026-06-14)
 
