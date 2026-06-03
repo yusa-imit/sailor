@@ -427,7 +427,7 @@ fn octreeQuantize(allocator: Allocator, colors: []const SixelImage.Color, max_pa
 
         // Reduce a node at this level
         const node = reducible_nodes[level].pop() orelse break;
-        try reduceOctreeNode(node, &leaf_count);
+        try reduceOctreeNode(allocator, node, &leaf_count);
     }
 
     // Extract palette
@@ -478,7 +478,7 @@ fn insertOctreeColor(
         };
         node.children[idx] = child;
 
-        if (level < 7) {
+        if (level <= 7) {
             try reducible_nodes[level].append(allocator, node);
         }
     }
@@ -486,12 +486,16 @@ fn insertOctreeColor(
     try insertOctreeColor(allocator, node.children[idx].?, color, level + 1, reducible_nodes, leaf_count);
 }
 
-fn reduceOctreeNode(node: *OctreeNode, leaf_count: *usize) !void {
+fn reduceOctreeNode(allocator: Allocator, node: *OctreeNode, leaf_count: *usize) !void {
+    // Guard: skip if already reduced (duplicate entry in reducible_nodes)
+    if (node.is_leaf) return;
+
     var r_sum: u32 = 0;
     var g_sum: u32 = 0;
     var b_sum: u32 = 0;
     var count: u32 = 0;
 
+    // Children are always leaves when processing deepest-first (level <= 7 insertion)
     for (node.children) |maybe_child| {
         if (maybe_child) |child| {
             if (child.is_leaf) {
@@ -509,7 +513,12 @@ fn reduceOctreeNode(node: *OctreeNode, leaf_count: *usize) !void {
     node.pixel_count = count;
     leaf_count.* += 1;
 
-    // Clear children (they're merged)
+    // Free and clear children (they're being merged into parent)
+    for (node.children) |maybe_child| {
+        if (maybe_child) |child| {
+            freeOctree(allocator, child);
+        }
+    }
     for (&node.children) |*child| child.* = null;
 }
 
@@ -1655,9 +1664,10 @@ pub const SixelAnimator = struct {
             } else {
                 // Reached last frame
                 if (self.loop_count == 0) {
-                    // Infinite loop: wrap to first frame
+                    // Infinite loop: wrap to first frame only if there are multiple frames
+                    const was_last = self.current_frame_index;
                     self.current_frame_index = 0;
-                    frame_changed = true;
+                    if (was_last != 0) frame_changed = true;
                 } else {
                     // Finite loop: check if we've completed all iterations
                     if (self.current_loop < self.loop_count) {
@@ -1695,12 +1705,13 @@ pub const SixelAnimator = struct {
 /// Reduces bandwidth for sixel data with high repetition (common with solid colors).
 pub const SixelCompressor = struct {
     /// Compress sixel data using RLE
-    /// Runs of 2+ identical characters are compressed as "!<count><char>"
-    /// Single characters are left as literals
+    /// Only applies RLE to sixel data characters (0x3f-0x7e)
+    /// Header, palette definitions, and control characters pass through unchanged
+    /// Runs of 2+ identical sixel data chars are compressed as "!<count><char>"
     ///
     /// Args:
     ///   allocator: Memory allocator for result buffer
-    ///   data: Uncompressed sixel data (or any data)
+    ///   data: Uncompressed sixel data (complete with headers)
     ///
     /// Returns:
     ///   Compressed data (caller owns, must free)
@@ -1718,39 +1729,49 @@ pub const SixelCompressor = struct {
         var i: usize = 0;
         while (i < data.len) {
             const current_char = data[i];
-            var run_length: usize = 1;
 
-            // Count consecutive identical characters
-            while (i + run_length < data.len and data[i + run_length] == current_char) {
-                run_length += 1;
-            }
+            // Only apply RLE to sixel data characters (0x3f-0x7e)
+            if (current_char >= 0x3f and current_char <= 0x7e) {
+                var run_length: usize = 1;
 
-            if (run_length >= 2) {
-                // Compress runs >= 2 characters
-                // Split runs > 255 into multiple sequences
-                var remaining = run_length;
-                while (remaining > 0) {
-                    const chunk_size = if (remaining > 255) 255 else remaining;
-
-                    // Write "!" prefix
-                    try result.append(allocator, '!');
-
-                    // Write count as decimal string
-                    var buf: [6]u8 = undefined;
-                    const count_str = try std.fmt.bufPrint(&buf, "{}", .{chunk_size});
-                    try result.appendSlice(allocator, count_str);
-
-                    // Write character
-                    try result.append(allocator, current_char);
-
-                    remaining -= chunk_size;
+                // Count consecutive identical sixel data characters
+                while (i + run_length < data.len and
+                       data[i + run_length] == current_char and
+                       data[i + run_length] >= 0x3f and data[i + run_length] <= 0x7e) {
+                    run_length += 1;
                 }
-            } else {
-                // Keep runs < 3 as literals
-                try result.appendSlice(allocator, data[i .. i + run_length]);
-            }
 
-            i += run_length;
+                if (run_length >= 2) {
+                    // Compress runs >= 2 characters
+                    // Split runs > 255 into multiple sequences
+                    var remaining = run_length;
+                    while (remaining > 0) {
+                        const chunk_size = if (remaining > 255) 255 else remaining;
+
+                        // Write "!" prefix
+                        try result.append(allocator, '!');
+
+                        // Write count as decimal string
+                        var buf: [6]u8 = undefined;
+                        const count_str = try std.fmt.bufPrint(&buf, "{}", .{chunk_size});
+                        try result.appendSlice(allocator, count_str);
+
+                        // Write character
+                        try result.append(allocator, current_char);
+
+                        remaining -= chunk_size;
+                    }
+                } else {
+                    // Single character: keep as literal
+                    try result.append(allocator, current_char);
+                }
+
+                i += run_length;
+            } else {
+                // Non-sixel character: pass through unchanged
+                try result.append(allocator, current_char);
+                i += 1;
+            }
         }
 
         return result.toOwnedSlice(allocator);

@@ -119,17 +119,19 @@ pub const DiffViewer = struct {
 
     /// Count lines by kind. Returns counts for added, removed, and hunk headers.
     pub fn counts(self: DiffViewer) struct { added: usize, removed: usize, hunks: usize } {
-        var result = .{ .added = @as(usize, 0), .removed = @as(usize, 0), .hunks = @as(usize, 0) };
+        var added: usize = 0;
+        var removed: usize = 0;
+        var hunks: usize = 0;
         var it = std.mem.splitScalar(u8, self.content, '\n');
         while (it.next()) |line| {
             switch (classifyLine(line)) {
-                .added => result.added += 1,
-                .removed => result.removed += 1,
-                .hunk_header => result.hunks += 1,
+                .added => added += 1,
+                .removed => removed += 1,
+                .hunk_header => hunks += 1,
                 else => {},
             }
         }
-        return result;
+        return .{ .added = added, .removed = removed, .hunks = hunks };
     }
 
     /// Render the diff into the buffer, clipped to area.

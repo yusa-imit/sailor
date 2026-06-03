@@ -249,7 +249,8 @@ test "adaptive: force_ansi mode with grayscale outputs non-empty result" {
 }
 
 test "adaptive: force_ansi mode output differs between widths (10 vs 40)" {
-    var buf1: [4096]u8 = undefined;
+    // Truecolor ANSI for a 20x20 image at width=20 (capped) needs ~10KB; use 32KB to be safe.
+    var buf1: [32768]u8 = undefined;
     var stream1 = std.io.fixedBufferStream(&buf1);
     const allocator = testing.allocator;
 
@@ -264,7 +265,7 @@ test "adaptive: force_ansi mode output differs between widths (10 vs 40)" {
     try AdaptiveImageRenderer.render(allocator, pixels, 20, 20, options1, stream1.writer());
     const output1 = stream1.getWritten();
 
-    var buf2: [4096]u8 = undefined;
+    var buf2: [32768]u8 = undefined;
     var stream2 = std.io.fixedBufferStream(&buf2);
 
     const options2 = AdaptiveImageRenderer.Options{
@@ -420,7 +421,7 @@ test "adaptive: auto mode produces non-empty output" {
 }
 
 test "adaptive: force_ansi mode respects custom ansi_height option" {
-    var buf: [4096]u8 = undefined;
+    var buf: [32768]u8 = undefined;
     var stream = std.io.fixedBufferStream(&buf);
     const allocator = testing.allocator;
 

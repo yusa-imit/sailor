@@ -537,12 +537,10 @@ test "isValid — validation receives key and value" {
     };
     var edit_buf = [_]u8{0} ** 256;
 
-    var validate_key_received: [10]u8 = undefined;
-    var validate_value_received: [10]u8 = undefined;
-
     const validator = struct {
         fn validate(key: []const u8, value: []const u8) ValidationResult {
             // Simplified test — just validate port is numeric
+            _ = key;
             for (value) |ch| {
                 if (ch < '0' or ch > '9') return .invalid;
             }
@@ -662,7 +660,8 @@ test "render — selected field uses selected_style" {
     defer buf.deinit();
     editor.render(&buf, Rect{ .x = 0, .y = 0, .width = 30, .height = 5 });
     const cell = buf.get(0, 0);
-    try testing.expect(cell.style.reverse);
+    try testing.expect(cell != null);
+    try testing.expect(cell.?.style.reverse);
 }
 
 test "render — editing field uses editing_style" {
@@ -748,7 +747,7 @@ test "withBlock — sets block wrapper" {
     };
     editor = editor.withBlock(block);
     try testing.expect(editor.block != null);
-    try testing.expectEqualStrings("Editor", editor.block.?.title);
+    try testing.expectEqualStrings("Editor", editor.block.?.title.?);
 }
 
 test "withValidate — sets validation function" {

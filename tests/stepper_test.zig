@@ -30,38 +30,38 @@ fn makeSteps(allocator: std.mem.Allocator, labels: []const []const u8) ![]Step {
 // ============================================================================
 
 test "Stepper default state has current=0" {
-    var stepper = Stepper{};
+    const stepper = Stepper{};
     try testing.expectEqual(@as(usize, 0), stepper.current);
 }
 
 test "Stepper default state is horizontal direction" {
-    var stepper = Stepper{};
+    const stepper = Stepper{};
     try testing.expectEqual(Direction.horizontal, stepper.direction);
 }
 
 test "Stepper default state has no block" {
-    var stepper = Stepper{};
+    const stepper = Stepper{};
     try testing.expect(stepper.block == null);
 }
 
 test "Stepper with empty steps" {
-    var stepper = Stepper{ .steps = &.{} };
+    const stepper = Stepper{ .steps = &.{} };
     try testing.expectEqual(@as(usize, 0), stepper.steps.len);
 }
 
 test "Stepper with single step" {
-    const steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
-    var stepper = Stepper{ .steps = &steps };
+    var steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
+    const stepper = Stepper{ .steps = &steps };
     try testing.expectEqual(@as(usize, 1), stepper.steps.len);
 }
 
 test "Stepper with multiple steps" {
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "Step 1", .status = .pending },
         .{ .label = "Step 2", .status = .pending },
         .{ .label = "Step 3", .status = .pending },
     };
-    var stepper = Stepper{ .steps = &steps };
+    const stepper = Stepper{ .steps = &steps };
     try testing.expectEqual(@as(usize, 3), stepper.steps.len);
 }
 
@@ -70,7 +70,7 @@ test "Stepper with multiple steps" {
 // ============================================================================
 
 test "moveNext increments current by 1" {
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "Step 1", .status = .pending },
         .{ .label = "Step 2", .status = .pending },
     };
@@ -80,7 +80,7 @@ test "moveNext increments current by 1" {
 }
 
 test "moveNext from step 1 moves to step 2" {
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "Step 1", .status = .pending },
         .{ .label = "Step 2", .status = .pending },
         .{ .label = "Step 3", .status = .pending },
@@ -91,7 +91,7 @@ test "moveNext from step 1 moves to step 2" {
 }
 
 test "moveNext at last step clamps to last index" {
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "Step 1", .status = .pending },
         .{ .label = "Step 2", .status = .pending },
     };
@@ -101,7 +101,7 @@ test "moveNext at last step clamps to last index" {
 }
 
 test "moveNext multiple times accumulates within bounds" {
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "Step 1", .status = .pending },
         .{ .label = "Step 2", .status = .pending },
         .{ .label = "Step 3", .status = .pending },
@@ -121,7 +121,7 @@ test "moveNext on empty steps does not crash" {
 }
 
 test "moveNext from start reaches last step in 2-step wizard" {
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "Begin", .status = .pending },
         .{ .label = "End", .status = .pending },
     };
@@ -135,7 +135,7 @@ test "moveNext from start reaches last step in 2-step wizard" {
 // ============================================================================
 
 test "movePrev decrements current by 1" {
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "Step 1", .status = .pending },
         .{ .label = "Step 2", .status = .pending },
     };
@@ -145,7 +145,7 @@ test "movePrev decrements current by 1" {
 }
 
 test "movePrev from step 2 moves to step 1" {
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "Step 1", .status = .pending },
         .{ .label = "Step 2", .status = .pending },
         .{ .label = "Step 3", .status = .pending },
@@ -156,7 +156,7 @@ test "movePrev from step 2 moves to step 1" {
 }
 
 test "movePrev at first step clamps to 0" {
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "Step 1", .status = .pending },
         .{ .label = "Step 2", .status = .pending },
     };
@@ -166,7 +166,7 @@ test "movePrev at first step clamps to 0" {
 }
 
 test "movePrev multiple times accumulates within bounds" {
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "Step 1", .status = .pending },
         .{ .label = "Step 2", .status = .pending },
         .{ .label = "Step 3", .status = .pending },
@@ -185,7 +185,7 @@ test "movePrev on empty steps does not crash" {
 }
 
 test "moveNext then movePrev returns to start" {
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "Step 1", .status = .pending },
         .{ .label = "Step 2", .status = .pending },
     };
@@ -405,7 +405,7 @@ test "hasFailed with mixed statuses only true if failed exists" {
 // ============================================================================
 
 test "currentStep returns current step" {
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "Step 1", .status = .pending },
         .{ .label = "Step 2", .status = .pending },
     };
@@ -417,7 +417,7 @@ test "currentStep returns current step" {
 }
 
 test "currentStep at different indices returns correct step" {
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "First", .status = .pending },
         .{ .label = "Second", .status = .pending },
         .{ .label = "Third", .status = .pending },
@@ -449,7 +449,7 @@ test "currentStep returns correct status" {
 }
 
 test "currentStep at last index" {
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "First", .status = .pending },
         .{ .label = "Last", .status = .pending },
     };
@@ -469,7 +469,7 @@ test "render on zero-area does not crash" {
     defer buf.deinit();
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
 
-    const steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
+    var steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
     var stepper = Stepper{ .steps = &steps };
     stepper.render(&buf, area);
 
@@ -492,7 +492,7 @@ test "render horizontal layout without panic" {
     defer buf.deinit();
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 30 };
 
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "Step 1", .status = .pending },
         .{ .label = "Step 2", .status = .active },
         .{ .label = "Step 3", .status = .pending },
@@ -508,7 +508,7 @@ test "render vertical layout without panic" {
     defer buf.deinit();
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 30 };
 
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "Step 1", .status = .pending },
         .{ .label = "Step 2", .status = .active },
         .{ .label = "Step 3", .status = .pending },
@@ -524,7 +524,7 @@ test "render with all completed steps" {
     defer buf.deinit();
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 30 };
 
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "Done 1", .status = .completed },
         .{ .label = "Done 2", .status = .completed },
     };
@@ -539,7 +539,7 @@ test "render with failed step" {
     defer buf.deinit();
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 30 };
 
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "Good", .status = .completed },
         .{ .label = "Bad", .status = .failed },
         .{ .label = "Pending", .status = .pending },
@@ -555,7 +555,7 @@ test "render on small area (5x2)" {
     defer buf.deinit();
     const area = Rect{ .x = 0, .y = 0, .width = 5, .height = 2 };
 
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "A", .status = .pending },
         .{ .label = "B", .status = .pending },
     };
@@ -570,7 +570,7 @@ test "render on single-row area" {
     defer buf.deinit();
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 1 };
 
-    const steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
+    var steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
     var stepper = Stepper{ .steps = &steps };
     stepper.render(&buf, area);
 
@@ -583,7 +583,7 @@ test "render with block applies border" {
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 30 };
 
     const block = Block{};
-    const steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
+    var steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
     var stepper = Stepper{ .steps = &steps, .block = block };
     stepper.render(&buf, area);
 
@@ -596,7 +596,7 @@ test "render with block applies border" {
 
 test "withBlock returns modified stepper with block" {
     const block = Block{};
-    const steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
+    var steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
     var stepper = Stepper{ .steps = &steps };
 
     const updated = stepper.withBlock(block);
@@ -605,7 +605,7 @@ test "withBlock returns modified stepper with block" {
 
 test "withBlock preserves other fields" {
     const block = Block{};
-    const steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
+    var steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
     var stepper = Stepper{ .steps = &steps, .current = 1, .direction = .vertical };
 
     const updated = stepper.withBlock(block);
@@ -618,7 +618,7 @@ test "withBlock preserves other fields" {
 // ============================================================================
 
 test "withDirection returns modified stepper with direction" {
-    const steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
+    var steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
     var stepper = Stepper{ .steps = &steps, .direction = .horizontal };
 
     const updated = stepper.withDirection(.vertical);
@@ -626,7 +626,7 @@ test "withDirection returns modified stepper with direction" {
 }
 
 test "withDirection preserves other fields" {
-    const steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
+    var steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
     var stepper = Stepper{ .steps = &steps, .current = 2, .block = Block{} };
 
     const updated = stepper.withDirection(.vertical);
@@ -635,7 +635,7 @@ test "withDirection preserves other fields" {
 }
 
 test "withDirection can switch from horizontal to vertical" {
-    const steps = [_]Step{.{ .label = "Step", .status = .pending }};
+    var steps = [_]Step{.{ .label = "Step", .status = .pending }};
     var stepper = Stepper{ .steps = &steps, .direction = .horizontal };
 
     const horizontal = stepper;
@@ -650,45 +650,45 @@ test "withDirection can switch from horizontal to vertical" {
 // ============================================================================
 
 test "Stepper accepts custom pending_style" {
-    const steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
+    var steps = [_]Step{.{ .label = "Step 1", .status = .pending }};
     const style = Style{ .bold = true };
 
-    var stepper = Stepper{ .steps = &steps, .pending_style = style };
+    const stepper = Stepper{ .steps = &steps, .pending_style = style };
     try testing.expect(stepper.pending_style.bold);
 }
 
 test "Stepper accepts custom active_style" {
-    const steps = [_]Step{.{ .label = "Step 1", .status = .active }};
+    var steps = [_]Step{.{ .label = "Step 1", .status = .active }};
     const style = Style{ .bold = true };
 
-    var stepper = Stepper{ .steps = &steps, .active_style = style };
+    const stepper = Stepper{ .steps = &steps, .active_style = style };
     try testing.expect(stepper.active_style.bold);
 }
 
 test "Stepper accepts custom completed_style" {
-    const steps = [_]Step{.{ .label = "Step 1", .status = .completed }};
+    var steps = [_]Step{.{ .label = "Step 1", .status = .completed }};
     const style = Style{ .bold = true };
 
-    var stepper = Stepper{ .steps = &steps, .completed_style = style };
+    const stepper = Stepper{ .steps = &steps, .completed_style = style };
     try testing.expect(stepper.completed_style.bold);
 }
 
 test "Stepper accepts custom failed_style" {
-    const steps = [_]Step{.{ .label = "Step 1", .status = .failed }};
+    var steps = [_]Step{.{ .label = "Step 1", .status = .failed }};
     const style = Style{ .bold = true };
 
-    var stepper = Stepper{ .steps = &steps, .failed_style = style };
+    const stepper = Stepper{ .steps = &steps, .failed_style = style };
     try testing.expect(stepper.failed_style.bold);
 }
 
 test "Stepper accepts custom connector_style" {
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "Step 1", .status = .pending },
         .{ .label = "Step 2", .status = .pending },
     };
     const style = Style{ .bold = true };
 
-    var stepper = Stepper{ .steps = &steps, .connector_style = style };
+    const stepper = Stepper{ .steps = &steps, .connector_style = style };
     try testing.expect(stepper.connector_style.bold);
 }
 
@@ -716,7 +716,7 @@ test "render respects current step index" {
     defer buf.deinit();
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 30 };
 
-    const steps = [_]Step{
+    var steps = [_]Step{
         .{ .label = "First", .status = .pending },
         .{ .label = "Current", .status = .active },
         .{ .label = "Last", .status = .pending },

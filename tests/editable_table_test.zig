@@ -634,8 +634,10 @@ test "render — selected row uses selected_style" {
     var buf = try makeBuffer(testing.allocator, 20, 5);
     defer buf.deinit();
     table.render(&buf, Rect{ .x = 0, .y = 0, .width = 20, .height = 5 });
-    const cell = buf.get(0, 0);
-    try testing.expect(cell.style.reverse);
+    // Header is at y=0, first data row is at y=1
+    const cell = buf.get(0, 1);
+    try testing.expect(cell != null);
+    try testing.expect(cell.?.style.reverse);
 }
 
 test "render — editing cell uses editing_style" {
@@ -654,8 +656,10 @@ test "render — editing cell uses editing_style" {
     defer buf.deinit();
     table.startEdit();
     table.render(&buf, Rect{ .x = 0, .y = 0, .width = 20, .height = 5 });
-    const cell = buf.get(0, 0);
-    try testing.expectEqual(Color.yellow, cell.style.fg);
+    // Header is at y=0, first data row is at y=1
+    const cell = buf.get(0, 1);
+    try testing.expect(cell != null);
+    try testing.expectEqual(Color.yellow, cell.?.style.fg);
 }
 
 test "render — header row uses header_style" {
@@ -731,7 +735,7 @@ test "withBlock — sets block wrapper" {
     };
     table = table.withBlock(block);
     try testing.expect(table.block != null);
-    try testing.expectEqualStrings("Table", table.block.?.title);
+    try testing.expectEqualStrings("Table", table.block.?.title.?);
 }
 
 test "withScroll — sets scroll position" {

@@ -9,7 +9,7 @@ const testing = std.testing;
 const sailor = @import("sailor");
 
 const Allocator = std.mem.Allocator;
-const UnicodeWidth = sailor.tui.UnicodeWidth;
+const UnicodeWidth = sailor.unicode.UnicodeWidth;
 
 // ============================================================================
 // GRAPHEME BOUNDARY DETECTION TESTS (UAX#29)

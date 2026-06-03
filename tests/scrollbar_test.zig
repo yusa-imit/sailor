@@ -18,22 +18,22 @@ const Orientation = sailor.tui.widgets.ScrollbarOrientation;
 // ============================================================================
 
 test "Scrollbar default state has zero total" {
-    var sb = Scrollbar{};
+    const sb = Scrollbar{};
     try testing.expectEqual(@as(usize, 0), sb.total);
 }
 
 test "Scrollbar default state has zero position" {
-    var sb = Scrollbar{};
+    const sb = Scrollbar{};
     try testing.expectEqual(@as(usize, 0), sb.position);
 }
 
 test "Scrollbar default state has zero viewport" {
-    var sb = Scrollbar{};
+    const sb = Scrollbar{};
     try testing.expectEqual(@as(usize, 0), sb.viewport);
 }
 
 test "Scrollbar default state is vertical orientation" {
-    var sb = Scrollbar{};
+    const sb = Scrollbar{};
     try testing.expectEqual(Orientation.vertical, sb.orientation);
 }
 
@@ -266,7 +266,7 @@ test "thumbOffset scales with track_len" {
 // ============================================================================
 
 test "withOrientation returns scrollbar with horizontal orientation" {
-    var sb = Scrollbar{};
+    const sb = Scrollbar{};
     const updated = sb.withOrientation(.horizontal);
     try testing.expectEqual(Orientation.horizontal, updated.orientation);
 }

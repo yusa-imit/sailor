@@ -99,8 +99,8 @@ test "totalWidth with long separator" {
     const items = [_][]const u8{ "A", "B" };
     const bc = Breadcrumb{ .items = &items, .separator = " → " };
     const width = bc.totalWidth();
-    // "A" (1) + " → " (3) + "B" (1) = 5
-    try testing.expectEqual(@as(usize, 5), width);
+    // "A" (1) + " → " (5 bytes, Unicode arrow) + "B" (1) = 7
+    try testing.expectEqual(@as(usize, 7), width);
 }
 
 test "totalWidth with single character items" {
@@ -474,10 +474,10 @@ test "breadcrumb workflow: build with builder then render" {
     defer buf.deinit();
 
     const items = [_][]const u8{ "Home", "Projects", "sailor" };
-    const bc = Breadcrumb{}
-        .withItems(&items)
-        .withSeparator(" > ")
-        .withActive(1);
+    var bc = Breadcrumb{};
+    bc = bc.withItems(&items);
+    bc = bc.withSeparator(" > ");
+    bc = bc.withActive(1);
 
     try testing.expectEqual(@as(usize, 3), bc.items.len);
     try testing.expectEqualSlices(u8, " > ", bc.separator);
