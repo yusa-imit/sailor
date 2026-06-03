@@ -4,9 +4,37 @@
 
 - **Latest release**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
 - **Latest minor**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
-- **Next milestone**: v2.20.0 — App Screen Manager (in progress, session 262)
-- **Active milestones**: 4 (v2.17.0-pending-release, v2.18.0-pending-release, v2.19.0-pending-release, v2.20.0-in-progress)
-- **Blockers**: CI must pass for v2.15.0-v2.19.0 releases
+- **Next release**: v2.15.0 (pending CI green on main) — Dependency Graph & Pipeline
+- **Active milestones**: 6 pending release (v2.15.0-v2.20.0 implemented, awaiting CI)
+- **Blockers**: CI green on main required before v2.15.0-v2.20.0 sequential releases
+
+### v2.21.0 — App Shell & Status Line (Target: 2026-06-21)
+
+**Theme**: High-level application entry point and status line infrastructure for multi-screen TUI apps
+
+**Checklist**:
+- [ ] **app.zig** — AppShell: wraps ScreenRouter + Terminal into one struct; run() event loop with Ctrl+C/q graceful exit; optional frame rate cap; onResize callback
+- [ ] **statusline.zig** — StatusLine widget: left/center/right sections; each section accepts []Span; auto-pad to fill width
+- [ ] **keybinding.zig** — KeybindingMap: named action registry (register/lookup/context); KeybindingBar widget renders map as `key desc | key desc` in a status line section
+- [ ] **tests/app_shell_test.zig** — AppShell struct-level tests (init, deinit, configuration) — 12 tests
+- [ ] **tests/statusline_test.zig** — StatusLine tests (section render, padding, width clamping, zero-area) — 24 tests
+- [ ] **tests/keybinding_test.zig** — KeybindingMap tests (register, lookup, context override, render bar) — 20 tests
+- [ ] Export AppShell in sailor.zig; export statusline, keybinding modules in tui.zig
+- [ ] Release v2.21.0
+
+**Success Criteria**:
+- AppShell.run() drives the event loop: poll event → dispatch to ScreenRouter → render top screen → flush
+- AppShell handles SIGWINCH (terminal resize) by re-querying terminal size and updating layout
+- StatusLine.render() fills the entire row width with left/center/right sections; center is centered
+- KeybindingMap.register(action, keys, desc) stores entries; KeybindingBar renders as `[key] desc` pairs
+- KeybindingMap supports context override: per-screen bindings shadow global bindings
+- All handle zero-area and empty input without panic
+
+**Notes**:
+- AppShell does NOT own screen structs — caller manages screen lifetime
+- StatusLine is purely presentational — no state, no allocator in render()
+- KeybindingBar is designed for the bottom status line of a TUI app
+- Useful for all 3 consumer projects to build clean main loops
 
 ### v2.20.0 — App Screen Manager (Target: 2026-06-14)
 
@@ -150,7 +178,7 @@
 - [x] **tests/dag_test.zig** — 36 tests for DagWidget (node creation, rendering, edge handling, clipping)
 - [x] **tests/pipeline_test.zig** — 45 tests for Pipeline (status queries, rendering, layout directions)
 - [x] Export both widgets in tui.zig
-- [x] Release v2.15.0
+- [ ] Release v2.15.0
 
 **Success Criteria**:
 - DagWidget renders nodes as boxes with labels, edges as connecting lines
