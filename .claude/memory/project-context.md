@@ -1,3 +1,35 @@
+✅ **Session 269** — FEATURE MODE (2026-06-03)
+  - **Mode**: FEATURE (session 269, 269 % 5 == 4)
+  - **Achievement**: Implemented v2.21.0 AppShell, StatusLine, KeybindingMap/KeybindingBar
+
+  **Completed Work**:
+    - ✅ CI check: queued run 26868363021 on commit 09c5387
+    - ✅ Previous CI failure (5cf044e): all errors already fixed in session 268
+    - ✅ Implemented `src/tui/app.zig` — AppShell wrapping ScreenRouter with AppConfig (fps_cap, exit_on_q)
+    - ✅ Implemented `src/tui/statusline.zig` — StatusLine three-section status bar with builder API
+    - ✅ Implemented `src/tui/keybinding.zig` — KeybindingMap (register/lookup) + KeybindingBar widget
+    - ✅ Fixed KeybindingEntry nesting inside KeybindingMap (removes ambiguous reference)
+    - ✅ Fixed KeybindingMap.register() to take []const slice (was dangling pointer to stack copy)
+    - ✅ Fixed app_shell_test.zig null comparison on *ScreenRouter
+    - ✅ Fixed keybinding_test.zig bool vs usize comparison
+    - ✅ Added 3 new test files to build.zig
+    - ✅ Exported AppShell, AppConfig from sailor.zig
+    - ✅ 56 new tests: 12 (app_shell) + 24 (statusline) + 20 (keybinding) — all passing
+    - ✅ Commit: 6583fc9 feat(v2.21.0): implement AppShell, StatusLine, and KeybindingMap widgets
+    - ✅ Pushed to main
+
+  **Current State**:
+    - **Latest release**: v2.14.0 (tagged)
+    - **v2.15.0-v2.20.0**: Implemented, pending CI pass for batch release
+    - **v2.21.0**: Implementation complete (6583fc9), needs CI + then release
+    - **Next milestone**: Release v2.21.0 after CI green + resolve pending v2.15.0-v2.20.0 releases
+    - **Open issues**: 0 (sailor)
+
+  **Next Priority**:
+    - Wait for CI run to pass on main
+    - Batch-release v2.15.0 → v2.21.0 when CI is green
+    - Start v2.22.0 planning
+
 ✅ **Session 260** — STABILIZATION MODE (2026-06-01)
   - **Mode**: STABILIZATION (session 260, 260 % 5 == 0)
   - **Achievement**: Fixed critical CI-hanging sixel decoder infinite loop; improved 20+ weak test assertions across 9 files; all 6 cross-compile targets pass

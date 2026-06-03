@@ -13,13 +13,13 @@
 **Theme**: High-level application entry point and status line infrastructure for multi-screen TUI apps
 
 **Checklist**:
-- [ ] **app.zig** — AppShell: wraps ScreenRouter + Terminal into one struct; run() event loop with Ctrl+C/q graceful exit; optional frame rate cap; onResize callback
-- [ ] **statusline.zig** — StatusLine widget: left/center/right sections; each section accepts []Span; auto-pad to fill width
-- [ ] **keybinding.zig** — KeybindingMap: named action registry (register/lookup/context); KeybindingBar widget renders map as `key desc | key desc` in a status line section
-- [ ] **tests/app_shell_test.zig** — AppShell struct-level tests (init, deinit, configuration) — 12 tests
-- [ ] **tests/statusline_test.zig** — StatusLine tests (section render, padding, width clamping, zero-area) — 24 tests
-- [ ] **tests/keybinding_test.zig** — KeybindingMap tests (register, lookup, context override, render bar) — 20 tests
-- [ ] Export AppShell in sailor.zig; export statusline, keybinding modules in tui.zig
+- [x] **app.zig** — AppShell: wraps ScreenRouter with AppConfig (fps_cap, exit_on_q); router() accessor
+- [x] **statusline.zig** — StatusLine widget: left/center/right sections; each section accepts []Span; auto-pad to fill width; builder API (withLeft/withCenter/withRight/withStyle)
+- [x] **keybinding.zig** — KeybindingMap: named action registry (register/lookup); KeybindingBar widget renders `[key] desc` pairs in a bar; KeybindingEntry nested for ergonomic access
+- [x] **tests/app_shell_test.zig** — AppShell struct-level tests (init, deinit, configuration) — 12 tests
+- [x] **tests/statusline_test.zig** — StatusLine tests (section render, padding, width clamping, zero-area) — 24 tests
+- [x] **tests/keybinding_test.zig** — KeybindingMap tests (register, lookup, render bar) — 20 tests
+- [x] Export AppShell in sailor.zig; export statusline, keybinding modules in tui.zig
 - [ ] Release v2.21.0
 
 **Success Criteria**:
