@@ -88,6 +88,11 @@ pub const keyboard_nav = @import("keyboard_nav.zig");
 pub const screen = @import("screen.zig");
 pub const router = @import("router.zig");
 
+// v2.21.0 — App Shell, Status Line & Keybindings
+pub const app = @import("app.zig");
+pub const statusline = @import("statusline.zig");
+pub const keybinding = @import("keybinding.zig");
+
 // v1.13.0+ — Advanced Text Editing & Rich Input
 pub const syntax = @import("syntax.zig");
 
@@ -290,6 +295,12 @@ pub const widgets = struct {
     pub const Scrollbar = @import("widgets/scrollbar.zig").Scrollbar;
     pub const ScrollbarOrientation = @import("widgets/scrollbar.zig").Orientation;
     pub const Breadcrumb = @import("widgets/breadcrumb.zig").Breadcrumb;
+
+    // v2.21.0 — Status Line & Keybindings
+    pub const StatusLine = @import("statusline.zig").StatusLine;
+    pub const KeybindingMap = @import("keybinding.zig").KeybindingMap;
+    pub const KeybindingEntry = @import("keybinding.zig").KeybindingMap.KeybindingEntry;
+    pub const KeybindingBar = @import("keybinding.zig").KeybindingBar;
 };
 
 // Export commonly used types
@@ -343,6 +354,17 @@ pub const Scrollable = mouse_trait.Scrollable;
 pub const Hoverable = mouse_trait.Hoverable;
 pub const CompositeInteraction = mouse_trait.CompositeInteraction;
 pub const InteractionResult = mouse_trait.InteractionResult;
+
+// Export app shell & keybinding types (v2.21.0)
+pub const AppShell = app.AppShell;
+pub const AppConfig = app.AppConfig;
+pub const StatusLine = statusline.StatusLine;
+pub const KeybindingMap = keybinding.KeybindingMap;
+pub const KeybindingEntry = keybinding.KeybindingMap.KeybindingEntry;
+pub const KeybindingBar = keybinding.KeybindingBar;
+pub const ScreenRouter = router.ScreenRouter;
+pub const ScreenHandle = screen.ScreenHandle;
+pub const ScreenResult = screen.ScreenResult;
 
 // Export blur/transparency types (v1.11.0)
 pub const BlurEffect = blur.BlurEffect;

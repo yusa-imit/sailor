@@ -104,3 +104,4 @@
 {"timestamp":"2026-06-01T07:00:00Z","action":"subagent","agent_type":"zig-developer","task":"Fix Windows CI test failures: compilation errors in 7 test files + diff_viewer.zig source","project":"sailor"}
 {"timestamp":"2026-06-01T18:44:40Z","action":"subagent","agent_type":"zig-developer","task":"v2.20.0: implement ScreenHandle + ScreenRouter (App Screen Manager) with 36 tests","project":"sailor"}
 {"timestamp":"2026-06-02T00:00:00Z","action":"subagent","agent_type":"Explore","task":"v2.20.0: verify ScreenHandle + ScreenRouter implementation is complete and ready to commit","project":"sailor"}
+{"timestamp":"2026-06-03T07:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write TDD tests for v2.21.0 AppShell, StatusLine, KeybindingMap","project":"sailor"}

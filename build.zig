@@ -866,6 +866,36 @@ pub fn build(b: *std.Build) void {
     router_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(router_tests).step);
 
+    const app_shell_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/app_shell_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    app_shell_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(app_shell_tests).step);
+
+    const keybinding_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/keybinding_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    keybinding_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(keybinding_tests).step);
+
+    const statusline_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/statusline_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    statusline_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(statusline_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",

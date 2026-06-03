@@ -234,6 +234,10 @@ pub const ScreenHandle = @import("tui/screen.zig").ScreenHandle;
 pub const ScreenResult = @import("tui/screen.zig").ScreenResult;
 pub const ScreenRouter = @import("tui/router.zig").ScreenRouter;
 
+// v2.21.0 — App Shell, Status Line & Keybindings
+pub const AppShell = @import("tui/app.zig").AppShell;
+pub const AppConfig = @import("tui/app.zig").AppConfig;
+
 test {
     // Pull in all module tests
     std.testing.refAllDecls(@This());
