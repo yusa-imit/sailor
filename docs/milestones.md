@@ -5,8 +5,32 @@
 - **Latest release**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
 - **Latest minor**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
 - **Next release**: v2.15.0 (pending CI green on main) — Dependency Graph & Pipeline
-- **Active milestones**: 6 pending release (v2.15.0-v2.20.0 implemented, awaiting CI)
-- **Blockers**: CI green on main required before v2.15.0-v2.20.0 sequential releases
+- **Active milestones**: 7 pending release (v2.15.0-v2.21.0 implemented, awaiting CI); v2.22.0 implemented
+- **Blockers**: CI green on main required before batch releases
+
+### v2.22.0 — Multi-Pane Workspace Layout (Target: 2026-06-28)
+
+**Theme**: Flexible multi-pane layout manager with focus tracking and keyboard navigation
+
+**Checklist**:
+- [x] **src/tui/workspace.zig** — Workspace: flex-based multi-pane layout with focus management (focusNext/focusPrev/focusPane), renderDividers for pane separators; WorkspacePane descriptor (id, flex, min_size, focusable); WorkspaceSplit enum
+- [x] **tests/workspace_test.zig** — Workspace tests (computeRects flex distribution, min_size clamping, zero-area, contiguity, focus cycling, renderDividers) — 38 tests
+- [x] Export workspace module via tui.zig
+- [ ] Release v2.22.0
+
+**Success Criteria**:
+- computeRects distributes width/height proportionally by flex weight
+- Panes respect min_size; total cannot shrink below sum of min_sizes
+- focusNext/focusPrev cycle through focusable panes, skip non-focusable
+- focusPane("id") finds by string ID; returns false for unknown ID
+- renderDividers draws │ between horizontal panes, ─ between vertical panes
+- Zero-area and single-pane edge cases handled without crash
+
+**Notes**:
+- No allocator stored in Workspace — computeRects takes allocator as arg; caller frees result
+- WorkspacePane is a descriptor (no vtable, no render method) — consumer renders inside each Rect
+- Designed for IDE-style layouts: file tree + editor + terminal, etc.
+- Three consumer projects (zr, zoltraak, silica) can use for multi-panel dashboards
 
 ### v2.21.0 — App Shell & Status Line (Target: 2026-06-21)
 

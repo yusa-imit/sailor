@@ -93,6 +93,9 @@ pub const app = @import("app.zig");
 pub const statusline = @import("statusline.zig");
 pub const keybinding = @import("keybinding.zig");
 
+// v2.22.0 — Multi-Pane Layout Management
+pub const workspace = @import("workspace.zig");
+
 // v1.13.0+ — Advanced Text Editing & Rich Input
 pub const syntax = @import("syntax.zig");
 
