@@ -39,35 +39,23 @@ pub const TerminalInfo = struct {
     pub fn detect() TerminalInfo {
         const builtin = @import("builtin");
         if (builtin.os.tag == .windows) {
-            // Windows: use thread-local buffer for environment variable conversion
+            // Windows: convert UTF-8 key to UTF-16, read via PEB, convert value back to UTF-8
             const Ctx = struct {
-                threadlocal var buf: [4096]u8 = undefined;
+                threadlocal var val_buf: [4096]u8 = undefined;
 
                 fn getenv(key: []const u8) ?[]const u8 {
-                    // Convert key to wide string
-                    var key_buf: [256]u16 = undefined;
-                    if (key.len >= key_buf.len) return null;
+                    // Env var keys are ASCII — simple byte-by-byte copy to UTF-16
+                    var key_w: [256:0]u16 = undefined;
+                    if (key.len >= 256) return null;
+                    for (key, 0..) |c, i| key_w[i] = c;
+                    key_w[key.len] = 0;
 
-                    var i: usize = 0;
-                    while (i < key.len) : (i += 1) {
-                        key_buf[i] = key[i];
-                    }
-                    key_buf[i] = 0; // null terminator
+                    // Read env var directly from PEB (no allocation)
+                    const value_w = std.process.getenvW(&key_w) orelse return null;
 
-                    // Get environment variable using Windows API
-                    const len = std.os.windows.GetEnvironmentVariableW(
-                        &key_buf,
-                        @ptrCast(&buf),
-                        buf.len / 2,
-                    );
-
-                    if (len == 0 or len >= buf.len / 2) return null;
-
-                    // Convert UTF-16 result back to UTF-8
-                    const wide_slice = @as([*]const u16, @ptrCast(&buf))[0..len];
-                    const utf8_len = std.unicode.utf16LeToUtf8(&buf, wide_slice) catch return null;
-
-                    return buf[0..utf8_len];
+                    // Convert UTF-16 value to UTF-8 in threadlocal buffer
+                    const len = std.unicode.utf16LeToUtf8(&val_buf, value_w) catch return null;
+                    return val_buf[0..len];
                 }
             };
             return detectWith(Ctx.getenv);

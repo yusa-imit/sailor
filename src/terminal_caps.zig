@@ -29,7 +29,27 @@ pub const Capabilities = struct {
 
     /// Detect capabilities from environment
     pub fn detect() Capabilities {
-        return detectWith(std.posix.getenv);
+        const builtin = @import("builtin");
+        if (builtin.os.tag == .windows) {
+            // Windows: convert UTF-8 key to UTF-16, read via PEB, convert value back to UTF-8
+            const Ctx = struct {
+                threadlocal var val_buf: [4096]u8 = undefined;
+
+                fn getenv(key: []const u8) ?[]const u8 {
+                    var key_w: [256:0]u16 = undefined;
+                    if (key.len >= 256) return null;
+                    for (key, 0..) |c, i| key_w[i] = c;
+                    key_w[key.len] = 0;
+
+                    const value_w = std.process.getenvW(&key_w) orelse return null;
+                    const len = std.unicode.utf16LeToUtf8(&val_buf, value_w) catch return null;
+                    return val_buf[0..len];
+                }
+            };
+            return detectWith(Ctx.getenv);
+        } else {
+            return detectWith(std.posix.getenv);
+        }
     }
 
     /// Detect with custom environment getter (for testing)
