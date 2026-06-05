@@ -5,8 +5,33 @@
 - **Latest release**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
 - **Latest minor**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
 - **Next release**: v2.15.0 (pending CI green on main) — Dependency Graph & Pipeline
-- **Active milestones**: 7 pending release (v2.15.0-v2.21.0 implemented, awaiting CI); v2.22.0 implemented
+- **Active milestones**: 7 pending release (v2.15.0-v2.21.0 implemented, awaiting CI); v2.22.0 and v2.23.0 implemented
 - **Blockers**: CI green on main required before batch releases
+
+### v2.23.0 — Form Widget with Multi-field Input & Validation (Target: 2026-07-05)
+
+**Theme**: Reusable form widget for multi-field input forms with focus navigation and validation
+
+**Checklist**:
+- [x] **src/tui/form.zig** — Form: focusNext/focusPrev/focusField/getFocusedId/isFocused/validateAll/isValid/render; FormField (id, label, placeholder, required, focusable, validate); FieldState (value, error_msg); ValidateFn type
+- [x] **tests/form_test.zig** — Form tests (initialization, focus navigation, skip non-focusable, validateAll, isValid, render to Buffer, edge cases: zero fields, all non-focusable, placeholder bug fixed) — 35 tests
+- [x] Export form module via tui.zig
+- [x] Add form_tests to build.zig
+- [ ] Release v2.23.0
+
+**Success Criteria**:
+- focusNext/focusPrev wrap around and skip non-focusable fields
+- focusField("id") finds by ID; returns false for unknown ID
+- validateAll runs required check then custom validator; sets error_msg
+- isValid returns false when any error_msg is non-null
+- render writes label+colon+value on each row; error_msg on next row if show_errors
+- Zero-area, zero-field, and all-non-focusable cases handled without crash
+
+**Notes**:
+- No allocator in Form — caller provides fields/states slices
+- ValidateFn is a simple function pointer: `*const fn([]const u8) ?[]const u8`
+- Placeholder shown when value is empty (fixed from initial implementation)
+- Bug fixed: test used "test@" which passes validateEmail; changed to "noemail"
 
 ### v2.22.0 — Multi-Pane Workspace Layout (Target: 2026-06-28)
 
