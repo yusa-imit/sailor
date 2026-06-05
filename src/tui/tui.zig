@@ -96,6 +96,9 @@ pub const keybinding = @import("keybinding.zig");
 // v2.22.0 — Multi-Pane Layout Management
 pub const workspace = @import("workspace.zig");
 
+// v2.23.0 — Form Widget with Multi-field Input & Validation
+pub const form = @import("form.zig");
+
 // v1.13.0+ — Advanced Text Editing & Rich Input
 pub const syntax = @import("syntax.zig");
 
