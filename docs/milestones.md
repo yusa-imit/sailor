@@ -141,7 +141,7 @@
 - [x] **tests/scrollbar_test.zig** — Scrollbar tests (thumbSize math, thumbOffset math, render modes, setters, edge cases) — 62 tests
 - [x] **tests/breadcrumb_test.zig** — Breadcrumb tests (totalWidth, builder pattern, render, truncation, zero-area) — 53 tests
 - [x] Export Scrollbar, ScrollbarOrientation, Breadcrumb in tui.zig
-- [ ] Release v2.19.0
+- [x] Release v2.19.0
 
 **Success Criteria**:
 - Scrollbar renders correctly at any position (0..total), clamped to viewport
