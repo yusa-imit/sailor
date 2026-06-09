@@ -165,7 +165,7 @@
 - [x] **tests/layout_template_test.zig** — Layout template tests (split dimensions, edge cases, zero area, offset area) — 41 tests
 - [x] **tests/stepper_test.zig** — Stepper tests (navigation, status tracking, isComplete/hasFailed, rendering) — 66 tests
 - [x] Export DashboardLayout, MasterDetail, Stepper, StepperStatus, StepperStep in tui.zig
-- [ ] Release v2.18.0
+- [x] Release v2.18.0
 
 **Success Criteria**:
 - DashboardLayout.split() correctly partitions area into header/sidebar/main/footer with no overlap
