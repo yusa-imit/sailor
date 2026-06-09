@@ -59,7 +59,7 @@
 - [x] **src/tui/workspace.zig** — Workspace: flex-based multi-pane layout with focus management (focusNext/focusPrev/focusPane), renderDividers for pane separators; WorkspacePane descriptor (id, flex, min_size, focusable); WorkspaceSplit enum
 - [x] **tests/workspace_test.zig** — Workspace tests (computeRects flex distribution, min_size clamping, zero-area, contiguity, focus cycling, renderDividers) — 38 tests
 - [x] Export workspace module via tui.zig
-- [ ] Release v2.22.0
+- [x] Release v2.22.0
 
 **Success Criteria**:
 - computeRects distributes width/height proportionally by flex weight
