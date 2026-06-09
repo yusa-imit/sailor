@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v2.26.0 (2026-06-09) — Pager Widget (Scrollable Text Viewer)
-- **Latest minor**: v2.26.0 (2026-06-09) — Pager Widget (Scrollable Text Viewer)
-- **Next release**: v2.27.0 — Color Picker Widget
-- **Active milestones**: 1 pending release
+- **Latest release**: v2.27.0 (2026-06-10) — Color Picker Widget
+- **Latest minor**: v2.27.0 (2026-06-10) — Color Picker Widget
+- **Next release**: TBD — next milestone
+- **Active milestones**: 0 pending release
 - **Blockers**: None
 
 ### v2.27.0 — Color Picker Widget (Target: 2026-07-10)
@@ -13,11 +13,11 @@
 **Theme**: Interactive color selection widget supporting 256-color palette, basic 16-color palette, and RGB slider modes
 
 **Checklist**:
-- [ ] **src/tui/widgets/color_picker.zig** — ColorPicker: init with ColorPickerMode (palette_256/palette_16/rgb_sliders), cursor navigation (moveUp/Down/Left/Right for palette, incrementComponent/decrementComponent for RGB), selectedColor() returns Color, setColor(Color) initializes state, withBlock/withStyle/withCursorStyle/withMode/withColor builder API; render draws color swatches in palette mode or labeled slider bars in RGB mode
-- [ ] **tests/color_picker_test.zig** — ColorPicker tests (init, mode switching, palette navigation, RGB slider navigation, selectedColor, setColor, render to Buffer, edge cases: zero area, narrow area, each mode) — 50+ tests
-- [ ] Export ColorPicker, ColorPickerMode via tui.zig widgets struct
-- [ ] Add color_picker_tests to build.zig
-- [ ] Release v2.27.0
+- [x] **src/tui/widgets/color_picker.zig** — ColorPicker: init with ColorPickerMode (palette_256/palette_16/rgb_sliders), cursor navigation (moveUp/Down/Left/Right for palette, incrementComponent/decrementComponent for RGB), selectedColor() returns Color, setColor(Color) initializes state, withBlock/withStyle/withCursorStyle/withMode/withColor builder API; render draws color swatches in palette mode or labeled slider bars in RGB mode
+- [x] **tests/color_picker_test.zig** — ColorPicker tests (init, mode switching, palette navigation, RGB slider navigation, selectedColor, setColor, render to Buffer, edge cases: zero area, narrow area, each mode) — 89 tests
+- [x] Export ColorPicker, ColorPickerMode, RgbComponent via tui.zig widgets struct
+- [x] Add color_picker_tests to build.zig
+- [x] Release v2.27.0
 
 **Success Criteria**:
 - moveUp/Down/Left/Right navigate cursor on the 16x16 palette grid (palette_256) or 4x4 grid (palette_16), clamped to bounds
