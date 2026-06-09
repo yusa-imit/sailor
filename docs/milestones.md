@@ -4,9 +4,37 @@
 
 - **Latest release**: v2.26.0 (2026-06-09) — Pager Widget (Scrollable Text Viewer)
 - **Latest minor**: v2.26.0 (2026-06-09) — Pager Widget (Scrollable Text Viewer)
-- **Next release**: TBD — next milestone
-- **Active milestones**: 0 pending release
+- **Next release**: v2.27.0 — Color Picker Widget
+- **Active milestones**: 1 pending release
 - **Blockers**: None
+
+### v2.27.0 — Color Picker Widget (Target: 2026-07-10)
+
+**Theme**: Interactive color selection widget supporting 256-color palette, basic 16-color palette, and RGB slider modes
+
+**Checklist**:
+- [ ] **src/tui/widgets/color_picker.zig** — ColorPicker: init with ColorPickerMode (palette_256/palette_16/rgb_sliders), cursor navigation (moveUp/Down/Left/Right for palette, incrementComponent/decrementComponent for RGB), selectedColor() returns Color, setColor(Color) initializes state, withBlock/withStyle/withCursorStyle/withMode/withColor builder API; render draws color swatches in palette mode or labeled slider bars in RGB mode
+- [ ] **tests/color_picker_test.zig** — ColorPicker tests (init, mode switching, palette navigation, RGB slider navigation, selectedColor, setColor, render to Buffer, edge cases: zero area, narrow area, each mode) — 50+ tests
+- [ ] Export ColorPicker, ColorPickerMode via tui.zig widgets struct
+- [ ] Add color_picker_tests to build.zig
+- [ ] Release v2.27.0
+
+**Success Criteria**:
+- moveUp/Down/Left/Right navigate cursor on the 16x16 palette grid (palette_256) or 4x4 grid (palette_16), clamped to bounds
+- incrementComponent/decrementComponent adjust R/G/B value (0-255) in rgb_sliders mode, clamped to [0, 255]
+- nextComponent/prevComponent cycle through R/G/B sliders
+- selectedColor() returns the Color at current cursor position (palette modes) or Color.rgb(r, g, b) (RGB mode)
+- setColor(Color.index(n)) positions cursor at that palette cell; setColor(Color.rgb(r,g,b)) sets RGB sliders
+- render fills each cell with the color's background for visual preview (palette modes)
+- render draws three labeled bars `R: ███░░ 128` in RGB mode
+- Zero-area and narrow-area cases handled without crash
+
+**Notes**:
+- No allocator in ColorPicker — all state fits in the struct
+- palette_256: cursor_x in [0,15], cursor_y in [0,15] → color index = cursor_y*16 + cursor_x
+- palette_16: cursor_x in [0,7], cursor_y in [0,1] → color index = cursor_y*8 + cursor_x (maps to ANSI 0-15)
+- rgb_sliders: component enum (r/g/b), value [0,255]; selectedColor = Color.rgb(r, g, b)
+- Consumer use: silica (column color picker), zoltraak (key highlight color), zr (label color)
 
 ### v2.26.0 — Pager Widget (Scrollable Text Viewer) (Target: 2026-07-26)
 
