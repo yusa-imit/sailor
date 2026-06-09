@@ -2,11 +2,38 @@
 
 ## Current Status
 
-- **Latest release**: v2.25.0 (2026-06-09) — Select/Dropdown Widget
-- **Latest minor**: v2.25.0 (2026-06-09) — Select/Dropdown Widget
+- **Latest release**: v2.26.0 (2026-06-09) — Pager Widget (Scrollable Text Viewer)
+- **Latest minor**: v2.26.0 (2026-06-09) — Pager Widget (Scrollable Text Viewer)
 - **Next release**: TBD — next milestone
-- **Active milestones**: 0 pending release (batch v2.15.0–v2.25.0 released 2026-06-09)
+- **Active milestones**: 0 pending release
 - **Blockers**: None
+
+### v2.26.0 — Pager Widget (Scrollable Text Viewer) (Target: 2026-07-26)
+
+**Theme**: Scrollable text pager with search highlighting, line numbers, and vim-style navigation
+
+**Checklist**:
+- [x] **src/tui/widgets/pager.zig** — Pager: init with lines slice, scrollUp/Down/Left/Right/pageUp/Down/goToTop/goToBottom/goToLine navigation, search with highlight, withLineNumbers/withWrap/withStyle/withHighlightStyle/withBlock/withSearchQuery builder API; render with optional line numbers, horizontal scroll, search highlight
+- [x] **tests/pager_test.zig** — Pager tests (init, scroll navigation, goToLine, goToTop/goToBottom, pageUp/pageDown, search, render, line numbers, wrap, edge cases: empty lines, zero area, single line) — 61 tests
+- [x] Export Pager via tui.zig widgets struct
+- [x] Add pager_tests to build.zig
+- [x] Release v2.26.0
+
+**Success Criteria**:
+- scrollDown/Up clamp to valid range; scrollRight/Left clamp to 0 and max line width
+- pageDown moves scroll_y by area height; pageUp moves it back
+- goToLine(n) clamps to [0, lines.len - 1]; goToTop/goToBottom go to extremes
+- search(query) stores the query; render highlights all matching substrings
+- Line numbers render as right-aligned with separator when enabled
+- Wrap mode renders long lines across multiple display rows
+- Zero-area and empty-lines cases handled without crash
+
+**Notes**:
+- No allocator stored in Pager — all slices are borrowed from caller
+- search_query is a simple substring match (case-sensitive by default)
+- withCaseSensitive(bool) builder for case sensitivity toggle
+- Pager is purely presentational — navigation methods return new Pager (builder pattern) or mutate self (nav pattern)
+- Consumer use: silica SQL output pager, zoltraak value viewer, zr help output
 
 ### v2.25.0 — Select/Dropdown Widget (Target: 2026-07-19)
 
