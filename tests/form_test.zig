@@ -501,7 +501,7 @@ test "render single field writes label text to buffer" {
 
     // First character of label should be 'N'
     const cell = buf.get(0, 0);
-    try testing.expectEqual('N', cell.char);
+    try testing.expectEqual('N', cell.?.char);
 }
 
 test "render sets value text in buffer" {
@@ -523,7 +523,7 @@ test "render sets value text in buffer" {
     // Value should start after label_width + colon + space
     const value_start_x = 8; // 6 + 1 (colon) + 1 (space)
     const cell = buf.get(@intCast(value_start_x), 0);
-    try testing.expectEqual('J', cell.char);
+    try testing.expectEqual('J', cell.?.char);
 }
 
 test "render focused field is at focused_idx position" {
@@ -545,7 +545,7 @@ test "render focused field is at focused_idx position" {
 
     // Email label should be on second row
     const cell = buf.get(0, 1);
-    try testing.expectEqual('E', cell.char);
+    try testing.expectEqual('E', cell.?.char);
 }
 
 test "render error message when show_errors true and error_msg set" {
@@ -569,7 +569,7 @@ test "render error message when show_errors true and error_msg set" {
 
     // Error message should appear on second row
     const error_cell = buf.get(8, 1); // Same x position as value
-    try testing.expectEqual('B', error_cell.char);
+    try testing.expectEqual('B', error_cell.?.char);
 }
 
 // ============================================================================
@@ -736,11 +736,11 @@ test "render multiline form with error messages" {
     form.render(&buf, area);
 
     // First field on row 0 should have "Name"
-    try testing.expectEqual('N', buf.get(0, 0).char);
+    try testing.expectEqual('N', buf.get(0, 0).?.char);
     // Second field on row 1 should have "Code"
-    try testing.expectEqual('C', buf.get(0, 1).char);
+    try testing.expectEqual('C', buf.get(0, 1).?.char);
     // Error message on row 2 (below code field)
-    try testing.expectEqual('T', buf.get(8, 2).char);
+    try testing.expectEqual('T', buf.get(8, 2).?.char);
 }
 
 test "focusField returns true and updates focus correctly" {

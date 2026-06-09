@@ -595,6 +595,10 @@ pub fn queryTerminalCapability(
         }
     }
 
+    // Do not write to non-TTY fds — doing so in zig's test runner (--listen=-)
+    // corrupts the binary test protocol and causes the runner to hang.
+    if (!posix.isatty(fd)) return error.NotATty;
+
     // Build and send query
     var query_buf: [256]u8 = undefined;
     var query_stream = io.fixedBufferStream(&query_buf);

@@ -99,6 +99,12 @@ pub const workspace = @import("workspace.zig");
 // v2.23.0 — Form Widget with Multi-field Input & Validation
 pub const form = @import("form.zig");
 
+// v2.24.0 — Multi-Select List Widget
+pub const multi_select_list = @import("widgets/multi_select_list.zig");
+
+// v2.14.0 — Filterable List Widget (exported at module level for test access)
+pub const filterable_list = @import("widgets/filterable_list.zig");
+
 // v1.13.0+ — Advanced Text Editing & Rich Input
 pub const syntax = @import("syntax.zig");
 
@@ -307,6 +313,11 @@ pub const widgets = struct {
     pub const KeybindingMap = @import("keybinding.zig").KeybindingMap;
     pub const KeybindingEntry = @import("keybinding.zig").KeybindingMap.KeybindingEntry;
     pub const KeybindingBar = @import("keybinding.zig").KeybindingBar;
+
+    // v2.24.0 — Multi-Select & Reorderable List
+    pub const MultiSelectList = @import("widgets/multi_select_list.zig").MultiSelectList;
+    pub const reorderable_list = @import("widgets/reorderable_list.zig");
+    pub const ReorderableList = @import("widgets/reorderable_list.zig").ReorderableList;
 };
 
 // Export commonly used types

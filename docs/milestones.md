@@ -5,8 +5,26 @@
 - **Latest release**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
 - **Latest minor**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
 - **Next release**: v2.15.0 (pending CI green on main) — Dependency Graph & Pipeline
-- **Active milestones**: 7 pending release (v2.15.0-v2.21.0 implemented, awaiting CI); v2.22.0 and v2.23.0 implemented
+- **Active milestones**: 7 pending release (v2.15.0-v2.21.0 implemented, awaiting CI); v2.22.0–v2.24.0 implemented
 - **Blockers**: CI green on main required before batch releases
+
+### v2.24.0 — Multi-Select & Reorderable List Widgets (Target: 2026-07-12)
+
+**Theme**: Interactive list widgets with multi-selection and keyboard drag-and-drop reordering
+
+**Checklist**:
+- [x] **src/tui/widgets/multi_select_list.zig** — MultiSelectList: cursor navigation (moveCursorUp/Down), toggleCursor, selectAll/deselectAll, countSelected, isSelected, render with cursor/selected/unselected symbols and styles; optional Block wrapper
+- [x] **tests/multi_select_list_test.zig** — MultiSelectList tests (initialization, navigation, toggle, selectAll/deselectAll, countSelected, isSelected bounds, render symbols, empty/single-item edge cases) — 40+ tests
+- [x] **src/tui/widgets/reorderable_list.zig** — ReorderableList: order index array, moveCursorUp/Down with drag swap, startDrag/stopDrag/toggleDrag, getOrderedItem, render with drag/cursor/normal styles; optional Block wrapper
+- [x] **tests/reorderable_list_test.zig** — ReorderableList tests (initialization, navigation, drag mode, order swap, getOrderedItem, render, edge cases) — 40+ tests
+- [x] Export modules via tui.zig
+- [x] Add tests to build.zig
+- [ ] Release v2.24.0
+
+**Success Criteria**:
+- MultiSelectList: selections[] slice mirrors toggle operations; countSelected tracks state; symbols render in correct positions
+- ReorderableList: order[] is rewritten by drag operations; cursor follows the dragged item; non-drag navigation does not swap
+- Both widgets handle empty items[], single-item lists, and zero-area Rect without crash
 
 ### v2.23.0 — Form Widget with Multi-field Input & Validation (Target: 2026-07-05)
 
