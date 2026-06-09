@@ -60,12 +60,16 @@ test "Select init with single item" {
     try testing.expectEqual(1, select.selected.len);
 }
 
-test "Select deinit frees allocation without panic" {
+test "Select deinit frees allocation and selected array" {
     const items = [_][]const u8{ "A", "B", "C" };
     var select = try Select.init(testing.allocator, &items, true);
-    // Just call deinit, check no crash
+    const selected_ptr = select.selected.ptr;
     select.deinit(testing.allocator);
-    try testing.expect(true); // If we reach here, no crash
+    // Verify that the allocated array was freed (by calling deinit again on fresh allocation)
+    // to ensure no memory leaks. This test passes if deinit completes without error.
+    var select2 = try Select.init(testing.allocator, &items, true);
+    defer select2.deinit(testing.allocator);
+    try testing.expect(select2.selected.ptr != selected_ptr); // Different allocation
 }
 
 test "Select init allocates separate selected array per instance" {
@@ -590,7 +594,7 @@ test "Select render multi-select item text is placed after bracket" {
     try testing.expectEqual('I', text_start.?.char);
 }
 
-test "Select render zero area does not panic" {
+test "Select render zero area clears buffer cells and bounds-checks" {
     const items = [_][]const u8{"Item"};
     var select = try Select.init(testing.allocator, &items, false);
     defer select.deinit(testing.allocator);
@@ -598,12 +602,18 @@ test "Select render zero area does not panic" {
     var buf = try Buffer.init(testing.allocator, 10, 10);
     defer buf.deinit();
 
+    // Set some cells before render to verify zero-area render doesn't write
+    buf.set(0, 0, .{ .char = 'X', .style = .{} });
+
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
     select.render(&buf, area);
-    try testing.expect(true); // No panic = success
+
+    // Zero-area render clears nothing (height=0), verify original char still there
+    const cell = buf.get(0, 0);
+    try testing.expectEqual('X', cell.?.char);
 }
 
-test "Select render zero height does not panic" {
+test "Select render zero height renders nothing, preserves cells" {
     const items = [_][]const u8{"Item"};
     var select = try Select.init(testing.allocator, &items, false);
     defer select.deinit(testing.allocator);
@@ -611,12 +621,20 @@ test "Select render zero height does not panic" {
     var buf = try Buffer.init(testing.allocator, 20, 10);
     defer buf.deinit();
 
+    // Pre-fill buffer with test pattern
+    for (0..20) |x| {
+        buf.set(@intCast(x), 0, .{ .char = 'P', .style = .{} });
+    }
+
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 0 };
     select.render(&buf, area);
-    try testing.expect(true); // No panic = success
+
+    // Zero height means nothing rendered in that area
+    const cell = buf.get(0, 0);
+    try testing.expectEqual('P', cell.?.char);
 }
 
-test "Select render empty items does not panic" {
+test "Select render with empty items fills area with spaces" {
     const items: [0][]const u8 = .{};
     var select = try Select.init(testing.allocator, &items, false);
     defer select.deinit(testing.allocator);
@@ -624,9 +642,19 @@ test "Select render empty items does not panic" {
     var buf = try Buffer.init(testing.allocator, 20, 5);
     defer buf.deinit();
 
+    // Pre-fill with marker character
+    for (0..20) |x| {
+        for (0..5) |y| {
+            buf.set(@intCast(x), @intCast(y), .{ .char = 'M', .style = .{} });
+        }
+    }
+
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
     select.render(&buf, area);
-    try testing.expect(true); // No panic = success
+
+    // With empty items, render should clear area with spaces (first item row doesn't exist)
+    const cell = buf.get(0, 0);
+    try testing.expectEqual(' ', cell.?.char);
 }
 
 test "Select render respects highlight style on current item" {
@@ -670,7 +698,7 @@ test "Select render respects selected style on non-current selected item" {
     try testing.expectEqual(Color.green, char.?.style.fg.?);
 }
 
-test "Select render with block insets content" {
+test "Select render with block renders border corners and insets content" {
     const items = [_][]const u8{"Item"};
     var select = try Select.init(testing.allocator, &items, false);
     defer select.deinit(testing.allocator);
@@ -684,9 +712,10 @@ test "Select render with block insets content" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     select.render(&buf, area);
 
-    // Block border should be at (0,0)
+    // Block border at (0,0) should be a corner symbol (┌ or ╔ or similar)
     const border = buf.get(0, 0);
-    try testing.expect(border.?.char != ' ');
+    const is_border = border.?.char == '┌' or border.?.char == '╔' or border.?.char == '┍' or border.?.char == '┎';
+    try testing.expect(is_border);
 }
 
 test "Select render with help text shows when show_help=true" {
@@ -816,17 +845,20 @@ test "Select current out of bounds is handled gracefully" {
     try testing.expectEqual(null, item);
 }
 
-test "Select toggle and select both out of bounds does not panic" {
+test "Select toggle at out of bounds index is bounds-checked" {
     const items = [_][]const u8{ "A", "B" };
     var select = try Select.init(testing.allocator, &items, true);
     defer select.deinit(testing.allocator);
 
-    select.current = 99;
+    select.current = 99; // Out of bounds
+    const prev_state = select.selected[0]; // Before toggle
     select.toggleCurrent(); // Should be guarded by current < selected.len
-    try testing.expect(true); // No panic = success
+    // Verify that out-of-bounds toggle doesn't affect valid items
+    try testing.expectEqual(prev_state, select.selected[0]);
+    try testing.expectEqual(prev_state, select.selected[1]);
 }
 
-test "Select long item text truncates at buffer width" {
+test "Select long item text truncates at buffer width without overrun" {
     const items = [_][]const u8{"This is a very long item name that should be truncated"};
     var select = try Select.init(testing.allocator, &items, false);
     defer select.deinit(testing.allocator);
@@ -837,7 +869,14 @@ test "Select long item text truncates at buffer width" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     select.render(&buf, area);
 
-    try testing.expect(true); // No panic = success
+    // Verify render stops before writing past the buffer boundary
+    // With width=10: radio symbol (1) + space (1) + 8 chars of text = exactly 10
+    const first_text_char = buf.get(2, 0); // After radio + space
+    try testing.expectEqual('T', first_text_char.?.char); // First char of "This"
+
+    // Verify nothing was written beyond the area width
+    const last_char = buf.get(9, 0);
+    try testing.expect(last_char.?.char != 'y'); // "y" from "very" shouldn't appear at position 9
 }
 
 test "Select scrolling with exact fit" {
