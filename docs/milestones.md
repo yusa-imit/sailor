@@ -35,7 +35,7 @@
 - [x] **tests/form_test.zig** — Form tests (initialization, focus navigation, skip non-focusable, validateAll, isValid, render to Buffer, edge cases: zero fields, all non-focusable, placeholder bug fixed) — 35 tests
 - [x] Export form module via tui.zig
 - [x] Add form_tests to build.zig
-- [ ] Release v2.23.0
+- [x] Release v2.23.0
 
 **Success Criteria**:
 - focusNext/focusPrev wrap around and skip non-focusable fields
