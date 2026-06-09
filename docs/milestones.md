@@ -217,7 +217,7 @@
 - [x] **tests/diff_viewer_test.zig** — DiffViewer tests (classify, render, scroll, h_scroll, counts)
 - [x] **tests/json_browser_test.zig** — JsonBrowser tests (collapse, navigate, render, styles)
 - [x] Export both widgets in tui.zig
-- [ ] Release v2.16.0
+- [x] Release v2.16.0
 
 **Success Criteria**:
 - DiffViewer classifies all unified diff line kinds correctly (diff_header, file_header, hunk_header, removed, added, context, no_newline)
