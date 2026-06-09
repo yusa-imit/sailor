@@ -113,7 +113,7 @@
 - [x] **tests/screen_test.zig** — ScreenHandle tests (lifecycle dispatch, event routing, render, multi-type) — 12 tests
 - [x] **tests/router_test.zig** — ScreenRouter tests (navigation stack, lifecycle ordering, dispatch routing, render delegation) — 24 tests
 - [x] Export ScreenHandle, ScreenResult, ScreenRouter in sailor.zig; export screen/router modules in tui.zig
-- [ ] Release v2.20.0
+- [x] Release v2.20.0
 
 **Success Criteria**:
 - ScreenHandle.init(T, ptr) wraps any struct with render/handleEvent/onEnter/onLeave
