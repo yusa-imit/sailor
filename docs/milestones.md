@@ -87,7 +87,7 @@
 - [x] **tests/statusline_test.zig** — StatusLine tests (section render, padding, width clamping, zero-area) — 24 tests
 - [x] **tests/keybinding_test.zig** — KeybindingMap tests (register, lookup, render bar) — 20 tests
 - [x] Export AppShell in sailor.zig; export statusline, keybinding modules in tui.zig
-- [ ] Release v2.21.0
+- [x] Release v2.21.0
 
 **Success Criteria**:
 - AppShell.run() drives the event loop: poll event → dispatch to ScreenRouter → render top screen → flush
