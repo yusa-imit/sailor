@@ -318,6 +318,9 @@ pub const widgets = struct {
     pub const MultiSelectList = @import("widgets/multi_select_list.zig").MultiSelectList;
     pub const reorderable_list = @import("widgets/reorderable_list.zig");
     pub const ReorderableList = @import("widgets/reorderable_list.zig").ReorderableList;
+
+    // v2.26.0 — Pager Widget
+    pub const Pager = @import("widgets/pager.zig").Pager;
 };
 
 // Export commonly used types
