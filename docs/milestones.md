@@ -19,7 +19,7 @@
 - [x] **tests/reorderable_list_test.zig** — ReorderableList tests (initialization, navigation, drag mode, order swap, getOrderedItem, render, edge cases) — 40+ tests
 - [x] Export modules via tui.zig
 - [x] Add tests to build.zig
-- [ ] Release v2.24.0
+- [x] Release v2.24.0
 
 **Success Criteria**:
 - MultiSelectList: selections[] slice mirrors toggle operations; countSelected tracks state; symbols render in correct positions
