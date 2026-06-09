@@ -2,11 +2,35 @@
 
 ## Current Status
 
-- **Latest release**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
-- **Latest minor**: v2.14.0 (2026-05-31) — Fuzzy Search & Command Palette
-- **Next release**: v2.15.0 (pending CI green on main) — Dependency Graph & Pipeline
-- **Active milestones**: 7 pending release (v2.15.0-v2.21.0 implemented, awaiting CI); v2.22.0–v2.24.0 implemented
-- **Blockers**: CI green on main required before batch releases
+- **Latest release**: v2.25.0 (2026-06-09) — Select/Dropdown Widget
+- **Latest minor**: v2.25.0 (2026-06-09) — Select/Dropdown Widget
+- **Next release**: TBD — next milestone
+- **Active milestones**: 0 pending release (batch v2.15.0–v2.25.0 released 2026-06-09)
+- **Blockers**: None
+
+### v2.25.0 — Select/Dropdown Widget (Target: 2026-07-19)
+
+**Theme**: Single-select (radio) and multi-select (checkbox) dropdown widget with scrolling support
+
+**Checklist**:
+- [x] **src/tui/widgets/select.zig** — Select: init/deinit, next/prev navigation with wrap, selectCurrent (single mode), toggleCurrent (multi mode), currentItem, selectedItems, adjustScroll, withBlock/withStyle/withHighlightStyle/withSelectedStyle/withMaxVisible/withHelp builder API; render with radio/checkbox indicators, scroll arrows, help text, UTF-8 safe text rendering
+- [x] **tests/select_test.zig** — Select tests (init, navigation, single-select, multi-select, scrolling, rendering, builder pattern, edge cases) — 56 tests
+- [x] Export Select via tui.zig (already present at tui.zig:166)
+- [x] Add select_tests to build.zig
+- [x] Release v2.25.0
+
+**Success Criteria**:
+- next/prev wrap correctly; adjustScroll keeps current item in view
+- selectCurrent clears all others (single mode); toggleCurrent flips one (multi mode)
+- selectedItems returns slice of selected item strings
+- render draws ○/● for single mode, [ ]/[✓] for multi mode
+- Scroll arrows appear when scrolled past top or bottom
+- All edge cases (empty items, zero area, out-of-bounds current) handled without panic
+
+**Notes**:
+- adjustScroll is pub to allow external callers to pre-position the scroll
+- UTF-8 aware rendering: codepoints decoded properly for arrow chars (↑/↓)
+- highlight_style defaults to underline (not reversed) for better terminal compatibility
 
 ### v2.24.0 — Multi-Select & Reorderable List Widgets (Target: 2026-07-12)
 
