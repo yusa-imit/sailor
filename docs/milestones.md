@@ -245,7 +245,7 @@
 - [x] **tests/dag_test.zig** — 36 tests for DagWidget (node creation, rendering, edge handling, clipping)
 - [x] **tests/pipeline_test.zig** — 45 tests for Pipeline (status queries, rendering, layout directions)
 - [x] Export both widgets in tui.zig
-- [ ] Release v2.15.0
+- [x] Release v2.15.0
 
 **Success Criteria**:
 - DagWidget renders nodes as boxes with labels, edges as connecting lines
