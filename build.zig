@@ -936,6 +936,16 @@ pub fn build(b: *std.Build) void {
     reorderable_list_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(reorderable_list_tests).step);
 
+    const select_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/select_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    select_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(select_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",

@@ -14,7 +14,7 @@ pub const Select = struct {
     multi: bool = false,
     block: ?Block = null,
     style: Style = .{},
-    highlight_style: Style = .{ .bold = true, .reversed = true },
+    highlight_style: Style = .{ .bold = true, .underline = true },
     selected_style: Style = .{ .fg = .green },
     max_visible: ?usize = null, // Max items visible before scrolling
     scroll_offset: usize = 0,
@@ -150,7 +150,7 @@ pub const Select = struct {
     }
 
     /// Adjust scroll offset to keep current item visible
-    fn adjustScroll(self: *Select) void {
+    pub fn adjustScroll(self: *Select) void {
         if (self.max_visible) |max| {
             if (self.current < self.scroll_offset) {
                 self.scroll_offset = self.current;
@@ -261,12 +261,23 @@ pub const Select = struct {
             }
 
             // Render item text
-            for (item) |ch| {
-                if (x >= render_area.width) break;
+            var item_idx: usize = 0;
+            while (item_idx < item.len and x < render_area.width) {
+                const byte = item[item_idx];
+                const char_len = std.unicode.utf8ByteSequenceLength(byte) catch 1;
+
+                if (item_idx + char_len > item.len) break;
+
+                const codepoint = if (char_len == 1)
+                    @as(u21, byte)
+                else
+                    std.unicode.utf8Decode(item[item_idx .. item_idx + char_len]) catch @as(u21, byte);
+
                 buf.set(@intCast(render_area.x + x), item_y, .{
-                    .char = @intCast(ch),
+                    .char = codepoint,
                     .style = item_style,
                 });
+                item_idx += char_len;
                 x += 1;
             }
 
@@ -300,14 +311,27 @@ pub const Select = struct {
                 "↑/↓: Navigate | Space: Toggle | Enter: Confirm"
             else
                 "↑/↓: Navigate | Enter: Select";
-            const help_style = Style{ .fg = .gray };
+            const help_style = Style{ .fg = .bright_black };
 
-            for (help_text, 0..) |ch, x| {
-                if (x >= render_area.width) break;
+            var x: u16 = 0;
+            var i: usize = 0;
+            while (i < help_text.len and x < render_area.width) {
+                const byte = help_text[i];
+                const char_len = std.unicode.utf8ByteSequenceLength(byte) catch 1;
+
+                if (i + char_len > help_text.len) break;
+
+                const codepoint = if (char_len == 1)
+                    @as(u21, byte)
+                else
+                    std.unicode.utf8Decode(help_text[i .. i + char_len]) catch @as(u21, byte);
+
                 buf.set(@intCast(render_area.x + x), help_y, .{
-                    .char = @intCast(ch),
+                    .char = codepoint,
                     .style = help_style,
                 });
+                i += char_len;
+                x += 1;
             }
         }
     }
