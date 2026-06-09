@@ -189,7 +189,7 @@
 - [x] **tests/editable_table_test.zig** — EditableTable tests (cursor nav, edit mode, confirm/cancel, render) — 42 tests
 - [x] **tests/record_editor_test.zig** — RecordEditor tests (field nav, edit, validation callback, render) — 47 tests
 - [x] Export both widgets in tui.zig
-- [ ] Release v2.17.0
+- [x] Release v2.17.0
 
 **Success Criteria**:
 - EditableTable renders table with cursor highlight on selected cell
