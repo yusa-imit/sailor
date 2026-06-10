@@ -2,11 +2,34 @@
 
 ## Current Status
 
-- **Latest release**: v2.27.0 (2026-06-10) — Color Picker Widget
-- **Latest minor**: v2.27.0 (2026-06-10) — Color Picker Widget
+- **Latest release**: v2.28.0 (2026-06-10) — Context Menu Widget
+- **Latest minor**: v2.28.0 (2026-06-10) — Context Menu Widget
 - **Next release**: TBD — next milestone
 - **Active milestones**: 0 pending release
 - **Blockers**: None
+
+### v2.28.0 — Context Menu Widget (Target: 2026-07-17)
+
+**Theme**: Positional popup context menu with Action/Separator/Submenu item types, keyboard navigation, screen-boundary-aware positioning, and styled rendering
+
+**Checklist**:
+- [x] **src/tui/widgets/context_menu.zig** — ContextMenu: init with items slice, moveDown/moveUp navigation (skip separators+disabled, wrap-around), actionCount, currentItem, isCurrentSelectable, fittingArea(screen) for auto-positioning, withOrigin/withBlock/withItemStyle/withSelectedStyle/withDisabledStyle/withShortcutStyle/withCursor builder API; render draws bordered item list with selected_style/disabled_style/shortcut right-alignment/submenu indicator
+- [x] **tests/context_menu_test.zig** — ContextMenu tests (init, builder, actionCount, moveDown/moveUp navigation & wrapping, currentItem, isCurrentSelectable, fittingArea bounds, render styles, edge cases: empty/single/all-separators/zero-area/narrow) — 79 tests
+- [x] Export ContextMenu via tui.zig widgets struct
+- [x] Add context_menu_tests to build.zig
+- [x] Release v2.28.0
+
+**Success Criteria**:
+- moveDown/moveUp skip separators and disabled actions, wrap at list boundaries
+- actionCount counts action+submenu items (not separators)
+- fittingArea auto-positions to avoid screen overflow
+- render applies selected_style to cursor row, disabled_style to disabled rows, separators as '─' horizontal rules, shortcuts right-aligned, submenu indicator '>'
+- Empty list, single item, all-separators edge cases handled without crash
+
+**Notes**:
+- No allocator in ContextMenu — all slices borrowed from caller
+- Distinct from menu.zig (menu bar at fixed position); context menu triggers at a dynamic (origin_x, origin_y) point
+- Consumer use: right-click menus in silica SQL shell, action menus in zoltraak, context operations in zr
 
 ### v2.27.0 — Color Picker Widget (Target: 2026-07-10)
 
