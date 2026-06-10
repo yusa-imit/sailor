@@ -327,6 +327,12 @@ pub const widgets = struct {
 
     // v2.28.0 — Context Menu
     pub const ContextMenu = @import("widgets/context_menu.zig").ContextMenu;
+
+    // v2.29.0 — Toast Manager
+    pub const ToastManager = @import("widgets/toast_manager.zig").ToastManager;
+    pub const ToastItem = @import("widgets/toast_manager.zig").ToastItem;
+    pub const ToastLevel = @import("widgets/toast_manager.zig").ToastLevel;
+    pub const ToastPosition = @import("widgets/toast_manager.zig").ToastPosition;
 };
 
 // Export commonly used types

@@ -4,9 +4,86 @@
 
 - **Latest release**: v2.28.0 (2026-06-10) — Context Menu Widget
 - **Latest minor**: v2.28.0 (2026-06-10) — Context Menu Widget
-- **Next release**: TBD — next milestone
-- **Active milestones**: 0 pending release
+- **Next release**: v2.29.0 — Toast Manager
+- **Active milestones**: 3 pending implementation
 - **Blockers**: None
+
+### v2.31.0 — Timeline Widget (Target: 2026-07-31)
+
+**Theme**: Vertical/horizontal timeline display for event history with timestamps, status markers, and scrollable navigation
+
+**Checklist**:
+- [ ] **src/tui/widgets/timeline.zig** — Timeline: init with events slice, scrollUp/scrollDown/goToTop/goToBottom navigation; TimelineEvent (timestamp, title, description, status); TimelineStatus enum (pending/active/completed/failed/skipped); withDirection/withBlock/withStyle/withActiveStyle/withCompletedStyle/withFailedStyle/withShowTimestamps/withConnectorChar builder API; render draws connector line with event markers
+- [ ] **tests/timeline_test.zig** — Timeline tests (init, navigation, status rendering, direction modes, timestamps, render to Buffer, edge cases: empty events, zero area, single event, narrow area) — 55+ tests
+- [ ] Export Timeline, TimelineEvent, TimelineStatus, TimelineDirection via tui.zig widgets struct
+- [ ] Add timeline_tests to build.zig
+- [ ] Release v2.31.0
+
+**Success Criteria**:
+- scrollDown/scrollUp clamp scroll_offset to [0, events.len - viewport]
+- goToTop/goToBottom set scroll_offset to extremes
+- render draws a vertical connector line with ○/●/✓/✗/⊘ markers per status
+- Active event highlighted with active_style; completed with completed_style; failed with failed_style
+- Timestamps rendered left-aligned before the connector when withShowTimestamps(true)
+- horizontal direction renders events left-to-right with connector between them
+- Zero-area, empty events, single event handled without crash
+
+**Notes**:
+- No allocator in Timeline — events slice borrowed from caller
+- TimelineStatus mirrors Pipeline/Stepper status conventions for consistency
+- Useful for: zr (task history), zoltraak (operation log), silica (migration history)
+
+### v2.30.0 — Accordion Widget (Target: 2026-07-24)
+
+**Theme**: Collapsible/expandable section groups with header/content structure, single or multi-expand mode, and keyboard navigation
+
+**Checklist**:
+- [ ] **src/tui/widgets/accordion.zig** — Accordion: init with sections slice, toggleCurrent/expandCurrent/collapseCurrent/expandAll/collapseAll, moveCursorUp/moveCursorDown navigation; AccordionSection (title, content_lines, expanded); single_expand mode (only one open at a time); withBlock/withHeaderStyle/withExpandedStyle/withCursorStyle/withExpandIcon/withCollapseIcon/withSingleExpand builder API; render draws header rows + content rows
+- [ ] **tests/accordion_test.zig** — Accordion tests (init, toggle, expand/collapse, moveCursorUp/Down, single_expand mode, expandAll/collapseAll, isExpanded, render to Buffer, edge cases: empty sections, zero area, all collapsed, all expanded, narrow) — 60+ tests
+- [ ] Export Accordion, AccordionSection via tui.zig widgets struct
+- [ ] Add accordion_tests to build.zig
+- [ ] Release v2.30.0
+
+**Success Criteria**:
+- toggleCurrent flips expanded state of cursor section
+- single_expand mode collapses all others when one is expanded
+- expandAll/collapseAll affect all sections regardless of mode
+- moveCursorDown/Up wrap at boundaries
+- render draws header rows always; content rows only when expanded
+- withExpandIcon/withCollapseIcon customize the ▶/▼ indicators
+- Zero-area, empty sections, all-collapsed/all-expanded cases handled without crash
+
+**Notes**:
+- No allocator in Accordion — sections slice borrowed from caller
+- AccordionSection has expanded field mutated in-place (caller owns the slice)
+- Useful for: zoltraak (config sections), silica (schema groups), zr (help topics)
+
+### v2.29.0 — Toast Manager (Target: 2026-07-17)
+
+**Theme**: Queue-based notification manager rendering stacked toast messages with auto-dismiss, severity levels, and configurable screen positioning
+
+**Checklist**:
+- [x] **src/tui/widgets/toast_manager.zig** — ToastManager: fixed-capacity queue (MAX_TOASTS=8), push/dismiss(index)/dismissAll, tick (decrement auto-dismiss counters, evict expired); ToastItem (message, level, title, ticks_remaining: 0=persistent); withPosition/withMaxVisible/withWidth/withSpacing/withInfoStyle/withSuccessStyle/withWarningStyle/withErrorStyle builder API; render draws stacked visible toasts in corner
+- [x] **tests/toast_manager_test.zig** — ToastManager tests (init, push, dismiss, dismissAll, tick auto-evict, tick persistent, render stacked, position calculations, style per level, edge cases: empty queue, full queue eviction, zero area, narrow area, max_visible limit) — 50 tests
+- [x] Export ToastManager, ToastItem, ToastLevel, ToastPosition via tui.zig widgets struct
+- [x] Add toast_manager_tests to build.zig
+- [ ] Release v2.29.0
+
+**Success Criteria**:
+- push() adds to queue; when queue is full (8), evicts oldest before adding
+- tick() decrements ticks_remaining on non-zero entries; removes entries at 0
+- dismiss(index) removes entry at index, shifts remaining entries left
+- dismissAll() clears all entries
+- render draws up to max_visible toasts stacked from the position corner
+- Each toast rendered with level icon, optional title line, message text, border
+- toastCount() returns current number of queued toasts
+- Zero-area, empty queue, full queue, max_visible=1 cases handled without crash
+
+**Notes**:
+- No allocator in ToastManager — fixed array, no heap
+- Level and Position types defined locally (ToastLevel, ToastPosition) to avoid import ambiguity
+- auto-dismiss: caller calls tick() each frame; ticks_remaining=0 means persistent
+- Consumer use: silica (query result notifications), zoltraak (operation feedback), zr (task completion)
 
 ### v2.28.0 — Context Menu Widget (Target: 2026-07-17)
 
