@@ -324,6 +324,9 @@ pub const widgets = struct {
 
     // v2.26.0 — Pager Widget
     pub const Pager = @import("widgets/pager.zig").Pager;
+
+    // v2.28.0 — Context Menu
+    pub const ContextMenu = @import("widgets/context_menu.zig").ContextMenu;
 };
 
 // Export commonly used types

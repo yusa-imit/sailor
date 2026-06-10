@@ -966,6 +966,16 @@ pub fn build(b: *std.Build) void {
     color_picker_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(color_picker_tests).step);
 
+    const context_menu_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/context_menu_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    context_menu_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(context_menu_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",

@@ -113,3 +113,5 @@
 {"timestamp":"2026-06-09T07:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write v2.26.0 Pager widget tests (61 tests)","project":"sailor"}
 {"timestamp":"2026-06-09T07:30:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement v2.26.0 Pager widget (src/tui/widgets/pager.zig)","project":"sailor"}
 {"timestamp":"2026-06-10T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write tests for v2.27.0 ColorPicker widget (palette_256, palette_16, rgb_sliders modes, navigation, selectedColor, render)","project":"sailor"}
+{"timestamp":"2026-06-10T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for ContextMenu widget (v2.28.0)","project":"sailor"}
+{"timestamp":"2026-06-10T00:01:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement ContextMenu widget logic (v2.28.0) — moveDown/moveUp navigation, fittingArea, render","project":"sailor"}
