@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v2.28.0 (2026-06-10) — Context Menu Widget
-- **Latest minor**: v2.28.0 (2026-06-10) — Context Menu Widget
-- **Next release**: v2.29.0 — Toast Manager
-- **Active milestones**: 3 pending implementation
+- **Latest release**: v2.29.0 (2026-06-10) — Toast Manager Widget
+- **Latest minor**: v2.29.0 (2026-06-10) — Toast Manager Widget
+- **Next release**: v2.30.0 — Accordion Widget
+- **Active milestones**: 2 pending implementation
 - **Blockers**: None
 
 ### v2.31.0 — Timeline Widget (Target: 2026-07-31)
@@ -67,7 +67,7 @@
 - [x] **tests/toast_manager_test.zig** — ToastManager tests (init, push, dismiss, dismissAll, tick auto-evict, tick persistent, render stacked, position calculations, style per level, edge cases: empty queue, full queue eviction, zero area, narrow area, max_visible limit) — 50 tests
 - [x] Export ToastManager, ToastItem, ToastLevel, ToastPosition via tui.zig widgets struct
 - [x] Add toast_manager_tests to build.zig
-- [ ] Release v2.29.0
+- [x] Release v2.29.0
 
 **Success Criteria**:
 - push() adds to queue; when queue is full (8), evicts oldest before adding
