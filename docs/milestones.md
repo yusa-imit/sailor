@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v2.29.0 (2026-06-10) — Toast Manager Widget
-- **Latest minor**: v2.29.0 (2026-06-10) — Toast Manager Widget
-- **Next release**: v2.30.0 — Accordion Widget
-- **Active milestones**: 2 pending implementation
+- **Latest release**: v2.30.0 (2026-06-11) — Accordion Widget
+- **Latest minor**: v2.30.0 (2026-06-11) — Accordion Widget
+- **Next release**: v2.31.0 — Timeline Widget
+- **Active milestones**: 1 pending implementation
 - **Blockers**: None
 
 ### v2.31.0 — Timeline Widget (Target: 2026-07-31)
@@ -38,11 +38,11 @@
 **Theme**: Collapsible/expandable section groups with header/content structure, single or multi-expand mode, and keyboard navigation
 
 **Checklist**:
-- [ ] **src/tui/widgets/accordion.zig** — Accordion: init with sections slice, toggleCurrent/expandCurrent/collapseCurrent/expandAll/collapseAll, moveCursorUp/moveCursorDown navigation; AccordionSection (title, content_lines, expanded); single_expand mode (only one open at a time); withBlock/withHeaderStyle/withExpandedStyle/withCursorStyle/withExpandIcon/withCollapseIcon/withSingleExpand builder API; render draws header rows + content rows
-- [ ] **tests/accordion_test.zig** — Accordion tests (init, toggle, expand/collapse, moveCursorUp/Down, single_expand mode, expandAll/collapseAll, isExpanded, render to Buffer, edge cases: empty sections, zero area, all collapsed, all expanded, narrow) — 60+ tests
-- [ ] Export Accordion, AccordionSection via tui.zig widgets struct
-- [ ] Add accordion_tests to build.zig
-- [ ] Release v2.30.0
+- [x] **src/tui/widgets/accordion.zig** — Accordion: init with sections slice, toggleCurrent/expandCurrent/collapseCurrent/expandAll/collapseAll, moveCursorUp/moveCursorDown navigation; AccordionSection (title, content_lines, expanded); single_expand mode (only one open at a time); withBlock/withHeaderStyle/withExpandedStyle/withCursorStyle/withExpandIcon/withCollapseIcon/withSingleExpand builder API; render draws header rows + content rows
+- [x] **tests/accordion_test.zig** — Accordion tests (init, toggle, expand/collapse, moveCursorUp/Down, single_expand mode, expandAll/collapseAll, isExpanded, render to Buffer, edge cases: empty sections, zero area, all collapsed, all expanded, narrow) — 74 tests
+- [x] Export Accordion, AccordionSection via tui.zig widgets struct
+- [x] Add accordion_tests to build.zig
+- [x] Release v2.30.0
 
 **Success Criteria**:
 - toggleCurrent flips expanded state of cursor section
