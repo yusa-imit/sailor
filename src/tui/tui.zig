@@ -333,6 +333,10 @@ pub const widgets = struct {
     pub const ToastItem = @import("widgets/toast_manager.zig").ToastItem;
     pub const ToastLevel = @import("widgets/toast_manager.zig").ToastLevel;
     pub const ToastPosition = @import("widgets/toast_manager.zig").ToastPosition;
+
+    // v2.30.0 — Accordion Widget
+    pub const Accordion = @import("widgets/accordion.zig").Accordion;
+    pub const AccordionSection = @import("widgets/accordion.zig").AccordionSection;
 };
 
 // Export commonly used types
