@@ -1,3 +1,27 @@
+✅ **Session 283** — FEATURE MODE (2026-06-10)
+  - **Mode**: FEATURE (session 283, 283 % 5 == 3)
+  - **Achievement**: Implemented v2.28.0 ContextMenu Widget; tagged and released v2.28.0
+
+  **Completed Work**:
+    - ✅ CI check: queued (not RED); 0 open GitHub issues
+    - ✅ Established v2.28.0 milestone in docs/milestones.md
+    - ✅ Implemented `src/tui/widgets/context_menu.zig` — ContextMenu: Action/Separator/Submenu item union, moveDown/moveUp (skip separators+disabled, wrap-around), actionCount, currentItem, isCurrentSelectable, fittingArea(screen) auto-positioning, withOrigin/withBlock/withItemStyle/withSelectedStyle/withDisabledStyle/withShortcutStyle/withCursor builder API; render with selected/disabled/shortcut styles, horizontal rule separators, submenu '>' indicators
+    - ✅ Implemented `tests/context_menu_test.zig` — 79 comprehensive tests
+    - ✅ All tests pass: `zig build test` exit code 0
+    - ✅ Tagged v2.28.0 on commit 79a7577; GitHub release created
+    - ✅ Consumer migration issues: zr#68, zoltraak#46, silica#57
+    - ✅ Discord notification sent
+    - ✅ Commits: 16c72c3 feat(v2.28.0), 79a7577 chore: bump version
+
+  **Current State**:
+    - **Latest release**: v2.28.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **CI status**: queued run on main
+
+  **Next Priority**:
+    - Implement v2.29.0 (consider: Toast/Snackbar Manager, Accordion, Timeline widget)
+    - Verify CI passes on latest push
+
 ✅ **Session 275** — STABILIZATION MODE (2026-06-05)
   - **Mode**: STABILIZATION (session 275, 275 % 5 == 0)
   - **Achievement**: Implemented v2.23.0 Form Widget; fixed two bugs; all tests passing
