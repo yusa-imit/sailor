@@ -902,10 +902,12 @@ test "Calendar range with reversed dates (start > end)" {
     const end = createDate(2026, 3, 10);
     var calendar = Calendar.init(today).withRange(start, end);
 
-    // Calendar might auto-swap or keep as-is
-    // Either way, isDateInRange should handle it correctly
-    _ = calendar.isDateInRange(createDate(2026, 3, 15));
-    // This depends on calendar implementation: might be true or false
+    // isDateInRange auto-swaps reversed ranges: effective range is 10..25
+    try std.testing.expect(calendar.isDateInRange(createDate(2026, 3, 15))); // inside
+    try std.testing.expect(calendar.isDateInRange(createDate(2026, 3, 10))); // at lower bound
+    try std.testing.expect(calendar.isDateInRange(createDate(2026, 3, 25))); // at upper bound
+    try std.testing.expect(!calendar.isDateInRange(createDate(2026, 3, 9))); // below range
+    try std.testing.expect(!calendar.isDateInRange(createDate(2026, 3, 26))); // above range
 }
 
 test "Calendar with year 1 and year 65535" {

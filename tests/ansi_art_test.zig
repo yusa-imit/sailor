@@ -434,9 +434,17 @@ test "ansi art: braille algorithm produces characters in UTF-8 braille range" {
     const output = stream.getWritten();
 
     // Braille range: U+2800 to U+28FF (UTF-8: E2 A0 80 to E2 A3 BF)
-    const braille_start = "\xe2\xa0\x80"; // U+2800 in UTF-8
-    _ = braille_start;
+    // Verify output is non-empty and contains braille-range UTF-8 bytes (E2 prefix)
     try testing.expect(output.len > 0);
+    // Search for the UTF-8 lead byte for U+2800 range (0xE2)
+    var found_braille = false;
+    for (output) |byte| {
+        if (byte == 0xE2) {
+            found_braille = true;
+            break;
+        }
+    }
+    try testing.expect(found_braille);
 }
 
 test "ansi art: braille with 4x4 image works correctly" {
@@ -752,12 +760,6 @@ test "ansi art: detectColorMode returns a valid ColorMode enum value" {
         mode == .colors16 or
         mode == .grayscale;
     try testing.expect(valid);
-}
-
-test "ansi art: detectColorMode does not crash" {
-    const mode = detectColorMode();
-    // Just ensure it returns without panicking
-    _ = mode;
 }
 
 // ============================================================================

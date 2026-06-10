@@ -146,13 +146,17 @@ test "dynamic linker detection" {
 }
 
 test "import path resolution" {
-    // Test that standard library imports work
-    const imports = struct {
-        const std_import = @import("std");
-        const builtin_import = @import("builtin");
-    };
+    // Verify standard library imports are accessible and functional
+    const std_import = @import("std");
+    const builtin_import = @import("builtin");
 
-    _ = imports;
+    // std.mem.eql is a representative function from stdlib
+    try testing.expect(std_import.mem.eql(u8, "hello", "hello"));
+    // builtin.os.tag is always defined
+    const os_tag = builtin_import.os.tag;
+    const valid_os = os_tag == .macos or os_tag == .linux or os_tag == .windows or
+        os_tag == .freebsd or os_tag == .openbsd or os_tag == .netbsd;
+    try testing.expect(valid_os);
 }
 
 test "compile-time reflection" {
@@ -238,15 +242,11 @@ test "std.io module is available" {
 }
 
 test "dependency verification - no external deps" {
-    // sailor should have ZERO external dependencies
-    // Only stdlib allowed
-
-    // This test just verifies std imports work
-    _ = std.mem;
-    _ = std.io;
-    _ = std.fs;
-    _ = std.os;
-    _ = std.fmt;
-    _ = std.debug;
-    _ = std.testing;
+    // sailor must have ZERO external dependencies — only stdlib allowed
+    // Verify critical stdlib modules are present and functional
+    try testing.expect(std.mem.eql(u8, "test", "test"));
+    try testing.expect(std.mem.indexOfScalar(u8, "hello", 'e') != null);
+    var buf: [8]u8 = undefined;
+    const written = try std.fmt.bufPrint(&buf, "{d}", .{42});
+    try testing.expectEqualStrings("42", written);
 }

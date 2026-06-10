@@ -33,10 +33,12 @@ test "Breadcrumb default active_idx is null" {
 
 test "Breadcrumb default initializes styles" {
     const bc = Breadcrumb{};
-    // Verify styles are initialized, not uninitialized memory
-    _ = bc.active_style;
-    _ = bc.separator_style;
-    _ = bc.item_style;
+    // active_style: bold=true
+    try testing.expect(bc.active_style.bold == true);
+    // separator_style: fg=bright_black
+    try testing.expectEqual(Style{ .fg = .bright_black }, bc.separator_style);
+    // item_style: plain (no decoration)
+    try testing.expectEqual(Style{}, bc.item_style);
 }
 
 test "Breadcrumb with single item" {

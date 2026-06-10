@@ -542,32 +542,46 @@ test "ToastManager.render with varying widths and positions" {
 
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 30 };
     tm.render(&buf, area);
+
+    // top_left places toast at x=0; verify border was drawn in top-left corner
+    const top_left_char = buf.getChar(0, 0);
+    try std.testing.expect(top_left_char != ' '); // border character drawn
+    // at least one non-space cell should exist in the rendered toast area (width=25)
+    var found_content = false;
+    for (0..25) |x| {
+        if (buf.getChar(@intCast(x), 0) != ' ') {
+            found_content = true;
+            break;
+        }
+    }
+    try std.testing.expect(found_content);
 }
 
 test "ToastManager default style matches level icon style" {
-    const info_icon = ToastLevel.info.icon();
+    // Verify each level returns the expected icon codepoint
+    try std.testing.expectEqual(@as(u21, 'ℹ'), ToastLevel.info.icon());
+    try std.testing.expectEqual(@as(u21, '✓'), ToastLevel.success.icon());
+    try std.testing.expectEqual(@as(u21, '⚠'), ToastLevel.warning.icon());
+    try std.testing.expectEqual(@as(u21, '✗'), ToastLevel.error_.icon());
+
+    // Verify each level returns a distinct style (different fg colors)
     const info_style = ToastLevel.info.style();
-
-    const success_icon = ToastLevel.success.icon();
     const success_style = ToastLevel.success.style();
-
-    const warning_icon = ToastLevel.warning.icon();
     const warning_style = ToastLevel.warning.style();
-
-    const error_icon = ToastLevel.error_.icon();
     const error_style = ToastLevel.error_.style();
 
-    // Styles should be defined (not testing color values, just ensuring they exist)
-    _ = info_icon;
-    _ = info_style;
-    _ = success_icon;
-    _ = success_style;
-    _ = warning_icon;
-    _ = warning_style;
-    _ = error_icon;
-    _ = error_style;
+    // info = blue (indexed 12)
+    try std.testing.expectEqual(Color{ .indexed = 12 }, info_style.fg.?);
+    // success = green (indexed 10)
+    try std.testing.expectEqual(Color{ .indexed = 10 }, success_style.fg.?);
+    // warning = yellow (indexed 11)
+    try std.testing.expectEqual(Color{ .indexed = 11 }, warning_style.fg.?);
+    // error = red (indexed 9)
+    try std.testing.expectEqual(Color{ .indexed = 9 }, error_style.fg.?);
 
-    try std.testing.expect(true); // Styles exist without panic
+    // All four styles must be distinct
+    try std.testing.expect(!std.meta.eql(info_style, success_style));
+    try std.testing.expect(!std.meta.eql(warning_style, error_style));
 }
 
 test "ToastManager dismissAll then push works" {

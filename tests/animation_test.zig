@@ -681,16 +681,12 @@ test "Integration - animation with custom easing function" {
 }
 
 test "Integration - memory safety with allocator (no leaks)" {
-    // Animations themselves don't allocate, but ensure no issues
-    const allocator = testing.allocator;
-
+    // Animations are stack-allocated — no heap usage, no deinit needed
     var anim = Animation.init(0.0, 100.0, 1000, animation.linear);
     anim.begin(0);
 
-    // Use animation
-    _ = anim.update(500);
-
-    // No deinit needed - animation is stack-allocated
-    // This test verifies no unexpected allocations
-    _ = allocator;
+    // At 50% progress, value should be midpoint
+    const val = anim.update(500);
+    try testing.expectEqual(@as(f32, 50.0), val);
+    try testing.expect(!anim.isComplete());
 }
