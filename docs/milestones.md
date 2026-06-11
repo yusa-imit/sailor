@@ -4,9 +4,77 @@
 
 - **Latest release**: v2.31.0 (2026-06-11) — Timeline Widget
 - **Latest minor**: v2.31.0 (2026-06-11) — Timeline Widget
-- **Next release**: TBD
-- **Active milestones**: 0 pending implementation
+- **Next release**: v2.32.0 — CommandBar Widget
+- **Active milestones**: 3 pending implementation
 - **Blockers**: None
+
+### v2.34.0 — StatusGrid Widget (Target: 2026-08-21)
+
+**Theme**: Multi-cell status grid for monitoring dashboards — N×M cells each with label, value, and status color. Useful for cluster health, pipeline overview, and metric panels.
+
+**Checklist**:
+- [ ] **src/tui/widgets/status_grid.zig** — StatusGrid: init with cells slice (rows×cols), StatusCell (label, value, status); StatusLevel enum (ok/warn/error_/unknown) with color(); cursor navigation (moveUp/Down/Left/Right, clamped); selectedCell(); withRows/withCols/withBlock/withCellStyle/withOkStyle/withWarnStyle/withErrorStyle/withUnknownStyle/withShowValues builder API; render draws labeled cells with status background color
+- [ ] **tests/status_grid_test.zig** — StatusGrid tests (init, navigation, selectedCell, status colors, render to Buffer, edge cases: empty cells, zero area, 1×1 grid, narrow area) — 55+ tests
+- [ ] Export StatusGrid, StatusCell, StatusLevel via tui.zig widgets struct
+- [ ] Add status_grid_tests to build.zig
+- [ ] Release v2.34.0
+
+**Success Criteria**:
+- moveRight/Left/Up/Down clamp cursor within [0, cols-1] × [0, rows-1]
+- selectedCell() returns pointer to current StatusCell
+- StatusLevel.color() returns appropriate Color (.green/.yellow/.red/.bright_black)
+- render draws each cell as a bordered box with label+value+status indicator
+- Zero-area, empty cells, 1×1 edge cases handled without crash
+
+**Notes**:
+- No allocator — cells slice borrowed from caller
+- Useful for: zr (pipeline status overview), zoltraak (cluster health), silica (table status panel)
+
+### v2.33.0 — Inspector Widget (Target: 2026-08-14)
+
+**Theme**: Collapsible key-value property inspector for examining structured data — fields, types, values, optional filtering. Useful for Redis key inspection, schema details, task properties.
+
+**Checklist**:
+- [ ] **src/tui/widgets/inspector.zig** — Inspector: init with fields slice; InspectorField (key, value, field_type, depth); scrollUp/scrollDown/goToTop/goToBottom navigation; filterBy(query) hides non-matching fields; clearFilter(); withBlock/withKeyStyle/withValueStyle/withTypeStyle/withFilterStyle/withShowTypes/withShowFilter builder API; render draws key: value [type] rows with indentation for depth
+- [ ] **tests/inspector_test.zig** — Inspector tests (init, navigation, filter, clearFilter, render to Buffer, edge cases: empty fields, zero area, single field, deep nesting, narrow area) — 55+ tests
+- [ ] Export Inspector, InspectorField via tui.zig widgets struct
+- [ ] Add inspector_tests to build.zig
+- [ ] Release v2.33.0
+
+**Success Criteria**:
+- scrollDown/scrollUp clamp to [0, visible_fields.len - 1]
+- filterBy("query") case-insensitive match on field key
+- render indents rows by depth (2 spaces per level)
+- withShowTypes(true) renders [type] tag after value
+- Zero-area, empty fields, deep nesting handled without crash
+
+**Notes**:
+- No allocator — fields slice borrowed from caller
+- Useful for: zoltraak (Redis key inspector), silica (schema inspector), zr (task detail viewer)
+
+### v2.32.0 — CommandBar Widget (Target: 2026-08-07)
+
+**Theme**: Command palette / omnibox with command registration, fuzzy search, keyboard shortcut display, and ranked results list. Used for command dispatch in TUI applications.
+
+**Checklist**:
+- [ ] **src/tui/widgets/command_bar.zig** — CommandBar: init(allocator) stores registered commands; Command struct (name, description, shortcut); register(cmd)/unregister(name); setQuery(text)/clearQuery(); results() returns ranked matches (prefix-match first, then substring); moveCursorDown/moveCursorUp/selectedCommand(); withBlock/withQueryStyle/withResultStyle/withSelectedStyle/withShortcutStyle/withPlaceholder builder API; render draws query input + results list
+- [ ] **tests/command_bar_test.zig** — CommandBar tests (init, register, unregister, setQuery ranking, clearQuery, moveCursor, selectedCommand, render to Buffer, edge cases: no commands, no match, empty query, zero area) — 55+ tests
+- [ ] Export CommandBar, Command via tui.zig widgets struct
+- [ ] Add command_bar_tests to build.zig
+- [ ] Release v2.32.0
+
+**Success Criteria**:
+- register() adds command; unregister(name) removes it (no-op if not found)
+- setQuery("") returns all registered commands in registration order
+- setQuery("q") returns prefix matches first, then substring matches, no duplicates
+- moveCursorDown/Up cycle within results slice bounds
+- selectedCommand() returns the Command at cursor (null if no results)
+- render draws query line at top, results below with shortcut right-aligned
+- Zero-area, no-match, empty-commands edge cases handled without crash
+
+**Notes**:
+- CommandBar needs allocator for dynamic results slice (unlike most widgets)
+- Useful for: silica (SQL commands), zoltraak (CLI command palette), zr (task shortcuts)
 
 ### v2.31.0 — Timeline Widget (Target: 2026-07-31)
 

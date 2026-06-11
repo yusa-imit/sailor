@@ -1,3 +1,28 @@
+✅ **Session 287** — FEATURE MODE (2026-06-11)
+  - **Mode**: FEATURE (session 287, 287 % 5 == 2)
+  - **Achievement**: Implemented v2.31.0 Timeline Widget; tagged and released v2.31.0; established milestones v2.32.0-v2.34.0
+
+  **Completed Work**:
+    - ✅ CI check: queued (not RED); 0 open GitHub issues
+    - ✅ Implemented `src/tui/widgets/timeline.zig` — Timeline: TimelineStatus (pending/active/completed/failed/skipped) with ○/●/✓/✗/⊘ markers; TimelineDirection (vertical/horizontal); TimelineEvent (timestamp, title, description, status); Timeline.init(events slice, no alloc); scrollDown/scrollUp (clamped)/goToTop/goToBottom navigation; marker() static fn; withDirection/withBlock/withStyle/withActiveStyle/withCompletedStyle/withFailedStyle/withSkippedStyle/withShowTimestamps/withConnectorChar builder API; renderVertical (marker+title, connector between events, optional timestamp column, scroll_offset); renderHorizontal (markers at center row, titles below, connectors)
+    - ✅ Implemented `tests/timeline_test.zig` — 58 comprehensive tests (TDD, test-writer agent)
+    - ✅ Exported Timeline, TimelineEvent, TimelineStatus, TimelineDirection via tui.zig
+    - ✅ Added timeline_tests to build.zig
+    - ✅ All tests pass: `zig build test` exit code 0
+    - ✅ Tagged v2.31.0 on commit 4abf1ed; GitHub release created
+    - ✅ Consumer migration issues: zr#71, zoltraak#49, silica#60
+    - ✅ Discord notification sent
+    - ✅ Commits: 47e5f64 feat(v2.31.0), 4abf1ed chore: bump version
+    - ✅ Established milestones v2.32.0/v2.33.0/v2.34.0 in docs/milestones.md
+
+  **Current State**:
+    - **Latest release**: v2.31.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **CI status**: Push triggered new run
+
+  **Next Priority**:
+    - Implement v2.32.0 CommandBar Widget (command palette with fuzzy search, registration, ranked results)
+
 ✅ **Session 286** — FEATURE MODE (2026-06-11)
   - **Mode**: FEATURE (session 286, 286 % 5 == 1)
   - **Achievement**: Implemented v2.30.0 Accordion Widget; tagged and released v2.30.0
