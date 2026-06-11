@@ -996,6 +996,16 @@ pub fn build(b: *std.Build) void {
     accordion_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(accordion_tests).step);
 
+    const timeline_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/timeline_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    timeline_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(timeline_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",

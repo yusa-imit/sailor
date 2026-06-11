@@ -337,6 +337,12 @@ pub const widgets = struct {
     // v2.30.0 — Accordion Widget
     pub const Accordion = @import("widgets/accordion.zig").Accordion;
     pub const AccordionSection = @import("widgets/accordion.zig").AccordionSection;
+
+    // v2.31.0 — Timeline Widget
+    pub const Timeline = @import("widgets/timeline.zig").Timeline;
+    pub const TimelineEvent = @import("widgets/timeline.zig").TimelineEvent;
+    pub const TimelineStatus = @import("widgets/timeline.zig").TimelineStatus;
+    pub const TimelineDirection = @import("widgets/timeline.zig").TimelineDirection;
 };
 
 // Export commonly used types
