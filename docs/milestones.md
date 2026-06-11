@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v2.31.0 (2026-06-11) — Timeline Widget
-- **Latest minor**: v2.31.0 (2026-06-11) — Timeline Widget
-- **Next release**: v2.32.0 — CommandBar Widget
-- **Active milestones**: 3 pending implementation
+- **Latest release**: v2.32.0 (2026-06-11) — CommandBar Widget
+- **Latest minor**: v2.32.0 (2026-06-11) — CommandBar Widget
+- **Next release**: v2.33.0 — Inspector Widget
+- **Active milestones**: 2 pending implementation
 - **Blockers**: None
 
 ### v2.34.0 — StatusGrid Widget (Target: 2026-08-21)
@@ -57,11 +57,11 @@
 **Theme**: Command palette / omnibox with command registration, fuzzy search, keyboard shortcut display, and ranked results list. Used for command dispatch in TUI applications.
 
 **Checklist**:
-- [ ] **src/tui/widgets/command_bar.zig** — CommandBar: init(allocator) stores registered commands; Command struct (name, description, shortcut); register(cmd)/unregister(name); setQuery(text)/clearQuery(); results() returns ranked matches (prefix-match first, then substring); moveCursorDown/moveCursorUp/selectedCommand(); withBlock/withQueryStyle/withResultStyle/withSelectedStyle/withShortcutStyle/withPlaceholder builder API; render draws query input + results list
-- [ ] **tests/command_bar_test.zig** — CommandBar tests (init, register, unregister, setQuery ranking, clearQuery, moveCursor, selectedCommand, render to Buffer, edge cases: no commands, no match, empty query, zero area) — 55+ tests
-- [ ] Export CommandBar, Command via tui.zig widgets struct
-- [ ] Add command_bar_tests to build.zig
-- [ ] Release v2.32.0
+- [x] **src/tui/widgets/command_bar.zig** — CommandBar: init(allocator) stores registered commands; Command struct (name, description, shortcut); register(cmd)/unregister(name); setQuery(text)/clearQuery(); results() returns ranked matches (prefix-match first, then substring); moveCursorDown/moveCursorUp/selectedCommand(); withBlock/withQueryStyle/withResultStyle/withSelectedStyle/withShortcutStyle/withPlaceholder builder API; render draws query input + results list
+- [x] **tests/command_bar_test.zig** — CommandBar tests (init, register, unregister, setQuery ranking, clearQuery, moveCursor, selectedCommand, render to Buffer, edge cases: no commands, no match, empty query, zero area) — 63 tests
+- [x] Export CommandBar, Command via tui.zig widgets struct
+- [x] Add command_bar_tests to build.zig
+- [x] Release v2.32.0
 
 **Success Criteria**:
 - register() adds command; unregister(name) removes it (no-op if not found)
