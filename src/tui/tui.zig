@@ -343,6 +343,10 @@ pub const widgets = struct {
     pub const TimelineEvent = @import("widgets/timeline.zig").TimelineEvent;
     pub const TimelineStatus = @import("widgets/timeline.zig").TimelineStatus;
     pub const TimelineDirection = @import("widgets/timeline.zig").TimelineDirection;
+
+    // v2.32.0 — CommandBar Widget
+    pub const CommandBar = @import("widgets/command_bar.zig").CommandBar;
+    pub const CommandBarCommand = @import("widgets/command_bar.zig").Command;
 };
 
 // Export commonly used types
