@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v2.30.0 (2026-06-11) — Accordion Widget
-- **Latest minor**: v2.30.0 (2026-06-11) — Accordion Widget
-- **Next release**: v2.31.0 — Timeline Widget
-- **Active milestones**: 1 pending implementation
+- **Latest release**: v2.31.0 (2026-06-11) — Timeline Widget
+- **Latest minor**: v2.31.0 (2026-06-11) — Timeline Widget
+- **Next release**: TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
 ### v2.31.0 — Timeline Widget (Target: 2026-07-31)
@@ -13,11 +13,11 @@
 **Theme**: Vertical/horizontal timeline display for event history with timestamps, status markers, and scrollable navigation
 
 **Checklist**:
-- [ ] **src/tui/widgets/timeline.zig** — Timeline: init with events slice, scrollUp/scrollDown/goToTop/goToBottom navigation; TimelineEvent (timestamp, title, description, status); TimelineStatus enum (pending/active/completed/failed/skipped); withDirection/withBlock/withStyle/withActiveStyle/withCompletedStyle/withFailedStyle/withShowTimestamps/withConnectorChar builder API; render draws connector line with event markers
-- [ ] **tests/timeline_test.zig** — Timeline tests (init, navigation, status rendering, direction modes, timestamps, render to Buffer, edge cases: empty events, zero area, single event, narrow area) — 55+ tests
-- [ ] Export Timeline, TimelineEvent, TimelineStatus, TimelineDirection via tui.zig widgets struct
-- [ ] Add timeline_tests to build.zig
-- [ ] Release v2.31.0
+- [x] **src/tui/widgets/timeline.zig** — Timeline: init with events slice, scrollUp/scrollDown/goToTop/goToBottom navigation; TimelineEvent (timestamp, title, description, status); TimelineStatus enum (pending/active/completed/failed/skipped); withDirection/withBlock/withStyle/withActiveStyle/withCompletedStyle/withFailedStyle/withShowTimestamps/withConnectorChar builder API; render draws connector line with event markers
+- [x] **tests/timeline_test.zig** — Timeline tests (init, navigation, status rendering, direction modes, timestamps, render to Buffer, edge cases: empty events, zero area, single event, narrow area) — 58 tests
+- [x] Export Timeline, TimelineEvent, TimelineStatus, TimelineDirection via tui.zig widgets struct
+- [x] Add timeline_tests to build.zig
+- [x] Release v2.31.0
 
 **Success Criteria**:
 - scrollDown/scrollUp clamp scroll_offset to [0, events.len - viewport]
