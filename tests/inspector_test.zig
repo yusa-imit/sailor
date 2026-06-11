@@ -332,7 +332,7 @@ test "filterBy clamps scroll_offset when visible count shrinks" {
     insp.filterBy("f"); // All 3 match, scroll_offset still 2
     insp.scroll_offset = 2;
     insp.filterBy("f1"); // Only 1 matches, scroll_offset should clamp to 0
-    // Implementation should set scroll_offset to min(current, visibleCount-1)
+    try testing.expectEqual(@as(usize, 0), insp.scroll_offset);
 }
 
 test "filterBy persists across scrollDown" {
@@ -428,7 +428,8 @@ test "clearFilter scroll_offset remains unchanged if still valid" {
     insp.scroll_offset = 1;
     insp.filterBy("n"); // Only name visible, offset clamped to 0
     insp.clearFilter();
-    // After clear, offset should be preserved if valid
+    // After clear, scroll_offset is 0 (clamped from 1 by filterBy) and still valid for 2 fields
+    try testing.expectEqual(@as(usize, 0), insp.scroll_offset);
 }
 
 test "clearFilter on already empty filter is safe" {
@@ -565,7 +566,10 @@ test "render key:value output" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     insp.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
-    // Verify render completes without crash (exact output checked in deeper render tests)
+    // First char of "name" should be at (0, 0) with no indentation
+    const cell = buf.getConst(0, 0);
+    try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, 'n'), cell.?.char);
 }
 
 test "render with show_types true includes type annotation" {
@@ -651,7 +655,10 @@ test "render zero depth has no indentation" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     insp.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
-    // First character at x=0 should be 'n' (from "noindent")
+    // At depth=0, key "noindent" starts at x=0 with no indent spaces
+    const cell = buf.getConst(0, 0);
+    try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, 'n'), cell.?.char);
 }
 
 test "render type annotation appears after value when show_types true" {
@@ -662,6 +669,14 @@ test "render type annotation appears after value when show_types true" {
     var buf = try Buffer.init(testing.allocator, 60, 20);
     defer buf.deinit();
     insp.render(&buf, .{ .x = 0, .y = 0, .width = 60, .height = 20 });
+    // "port: 8080 [u16]" — the '[' should appear somewhere on row 0
+    // "port" (4) + ": " (2) + "8080" (4) + " [" starts at col 10
+    const bracket_cell = buf.getConst(10, 0);
+    try testing.expect(bracket_cell != null);
+    try testing.expectEqual(@as(u21, ' '), bracket_cell.?.char);
+    const open_cell = buf.getConst(11, 0);
+    try testing.expect(open_cell != null);
+    try testing.expectEqual(@as(u21, '['), open_cell.?.char);
 }
 
 // ============================================================================
@@ -731,7 +746,12 @@ test "render empty field_type does not show type annotation" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     insp.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
-    // Empty type should not render [type] tag
+    // "data: content" — no "[...]" should appear; position after value should be space or empty
+    // "data" (4) + ": " (2) + "content" (7) = ends at col 13; col 13 should NOT be '['
+    const after_value = buf.getConst(13, 0);
+    if (after_value) |cell| {
+        try testing.expect(cell.char != '[');
+    }
 }
 
 // ============================================================================
@@ -810,12 +830,13 @@ test "fields with different depths maintain hierarchy" {
 
 test "navigation with filter respects visible count" {
     var fields = [_]InspectorField{
-        .{ .key = "apple", .value = "fruit" },
-        .{ .key = "banana", .value = "fruit" },
-        .{ .key = "carrot", .value = "vegetable" },
+        .{ .key = "alpha", .value = "a" },
+        .{ .key = "beta", .value = "b" },
+        .{ .key = "zeta", .value = "z" },
     };
     var insp = Inspector.init(&fields);
-    insp.filterBy("fruit"); // Matches apple and banana
+    insp.filterBy("eta"); // "beta" and "zeta" both contain "eta" -> 2 visible
     insp.goToBottom();
-    // Should be at last visible field (banana, index 1)
+    // 2 visible fields: goToBottom sets scroll_offset to visibleCount-1 = 1
+    try testing.expectEqual(@as(usize, 1), insp.scroll_offset);
 }

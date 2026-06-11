@@ -768,8 +768,15 @@ test "render collapsed section shows only header" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     acc.render(&buf, area);
 
-    // Header should be at row 0, no content rows
-    // Content would be at rows 1-2 if expanded
+    // Header "Title" rendered at row 0, col 2 (after icon at col 0)
+    const title_cell = buf.getConst(2, 0);
+    try testing.expect(title_cell != null);
+    try testing.expectEqual(@as(u21, 'T'), title_cell.?.char);
+    // Row 1 should be empty (content not rendered when collapsed)
+    const content_cell = buf.getConst(2, 1);
+    if (content_cell) |cell| {
+        try testing.expect(cell.char == ' ' or cell.char == 0);
+    }
 }
 
 test "render expanded section shows header and content" {
@@ -788,7 +795,13 @@ test "render expanded section shows header and content" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     acc.render(&buf, area);
 
-    // Header at row 0, content at rows 1-2
+    // Header at row 0, content "Line 1" at row 1
+    const header_cell = buf.getConst(2, 0);
+    try testing.expect(header_cell != null);
+    try testing.expectEqual(@as(u21, 'T'), header_cell.?.char);
+    const content_cell = buf.getConst(2, 1);
+    try testing.expect(content_cell != null);
+    try testing.expectEqual(@as(u21, 'L'), content_cell.?.char);
 }
 
 test "render with block border" {
@@ -835,7 +848,16 @@ test "render multiple sections shows all headers" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     acc.render(&buf, area);
 
-    // All three headers should be rendered
+    // All three headers rendered at rows 0, 1, 2
+    const first_cell = buf.getConst(2, 0);
+    try testing.expect(first_cell != null);
+    try testing.expectEqual(@as(u21, 'F'), first_cell.?.char);
+    const second_cell = buf.getConst(2, 1);
+    try testing.expect(second_cell != null);
+    try testing.expectEqual(@as(u21, 'S'), second_cell.?.char);
+    const third_cell = buf.getConst(2, 2);
+    try testing.expect(third_cell != null);
+    try testing.expectEqual(@as(u21, 'T'), third_cell.?.char);
 }
 
 test "render applies cursor style to current section" {
@@ -853,7 +875,15 @@ test "render applies cursor style to current section" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     acc.render(&buf, area);
 
-    // Cursor row (row 1) should have cursor style applied
+    // cursor=1 (Second section) at row 1 should have cursor_style applied (bold=true, reverse=true)
+    const cursor_cell = buf.getConst(2, 1);
+    try testing.expect(cursor_cell != null);
+    try testing.expect(cursor_cell.?.style.bold == true);
+    try testing.expect(cursor_cell.?.style.reverse == true);
+    // Non-cursor row 0 should NOT have reverse style
+    const normal_cell = buf.getConst(2, 0);
+    try testing.expect(normal_cell != null);
+    try testing.expect(normal_cell.?.style.reverse == false);
 }
 
 // ============================================================================

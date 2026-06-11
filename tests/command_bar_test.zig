@@ -453,8 +453,10 @@ test "cursor reset on setQuery to empty from filtered state" {
     _ = cb.setQuery("sa");
     cb.moveCursorDown();
     _ = cb.setQuery("");
-    // After switching query, expect cursor still valid or reset
-    try testing.expect(cb.resultCount() >= 0);
+    // setQuery() resets cursor to CURSOR_INVALID; selectedCommand() must return null
+    try testing.expect(cb.selectedCommand() == null);
+    // All commands are visible with empty query
+    try testing.expectEqual(@as(usize, 2), cb.resultCount());
 }
 
 // ============================================================================

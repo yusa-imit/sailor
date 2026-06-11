@@ -380,9 +380,10 @@ test "withCompletedStyle sets completed_style field" {
         .{ .timestamp = "T1", .title = "E1" },
     };
     var tl = Timeline.init(&events);
-    const custom_style = Style{ .bold = false };
+    const custom_style = Style{ .italic = true };
     const tl2 = tl.withCompletedStyle(custom_style);
-    try testing.expect(tl2.completed_style.bold == false);
+    try testing.expect(tl2.completed_style.italic == true);
+    try testing.expect(tl2.completed_style.bold == false); // Default bold is false; italic=true confirms the style was actually set
 }
 
 test "withFailedStyle sets failed_style field" {
