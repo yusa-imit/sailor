@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v2.32.0 (2026-06-11) — CommandBar Widget
-- **Latest minor**: v2.32.0 (2026-06-11) — CommandBar Widget
-- **Next release**: v2.33.0 — Inspector Widget
-- **Active milestones**: 2 pending implementation
+- **Latest release**: v2.33.0 (2026-06-11) — Inspector Widget
+- **Latest minor**: v2.33.0 (2026-06-11) — Inspector Widget
+- **Next release**: v2.34.0 — StatusGrid Widget
+- **Active milestones**: 1 pending implementation
 - **Blockers**: None
 
 ### v2.34.0 — StatusGrid Widget (Target: 2026-08-21)
@@ -35,11 +35,11 @@
 **Theme**: Collapsible key-value property inspector for examining structured data — fields, types, values, optional filtering. Useful for Redis key inspection, schema details, task properties.
 
 **Checklist**:
-- [ ] **src/tui/widgets/inspector.zig** — Inspector: init with fields slice; InspectorField (key, value, field_type, depth); scrollUp/scrollDown/goToTop/goToBottom navigation; filterBy(query) hides non-matching fields; clearFilter(); withBlock/withKeyStyle/withValueStyle/withTypeStyle/withFilterStyle/withShowTypes/withShowFilter builder API; render draws key: value [type] rows with indentation for depth
-- [ ] **tests/inspector_test.zig** — Inspector tests (init, navigation, filter, clearFilter, render to Buffer, edge cases: empty fields, zero area, single field, deep nesting, narrow area) — 55+ tests
-- [ ] Export Inspector, InspectorField via tui.zig widgets struct
-- [ ] Add inspector_tests to build.zig
-- [ ] Release v2.33.0
+- [x] **src/tui/widgets/inspector.zig** — Inspector: init with fields slice; InspectorField (key, value, field_type, depth); scrollUp/scrollDown/goToTop/goToBottom navigation; filterBy(query) hides non-matching fields; clearFilter(); withBlock/withKeyStyle/withValueStyle/withTypeStyle/withFilterStyle/withShowTypes/withShowFilter builder API; render draws key: value [type] rows with indentation for depth
+- [x] **tests/inspector_test.zig** — Inspector tests (init, navigation, filter, clearFilter, render to Buffer, edge cases: empty fields, zero area, single field, deep nesting, narrow area) — 70 tests
+- [x] Export Inspector, InspectorField via tui.zig widgets struct
+- [x] Add inspector_tests to build.zig
+- [x] Release v2.33.0
 
 **Success Criteria**:
 - scrollDown/scrollUp clamp to [0, visible_fields.len - 1]

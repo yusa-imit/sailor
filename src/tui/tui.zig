@@ -347,6 +347,10 @@ pub const widgets = struct {
     // v2.32.0 — CommandBar Widget
     pub const CommandBar = @import("widgets/command_bar.zig").CommandBar;
     pub const CommandBarCommand = @import("widgets/command_bar.zig").Command;
+
+    // v2.33.0 — Inspector Widget
+    pub const Inspector = @import("widgets/inspector.zig").Inspector;
+    pub const InspectorField = @import("widgets/inspector.zig").InspectorField;
 };
 
 // Export commonly used types

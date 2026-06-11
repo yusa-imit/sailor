@@ -123,3 +123,5 @@
 {"timestamp":"2026-06-11T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for Timeline widget (TDD Red phase) — v2.31.0","project":"sailor"}
 {"timestamp":"2026-06-11T00:40:00Z","action":"subagent","agent_type":"test-writer","task":"Write TDD tests for CommandBar widget (v2.32.0) — 55+ tests covering init, register, unregister, setQuery ranking, clearQuery, cursor navigation, selectedCommand, render to Buffer, edge cases","project":"sailor"}
 {"timestamp":"2026-06-11T01:30:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement CommandBar widget Green phase — fix 6 failing tests (prefix/substring ranking, cursor clamping) and implement render() function","project":"sailor"}
+{"timestamp":"2026-06-11T12:27:57Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for Inspector widget (v2.33.0) — TDD Red phase","project":"sailor"}
+{"timestamp":"2026-06-11T12:33:26Z","action":"subagent","agent_type":"zig-developer","task":"Implement Inspector widget (v2.33.0) — TDD Green phase","project":"sailor"}
