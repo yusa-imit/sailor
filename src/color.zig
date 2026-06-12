@@ -139,6 +139,24 @@ pub const Color = union(enum) {
     }
 };
 
+// Color constants for convenient access to basic colors
+pub const black: Color = .{ .basic = .black };
+pub const red: Color = .{ .basic = .red };
+pub const green: Color = .{ .basic = .green };
+pub const yellow: Color = .{ .basic = .yellow };
+pub const blue: Color = .{ .basic = .blue };
+pub const magenta: Color = .{ .basic = .magenta };
+pub const cyan: Color = .{ .basic = .cyan };
+pub const white: Color = .{ .basic = .white };
+pub const bright_black: Color = .{ .basic = .bright_black };
+pub const bright_red: Color = .{ .basic = .bright_red };
+pub const bright_green: Color = .{ .basic = .bright_green };
+pub const bright_yellow: Color = .{ .basic = .bright_yellow };
+pub const bright_blue: Color = .{ .basic = .bright_blue };
+pub const bright_magenta: Color = .{ .basic = .bright_magenta };
+pub const bright_cyan: Color = .{ .basic = .bright_cyan };
+pub const bright_white: Color = .{ .basic = .bright_white };
+
 /// Text styling attributes
 pub const Attributes = packed struct {
     bold: bool = false,

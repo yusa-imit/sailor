@@ -1038,6 +1038,17 @@ pub fn build(b: *std.Build) void {
     status_grid_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(status_grid_tests).step);
 
+    const log_viewer_tests = b.addTest(.{
+        .name = "log_viewer_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/log_viewer_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    log_viewer_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(log_viewer_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",
