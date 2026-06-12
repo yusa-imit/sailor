@@ -2,22 +2,46 @@
 
 ## Current Status
 
-- **Latest release**: v2.34.0 (2026-06-12) — StatusGrid Widget
-- **Latest minor**: v2.34.0 (2026-06-12) — StatusGrid Widget
-- **Next release**: v2.35.0 — LogViewer Widget
+- **Latest release**: v2.35.0 (2026-06-12) — LogViewer Widget
+- **Latest minor**: v2.35.0 (2026-06-12) — LogViewer Widget
+- **Next release**: v2.36.0 — FilterBar Widget
 - **Active milestones**: 1 pending implementation
 - **Blockers**: None
 
-### v2.35.0 — LogViewer Widget (Target: 2026-08-28)
+### v2.36.0 — FilterBar Widget (Target: 2026-09-04)
+
+**Theme**: Multi-tag filter input bar for interactive data filtering — add/remove filter tags, preview active filters, support AND/OR logic. Useful for log filtering, search refinement, and data table filtering.
+
+**Checklist**:
+- [ ] **src/tui/widgets/filter_bar.zig** — FilterBar: init(allocator); FilterTag (key, value, active: bool); addTag(key, value)/removeTag(index)/toggleTag(index)/clearAll(); activeCount(); withBlock/withTagStyle/withActiveStyle/withInactiveStyle/withPlaceholder builder API; render draws active tags as colored pills + inactive as dimmed, placeholder when empty
+- [ ] **tests/filter_bar_test.zig** — FilterBar tests (init, addTag, removeTag, toggleTag, clearAll, activeCount, render to Buffer, edge cases: empty, max tags, zero area, narrow area) — 55+ tests
+- [ ] Export FilterBar, FilterTag via tui.zig widgets struct
+- [ ] Add filter_bar_tests to build.zig
+- [ ] Release v2.36.0
+
+**Success Criteria**:
+- addTag(key, value) appends new FilterTag (active=true by default)
+- removeTag(index) removes tag at index (no-op if OOB)
+- toggleTag(index) flips active state (no-op if OOB)
+- clearAll() removes all tags
+- activeCount() returns count of active tags only
+- render draws tags as `[key:value]` pills, active in tag color, inactive dimmed
+- Zero-area, empty tags, narrow area handled without crash
+
+**Notes**:
+- FilterBar needs allocator for dynamic tag list (like CommandBar)
+- Useful for: silica (table column filters), zoltraak (Redis key pattern filters), zr (task label filters)
+
+### v2.35.0 — LogViewer Widget (Released: 2026-06-12)
 
 **Theme**: Scrollable log pane with log-level coloring, search/highlight, and tail mode. Useful for live log tailing, build output, and event streams.
 
 **Checklist**:
-- [ ] **src/tui/widgets/log_viewer.zig** — LogViewer: init(entries slice); LogEntry (text, level: LogLevel); LogLevel enum (debug/info/warn/error_) with color(); scrollDown/scrollUp/pageDown/pageUp/goToTop/goToBottom navigation; search(query)/clearSearch(); tail_mode (auto-scroll to latest); withBlock/withLevelStyle/withSearchStyle/withShowLevels/withTailMode builder API; render draws entries with level-colored prefix tag
-- [ ] **tests/log_viewer_test.zig** — LogViewer tests (init, navigation, search, tail mode, render to Buffer, edge cases: empty log, zero area, single entry, narrow area) — 55+ tests
-- [ ] Export LogViewer, LogEntry, LogLevel via tui.zig widgets struct
-- [ ] Add log_viewer_tests to build.zig
-- [ ] Release v2.35.0
+- [x] **src/tui/widgets/logviewer.zig** — LogViewer: init(entries slice); LogEntry (timestamp_ms, level, message, source?); LogLevel enum (trace/debug/info/warn/err/fatal) with defaultColor(); scrollDown/scrollUp/pageDown/pageUp/goToTop/goToBottom navigation; search(query)/clearSearch(); tail_mode (auto-scroll to latest); withBlock/withLevelStyle/withSearchStyle/withShowLevels/withTailMode builder API; render draws [LEVEL] prefix tags with level color + message
+- [x] **tests/log_viewer_test.zig** — LogViewer tests (init, navigation, search, tail mode, render to Buffer, edge cases: empty log, zero area, single entry, narrow area) — 77 tests
+- [x] Export LogViewer, LogEntry, LogLevel via tui.zig widgets struct
+- [x] Add log_viewer_tests to build.zig
+- [x] Release v2.35.0
 
 **Success Criteria**:
 - scrollDown/scrollUp clamp scroll_offset within valid range
