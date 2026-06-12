@@ -363,6 +363,9 @@ pub const widgets = struct {
     // v2.36.0 — FilterBar Widget
     pub const FilterBar = @import("widgets/filter_bar.zig").FilterBar;
     pub const FilterTag = @import("widgets/filter_bar.zig").FilterTag;
+
+    // v2.37.0 — Pagination Widget
+    pub const Pagination = @import("widgets/pagination.zig").Pagination;
 };
 
 // Export commonly used types
