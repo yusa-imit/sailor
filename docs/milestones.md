@@ -2,22 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.35.0 (2026-06-12) — LogViewer Widget
-- **Latest minor**: v2.35.0 (2026-06-12) — LogViewer Widget
-- **Next release**: v2.36.0 — FilterBar Widget
-- **Active milestones**: 1 pending implementation
+- **Latest release**: v2.36.0 (2026-06-12) — FilterBar Widget
+- **Latest minor**: v2.36.0 (2026-06-12) — FilterBar Widget
+- **Next release**: v2.37.0 — TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
-### v2.36.0 — FilterBar Widget (Target: 2026-09-04)
+### v2.36.0 — FilterBar Widget (Released: 2026-06-12)
 
 **Theme**: Multi-tag filter input bar for interactive data filtering — add/remove filter tags, preview active filters, support AND/OR logic. Useful for log filtering, search refinement, and data table filtering.
 
 **Checklist**:
-- [ ] **src/tui/widgets/filter_bar.zig** — FilterBar: init(allocator); FilterTag (key, value, active: bool); addTag(key, value)/removeTag(index)/toggleTag(index)/clearAll(); activeCount(); withBlock/withTagStyle/withActiveStyle/withInactiveStyle/withPlaceholder builder API; render draws active tags as colored pills + inactive as dimmed, placeholder when empty
-- [ ] **tests/filter_bar_test.zig** — FilterBar tests (init, addTag, removeTag, toggleTag, clearAll, activeCount, render to Buffer, edge cases: empty, max tags, zero area, narrow area) — 55+ tests
-- [ ] Export FilterBar, FilterTag via tui.zig widgets struct
-- [ ] Add filter_bar_tests to build.zig
-- [ ] Release v2.36.0
+- [x] **src/tui/widgets/filter_bar.zig** — FilterBar: init(allocator); FilterTag (key, value, active: bool); addTag(key, value)/removeTag(index)/toggleTag(index)/clearAll(); activeCount(); withBlock/withTagStyle/withActiveStyle/withInactiveStyle/withPlaceholder builder API; render draws active tags as colored pills + inactive as dimmed, placeholder when empty
+- [x] **tests/filter_bar_test.zig** — FilterBar tests (init, addTag, removeTag, toggleTag, clearAll, activeCount, render to Buffer, edge cases: empty, max tags, zero area, narrow area) — 77 tests
+- [x] Export FilterBar, FilterTag via tui.zig widgets struct
+- [x] Add filter_bar_tests to build.zig
+- [x] Release v2.36.0
 
 **Success Criteria**:
 - addTag(key, value) appends new FilterTag (active=true by default)

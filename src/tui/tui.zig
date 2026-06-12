@@ -359,6 +359,10 @@ pub const widgets = struct {
     pub const StatusGrid = @import("widgets/status_grid.zig").StatusGrid;
     pub const StatusCell = @import("widgets/status_grid.zig").StatusCell;
     pub const StatusLevel = @import("widgets/status_grid.zig").StatusLevel;
+
+    // v2.36.0 — FilterBar Widget
+    pub const FilterBar = @import("widgets/filter_bar.zig").FilterBar;
+    pub const FilterTag = @import("widgets/filter_bar.zig").FilterTag;
 };
 
 // Export commonly used types

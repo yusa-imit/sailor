@@ -130,3 +130,5 @@
 {"timestamp":"2026-06-12T00:10:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement StatusGrid widget (v2.34.0) — N×M status grid with StatusCell, StatusLevel, cursor navigation, render to pass failing tests","project":"sailor"}
 {"timestamp":"2026-06-12T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for v2.35.0 LogViewer widget","project":"sailor"}
 {"timestamp":"2026-06-12T00:05:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement v2.35.0 LogViewer widget to pass 77 failing tests","project":"sailor"}
+{"timestamp":"2026-06-12T07:05:00Z","action":"subagent","agent_type":"test-writer","task":"Write FilterBar widget tests (77 tests, TDD red phase)","project":"sailor"}
+{"timestamp":"2026-06-12T07:20:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement FilterBar widget — filter_bar.zig, tui.zig exports, build.zig test registration","project":"sailor"}
