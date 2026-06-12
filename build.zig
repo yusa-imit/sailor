@@ -1060,6 +1060,17 @@ pub fn build(b: *std.Build) void {
     filter_bar_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(filter_bar_tests).step);
 
+    const pagination_tests = b.addTest(.{
+        .name = "pagination_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/pagination_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    pagination_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(pagination_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",

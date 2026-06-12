@@ -2,11 +2,34 @@
 
 ## Current Status
 
-- **Latest release**: v2.36.0 (2026-06-12) — FilterBar Widget
-- **Latest minor**: v2.36.0 (2026-06-12) — FilterBar Widget
-- **Next release**: v2.37.0 — TBD
+- **Latest release**: v2.37.0 (2026-06-13) — Pagination Widget
+- **Latest minor**: v2.37.0 (2026-06-13) — Pagination Widget
+- **Next release**: v2.38.0 — TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.37.0 — Pagination Widget (Released: 2026-06-13)
+
+**Theme**: Horizontal page navigation control displaying `< 1 2 [3] 4 5 ... 10 >` style navigator. Useful for any TUI view that needs to paginate through results (SQL rows, Redis keys, task lists).
+
+**Checklist**:
+- [x] **src/tui/widgets/pagination.zig** — Pagination: init(total_pages); current_page/total_pages/max_visible_pages fields; nextPage/prevPage/goToPage/goToFirst/goToLast navigation (all clamped); withBlock/withStyle/withSelectedStyle/withArrowStyle/withMaxVisiblePages builder API; render draws `< 1 2 [N] 4 5 ... 10 >` with truncation ellipsis
+- [x] **tests/pagination_test.zig** — Pagination tests (init, navigation, builder immutability, render edge cases, stress) — 90 tests
+- [x] Export Pagination via tui.zig widgets struct
+- [x] Add pagination_tests to build.zig
+- [x] Release v2.37.0
+
+**Success Criteria**:
+- nextPage/prevPage clamp to [0, total_pages-1]
+- goToPage(n) clamps to valid range; goToPage on 0-page count stays at 0
+- goToFirst/goToLast set to extremes
+- render draws page numbers in `< [current] >` style with brackets on current
+- max_visible_pages truncation with `...` ellipsis for large page counts
+- Zero-area, zero pages, single page handled without crash
+
+**Notes**:
+- No allocator needed — pure value type with stack-based rendering
+- Useful for: silica (SQL result pages), zoltraak (Redis key pagination), zr (task list pages)
 
 ### v2.36.0 — FilterBar Widget (Released: 2026-06-12)
 
