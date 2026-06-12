@@ -105,6 +105,9 @@ pub const multi_select_list = @import("widgets/multi_select_list.zig");
 // v2.14.0 — Filterable List Widget (exported at module level for test access)
 pub const filterable_list = @import("widgets/filterable_list.zig");
 
+// v2.34.0 — StatusGrid Widget (exported at module level for test access)
+pub const status_grid = @import("widgets/status_grid.zig");
+
 // v1.13.0+ — Advanced Text Editing & Rich Input
 pub const syntax = @import("syntax.zig");
 
@@ -351,6 +354,11 @@ pub const widgets = struct {
     // v2.33.0 — Inspector Widget
     pub const Inspector = @import("widgets/inspector.zig").Inspector;
     pub const InspectorField = @import("widgets/inspector.zig").InspectorField;
+
+    // v2.34.0 — StatusGrid Widget
+    pub const StatusGrid = @import("widgets/status_grid.zig").StatusGrid;
+    pub const StatusCell = @import("widgets/status_grid.zig").StatusCell;
+    pub const StatusLevel = @import("widgets/status_grid.zig").StatusLevel;
 };
 
 // Export commonly used types
