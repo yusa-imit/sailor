@@ -1,3 +1,28 @@
+✅ **Session 291** — FEATURE MODE (2026-06-12)
+  - **Mode**: FEATURE (session 291, 291 % 5 == 1)
+  - **Achievement**: Implemented v2.34.0 StatusGrid Widget; tagged and released v2.34.0; established v2.35.0 LogViewer milestone
+
+  **Completed Work**:
+    - ✅ CI check: queued (not RED); 0 open GitHub issues
+    - ✅ Implemented `src/tui/widgets/status_grid.zig` — StatusGrid: init(cells, rows, cols)/no-alloc; StatusCell (label, value, status); StatusLevel enum (ok/warn/error_/unknown) with color() → (green/yellow/red/bright_black); moveUp/Down/Left/Right cursor navigation (clamped); selectedCell() → ?*StatusCell (null if empty/OOB); builder API withBlock/withCellStyle/withOkStyle/withWarnStyle/withErrorStyle/withUnknownStyle/withShowValues; render divides area by rows/cols, status-colored cells, reverse-style cursor highlight, optional value row
+    - ✅ Implemented `tests/status_grid_test.zig` — 70 comprehensive tests (TDD, test-writer+zig-developer agents)
+    - ✅ Fixed test import pattern (status_grid_test.zig line 18-21 had wrong nested import)
+    - ✅ Fixed tui.zig exports: StatusGrid, StatusCell, StatusLevel as separate pub exports
+    - ✅ All tests pass: `zig build test` exit code 0
+    - ✅ Tagged v2.34.0 on commit ebf70c5; GitHub release created
+    - ✅ Consumer migration issues: zr, zoltraak, silica
+    - ✅ Discord notification sent
+    - ✅ Established v2.35.0 LogViewer milestone in docs/milestones.md
+    - ✅ Commits: 6d32143 feat(v2.34.0), ebf70c5 chore: bump version
+
+  **Current State**:
+    - **Latest release**: v2.34.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **CI status**: Push triggered new run
+
+  **Next Priority**:
+    - Implement v2.35.0 LogViewer Widget (scrollable log pane with level coloring, search, tail mode)
+
 ✅ **Session 290** — STABILIZATION MODE (2026-06-12)
   - **Mode**: STABILIZATION (session 290, 290 % 5 == 0)
   - **Achievement**: Fixed 13 weak test assertions across inspector, command_bar, timeline, accordion; all 6 cross-compile targets verified

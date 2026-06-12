@@ -2,22 +2,44 @@
 
 ## Current Status
 
-- **Latest release**: v2.33.0 (2026-06-11) — Inspector Widget
-- **Latest minor**: v2.33.0 (2026-06-11) — Inspector Widget
-- **Next release**: v2.34.0 — StatusGrid Widget
+- **Latest release**: v2.34.0 (2026-06-12) — StatusGrid Widget
+- **Latest minor**: v2.34.0 (2026-06-12) — StatusGrid Widget
+- **Next release**: v2.35.0 — LogViewer Widget
 - **Active milestones**: 1 pending implementation
 - **Blockers**: None
 
-### v2.34.0 — StatusGrid Widget (Target: 2026-08-21)
+### v2.35.0 — LogViewer Widget (Target: 2026-08-28)
+
+**Theme**: Scrollable log pane with log-level coloring, search/highlight, and tail mode. Useful for live log tailing, build output, and event streams.
+
+**Checklist**:
+- [ ] **src/tui/widgets/log_viewer.zig** — LogViewer: init(entries slice); LogEntry (text, level: LogLevel); LogLevel enum (debug/info/warn/error_) with color(); scrollDown/scrollUp/pageDown/pageUp/goToTop/goToBottom navigation; search(query)/clearSearch(); tail_mode (auto-scroll to latest); withBlock/withLevelStyle/withSearchStyle/withShowLevels/withTailMode builder API; render draws entries with level-colored prefix tag
+- [ ] **tests/log_viewer_test.zig** — LogViewer tests (init, navigation, search, tail mode, render to Buffer, edge cases: empty log, zero area, single entry, narrow area) — 55+ tests
+- [ ] Export LogViewer, LogEntry, LogLevel via tui.zig widgets struct
+- [ ] Add log_viewer_tests to build.zig
+- [ ] Release v2.35.0
+
+**Success Criteria**:
+- scrollDown/scrollUp clamp scroll_offset within valid range
+- search(query) highlights matching entries; clearSearch() resets
+- tail_mode = true: scrolling to bottom on render (auto-follow new entries)
+- render draws `[LEVEL]` prefix with level color, then entry text
+- Zero-area, empty entries, single entry handled without crash
+
+**Notes**:
+- No allocator — entries slice borrowed from caller
+- Useful for: zr (build/task output), zoltraak (Redis command log), silica (query history)
+
+### v2.34.0 — StatusGrid Widget (Released: 2026-06-12)
 
 **Theme**: Multi-cell status grid for monitoring dashboards — N×M cells each with label, value, and status color. Useful for cluster health, pipeline overview, and metric panels.
 
 **Checklist**:
-- [ ] **src/tui/widgets/status_grid.zig** — StatusGrid: init with cells slice (rows×cols), StatusCell (label, value, status); StatusLevel enum (ok/warn/error_/unknown) with color(); cursor navigation (moveUp/Down/Left/Right, clamped); selectedCell(); withRows/withCols/withBlock/withCellStyle/withOkStyle/withWarnStyle/withErrorStyle/withUnknownStyle/withShowValues builder API; render draws labeled cells with status background color
-- [ ] **tests/status_grid_test.zig** — StatusGrid tests (init, navigation, selectedCell, status colors, render to Buffer, edge cases: empty cells, zero area, 1×1 grid, narrow area) — 55+ tests
-- [ ] Export StatusGrid, StatusCell, StatusLevel via tui.zig widgets struct
-- [ ] Add status_grid_tests to build.zig
-- [ ] Release v2.34.0
+- [x] **src/tui/widgets/status_grid.zig** — StatusGrid: init with cells slice (rows×cols), StatusCell (label, value, status); StatusLevel enum (ok/warn/error_/unknown) with color(); cursor navigation (moveUp/Down/Left/Right, clamped); selectedCell(); withBlock/withCellStyle/withOkStyle/withWarnStyle/withErrorStyle/withUnknownStyle/withShowValues builder API; render draws labeled cells with status background color
+- [x] **tests/status_grid_test.zig** — StatusGrid tests (init, navigation, selectedCell, status colors, render to Buffer, edge cases: empty cells, zero area, 1×1 grid, narrow area) — 70 tests
+- [x] Export StatusGrid, StatusCell, StatusLevel via tui.zig widgets struct
+- [x] Add status_grid_tests to build.zig
+- [x] Release v2.34.0
 
 **Success Criteria**:
 - moveRight/Left/Up/Down clamp cursor within [0, cols-1] × [0, rows-1]
