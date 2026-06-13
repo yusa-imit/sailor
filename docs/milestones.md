@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v2.39.0 (2026-06-13) — NumberInput Widget
-- **Latest minor**: v2.39.0 (2026-06-13) — NumberInput Widget
-- **Next release**: v2.40.0 — RangeSlider Widget
-- **Active milestones**: 1 pending implementation
+- **Latest release**: v2.40.0 (2026-06-14) — RangeSlider Widget
+- **Latest minor**: v2.40.0 (2026-06-14) — RangeSlider Widget
+- **Next release**: v2.41.0 — TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
 ### v2.40.0 — RangeSlider Widget (In Progress: 2026-06-14)
@@ -13,10 +13,10 @@
 **Theme**: Dual-handle horizontal slider for selecting a value range [low, high] within [min, max]. Positions handles proportionally on the track, shows selected range with a distinct fill character, supports focused handle highlighting, optional label, and value overlays. Ideal for TUI forms requiring bounded range selection (price filters, date ranges, etc.).
 
 **Checklist**:
-- [ ] **src/tui/widgets/rangeslider.zig** — RangeSlider + FocusedHandle enum: init(); low/high/min/max/step (f64); decimal_places (u8); focused_handle (FocusedHandle); label/show_values; moveLowLeft/Right, moveHighLeft/Right (step-based, no crossing); setLow/setHigh/setRange (clamped); isLowAtMin/isHighAtMax; lowRatio/highRatio/rangeSize; full builder API; render: single-row track with proportional handle positions, selected range, optional label, optional value overlays
-- [ ] **tests/rangeslider_test.zig** — RangeSlider tests (init defaults, handle movement clamping/crossing prevention, setLow/setHigh/setRange clamping, ratio calculations, builder immutability, render to Buffer, edge cases: zero area, narrow area, focused handle styling, show_values on/off, label rendering, block border)
-- [ ] Export RangeSlider + FocusedHandle via tui.zig widgets struct
-- [ ] Add rangeslider_tests to build.zig
+- [x] **src/tui/widgets/rangeslider.zig** — RangeSlider + FocusedHandle enum: init(); low/high/min/max/step (f64); decimal_places (u8); focused_handle (FocusedHandle); label/show_values; moveLowLeft/Right, moveHighLeft/Right (step-based, no crossing); setLow/setHigh/setRange (clamped); isLowAtMin/isHighAtMax; lowRatio/highRatio/rangeSize; full builder API; render: single-row track with proportional handle positions, selected range, optional label, optional value overlays
+- [x] **tests/rangeslider_test.zig** — RangeSlider tests (init defaults, handle movement clamping/crossing prevention, setLow/setHigh/setRange clamping, ratio calculations, builder immutability, render to Buffer, edge cases: zero area, narrow area, focused handle styling, show_values on/off, label rendering, block border) — 86 tests
+- [x] Export RangeSlider + FocusedHandle via tui.zig widgets struct
+- [x] Add rangeslider_tests to build.zig
 - [ ] Release v2.40.0
 
 **Success Criteria**:
