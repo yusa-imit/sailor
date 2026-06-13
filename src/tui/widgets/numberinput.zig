@@ -194,14 +194,14 @@ pub const NumberInput = struct {
         const y: u16 = inner_area.y;
         const max_x = inner_area.x + inner_area.width;
 
-        // Render label if present
+        // Render label if present and there's enough remaining space for controls+value
         if (self.label.len > 0) {
-            if (x < max_x) {
+            const label_needed = self.label.len + 1; // label + space
+            const min_controls = 7; // "[-] 0 [+]" minimum
+            if (x + label_needed + min_controls <= max_x) {
                 buf.setString(x, y, self.label, self.label_style);
                 x += @intCast(self.label.len);
-                if (x < max_x) {
-                    x += 1; // Space after label
-                }
+                x += 1; // Space after label
             }
         }
 

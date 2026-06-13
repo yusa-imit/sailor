@@ -309,7 +309,8 @@ test "NumberInput withStyle sets style" {
 test "NumberInput withFocusedStyle sets focused_style" {
     const s = Style{ .fg = .cyan };
     const ni = NumberInput.init().withFocusedStyle(s);
-    try testing.expect(ni.focused_style.fg == .cyan);
+    try testing.expect(ni.focused_style.fg != null);
+    try testing.expectEqual(@as(?sailor.tui.style.Color, .cyan), ni.focused_style.fg);
 }
 
 test "NumberInput withLabelStyle sets label_style" {
@@ -330,28 +331,30 @@ test "NumberInput withFocused sets focused state" {
 // ============================================================================
 
 test "NumberInput render with zero width is no-op" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(42);
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 1 };
     ni.render(&buf, area);
-    // Should not crash; cell at (0,0) should be unchanged
-    try testing.expect(buf.getConst(0, 0) == null);
+    // Should not crash; value digits '4' and '2' should not appear in buffer
+    try testing.expect(!rowHasChar(buf, 0, '4'));
+    try testing.expect(!rowHasChar(buf, 0, '2'));
 }
 
 test "NumberInput render with zero height is no-op" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(42);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 0 };
     ni.render(&buf, area);
-    // Should not crash; buffer should be empty
-    try testing.expect(buf.getConst(0, 0) == null);
+    // Should not crash; value digits '4' and '2' should not appear in buffer
+    try testing.expect(!rowHasChar(buf, 0, '4'));
+    try testing.expect(!rowHasChar(buf, 0, '2'));
 }
 
 test "NumberInput render renders to buffer starting at area.x, area.y" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(42);
     const area = Rect{ .x = 5, .y = 2, .width = 50, .height = 1 };
     ni.render(&buf, area);
@@ -360,8 +363,8 @@ test "NumberInput render renders to buffer starting at area.x, area.y" {
 }
 
 test "NumberInput render without label omits label section" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(42).withLabel("");
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -370,8 +373,8 @@ test "NumberInput render without label omits label section" {
 }
 
 test "NumberInput render with label includes label text" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(42).withLabel("Count");
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -380,8 +383,8 @@ test "NumberInput render with label includes label text" {
 }
 
 test "NumberInput render includes decrement button [-]" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(50);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -390,8 +393,8 @@ test "NumberInput render includes decrement button [-]" {
 }
 
 test "NumberInput render includes increment button [+]" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(50);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -400,8 +403,8 @@ test "NumberInput render includes increment button [+]" {
 }
 
 test "NumberInput render with prefix includes prefix in output" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(42).withPrefix("$");
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -414,8 +417,8 @@ test "NumberInput render with prefix includes prefix in output" {
 // ============================================================================
 
 test "NumberInput render with decimal_places=0 renders as integer" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(42).withDecimalPlaces(0);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -424,8 +427,8 @@ test "NumberInput render with decimal_places=0 renders as integer" {
 }
 
 test "NumberInput render with decimal_places=2 renders two decimals" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(3.14).withDecimalPlaces(2);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -434,8 +437,8 @@ test "NumberInput render with decimal_places=2 renders two decimals" {
 }
 
 test "NumberInput render rounds value to decimal_places" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(3.14159).withDecimalPlaces(2);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -444,8 +447,8 @@ test "NumberInput render rounds value to decimal_places" {
 }
 
 test "NumberInput render with suffix includes suffix text" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(42).withSuffix("%");
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -454,8 +457,8 @@ test "NumberInput render with suffix includes suffix text" {
 }
 
 test "NumberInput render with prefix and suffix includes both" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(42).withPrefix("$").withSuffix(" USD");
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -464,8 +467,8 @@ test "NumberInput render with prefix and suffix includes both" {
 }
 
 test "NumberInput render with zero value" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(0);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -474,8 +477,8 @@ test "NumberInput render with zero value" {
 }
 
 test "NumberInput render with negative value" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withMin(-10).withValue(-5);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -488,8 +491,8 @@ test "NumberInput render with negative value" {
 // ============================================================================
 
 test "NumberInput render at min state marks decrement as disabled (dim)" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withMin(0).withValue(0);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -498,8 +501,8 @@ test "NumberInput render at min state marks decrement as disabled (dim)" {
 }
 
 test "NumberInput render at max state marks increment as disabled (dim)" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withMax(100).withValue(100);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -508,8 +511,8 @@ test "NumberInput render at max state marks increment as disabled (dim)" {
 }
 
 test "NumberInput render when focused uses focused_style for value" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(42).withFocused(true);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -518,8 +521,8 @@ test "NumberInput render when focused uses focused_style for value" {
 }
 
 test "NumberInput render when not focused uses default style" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(42).withFocused(false);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -528,8 +531,8 @@ test "NumberInput render when not focused uses default style" {
 }
 
 test "NumberInput render with Block renders within block boundaries" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const block = Block{ .title = "Input" };
     const ni = NumberInput.init().withValue(42).withBlock(block);
     const area = Rect{ .x = 2, .y = 1, .width = 60, .height = 3 };
@@ -539,12 +542,14 @@ test "NumberInput render with Block renders within block boundaries" {
 }
 
 test "NumberInput render narrow area (width < 10) omits label and prefix/suffix" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
-    const ni = NumberInput.init().withValue(42).withLabel("Count").withPrefix("$").withSuffix("%");
-    const area = Rect{ .x = 0, .y = 0, .width = 5, .height = 1 };
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
+    // Use no prefix/suffix so value digits can fit in the narrow area after controls
+    const ni = NumberInput.init().withValue(42).withLabel("Count");
+    const area = Rect{ .x = 0, .y = 0, .width = 9, .height = 1 };
     ni.render(&buf, area);
-    // Should render at least value without crashing
+    // With width=9: "[-] 42 [+" fits; label "Count" (5+1=6) + 7 min = 13 > 9, so label omitted
+    // Actual: "[-] 42 [+" = 9 chars; '4' should appear
     try testing.expect(rowHasChar(buf, 0, '4'));
 }
 
@@ -553,8 +558,8 @@ test "NumberInput render narrow area (width < 10) omits label and prefix/suffix"
 // ============================================================================
 
 test "NumberInput render with very large value" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withMax(1e6).withValue(999999);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -563,8 +568,8 @@ test "NumberInput render with very large value" {
 }
 
 test "NumberInput render with very small value" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withMin(0.001).withValue(0.001).withDecimalPlaces(3);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -573,8 +578,8 @@ test "NumberInput render with very small value" {
 }
 
 test "NumberInput render with step larger than range collapses correctly" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withMin(0).withMax(10).withValue(5).withStep(20);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -583,8 +588,8 @@ test "NumberInput render with step larger than range collapses correctly" {
 }
 
 test "NumberInput render at offset position (x > 0)" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(42);
     const area = Rect{ .x = 20, .y = 5, .width = 40, .height = 1 };
     ni.render(&buf, area);
@@ -593,8 +598,8 @@ test "NumberInput render at offset position (x > 0)" {
 }
 
 test "NumberInput render with min equals max (single value)" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withMin(42).withMax(42).withValue(42);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ni.render(&buf, area);
@@ -603,8 +608,8 @@ test "NumberInput render with min equals max (single value)" {
 }
 
 test "NumberInput render very narrow width (width=1) no crash" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init().withValue(5);
     const area = Rect{ .x = 0, .y = 0, .width = 1, .height = 1 };
     ni.render(&buf, area);
@@ -612,8 +617,8 @@ test "NumberInput render very narrow width (width=1) no crash" {
 }
 
 test "NumberInput render full row layout" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni = NumberInput.init()
         .withLabel("Volume")
         .withValue(50)
@@ -686,8 +691,8 @@ test "NumberInput multiple setValue calls each overwrites previous" {
 }
 
 test "NumberInput render with style and block" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const block = Block{ .title = "Settings" };
     const style = Style{ .bold = true };
     const ni = NumberInput.init()
@@ -702,8 +707,8 @@ test "NumberInput render with style and block" {
 }
 
 test "NumberInput render with various decimal_places values" {
-    var buf = try Buffer.init(testing.allocator, .{ .width = 80, .height = 24 });
-    defer buf.deinit(testing.allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
     const ni1 = NumberInput.init().withValue(1.23456).withDecimalPlaces(0);
     const ni2 = NumberInput.init().withValue(1.23456).withDecimalPlaces(2);
     const ni3 = NumberInput.init().withValue(1.23456).withDecimalPlaces(4);
