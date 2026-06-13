@@ -2,13 +2,13 @@
 
 ## Current Status
 
-- **Latest release**: v2.37.0 (2026-06-13) — Pagination Widget
-- **Latest minor**: v2.37.0 (2026-06-13) — Pagination Widget
-- **Next release**: v2.38.0 — KeyMap Widget
-- **Active milestones**: 1 pending implementation
+- **Latest release**: v2.38.0 (2026-06-13) — KeyMap Widget
+- **Latest minor**: v2.38.0 (2026-06-13) — KeyMap Widget
+- **Next release**: v2.39.0 — TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
-### v2.38.0 — KeyMap Widget (Target: 2026-06-14)
+### v2.38.0 — KeyMap Widget (Released: 2026-06-13)
 
 **Theme**: Keyboard shortcut reference panel displaying key bindings grouped into sections, with scroll navigation and optional two-column layout. Essential for any TUI application's help/cheatsheet overlay.
 
@@ -17,7 +17,7 @@
 - [x] **tests/keymap_test.zig** — KeyMap tests (init, navigation, builder immutability, render edge cases, 2-column layout, stress) — 85 tests
 - [x] Export KeyMap, KeyBinding, KeySection via tui.zig widgets struct
 - [x] Add keymap_tests to build.zig
-- [ ] Release v2.38.0
+- [x] Release v2.38.0
 
 **Success Criteria**:
 - scrollDown/scrollUp clamp scroll_offset within [0, max_scroll]
