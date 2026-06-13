@@ -371,6 +371,9 @@ pub const widgets = struct {
     pub const KeyMap = @import("widgets/keymap.zig").KeyMap;
     pub const KeyBinding = @import("widgets/keymap.zig").KeyBinding;
     pub const KeySection = @import("widgets/keymap.zig").KeySection;
+
+    // v2.39.0 — NumberInput Widget
+    pub const NumberInput = @import("widgets/numberinput.zig").NumberInput;
 };
 
 // Export commonly used types

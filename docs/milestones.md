@@ -4,9 +4,36 @@
 
 - **Latest release**: v2.38.0 (2026-06-13) — KeyMap Widget
 - **Latest minor**: v2.38.0 (2026-06-13) — KeyMap Widget
-- **Next release**: v2.39.0 — TBD
-- **Active milestones**: 0 pending implementation
+- **Next release**: v2.39.0 — NumberInput Widget
+- **Active milestones**: 1 pending implementation
 - **Blockers**: None
+
+### v2.39.0 — NumberInput Widget (Target: 2026-06-13)
+
+**Theme**: Numeric input control with min/max constraints, configurable step, decimal precision, label/prefix/suffix decoration, and focused state. Displays as `[Label] [-] <prefix><value><suffix> [+]` with keyboard-driven increment/decrement. Essential for TUI forms requiring bounded numeric input.
+
+**Checklist**:
+- [ ] **src/tui/widgets/numberinput.zig** — NumberInput: init(); value/min/max/step (f64); decimal_places (u8); label/prefix/suffix strings; focused bool; increment()/decrement()/setValue(v) all clamped to [min,max]; isAtMin()/isAtMax() helpers; withMin/Max/Step/DecimalPlaces/Label/Prefix/Suffix/Value/Style/FocusedStyle/LabelStyle/Block builder API; render draws `[label] [-] <prefix><value><suffix> [+]`
+- [ ] **tests/numberinput_test.zig** — NumberInput tests (init defaults, increment/decrement clamping, setValue clamping, decimal display, builder immutability, render to Buffer, edge cases: zero area, narrow area, focused/unfocused, at-min/at-max states, negative values, large decimals) — ~80 tests
+- [ ] Export NumberInput via tui.zig widgets struct
+- [ ] Add numberinput_tests to build.zig
+- [ ] Release v2.39.0
+
+**Success Criteria**:
+- `increment()` adds step to value, clamped to max; no-op at max
+- `decrement()` subtracts step from value, clamped to min; no-op at min
+- `setValue(v)` clamps v to [min, max]
+- `isAtMin()` / `isAtMax()` return correct booleans
+- `decimal_places=0` renders integer (no decimal point); decimal_places>0 renders fixed-point
+- render draws `[-]` and `[+]` control markers around value
+- focused state applies focused_style to value area
+- label rendered before controls when non-empty
+- Zero-area, narrow area handled without crash
+- Negative min, negative values, step > range all handled correctly
+
+**Notes**:
+- No allocator — all strings are slices borrowed from caller
+- Useful for: silica (query LIMIT/OFFSET), zoltraak (Redis TTL, keyspace count), zr (task priority/time estimate)
 
 ### v2.38.0 — KeyMap Widget (Released: 2026-06-13)
 
