@@ -2,22 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.38.0 (2026-06-13) — KeyMap Widget
-- **Latest minor**: v2.38.0 (2026-06-13) — KeyMap Widget
-- **Next release**: v2.39.0 — NumberInput Widget
-- **Active milestones**: 1 pending implementation
+- **Latest release**: v2.39.0 (2026-06-13) — NumberInput Widget
+- **Latest minor**: v2.39.0 (2026-06-13) — NumberInput Widget
+- **Next release**: v2.40.0 — TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
-### v2.39.0 — NumberInput Widget (Target: 2026-06-13)
+### v2.39.0 — NumberInput Widget (Released: 2026-06-13)
 
 **Theme**: Numeric input control with min/max constraints, configurable step, decimal precision, label/prefix/suffix decoration, and focused state. Displays as `[Label] [-] <prefix><value><suffix> [+]` with keyboard-driven increment/decrement. Essential for TUI forms requiring bounded numeric input.
 
 **Checklist**:
-- [ ] **src/tui/widgets/numberinput.zig** — NumberInput: init(); value/min/max/step (f64); decimal_places (u8); label/prefix/suffix strings; focused bool; increment()/decrement()/setValue(v) all clamped to [min,max]; isAtMin()/isAtMax() helpers; withMin/Max/Step/DecimalPlaces/Label/Prefix/Suffix/Value/Style/FocusedStyle/LabelStyle/Block builder API; render draws `[label] [-] <prefix><value><suffix> [+]`
-- [ ] **tests/numberinput_test.zig** — NumberInput tests (init defaults, increment/decrement clamping, setValue clamping, decimal display, builder immutability, render to Buffer, edge cases: zero area, narrow area, focused/unfocused, at-min/at-max states, negative values, large decimals) — ~80 tests
-- [ ] Export NumberInput via tui.zig widgets struct
-- [ ] Add numberinput_tests to build.zig
-- [ ] Release v2.39.0
+- [x] **src/tui/widgets/numberinput.zig** — NumberInput: init(); value/min/max/step (f64); decimal_places (u8); label/prefix/suffix strings; focused bool; increment()/decrement()/setValue(v) all clamped to [min,max]; isAtMin()/isAtMax() helpers; withMin/Max/Step/DecimalPlaces/Label/Prefix/Suffix/Value/Style/FocusedStyle/LabelStyle/Block builder API; render draws `[label] [-] <prefix><value><suffix> [+]`
+- [x] **tests/numberinput_test.zig** — NumberInput tests (init defaults, increment/decrement clamping, setValue clamping, decimal display, builder immutability, render to Buffer, edge cases: zero area, narrow area, focused/unfocused, at-min/at-max states, negative values, large decimals) — 80 tests
+- [x] Export NumberInput via tui.zig widgets struct
+- [x] Add numberinput_tests to build.zig
+- [x] Release v2.39.0
 
 **Success Criteria**:
 - `increment()` adds step to value, clamped to max; no-op at max
