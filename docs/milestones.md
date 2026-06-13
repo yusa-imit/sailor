@@ -17,7 +17,7 @@
 - [x] **tests/rangeslider_test.zig** — RangeSlider tests (init defaults, handle movement clamping/crossing prevention, setLow/setHigh/setRange clamping, ratio calculations, builder immutability, render to Buffer, edge cases: zero area, narrow area, focused handle styling, show_values on/off, label rendering, block border) — 86 tests
 - [x] Export RangeSlider + FocusedHandle via tui.zig widgets struct
 - [x] Add rangeslider_tests to build.zig
-- [ ] Release v2.40.0
+- [x] Release v2.40.0
 
 **Success Criteria**:
 - `moveLowRight()` cannot move low past high (handles do not cross)
