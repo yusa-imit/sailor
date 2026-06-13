@@ -134,3 +134,5 @@
 {"timestamp":"2026-06-12T07:20:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement FilterBar widget — filter_bar.zig, tui.zig exports, build.zig test registration","project":"sailor"}
 {"timestamp":"2026-06-13T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for Pagination widget (v2.37.0) in tests/pagination_test.zig","project":"sailor"}
 {"timestamp":"2026-06-13T00:05:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement Pagination widget in src/tui/widgets/pagination.zig and export via tui.zig","project":"sailor"}
+{"timestamp":"2026-06-13T10:30:00Z","action":"subagent","agent_type":"test-writer","task":"Write KeyMap widget tests (85 tests, TDD red phase) in tests/keymap_test.zig","project":"sailor"}
+{"timestamp":"2026-06-13T10:35:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement KeyMap widget in src/tui/widgets/keymap.zig, export via tui.zig, register in build.zig","project":"sailor"}

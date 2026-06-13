@@ -1,27 +1,31 @@
-✅ **Session 295** — STABILIZATION MODE (2026-06-13)
-  - **Mode**: STABILIZATION (session 295, 295 % 5 == 0)
-  - **Achievement**: Test quality audit & improvement — replaced empty render test stubs with real buffer assertions
+✅ **Session 296** — FEATURE MODE (2026-06-13)
+  - **Mode**: NORMAL (session 296, 296 % 5 == 1)
+  - **Achievement**: Implemented KeyMap Widget (v2.38.0) and executed full release
 
   **Completed Work**:
     - ✅ CI check: queued (not RED); 0 open GitHub issues
-    - ✅ All 6 cross-compile targets pass (x86_64-windows-msvc, x86_64-linux-gnu, aarch64-macos, aarch64-linux-gnu, x86_64-macos, aarch64-windows-msvc)
-    - ✅ Test quality audit: identified ~90 `expect(true)` render stubs across 6 test files
-    - ✅ **log_viewer_test.zig**: Fixed 14+ render tests — level tag chars ('[','W','<'), level fg colors (.cyan/.green/.yellow/.red), scroll_offset skipping, search highlight bg style (.yellow), tail mode position, edge cases (single entry, narrow width, height=1). Added 3 new tail mode tests.
-    - ✅ **pagination_test.zig**: Fixed 11 render tests — '<'/'>' arrow presence, '['/']' brackets, digit presence, '.' truncation ellipsis, bold style on selected page cell. Added `rowHasChar()` helper.
-    - ✅ **status_grid_test.zig**: Fixed 5 render tests — actual cell chars, fg color (.green for ok), cell positions at expected x/y (2-row: y=10; 2-col: x=20), value at y+1, reverse flag on cursor.
-    - ✅ **filter_bar_test.zig**: Fixed 10+ render tests. Discovered FilterBar uses mutable `*Self` builders (not immutable value builders). Fixed full-config test that discarded mutable builder chain. Added real assertions: '[' char at pill start, ':' at key/value separator, space separator between pills, dim style for inactive tags, 'N' for placeholder, pill x-offset.
-    - ✅ All tests still pass: `zig build test` exit code 0
-    - ✅ Committed & pushed 3 commits
+    - ✅ Established v2.38.0 milestone: KeyMap Widget
+    - ✅ TDD Red: `test-writer` wrote 85 tests in `tests/keymap_test.zig`
+    - ✅ TDD Green: `zig-developer` implemented `src/tui/widgets/keymap.zig` (297 lines); exported from `tui.zig`; registered in `build.zig`
+    - ✅ Fixed 2 test data conflicts: pageDown clamping contradiction; 'A' char ambiguity in render test
+    - ✅ All 85 KeyMap tests pass; overall suite exit code 0
+    - ✅ All 6 cross-compile targets pass (pre-release check)
+    - ✅ Released v2.38.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#75, zoltraak#53, silica#64
+    - ✅ Discord notification sent
 
-  **Builder Pattern Discovery**:
-    - FilterBar, CommandBar: mutable `*Self` builders (`fn withXxx(self: *T) *T`) — safe to discard return value, mutation happens in-place
-    - StatusGrid, Pagination, LogViewer: immutable value builders (`fn withXxx(self: T) T`) — MUST use returned value
-    - `_ = grid.withShowValues(true)` in status_grid tests is intentional immutability test, not a bug
+  **KeyMap Widget Summary**:
+    - `KeyBinding`: key + description strings
+    - `KeySection`: title + bindings slice (no allocator)
+    - `KeyMap`: sections, scroll_offset, columns (1 or 2), key_width (default 10)
+    - Navigation: scrollDown/Up, pageDown/Up, goToTop/goToBottom (all clamped to totalRows())
+    - Builder: withBlock/withKeyStyle/withDescStyle/withSectionStyle/withColumns/withKeyWidth
+    - Render: section titles + binding rows, 2-column side-by-side pairing, scroll-aware
 
   **Current State**:
-    - **Latest release**: v2.37.0 (tagged + GitHub release)
+    - **Latest release**: v2.38.0 (tagged + GitHub release)
     - **Open issues**: 0 (sailor)
-    - **CI status**: Pushed new commits, CI queued
+    - **CI status**: Pushed commits, CI queued
 
   **Next Priority**:
-    - Establish v2.38.0 milestone (new widget TBD — candidates: NumberInput/Slider, DiffStat, or KeyMap)
+    - Establish v2.39.0 milestone (next widget TBD — candidates: NumberInput/Slider, DiffStat, Breadcrumb upgrade, or VirtualTable)
