@@ -13,10 +13,10 @@
 **Theme**: Keyboard shortcut reference panel displaying key bindings grouped into sections, with scroll navigation and optional two-column layout. Essential for any TUI application's help/cheatsheet overlay.
 
 **Checklist**:
-- [ ] **src/tui/widgets/keymap.zig** — KeyMap: init(sections); KeyBinding (key, description); KeySection (title, bindings); scrollDown/scrollUp/pageDown/pageUp/goToTop/goToBottom navigation; totalRows() computes virtual rows; withBlock/withKeyStyle/withDescStyle/withSectionStyle/withColumns/withKeyWidth builder API; render draws section headers (bold) + binding rows (`<key>   <description>`) with scroll
-- [ ] **tests/keymap_test.zig** — KeyMap tests (init, navigation, builder immutability, render edge cases, 2-column layout, stress) — ~80 tests
-- [ ] Export KeyMap, KeyBinding, KeySection via tui.zig widgets struct
-- [ ] Add keymap_tests to build.zig
+- [x] **src/tui/widgets/keymap.zig** — KeyMap: init(sections); KeyBinding (key, description); KeySection (title, bindings); scrollDown/scrollUp/pageDown/pageUp/goToTop/goToBottom navigation; totalRows() computes virtual rows; withBlock/withKeyStyle/withDescStyle/withSectionStyle/withColumns/withKeyWidth builder API; render draws section headers (bold) + binding rows (`<key>   <description>`) with scroll
+- [x] **tests/keymap_test.zig** — KeyMap tests (init, navigation, builder immutability, render edge cases, 2-column layout, stress) — 85 tests
+- [x] Export KeyMap, KeyBinding, KeySection via tui.zig widgets struct
+- [x] Add keymap_tests to build.zig
 - [ ] Release v2.38.0
 
 **Success Criteria**:
