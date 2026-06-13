@@ -584,7 +584,7 @@ test "StatusGrid.render 1×1 grid shows label in cell (0,0)" {
     try testing.expectEqual(@as(u21, 'S'), cell.?.char);
 }
 
-test "StatusGrid.render 1×1 with ok status uses ok_style background" {
+test "StatusGrid.render 1×1 with ok status uses ok_style fg color" {
     var cells = [_]StatusCell{
         .{ .label = "OK", .status = .ok },
     };
@@ -592,10 +592,11 @@ test "StatusGrid.render 1×1 with ok status uses ok_style background" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     grid.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
-
-    // Verify cell has style applied (ok_style.bg should be green)
+    // "OK" at (0,0); ok_style = .{ .fg = .green }
     const cell = buf.getConst(0, 0);
     try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, 'O'), cell.?.char);
+    try testing.expectEqual(@as(?sailor.tui.Color, .green), cell.?.style.fg);
 }
 
 test "StatusGrid.render 2×1 grid (2 rows, 1 col) shows labels at different y" {
@@ -607,9 +608,17 @@ test "StatusGrid.render 2×1 grid (2 rows, 1 col) shows labels at different y" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     grid.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
-
-    // First label should appear at some y offset from second
-    // This is a basic smoke test for multi-row rendering
+    // cell_height = 20/2 = 10; row 0 at y=0, row 1 at y=10
+    const top = buf.getConst(0, 0);
+    try testing.expect(top != null);
+    try testing.expectEqual(@as(u21, 'T'), top.?.char); // "Top"
+    const bot = buf.getConst(0, 10);
+    try testing.expect(bot != null);
+    try testing.expectEqual(@as(u21, 'B'), bot.?.char); // "Bot"
+    // Row 5 (between cells) should be blank
+    const mid = buf.getConst(0, 5);
+    try testing.expect(mid != null);
+    try testing.expectEqual(@as(u21, ' '), mid.?.char);
 }
 
 test "StatusGrid.render 1×2 grid (1 row, 2 cols) shows labels at different x" {
@@ -621,8 +630,17 @@ test "StatusGrid.render 1×2 grid (1 row, 2 cols) shows labels at different x" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     grid.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
-
-    // First label at (0, 0), second label at different x position
+    // cell_width = 40/2 = 20; col 0 at x=0, col 1 at x=20
+    const left = buf.getConst(0, 0);
+    try testing.expect(left != null);
+    try testing.expectEqual(@as(u21, 'L'), left.?.char);
+    const right = buf.getConst(20, 0);
+    try testing.expect(right != null);
+    try testing.expectEqual(@as(u21, 'R'), right.?.char);
+    // x=10 (between cells) should be blank
+    const mid = buf.getConst(10, 0);
+    try testing.expect(mid != null);
+    try testing.expectEqual(@as(u21, ' '), mid.?.char);
 }
 
 test "StatusGrid.render with show_values true includes value below label" {
@@ -634,8 +652,13 @@ test "StatusGrid.render with show_values true includes value below label" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     grid.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
-
-    // Label at (0, 0), value should appear at lower y position
+    // Label "CPU" at (0, 0), value "45%" at (0, 1)
+    const label_cell = buf.getConst(0, 0);
+    try testing.expect(label_cell != null);
+    try testing.expectEqual(@as(u21, 'C'), label_cell.?.char); // "CPU"
+    const value_cell = buf.getConst(0, 1);
+    try testing.expect(value_cell != null);
+    try testing.expectEqual(@as(u21, '4'), value_cell.?.char); // "45%"
 }
 
 test "StatusGrid.render cursor cell has reverse style for selection" {
@@ -644,14 +667,20 @@ test "StatusGrid.render cursor cell has reverse style for selection" {
         .{ .label = "B" },
     };
     var grid = StatusGrid.init(&cells, 1, 2);
-    grid.cursor_col = 0; // Select first cell
+    grid.cursor_col = 0; // Select first cell (col 0, row 0)
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     grid.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
-
-    // Selected cell should have reverse style applied
-    const cell = buf.getConst(0, 0);
-    try testing.expect(cell != null);
+    // Selected cell (cursor_row=0, cursor_col=0) should have reverse=true
+    const sel_cell = buf.getConst(0, 0);
+    try testing.expect(sel_cell != null);
+    try testing.expectEqual(@as(u21, 'A'), sel_cell.?.char);
+    try testing.expect(sel_cell.?.style.reverse == true);
+    // Non-selected cell (col 1) at x=20 should NOT have reverse
+    const other_cell = buf.getConst(20, 0);
+    try testing.expect(other_cell != null);
+    try testing.expectEqual(@as(u21, 'B'), other_cell.?.char);
+    try testing.expect(other_cell.?.style.reverse == false);
 }
 
 // ============================================================================

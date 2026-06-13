@@ -525,10 +525,14 @@ test "render writes message text to buffer" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
-    // First character should be part of "Hello" or level tag
+    // With show_level_tags=true (default), first char is '[' from level tag "[INFO] "
     const cell = buf.getConst(0, 0);
-    // With show_level_tags=true (default), first char should be '[' from the level tag
     try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, '['), cell.?.char);
+    // Message "Hello" starts at col 7 (after "[INFO] ")
+    const h_cell = buf.getConst(7, 0);
+    try testing.expect(h_cell != null);
+    try testing.expectEqual(@as(u21, 'H'), h_cell.?.char);
 }
 
 test "render with show_level_tags true includes level prefix" {
@@ -539,7 +543,13 @@ test "render with show_level_tags true includes level prefix" {
     var buf = try Buffer.init(testing.allocator, 60, 20);
     defer buf.deinit();
     viewer.render(&buf, .{ .x = 0, .y = 0, .width = 60, .height = 20 });
-    // Level tag [WARN] should appear somewhere in first row
+    // "[WARN] " is 7 chars; col 0 should be '[', col 1 'W', col 2 'A', col 3 'R', col 4 'N'
+    const cell0 = buf.getConst(0, 0);
+    try testing.expect(cell0 != null);
+    try testing.expectEqual(@as(u21, '['), cell0.?.char);
+    const cell1 = buf.getConst(1, 0);
+    try testing.expect(cell1 != null);
+    try testing.expectEqual(@as(u21, 'W'), cell1.?.char);
 }
 
 test "render respects scroll_offset (skips earlier entries)" {
@@ -553,7 +563,15 @@ test "render respects scroll_offset (skips earlier entries)" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
-    // With scroll_offset=1, "Second" should be first visible entry
+    // With scroll_offset=1, "Second" is first visible entry; message starts at col 7
+    const s_cell = buf.getConst(7, 0);
+    try testing.expect(s_cell != null);
+    try testing.expectEqual(@as(u21, 'S'), s_cell.?.char);
+    // "First" should NOT appear — row 0 shows "Second", not "First"
+    // Verify row 1 shows "Third"
+    const t_cell = buf.getConst(7, 1);
+    try testing.expect(t_cell != null);
+    try testing.expectEqual(@as(u21, 'T'), t_cell.?.char);
 }
 
 test "render with block border does not crash" {
@@ -577,7 +595,20 @@ test "render fills available rows up to height" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
-    // All 3 entries should render (height=20 allows plenty)
+    // All 3 entries should occupy rows 0, 1, 2; message starts at col 7
+    const l1 = buf.getConst(7, 0);
+    try testing.expect(l1 != null);
+    try testing.expectEqual(@as(u21, 'L'), l1.?.char); // "Line1"
+    const l2 = buf.getConst(7, 1);
+    try testing.expect(l2 != null);
+    try testing.expectEqual(@as(u21, 'L'), l2.?.char); // "Line2"
+    const l3 = buf.getConst(7, 2);
+    try testing.expect(l3 != null);
+    try testing.expectEqual(@as(u21, 'L'), l3.?.char); // "Line3"
+    // Row 3 should be blank (no 4th entry)
+    const blank = buf.getConst(7, 3);
+    try testing.expect(blank != null);
+    try testing.expectEqual(@as(u21, ' '), blank.?.char);
 }
 
 // ============================================================================
@@ -592,7 +623,11 @@ test "render debug level tag appears with cyan color" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
-    // Level tag should have cyan color style
+    // "[DEBUG]" tag at col 0; fg should be .cyan (debug defaultColor)
+    const cell = buf.getConst(0, 0);
+    try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, '['), cell.?.char);
+    try testing.expectEqual(@as(?sailor.tui.Color, .cyan), cell.?.style.fg);
 }
 
 test "render info level tag appears with green color" {
@@ -603,6 +638,11 @@ test "render info level tag appears with green color" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
+    // "[INFO] " tag at col 0; fg should be .green
+    const cell = buf.getConst(0, 0);
+    try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, '['), cell.?.char);
+    try testing.expectEqual(@as(?sailor.tui.Color, .green), cell.?.style.fg);
 }
 
 test "render warn level tag appears with yellow color" {
@@ -613,6 +653,11 @@ test "render warn level tag appears with yellow color" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
+    // "[WARN] " tag at col 0; fg should be .yellow
+    const cell = buf.getConst(0, 0);
+    try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, '['), cell.?.char);
+    try testing.expectEqual(@as(?sailor.tui.Color, .yellow), cell.?.style.fg);
 }
 
 test "render err level tag appears with red color" {
@@ -623,6 +668,11 @@ test "render err level tag appears with red color" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
+    // "[ERR]  " tag at col 0; fg should be .red
+    const cell = buf.getConst(0, 0);
+    try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, '['), cell.?.char);
+    try testing.expectEqual(@as(?sailor.tui.Color, .red), cell.?.style.fg);
 }
 
 // ============================================================================
@@ -638,7 +688,18 @@ test "render with search_query highlights matching text in entry" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
-    // Word "this" should have search_style (yellow bg, black fg)
+    // "[INFO] " is 7 chars, "find " is 5 chars → "this" starts at col 12
+    // search_style = .{ .bg = .yellow, .fg = .black }
+    const t_cell = buf.getConst(12, 0);
+    try testing.expect(t_cell != null);
+    try testing.expectEqual(@as(u21, 't'), t_cell.?.char);
+    try testing.expectEqual(@as(?sailor.tui.Color, .yellow), t_cell.?.style.bg);
+    try testing.expectEqual(@as(?sailor.tui.Color, .black), t_cell.?.style.fg);
+    // "find" before the match should NOT have search_style bg
+    const f_cell = buf.getConst(7, 0);
+    try testing.expect(f_cell != null);
+    try testing.expectEqual(@as(u21, 'f'), f_cell.?.char);
+    try testing.expect(f_cell.?.style.bg == null); // no highlight
 }
 
 test "render search highlight case-insensitive" {
@@ -650,6 +711,11 @@ test "render search highlight case-insensitive" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
+    // "Find " (5) + level (7) = "This" starts at col 12, should have search bg
+    const cell = buf.getConst(12, 0);
+    try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, 'T'), cell.?.char);
+    try testing.expectEqual(@as(?sailor.tui.Color, .yellow), cell.?.style.bg);
 }
 
 test "render no search_query renders without highlight" {
@@ -657,10 +723,15 @@ test "render no search_query renders without highlight" {
         .{ .timestamp_ms = 1000, .level = .info, .message = "Some message", .source = null },
     };
     var viewer = LogViewer.init(&entries);
-    // search_query = "" (default)
+    // search_query = "" (default) — message chars should have no bg color
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
+    // "Some" starts at col 7; no search highlight → bg should be null
+    const s_cell = buf.getConst(7, 0);
+    try testing.expect(s_cell != null);
+    try testing.expectEqual(@as(u21, 'S'), s_cell.?.char);
+    try testing.expect(s_cell.?.style.bg == null);
 }
 
 test "render search with no matches renders normally" {
@@ -672,6 +743,11 @@ test "render search with no matches renders normally" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
+    // "Lorem" starts at col 7, no search match → normal style (no bg)
+    const l_cell = buf.getConst(7, 0);
+    try testing.expect(l_cell != null);
+    try testing.expectEqual(@as(u21, 'L'), l_cell.?.char);
+    try testing.expect(l_cell.?.style.bg == null);
 }
 
 // ============================================================================
@@ -679,16 +755,46 @@ test "render search with no matches renders normally" {
 // ============================================================================
 
 test "render with tail_mode true shows latest entries at bottom" {
+    // 3 entries, height=3 → tail starts at index 0 (all fit); last entry "New" at row 2
     var entries = [_]LogEntry{
         .{ .timestamp_ms = 1000, .level = .info, .message = "Old1", .source = null },
         .{ .timestamp_ms = 2000, .level = .info, .message = "Old2", .source = null },
         .{ .timestamp_ms = 3000, .level = .info, .message = "New", .source = null },
     };
     var viewer = LogViewer.init(&entries).withTailMode(true);
-    var buf = try Buffer.init(testing.allocator, 40, 20);
+    var buf = try Buffer.init(testing.allocator, 40, 3);
     defer buf.deinit();
-    viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
-    // Newest entry (New) should render at bottom
+    viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 3 });
+    // All 3 entries fit; "New" is at row 2, message starts at col 7
+    const n_cell = buf.getConst(7, 2);
+    try testing.expect(n_cell != null);
+    try testing.expectEqual(@as(u21, 'N'), n_cell.?.char);
+}
+
+test "render with tail_mode true truncates oldest when overflow" {
+    // 5 entries, height=3 → tail shows last 3 (E3, E4, E5)
+    var entries = [_]LogEntry{
+        .{ .timestamp_ms = 1000, .level = .info, .message = "E1", .source = null },
+        .{ .timestamp_ms = 2000, .level = .info, .message = "E2", .source = null },
+        .{ .timestamp_ms = 3000, .level = .info, .message = "E3", .source = null },
+        .{ .timestamp_ms = 4000, .level = .info, .message = "E4", .source = null },
+        .{ .timestamp_ms = 5000, .level = .info, .message = "E5", .source = null },
+    };
+    var viewer = LogViewer.init(&entries).withTailMode(true);
+    var buf = try Buffer.init(testing.allocator, 40, 3);
+    defer buf.deinit();
+    viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 3 });
+    // Row 0 = "E3", row 1 = "E4", row 2 = "E5"; message starts at col 7
+    const e3 = buf.getConst(7, 0);
+    try testing.expect(e3 != null);
+    try testing.expectEqual(@as(u21, 'E'), e3.?.char);
+    const e5 = buf.getConst(7, 2);
+    try testing.expect(e5 != null);
+    try testing.expectEqual(@as(u21, 'E'), e5.?.char);
+    // E1 and E2 should NOT be in buffer (row 0 shows E3, not E1)
+    const col8 = buf.getConst(8, 0); // second char of message
+    try testing.expect(col8 != null);
+    try testing.expectEqual(@as(u21, '3'), col8.?.char); // "E3" not "E1"
 }
 
 test "render with tail_mode false shows earliest entries at top" {
@@ -701,9 +807,13 @@ test "render with tail_mode false shows earliest entries at top" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
+    // Normal mode: "First" at row 0, message starts at col 7
+    const f_cell = buf.getConst(7, 0);
+    try testing.expect(f_cell != null);
+    try testing.expectEqual(@as(u21, 'F'), f_cell.?.char);
 }
 
-test "render tail_mode with scroll_offset behavior" {
+test "render tail_mode ignores scroll_offset (always shows latest)" {
     var entries = [_]LogEntry{
         .{ .timestamp_ms = 1000, .level = .info, .message = "E1", .source = null },
         .{ .timestamp_ms = 2000, .level = .info, .message = "E2", .source = null },
@@ -711,10 +821,17 @@ test "render tail_mode with scroll_offset behavior" {
         .{ .timestamp_ms = 4000, .level = .info, .message = "E4", .source = null },
     };
     var viewer = LogViewer.init(&entries).withTailMode(true);
-    viewer.scroll_offset = 1;
-    var buf = try Buffer.init(testing.allocator, 40, 20);
+    viewer.scroll_offset = 1; // scroll_offset ignored in tail mode
+    var buf = try Buffer.init(testing.allocator, 40, 2);
     defer buf.deinit();
-    viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
+    viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 2 });
+    // With height=2, tail shows E3 (row 0) and E4 (row 1), not E2 (scroll_offset=1)
+    const r0 = buf.getConst(8, 0); // second char of "E3"
+    try testing.expect(r0 != null);
+    try testing.expectEqual(@as(u21, '3'), r0.?.char);
+    const r1 = buf.getConst(8, 1); // second char of "E4"
+    try testing.expect(r1 != null);
+    try testing.expectEqual(@as(u21, '4'), r1.?.char);
 }
 
 // ============================================================================
@@ -729,6 +846,14 @@ test "render with single entry renders on first row" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
     viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 20 });
+    // "Only" starts at col 7; row 0 should have 'O'
+    const o_cell = buf.getConst(7, 0);
+    try testing.expect(o_cell != null);
+    try testing.expectEqual(@as(u21, 'O'), o_cell.?.char);
+    // Row 1 should be blank
+    const blank = buf.getConst(7, 1);
+    try testing.expect(blank != null);
+    try testing.expectEqual(@as(u21, ' '), blank.?.char);
 }
 
 test "render with narrow width (10) truncates message" {
@@ -739,6 +864,13 @@ test "render with narrow width (10) truncates message" {
     var buf = try Buffer.init(testing.allocator, 10, 10);
     defer buf.deinit();
     viewer.render(&buf, .{ .x = 0, .y = 0, .width = 10, .height = 10 });
+    // Width=10; level tag "[INFO] " is 7 chars → only 3 chars of message fit
+    // Col 9 (last col) should be within bounds and not crash
+    const last_cell = buf.getConst(9, 0);
+    try testing.expect(last_cell != null);
+    // Col 10 (out of bounds) should return null
+    const oob = buf.getConst(10, 0);
+    try testing.expect(oob == null);
 }
 
 test "render with height=1 renders only one entry" {
@@ -751,6 +883,13 @@ test "render with height=1 renders only one entry" {
     var buf = try Buffer.init(testing.allocator, 40, 1);
     defer buf.deinit();
     viewer.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 1 });
+    // Only row 0 exists; "Line1" at col 7
+    const l1_cell = buf.getConst(7, 0);
+    try testing.expect(l1_cell != null);
+    try testing.expectEqual(@as(u21, 'L'), l1_cell.?.char);
+    // Row 1 is OOB — buffer only has 1 row
+    const oob = buf.getConst(0, 1);
+    try testing.expect(oob == null);
 }
 
 test "render with very long entry message handled safely" {

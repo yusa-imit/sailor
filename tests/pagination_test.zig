@@ -13,6 +13,17 @@ const Style = sailor.tui.style.Style;
 const Block = sailor.tui.widgets.Block;
 const Pagination = sailor.tui.widgets.Pagination;
 
+/// Scan a buffer row for a specific character; returns true if found
+fn rowHasChar(buf: Buffer, y: u16, char: u21) bool {
+    var x: u16 = 0;
+    while (x < buf.width) : (x += 1) {
+        if (buf.getConst(x, y)) |cell| {
+            if (cell.char == char) return true;
+        }
+    }
+    return false;
+}
+
 // ============================================================================
 // INITIALIZATION TESTS (5 tests)
 // ============================================================================
@@ -389,7 +400,7 @@ test "Pagination render with two pages allows navigation" {
 // RENDER TESTS — PAGE ARROWS (6 tests)
 // ============================================================================
 
-test "Pagination render at first page shows left arrow inactive or hidden" {
+test "Pagination render at first page shows left arrow inactive (space)" {
     const allocator = testing.allocator;
     var buf = try Buffer.init(allocator, 80, 10);
     defer buf.deinit();
@@ -397,7 +408,13 @@ test "Pagination render at first page shows left arrow inactive or hidden" {
     var p = Pagination.init(10);
     p.current_page = 0;
     p.render(&buf, area);
-    try testing.expect(true);
+    // render_y = 10 / 2 = 5; left arrow at x=0 should be ' ' when on first page
+    const render_y: u16 = 5;
+    const arrow = buf.getConst(0, render_y);
+    try testing.expect(arrow != null);
+    try testing.expectEqual(@as(u21, ' '), arrow.?.char); // "  " (inactive)
+    // Also: '<' should NOT appear anywhere in this row (no active left arrow)
+    try testing.expect(!rowHasChar(buf, render_y, '<'));
 }
 
 test "Pagination render at first page shows right arrow active" {
@@ -408,10 +425,12 @@ test "Pagination render at first page shows right arrow active" {
     var p = Pagination.init(10);
     p.current_page = 0;
     p.render(&buf, area);
-    try testing.expect(true);
+    // '>' should appear somewhere in row 5 (right arrow active when not on last page)
+    const render_y: u16 = 5;
+    try testing.expect(rowHasChar(buf, render_y, '>'));
 }
 
-test "Pagination render at last page shows right arrow inactive or hidden" {
+test "Pagination render at last page shows right arrow inactive (space)" {
     const allocator = testing.allocator;
     var buf = try Buffer.init(allocator, 80, 10);
     defer buf.deinit();
@@ -419,7 +438,9 @@ test "Pagination render at last page shows right arrow inactive or hidden" {
     var p = Pagination.init(10);
     p.current_page = 9;
     p.render(&buf, area);
-    try testing.expect(true);
+    // '>' should NOT appear anywhere in row 5 when on last page
+    const render_y: u16 = 5;
+    try testing.expect(!rowHasChar(buf, render_y, '>'));
 }
 
 test "Pagination render at last page shows left arrow active" {
@@ -430,7 +451,11 @@ test "Pagination render at last page shows left arrow active" {
     var p = Pagination.init(10);
     p.current_page = 9;
     p.render(&buf, area);
-    try testing.expect(true);
+    // Left arrow at x=0 should be '<' when not on first page
+    const render_y: u16 = 5;
+    const arrow = buf.getConst(0, render_y);
+    try testing.expect(arrow != null);
+    try testing.expectEqual(@as(u21, '<'), arrow.?.char);
 }
 
 test "Pagination render at middle page shows both arrows active" {
@@ -441,10 +466,13 @@ test "Pagination render at middle page shows both arrows active" {
     var p = Pagination.init(10);
     p.current_page = 5;
     p.render(&buf, area);
-    try testing.expect(true);
+    // Both '<' and '>' should appear in row 5
+    const render_y: u16 = 5;
+    try testing.expect(rowHasChar(buf, render_y, '<'));
+    try testing.expect(rowHasChar(buf, render_y, '>'));
 }
 
-test "Pagination render shows correct current page number" {
+test "Pagination render selected page appears with brackets [N]" {
     const allocator = testing.allocator;
     var buf = try Buffer.init(allocator, 80, 10);
     defer buf.deinit();
@@ -452,7 +480,11 @@ test "Pagination render shows correct current page number" {
     var p = Pagination.init(10);
     p.current_page = 3;
     p.render(&buf, area);
-    try testing.expect(true);
+    // Current page 3 renders as "[4]"; '[' and ']' should appear in render row
+    const render_y: u16 = 5;
+    try testing.expect(rowHasChar(buf, render_y, '['));
+    try testing.expect(rowHasChar(buf, render_y, ']'));
+    try testing.expect(rowHasChar(buf, render_y, '4'));
 }
 
 // ============================================================================
@@ -466,7 +498,13 @@ test "Pagination render shows all pages when total <= max_visible_pages" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     var p = Pagination.init(5).withMaxVisiblePages(7);
     p.render(&buf, area);
-    try testing.expect(true);
+    // 5 pages, all fit: digits 1-5 should all appear in the render row
+    const render_y: u16 = 5;
+    try testing.expect(rowHasChar(buf, render_y, '1'));
+    try testing.expect(rowHasChar(buf, render_y, '2'));
+    try testing.expect(rowHasChar(buf, render_y, '3'));
+    try testing.expect(rowHasChar(buf, render_y, '4'));
+    try testing.expect(rowHasChar(buf, render_y, '5'));
 }
 
 test "Pagination render with few pages shows no ellipsis" {
@@ -476,7 +514,9 @@ test "Pagination render with few pages shows no ellipsis" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     var p = Pagination.init(5).withMaxVisiblePages(7);
     p.render(&buf, area);
-    try testing.expect(true);
+    // 5 pages <= 7 max_visible: no truncation, so '.' should NOT appear
+    const render_y: u16 = 5;
+    try testing.expect(!rowHasChar(buf, render_y, '.'));
 }
 
 test "Pagination render with many pages shows subset with truncation" {
@@ -486,7 +526,9 @@ test "Pagination render with many pages shows subset with truncation" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     var p = Pagination.init(20).withMaxVisiblePages(7);
     p.render(&buf, area);
-    try testing.expect(true);
+    // 20 pages > 7 max_visible at page 0: truncation "..." should appear
+    const render_y: u16 = 5;
+    try testing.expect(rowHasChar(buf, render_y, '.'));
 }
 
 test "Pagination render with many pages at page 15 shows page numbers" {
@@ -497,10 +539,16 @@ test "Pagination render with many pages at page 15 shows page numbers" {
     var p = Pagination.init(20).withMaxVisiblePages(7);
     p.current_page = 15;
     p.render(&buf, area);
-    try testing.expect(true);
+    // Page 15 (display: 16) should render as [16] with brackets visible
+    const render_y: u16 = 5;
+    try testing.expect(rowHasChar(buf, render_y, '['));
+    try testing.expect(rowHasChar(buf, render_y, ']'));
+    // Both arrows active at middle page
+    try testing.expect(rowHasChar(buf, render_y, '<'));
+    try testing.expect(rowHasChar(buf, render_y, '>'));
 }
 
-test "Pagination render selected page appears with different style" {
+test "Pagination render selected page uses selectedStyle bold" {
     const allocator = testing.allocator;
     var buf = try Buffer.init(allocator, 80, 10);
     defer buf.deinit();
@@ -510,7 +558,17 @@ test "Pagination render selected page appears with different style" {
         .withSelectedStyle(Style{ .bold = true });
     p.current_page = 5;
     p.render(&buf, area);
-    try testing.expect(true);
+    // "[6]" brackets indicate selected page; '[' at render_y should have bold=true
+    const render_y: u16 = 5;
+    var x: u16 = 0;
+    while (x < buf.width) : (x += 1) {
+        if (buf.getConst(x, render_y)) |cell| {
+            if (cell.char == '[') {
+                try testing.expect(cell.style.bold == true);
+                break;
+            }
+        }
+    }
 }
 
 // ============================================================================
