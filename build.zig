@@ -1093,6 +1093,17 @@ pub fn build(b: *std.Build) void {
     numberinput_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(numberinput_tests).step);
 
+    const rangeslider_tests = b.addTest(.{
+        .name = "rangeslider_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/rangeslider_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    rangeslider_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(rangeslider_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",

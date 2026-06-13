@@ -374,6 +374,10 @@ pub const widgets = struct {
 
     // v2.39.0 — NumberInput Widget
     pub const NumberInput = @import("widgets/numberinput.zig").NumberInput;
+
+    // v2.40.0 — RangeSlider Widget
+    pub const RangeSlider = @import("widgets/rangeslider.zig").RangeSlider;
+    pub const FocusedHandle = @import("widgets/rangeslider.zig").FocusedHandle;
 };
 
 // Export commonly used types
@@ -388,6 +392,10 @@ pub const RichTextParser = richtext_parser.RichTextParser;
 pub const Buffer = buffer.Buffer;
 pub const Cell = buffer.Cell;
 pub const Rect = layout.Rect;
+
+// v2.40.0 — RangeSlider Widget (top-level export)
+pub const RangeSlider = @import("widgets/rangeslider.zig").RangeSlider;
+pub const FocusedHandle = @import("widgets/rangeslider.zig").FocusedHandle;
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;
 pub const BoxSet = symbols.BoxSet;

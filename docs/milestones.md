@@ -4,9 +4,32 @@
 
 - **Latest release**: v2.39.0 (2026-06-13) — NumberInput Widget
 - **Latest minor**: v2.39.0 (2026-06-13) — NumberInput Widget
-- **Next release**: v2.40.0 — TBD
-- **Active milestones**: 0 pending implementation
+- **Next release**: v2.40.0 — RangeSlider Widget
+- **Active milestones**: 1 pending implementation
 - **Blockers**: None
+
+### v2.40.0 — RangeSlider Widget (In Progress: 2026-06-14)
+
+**Theme**: Dual-handle horizontal slider for selecting a value range [low, high] within [min, max]. Positions handles proportionally on the track, shows selected range with a distinct fill character, supports focused handle highlighting, optional label, and value overlays. Ideal for TUI forms requiring bounded range selection (price filters, date ranges, etc.).
+
+**Checklist**:
+- [ ] **src/tui/widgets/rangeslider.zig** — RangeSlider + FocusedHandle enum: init(); low/high/min/max/step (f64); decimal_places (u8); focused_handle (FocusedHandle); label/show_values; moveLowLeft/Right, moveHighLeft/Right (step-based, no crossing); setLow/setHigh/setRange (clamped); isLowAtMin/isHighAtMax; lowRatio/highRatio/rangeSize; full builder API; render: single-row track with proportional handle positions, selected range, optional label, optional value overlays
+- [ ] **tests/rangeslider_test.zig** — RangeSlider tests (init defaults, handle movement clamping/crossing prevention, setLow/setHigh/setRange clamping, ratio calculations, builder immutability, render to Buffer, edge cases: zero area, narrow area, focused handle styling, show_values on/off, label rendering, block border)
+- [ ] Export RangeSlider + FocusedHandle via tui.zig widgets struct
+- [ ] Add rangeslider_tests to build.zig
+- [ ] Release v2.40.0
+
+**Success Criteria**:
+- `moveLowRight()` cannot move low past high (handles do not cross)
+- `moveHighLeft()` cannot move high below low (handles do not cross)
+- `setLow(v)` clamps v to [min, high]; `setHigh(v)` clamps v to [low, max]
+- `lowRatio()` / `highRatio()` return proportional position in [0.0, 1.0]
+- Track renders `◄` and `►` handle chars at proportional x positions
+- Selected range between handles renders with selected_char (e.g., `═`)
+- Unselected portions outside handles render with unselected_char (e.g., `─`)
+- `show_values=true` overlays low/high value strings adjacent to handles when space allows
+- `focused_handle=.low` applies focused_style to low handle char; `.high` to high handle
+- label rendered before track when non-empty
 
 ### v2.39.0 — NumberInput Widget (Released: 2026-06-13)
 
