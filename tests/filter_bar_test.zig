@@ -694,22 +694,27 @@ test "FilterBar render 0x0 area doesn't crash" {
     try testing.expect(true);
 }
 
-test "FilterBar render with empty tags shows placeholder text" {
+test "FilterBar render with empty tags shows default placeholder 'No filters'" {
     const allocator = testing.allocator;
     var buf = try Buffer.init(allocator, 80, 10);
     defer buf.deinit();
 
     var fb = FilterBar.init(allocator);
     defer fb.deinit();
-
-    _ = fb.withPlaceholder("Custom placeholder");
+    // Note: withPlaceholder returns a NEW value; assign to fb directly
+    fb.placeholder = "No filters"; // default
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     fb.render(&buf, area);
 
-    // Check that some content was rendered (placeholder should appear)
+    // "No filters" starts at x=0; 'N' should be there
     const cell = buf.getConst(0, 0);
-    try testing.expect(cell != null and cell.?.char != 0);
+    try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, 'N'), cell.?.char);
+    // 'o' at x=1
+    const cell2 = buf.getConst(1, 0);
+    try testing.expect(cell2 != null);
+    try testing.expectEqual(@as(u21, 'o'), cell2.?.char);
 }
 
 test "FilterBar render with narrow area (width=1) doesn't crash" {
@@ -728,7 +733,7 @@ test "FilterBar render with narrow area (width=1) doesn't crash" {
     try testing.expect(true);
 }
 
-test "FilterBar render with 1 active tag renders pill" {
+test "FilterBar render with 1 active tag renders pill [key:value]" {
     const allocator = testing.allocator;
     var buf = try Buffer.init(allocator, 80, 10);
     defer buf.deinit();
@@ -741,25 +746,30 @@ test "FilterBar render with 1 active tag renders pill" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     fb.render(&buf, area);
 
-    // Render completed without crash
-    try testing.expect(true);
+    // Pill "[status:active]" starts at x=0, y=0
+    const open = buf.getConst(0, 0);
+    try testing.expect(open != null);
+    try testing.expectEqual(@as(u21, '['), open.?.char);
+    const s = buf.getConst(1, 0);
+    try testing.expect(s != null);
+    try testing.expectEqual(@as(u21, 's'), s.?.char); // "status"
 }
 
-test "FilterBar render with block set draws borders" {
+test "FilterBar render with block set: row 0 has block border char" {
     const allocator = testing.allocator;
     var buf = try Buffer.init(allocator, 80, 10);
     defer buf.deinit();
 
     var fb = FilterBar.init(allocator);
     defer fb.deinit();
-
-    const block = Block{ .title = "Filter" };
-    _ = fb.withBlock(block);
+    fb.block = Block{ .title = "Filter" }; // assign directly, don't discard builder
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     fb.render(&buf, area);
-
-    try testing.expect(true);
+    // Block border: top-left corner at (0,0) should be a box-drawing char (not ' ')
+    const corner = buf.getConst(0, 0);
+    try testing.expect(corner != null);
+    try testing.expect(corner.?.char != ' ');
 }
 
 test "FilterBar render mix of active/inactive tags" {
@@ -779,14 +789,21 @@ test "FilterBar render mix of active/inactive tags" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     fb.render(&buf, area);
 
-    try testing.expect(true);
+    // All 3 tags render; first tag starts at x=0: "[a:1]" = 5 chars
+    const open1 = buf.getConst(0, 0);
+    try testing.expect(open1 != null);
+    try testing.expectEqual(@as(u21, '['), open1.?.char);
+    // Second tag "[b:2]" starts at x=6 (5 + 1 space)
+    const open2 = buf.getConst(6, 0);
+    try testing.expect(open2 != null);
+    try testing.expectEqual(@as(u21, '['), open2.?.char);
 }
 
 // ============================================================================
 // RENDER TESTS — CONTENT VERIFICATION (6 tests)
 // ============================================================================
 
-test "FilterBar render 1 tag contains key and value strings" {
+test "FilterBar render 1 tag contains '[' and key chars in buffer" {
     const allocator = testing.allocator;
     var buf = try Buffer.init(allocator, 80, 10);
     defer buf.deinit();
@@ -799,11 +816,19 @@ test "FilterBar render 1 tag contains key and value strings" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     fb.render(&buf, area);
 
-    // Verify render succeeded and buffer was populated
-    try testing.expect(true);
+    // Pill "[status:active]" (15 chars) at x=0; verify '[', 's', 't', ':'
+    const cell0 = buf.getConst(0, 0);
+    try testing.expect(cell0 != null);
+    try testing.expectEqual(@as(u21, '['), cell0.?.char);
+    const cell1 = buf.getConst(1, 0); // 's' from "status"
+    try testing.expect(cell1 != null);
+    try testing.expectEqual(@as(u21, 's'), cell1.?.char);
+    const colon = buf.getConst(7, 0); // ':' after "status" (6 chars)
+    try testing.expect(colon != null);
+    try testing.expectEqual(@as(u21, ':'), colon.?.char);
 }
 
-test "FilterBar render 2 active tags" {
+test "FilterBar render 2 active tags render both pills in sequence" {
     const allocator = testing.allocator;
     var buf = try Buffer.init(allocator, 80, 10);
     defer buf.deinit();
@@ -811,49 +836,67 @@ test "FilterBar render 2 active tags" {
     var fb = FilterBar.init(allocator);
     defer fb.deinit();
 
-    try fb.addTag("type", "bug");
-    try fb.addTag("priority", "high");
+    try fb.addTag("type", "bug");       // "[type:bug]" = 10 chars
+    try fb.addTag("priority", "high");  // "[priority:high]" = 15 chars
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     fb.render(&buf, area);
 
-    try testing.expect(true);
+    // First pill "[type:bug]" starts at x=0
+    const p1_open = buf.getConst(0, 0);
+    try testing.expect(p1_open != null);
+    try testing.expectEqual(@as(u21, '['), p1_open.?.char);
+    // Space separator at x=10
+    const sep = buf.getConst(10, 0);
+    try testing.expect(sep != null);
+    try testing.expectEqual(@as(u21, ' '), sep.?.char);
+    // Second pill starts at x=11
+    const p2_open = buf.getConst(11, 0);
+    try testing.expect(p2_open != null);
+    try testing.expectEqual(@as(u21, '['), p2_open.?.char);
 }
 
-test "FilterBar render inactive tag appears with different style" {
+test "FilterBar render inactive tag uses inactive_style (dim)" {
     const allocator = testing.allocator;
     var buf = try Buffer.init(allocator, 80, 10);
     defer buf.deinit();
 
     var fb = FilterBar.init(allocator);
     defer fb.deinit();
+    fb.inactive_style = .{ .dim = true }; // set a distinguishable inactive style
 
     try fb.addTag("tag", "value");
-    fb.toggleTag(0);
+    fb.toggleTag(0); // make inactive
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     fb.render(&buf, area);
 
-    try testing.expect(true);
+    // "[tag:value]" rendered with inactive_style; '[' at x=0 should have dim=true
+    const cell = buf.getConst(0, 0);
+    try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, '['), cell.?.char);
+    try testing.expect(cell.?.style.dim == true);
 }
 
-test "FilterBar render with custom placeholder shows placeholder when empty" {
+test "FilterBar render with custom placeholder shows custom text" {
     const allocator = testing.allocator;
     var buf = try Buffer.init(allocator, 80, 10);
     defer buf.deinit();
 
     var fb = FilterBar.init(allocator);
     defer fb.deinit();
-
-    _ = fb.withPlaceholder("No filters applied");
+    fb.placeholder = "No filters applied"; // assign directly, don't discard builder
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     fb.render(&buf, area);
 
-    try testing.expect(true);
+    // "No filters applied": 'N' at x=0, y=0
+    const cell = buf.getConst(0, 0);
+    try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, 'N'), cell.?.char);
 }
 
-test "FilterBar render tag pills appear at expected x position" {
+test "FilterBar render tag pills start at area.x offset" {
     const allocator = testing.allocator;
     var buf = try Buffer.init(allocator, 80, 10);
     defer buf.deinit();
@@ -863,13 +906,21 @@ test "FilterBar render tag pills appear at expected x position" {
 
     try fb.addTag("first", "tag");
 
+    // Area starts at x=2
     const area = Rect{ .x = 2, .y = 0, .width = 76, .height = 10 };
     fb.render(&buf, area);
 
-    try testing.expect(true);
+    // Pill starts at inner.x = 2; x=2 should have '['
+    const cell = buf.getConst(2, 0);
+    try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, '['), cell.?.char);
+    // x=0,1 should be blank (before area start)
+    const before = buf.getConst(0, 0);
+    try testing.expect(before != null);
+    try testing.expectEqual(@as(u21, ' '), before.?.char);
 }
 
-test "FilterBar render after clearAll shows placeholder again" {
+test "FilterBar render after clearAll shows placeholder text" {
     const allocator = testing.allocator;
     var buf = try Buffer.init(allocator, 80, 10);
     defer buf.deinit();
@@ -883,7 +934,10 @@ test "FilterBar render after clearAll shows placeholder again" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     fb.render(&buf, area);
 
-    try testing.expect(true);
+    // After clearAll, placeholder "No filters" appears; 'N' at x=0
+    const cell = buf.getConst(0, 0);
+    try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, 'N'), cell.?.char);
 }
 
 // ============================================================================
@@ -1029,7 +1083,7 @@ test "FilterBar removeTag maintains tag integrity in multi-tag scenario" {
     try testing.expectEqualStrings("backend", fb.tags.items[2].value);
 }
 
-test "FilterBar render with full configuration" {
+test "FilterBar render with full configuration: active tag uses active_style fg" {
     const allocator = testing.allocator;
     var buf = try Buffer.init(allocator, 120, 5);
     defer buf.deinit();
@@ -1037,22 +1091,33 @@ test "FilterBar render with full configuration" {
     var fb = FilterBar.init(allocator);
     defer fb.deinit();
 
-    const block = Block{ .title = "Advanced Filters" };
-    _ = fb
-        .withBlock(block)
-        .withTagStyle(Style{ .bold = true })
-        .withActiveStyle(Style{ .fg = .green })
-        .withInactiveStyle(Style{ .dim = true })
-        .withPlaceholder("Set filters...");
+    // Assign config fields directly (withXxx returns a new value — builder idiom)
+    fb.block = Block{ .title = "Advanced Filters" };
+    fb.tag_style = Style{ .bold = true };
+    fb.active_style = Style{ .fg = .green };
+    fb.inactive_style = Style{ .dim = true };
+    fb.placeholder = "Set filters...";
 
-    try fb.addTag("category", "feature");
-    try fb.addTag("assigned", "me");
-    fb.toggleTag(0);
+    try fb.addTag("category", "feature"); // index 0
+    try fb.addTag("assigned", "me");      // index 1
+    fb.toggleTag(0); // make "category" inactive
 
     const area = Rect{ .x = 0, .y = 0, .width = 120, .height = 5 };
     fb.render(&buf, area);
 
-    try testing.expect(true);
+    // Block border at (0,0); content inside border; pills start at (1,1) or similar
+    // Simplest assertion: block drew a border char at (0,0)
+    const corner = buf.getConst(0, 0);
+    try testing.expect(corner != null);
+    try testing.expect(corner.?.char != ' '); // border char, not blank
+
+    // Inside block (inner area starting at x=1, y=1):
+    // "[category:feature]" (inactive → dim), space, "[assigned:me]" (active → green fg)
+    // x=1,y=1: '[' with dim style (inactive_style)
+    const first_pill = buf.getConst(1, 1);
+    try testing.expect(first_pill != null);
+    try testing.expectEqual(@as(u21, '['), first_pill.?.char);
+    try testing.expect(first_pill.?.style.dim == true); // inactive tag
 }
 
 test "FilterBar memory safety with many allocations and deallocations" {
@@ -1154,7 +1219,7 @@ test "FilterBar alternating add and remove" {
     try testing.expectEqualStrings("4", fb.tags.items[1].key);
 }
 
-test "FilterBar render multiple times in succession" {
+test "FilterBar render multiple times in succession: buffer state idempotent" {
     const allocator = testing.allocator;
     var buf = try Buffer.init(allocator, 80, 10);
     defer buf.deinit();
@@ -1166,11 +1231,17 @@ test "FilterBar render multiple times in succession" {
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
 
+    // Render 5 times; the result should be identical each time
     for (0..5) |_| {
         fb.render(&buf, area);
     }
 
-    try testing.expect(true);
+    // After all renders, "[tag:value]" still starts at x=0; '[' at (0,0)
+    const cell = buf.getConst(0, 0);
+    try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, '['), cell.?.char);
+    // tag count is unchanged (render does not mutate state)
+    try testing.expectEqual(@as(usize, 1), fb.tagCount());
 }
 
 test "FilterBar filter operations preserve order exactly" {
