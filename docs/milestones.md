@@ -4,9 +4,34 @@
 
 - **Latest release**: v2.37.0 (2026-06-13) — Pagination Widget
 - **Latest minor**: v2.37.0 (2026-06-13) — Pagination Widget
-- **Next release**: v2.38.0 — TBD
-- **Active milestones**: 0 pending implementation
+- **Next release**: v2.38.0 — KeyMap Widget
+- **Active milestones**: 1 pending implementation
 - **Blockers**: None
+
+### v2.38.0 — KeyMap Widget (Target: 2026-06-14)
+
+**Theme**: Keyboard shortcut reference panel displaying key bindings grouped into sections, with scroll navigation and optional two-column layout. Essential for any TUI application's help/cheatsheet overlay.
+
+**Checklist**:
+- [ ] **src/tui/widgets/keymap.zig** — KeyMap: init(sections); KeyBinding (key, description); KeySection (title, bindings); scrollDown/scrollUp/pageDown/pageUp/goToTop/goToBottom navigation; totalRows() computes virtual rows; withBlock/withKeyStyle/withDescStyle/withSectionStyle/withColumns/withKeyWidth builder API; render draws section headers (bold) + binding rows (`<key>   <description>`) with scroll
+- [ ] **tests/keymap_test.zig** — KeyMap tests (init, navigation, builder immutability, render edge cases, 2-column layout, stress) — ~80 tests
+- [ ] Export KeyMap, KeyBinding, KeySection via tui.zig widgets struct
+- [ ] Add keymap_tests to build.zig
+- [ ] Release v2.38.0
+
+**Success Criteria**:
+- scrollDown/scrollUp clamp scroll_offset within [0, max_scroll]
+- pageDown/pageUp advance/retreat by visible_height rows
+- goToTop/goToBottom set scroll_offset to extremes
+- render draws section titles (bold/section_style) + binding rows (`<key><padding><description>`)
+- columns=2 pairs consecutive bindings side by side in two equal columns
+- withKeyWidth sets fixed width for key column (default 10)
+- Zero-area, empty sections, single binding, narrow area handled without crash
+
+**Notes**:
+- No allocator needed — sections/bindings slices borrowed from caller
+- Useful for: zr (task shortcuts), zoltraak (Redis command reference), silica (SQL help panel)
+- Key column padding ensures alignment across all bindings in a section
 
 ### v2.37.0 — Pagination Widget (Released: 2026-06-13)
 

@@ -366,6 +366,11 @@ pub const widgets = struct {
 
     // v2.37.0 — Pagination Widget
     pub const Pagination = @import("widgets/pagination.zig").Pagination;
+
+    // v2.38.0 — KeyMap Widget
+    pub const KeyMap = @import("widgets/keymap.zig").KeyMap;
+    pub const KeyBinding = @import("widgets/keymap.zig").KeyBinding;
+    pub const KeySection = @import("widgets/keymap.zig").KeySection;
 };
 
 // Export commonly used types
