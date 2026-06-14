@@ -2,22 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.42.0 (2026-06-14) — TreeTable Widget
-- **Latest minor**: v2.42.0 (2026-06-14) — TreeTable Widget
-- **Next release**: v2.43.0 — VirtualTable Widget
-- **Active milestones**: 1 pending implementation
+- **Latest release**: v2.43.0 (2026-06-15) — VirtualTable Widget
+- **Latest minor**: v2.43.0 (2026-06-15) — VirtualTable Widget
+- **Next release**: v2.44.0 — TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
-### v2.43.0 — VirtualTable Widget (In Progress: 2026-06-15)
+### v2.43.0 — VirtualTable Widget (Released: 2026-06-15)
 
 **Theme**: A high-performance table widget with virtual scrolling for large datasets. Unlike Table which renders all rows, VirtualTable only renders the visible rows (based on the area height), making it suitable for SQL results with thousands of rows, log viewers, and any dataset too large to hold in a Buffer at once. Row data is borrowed as a slice so no allocations occur during rendering.
 
 **Checklist**:
-- [ ] **src/tui/widgets/virtualtable.zig** — VirtualTable: rows ([]const []const []const u8); columns ([]const Column); selected (?usize); offset (usize); header_style/row_style/selected_style (Style); column_spacing (u16); block (?Block); init(); selectNext/Prev() with offset auto-scroll; pageDown/Up(page_size); scrollToSelected(visible_rows); selectedRow() ?[]const []const u8; rowCount(); builder API; render: header row + visible slice of rows only
-- [ ] **tests/virtualtable_test.zig** — VirtualTable tests (init defaults, selectNext/Prev clamping + offset update, pageDown/Up, scrollToSelected, selectedRow, rowCount, builder immutability, render header + visible rows, offset pagination, edge cases: zero area, empty rows, single row, offset beyond data) — 70+ tests
-- [ ] Export VirtualTable via tui.zig widgets struct
-- [ ] Add virtualtable_tests to build.zig
-- [ ] Release v2.43.0
+- [x] **src/tui/widgets/virtualtable.zig** — VirtualTable: rows ([]const []const []const u8); columns ([]const Column); selected (?usize); offset (usize); header_style/row_style/selected_style (Style); column_spacing (u16); block (?Block); init(); selectNext/Prev() with offset auto-scroll; pageDown/Up(page_size); scrollToSelected(visible_rows); selectedRow() ?[]const []const u8; rowCount(); builder API; render: header row + visible slice of rows only
+- [x] **tests/virtualtable_test.zig** — VirtualTable tests (init defaults, selectNext/Prev clamping + offset update, pageDown/Up, scrollToSelected, selectedRow, rowCount, builder immutability, render header + visible rows, offset pagination, edge cases: zero area, empty rows, single row, offset beyond data) — 76 tests
+- [x] Export VirtualTable via tui.zig widgets struct
+- [x] Add virtualtable_tests to build.zig
+- [x] Release v2.43.0
 
 **Success Criteria**:
 - `selectNext()` moves selection down, clamps at last row, updates offset so selected row is always visible
