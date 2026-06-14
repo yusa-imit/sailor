@@ -1104,6 +1104,17 @@ pub fn build(b: *std.Build) void {
     rangeslider_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(rangeslider_tests).step);
 
+    const colorswatch_tests = b.addTest(.{
+        .name = "colorswatch_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/colorswatch_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    colorswatch_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(colorswatch_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",

@@ -378,6 +378,9 @@ pub const widgets = struct {
     // v2.40.0 — RangeSlider Widget
     pub const RangeSlider = @import("widgets/rangeslider.zig").RangeSlider;
     pub const FocusedHandle = @import("widgets/rangeslider.zig").FocusedHandle;
+
+    // v2.41.0 — ColorSwatch Widget
+    pub const ColorSwatch = @import("widgets/colorswatch.zig").ColorSwatch;
 };
 
 // Export commonly used types
@@ -396,6 +399,10 @@ pub const Rect = layout.Rect;
 // v2.40.0 — RangeSlider Widget (top-level export)
 pub const RangeSlider = @import("widgets/rangeslider.zig").RangeSlider;
 pub const FocusedHandle = @import("widgets/rangeslider.zig").FocusedHandle;
+
+// v2.41.0 — ColorSwatch Widget (top-level export)
+pub const ColorSwatch = @import("widgets/colorswatch.zig").ColorSwatch;
+
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;
 pub const BoxSet = symbols.BoxSet;

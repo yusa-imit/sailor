@@ -4,9 +4,35 @@
 
 - **Latest release**: v2.40.0 (2026-06-14) — RangeSlider Widget
 - **Latest minor**: v2.40.0 (2026-06-14) — RangeSlider Widget
-- **Next release**: v2.41.0 — TBD
-- **Active milestones**: 0 pending implementation
+- **Next release**: v2.41.0 — ColorSwatch Widget
+- **Active milestones**: 1 pending implementation
 - **Blockers**: None
+
+### v2.41.0 — ColorSwatch Widget (In Progress: 2026-06-14)
+
+**Theme**: A grid-based color swatch palette for selecting colors. Displays colors as filled rectangular cells arranged in a configurable column layout. Supports keyboard navigation (next/prev/up/down), optional hex labels, focused selection indicator, and block border. Ideal for theme editors, color pickers, and any TUI UI requiring color selection.
+
+**Checklist**:
+- [ ] **src/tui/widgets/colorswatch.zig** — ColorSwatch: init(colors); colors/labels/selected/columns/swatch_width/swatch_height fields; selectedColor(); selectNext/Prev/Right/Left/Up/Down (grid-aware, clamped); full builder API; render: fills each swatch cell with background color, shows selection marker, optional hex labels, scrolls to keep selected row visible
+- [ ] **tests/colorswatch_test.zig** — ColorSwatch tests (init defaults, navigation clamping, grid movement, selectedColor, builder immutability, render to Buffer, edge cases: zero area, empty colors, single color, narrow area, show_labels on/off, block border) — ~80 tests
+- [ ] Export ColorSwatch via tui.zig widgets struct
+- [ ] Add colorswatch_tests to build.zig
+- [ ] Release v2.41.0
+
+**Success Criteria**:
+- `selectNext()` wraps from last to first; `selectPrev()` wraps from first to last
+- `selectDown()` advances by `columns` rows (clamped at end); `selectUp()` retreats by `columns` (clamped at 0)
+- `selectRight()` moves +1 within same row; at row end wraps to next row start
+- `selectLeft()` moves -1 within same row; at row start wraps to previous row end
+- `selectedColor()` returns `colors[selected]` or null if colors empty
+- Render fills each cell with the cell's color as background
+- Selected cell shows a '●' or border marker using selected_style
+- `show_labels=true` renders hex label (e.g., `#RRGGBB`) below each swatch
+- Zero-area, empty-colors, narrow-area handled without crash
+
+**Notes**:
+- No allocator needed — colors/labels slices borrowed from caller
+- Useful for: theme_editor.zig companion, color_picker.zig alternative, zoltraak/silica theming
 
 ### v2.40.0 — RangeSlider Widget (In Progress: 2026-06-14)
 
