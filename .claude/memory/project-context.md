@@ -1,3 +1,35 @@
+✅ **Session 301** — FEATURE MODE (2026-06-14)
+  - **Mode**: NORMAL (session 301, 301 % 5 == 1)
+  - **Achievement**: Implemented TreeTable Widget (v2.42.0) and executed full release
+
+  **Completed Work**:
+    - ✅ CI check: queued (not RED); 0 open GitHub issues
+    - ✅ Established v2.42.0 milestone: TreeTable Widget
+    - ✅ TDD Red: `test-writer` wrote 74 tests in `tests/treetable_test.zig`
+    - ✅ TDD Green: `zig-developer` implemented `src/tui/widgets/treetable.zig` (453 lines); exported from `tui.zig`; registered in `build.zig`
+    - ✅ All 74 TreeTable tests pass; overall suite exit code 0
+    - ✅ Released v2.42.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr, zoltraak, silica
+    - ✅ Discord notification sent
+
+  **TreeTable Widget Summary**:
+    - `TreeTableNode`: `cells: []const []const u8`, `children: []const TreeTableNode`, `expanded: bool = true`
+    - `TreeTable`: `columns: []const Column`, `nodes: []const TreeTableNode`, `selected: ?usize`, `offset: usize`, `block: ?Block`
+    - Styles: `header_style`, `row_style`, `selected_style`
+    - Symbols: `expanded_symbol="▼ "`, `collapsed_symbol="▶ "`, `leaf_symbol="  "`, `indent: u16 = 2`
+    - Methods: `init()`, `visibleCount()`, `selectNext/Prev()`, full builder API, `render()`
+    - DFS pre-order traversal: collapsed nodes hide all descendants in count and render
+    - Tree prefix: `(depth × indent spaces) + symbol + cells[0]`
+    - Reuses `Column`, `ColumnWidth`, `Alignment` from table.zig
+
+  **Current State**:
+    - **Latest release**: v2.42.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **CI status**: Pushed commits, CI will run
+
+  **Next Priority**:
+    - Establish v2.43.0 milestone (candidates: VirtualTable, DiffStat, HexViewer, Spinner widget)
+
 ✅ **Session 300** — STABILIZATION MODE (2026-06-14)
   - **Mode**: STABILIZATION (session 300, 300 % 5 == 0)
   - **Achievement**: Test quality audit + cross-platform verification
