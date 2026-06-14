@@ -449,6 +449,7 @@ test "RangeSlider withHandleStyle returns new slider with updated handle_style" 
     const s = Style{ .bold = false };
     const rs1 = RangeSlider.init();
     const rs2 = rs1.withHandleStyle(s);
+    try testing.expect(rs1.handle_style.bold); // rs1 unchanged (immutability)
     try testing.expect(!rs2.handle_style.bold);
 }
 
@@ -628,8 +629,11 @@ test "RangeSlider render show_values=false omits value string" {
     const rs = RangeSlider.init().withShowValues(false).withLow(25).withHigh(75);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     rs.render(&buf, area);
-    // Should render handles and track, no value digits overlaid
-    try testing.expect(rowHasChar(buf, 0, '◄') or rowHasChar(buf, 0, '►'));
+    // Track and handles should be present
+    try testing.expect(rowHasChar(buf, 0, '◄') or rowHasChar(buf, 0, '►') or rowHasChar(buf, 0, '─'));
+    // Value digit chars from "25" and "75" must NOT appear when show_values=false
+    try testing.expect(!rowHasChar(buf, 0, '2'));
+    try testing.expect(!rowHasChar(buf, 0, '7'));
 }
 
 // ============================================================================
@@ -646,11 +650,10 @@ test "RangeSlider render focused_handle=low applies focused_style to low handle"
         .withHigh(75);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     rs.render(&buf, area);
-    // Low handle should be rendered with focused style
+    // Low handle should be rendered with focused style (cyan fg)
     if (findCharInRow(buf, 0, '◄')) |pos| {
         if (buf.getConst(pos, 0)) |cell| {
-            // Focused style should have cyan foreground
-            try testing.expect(cell.style.fg != null);
+            try testing.expectEqual(@as(?Color, .cyan), cell.style.fg);
         }
     }
 }
@@ -665,11 +668,10 @@ test "RangeSlider render focused_handle=high applies focused_style to high handl
         .withHigh(75);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     rs.render(&buf, area);
-    // High handle should be rendered with focused style
+    // High handle should be rendered with focused style (yellow fg)
     if (findCharInRow(buf, 0, '►')) |pos| {
         if (buf.getConst(pos, 0)) |cell| {
-            // Focused style should be applied
-            try testing.expect(cell.style.fg != null);
+            try testing.expectEqual(@as(?Color, .yellow), cell.style.fg);
         }
     }
 }
@@ -732,8 +734,9 @@ test "RangeSlider builder chaining multiple methods" {
 test "RangeSlider low and high cannot cross after setRange" {
     var rs = RangeSlider.init();
     rs.setRange(75, 25);
-    // Low should be clamped to min, high to max; order enforced by setRange
-    try testing.expect(rs.low <= rs.high);
+    // lo=75 clamped to [0,100]=75; hi=25 clamped to [75,100]=75 — both collapse to 75
+    try testing.expectEqual(@as(f64, 75), rs.low);
+    try testing.expectEqual(@as(f64, 75), rs.high);
 }
 
 test "RangeSlider multiple setValue calls each overwrites previous" {

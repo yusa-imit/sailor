@@ -580,9 +580,9 @@ test "ColorSwatch render with block renders border" {
     cs.render(&buf, area);
 
     // Block should be rendered (border visible)
-    // Top-left corner should have border character
+    // Top-left corner should have a non-space border character
     if (buf.getConst(0, 0)) |cell| {
-        try testing.expect(cell.char != ' ' or cell.style.bg != null);
+        try testing.expect(cell.char != ' ');
     }
 }
 
@@ -639,7 +639,7 @@ test "ColorSwatch selected clamped when exceeds colors length" {
     const colors = [_]Color{ .red, .green };
     const cs = ColorSwatch.init(&colors).withSelected(10);
     // Should clamp to last valid index (1)
-    try testing.expect(cs.selected < colors.len or colors.len == 0);
+    try testing.expectEqual(@as(usize, 1), cs.selected);
 }
 
 test "ColorSwatch navigation with columns=1 vertically" {
@@ -703,7 +703,7 @@ test "ColorSwatch multi-row grid with 8 colors, columns=4" {
 
 test "ColorSwatch selectDown at edge of partial last row" {
     var cs = ColorSwatch.init(&[_]Color{ .red, .green, .blue, .yellow, .magenta, .cyan }).withColumns(4);
-    cs.selected = 2;  // Second row, first item
-    cs.selectDown();  // Should go to 5 (min of 2+4, or clamped to last)
-    try testing.expect(cs.selected <= 5);
+    cs.selected = 2;  // Row 0, col 2
+    cs.selectDown();  // 2 + 4 = 6 >= len(6), clamps to last index 5
+    try testing.expectEqual(@as(usize, 5), cs.selected);
 }
