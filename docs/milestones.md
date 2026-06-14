@@ -2,22 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.41.0 (2026-06-14) — ColorSwatch Widget
-- **Latest minor**: v2.41.0 (2026-06-14) — ColorSwatch Widget
-- **Next release**: v2.42.0 — TreeTable Widget
-- **Active milestones**: 1 pending implementation
+- **Latest release**: v2.42.0 (2026-06-14) — TreeTable Widget
+- **Latest minor**: v2.42.0 (2026-06-14) — TreeTable Widget
+- **Next release**: v2.43.0 — TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
-### v2.42.0 — TreeTable Widget (In Progress: 2026-06-14)
+### v2.42.0 — TreeTable Widget (Released: 2026-06-14)
 
 **Theme**: A hierarchical tree view combined with multi-column table layout. Each tree node has a cells array (one value per column), children can be expanded/collapsed, and the widget renders a header row plus tree-indented data rows. Ideal for database schema browsers (table/column/type), file browsers (name/size/modified), dependency trees (package/version/license), and any TUI UI requiring hierarchical tabular data.
 
 **Checklist**:
-- [ ] **src/tui/widgets/treetable.zig** — TreeTableNode (cells, children, expanded); TreeTable (columns, nodes, selected, offset, block, header_style, row_style, selected_style, column_spacing, expanded/collapsed/leaf symbols, indent); init(); visibleCount(); selectNext/Prev(); builder API; render: header row + DFS-ordered tree rows with depth-based indent and expand/collapse symbols
-- [ ] **tests/treetable_test.zig** — TreeTable tests (init defaults, visibleCount with collapsed nodes, selectNext/Prev clamping and offset update, builder immutability, render header/rows/indent/symbols, edge cases: zero area, empty nodes, all collapsed, single node, deep nesting, block border) — ~75 tests
-- [ ] Export TreeTable and TreeTableNode via tui.zig widgets struct
-- [ ] Add treetable_tests to build.zig
-- [ ] Release v2.42.0
+- [x] **src/tui/widgets/treetable.zig** — TreeTableNode (cells, children, expanded); TreeTable (columns, nodes, selected, offset, block, header_style, row_style, selected_style, column_spacing, expanded/collapsed/leaf symbols, indent); init(); visibleCount(); selectNext/Prev(); builder API; render: header row + DFS-ordered tree rows with depth-based indent and expand/collapse symbols
+- [x] **tests/treetable_test.zig** — TreeTable tests (init defaults, visibleCount with collapsed nodes, selectNext/Prev clamping and offset update, builder immutability, render header/rows/indent/symbols, edge cases: zero area, empty nodes, all collapsed, single node, deep nesting, block border) — 74 tests
+- [x] Export TreeTable and TreeTableNode via tui.zig widgets struct
+- [x] Add treetable_tests to build.zig
+- [x] Release v2.42.0
 
 **Success Criteria**:
 - `visibleCount()` returns correct count: collapsed nodes hide all descendants
