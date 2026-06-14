@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v2.40.0 (2026-06-14) — RangeSlider Widget
-- **Latest minor**: v2.40.0 (2026-06-14) — RangeSlider Widget
-- **Next release**: v2.41.0 — ColorSwatch Widget
-- **Active milestones**: 1 pending implementation
+- **Latest release**: v2.41.0 (2026-06-14) — ColorSwatch Widget
+- **Latest minor**: v2.41.0 (2026-06-14) — ColorSwatch Widget
+- **Next release**: v2.42.0 — TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
 ### v2.41.0 — ColorSwatch Widget (In Progress: 2026-06-14)
@@ -13,11 +13,11 @@
 **Theme**: A grid-based color swatch palette for selecting colors. Displays colors as filled rectangular cells arranged in a configurable column layout. Supports keyboard navigation (next/prev/up/down), optional hex labels, focused selection indicator, and block border. Ideal for theme editors, color pickers, and any TUI UI requiring color selection.
 
 **Checklist**:
-- [ ] **src/tui/widgets/colorswatch.zig** — ColorSwatch: init(colors); colors/labels/selected/columns/swatch_width/swatch_height fields; selectedColor(); selectNext/Prev/Right/Left/Up/Down (grid-aware, clamped); full builder API; render: fills each swatch cell with background color, shows selection marker, optional hex labels, scrolls to keep selected row visible
-- [ ] **tests/colorswatch_test.zig** — ColorSwatch tests (init defaults, navigation clamping, grid movement, selectedColor, builder immutability, render to Buffer, edge cases: zero area, empty colors, single color, narrow area, show_labels on/off, block border) — ~80 tests
-- [ ] Export ColorSwatch via tui.zig widgets struct
-- [ ] Add colorswatch_tests to build.zig
-- [ ] Release v2.41.0
+- [x] **src/tui/widgets/colorswatch.zig** — ColorSwatch: init(colors); colors/labels/selected/columns/swatch_width/swatch_height fields; selectedColor(); selectNext/Prev/Right/Left/Up/Down (grid-aware, clamped); full builder API; render: fills each swatch cell with background color, shows selection marker, optional hex labels, scrolls to keep selected row visible
+- [x] **tests/colorswatch_test.zig** — ColorSwatch tests (init defaults, navigation clamping, grid movement, selectedColor, builder immutability, render to Buffer, edge cases: zero area, empty colors, single color, narrow area, show_labels on/off, block border) — 71 tests
+- [x] Export ColorSwatch via tui.zig widgets struct
+- [x] Add colorswatch_tests to build.zig
+- [x] Release v2.41.0
 
 **Success Criteria**:
 - `selectNext()` wraps from last to first; `selectPrev()` wraps from first to last
