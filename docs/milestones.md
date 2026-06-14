@@ -4,9 +4,38 @@
 
 - **Latest release**: v2.41.0 (2026-06-14) — ColorSwatch Widget
 - **Latest minor**: v2.41.0 (2026-06-14) — ColorSwatch Widget
-- **Next release**: v2.42.0 — TBD
-- **Active milestones**: 0 pending implementation
+- **Next release**: v2.42.0 — TreeTable Widget
+- **Active milestones**: 1 pending implementation
 - **Blockers**: None
+
+### v2.42.0 — TreeTable Widget (In Progress: 2026-06-14)
+
+**Theme**: A hierarchical tree view combined with multi-column table layout. Each tree node has a cells array (one value per column), children can be expanded/collapsed, and the widget renders a header row plus tree-indented data rows. Ideal for database schema browsers (table/column/type), file browsers (name/size/modified), dependency trees (package/version/license), and any TUI UI requiring hierarchical tabular data.
+
+**Checklist**:
+- [ ] **src/tui/widgets/treetable.zig** — TreeTableNode (cells, children, expanded); TreeTable (columns, nodes, selected, offset, block, header_style, row_style, selected_style, column_spacing, expanded/collapsed/leaf symbols, indent); init(); visibleCount(); selectNext/Prev(); builder API; render: header row + DFS-ordered tree rows with depth-based indent and expand/collapse symbols
+- [ ] **tests/treetable_test.zig** — TreeTable tests (init defaults, visibleCount with collapsed nodes, selectNext/Prev clamping and offset update, builder immutability, render header/rows/indent/symbols, edge cases: zero area, empty nodes, all collapsed, single node, deep nesting, block border) — ~75 tests
+- [ ] Export TreeTable and TreeTableNode via tui.zig widgets struct
+- [ ] Add treetable_tests to build.zig
+- [ ] Release v2.42.0
+
+**Success Criteria**:
+- `visibleCount()` returns correct count: collapsed nodes hide all descendants
+- `selectNext()` moves selection down, clamps at last visible row, updates offset to keep selection visible
+- `selectPrev()` moves selection up, clamps at 0, updates offset
+- Render shows header row using column headers and header_style
+- Render shows tree rows with (depth * indent) spaces + symbol + cells[0] for first column
+- Expanded branch node shows expanded_symbol (e.g. "▼ ") before cells[0]
+- Collapsed branch node shows collapsed_symbol (e.g. "▶ ") before cells[0]
+- Leaf node shows leaf_symbol (e.g. "  ") before cells[0]
+- Remaining columns (cells[1..]) rendered at their column positions
+- selected row uses selected_style; unselected rows use row_style
+- Zero-area, empty nodes, all-collapsed, single node handled without crash
+
+**Notes**:
+- Reuse `Column` type from table.zig (header, width: ColumnWidth, alignment: Alignment)
+- No allocator — all data is borrowed slices from caller
+- Useful for: silica (schema browser), zoltraak (Redis key hierarchy), zr (dependency tree)
 
 ### v2.41.0 — ColorSwatch Widget (In Progress: 2026-06-14)
 

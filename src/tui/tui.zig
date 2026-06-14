@@ -381,6 +381,10 @@ pub const widgets = struct {
 
     // v2.41.0 — ColorSwatch Widget
     pub const ColorSwatch = @import("widgets/colorswatch.zig").ColorSwatch;
+
+    // v2.42.0 — TreeTable Widget
+    pub const TreeTableNode = @import("widgets/treetable.zig").TreeTableNode;
+    pub const TreeTable = @import("widgets/treetable.zig").TreeTable;
 };
 
 // Export commonly used types
@@ -402,6 +406,10 @@ pub const FocusedHandle = @import("widgets/rangeslider.zig").FocusedHandle;
 
 // v2.41.0 — ColorSwatch Widget (top-level export)
 pub const ColorSwatch = @import("widgets/colorswatch.zig").ColorSwatch;
+
+// v2.42.0 — TreeTable Widget (top-level export)
+pub const TreeTableNode = @import("widgets/treetable.zig").TreeTableNode;
+pub const TreeTable = @import("widgets/treetable.zig").TreeTable;
 
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;
