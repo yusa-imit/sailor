@@ -385,6 +385,9 @@ pub const widgets = struct {
     // v2.42.0 — TreeTable Widget
     pub const TreeTableNode = @import("widgets/treetable.zig").TreeTableNode;
     pub const TreeTable = @import("widgets/treetable.zig").TreeTable;
+
+    // v2.43.0 — VirtualTable Widget
+    pub const VirtualTable = @import("widgets/virtualtable.zig").VirtualTable;
 };
 
 // Export commonly used types
@@ -410,6 +413,9 @@ pub const ColorSwatch = @import("widgets/colorswatch.zig").ColorSwatch;
 // v2.42.0 — TreeTable Widget (top-level export)
 pub const TreeTableNode = @import("widgets/treetable.zig").TreeTableNode;
 pub const TreeTable = @import("widgets/treetable.zig").TreeTable;
+
+// v2.43.0 — VirtualTable Widget (top-level export)
+pub const VirtualTable = @import("widgets/virtualtable.zig").VirtualTable;
 
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;

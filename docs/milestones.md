@@ -4,9 +4,40 @@
 
 - **Latest release**: v2.42.0 (2026-06-14) — TreeTable Widget
 - **Latest minor**: v2.42.0 (2026-06-14) — TreeTable Widget
-- **Next release**: v2.43.0 — TBD
-- **Active milestones**: 0 pending implementation
+- **Next release**: v2.43.0 — VirtualTable Widget
+- **Active milestones**: 1 pending implementation
 - **Blockers**: None
+
+### v2.43.0 — VirtualTable Widget (In Progress: 2026-06-15)
+
+**Theme**: A high-performance table widget with virtual scrolling for large datasets. Unlike Table which renders all rows, VirtualTable only renders the visible rows (based on the area height), making it suitable for SQL results with thousands of rows, log viewers, and any dataset too large to hold in a Buffer at once. Row data is borrowed as a slice so no allocations occur during rendering.
+
+**Checklist**:
+- [ ] **src/tui/widgets/virtualtable.zig** — VirtualTable: rows ([]const []const []const u8); columns ([]const Column); selected (?usize); offset (usize); header_style/row_style/selected_style (Style); column_spacing (u16); block (?Block); init(); selectNext/Prev() with offset auto-scroll; pageDown/Up(page_size); scrollToSelected(visible_rows); selectedRow() ?[]const []const u8; rowCount(); builder API; render: header row + visible slice of rows only
+- [ ] **tests/virtualtable_test.zig** — VirtualTable tests (init defaults, selectNext/Prev clamping + offset update, pageDown/Up, scrollToSelected, selectedRow, rowCount, builder immutability, render header + visible rows, offset pagination, edge cases: zero area, empty rows, single row, offset beyond data) — 70+ tests
+- [ ] Export VirtualTable via tui.zig widgets struct
+- [ ] Add virtualtable_tests to build.zig
+- [ ] Release v2.43.0
+
+**Success Criteria**:
+- `selectNext()` moves selection down, clamps at last row, updates offset so selected row is always visible
+- `selectPrev()` moves selection up, clamps at 0, updates offset so selected row is always visible
+- `pageDown(n)` advances offset by n, clamps so last page fills the area
+- `pageUp(n)` retreats offset by n, clamps to 0
+- `render()` only iterates and writes the visible rows (offset..offset+visible_height), not all rows
+- `selectedRow()` returns `rows[selected]` or null
+- `rowCount()` returns `rows.len`
+- Header row rendered above data rows using `header_style` and column headers
+- Selected row rendered with `selected_style`
+- column_spacing gap between adjacent columns
+- Reuse `Column`, `ColumnWidth`, `Alignment` from table.zig
+- Zero-area, empty rows, single row, offset at end all handled without crash
+
+**Notes**:
+- No allocator needed — rows/columns slices borrowed from caller
+- Key difference from Table: only renders visible window, not all rows
+- Key difference from StreamingTable: data is static slice, not a live stream
+- Useful for: silica (SQL query results), zoltraak (Redis key listing), zr (dependency lists)
 
 ### v2.42.0 — TreeTable Widget (Released: 2026-06-14)
 

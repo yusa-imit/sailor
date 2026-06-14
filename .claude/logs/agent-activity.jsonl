@@ -146,3 +146,5 @@
 {"timestamp":"2026-06-14T00:35:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement ColorSwatch widget (v2.41.0) — make 71 failing tests pass","project":"sailor"}
 {"timestamp":"2026-06-14T12:32:47Z","action":"subagent","agent_type":"test-writer","task":"Write TreeTable widget tests (TDD Red phase) for v2.42.0","project":"sailor"}
 {"timestamp":"2026-06-14T12:32:47Z","action":"subagent","agent_type":"zig-developer","task":"Implement TreeTable widget (TDD Green phase) for v2.42.0","project":"sailor"}
+{"timestamp":"2026-06-15T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write VirtualTable widget tests (TDD Red phase) — tests/virtualtable_test.zig","project":"sailor"}
+{"timestamp":"2026-06-15T00:01:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement VirtualTable widget (TDD Green phase) — src/tui/widgets/virtualtable.zig + tui.zig export","project":"sailor"}
