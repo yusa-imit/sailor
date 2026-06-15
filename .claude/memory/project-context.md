@@ -1,3 +1,33 @@
+✅ **Session 303** — FEATURE MODE (2026-06-15)
+  - **Mode**: NORMAL (session 303, 303 % 5 == 3)
+  - **Achievement**: Implemented HexViewer Widget (v2.44.0) and executed full release
+
+  **Completed Work**:
+    - ✅ CI check: queued (not RED); 0 open GitHub issues
+    - ✅ Established v2.44.0 milestone: HexViewer Widget
+    - ✅ TDD Red: `test-writer` wrote 95 tests in `tests/hexviewer_test.zig`
+    - ✅ TDD Green: `zig-developer` implemented `src/tui/widgets/hexviewer.zig`; exported from `tui.zig`; registered in `build.zig`
+    - ✅ All 95 HexViewer tests pass; overall suite exit code 0
+    - ✅ Released v2.44.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#80, zoltraak#58, silica#69
+    - ✅ Discord notification sent
+
+  **HexViewer Widget Summary**:
+    - `HexViewer`: `data: []const u8`, `offset: usize` (aligned to bytes_per_row), `selected: ?usize`, `bytes_per_row: u8 = 16`, `group_size: u8 = 8`, `block: ?Block`
+    - Styles: `address_style`, `hex_style`, `ascii_style`, `selected_style`
+    - Toggles: `show_ascii: bool = true`, `show_address: bool = true`
+    - Methods: `init(data)`, `selectNext/Prev()`, `selectNextRow/PrevRow()`, `pageDown/Up(rows)`, `scrollToSelected(visible_rows)`, `selectedByte() ?u8`, `byteCount() usize`, `totalRows() usize`, full builder API, `render()`
+    - Format: `00000000  48 65 6c 6c 6f 2c 20 57  6f 72 6c 64 21 0a  |Hello, World!.|`
+    - No allocations — borrowed data slice
+
+  **Current State**:
+    - **Latest release**: v2.44.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **CI status**: Pushed commits, CI will run
+
+  **Next Priority**:
+    - Establish v2.45.0 milestone (candidates: DiffStat, Spinner, WizardWidget, KeyValueViewer)
+
 ✅ **Session 302** — FEATURE MODE (2026-06-15)
   - **Mode**: NORMAL (session 302, 302 % 5 == 2)
   - **Achievement**: Implemented VirtualTable Widget (v2.43.0) and executed full release
