@@ -2,22 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.43.0 (2026-06-15) — VirtualTable Widget
-- **Latest minor**: v2.43.0 (2026-06-15) — VirtualTable Widget
-- **Next release**: v2.44.0 — HexViewer Widget
-- **Active milestones**: 1 pending implementation
+- **Latest release**: v2.44.0 (2026-06-15) — HexViewer Widget
+- **Latest minor**: v2.44.0 (2026-06-15) — HexViewer Widget
+- **Next release**: v2.45.0 — TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
-### v2.44.0 — HexViewer Widget (In Progress: 2026-06-15)
+### v2.44.0 — HexViewer Widget (Released: 2026-06-15)
 
 **Theme**: A binary data viewer displaying content in classic hex dump format. Shows three columns: address (byte offset in hex), hex bytes (configurable bytes per row with group spacing), and ASCII representation (printable chars or '.'). Supports keyboard navigation (byte, row, page), optional selection highlighting in both hex and ASCII panels, configurable layout (show/hide address and ASCII columns), and block border. Ideal for silica (binary DB column inspection), zoltraak (binary Redis value debugging), and any TUI UI requiring binary data inspection.
 
 **Checklist**:
-- [ ] **src/tui/widgets/hexviewer.zig** — HexViewer: data ([]const u8); offset (usize, aligned to bytes_per_row); selected (?usize); bytes_per_row (u8, default 16); group_size (u8, default 8); block (?Block); address_style/hex_style/ascii_style/selected_style (Style); show_ascii/show_address (bool); init(data); selectNext/Prev() clamped + scrollToSelected; selectNextRow/PrevRow() by bytes_per_row; pageDown/Up(rows); scrollToSelected(visible_rows); selectedByte() ?u8; byteCount() usize; totalRows() usize; full builder API; render: address | hex bytes (grouped) | ASCII panel
-- [ ] **tests/hexviewer_test.zig** — HexViewer tests (init defaults, selectNext/Prev clamping, selectNextRow/PrevRow, pageDown/Up, scrollToSelected, selectedByte, byteCount, totalRows, builder immutability, render address/hex/ASCII columns, selected byte highlight in both panels, group spacing, show_ascii=false/show_address=false, edge cases: zero area, empty data, single byte, data not aligned to bytes_per_row, block border) — ~75 tests
-- [ ] Export HexViewer via tui.zig widgets struct
-- [ ] Add hexviewer_tests to build.zig
-- [ ] Release v2.44.0
+- [x] **src/tui/widgets/hexviewer.zig** — HexViewer: data ([]const u8); offset (usize, aligned to bytes_per_row); selected (?usize); bytes_per_row (u8, default 16); group_size (u8, default 8); block (?Block); address_style/hex_style/ascii_style/selected_style (Style); show_ascii/show_address (bool); init(data); selectNext/Prev() clamped + scrollToSelected; selectNextRow/PrevRow() by bytes_per_row; pageDown/Up(rows); scrollToSelected(visible_rows); selectedByte() ?u8; byteCount() usize; totalRows() usize; full builder API; render: address | hex bytes (grouped) | ASCII panel
+- [x] **tests/hexviewer_test.zig** — HexViewer tests (init defaults, selectNext/Prev clamping, selectNextRow/PrevRow, pageDown/Up, scrollToSelected, selectedByte, byteCount, totalRows, builder immutability, render address/hex/ASCII columns, selected byte highlight in both panels, group spacing, show_ascii=false/show_address=false, edge cases: zero area, empty data, single byte, data not aligned to bytes_per_row, block border) — 95 tests
+- [x] Export HexViewer via tui.zig widgets struct
+- [x] Add hexviewer_tests to build.zig
+- [x] Release v2.44.0
 
 **Success Criteria**:
 - `selectNext()` advances selected by 1, clamps at last byte, calls scrollToSelected
