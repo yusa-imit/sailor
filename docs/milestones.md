@@ -2,11 +2,39 @@
 
 ## Current Status
 
-- **Latest release**: v2.44.0 (2026-06-15) — HexViewer Widget
-- **Latest minor**: v2.44.0 (2026-06-15) — HexViewer Widget
-- **Next release**: v2.45.0 — TBD
+- **Latest release**: v2.45.0 (2026-06-15) — KeyValueViewer Widget
+- **Latest minor**: v2.45.0 (2026-06-15) — KeyValueViewer Widget
+- **Next release**: v2.46.0 — TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.45.0 — KeyValueViewer Widget (Released: 2026-06-15)
+
+**Theme**: A two-column key-value pair viewer for displaying config, record fields, and metadata. Shows keys in a left column (auto or fixed width) and values in a right column, with optional block border, row selection, custom separator, and keyboard navigation. Ideal for silica (DB record field inspection), zoltraak (Redis HGETALL display), and zr (package metadata viewing).
+
+**Checklist**:
+- [x] **src/tui/widgets/keyvalue_viewer.zig** — KeyValueViewer: Entry (key, value); KeyWidth union (auto, fixed); entries ([]const Entry); selected (?usize); offset; key_width (KeyWidth=.auto); separator ([]const u8=": "); key_style/value_style/selected_key_style/selected_value_style (Style); block (?Block); init(entries); count(); computeKeyWidth(); selectedEntry(); selectNext/Prev() clamped + scrollToSelected; scrollToSelected(visible_rows); builder API (withBlock/Selected/Offset/KeyWidth/Separator/KeyStyle/ValueStyle/SelectedKeyStyle/SelectedValueStyle); render: key padded to key_col_width + separator + value truncated
+- [x] **tests/keyvalue_viewer_test.zig** — 79 tests covering init/defaults, count, computeKeyWidth (auto/fixed), selectedEntry, selectNext/Prev clamping, scrollToSelected, builder immutability, render key/sep/value columns, selected styling, fixed key width, offset pagination, edge cases (zero area, empty entries, single entry)
+- [x] Export KeyValueViewer via tui.zig widgets struct
+- [x] Add keyvalue_viewer_tests to build.zig
+- [x] Release v2.45.0
+
+**Success Criteria**:
+- `computeKeyWidth()` .auto returns max(entry.key.len for all entries)
+- `computeKeyWidth()` .fixed returns the fixed u16 value
+- `selectNext()` from null → sets selected=0; from i → i+1; clamps at entries.len-1
+- `selectPrev()` from null → no-op; from i → i-1; clamps at 0
+- `scrollToSelected(vis)` adjusts offset so selected row is visible (sel < offset → offset=sel; sel >= offset+vis → offset=sel-vis+1)
+- Builder methods all return new value copies, original unchanged
+- Render: key padded to key_col_width with spaces, separator, value truncated to remaining width
+- Selected row: key+sep use selected_key_style; value uses selected_value_style
+- Block border reduces inner area correctly
+- Zero area, empty entries, large offset all handled without crash
+
+**Notes**:
+- No allocator — entries slice borrowed from caller
+- Entry and KeyWidth declared as nested types inside KeyValueViewer struct
+- Useful for: silica (SQL record fields), zoltraak (Redis hash HGETALL), zr (package metadata)
 
 ### v2.44.0 — HexViewer Widget (Released: 2026-06-15)
 

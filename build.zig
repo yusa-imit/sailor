@@ -1148,6 +1148,17 @@ pub fn build(b: *std.Build) void {
     hexviewer_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(hexviewer_tests).step);
 
+    const keyvalue_viewer_tests = b.addTest(.{
+        .name = "keyvalue_viewer_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/keyvalue_viewer_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    keyvalue_viewer_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(keyvalue_viewer_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",
