@@ -188,9 +188,9 @@ pub const Input = struct {
             byte_idx += char_len;
         }
 
-        // Scroll if cursor is beyond visible area
-        if (self.cursor >= visible_chars) {
-            scroll_offset = self.cursor - visible_chars + 1;
+        // Scroll if cursor is beyond the visible window width
+        if (self.cursor >= width) {
+            scroll_offset = self.cursor - width + 1;
         }
 
         // Skip scroll_offset characters

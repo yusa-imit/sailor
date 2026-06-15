@@ -1159,6 +1159,61 @@ pub fn build(b: *std.Build) void {
     keyvalue_viewer_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(keyvalue_viewer_tests).step);
 
+    const paragraph_tests = b.addTest(.{
+        .name = "paragraph_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/paragraph_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    paragraph_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(paragraph_tests).step);
+
+    const list_tests = b.addTest(.{
+        .name = "list_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/list_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    list_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(list_tests).step);
+
+    const input_tests = b.addTest(.{
+        .name = "input_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/input_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    input_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(input_tests).step);
+
+    const tabs_tests = b.addTest(.{
+        .name = "tabs_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/tabs_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    tabs_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(tabs_tests).step);
+
+    const gauge_tests = b.addTest(.{
+        .name = "gauge_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/gauge_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    gauge_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(gauge_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",
