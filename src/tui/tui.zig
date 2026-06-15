@@ -394,6 +394,9 @@ pub const widgets = struct {
 
     // v2.45.0 — KeyValueViewer Widget
     pub const KeyValueViewer = @import("widgets/keyvalue_viewer.zig").KeyValueViewer;
+
+    // v2.46.0 — Spinner Widget
+    pub const Spinner = @import("widgets/spinner.zig").Spinner;
 };
 
 // Export commonly used types
@@ -428,6 +431,9 @@ pub const HexViewer = @import("widgets/hexviewer.zig").HexViewer;
 
 // v2.45.0 — KeyValueViewer Widget (top-level export)
 pub const KeyValueViewer = @import("widgets/keyvalue_viewer.zig").KeyValueViewer;
+
+// v2.46.0 — Spinner Widget (top-level export)
+pub const Spinner = @import("widgets/spinner.zig").Spinner;
 
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;
