@@ -2,11 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.45.0 (2026-06-15) — KeyValueViewer Widget
-- **Latest minor**: v2.45.0 (2026-06-15) — KeyValueViewer Widget
-- **Next release**: v2.46.0 — TBD
+- **Latest release**: v2.46.0 (2026-06-16) — Spinner Widget
+- **Latest minor**: v2.46.0 (2026-06-16) — Spinner Widget
+- **Next release**: v2.47.0 — TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.46.0 — Spinner Widget (Released: 2026-06-16)
+
+**Theme**: A lightweight animated loading indicator with configurable frames (braille, dots, line, arc, arrow). Renders current animation frame with optional label, independent styles, and optional block border. Designed for showing loading/processing states in TUI apps.
+
+**Checklist**:
+- [x] **src/tui/widgets/spinner.zig** — Spinner: frames ([]const []const u8, default braille); frame (usize); label (?[]const u8); style/label_style (Style); block (?Block); withFrames/Frame/Label/Style/LabelStyle/Block builder API; tick() → frame+1; currentFrame() → frames[frame%frames.len]; render: spinner char + optional " " + label
+- [x] **tests/spinner_test.zig** — 42 tests: defaults, builder immutability, currentFrame wrapping, tick progression, render (basic, label, truncation, custom frames, styles, block border, offset, edge cases)
+- [x] Export Spinner via tui.zig widgets struct and top-level
+- [x] Add spinner_tests to build.zig
+- [x] Release v2.46.0
 
 ### v2.45.0 — KeyValueViewer Widget (Released: 2026-06-15)
 
