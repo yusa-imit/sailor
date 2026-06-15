@@ -197,9 +197,11 @@ pub const detectImageProtocol = image_renderer.detectProtocol;
 // Convenient re-exports from tui submodules
 pub const Buffer = tui.buffer.Buffer;
 pub const Cell = tui.buffer.Cell;
+pub const Color = tui.style.Color;
 pub const layout = tui.layout;
 pub const Rect = tui.layout.Rect;
 pub const Style = tui.style.Style;
+pub const widgets = tui.widgets;
 pub const Viewport = tui.viewport.Viewport;
 pub const VirtualRenderer = tui.virtual.VirtualRenderer;
 pub const IncrementalLayout = tui.incremental_layout.IncrementalLayout;

@@ -388,6 +388,9 @@ pub const widgets = struct {
 
     // v2.43.0 — VirtualTable Widget
     pub const VirtualTable = @import("widgets/virtualtable.zig").VirtualTable;
+
+    // v2.44.0 — HexViewer Widget
+    pub const HexViewer = @import("widgets/hexviewer.zig").HexViewer;
 };
 
 // Export commonly used types
@@ -416,6 +419,9 @@ pub const TreeTable = @import("widgets/treetable.zig").TreeTable;
 
 // v2.43.0 — VirtualTable Widget (top-level export)
 pub const VirtualTable = @import("widgets/virtualtable.zig").VirtualTable;
+
+// v2.44.0 — HexViewer Widget (top-level export)
+pub const HexViewer = @import("widgets/hexviewer.zig").HexViewer;
 
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;
