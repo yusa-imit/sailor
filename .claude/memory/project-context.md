@@ -1,3 +1,34 @@
+✅ **Session 307** — FEATURE MODE (2026-06-16)
+  - **Mode**: NORMAL (session 307, 307 % 5 == 2)
+  - **Achievement**: Implemented DiffStat Widget (v2.47.0) and executed full release
+
+  **Completed Work**:
+    - ✅ CI check: queued (not RED); 0 open GitHub issues
+    - ✅ Established v2.47.0 milestone: DiffStat Widget
+    - ✅ TDD Red: `test-writer` wrote 77 tests in `tests/diffstat_test.zig`
+    - ✅ TDD Green: `zig-developer` implemented `src/tui/widgets/diffstat.zig`; exported from `tui.zig`; registered in `build.zig`
+    - ✅ All 77 DiffStat tests pass; overall suite exit code 0
+    - ✅ Released v2.47.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#83, zoltraak#61, silica#72
+    - ✅ Discord notification sent
+
+  **DiffStat Widget Summary**:
+    - `DiffStatEntry`: `filename: []const u8`, `insertions: u32`, `deletions: u32`, `binary: bool = false` (nested in DiffStat)
+    - `DiffStat`: `entries: []const DiffStatEntry`, `max_filename_width: ?u16`, `bar_width: u16 = 20`, `insertion_char: u21 = '+'`, `deletion_char: u21 = '-'`
+    - Styles: `insertion_style` (green), `deletion_style` (red), `filename_style`, `count_style`, `binary_style` (yellow), `block: ?Block`
+    - Methods: `init(entries)`, `totalInsertions()`, `totalDeletions()`, `totalFiles()`, `computeMaxFilenameWidth()`, `computeMaxChanges()`, full builder API (10 with* methods), `render()`
+    - Render format: `{filename:<width} | {bar} +{ins} -{del}` (binary shows "Bin" instead of bar)
+    - Proportional bar: insertion_cols and deletion_cols scaled to bar_width by max_changes
+    - No allocations — borrowed entries slice
+
+  **Current State**:
+    - **Latest release**: v2.47.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **CI status**: Pushed commits, CI will run
+
+  **Next Priority**:
+    - Establish v2.48.0 milestone (candidates: WizardWidget, KeyboardShortcutsHelp, AnimatedBorder, Marquee)
+
 ✅ **Session 304** — FEATURE MODE (2026-06-15)
   - **Mode**: NORMAL (session 304, 304 % 5 == 4)
   - **Achievement**: Implemented KeyValueViewer Widget (v2.45.0) and executed full release
