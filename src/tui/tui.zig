@@ -403,6 +403,9 @@ pub const widgets = struct {
 
     // v2.48.0 — Marquee Widget
     pub const Marquee = @import("widgets/marquee.zig").Marquee;
+
+    // v2.49.0 — Wizard Widget
+    pub const Wizard = @import("widgets/wizard.zig").Wizard;
 };
 
 // Export commonly used types
@@ -446,6 +449,9 @@ pub const DiffStat = @import("widgets/diffstat.zig").DiffStat;
 
 // v2.48.0 — Marquee Widget (top-level export)
 pub const Marquee = @import("widgets/marquee.zig").Marquee;
+
+// v2.49.0 — Wizard Widget (top-level export)
+pub const Wizard = @import("widgets/wizard.zig").Wizard;
 
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;

@@ -4,9 +4,38 @@
 
 - **Latest release**: v2.48.0 (2026-06-16) — Marquee Widget
 - **Latest minor**: v2.48.0 (2026-06-16) — Marquee Widget
-- **Next release**: v2.49.0 — TBD
-- **Active milestones**: 0 pending implementation
+- **Next release**: v2.49.0 — Wizard Widget
+- **Active milestones**: 1 pending implementation
 - **Blockers**: None
+
+### v2.49.0 — Wizard Widget (In Progress)
+
+**Theme**: A multi-step flow navigation widget with step indicators, progress tracking, and navigation hints. Shows a visual progress strip (numbered circles connected by lines) with the current step highlighted, a content area below for caller-rendered step content, and optional back/next navigation hints at the bottom. Ideal for setup wizards, onboarding flows, and multi-stage forms in all three consumer projects.
+
+**Checklist**:
+- [ ] **src/tui/widgets/wizard.zig** — Wizard: Step struct (title []const u8, description []const u8=""); steps ([]const Step); current (usize=0); active_step_style/inactive_step_style/title_style/description_style/nav_style (Style); show_nav_hint (bool=true); block (?Block); init(steps); nextStep(); prevStep(); goToStep(usize); isFirst/isLast(); stepCount(); currentStep() ?Step; headerHeight(); contentArea(Rect) Rect; builder API (withCurrent/ActiveStepStyle/InactiveStepStyle/TitleStyle/DescriptionStyle/NavStyle/ShowNavHint/Block); render: block border → step indicator row (●/○ circles + ─ connectors) → title row → separator → content area (left for caller) → nav hint row
+- [ ] **tests/wizard_test.zig** — 80+ tests: init/defaults, nextStep/prevStep clamping, goToStep bounds, isFirst/isLast, stepCount, currentStep (null on empty), headerHeight, contentArea geometry, builder immutability, render (basic, styles, block border, zero area, empty steps, single step, multiple steps, nav hint on/off)
+- [ ] Export Wizard via tui.zig widgets struct and top-level
+- [ ] Add wizard_tests to build.zig
+- [ ] Release v2.49.0
+
+**Success Criteria**:
+- `nextStep()` from last step → no-op (clamped); from middle → current+1
+- `prevStep()` from first step → no-op (clamped); from middle → current-1
+- `goToStep(i)` with i >= steps.len → no-op
+- `isFirst()` true when current==0 or steps is empty
+- `isLast()` true when current==steps.len-1 or steps is empty
+- `headerHeight()` returns 3 (step circles row + title row + separator) or 0 if no steps
+- `contentArea(area)` returns area minus block border insets minus header height minus nav hint row (if show_nav_hint)
+- Builder methods all return value copies; original unchanged
+- Render: step indicators "● Title ─── ○ Title ─── ○ Title" spanning width, active step highlighted with active_step_style, inactive with inactive_step_style; separator line; nav hint "← Back" (left) and "Next →" (right) at bottom if show_nav_hint and not first/last respectively
+- Zero area, empty steps, single step all handled without crash
+
+**Notes**:
+- No allocator — steps slice borrowed from caller
+- `contentArea()` is a pure geometry function — call it before rendering step content
+- nav hint row is 1 row at bottom of inner area when show_nav_hint=true
+- Step indicator row uses '●' (U+25CF) for active, '○' (U+25CB) for inactive, '─' (U+2500) for connectors
 
 ### v2.48.0 — Marquee Widget (Released: 2026-06-16)
 

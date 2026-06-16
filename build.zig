@@ -1247,6 +1247,17 @@ pub fn build(b: *std.Build) void {
     marquee_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(marquee_tests).step);
 
+    const wizard_tests = b.addTest(.{
+        .name = "wizard_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/wizard_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    wizard_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(wizard_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",
