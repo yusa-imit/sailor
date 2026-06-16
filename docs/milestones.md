@@ -4,9 +4,37 @@
 
 - **Latest release**: v2.46.0 (2026-06-16) — Spinner Widget
 - **Latest minor**: v2.46.0 (2026-06-16) — Spinner Widget
-- **Next release**: v2.47.0 — TBD
-- **Active milestones**: 0 pending implementation
+- **Next release**: v2.47.0 — DiffStat Widget
+- **Active milestones**: 1 pending implementation
 - **Blockers**: None
+
+### v2.47.0 — DiffStat Widget (Pending)
+
+**Theme**: A git-diff-style statistics display showing per-file insertions/deletions with proportional colored bars (like `git diff --stat`). Shows filename, a bar chart of insertions (`+`) and deletions (`-`) scaled to bar_width, and counts. Useful for zr (package diff summaries), zoltraak (Redis key change tracking), and silica (schema migration diffs).
+
+**Checklist**:
+- [ ] **src/tui/widgets/diffstat.zig** — DiffStat: DiffStatEntry (filename []const u8, insertions u32, deletions u32, binary bool); entries ([]const DiffStatEntry); max_filename_width (?u16, auto if null); bar_width (u16=20); insertion_char (u21='+'); deletion_char (u21='-'); insertion_style/deletion_style/filename_style/count_style/binary_style (Style); block (?Block); init(entries); totalInsertions(); totalDeletions(); totalFiles(); computeMaxFilenameWidth(); computeMaxChanges(); builder API (withMaxFilenameWidth/BarWidth/InsertionChar/DeletionChar/InsertionStyle/DeletionStyle/FilenameStyle/CountStyle/BinaryStyle/Block); render: filename padded + " | " + bar (proportional) + " " + count summary
+- [ ] **tests/diffstat_test.zig** — 50+ tests: init/defaults, totalInsertions/Deletions/Files, computeMaxFilenameWidth, computeMaxChanges, builder immutability, render (basic, binary entry, proportional bars, zero insertions/deletions, all insertions, all deletions, styles, block border, truncation, edge cases: zero area, empty entries, single entry)
+- [ ] Export DiffStat via tui.zig widgets struct and top-level
+- [ ] Add diffstat_tests to build.zig
+- [ ] Release v2.47.0
+
+**Success Criteria**:
+- `totalInsertions()` sums all entry.insertions
+- `totalDeletions()` sums all entry.deletions
+- `totalFiles()` returns entries.len
+- `computeMaxFilenameWidth()` returns max(len) of all entry.filename, or max_filename_width if set
+- `computeMaxChanges()` returns max(insertions + deletions) across all entries (for proportional scaling)
+- Bar proportions: insertion_cols = (insertions / max_changes) * bar_width; deletion_cols = (deletions / max_changes) * bar_width
+- Binary entry shows "Bin" instead of +/- bar
+- Builder methods return value copies, original unchanged
+- Render format: `{filename:<width} | {bar} {+insertions,-deletions}`
+- Zero area, empty entries, single binary entry all handled without crash
+
+**Notes**:
+- No allocator — entries slice borrowed from caller
+- Binary flag overrides bar rendering with "Bin" text styled with binary_style
+- Useful for: zr (package dependency diff), zoltraak (Redis key diff), silica (schema migration summary)
 
 ### v2.46.0 — Spinner Widget (Released: 2026-06-16)
 

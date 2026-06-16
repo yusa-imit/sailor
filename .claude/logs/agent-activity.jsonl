@@ -150,3 +150,5 @@
 {"timestamp":"2026-06-15T00:01:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement VirtualTable widget (TDD Green phase) — src/tui/widgets/virtualtable.zig + tui.zig export","project":"sailor"}
 {"timestamp":"2026-06-15T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write 95 tests for HexViewer widget (TDD Red phase)","project":"sailor"}
 {"timestamp":"2026-06-15T00:05:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement HexViewer widget - src/tui/widgets/hexviewer.zig (TDD Green phase)","project":"sailor"}
+{"timestamp":"2026-06-16T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write 77 tests for DiffStat widget (TDD Red phase)","project":"sailor"}
+{"timestamp":"2026-06-16T00:01:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement DiffStat widget — make 77 tests pass (TDD Green phase)","project":"sailor"}

@@ -397,6 +397,9 @@ pub const widgets = struct {
 
     // v2.46.0 — Spinner Widget
     pub const Spinner = @import("widgets/spinner.zig").Spinner;
+
+    // v2.47.0 — DiffStat Widget
+    pub const DiffStat = @import("widgets/diffstat.zig").DiffStat;
 };
 
 // Export commonly used types
@@ -434,6 +437,9 @@ pub const KeyValueViewer = @import("widgets/keyvalue_viewer.zig").KeyValueViewer
 
 // v2.46.0 — Spinner Widget (top-level export)
 pub const Spinner = @import("widgets/spinner.zig").Spinner;
+
+// v2.47.0 — DiffStat Widget (top-level export)
+pub const DiffStat = @import("widgets/diffstat.zig").DiffStat;
 
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;

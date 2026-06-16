@@ -1225,6 +1225,17 @@ pub fn build(b: *std.Build) void {
     spinner_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(spinner_tests).step);
 
+    const diffstat_tests = b.addTest(.{
+        .name = "diffstat_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/diffstat_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    diffstat_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(diffstat_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",
