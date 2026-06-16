@@ -1,3 +1,34 @@
+✅ **Session 309** — FEATURE MODE (2026-06-16)
+  - **Mode**: NORMAL (session 309, 309 % 5 == 4)
+  - **Achievement**: Implemented Wizard Widget (v2.49.0) and executed full release
+
+  **Completed Work**:
+    - ✅ CI check: queued (not RED); 0 open GitHub issues
+    - ✅ Established v2.49.0 milestone: Wizard Widget
+    - ✅ TDD Red: `test-writer` wrote 83 tests in `tests/wizard_test.zig`
+    - ✅ TDD Green: `zig-developer` implemented `src/tui/widgets/wizard.zig`; exported from `tui.zig`; registered in `build.zig`
+    - ✅ All 83 Wizard tests pass; overall suite exit code 0
+    - ✅ Released v2.49.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#85, zoltraak#63, silica#74
+    - ✅ Discord notification sent
+
+  **Wizard Widget Summary**:
+    - `Step`: nested struct `{ title: []const u8, description: []const u8 = "" }`
+    - `Wizard`: `steps: []const Step`, `current: usize = 0`, `active_step_style/inactive_step_style/title_style/description_style/nav_style` (Style), `show_nav_hint: bool = true`, `block: ?Block = null`
+    - Methods: `init(steps)`, `nextStep/prevStep()` (clamped), `goToStep(usize)` (bounds-checked), `isFirst/isLast()`, `stepCount()`, `currentStep() ?Step`
+    - Geometry: `headerHeight()` → 3 if steps>0 else 0; `contentArea(Rect) Rect` → area minus block insets, header, nav hint row
+    - Builder: withCurrent/ActiveStepStyle/InactiveStepStyle/TitleStyle/DescriptionStyle/NavStyle/ShowNavHint/Block (all return value copies)
+    - Render: block border → step indicator row (●/○ + ─ connectors) → title row → separator → content area (caller renders) → nav hints "← Back" / "Next →"
+    - No allocations — steps slice borrowed from caller
+
+  **Current State**:
+    - **Latest release**: v2.49.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **CI status**: Pushed commits, CI will run
+
+  **Next Priority**:
+    - Establish v2.50.0 milestone (candidates: AnimatedBorder, Carousel, CountdownTimer, ColorPicker enhanced)
+
 ✅ **Session 308** — FEATURE MODE (2026-06-16)
   - **Mode**: NORMAL (session 308, 308 % 5 == 3)
   - **Achievement**: Implemented Marquee Widget (v2.48.0) and executed full release
