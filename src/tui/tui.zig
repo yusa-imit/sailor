@@ -400,6 +400,9 @@ pub const widgets = struct {
 
     // v2.47.0 — DiffStat Widget
     pub const DiffStat = @import("widgets/diffstat.zig").DiffStat;
+
+    // v2.48.0 — Marquee Widget
+    pub const Marquee = @import("widgets/marquee.zig").Marquee;
 };
 
 // Export commonly used types
@@ -440,6 +443,9 @@ pub const Spinner = @import("widgets/spinner.zig").Spinner;
 
 // v2.47.0 — DiffStat Widget (top-level export)
 pub const DiffStat = @import("widgets/diffstat.zig").DiffStat;
+
+// v2.48.0 — Marquee Widget (top-level export)
+pub const Marquee = @import("widgets/marquee.zig").Marquee;
 
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;
