@@ -2,11 +2,37 @@
 
 ## Current Status
 
-- **Latest release**: v2.47.0 (2026-06-16) — DiffStat Widget
-- **Latest minor**: v2.47.0 (2026-06-16) — DiffStat Widget
-- **Next release**: v2.48.0 — TBD
+- **Latest release**: v2.48.0 (2026-06-16) — Marquee Widget
+- **Latest minor**: v2.48.0 (2026-06-16) — Marquee Widget
+- **Next release**: v2.49.0 — TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.48.0 — Marquee Widget (Released: 2026-06-16)
+
+**Theme**: A horizontally scrolling text ticker widget. Text wider than the render area scrolls character by character, creating a continuous loop with a configurable separator. Useful for status bars, news feeds, and notification displays.
+
+**Checklist**:
+- [x] **src/tui/widgets/marquee.zig** — Marquee: ScrollDirection enum (left, right); text ([]const u8); offset (usize=0); speed (u8=1); separator ([]const u8=" | "); direction (ScrollDirection=.left); style (Style={}); block (?Block); init(text); tick(); reset(); textLen(); currentOffset(); builder API (withText/Offset/Speed/Separator/Direction/Style/Block); render: single-row scrolling text with wrap-around
+- [x] **tests/marquee_test.zig** — 100 tests: init/defaults, textLen, currentOffset, tick (left/right directions, speed>1, wrapping), reset, builder immutability (all 7 builders), render (basic, scrolled, wrap-around, style, block border, zero area, empty text, single char, exact fit, right direction)
+- [x] Export Marquee via tui.zig widgets struct and top-level
+- [x] Add marquee_tests to build.zig
+- [x] Release v2.48.0
+
+**Success Criteria**:
+- `textLen()` returns `text.len + separator.len` (min 1 to avoid division by zero)
+- `currentOffset()` returns `offset % textLen()`
+- `tick()` .left: `(offset + speed) % textLen()`; .right: `(textLen + offset - speed) % textLen()`
+- Builder methods all return value copies; original unchanged
+- Render fills area.width cells with chars from repeating `text + separator` cycle starting at currentOffset
+- Block border reduces inner area correctly
+- Zero area, empty text, all edge cases handled without crash
+
+**Notes**:
+- No allocator — text/separator slices borrowed from caller
+- ScrollDirection is a public nested type inside Marquee struct
+- Single-row render (one line of scrolling text regardless of area height)
+- Useful for: status bars, news tickers, notification overlays
 
 ### v2.47.0 — DiffStat Widget (Released: 2026-06-16)
 

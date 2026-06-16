@@ -1,3 +1,32 @@
+✅ **Session 308** — FEATURE MODE (2026-06-16)
+  - **Mode**: NORMAL (session 308, 308 % 5 == 3)
+  - **Achievement**: Implemented Marquee Widget (v2.48.0) and executed full release
+
+  **Completed Work**:
+    - ✅ CI check: queued (not RED); 0 open GitHub issues
+    - ✅ Established v2.48.0 milestone: Marquee Widget
+    - ✅ TDD Red: `test-writer` wrote 100 tests in `tests/marquee_test.zig`
+    - ✅ TDD Green: `zig-developer` implemented `src/tui/widgets/marquee.zig`; exported from `tui.zig`; registered in `build.zig`
+    - ✅ All 100 Marquee tests pass; overall suite exit code 0
+    - ✅ Released v2.48.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#84, zoltraak#62, silica#73
+    - ✅ Discord notification sent
+
+  **Marquee Widget Summary**:
+    - `ScrollDirection` enum: `.left` (default), `.right` (nested public type in Marquee)
+    - `Marquee`: `text: []const u8`, `offset: usize = 0`, `speed: u8 = 1`, `separator: []const u8 = " | "`, `direction: ScrollDirection = .left`, `style: Style = {}`, `block: ?Block = null`
+    - Methods: `init(text)`, `textLen()` (text.len + sep.len, min 1), `currentOffset()` (offset % textLen), `tick()` (advance/retreat by speed, wraps), `reset()` (offset=0)
+    - Builder: withText/Offset/Speed/Separator/Direction/Style/Block (all return value copies)
+    - Render: single-row scrolling text, chars from repeating `text + separator` cycle, block border support
+    - No allocations — borrowed slices
+
+  **Current State**:
+    - **Latest release**: v2.48.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **CI status**: Pushed commits, CI will run
+
+  **Next Priority**:
+    - Establish v2.49.0 milestone (candidates: WizardWidget, AnimatedBorder, Carousel, CountdownTimer)
 ✅ **Session 307** — FEATURE MODE (2026-06-16)
   - **Mode**: NORMAL (session 307, 307 % 5 == 2)
   - **Achievement**: Implemented DiffStat Widget (v2.47.0) and executed full release
