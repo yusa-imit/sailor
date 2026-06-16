@@ -2,22 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.46.0 (2026-06-16) — Spinner Widget
-- **Latest minor**: v2.46.0 (2026-06-16) — Spinner Widget
-- **Next release**: v2.47.0 — DiffStat Widget
-- **Active milestones**: 1 pending implementation
+- **Latest release**: v2.47.0 (2026-06-16) — DiffStat Widget
+- **Latest minor**: v2.47.0 (2026-06-16) — DiffStat Widget
+- **Next release**: v2.48.0 — TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
-### v2.47.0 — DiffStat Widget (Pending)
+### v2.47.0 — DiffStat Widget (Released: 2026-06-16)
 
 **Theme**: A git-diff-style statistics display showing per-file insertions/deletions with proportional colored bars (like `git diff --stat`). Shows filename, a bar chart of insertions (`+`) and deletions (`-`) scaled to bar_width, and counts. Useful for zr (package diff summaries), zoltraak (Redis key change tracking), and silica (schema migration diffs).
 
 **Checklist**:
-- [ ] **src/tui/widgets/diffstat.zig** — DiffStat: DiffStatEntry (filename []const u8, insertions u32, deletions u32, binary bool); entries ([]const DiffStatEntry); max_filename_width (?u16, auto if null); bar_width (u16=20); insertion_char (u21='+'); deletion_char (u21='-'); insertion_style/deletion_style/filename_style/count_style/binary_style (Style); block (?Block); init(entries); totalInsertions(); totalDeletions(); totalFiles(); computeMaxFilenameWidth(); computeMaxChanges(); builder API (withMaxFilenameWidth/BarWidth/InsertionChar/DeletionChar/InsertionStyle/DeletionStyle/FilenameStyle/CountStyle/BinaryStyle/Block); render: filename padded + " | " + bar (proportional) + " " + count summary
-- [ ] **tests/diffstat_test.zig** — 50+ tests: init/defaults, totalInsertions/Deletions/Files, computeMaxFilenameWidth, computeMaxChanges, builder immutability, render (basic, binary entry, proportional bars, zero insertions/deletions, all insertions, all deletions, styles, block border, truncation, edge cases: zero area, empty entries, single entry)
-- [ ] Export DiffStat via tui.zig widgets struct and top-level
-- [ ] Add diffstat_tests to build.zig
-- [ ] Release v2.47.0
+- [x] **src/tui/widgets/diffstat.zig** — DiffStat: DiffStatEntry (filename []const u8, insertions u32, deletions u32, binary bool); entries ([]const DiffStatEntry); max_filename_width (?u16, auto if null); bar_width (u16=20); insertion_char (u21='+'); deletion_char (u21='-'); insertion_style/deletion_style/filename_style/count_style/binary_style (Style); block (?Block); init(entries); totalInsertions(); totalDeletions(); totalFiles(); computeMaxFilenameWidth(); computeMaxChanges(); builder API (withMaxFilenameWidth/BarWidth/InsertionChar/DeletionChar/InsertionStyle/DeletionStyle/FilenameStyle/CountStyle/BinaryStyle/Block); render: filename padded + " | " + bar (proportional) + " " + count summary
+- [x] **tests/diffstat_test.zig** — 77 tests: init/defaults, totalInsertions/Deletions/Files, computeMaxFilenameWidth, computeMaxChanges, builder immutability, render (basic, binary entry, proportional bars, zero insertions/deletions, all insertions, all deletions, styles, block border, truncation, edge cases: zero area, empty entries, single entry)
+- [x] Export DiffStat via tui.zig widgets struct and top-level
+- [x] Add diffstat_tests to build.zig
+- [x] Release v2.47.0
 
 **Success Criteria**:
 - `totalInsertions()` sums all entry.insertions
