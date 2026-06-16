@@ -2,22 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.48.0 (2026-06-16) — Marquee Widget
-- **Latest minor**: v2.48.0 (2026-06-16) — Marquee Widget
-- **Next release**: v2.49.0 — Wizard Widget
-- **Active milestones**: 1 pending implementation
+- **Latest release**: v2.49.0 (2026-06-16) — Wizard Widget
+- **Latest minor**: v2.49.0 (2026-06-16) — Wizard Widget
+- **Next release**: v2.50.0 — TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
-### v2.49.0 — Wizard Widget (In Progress)
+### v2.49.0 — Wizard Widget (Released: 2026-06-16)
 
 **Theme**: A multi-step flow navigation widget with step indicators, progress tracking, and navigation hints. Shows a visual progress strip (numbered circles connected by lines) with the current step highlighted, a content area below for caller-rendered step content, and optional back/next navigation hints at the bottom. Ideal for setup wizards, onboarding flows, and multi-stage forms in all three consumer projects.
 
 **Checklist**:
-- [ ] **src/tui/widgets/wizard.zig** — Wizard: Step struct (title []const u8, description []const u8=""); steps ([]const Step); current (usize=0); active_step_style/inactive_step_style/title_style/description_style/nav_style (Style); show_nav_hint (bool=true); block (?Block); init(steps); nextStep(); prevStep(); goToStep(usize); isFirst/isLast(); stepCount(); currentStep() ?Step; headerHeight(); contentArea(Rect) Rect; builder API (withCurrent/ActiveStepStyle/InactiveStepStyle/TitleStyle/DescriptionStyle/NavStyle/ShowNavHint/Block); render: block border → step indicator row (●/○ circles + ─ connectors) → title row → separator → content area (left for caller) → nav hint row
-- [ ] **tests/wizard_test.zig** — 80+ tests: init/defaults, nextStep/prevStep clamping, goToStep bounds, isFirst/isLast, stepCount, currentStep (null on empty), headerHeight, contentArea geometry, builder immutability, render (basic, styles, block border, zero area, empty steps, single step, multiple steps, nav hint on/off)
-- [ ] Export Wizard via tui.zig widgets struct and top-level
-- [ ] Add wizard_tests to build.zig
-- [ ] Release v2.49.0
+- [x] **src/tui/widgets/wizard.zig** — Wizard: Step struct (title []const u8, description []const u8=""); steps ([]const Step); current (usize=0); active_step_style/inactive_step_style/title_style/description_style/nav_style (Style); show_nav_hint (bool=true); block (?Block); init(steps); nextStep(); prevStep(); goToStep(usize); isFirst/isLast(); stepCount(); currentStep() ?Step; headerHeight(); contentArea(Rect) Rect; builder API (withCurrent/ActiveStepStyle/InactiveStepStyle/TitleStyle/DescriptionStyle/NavStyle/ShowNavHint/Block); render: block border → step indicator row (●/○ circles + ─ connectors) → title row → separator → content area (left for caller) → nav hint row
+- [x] **tests/wizard_test.zig** — 83 tests: init/defaults, nextStep/prevStep clamping, goToStep bounds, isFirst/isLast, stepCount, currentStep (null on empty), headerHeight, contentArea geometry, builder immutability, render (basic, styles, block border, zero area, empty steps, single step, multiple steps, nav hint on/off)
+- [x] Export Wizard via tui.zig widgets struct and top-level
+- [x] Add wizard_tests to build.zig
+- [x] Release v2.49.0
 
 **Success Criteria**:
 - `nextStep()` from last step → no-op (clamped); from middle → current+1
