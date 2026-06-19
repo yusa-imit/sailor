@@ -63,13 +63,17 @@ test "Select init with single item" {
 test "Select deinit frees allocation and selected array" {
     const items = [_][]const u8{ "A", "B", "C" };
     var select = try Select.init(testing.allocator, &items, true);
-    const selected_ptr = select.selected.ptr;
+    // Explicitly deinit without defer — verifies deinit completes without error.
+    // The testing allocator detects leaks at test teardown, so missing deinit would fail.
     select.deinit(testing.allocator);
-    // Verify that the allocated array was freed (by calling deinit again on fresh allocation)
-    // to ensure no memory leaks. This test passes if deinit completes without error.
+    // After deinit, init a second instance to verify the allocator still works correctly.
     var select2 = try Select.init(testing.allocator, &items, true);
     defer select2.deinit(testing.allocator);
-    try testing.expect(select2.selected.ptr != selected_ptr); // Different allocation
+    // Verify the new instance is properly initialized (not pointer address, which is impl-defined).
+    try testing.expectEqual(3, select2.selected.len);
+    try testing.expectEqual(false, select2.selected[0]);
+    try testing.expectEqual(false, select2.selected[1]);
+    try testing.expectEqual(false, select2.selected[2]);
 }
 
 test "Select init allocates separate selected array per instance" {
