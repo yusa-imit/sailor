@@ -2,22 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.49.0 (2026-06-16) — Wizard Widget
-- **Latest minor**: v2.49.0 (2026-06-16) — Wizard Widget
-- **Next release**: v2.50.0 — Carousel Widget
-- **Active milestones**: 1 pending implementation
+- **Latest release**: v2.50.0 (2026-06-20) — Carousel Widget
+- **Latest minor**: v2.50.0 (2026-06-20) — Carousel Widget
+- **Next release**: v2.51.0 — TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
-### v2.50.0 — Carousel Widget (Planned)
+### v2.50.0 — Carousel Widget (Released: 2026-06-20)
 
 **Theme**: A horizontal slide-navigation widget with page indicators (dots) and optional arrow hints. Caller renders the content area for the current slide; Carousel manages navigation state and renders indicator dots at the bottom. Supports looping (wraps from last→first and first→last) or clamping. Useful for onboarding flows, image/slide galleries, and tabbed content with large panels.
 
 **Checklist**:
-- [ ] **src/tui/widgets/carousel.zig** — Carousel: items_count (usize); current (usize=0); loop (bool=true); show_indicators (bool=true); show_arrows (bool=true); indicator_active_char (u21='●'); indicator_inactive_char (u21='○'); left_arrow ([]const u8="◄"); right_arrow ([]const u8="►"); indicator_style/active_indicator_style/arrow_style (Style); block (?Block); init(count); next(); prev(); goTo(usize); isFirst(); isLast(); count(); indicatorHeight(); contentArea(Rect) Rect; builder API (withCurrent/Loop/ShowIndicators/ShowArrows/IndicatorActiveChar/IndicatorInactiveChar/LeftArrow/RightArrow/IndicatorStyle/ActiveIndicatorStyle/ArrowStyle/Block); render: block border → content area (caller renders) → indicator row (dots with arrows)
-- [ ] **tests/carousel_test.zig** — 80+ tests: init/defaults, next/prev (clamped and looped), goTo bounds, isFirst/isLast, count, indicatorHeight, contentArea geometry, builder immutability (all builders), render (basic, loop off clamped, indicators on/off, arrows on/off, styles, block border, zero area, zero items, single item, many items)
-- [ ] Export Carousel via tui.zig widgets struct and top-level
-- [ ] Add carousel_tests to build.zig
-- [ ] Release v2.50.0
+- [x] **src/tui/widgets/carousel.zig** — Carousel: items_count (usize); current (usize=0); loop (bool=true); show_indicators (bool=true); show_arrows (bool=true); indicator_active_char (u21='●'); indicator_inactive_char (u21='○'); left_arrow ([]const u8="◄"); right_arrow ([]const u8="►"); indicator_style/active_indicator_style/arrow_style (Style); block (?Block); init(count); next(); prev(); goTo(usize); isFirst(); isLast(); count(); indicatorHeight(); contentArea(Rect) Rect; builder API (withCurrent/Loop/ShowIndicators/ShowArrows/IndicatorActiveChar/IndicatorInactiveChar/LeftArrow/RightArrow/IndicatorStyle/ActiveIndicatorStyle/ArrowStyle/Block); render: block border → content area (caller renders) → indicator row (dots with arrows)
+- [x] **tests/carousel_test.zig** — 80+ tests: init/defaults, next/prev (clamped and looped), goTo bounds, isFirst/isLast, count, indicatorHeight, contentArea geometry, builder immutability (all builders), render (basic, loop off clamped, indicators on/off, arrows on/off, styles, block border, zero area, zero items, single item, many items)
+- [x] Export Carousel via tui.zig widgets struct and top-level
+- [x] Add carousel_tests to build.zig
+- [x] Release v2.50.0
 
 **Success Criteria**:
 - `next()` with loop=true and at last item → wraps to 0; loop=false → clamps at last
