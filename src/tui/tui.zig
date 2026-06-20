@@ -409,6 +409,9 @@ pub const widgets = struct {
 
     // v2.50.0 — Carousel Widget
     pub const Carousel = @import("widgets/carousel.zig").Carousel;
+
+    // v2.51.0 — CountdownTimer Widget
+    pub const CountdownTimer = @import("widgets/countdown_timer.zig").CountdownTimer;
 };
 
 // Export commonly used types
@@ -458,6 +461,9 @@ pub const Wizard = @import("widgets/wizard.zig").Wizard;
 
 // v2.50.0 — Carousel Widget (top-level export)
 pub const Carousel = @import("widgets/carousel.zig").Carousel;
+
+// v2.51.0 — CountdownTimer Widget (top-level export)
+pub const CountdownTimer = @import("widgets/countdown_timer.zig").CountdownTimer;
 
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;

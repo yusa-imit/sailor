@@ -369,6 +369,7 @@ fn extractRgb(color: Color) RgbTriplet {
         .magenta => .{ .r = 170, .g = 0, .b = 170 },
         .cyan => .{ .r = 0, .g = 170, .b = 170 },
         .white => .{ .r = 170, .g = 170, .b = 170 },
+        .gray => .{ .r = 85, .g = 85, .b = 85 }, // dim gray (bright_black)
         .bright_black => .{ .r = 85, .g = 85, .b = 85 },
         .bright_red => .{ .r = 255, .g = 85, .b = 85 },
         .bright_green => .{ .r = 85, .g = 255, .b = 85 },

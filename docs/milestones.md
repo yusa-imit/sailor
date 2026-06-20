@@ -4,9 +4,40 @@
 
 - **Latest release**: v2.50.0 (2026-06-20) — Carousel Widget
 - **Latest minor**: v2.50.0 (2026-06-20) — Carousel Widget
-- **Next release**: v2.51.0 — TBD
-- **Active milestones**: 0 pending implementation
+- **Next release**: v2.51.0 — CountdownTimer Widget
+- **Active milestones**: 1 pending implementation
 - **Blockers**: None
+
+### v2.51.0 — CountdownTimer Widget (In Progress)
+
+**Theme**: A visual countdown display widget showing remaining time with optional progress bar. Tracks total and remaining seconds, renders a formatted time string (HH:MM:SS or MM:SS) and optionally a filled/empty bar that shrinks as time elapses. Useful for timed prompts in zoltraak, deployment windows in zr, and query timeouts in silica.
+
+**Checklist**:
+- [ ] **src/tui/widgets/countdown_timer.zig** — CountdownTimer: TimeFormat enum (.hh_mm_ss, .mm_ss, .seconds); total_seconds (u64); remaining_seconds (u64 = total_seconds); show_progress_bar (bool=true); show_total (bool=true); bar_char (u21='█'); empty_char (u21='░'); time_style/bar_filled_style/bar_empty_style (Style); block (?Block=null); init(total: u64); tick(); tickBy(n: u64); reset(); setRemaining(s: u64); isExpired(); progress() f32; formatTime(s: u64, fmt: TimeFormat, buf: *[9]u8) []const u8; contentHeight() u8; builder API (withTotalSeconds/ShowProgressBar/ShowTotal/Format/BarChar/EmptyChar/TimeStyle/BarFilledStyle/BarEmptyStyle/Block); render: block border → time row (centered "MM:SS" or "MM:SS / MM:SS") → bar row (proportional filled+empty chars)
+- [ ] **tests/countdown_timer_test.zig** — 80+ tests: init/defaults, tick/tickBy (clamping at 0), reset, setRemaining (clamp to total), isExpired, progress (0.0 full expired, 1.0 full remaining, total=0 edge), formatTime (.hh_mm_ss .mm_ss .seconds for 0/59/60/3599/3600 seconds), contentHeight, builder immutability (all builders), render (basic, show_total on/off, bar on/off, bar styles, time styles, block border, zero area, zero seconds, full seconds, mid-progress)
+- [ ] Export CountdownTimer via tui.zig widgets struct and top-level
+- [ ] Add countdown_timer_tests to build.zig
+- [ ] Release v2.51.0
+
+**Success Criteria**:
+- `tick()` when remaining==0 → no-op; otherwise remaining -= 1
+- `tickBy(n)` remaining = saturating_sub(remaining, n) (clamps at 0)
+- `reset()` sets remaining = total_seconds
+- `setRemaining(s)` clamps: if s > total_seconds, sets to total_seconds
+- `isExpired()` true when remaining_seconds == 0
+- `progress()` returns remaining/total as f32 (1.0 when full, 0.0 when expired); total==0 → 1.0
+- `formatTime(0, .mm_ss)` → "00:00"; `formatTime(3661, .hh_mm_ss)` → "01:01:01"
+- `contentHeight()` returns 1 (time row) + 1 (bar row if show_progress_bar)
+- Builder methods all return value copies; original unchanged
+- Render: time row centered; bar proportional (filled chars = floor(width * progress)); zero area handled without crash
+- Both `show_total=false` ("MM:SS") and `show_total=true` ("MM:SS / MM:SS") format strings
+
+**Notes**:
+- No allocator — pure value type
+- `formatTime` writes into caller-provided [9]u8 buffer (max "HH:MM:SS\0")
+- progress() clamps to [0.0, 1.0]
+- Bar fills from left: filled_chars = @as(usize, @intFromFloat(@as(f32, @floatFromInt(bar_width)) * progress()))
+- CountdownTimer.TimeFormat is a public nested enum
 
 ### v2.50.0 — Carousel Widget (Released: 2026-06-20)
 

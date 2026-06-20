@@ -12,6 +12,7 @@ pub const Color = union(enum) {
     magenta,
     cyan,
     white,
+    gray,     // v2.51.0 — standard gray (alias for bright_black / dim text)
     bright_black,
     bright_red,
     bright_green,
@@ -89,6 +90,7 @@ pub const Color = union(enum) {
             .magenta => try writer.writeAll("\x1b[35m"),
             .cyan => try writer.writeAll("\x1b[36m"),
             .white => try writer.writeAll("\x1b[37m"),
+            .gray => try writer.writeAll("\x1b[90m"), // bright_black (dim gray)
             .bright_black => try writer.writeAll("\x1b[90m"),
             .bright_red => try writer.writeAll("\x1b[91m"),
             .bright_green => try writer.writeAll("\x1b[92m"),
@@ -114,6 +116,7 @@ pub const Color = union(enum) {
             .magenta => try writer.writeAll("\x1b[45m"),
             .cyan => try writer.writeAll("\x1b[46m"),
             .white => try writer.writeAll("\x1b[47m"),
+            .gray => try writer.writeAll("\x1b[100m"), // bright_black (dim gray)
             .bright_black => try writer.writeAll("\x1b[100m"),
             .bright_red => try writer.writeAll("\x1b[101m"),
             .bright_green => try writer.writeAll("\x1b[102m"),

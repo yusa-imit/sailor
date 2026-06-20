@@ -217,6 +217,7 @@ fn colorsEqual(a: Color, b: Color) bool {
 
     return switch (a) {
         .reset, .black, .red, .green, .yellow, .blue, .magenta, .cyan, .white => true,
+        .gray => true,
         .bright_black, .bright_red, .bright_green, .bright_yellow => true,
         .bright_blue, .bright_magenta, .bright_cyan, .bright_white => true,
         .indexed => |a_idx| a_idx == b.indexed,

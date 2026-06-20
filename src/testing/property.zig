@@ -366,6 +366,7 @@ test "genColor produces valid color values" {
         // Verify it's a valid color variant
         switch (color) {
             .reset, .black, .red, .green, .yellow, .blue, .magenta, .cyan, .white => {},
+            .gray => {},
             .bright_black, .bright_red, .bright_green, .bright_yellow => {},
             .bright_blue, .bright_magenta, .bright_cyan, .bright_white => {},
             .indexed => |idx| {
@@ -398,6 +399,7 @@ test "genColor deterministic with same seed" {
         .magenta => try std.testing.expectEqual(Color.magenta, color2),
         .cyan => try std.testing.expectEqual(Color.cyan, color2),
         .white => try std.testing.expectEqual(Color.white, color2),
+        .gray => try std.testing.expectEqual(Color.gray, color2),
         .bright_black => try std.testing.expectEqual(Color.bright_black, color2),
         .bright_red => try std.testing.expectEqual(Color.bright_red, color2),
         .bright_green => try std.testing.expectEqual(Color.bright_green, color2),
