@@ -2,11 +2,34 @@
 
 ## Current Status
 
-- **Latest release**: v2.52.0 (2026-06-20) — AnimatedBorder Widget
-- **Latest minor**: v2.52.0 (2026-06-20) — AnimatedBorder Widget
-- **Next release**: v2.53.0 — TBD
+- **Latest release**: v2.53.0 (2026-06-21) — ProgressRing Widget
+- **Latest minor**: v2.53.0 (2026-06-21) — ProgressRing Widget
+- **Next release**: v2.54.0 — TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.53.0 — ProgressRing Widget (Released: 2026-06-21)
+
+**Theme**: A circular ring-shaped progress indicator widget. Renders a ring using distance-based geometry with terminal aspect ratio compensation (dy×2.0 for circular appearance). Progress fills clockwise from 12 o'clock. Center shows auto percentage ("50%") or custom label. Five configurable aspects: filled char/style, empty char/style, label/label_style. Optional Block border integration. Builder pattern (all methods return value copies). 93 tests passing.
+
+**Checklist**:
+- [x] **src/tui/widgets/progress_ring.zig** — ProgressRing: value (f32=0.0); filled_char (u21='█'); empty_char (u21='░'); filled_style/empty_style (Style={}); label ([]const u8=""); label_style (Style={}); show_percentage (bool=true); thickness (u8=2); block (?Block=null); init(f32); setValue(*self, f32); setValueClamped(*self, f32); percentage() u8; render(*Buffer, Rect); builder API (withValue/FilledChar/EmptyChar/FilledStyle/EmptyStyle/Label/LabelStyle/ShowPercentage/Thickness/Block)
+- [x] **tests/progress_ring_test.zig** — 93 tests: init/defaults, setValue/setValueClamped, percentage clamping, builder immutability, render crash-safety, ring cell detection (known geometry positions), label centering/override/style, block border, offset area, thickness variants, sequential renders
+- [x] Export ProgressRing via tui.zig widgets struct and top-level
+- [x] Add progress_ring_tests to build.zig
+- [x] Release v2.53.0
+
+**Success Criteria**:
+- Ring geometry: outer_r = min(width/2, height) - 0.5; inner_r = max(0, outer_r - thickness*2)
+- Ring condition: inner_r <= dist <= outer_r (dist uses dy*2 for aspect ratio)
+- Angle: atan2(dx, -dy) normalized to [0,1] clockwise from top
+- Label: label_y = inner.y + inner.height/2; label_x = inner.x + (inner.width - label.len) / 2
+- Custom label takes precedence over show_percentage
+
+**Notes**:
+- No allocator — pure value type, stack-allocated percentage buffer in render()
+- thickness=0: inner_r == outer_r, condition impossible → no ring cells drawn
+- thickness=large: inner_r clamps to 0 → full circle drawn
 
 ### v2.52.0 — AnimatedBorder Widget (Released: 2026-06-20)
 
