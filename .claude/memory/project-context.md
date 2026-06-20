@@ -1,3 +1,35 @@
+✅ **Session 313** — FEATURE MODE (2026-06-20)
+  - **Mode**: NORMAL (session 313, 313 % 5 == 3)
+  - **Achievement**: Implemented AnimatedBorder Widget (v2.52.0) and executed full release
+
+  **Completed Work**:
+    - ✅ CI check: latest run queued; 0 open sailor issues
+    - ✅ Established v2.52.0 milestone: AnimatedBorder Widget
+    - ✅ TDD Red: `test-writer` wrote 99 tests in `tests/animated_border_test.zig`
+    - ✅ Fixed 17 test compilation errors (`.char != null` on non-optional u21, `.fg.basic` union field access)
+    - ✅ TDD Green: `zig-developer` implemented `src/tui/widgets/animated_border.zig`; exported from `tui.zig`; registered in `build.zig`
+    - ✅ All 99 AnimatedBorder tests pass; overall suite exit code 0 (8217/8272 tests, 55 skipped)
+    - ✅ Released v2.52.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#87, zoltraak#65, silica#76
+    - ✅ Discord notification sent
+
+  **AnimatedBorder Widget Summary**:
+    - `AnimatedBorder.AnimationStyle` enum: `.rainbow`, `.pulse`, `.chase`, `.flash`, `.gradient`
+    - Fields: `frame` (u32=0), `style` (AnimationStyle=.rainbow), `speed` (u8=4), `colors` ([]const Color=default_colors), `base_style` (Style={}), `title` ([]const u8=""), `title_style` (Style={}), `border_set` (BoxSet=rounded)
+    - Methods: `init()`, `tick()`, `tickBy(n)`, `reset()`, `innerArea(Rect) Rect`, `render(*Buffer, Rect) void`
+    - Builder: withFrame/AnimationStyle/Speed/Colors/BaseStyle/Title/TitleStyle/BorderSet (all return value copies)
+    - Animation: rainbow=per-cell pos+frame cycling; pulse=all cells same color by frame; chase=one highlighted cell moving; flash=alternating per N frames; gradient=position-based shifting gradient
+    - Render: no-op if width<2 or height<2; speed=0 treated as 1 (div-by-zero safe)
+    - No allocations — pure value type
+
+  **Current State**:
+    - **Latest release**: v2.52.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **CI status**: queued (recent push)
+
+  **Next Priority**:
+    - Establish v2.53.0 milestone (candidates: MiniMap, ProgressRing, FlowText, AnimatedText)
+
 ✅ **Session 312** — FEATURE MODE (2026-06-20)
   - **Mode**: NORMAL (session 312, 312 % 5 == 2)
   - **Achievement**: Implemented CountdownTimer Widget (v2.51.0) and executed full release
