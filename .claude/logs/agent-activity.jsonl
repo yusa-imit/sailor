@@ -152,3 +152,5 @@
 {"timestamp":"2026-06-15T00:05:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement HexViewer widget - src/tui/widgets/hexviewer.zig (TDD Green phase)","project":"sailor"}
 {"timestamp":"2026-06-16T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write 77 tests for DiffStat widget (TDD Red phase)","project":"sailor"}
 {"timestamp":"2026-06-16T00:01:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement DiffStat widget — make 77 tests pass (TDD Green phase)","project":"sailor"}
+{"timestamp":"2026-06-20T19:30:00Z","action":"subagent","agent_type":"test-writer","task":"Write Carousel widget tests (TDD Red phase) — tests/carousel_test.zig","project":"sailor"}
+{"timestamp":"2026-06-20T19:35:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement Carousel widget — src/tui/widgets/carousel.zig","project":"sailor"}

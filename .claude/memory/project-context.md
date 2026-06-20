@@ -1,3 +1,37 @@
+✅ **Session 311** — FEATURE MODE (2026-06-20)
+  - **Mode**: NORMAL (session 311, 311 % 5 == 1)
+  - **Achievement**: Implemented Carousel Widget (v2.50.0) and executed full release
+
+  **Completed Work**:
+    - ✅ CI check: latest run queued (fix from session 310 in progress); 0 open sailor issues
+    - ✅ Established v2.50.0 milestone: Carousel Widget
+    - ✅ TDD Red: `test-writer` wrote 104 tests in `tests/carousel_test.zig`
+    - ✅ TDD Green: `zig-developer` implemented `src/tui/widgets/carousel.zig`; exported from `tui.zig`; registered in `build.zig`
+    - ✅ All 104 Carousel tests pass; overall suite exit code 0
+    - ✅ Released v2.50.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr, zoltraak, silica
+    - ✅ Discord notification sent
+
+  **Carousel Widget Summary**:
+    - `Carousel`: `items_count: usize`, `current: usize = 0`, `loop: bool = true`, `show_indicators: bool = true`, `show_arrows: bool = true`
+    - Chars: `indicator_active_char: u21 = '●'`, `indicator_inactive_char: u21 = '○'`
+    - Arrows: `left_arrow: []const u8 = "◄"`, `right_arrow: []const u8 = "►"`
+    - Styles: `indicator_style`, `active_indicator_style`, `arrow_style`, `block: ?Block`
+    - Methods: `init(count)`, `next()`, `prev()`, `goTo(usize)`, `isFirst/isLast()`, `count()`, `indicatorHeight()`, `contentArea(Rect) Rect`
+    - Builder: withCurrent/Loop/ShowIndicators/ShowArrows/IndicatorActiveChar/IndicatorInactiveChar/LeftArrow/RightArrow/IndicatorStyle/ActiveIndicatorStyle/ArrowStyle/Block (all return value copies)
+    - Navigation: loop=true wraps at ends; loop=false clamps; count=0 is always no-op
+    - Render: block border → indicator row (◄ dots ►) at bottom of inner area → content area (caller renders)
+    - Arrow visibility with loop=false: left hidden at first, right hidden at last
+    - No allocations — items_count is just a usize
+
+  **Current State**:
+    - **Latest release**: v2.50.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **CI status**: Fix from session 310 queued (d207963), CI will complete soon
+
+  **Next Priority**:
+    - Establish v2.51.0 milestone (candidates: AnimatedBorder, CountdownTimer, ColorPicker enhanced, SplitLayout)
+
 ✅ **Session 310** — STABILIZATION MODE (2026-06-20)
   - **Mode**: STABILIZATION (session 310, 310 % 5 == 0)
   - **Achievement**: Fixed CI-RED: flawed pointer-inequality assertion in Select deinit test
