@@ -2,11 +2,40 @@
 
 ## Current Status
 
-- **Latest release**: v2.51.0 (2026-06-20) — CountdownTimer Widget
-- **Latest minor**: v2.51.0 (2026-06-20) — CountdownTimer Widget
-- **Next release**: v2.52.0 — TBD
+- **Latest release**: v2.52.0 (2026-06-20) — AnimatedBorder Widget
+- **Latest minor**: v2.52.0 (2026-06-20) — AnimatedBorder Widget
+- **Next release**: v2.53.0 — TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.52.0 — AnimatedBorder Widget (Released: 2026-06-20)
+
+**Theme**: A border-only widget with frame-based color animation. The caller increments a frame counter via tick() and the border renders with animated colors cycling through a configurable palette. Five animation styles: rainbow (position+frame cycling), pulse (all-cells same color by frame), chase (one highlighted cell moving around perimeter), flash (alternating colors per N frames), gradient (position-based color gradient shifting with frame). Useful for highlighting active panels, drawing attention to notifications, and creating loading/progress indicators in all three consumer projects.
+
+**Checklist**:
+- [x] **src/tui/widgets/animated_border.zig** — AnimatedBorder: AnimationStyle enum (.rainbow, .pulse, .chase, .flash, .gradient); frame (u32=0); style (AnimationStyle=.rainbow); speed (u8=4); colors ([]const Color=default_colors); base_style (Style={}); title ([]const u8=""); title_style (Style={}); border_set (BoxSet=rounded); init(); tick(); tickBy(n); reset(); innerArea(Rect) Rect; render(*Buffer, Rect); builder API (withFrame/AnimationStyle/Speed/Colors/BaseStyle/Title/TitleStyle/BorderSet)
+- [x] **tests/animated_border_test.zig** — 99 tests: init/defaults, tick/tickBy (wrapping), reset, innerArea (empty when ≤2, shrink by 1), builder immutability, render zero/minimal area, all 5 animation styles, title rendering, frame-based color changes, speed variations
+- [x] Export AnimatedBorder via tui.zig widgets struct and top-level
+- [x] Add animated_border_tests to build.zig
+- [x] Release v2.52.0
+
+**Success Criteria**:
+- `tick()` wraps at u32 max using +%=; `tickBy(n)` same; `reset()` sets frame=0
+- `innerArea()`: if width<=2 or height<=2 → empty Rect; else shrink by 1 on all sides
+- Builder methods return value copies; originals unchanged
+- Render: no-op if width<2 or height<2; draws all border cells with animation color applied
+- Rainbow: color = colors[(pos + frame/speed) % colors.len] per border cell position
+- Pulse: color = colors[(frame/speed) % colors.len] (all cells same color at given frame)
+- Chase: one cell at (frame/speed % perimeter_len) gets colors[0]; rest get base_style
+- Flash: (frame/speed) % 2 == 0 → colors[0]; else → colors[1] or base_style
+- Gradient: color = colors[(pos*len/perimeter + frame/speed) % len]
+- speed=0 treated as speed=1 (div-by-zero prevention)
+- Title at row=area.y, col=area.x+2, truncated to width-4 chars; rendered only if title.len>0 and width>=5
+
+**Notes**:
+- No allocator — pure value type, colors slice borrowed from caller
+- default_colors = [red, yellow, green, cyan, blue, magenta]
+- Perimeter = 2*(width+height-2) cells (corners shared between top/right/bottom/left)
 
 ### v2.51.0 — CountdownTimer Widget (Released: 2026-06-20)
 
