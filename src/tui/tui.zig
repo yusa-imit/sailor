@@ -415,6 +415,9 @@ pub const widgets = struct {
 
     // v2.52.0 — AnimatedBorder Widget
     pub const AnimatedBorder = @import("widgets/animated_border.zig").AnimatedBorder;
+
+    // v2.53.0 — ProgressRing Widget
+    pub const ProgressRing = @import("widgets/progress_ring.zig").ProgressRing;
 };
 
 // Export commonly used types
@@ -470,6 +473,9 @@ pub const CountdownTimer = @import("widgets/countdown_timer.zig").CountdownTimer
 
 // v2.52.0 — AnimatedBorder Widget (top-level export)
 pub const AnimatedBorder = @import("widgets/animated_border.zig").AnimatedBorder;
+
+// v2.53.0 — ProgressRing Widget (top-level export)
+pub const ProgressRing = @import("widgets/progress_ring.zig").ProgressRing;
 
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;

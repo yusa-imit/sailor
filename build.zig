@@ -1291,6 +1291,17 @@ pub fn build(b: *std.Build) void {
     animated_border_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(animated_border_tests).step);
 
+    const progress_ring_tests = b.addTest(.{
+        .name = "progress_ring_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/progress_ring_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    progress_ring_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(progress_ring_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",
