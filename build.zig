@@ -1258,6 +1258,17 @@ pub fn build(b: *std.Build) void {
     wizard_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(wizard_tests).step);
 
+    const carousel_tests = b.addTest(.{
+        .name = "carousel_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/carousel_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    carousel_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(carousel_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",

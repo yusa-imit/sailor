@@ -406,6 +406,9 @@ pub const widgets = struct {
 
     // v2.49.0 — Wizard Widget
     pub const Wizard = @import("widgets/wizard.zig").Wizard;
+
+    // v2.50.0 — Carousel Widget
+    pub const Carousel = @import("widgets/carousel.zig").Carousel;
 };
 
 // Export commonly used types
@@ -452,6 +455,9 @@ pub const Marquee = @import("widgets/marquee.zig").Marquee;
 
 // v2.49.0 — Wizard Widget (top-level export)
 pub const Wizard = @import("widgets/wizard.zig").Wizard;
+
+// v2.50.0 — Carousel Widget (top-level export)
+pub const Carousel = @import("widgets/carousel.zig").Carousel;
 
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;

@@ -4,9 +4,38 @@
 
 - **Latest release**: v2.49.0 (2026-06-16) — Wizard Widget
 - **Latest minor**: v2.49.0 (2026-06-16) — Wizard Widget
-- **Next release**: v2.50.0 — TBD
-- **Active milestones**: 0 pending implementation
+- **Next release**: v2.50.0 — Carousel Widget
+- **Active milestones**: 1 pending implementation
 - **Blockers**: None
+
+### v2.50.0 — Carousel Widget (Planned)
+
+**Theme**: A horizontal slide-navigation widget with page indicators (dots) and optional arrow hints. Caller renders the content area for the current slide; Carousel manages navigation state and renders indicator dots at the bottom. Supports looping (wraps from last→first and first→last) or clamping. Useful for onboarding flows, image/slide galleries, and tabbed content with large panels.
+
+**Checklist**:
+- [ ] **src/tui/widgets/carousel.zig** — Carousel: items_count (usize); current (usize=0); loop (bool=true); show_indicators (bool=true); show_arrows (bool=true); indicator_active_char (u21='●'); indicator_inactive_char (u21='○'); left_arrow ([]const u8="◄"); right_arrow ([]const u8="►"); indicator_style/active_indicator_style/arrow_style (Style); block (?Block); init(count); next(); prev(); goTo(usize); isFirst(); isLast(); count(); indicatorHeight(); contentArea(Rect) Rect; builder API (withCurrent/Loop/ShowIndicators/ShowArrows/IndicatorActiveChar/IndicatorInactiveChar/LeftArrow/RightArrow/IndicatorStyle/ActiveIndicatorStyle/ArrowStyle/Block); render: block border → content area (caller renders) → indicator row (dots with arrows)
+- [ ] **tests/carousel_test.zig** — 80+ tests: init/defaults, next/prev (clamped and looped), goTo bounds, isFirst/isLast, count, indicatorHeight, contentArea geometry, builder immutability (all builders), render (basic, loop off clamped, indicators on/off, arrows on/off, styles, block border, zero area, zero items, single item, many items)
+- [ ] Export Carousel via tui.zig widgets struct and top-level
+- [ ] Add carousel_tests to build.zig
+- [ ] Release v2.50.0
+
+**Success Criteria**:
+- `next()` with loop=true and at last item → wraps to 0; loop=false → clamps at last
+- `prev()` with loop=true and at first item → wraps to last; loop=false → clamps at 0
+- `goTo(i)` with i >= items_count → no-op
+- `isFirst()` true when current==0 or count==0
+- `isLast()` true when current==items_count-1 or count==0
+- `indicatorHeight()` returns 1 if show_indicators, else 0
+- `contentArea(area)` returns area minus block insets minus indicator row height
+- Builder methods all return value copies; original unchanged
+- Render: block border → content area (empty, caller fills) → indicator row: left_arrow (if show_arrows and !isFirst or loop) + spaces + dots (active ● inactive ○) + spaces + right_arrow (if show_arrows and !isLast or loop)
+- Zero area, zero items, single item all handled without crash
+
+**Notes**:
+- No allocator — items_count is just a usize, no slice
+- `contentArea()` is a pure geometry function — call it before rendering slide content
+- Indicator row is 1 row at bottom of inner area when show_indicators=true
+- Arrow visibility with loop=false: left hidden at first, right hidden at last
 
 ### v2.49.0 — Wizard Widget (Released: 2026-06-16)
 
