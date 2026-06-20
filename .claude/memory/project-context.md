@@ -1,3 +1,33 @@
+✅ **Session 312** — FEATURE MODE (2026-06-20)
+  - **Mode**: NORMAL (session 312, 312 % 5 == 2)
+  - **Achievement**: Implemented CountdownTimer Widget (v2.51.0) and executed full release
+
+  **Completed Work**:
+    - ✅ CI check: latest run queued; 0 open sailor issues
+    - ✅ Established v2.51.0 milestone: CountdownTimer Widget
+    - ✅ TDD Red: `test-writer` wrote 106 tests in `tests/countdown_timer_test.zig`
+    - ✅ TDD Green: `zig-developer` implemented `src/tui/widgets/countdown_timer.zig`; exported from `tui.zig`; registered in `build.zig`; added Color.gray to style/shadow/testing files
+    - ✅ All 106 CountdownTimer tests pass; overall suite exit code 0
+    - ✅ Released v2.51.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#86, zoltraak#64, silica#75
+    - ✅ Discord notification sent
+
+  **CountdownTimer Widget Summary**:
+    - `CountdownTimer.TimeFormat` enum: `.hh_mm_ss`, `.mm_ss`, `.seconds`
+    - Fields: `total_seconds` (u64), `remaining_seconds` (u64), `show_progress_bar` (bool=true), `show_total` (bool=true), `format` (TimeFormat=.mm_ss), `bar_char` (u21='█'), `empty_char` (u21='░'), `time_style/bar_filled_style/bar_empty_style` (Style), `block` (?Block)
+    - Methods: `init(total)`, `tick()`, `tickBy(n)`, `reset()`, `setRemaining(s)`, `isExpired()`, `progress() f32`, `formatTime(s, fmt, buf) []const u8`, `contentHeight() u8`
+    - Builder: withTotalSeconds/ShowProgressBar/ShowTotal/Format/BarChar/EmptyChar/TimeStyle/BarFilledStyle/BarEmptyStyle/Block (all return value copies)
+    - Render: block border → time row (centered "MM:SS" or "MM:SS / MM:SS") → bar row (proportional filled+empty chars)
+    - No allocations — pure value type
+
+  **Current State**:
+    - **Latest release**: v2.51.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **CI status**: queued (recent push)
+
+  **Next Priority**:
+    - Establish v2.52.0 milestone (candidates: AnimatedBorder, SplitLayout, NumberInput enhanced)
+
 ✅ **Session 311** — FEATURE MODE (2026-06-20)
   - **Mode**: NORMAL (session 311, 311 % 5 == 1)
   - **Achievement**: Implemented Carousel Widget (v2.50.0) and executed full release
