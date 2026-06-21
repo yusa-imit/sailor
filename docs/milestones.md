@@ -2,11 +2,32 @@
 
 ## Current Status
 
-- **Latest release**: v2.53.0 (2026-06-21) — ProgressRing Widget
-- **Latest minor**: v2.53.0 (2026-06-21) — ProgressRing Widget
-- **Next release**: v2.55.0 — TBD
-- **Active milestones**: 0 pending implementation
+- **Latest release**: v2.54.0 (2026-06-21) — AnimatedText Widget
+- **Latest minor**: v2.54.0 (2026-06-21) — AnimatedText Widget
+- **Next release**: v2.55.0 — FlowText Widget
+- **Active milestones**: 1 pending implementation
 - **Blockers**: None
+
+### v2.55.0 — FlowText Widget (Complete)
+
+**Theme**: A multi-column text flow widget. Reflows text into N configurable columns with word wrapping within each column. Useful for newspaper-style layouts, help text displays, and dashboard text panels. Each column gets an equal width slice of area with configurable gutter spacing between columns. Text fills column 1 first (line by line, word-wrapped), then column 2, etc.
+
+**Checklist**:
+- [x] **src/tui/widgets/flow_text.zig** — FlowText: text ([]const u8=""); columns (u8=2); gutter (u8=1); style (Style={}); alignment (Alignment=.left); block (?Block=null); init(); withText/Columns/Gutter/Style/Alignment/Block builder API; render(*Buffer, Rect)
+- [x] **tests/flow_text_test.zig** — 80+ tests: init/defaults, builder immutability, render zero/minimal area, column layout (1/2/3 columns), word wrapping, gutter spacing, alignment (left/center/right), style, block border, text overflow, empty text, single word, long word no-space
+- [x] Export FlowText via tui.zig widgets struct and top-level
+- [x] Add flow_text_tests to build.zig
+- [ ] Release v2.55.0
+
+**Success Criteria**:
+- column_width = (inner.width - gutter * max(0, columns-1)) / max(1, columns)
+- Text word-wrapped per column: split on spaces, fill line ≤ column_width chars
+- Column i starts at x = inner.x + i * (column_width + gutter)
+- Alignment: left=col.x, center=col.x+(col.width-line.len)/2, right=col.x+col.width-line.len
+- columns=0 treated as columns=1 (safe)
+- Empty text: no crash, blank render
+- Long word > column_width: hard-split at column_width boundary
+- No allocations (uses stack-based word scanner)
 
 ### v2.54.0 — AnimatedText Widget (Released: 2026-06-21)
 

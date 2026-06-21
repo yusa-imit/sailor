@@ -421,6 +421,9 @@ pub const widgets = struct {
 
     // v2.54.0 — AnimatedText Widget
     pub const AnimatedText = @import("widgets/animated_text.zig").AnimatedText;
+
+    // v2.55.0 — FlowText Widget
+    pub const FlowText = @import("widgets/flow_text.zig").FlowText;
 };
 
 // Export commonly used types
@@ -482,6 +485,9 @@ pub const ProgressRing = @import("widgets/progress_ring.zig").ProgressRing;
 
 // v2.54.0 — AnimatedText Widget (top-level export)
 pub const AnimatedText = @import("widgets/animated_text.zig").AnimatedText;
+
+// v2.55.0 — FlowText Widget (top-level export)
+pub const FlowText = @import("widgets/flow_text.zig").FlowText;
 
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;
