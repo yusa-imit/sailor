@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v2.54.0 (2026-06-21) — AnimatedText Widget
-- **Latest minor**: v2.54.0 (2026-06-21) — AnimatedText Widget
-- **Next release**: v2.55.0 — FlowText Widget
-- **Active milestones**: 1 pending implementation
+- **Latest release**: v2.55.0 (2026-06-22) — FlowText Widget
+- **Latest minor**: v2.55.0 (2026-06-22) — FlowText Widget
+- **Next release**: TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
 ### v2.55.0 — FlowText Widget (Complete)
@@ -17,7 +17,7 @@
 - [x] **tests/flow_text_test.zig** — 80+ tests: init/defaults, builder immutability, render zero/minimal area, column layout (1/2/3 columns), word wrapping, gutter spacing, alignment (left/center/right), style, block border, text overflow, empty text, single word, long word no-space
 - [x] Export FlowText via tui.zig widgets struct and top-level
 - [x] Add flow_text_tests to build.zig
-- [ ] Release v2.55.0
+- [x] Release v2.55.0
 
 **Success Criteria**:
 - column_width = (inner.width - gutter * max(0, columns-1)) / max(1, columns)
