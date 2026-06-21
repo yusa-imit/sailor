@@ -4,20 +4,20 @@
 
 - **Latest release**: v2.53.0 (2026-06-21) — ProgressRing Widget
 - **Latest minor**: v2.53.0 (2026-06-21) — ProgressRing Widget
-- **Next release**: v2.54.0 — AnimatedText Widget
-- **Active milestones**: 1 pending implementation
+- **Next release**: v2.55.0 — TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
-### v2.54.0 — AnimatedText Widget (Pending)
+### v2.54.0 — AnimatedText Widget (Released: 2026-06-21)
 
 **Theme**: A text widget with frame-based animation effects. Renders text with five animation styles: typewriter (characters reveal left-to-right by frame), wave (characters undulate vertically offset by position+frame), fade (brightness/visibility cycling by frame), blink (text visibility toggles per N frames), glow (alternating between base style and a bright highlight style). Caller increments frame via tick(). Useful for loading messages, splash screens, notifications, and status indicators in consumer projects.
 
 **Checklist**:
-- [ ] **src/tui/widgets/animated_text.zig** — AnimatedText: AnimationStyle enum (.typewriter, .wave, .fade, .blink, .glow); text ([]const u8=""); frame (u32=0); speed (u8=4); base_style (Style={}); highlight_style (Style={}); alignment (Alignment=.left); block (?Block=null); init(); tick(); tickBy(n); reset(); visibleLength() usize; builder API (withText/AnimationStyle/Frame/Speed/BaseStyle/HighlightStyle/Alignment/Block); render(*Buffer, Rect)
-- [ ] **tests/animated_text_test.zig** — 90+ tests: init/defaults, tick/tickBy (wrapping), reset, visibleLength, builder immutability, render (zero/minimal area), each animation style, alignment (left/center/right), block border, speed variations, frame-based char reveal/styling
-- [ ] Export AnimatedText via tui.zig widgets struct and top-level
-- [ ] Add animated_text_tests to build.zig
-- [ ] Release v2.54.0
+- [x] **src/tui/widgets/animated_text.zig** — AnimatedText: AnimationStyle enum (.typewriter, .wave, .fade, .blink, .glow); text ([]const u8=""); frame (u32=0); speed (u8=4); base_style (Style={}); highlight_style (Style={}); alignment (Alignment=.left); block (?Block=null); init(); tick(); tickBy(n); reset(); visibleLength() usize; builder API (withText/AnimationStyle/Frame/Speed/BaseStyle/HighlightStyle/Alignment/Block); render(*Buffer, Rect)
+- [x] **tests/animated_text_test.zig** — 92 tests: init/defaults, tick/tickBy (wrapping), reset, visibleLength, builder immutability, render (zero/minimal area), each animation style, alignment (left/center/right), block border, speed variations, frame-based char reveal/styling
+- [x] Export AnimatedText via tui.zig widgets struct and top-level
+- [x] Add animated_text_tests to build.zig
+- [x] Release v2.54.0
 
 **Success Criteria**:
 - `tick()` increments frame with wrapping (+%= 1); `tickBy(n)` same; `reset()` sets frame=0
