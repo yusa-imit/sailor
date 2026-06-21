@@ -372,7 +372,8 @@ test "AnimatedBorder render with width 0 does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 10 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // Width 0 means no border drawn — verify buffer remains unchanged
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(0, 0));
 }
 
 test "AnimatedBorder render with height 0 does not crash" {
@@ -384,7 +385,8 @@ test "AnimatedBorder render with height 0 does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 0 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // Height 0 means no border drawn — verify buffer remains unchanged
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(0, 0));
 }
 
 test "AnimatedBorder render with width 1 does not crash" {
@@ -396,7 +398,8 @@ test "AnimatedBorder render with width 1 does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 1, .height = 10 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // Width 1 < 2, so early return — no border drawn
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(0, 0));
 }
 
 test "AnimatedBorder render with height 1 does not crash" {
@@ -408,7 +411,8 @@ test "AnimatedBorder render with height 1 does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // Height 1 < 2, so early return — no border drawn
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(0, 0));
 }
 
 test "AnimatedBorder render with 2x2 area does not crash" {
@@ -420,7 +424,11 @@ test "AnimatedBorder render with 2x2 area does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 2, .height = 2 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // 2x2 should render corners: top-left, top-right, bottom-left, bottom-right
+    try testing.expect(buf.getChar(0, 0) != ' ');
+    try testing.expect(buf.getChar(1, 0) != ' ');
+    try testing.expect(buf.getChar(0, 1) != ' ');
+    try testing.expect(buf.getChar(1, 1) != ' ');
 }
 
 // ============================================================================
@@ -511,7 +519,9 @@ test "AnimatedBorder rainbow same position different frames" {
     const border2 = AnimatedBorder.init().withAnimationStyle(.rainbow).withFrame(4);
     border2.render(&buf2, area);
 
-    try testing.expect(true);
+    // Both frames should render border characters at top-left
+    try testing.expect(buf1.getChar(0, 0) != ' ');
+    try testing.expect(buf2.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder rainbow renders bottom edge" {
@@ -569,7 +579,9 @@ test "AnimatedBorder pulse renders at different frames" {
     const border2 = AnimatedBorder.init().withAnimationStyle(.pulse).withFrame(4);
     border2.render(&buf2, area);
 
-    try testing.expect(true);
+    // Both should render border characters at top-left
+    try testing.expect(buf1.getChar(0, 0) != ' ');
+    try testing.expect(buf2.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder pulse renders left edge" {
@@ -628,7 +640,9 @@ test "AnimatedBorder pulse with high speed changes less frequently" {
         .withSpeed(8);
     border2.render(&buf2, area);
 
-    try testing.expect(true);
+    // With speed=8, frame 1 and 2 both use step=0 (frame/speed), so same color
+    try testing.expect(buf1.getChar(0, 0) != ' ');
+    try testing.expect(buf2.getChar(0, 0) != ' ');
 }
 
 // ============================================================================
@@ -665,7 +679,9 @@ test "AnimatedBorder chase renders different frames" {
     const border2 = AnimatedBorder.init().withAnimationStyle(.chase).withFrame(4);
     border2.render(&buf2, area);
 
-    try testing.expect(true);
+    // Both frames should have border rendered
+    try testing.expect(buf1.getChar(0, 0) != ' ');
+    try testing.expect(buf2.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder chase with base_style" {
@@ -680,7 +696,8 @@ test "AnimatedBorder chase with base_style" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // Should render border with base_style applied
+    try testing.expect(buf.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder chase chase position advances with frame" {
@@ -704,7 +721,9 @@ test "AnimatedBorder chase chase position advances with frame" {
         .withFrame(1);
     border2.render(&buf2, area);
 
-    try testing.expect(true);
+    // Both should have border chars rendered, chase position changes per frame
+    try testing.expect(buf1.getChar(0, 0) != ' ');
+    try testing.expect(buf2.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder chase wraps around perimeter" {
@@ -720,7 +739,8 @@ test "AnimatedBorder chase wraps around perimeter" {
 
     // Perimeter length = 2*(10+10-2) = 36
     // Chase should cycle through positions 0..35
-    try testing.expect(true);
+    // At frame 0, step=0, chase_pos=0 (top-left)
+    try testing.expect(buf.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder chase small area renders" {
@@ -734,7 +754,8 @@ test "AnimatedBorder chase small area renders" {
     const area = Rect{ .x = 0, .y = 0, .width = 4, .height = 4 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // 4x4 area should render border
+    try testing.expect(buf.getChar(0, 0) != ' ');
 }
 
 // ============================================================================
@@ -777,7 +798,9 @@ test "AnimatedBorder flash alternates every N frames" {
         .withFrame(@intCast(speed));
     border2.render(&buf2, area);
 
-    try testing.expect(true);
+    // Both should render border (flash just changes color every N frames)
+    try testing.expect(buf1.getChar(0, 0) != ' ');
+    try testing.expect(buf2.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder flash with speed 1" {
@@ -792,7 +815,8 @@ test "AnimatedBorder flash with speed 1" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // Should render border
+    try testing.expect(buf.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder flash at even frame step" {
@@ -858,7 +882,9 @@ test "AnimatedBorder gradient different frames render" {
     const border2 = AnimatedBorder.init().withAnimationStyle(.gradient).withFrame(4);
     border2.render(&buf2, area);
 
-    try testing.expect(true);
+    // Both should render border with gradient
+    try testing.expect(buf1.getChar(0, 0) != ' ');
+    try testing.expect(buf2.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder gradient with custom colors" {
@@ -872,7 +898,8 @@ test "AnimatedBorder gradient with custom colors" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // Should render gradient border
+    try testing.expect(buf.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder gradient shifts with frame" {
@@ -896,7 +923,9 @@ test "AnimatedBorder gradient shifts with frame" {
         .withFrame(2);
     border2.render(&buf2, area);
 
-    try testing.expect(true);
+    // Both render border, frame shifts gradient
+    try testing.expect(buf1.getChar(0, 0) != ' ');
+    try testing.expect(buf2.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder gradient wide area" {
@@ -910,7 +939,8 @@ test "AnimatedBorder gradient wide area" {
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 10 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // Should render gradient on wide border
+    try testing.expect(buf.getChar(0, 0) != ' ');
 }
 
 // ============================================================================
@@ -928,7 +958,8 @@ test "AnimatedBorder empty title renders no title" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // Border should still render without title
+    try testing.expect(buf.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder with title renders characters" {
@@ -942,7 +973,9 @@ test "AnimatedBorder with title renders characters" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // Title "Test" should be rendered on top edge at position (area.x+2, area.y)
+    // Position 2 should have 'T'
+    try testing.expectEqual(@as(u21, 'T'), buf.getChar(2, 0));
 }
 
 test "AnimatedBorder title with offset area" {
@@ -956,7 +989,8 @@ test "AnimatedBorder title with offset area" {
     const area = Rect{ .x = 5, .y = 5, .width = 15, .height = 8 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // Title should render at offset position (area.x+2, area.y) = (7, 5)
+    try testing.expectEqual(@as(u21, 'T'), buf.getChar(7, 5));
 }
 
 test "AnimatedBorder title_style applied" {
@@ -971,7 +1005,9 @@ test "AnimatedBorder title_style applied" {
     const area = Rect{ .x = 0, .y = 0, .width = 15, .height = 10 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // Title should be rendered with red style
+    const style = buf.getStyle(2, 0);
+    try testing.expect(style.fg != null);
 }
 
 test "AnimatedBorder title truncated if too long" {
@@ -985,7 +1021,8 @@ test "AnimatedBorder title truncated if too long" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // Width 10, max_title_len = 10 - 4 = 6, so only first 6 chars rendered
+    try testing.expectEqual(@as(u21, 'T'), buf.getChar(2, 0));
 }
 
 test "AnimatedBorder title in minimal area" {
@@ -999,7 +1036,8 @@ test "AnimatedBorder title in minimal area" {
     const area = Rect{ .x = 0, .y = 0, .width = 5, .height = 5 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // Width 5, so area.width >= 5, title should render
+    try testing.expectEqual(@as(u21, 'X'), buf.getChar(2, 0));
 }
 
 test "AnimatedBorder title renders at top edge" {
@@ -1013,8 +1051,9 @@ test "AnimatedBorder title renders at top edge" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     border.render(&buf, area);
 
-    // Title should be at top row
-    try testing.expect(true);
+    // Title should be at top row (y=0), starting at x=2
+    try testing.expectEqual(@as(u21, 'T'), buf.getChar(2, 0));
+    try testing.expectEqual(@as(u21, 'i'), buf.getChar(3, 0));
 }
 
 // ============================================================================
@@ -1043,7 +1082,9 @@ test "AnimatedBorder rainbow frame 0 vs frame speed" {
         .withFrame(@intCast(speed));
     border2.render(&buf2, area);
 
-    try testing.expect(true);
+    // Both should render, frame shifts rainbow colors
+    try testing.expect(buf1.getChar(0, 0) != ' ');
+    try testing.expect(buf2.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder pulse frame 0 gives colors[0]" {
@@ -1096,7 +1137,9 @@ test "AnimatedBorder chase frame changes position" {
         .withFrame(3);
     border2.render(&buf2, area);
 
-    try testing.expect(true);
+    // Both render border, chase position changes
+    try testing.expect(buf1.getChar(0, 0) != ' ');
+    try testing.expect(buf2.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder gradient frame shift" {
@@ -1120,7 +1163,9 @@ test "AnimatedBorder gradient frame shift" {
         .withFrame(1);
     border2.render(&buf2, area);
 
-    try testing.expect(true);
+    // Both render, frame shifts gradient
+    try testing.expect(buf1.getChar(0, 0) != ' ');
+    try testing.expect(buf2.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder flash frame modulo 2" {
@@ -1145,7 +1190,9 @@ test "AnimatedBorder flash frame modulo 2" {
         .withFrame(1);
     border2.render(&buf2, area);
 
-    try testing.expect(true);
+    // Both render, flash alternates based on step%2
+    try testing.expect(buf1.getChar(0, 0) != ' ');
+    try testing.expect(buf2.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder at maxInt frame wraps correctly in animation" {
@@ -1160,7 +1207,8 @@ test "AnimatedBorder at maxInt frame wraps correctly in animation" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // Should render without crashing even at max frame
+    try testing.expect(buf.getChar(0, 0) != ' ');
 }
 
 // ============================================================================
@@ -1188,7 +1236,9 @@ test "AnimatedBorder speed 1 changes every frame" {
         .withFrame(1);
     border2.render(&buf2, area);
 
-    try testing.expect(true);
+    // Speed 1: step = frame/1, so every frame changes color
+    try testing.expect(buf1.getChar(0, 0) != ' ');
+    try testing.expect(buf2.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder speed 8 same for 8 frames" {
@@ -1212,7 +1262,9 @@ test "AnimatedBorder speed 8 same for 8 frames" {
         .withFrame(7);
     border2.render(&buf2, area);
 
-    try testing.expect(true);
+    // Speed 8: step = frame/8, so frames 0-7 all have step=0 (same color)
+    try testing.expect(buf1.getChar(0, 0) != ' ');
+    try testing.expect(buf2.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder high speed animation slower" {
@@ -1226,7 +1278,8 @@ test "AnimatedBorder high speed animation slower" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // High speed slows animation, but still renders
+    try testing.expect(buf.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder speed 0 treated as 1" {
@@ -1242,7 +1295,8 @@ test "AnimatedBorder speed 0 treated as 1" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     border.render(&buf, area);
 
-    try testing.expect(true);
+    // Speed 0 is treated as 1, so render is safe
+    try testing.expect(buf.getChar(0, 0) != ' ');
 }
 
 test "AnimatedBorder speed affects color cycling rate" {
@@ -1266,5 +1320,7 @@ test "AnimatedBorder speed affects color cycling rate" {
         .withFrame(5);
     border2.render(&buf2, area);
 
-    try testing.expect(true);
+    // Speed 1: step=5; Speed 8: step=0. Different colors.
+    try testing.expect(buf1.getChar(0, 0) != ' ');
+    try testing.expect(buf2.getChar(0, 0) != ' ');
 }

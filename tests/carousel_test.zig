@@ -581,7 +581,8 @@ test "Carousel render zero area does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 10 };
     carousel.render(&buf, area);
 
-    try testing.expect(true);
+    // Zero area should result in no rendering — verify indicator row position is uninitialized (space)
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(0, 9));
 }
 
 test "Carousel render zero items does not crash" {
@@ -593,7 +594,10 @@ test "Carousel render zero items does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     carousel.render(&buf, area);
 
-    try testing.expect(true);
+    // With loop=true (default), arrows should still render even with 0 items
+    // Indicator row at y=9: '◄' at (0,9), '►' at (3,9)
+    try testing.expectEqual(@as(u21, 0x25C4), buf.getChar(0, 9));
+    try testing.expectEqual(@as(u21, 0x25BA), buf.getChar(3, 9));
 }
 
 test "Carousel render single item does not crash" {
@@ -605,7 +609,11 @@ test "Carousel render single item does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     carousel.render(&buf, area);
 
-    try testing.expect(true);
+    // Single item at current=0 with loop=true, show_arrows=true
+    // Indicator row at y=9: '◄' (0), ' ' (1), '●' (2), ' ' (3), '►' (4)
+    try testing.expectEqual(@as(u21, 0x25C4), buf.getChar(0, 9));
+    try testing.expectEqual(@as(u21, '●'), buf.getChar(2, 9));
+    try testing.expectEqual(@as(u21, 0x25BA), buf.getChar(4, 9));
 }
 
 test "Carousel render with show_indicators=false has no indicator row" {
@@ -618,8 +626,8 @@ test "Carousel render with show_indicators=false has no indicator row" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     carousel.render(&buf, area);
 
-    // Content area should be full height (no indicator row)
-    try testing.expect(true);
+    // No indicator row should be rendered — verify position y=9 is uninitialized (space)
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(0, 9));
 }
 
 test "Carousel render with show_arrows=false has no arrows" {
@@ -633,7 +641,12 @@ test "Carousel render with show_arrows=false has no arrows" {
     carousel.render(&buf, area);
 
     // Indicator row (at y=9) should have dots but no arrows
-    try testing.expect(true);
+    // With 3 items, current=0, no arrows: '●' (0), ' ' (1), '○' (2), ' ' (3), '○' (4)
+    try testing.expectEqual(@as(u21, '●'), buf.getChar(0, 9));
+    try testing.expectEqual(@as(u21, '○'), buf.getChar(2, 9));
+    try testing.expectEqual(@as(u21, '○'), buf.getChar(4, 9));
+    // No left arrow (0x25C4)
+    try testing.expect(buf.getChar(0, 9) != 0x25C4);
 }
 
 test "Carousel render at first with loop=false shows no left arrow" {
@@ -669,8 +682,12 @@ test "Carousel render at last with loop=false shows no right arrow" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     carousel.render(&buf, area);
 
-    // Right arrow (► = 0x25BA) should not be at the end
-    try testing.expect(true);
+    // At last with loop=false: left arrow ('◄') at (0,9), dots, no right arrow
+    // Layout: '◄' (0), ' ' (1), '○' (2), ' ' (3), '○' (4), ' ' (5), '●' (6)
+    try testing.expectEqual(@as(u21, 0x25C4), buf.getChar(0, 9));
+    try testing.expectEqual(@as(u21, '●'), buf.getChar(6, 9));
+    // Right arrow should NOT be at position 7
+    try testing.expect(buf.getChar(7, 9) != 0x25BA);
 }
 
 test "Carousel render at first with loop=true shows left arrow" {
@@ -686,8 +703,8 @@ test "Carousel render at first with loop=true shows left arrow" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     carousel.render(&buf, area);
 
-    // Indicator row at y=9 should have left arrow (◄)
-    try testing.expect(true);
+    // At first with loop=true: left arrow should render at (0,9)
+    try testing.expectEqual(@as(u21, 0x25C4), buf.getChar(0, 9));
 }
 
 test "Carousel render at last with loop=true shows right arrow" {
@@ -703,8 +720,9 @@ test "Carousel render at last with loop=true shows right arrow" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     carousel.render(&buf, area);
 
-    // Indicator row at y=9 should have right arrow (►)
-    try testing.expect(true);
+    // At last with loop=true: right arrow should render
+    // Layout: '◄' (0), ' ' (1), '○' (2), ' ' (3), '○' (4), ' ' (5), '●' (6), ' ' (7), '►' (8)
+    try testing.expectEqual(@as(u21, 0x25BA), buf.getChar(8, 9));
 }
 
 test "Carousel render active indicator char at current position" {
@@ -719,8 +737,9 @@ test "Carousel render active indicator char at current position" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     carousel.render(&buf, area);
 
-    // Indicator row at y=9 should have active char (●) at position 1
-    try testing.expect(true);
+    // No arrows: '○' (0), ' ' (1), '●' (2), ' ' (3), '○' (4)
+    // Active indicator at current=1 should be at position (2,9)
+    try testing.expectEqual(@as(u21, '●'), buf.getChar(2, 9));
 }
 
 test "Carousel render inactive indicator chars at non-current positions" {
@@ -735,8 +754,10 @@ test "Carousel render inactive indicator chars at non-current positions" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     carousel.render(&buf, area);
 
-    // Indicator row at y=9 should have inactive char (○) at positions 0 and 2
-    try testing.expect(true);
+    // No arrows: '○' (0), ' ' (1), '●' (2), ' ' (3), '○' (4)
+    // Inactive indicators at positions 0 and 2 (non-current)
+    try testing.expectEqual(@as(u21, '○'), buf.getChar(0, 9));
+    try testing.expectEqual(@as(u21, '○'), buf.getChar(4, 9));
 }
 
 test "Carousel render with block border" {
@@ -749,8 +770,9 @@ test "Carousel render with block border" {
     const area = Rect{ .x = 0, .y = 0, .width = 25, .height = 15 };
     carousel.render(&buf, area);
 
-    // Block should be rendered
-    try testing.expect(true);
+    // Block should render top-left corner at (0,0)
+    // Default BoxSet.single uses '┌' (U+250C)
+    try testing.expectEqual(@as(u21, 0x250C), buf.getChar(0, 0)); // '┌'
 }
 
 test "Carousel render block border plus indicators" {
@@ -764,8 +786,11 @@ test "Carousel render block border plus indicators" {
     const area = Rect{ .x = 0, .y = 0, .width = 25, .height = 15 };
     carousel.render(&buf, area);
 
-    // Block border and indicator row inside should both render
-    try testing.expect(true);
+    // Block corner at (0,0) — default BoxSet.single uses '┌'
+    try testing.expectEqual(@as(u21, 0x250C), buf.getChar(0, 0)); // '┌'
+    // Indicator row at inner.y + inner.height - 1 = 1 + (15-2) - 1 = 13
+    // With loop=true (default), arrows should render: '◄' at (1,13)
+    try testing.expectEqual(@as(u21, 0x25C4), buf.getChar(1, 13));
 }
 
 test "Carousel render multiple items with dots" {
@@ -780,8 +805,10 @@ test "Carousel render multiple items with dots" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     carousel.render(&buf, area);
 
-    // Indicator row at y=9 should have 3 dots
-    try testing.expect(true);
+    // No arrows with 3 items, current=0: '●' (0), ' ' (1), '○' (2), ' ' (3), '○' (4)
+    try testing.expectEqual(@as(u21, '●'), buf.getChar(0, 9));
+    try testing.expectEqual(@as(u21, '○'), buf.getChar(2, 9));
+    try testing.expectEqual(@as(u21, '○'), buf.getChar(4, 9));
 }
 
 test "Carousel render custom indicator chars" {
@@ -797,8 +824,11 @@ test "Carousel render custom indicator chars" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     carousel.render(&buf, area);
 
-    // Indicator row should use custom chars
-    try testing.expect(true);
+    // Custom chars: '*' for active, '-' for inactive
+    // Layout: '*' (0), ' ' (1), '-' (2), ' ' (3), '-' (4)
+    try testing.expectEqual(@as(u21, '*'), buf.getChar(0, 9));
+    try testing.expectEqual(@as(u21, '-'), buf.getChar(2, 9));
+    try testing.expectEqual(@as(u21, '-'), buf.getChar(4, 9));
 }
 
 test "Carousel render custom arrow strings" {
@@ -814,8 +844,10 @@ test "Carousel render custom arrow strings" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     carousel.render(&buf, area);
 
-    // Indicator row should use custom arrow strings
-    try testing.expect(true);
+    // Custom arrow strings: '<' and '>'
+    // Layout: '<' (0), ' ' (1), '●' (2), ' ' (3), '○' (4), ' ' (5), '○' (6), ' ' (7), '>' (8)
+    try testing.expectEqual(@as(u21, '<'), buf.getChar(0, 9));
+    try testing.expectEqual(@as(u21, '>'), buf.getChar(8, 9));
 }
 
 test "Carousel render with indicator style" {
@@ -829,8 +861,10 @@ test "Carousel render with indicator style" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     carousel.render(&buf, area);
 
-    // Indicator row cells should have the style applied
-    try testing.expect(true);
+    // Inactive dots use indicator_style. With show_arrows=true (default):
+    // Inactive dots at positions (4,9) and (6,9) should have fg=cyan
+    const style_inactive_0 = buf.getStyle(4, 9);
+    try testing.expectEqual(@as(?Color, Color.cyan), style_inactive_0.fg);
 }
 
 test "Carousel render with active indicator style" {
@@ -844,8 +878,10 @@ test "Carousel render with active indicator style" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     carousel.render(&buf, area);
 
-    // Active indicator char should have the style
-    try testing.expect(true);
+    // Active indicator at current=0 with show_arrows=true is at (2,9)
+    // Should have bold=true
+    const style_active = buf.getStyle(2, 9);
+    try testing.expect(style_active.bold);
 }
 
 test "Carousel render with arrow style" {
@@ -860,8 +896,9 @@ test "Carousel render with arrow style" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     carousel.render(&buf, area);
 
-    // Arrows should have the style applied
-    try testing.expect(true);
+    // Left arrow at (0,9) should have fg=yellow
+    const style_arrow = buf.getStyle(0, 9);
+    try testing.expectEqual(@as(?Color, Color.yellow), style_arrow.fg);
 }
 
 test "Carousel render area height=1 with show_indicators=true only indicator row" {
@@ -874,8 +911,8 @@ test "Carousel render area height=1 with show_indicators=true only indicator row
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
     carousel.render(&buf, area);
 
-    // Only indicator row should render (content area height = 0)
-    try testing.expect(true);
+    // Indicator row at y=0 with height=1: '◄' at (0,0)
+    try testing.expectEqual(@as(u21, 0x25C4), buf.getChar(0, 0));
 }
 
 test "Carousel render large items_count" {
@@ -889,8 +926,11 @@ test "Carousel render large items_count" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     carousel.render(&buf, area);
 
-    // Should handle many dots without crash
-    try testing.expect(true);
+    // 10 items: dots at (0,9), (2,9), (4,9), ..., (18,9) — all should render
+    // Active at current=0: '●' at (0,9)
+    try testing.expectEqual(@as(u21, '●'), buf.getChar(0, 9));
+    // Inactive dots should also be present
+    try testing.expectEqual(@as(u21, '○'), buf.getChar(2, 9));
 }
 
 test "Carousel render width too narrow for all dots" {
@@ -904,8 +944,8 @@ test "Carousel render width too narrow for all dots" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     carousel.render(&buf, area);
 
-    // Should truncate gracefully without crash
-    try testing.expect(true);
+    // Should truncate gracefully: at least left arrow should render
+    try testing.expectEqual(@as(u21, 0x25C4), buf.getChar(0, 9));
 }
 
 test "Carousel render at different positions" {
@@ -917,8 +957,9 @@ test "Carousel render at different positions" {
     const area = Rect{ .x = 5, .y = 5, .width = 20, .height = 10 };
     carousel.render(&buf, area);
 
-    // Should render at offset position
-    try testing.expect(true);
+    // Indicator row at y=5+10-1=14, starting at x=5
+    // With show_arrows=true: '◄' at (5,14)
+    try testing.expectEqual(@as(u21, 0x25C4), buf.getChar(5, 14));
 }
 
 test "Carousel render cycle through items" {
@@ -942,7 +983,8 @@ test "Carousel render cycle through items" {
     carousel.current = 2;
     carousel.render(&buf, area);
 
-    try testing.expect(true);
+    // After final render at current=2: '○' (0), ' ' (1), '○' (2), ' ' (3), '●' (4)
+    try testing.expectEqual(@as(u21, '●'), buf.getChar(4, 9));
 }
 
 test "Carousel render navigation state changes" {
@@ -955,18 +997,19 @@ test "Carousel render navigation state changes" {
     carousel.loop = true;
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
 
-    // Initial render
+    // Initial render (current=0)
     carousel.render(&buf, area);
 
-    // Next
+    // Next (current=1)
     carousel.next();
     carousel.render(&buf, area);
 
-    // Prev
+    // Prev (current=0 again)
     carousel.prev();
     carousel.render(&buf, area);
 
-    try testing.expect(true);
+    // After prev, back at current=0: active indicator at (2,9)
+    try testing.expectEqual(@as(u21, '●'), buf.getChar(2, 9));
 }
 
 test "Carousel render with all features enabled" {
@@ -987,7 +1030,13 @@ test "Carousel render with all features enabled" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 15 };
     carousel.render(&buf, area);
 
-    try testing.expect(true);
+    // Block corner at (0,0) — default BoxSet.single uses '┌'
+    try testing.expectEqual(@as(u21, 0x250C), buf.getChar(0, 0)); // '┌'
+    // Indicator row at inner.y + inner.height - 1 = 1 + (15-2) - 1 = 13
+    // Left arrow at (1,13) with blue style
+    try testing.expectEqual(@as(u21, 0x25C4), buf.getChar(1, 13));
+    const arrow_style = buf.getStyle(1, 13);
+    try testing.expectEqual(@as(?Color, Color.blue), arrow_style.fg);
 }
 
 // ============================================================================

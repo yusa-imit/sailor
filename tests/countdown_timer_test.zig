@@ -593,7 +593,8 @@ test "CountdownTimer render with zero width does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 10 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Buffer should remain empty (no characters written)
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(0, 0));
 }
 
 test "CountdownTimer render with zero height does not crash" {
@@ -605,7 +606,8 @@ test "CountdownTimer render with zero height does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 0 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Buffer should remain empty (no characters written)
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(0, 0));
 }
 
 test "CountdownTimer render basic time display" {
@@ -620,7 +622,17 @@ test "CountdownTimer render basic time display" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 3 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Time "00:45" should be rendered and centered (roughly around middle of 20-char width)
+    // With 5 chars wide, centered in 20, starts at x=7 or 8
+    const expected_char: u21 = '0'; // First char of "00:45"
+    var found = false;
+    for (7..12) |x| {
+        if (buf.getChar(@intCast(x), 0) == expected_char) {
+            found = true;
+            break;
+        }
+    }
+    try testing.expect(found);
 }
 
 test "CountdownTimer render with progress bar" {
@@ -635,7 +647,13 @@ test "CountdownTimer render with progress bar" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Progress bar at 50% should have filled chars at y=1
+    // At 50%, about 10 cells should be filled with '█'
+    var filled_count: usize = 0;
+    for (0..20) |x| {
+        if (buf.getChar(@intCast(x), 1) == '█') filled_count += 1;
+    }
+    try testing.expect(filled_count > 0);
 }
 
 test "CountdownTimer render with show_total" {
@@ -650,7 +668,15 @@ test "CountdownTimer render with show_total" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 3 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Format: "01:00 / 02:00" should render with '/' separator
+    var found_slash = false;
+    for (0..30) |x| {
+        if (buf.getChar(@intCast(x), 0) == '/') {
+            found_slash = true;
+            break;
+        }
+    }
+    try testing.expect(found_slash);
 }
 
 test "CountdownTimer render without show_total" {
@@ -665,7 +691,15 @@ test "CountdownTimer render without show_total" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 3 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Format: "01:00" (no total, no slash)
+    var found_colon = false;
+    for (0..20) |x| {
+        if (buf.getChar(@intCast(x), 0) == ':') {
+            found_colon = true;
+            break;
+        }
+    }
+    try testing.expect(found_colon);
 }
 
 test "CountdownTimer render with block border" {
@@ -678,7 +712,9 @@ test "CountdownTimer render with block border" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Block renders a border — check for a corner character like '╭' at (0,0)
+    const corner = buf.getChar(0, 0);
+    try testing.expect(corner != ' ' and corner != 0);
 }
 
 test "CountdownTimer render progress bar at 0 percent" {
@@ -693,7 +729,12 @@ test "CountdownTimer render progress bar at 0 percent" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 5 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Progress bar at 0% should have all empty chars '░'
+    var empty_count: usize = 0;
+    for (0..30) |x| {
+        if (buf.getChar(@intCast(x), 1) == '░') empty_count += 1;
+    }
+    try testing.expectEqual(@as(usize, 30), empty_count);
 }
 
 test "CountdownTimer render progress bar at 50 percent" {
@@ -708,7 +749,15 @@ test "CountdownTimer render progress bar at 50 percent" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 5 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Progress bar at 50% should have filled chars at the beginning and empty at end
+    var filled_count: usize = 0;
+    var empty_count: usize = 0;
+    for (0..30) |x| {
+        const ch = buf.getChar(@intCast(x), 1);
+        if (ch == '█') filled_count += 1;
+        if (ch == '░') empty_count += 1;
+    }
+    try testing.expect(filled_count > 0 and empty_count > 0);
 }
 
 test "CountdownTimer render progress bar at 100 percent" {
@@ -723,7 +772,12 @@ test "CountdownTimer render progress bar at 100 percent" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 5 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Progress bar at 100% should have all filled chars '█'
+    var filled_count: usize = 0;
+    for (0..30) |x| {
+        if (buf.getChar(@intCast(x), 1) == '█') filled_count += 1;
+    }
+    try testing.expectEqual(@as(usize, 30), filled_count);
 }
 
 test "CountdownTimer render with zero total_seconds" {
@@ -735,7 +789,15 @@ test "CountdownTimer render with zero total_seconds" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // With zero total, time displays "00:00" (remaining is also 0)
+    var found_zero = false;
+    for (0..20) |x| {
+        if (buf.getChar(@intCast(x), 0) == '0') {
+            found_zero = true;
+            break;
+        }
+    }
+    try testing.expect(found_zero);
 }
 
 test "CountdownTimer render with custom bar_char" {
@@ -751,7 +813,15 @@ test "CountdownTimer render with custom bar_char" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 5 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Custom bar char '=' should be rendered for filled cells
+    var found_equal = false;
+    for (0..30) |x| {
+        if (buf.getChar(@intCast(x), 1) == '=') {
+            found_equal = true;
+            break;
+        }
+    }
+    try testing.expect(found_equal);
 }
 
 test "CountdownTimer render with custom bar_empty_char" {
@@ -767,7 +837,15 @@ test "CountdownTimer render with custom bar_empty_char" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 5 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Custom empty char '.' should be rendered for empty cells
+    var found_dot = false;
+    for (0..30) |x| {
+        if (buf.getChar(@intCast(x), 1) == '.') {
+            found_dot = true;
+            break;
+        }
+    }
+    try testing.expect(found_dot);
 }
 
 test "CountdownTimer render progress bar calculation is correct" {
@@ -782,7 +860,12 @@ test "CountdownTimer render progress bar calculation is correct" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 5 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // At 25%, about 10 cells should be filled, 30 should be empty
+    var filled_count: usize = 0;
+    for (0..40) |x| {
+        if (buf.getChar(@intCast(x), 1) == '█') filled_count += 1;
+    }
+    try testing.expect(filled_count >= 9 and filled_count <= 11);
 }
 
 test "CountdownTimer render both time and progress bar" {
@@ -797,22 +880,44 @@ test "CountdownTimer render both time and progress bar" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 5 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Should have both time (with '/') at row 0 and progress bar at row 1
+    var found_slash = false;
+    for (0..30) |x| {
+        if (buf.getChar(@intCast(x), 0) == '/') {
+            found_slash = true;
+            break;
+        }
+    }
+    var found_bar_char = false;
+    for (0..30) |x| {
+        const ch = buf.getChar(@intCast(x), 1);
+        if (ch == '█' or ch == '░') {
+            found_bar_char = true;
+            break;
+        }
+    }
+    try testing.expect(found_slash and found_bar_char);
 }
 
 test "CountdownTimer render with hh_mm_ss format" {
     const allocator = testing.allocator;
-    var buf = try Buffer.init(allocator, 20, 10);
+    var buf = try Buffer.init(allocator, 30, 10);
     defer buf.deinit();
 
     var timer = CountdownTimer.init(7322);
     timer.remaining_seconds = 3661;
     timer.format = .hh_mm_ss;
     timer.show_progress_bar = false;
-    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 3 };
+    timer.show_total = true; // "01:01:01 / 02:02:02" has 4 colons
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 3 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Format "01:01:01 / 02:02:02" should render with 4 colons
+    var colon_count: usize = 0;
+    for (0..30) |x| {
+        if (buf.getChar(@intCast(x), 0) == ':') colon_count += 1;
+    }
+    try testing.expectEqual(@as(usize, 4), colon_count);
 }
 
 test "CountdownTimer render with seconds format" {
@@ -827,7 +932,16 @@ test "CountdownTimer render with seconds format" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 3 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Format "1234" (plain seconds, no colons)
+    var found_digit = false;
+    for (0..20) |x| {
+        const ch = buf.getChar(@intCast(x), 0);
+        if (ch >= '0' and ch <= '9') {
+            found_digit = true;
+            break;
+        }
+    }
+    try testing.expect(found_digit);
 }
 
 test "CountdownTimer render with offset position" {
@@ -841,7 +955,16 @@ test "CountdownTimer render with offset position" {
     const area = Rect{ .x = 5, .y = 5, .width = 20, .height = 5 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Time should be rendered in offset area (around y=5)
+    // and progress bar around y=6
+    var found_time = false;
+    for (5..25) |x| {
+        if (buf.getChar(@intCast(x), 5) == ':') {
+            found_time = true;
+            break;
+        }
+    }
+    try testing.expect(found_time);
 }
 
 test "CountdownTimer render multiple times" {
@@ -861,7 +984,12 @@ test "CountdownTimer render multiple times" {
     timer.remaining_seconds = 0;
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // After final render at 0%, progress bar should be all empty
+    var empty_count: usize = 0;
+    for (0..30) |x| {
+        if (buf.getChar(@intCast(x), 1) == '░') empty_count += 1;
+    }
+    try testing.expectEqual(@as(usize, 30), empty_count);
 }
 
 test "CountdownTimer render very narrow width" {
@@ -873,7 +1001,11 @@ test "CountdownTimer render very narrow width" {
     const area = Rect{ .x = 0, .y = 0, .width = 2, .height = 5 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Narrow width (2 chars): time "01:00 / 01:00" (14 chars) is too wide to center,
+    // so time row is skipped (cell remains default space). Progress bar at row 1 fills
+    // width=2 at 100% (remaining==total).
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(0, 0)); // time row not rendered
+    try testing.expectEqual(@as(u21, '█'), buf.getChar(0, 1)); // progress bar fills width
 }
 
 test "CountdownTimer render very tall height" {
@@ -885,7 +1017,15 @@ test "CountdownTimer render very tall height" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 40 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Very tall height should render time at row 0 and progress bar at row 1
+    var found_time = false;
+    for (0..30) |x| {
+        if (buf.getChar(@intCast(x), 0) == ':') {
+            found_time = true;
+            break;
+        }
+    }
+    try testing.expect(found_time);
 }
 
 test "CountdownTimer render with block and progress bar" {
@@ -900,7 +1040,9 @@ test "CountdownTimer render with block and progress bar" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 6 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Block border should be rendered, and content inside
+    const corner = buf.getChar(0, 0);
+    try testing.expect(corner != ' ' and corner != 0);
 }
 
 test "CountdownTimer render expired state" {
@@ -914,7 +1056,15 @@ test "CountdownTimer render expired state" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 5 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Expired timer (remaining=0) shows "00:00" and progress bar is all empty
+    var all_empty = true;
+    for (0..30) |x| {
+        if (buf.getChar(@intCast(x), 1) != '░') {
+            all_empty = false;
+            break;
+        }
+    }
+    try testing.expect(all_empty);
 }
 
 test "CountdownTimer render with styles applied" {
@@ -930,5 +1080,14 @@ test "CountdownTimer render with styles applied" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 5 };
     timer.render(&buf, area);
 
-    try testing.expect(true);
+    // Check that a rendered character has the applied style (time_style at row 0)
+    var found_styled_char = false;
+    for (0..30) |x| {
+        const style = buf.getStyle(@intCast(x), 0);
+        if (style.fg != null) {
+            found_styled_char = true;
+            break;
+        }
+    }
+    try testing.expect(found_styled_char);
 }
