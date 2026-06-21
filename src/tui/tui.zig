@@ -418,6 +418,9 @@ pub const widgets = struct {
 
     // v2.53.0 — ProgressRing Widget
     pub const ProgressRing = @import("widgets/progress_ring.zig").ProgressRing;
+
+    // v2.54.0 — AnimatedText Widget
+    pub const AnimatedText = @import("widgets/animated_text.zig").AnimatedText;
 };
 
 // Export commonly used types
@@ -476,6 +479,9 @@ pub const AnimatedBorder = @import("widgets/animated_border.zig").AnimatedBorder
 
 // v2.53.0 — ProgressRing Widget (top-level export)
 pub const ProgressRing = @import("widgets/progress_ring.zig").ProgressRing;
+
+// v2.54.0 — AnimatedText Widget (top-level export)
+pub const AnimatedText = @import("widgets/animated_text.zig").AnimatedText;
 
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;

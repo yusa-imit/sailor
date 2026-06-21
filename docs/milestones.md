@@ -4,9 +4,37 @@
 
 - **Latest release**: v2.53.0 (2026-06-21) — ProgressRing Widget
 - **Latest minor**: v2.53.0 (2026-06-21) — ProgressRing Widget
-- **Next release**: v2.54.0 — TBD
-- **Active milestones**: 0 pending implementation
+- **Next release**: v2.54.0 — AnimatedText Widget
+- **Active milestones**: 1 pending implementation
 - **Blockers**: None
+
+### v2.54.0 — AnimatedText Widget (Pending)
+
+**Theme**: A text widget with frame-based animation effects. Renders text with five animation styles: typewriter (characters reveal left-to-right by frame), wave (characters undulate vertically offset by position+frame), fade (brightness/visibility cycling by frame), blink (text visibility toggles per N frames), glow (alternating between base style and a bright highlight style). Caller increments frame via tick(). Useful for loading messages, splash screens, notifications, and status indicators in consumer projects.
+
+**Checklist**:
+- [ ] **src/tui/widgets/animated_text.zig** — AnimatedText: AnimationStyle enum (.typewriter, .wave, .fade, .blink, .glow); text ([]const u8=""); frame (u32=0); speed (u8=4); base_style (Style={}); highlight_style (Style={}); alignment (Alignment=.left); block (?Block=null); init(); tick(); tickBy(n); reset(); visibleLength() usize; builder API (withText/AnimationStyle/Frame/Speed/BaseStyle/HighlightStyle/Alignment/Block); render(*Buffer, Rect)
+- [ ] **tests/animated_text_test.zig** — 90+ tests: init/defaults, tick/tickBy (wrapping), reset, visibleLength, builder immutability, render (zero/minimal area), each animation style, alignment (left/center/right), block border, speed variations, frame-based char reveal/styling
+- [ ] Export AnimatedText via tui.zig widgets struct and top-level
+- [ ] Add animated_text_tests to build.zig
+- [ ] Release v2.54.0
+
+**Success Criteria**:
+- `tick()` increments frame with wrapping (+%= 1); `tickBy(n)` same; `reset()` sets frame=0
+- `visibleLength()` for typewriter: min(text.len, (frame / max(speed,1))); else text.len
+- Typewriter: only first visibleLength() chars rendered (others skipped)
+- Wave: char at col i rendered at row = area.y + (frame/speed + i) % max(area.height, 1)
+- Fade: alpha = (frame/speed) % (area.height*2); style dim if alpha < area.height, bright if alpha >= area.height
+- Blink: visible = (frame/speed) % 2 == 0; if not visible, skip render
+- Glow: char at i uses highlight_style if (i + frame/speed) % 3 == 0, else base_style
+- Alignment: left=area.x, center=area.x+(area.width-text.len)/2, right=area.x+area.width-text.len
+- speed=0 treated as speed=1 (div-by-zero safe)
+- No allocations — pure value type
+
+**Notes**:
+- text is a borrowed slice (no allocation)
+- Alignment clamped to not exceed area bounds (no underflow)
+- Wave row clamped to [area.y, area.y+area.height-1]
 
 ### v2.53.0 — ProgressRing Widget (Released: 2026-06-21)
 
