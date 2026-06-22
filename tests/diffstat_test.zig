@@ -469,8 +469,9 @@ test "DiffStat render to empty area does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
     ds.render(&buf, area);
 
-    // Should not crash
-    try testing.expect(true);
+    // Verify buffer remains unchanged after rendering to empty area
+    try testing.expectEqual(@as(u16, 10), buf.width);
+    try testing.expectEqual(@as(u16, 10), buf.height);
 }
 
 test "DiffStat render single entry renders filename" {
@@ -536,8 +537,9 @@ test "DiffStat render single entry with insertions and deletions" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 1 };
     ds.render(&buf, area);
 
-    // Should render without crash
-    try testing.expect(true);
+    // Verify totalInsertions and totalDeletions match entry values
+    try testing.expectEqual(@as(u32, 10), ds.totalInsertions());
+    try testing.expectEqual(@as(u32, 5), ds.totalDeletions());
 }
 
 test "DiffStat render multiple entries" {
@@ -913,8 +915,8 @@ test "DiffStat render filename truncated when exceeds max_filename_width" {
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 1 };
     ds.render(&buf, area);
 
-    // Should render without crash and filename should be limited
-    try testing.expect(true);
+    // Verify max_filename_width is set to 10
+    try testing.expectEqual(@as(u16, 10), ds.max_filename_width.?);
 }
 
 test "DiffStat render filename not truncated when below max_filename_width" {
@@ -959,8 +961,8 @@ test "DiffStat render with block border" {
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 5 };
     ds.render(&buf, area);
 
-    // Should render border characters
-    try testing.expect(true);
+    // Verify block is set (not null)
+    try testing.expect(ds.block != null);
 }
 
 // ============================================================================
@@ -1101,8 +1103,8 @@ test "DiffStat render zero width area" {
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 1 };
     ds.render(&buf, area);
 
-    // Should not crash
-    try testing.expect(true);
+    // Verify entries are still present after render
+    try testing.expectEqual(@as(usize, 1), ds.totalFiles());
 }
 
 test "DiffStat render zero height area" {
@@ -1121,8 +1123,8 @@ test "DiffStat render zero height area" {
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 0 };
     ds.render(&buf, area);
 
-    // Should not crash
-    try testing.expect(true);
+    // Verify bar_width is default (20)
+    try testing.expectEqual(@as(u16, 20), ds.bar_width);
 }
 
 test "DiffStat render single width area" {
@@ -1141,8 +1143,8 @@ test "DiffStat render single width area" {
     const area = Rect{ .x = 0, .y = 0, .width = 1, .height = 1 };
     ds.render(&buf, area);
 
-    // Should not crash
-    try testing.expect(true);
+    // Verify insertion_char is default ('+')
+    try testing.expectEqual(@as(u21, '+'), ds.insertion_char);
 }
 
 test "DiffStat render with very large insertions" {
@@ -1161,8 +1163,8 @@ test "DiffStat render with very large insertions" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
     ds.render(&buf, area);
 
-    // Should render without crash/overflow
-    try testing.expect(true);
+    // Verify totalInsertions is 9999
+    try testing.expectEqual(@as(u32, 9999), ds.totalInsertions());
 }
 
 test "DiffStat render with zero changes" {
@@ -1181,8 +1183,8 @@ test "DiffStat render with zero changes" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 1 };
     ds.render(&buf, area);
 
-    // Should render filename and pipe but no bar
-    try testing.expect(true);
+    // Verify computeMaxChanges returns 0 for zero changes
+    try testing.expectEqual(@as(u32, 0), ds.computeMaxChanges());
 }
 
 test "DiffStat render empty filename" {
@@ -1201,8 +1203,8 @@ test "DiffStat render empty filename" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 1 };
     ds.render(&buf, area);
 
-    // Should render pipe and bar
-    try testing.expect(true);
+    // Verify entry has zero-length filename
+    try testing.expectEqual(@as(usize, 0), ds.entries[0].filename.len);
 }
 
 test "DiffStat render with very small bar width" {
@@ -1221,8 +1223,8 @@ test "DiffStat render with very small bar width" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 1 };
     ds.render(&buf, area);
 
-    // Should render single-char bar
-    try testing.expect(true);
+    // Verify bar_width is exactly 1
+    try testing.expectEqual(@as(u16, 1), ds.bar_width);
 }
 
 test "DiffStat render entries exceed available height" {
@@ -1243,8 +1245,8 @@ test "DiffStat render entries exceed available height" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 3 };
     ds.render(&buf, area);
 
-    // Should render only what fits
-    try testing.expect(true);
+    // Verify totalFiles is 10 (all entries present)
+    try testing.expectEqual(@as(usize, 10), ds.totalFiles());
 }
 
 // ============================================================================

@@ -110,8 +110,9 @@ test "DagWidget with empty nodes renders without crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    // Should not crash; buffer should remain unchanged
-    try testing.expect(true);
+    // Buffer should remain empty (all spaces) when there are no nodes
+    const cell_at_origin = buffer.getConst(0, 0);
+    try testing.expect(cell_at_origin == null or cell_at_origin.?.char == ' ');
 }
 
 test "DagWidget with empty edges renders nodes only" {
@@ -137,9 +138,10 @@ test "DagWidget with empty edges renders nodes only" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    // Expect node box rendered (at least label visible)
+    // Expect node top-left corner (┌) at node position
     const cell_at_label = buffer.getConst(5, 2);
     try testing.expect(cell_at_label != null);
+    try testing.expectEqual(@as(u21, '┌'), cell_at_label.?.char);
 }
 
 // ============================================================================
@@ -323,8 +325,13 @@ test "multiple nodes render all labels without overlap" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    // All three nodes should render without crashing
-    try testing.expect(true);
+    // All three nodes should render at their positions: top-left corners (┌)
+    const cell_0 = buffer.getConst(0, 0);
+    const cell_1 = buffer.getConst(10, 0);
+    const cell_2 = buffer.getConst(20, 0);
+    try testing.expectEqual(@as(u21, '┌'), cell_0.?.char);
+    try testing.expectEqual(@as(u21, '┌'), cell_1.?.char);
+    try testing.expectEqual(@as(u21, '┌'), cell_2.?.char);
 }
 
 // ============================================================================
@@ -366,7 +373,10 @@ test "edge between two nodes renders without crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    try testing.expect(true);
+    // Edge should be drawn between nodes; check for dash or arrow char on the edge line
+    // From node ends at x=5+5=10, to node starts at x=25. Edge should be at mid-height (y=3 + height/2 = 3 + 1 = 4)
+    const edge_cell = buffer.getConst(15, 4);
+    try testing.expect(edge_cell != null and (edge_cell.?.char == '-' or edge_cell.?.char == '>'));
 }
 
 test "multiple edges from same source render without overlap" {
@@ -408,7 +418,24 @@ test "multiple edges from same source render without overlap" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    try testing.expect(true);
+    // Node 0 ends at x=5+8=13, nodes 1&2 start at x=20.
+    // Edges drawn from x=13 to x=19 at their respective heights
+    // Edge to node 1: at y = 2+1 = 3
+    // Edge to node 2: at y = 8+1 = 9
+    // Check both edges have some content
+    var found_edge = false;
+    var y: u16 = 0;
+    while (y < 24) : (y += 1) {
+        var x: u16 = 13;
+        while (x < 20) : (x += 1) {
+            if (buffer.getConst(x, y)) |cell| {
+                if (cell.char == '-' or cell.char == '>' or cell.char == '|') {
+                    found_edge = true;
+                }
+            }
+        }
+    }
+    try testing.expect(found_edge);
 }
 
 // ============================================================================
@@ -444,8 +471,10 @@ test "edge with unknown from_id is ignored safely" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    // Should not crash; edge is skipped
-    try testing.expect(true);
+    // Node should still render, but no edge line (from_id doesn't exist)
+    const node_cell = buffer.getConst(5, 3);
+    try testing.expectEqual(@as(u21, '┌'), node_cell.?.char);
+    // No edge should be drawn (from_id=99 doesn't exist)
 }
 
 test "edge with unknown to_id is ignored safely" {
@@ -477,8 +506,10 @@ test "edge with unknown to_id is ignored safely" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    // Should not crash; edge is skipped
-    try testing.expect(true);
+    // Node should still render, but no edge line (to_id doesn't exist)
+    const node_cell = buffer.getConst(5, 3);
+    try testing.expectEqual(@as(u21, '┌'), node_cell.?.char);
+    // No edge should be drawn (to_id=99 doesn't exist)
 }
 
 test "edge to self does not crash" {
@@ -510,8 +541,9 @@ test "edge to self does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    // Should not crash
-    try testing.expect(true);
+    // Node should render, self-loop is skipped (renderEdge returns early for self-edges)
+    const node_cell = buffer.getConst(5, 3);
+    try testing.expectEqual(@as(u21, '┌'), node_cell.?.char);
 }
 
 // ============================================================================
@@ -540,8 +572,9 @@ test "node outside render area is clipped safely" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    // Should not crash or write outside buffer
-    try testing.expect(true);
+    // Node is completely outside area (x=100 > area.width=80), so nothing should be rendered
+    const cell_at_area_edge = buffer.getConst(79, 23);
+    try testing.expect(cell_at_area_edge == null or cell_at_area_edge.?.char == ' ');
 }
 
 test "zero width area does not panic" {
@@ -566,7 +599,9 @@ test "zero width area does not panic" {
     const area = Rect{ .x = 10, .y = 0, .width = 0, .height = 24 };
     dag.render(&buffer, area);
 
-    try testing.expect(true);
+    // Render should return early (area.width == 0); nothing should be drawn in buffer
+    const cell_at_10_3 = buffer.getConst(10, 3);
+    try testing.expect(cell_at_10_3 == null or cell_at_10_3.?.char == ' ');
 }
 
 test "zero height area does not panic" {
@@ -591,7 +626,9 @@ test "zero height area does not panic" {
     const area = Rect{ .x = 0, .y = 10, .width = 80, .height = 0 };
     dag.render(&buffer, area);
 
-    try testing.expect(true);
+    // Render should return early (area.height == 0); nothing should be drawn
+    const cell_at_5_3 = buffer.getConst(5, 3);
+    try testing.expect(cell_at_5_3 == null or cell_at_5_3.?.char == ' ');
 }
 
 // ============================================================================
@@ -620,7 +657,11 @@ test "node with empty label renders box correctly" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    try testing.expect(true);
+    // Empty label should still render box borders (minimum width = 2)
+    const top_left = buffer.getConst(5, 3);
+    try testing.expectEqual(@as(u21, '┌'), top_left.?.char);
+    const top_right = buffer.getConst(6, 3); // width = max(2, 0 + 2) = 2, so right border at 5+2-1 = 6
+    try testing.expectEqual(@as(u21, '┐'), top_right.?.char);
 }
 
 test "node with very long label is truncated to area" {
@@ -645,8 +686,12 @@ test "node with very long label is truncated to area" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     dag.render(&buffer, area);
 
-    // Should render without crashing, truncated appropriately
-    try testing.expect(true);
+    // Box should render with top-left corner, truncated to area.width=20
+    const top_left = buffer.getConst(0, 0);
+    try testing.expectEqual(@as(u21, '┌'), top_left.?.char);
+    // Label should be truncated; at most 20 chars total including borders
+    const label_first_char = buffer.getConst(1, 0); // Label starts at x=1 (after left border)
+    try testing.expect(label_first_char != null);
 }
 
 test "node with single character label" {
@@ -671,7 +716,11 @@ test "node with single character label" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    try testing.expect(true);
+    // Box width = max(2, 1 + 2) = 3. Top-left at (5,5), label 'X' should appear at inner position
+    const top_left = buffer.getConst(5, 5);
+    try testing.expectEqual(@as(u21, '┌'), top_left.?.char);
+    const label_cell = buffer.getConst(6, 5); // Label at x = 5 + 1 = 6
+    try testing.expectEqual(@as(u21, 'X'), label_cell.?.char);
 }
 
 // ============================================================================
@@ -708,7 +757,11 @@ test "selected node uses selected_style" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    try testing.expect(true);
+    // Node should render with selected_style applied (bold = true)
+    const top_left = buffer.getConst(5, 3);
+    try testing.expectEqual(@as(u21, '┌'), top_left.?.char);
+    // The style should be applied to the cell
+    try testing.expectEqual(true, top_left.?.style.bold);
 }
 
 test "default styles are zero-value" {
@@ -759,7 +812,11 @@ test "large graph with 10 nodes renders without panic" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    try testing.expect(true);
+    // First node at (0, 0), second at (15, 0), etc. All should render their top-left corners
+    const node0_cell = buffer.getConst(0, 0);
+    const node1_cell = buffer.getConst(15, 0);
+    try testing.expectEqual(@as(u21, '┌'), node0_cell.?.char);
+    try testing.expectEqual(@as(u21, '┌'), node1_cell.?.char);
 }
 
 // ============================================================================
@@ -799,7 +856,12 @@ test "edge at mid-height of source node renders correctly" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    try testing.expect(true);
+    // From node: height=5, so mid_y = 3 + 5/2 = 3 + 2 = 5
+    // To node: height=3, so mid_y = 3 + 3/2 = 3 + 1 = 4
+    // Edge from (5+3, 5) to (25, 4) should have horizontal and vertical segments
+    // Vertical connector at to_node's left should be at x=24, with vertical line from y=4 to y=5
+    const edge_vertical = buffer.getConst(24, 5); // Vertical line going down from edge_y=5 to to_y=4
+    try testing.expect(edge_vertical != null and (edge_vertical.?.char == '|' or edge_vertical.?.char == '-' or edge_vertical.?.char == '>'));
 }
 
 // ============================================================================
@@ -836,8 +898,12 @@ test "two adjacent nodes do not overwrite each other's borders" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    // Both nodes should render without exception
-    try testing.expect(true);
+    // Node 0: x=0, width=8, right border at x=7 (┐)
+    // Node 1: x=8, width=8, left border at x=8 (┌)
+    const node0_right = buffer.getConst(7, 0);
+    const node1_left = buffer.getConst(8, 0);
+    try testing.expectEqual(@as(u21, '┐'), node0_right.?.char);
+    try testing.expectEqual(@as(u21, '┌'), node1_left.?.char);
 }
 
 // ============================================================================
@@ -881,7 +947,13 @@ test "node with custom height renders correctly" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    try testing.expect(true);
+    // Node top at y=2, bottom at y=2+10-1=11
+    const top_row = buffer.getConst(5, 2);
+    const middle_row = buffer.getConst(5, 5); // Middle row should have '│'
+    const bottom_row = buffer.getConst(5, 11);
+    try testing.expectEqual(@as(u21, '┌'), top_row.?.char);
+    try testing.expectEqual(@as(u21, '│'), middle_row.?.char);
+    try testing.expectEqual(@as(u21, '└'), bottom_row.?.char);
 }
 
 // ============================================================================
@@ -924,7 +996,10 @@ test "edge with label renders without crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    try testing.expect(true);
+    // Edge should render with label. Edge at y=6 (5 + 3/2 = 5 + 1 = 6), label at y=5 (edge_y - 1)
+    // Label starts at mid_x = (5+3) + (25-8)/2 ≈ 8 + 8.5 ≈ 16
+    const label_cell = buffer.getConst(16, 5);
+    try testing.expect(label_cell != null and label_cell.?.char == 'd'); // First char of "depends"
 }
 
 // ============================================================================
@@ -955,7 +1030,11 @@ test "DagWidget with custom edge_char renders edges" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    try testing.expect(true);
+    // Edge should use '=' for horizontal line and '>' for arrow
+    const edge_mid = buffer.getConst(15, 4); // Middle of edge
+    const edge_end = buffer.getConst(24, 4); // Near end of edge (arrow position at to_left_x - 1 = 24)
+    try testing.expect(edge_mid != null and edge_mid.?.char == '=');
+    try testing.expect(edge_end != null and edge_end.?.char == '>');
 }
 
 // ============================================================================
@@ -986,6 +1065,8 @@ test "node at render area boundary renders partially without panic" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     dag.render(&buffer, area);
 
-    // Should clip and render partially without crashing
-    try testing.expect(true);
+    // Node partially overlaps boundary (x starts at 75, area ends at 80). Should render what fits.
+    // Top-left should be at x=75, y=20
+    const top_left = buffer.getConst(75, 20);
+    try testing.expect(top_left != null and top_left.?.char == '┌');
 }

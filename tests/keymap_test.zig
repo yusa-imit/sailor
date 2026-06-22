@@ -554,7 +554,9 @@ test "KeyMap render with zero-area doesn't crash" {
     const sections = [_]KeySection{section};
     const km = KeyMap.init(&sections);
     km.render(&buf, area);
-    try testing.expect(true);
+    // Verify buffer remains unmodified (render should not write to zero-area)
+    try testing.expectEqual(@as(u16, 10), buf.width);
+    try testing.expectEqual(@as(u16, 10), buf.height);
 }
 
 test "KeyMap render with zero-width doesn't crash" {
@@ -567,7 +569,8 @@ test "KeyMap render with zero-width doesn't crash" {
     const sections = [_]KeySection{section};
     const km = KeyMap.init(&sections);
     km.render(&buf, area);
-    try testing.expect(true);
+    // Verify scroll_offset unchanged after render (state should not change on invalid area)
+    try testing.expectEqual(@as(usize, 0), km.scroll_offset);
 }
 
 test "KeyMap render with zero-height doesn't crash" {
@@ -580,7 +583,8 @@ test "KeyMap render with zero-height doesn't crash" {
     const sections = [_]KeySection{section};
     const km = KeyMap.init(&sections);
     km.render(&buf, area);
-    try testing.expect(true);
+    // Verify buffer dimensions preserved (render to zero-height area should not crash or modify state)
+    try testing.expectEqual(@as(u16, 10), buf.width);
 }
 
 test "KeyMap render with empty sections doesn't crash" {
@@ -591,7 +595,8 @@ test "KeyMap render with empty sections doesn't crash" {
     const sections: [0]KeySection = .{};
     const km = KeyMap.init(&sections);
     km.render(&buf, area);
-    try testing.expect(true);
+    // totalRows should be 0 with empty sections
+    try testing.expectEqual(@as(usize, 0), km.totalRows());
 }
 
 test "KeyMap render with 1x1 area doesn't crash" {
@@ -604,7 +609,10 @@ test "KeyMap render with 1x1 area doesn't crash" {
     const sections = [_]KeySection{section};
     const km = KeyMap.init(&sections);
     km.render(&buf, area);
-    try testing.expect(true);
+    // With 1x1 area, first char of title should render at (0, 0)
+    if (buf.getConst(0, 0)) |cell| {
+        try testing.expectEqual(@as(u21, 'A'), cell.char);
+    }
 }
 
 test "KeyMap render with area smaller than content doesn't crash" {
@@ -621,7 +629,8 @@ test "KeyMap render with area smaller than content doesn't crash" {
     const sections = [_]KeySection{section};
     const km = KeyMap.init(&sections);
     km.render(&buf, area);
-    try testing.expect(true);
+    // totalRows should be 4 (title + 3 bindings), but only 2 rows visible in area.height=2
+    try testing.expectEqual(@as(usize, 4), km.totalRows());
 }
 
 test "KeyMap render with scroll_offset past content doesn't crash" {
@@ -637,7 +646,8 @@ test "KeyMap render with scroll_offset past content doesn't crash" {
     var km = KeyMap.init(&sections);
     km.scroll_offset = 1000;
     km.render(&buf, area);
-    try testing.expect(true);
+    // scroll_offset should remain 1000 (render does not modify state)
+    try testing.expectEqual(@as(usize, 1000), km.scroll_offset);
 }
 
 test "KeyMap render single binding shows key in buffer" {
@@ -922,8 +932,8 @@ test "KeyMap render long key truncated to key_width" {
     var km = KeyMap.init(&sections);
     km = km.withKeyWidth(5);
     km.render(&buf, area);
-    // Key should fit within key_width
-    try testing.expect(true);
+    // key_width should be exactly 5
+    try testing.expectEqual(@as(u8, 5), km.key_width);
 }
 
 test "KeyMap render long description doesn't overflow into next row" {
@@ -938,8 +948,8 @@ test "KeyMap render long description doesn't overflow into next row" {
     const sections = [_]KeySection{section};
     const km = KeyMap.init(&sections);
     km.render(&buf, area);
-    // Next binding should not appear prematurely
-    try testing.expect(true);
+    // totalRows should be 2 (title + 1 binding), render should not crash
+    try testing.expectEqual(@as(usize, 2), km.totalRows());
 }
 
 // ============================================================================
@@ -1039,7 +1049,8 @@ test "KeyMap render columns=2 narrow area doesn't crash" {
     var km = KeyMap.init(&sections);
     km = km.withColumns(2);
     km.render(&buf, area);
-    try testing.expect(true);
+    // With 2 columns, totalRows should be 2 (title + ceil(2/2) bindings rows)
+    try testing.expectEqual(@as(usize, 2), km.totalRows());
 }
 
 test "KeyMap render columns=2 correct key at right column x offset" {
@@ -1168,7 +1179,8 @@ test "KeyMap render goToBottom then render doesn't crash" {
     var km = KeyMap.init(&sections);
     km.goToBottom();
     km.render(&buf, area);
-    try testing.expect(true);
+    // After goToBottom, scroll_offset should equal totalRows (2)
+    try testing.expectEqual(@as(usize, 2), km.scroll_offset);
 }
 
 // ============================================================================
@@ -1218,7 +1230,8 @@ test "KeyMap render many sections many bindings doesn't crash" {
     };
     const km = KeyMap.init(&sections);
     km.render(&buf, area);
-    try testing.expect(true);
+    // totalRows = 3 titles + (4+3+2) bindings = 12 rows
+    try testing.expectEqual(@as(usize, 12), km.totalRows());
 }
 
 test "KeyMap render key_width=1 doesn't crash" {
@@ -1234,7 +1247,8 @@ test "KeyMap render key_width=1 doesn't crash" {
     var km = KeyMap.init(&sections);
     km = km.withKeyWidth(1);
     km.render(&buf, area);
-    try testing.expect(true);
+    // key_width should be exactly 1
+    try testing.expectEqual(@as(u8, 1), km.key_width);
 }
 
 test "KeyMap render key_width=255 with narrow area doesn't crash" {
@@ -1250,7 +1264,8 @@ test "KeyMap render key_width=255 with narrow area doesn't crash" {
     var km = KeyMap.init(&sections);
     km = km.withKeyWidth(255);
     km.render(&buf, area);
-    try testing.expect(true);
+    // key_width should be exactly 255 (no clamping)
+    try testing.expectEqual(@as(u8, 255), km.key_width);
 }
 
 // ============================================================================
@@ -1325,7 +1340,8 @@ test "KeyMap with block border doesn't crash" {
     const block = Block{ .title = "Shortcuts" };
     const km = KeyMap.init(&sections).withBlock(block);
     km.render(&buf, area);
-    try testing.expect(true);
+    // block should be set (not null)
+    try testing.expect(km.block != null);
 }
 
 test "KeyMap render with offset area and many sections" {
@@ -1348,5 +1364,6 @@ test "KeyMap render with offset area and many sections" {
     km = km.withColumns(2).withKeyWidth(12);
     km.scroll_offset = 1;
     km.render(&buf, area);
-    try testing.expect(true);
+    // With 2 columns: title "Navigate" (1) + ceil(2/2) binding rows (1) + title "Edit" (1) + ceil(1/2) binding rows (1) = 4 total rows
+    try testing.expectEqual(@as(usize, 4), km.totalRows());
 }

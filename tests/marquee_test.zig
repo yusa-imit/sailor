@@ -726,9 +726,8 @@ test "Marquee render with block uses inner area" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
     marquee.render(&buf, area);
 
-    // Text should be inside the border, not at 0,0
-    // Borders reduce the available space
-    try testing.expect(true);
+    // Verify block is set (not null)
+    try testing.expect(marquee.block != null);
 }
 
 // ============================================================================
@@ -972,8 +971,8 @@ test "Marquee workflow with style and block" {
     const area = Rect{ .x = 0, .y = 0, .width = 25, .height = 5 };
     marquee.render(&buf, area);
 
-    // Should render without crash
-    try testing.expect(true);
+    // Verify offset incremented from tick (speed=1)
+    try testing.expectEqual(@as(usize, 1), marquee.offset);
 }
 
 test "Marquee continuous scrolling left" {

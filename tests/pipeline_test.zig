@@ -464,8 +464,9 @@ test "five stages render without overlap in 80-wide buffer" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     pipeline.render(&buffer, area);
 
-    // All labels should be visible somewhere in the buffer
-    try testing.expect(true);
+    // At least one stage should have rendered (opening bracket or status icon)
+    const cell = buffer.getConst(0, 12);
+    try testing.expectEqual(@as(u21, '['), cell.?.char);
 }
 
 // ============================================================================
@@ -491,7 +492,9 @@ test "horizontal render shows connectors between stages" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    // First stage should render with opening bracket at (0, 12)
+    const cell = buffer.getConst(0, 12);
+    try testing.expectEqual(@as(u21, '['), cell.?.char);
 }
 
 test "show_connectors false hides connectors" {
@@ -512,7 +515,9 @@ test "show_connectors false hides connectors" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    // Even with no connectors, first stage should render
+    const cell = buffer.getConst(0, 12);
+    try testing.expectEqual(@as(u21, '['), cell.?.char);
 }
 
 // ============================================================================
@@ -539,7 +544,9 @@ test "running stage with progress 0-100 displays correctly" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    // Running stage should render with opening bracket and running icon ⊙
+    try testing.expectEqual(@as(u21, '['), buffer.getConst(0, 12).?.char);
+    try testing.expectEqual(@as(u21, '⊙'), buffer.getConst(1, 12).?.char);
 }
 
 // ============================================================================
@@ -565,7 +572,8 @@ test "single character label renders correctly" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    // Single character label should still render with bracket and status icon
+    try testing.expectEqual(@as(u21, '['), buffer.getConst(0, 12).?.char);
 }
 
 test "stage label with spaces renders correctly" {
@@ -587,7 +595,8 @@ test "stage label with spaces renders correctly" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    // Multi-word label should render with bracket at (0, 12)
+    try testing.expectEqual(@as(u21, '['), buffer.getConst(0, 12).?.char);
 }
 
 test "very long stage label is truncated to available width" {
@@ -609,8 +618,8 @@ test "very long stage label is truncated to available width" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 24 };
     pipeline.render(&buffer, area);
 
-    // Should truncate and render without crashing
-    try testing.expect(true);
+    // Even with narrow width, stage should render with bracket at (0, 12)
+    try testing.expectEqual(@as(u21, '['), buffer.getConst(0, 12).?.char);
 }
 
 // ============================================================================
@@ -636,7 +645,8 @@ test "direction vertical arranges stages vertically" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    // Vertical layout should render at (0, 0) with opening bracket
+    try testing.expectEqual(@as(u21, '['), buffer.getConst(0, 0).?.char);
 }
 
 // ============================================================================
@@ -659,7 +669,9 @@ test "zero width area does not panic" {
     const area = Rect{ .x = 10, .y = 0, .width = 0, .height = 24 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    // Zero width should result in no rendering (render returns early)
+    const cell = buffer.getConst(0, 0);
+    try testing.expectEqual(@as(u21, ' '), cell.?.char);
 }
 
 test "zero height area does not panic" {
@@ -678,7 +690,9 @@ test "zero height area does not panic" {
     const area = Rect{ .x = 0, .y = 10, .width = 80, .height = 0 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    // Zero height should result in no rendering (render returns early)
+    const cell = buffer.getConst(0, 0);
+    try testing.expectEqual(@as(u21, ' '), cell.?.char);
 }
 
 // ============================================================================
@@ -768,7 +782,8 @@ test "running stage with progress 0 displays correctly" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    // Running stage with 0% progress should render with running icon ⊙
+    try testing.expectEqual(@as(u21, '⊙'), buffer.getConst(1, 12).?.char);
 }
 
 test "running stage with progress 100 displays correctly" {
@@ -791,7 +806,8 @@ test "running stage with progress 100 displays correctly" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    // Running stage with 100% progress should render with running icon ⊙
+    try testing.expectEqual(@as(u21, '⊙'), buffer.getConst(1, 12).?.char);
 }
 
 // ============================================================================
@@ -828,7 +844,8 @@ test "pipeline with 10 stages renders without panic" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    // First stage should render with opening bracket
+    try testing.expectEqual(@as(u21, '['), buffer.getConst(0, 12).?.char);
 }
 
 // ============================================================================
@@ -895,7 +912,8 @@ test "stage with empty label renders without crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    // Empty label stage should still render with status indicator
+    try testing.expectEqual(@as(u21, '['), buffer.getConst(0, 12).?.char);
 }
 
 // ============================================================================
@@ -923,5 +941,6 @@ test "20 stages render in reasonable time" {
     const area = Rect{ .x = 0, .y = 0, .width = 200, .height = 50 };
     pipeline.render(&buffer, area);
 
-    try testing.expect(true);
+    // First stage should render even with large number of stages
+    try testing.expectEqual(@as(u21, '['), buffer.getConst(0, 25).?.char);
 }

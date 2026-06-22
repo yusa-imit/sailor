@@ -178,7 +178,9 @@ test "FlowText render with 1x1 area does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 1, .height = 1 };
     widget.render(&buf, area);
 
-    try testing.expect(buf.getChar(0, 0) != ' ' or buf.getChar(0, 0) == ' ');
+    // With width 1, column width = (1 - 0) / 2 = 0, so render early-exits
+    // Buffer remains unmodified from initialization (spaces)
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(0, 0));
 }
 
 test "FlowText render with gutter larger than area uses safe division" {
@@ -193,8 +195,8 @@ test "FlowText render with gutter larger than area uses safe division" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     widget.render(&buf, area);
 
-    // Should not crash due to large gutter
-    try testing.expect(true);
+    // Should not crash due to large gutter; buffer remains initialized
+    try testing.expect(buf.width == 20 and buf.height == 10);
 }
 
 // ============================================================================
@@ -475,7 +477,12 @@ test "FlowText two columns default gutter is 1" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     widget.render(&buf, area);
 
-    try testing.expect(true);
+    // Column width = (10 - 1) / 2 = 4
+    // Column 0: x=0..3, text at (0,0)
+    // Gutter at x=4 (should be space)
+    // Column 1: x=5..8
+    try testing.expectEqual(@as(u21, 'T'), buf.getChar(0, 0));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(4, 0));
 }
 
 test "FlowText two columns various area widths calculate correctly" {
@@ -491,7 +498,9 @@ test "FlowText two columns various area widths calculate correctly" {
     widget.render(&buf, area);
 
     // column_width = (11 - 1) / 2 = 5
-    try testing.expect(true);
+    // Column 0: x=0..4, Column 1: x=6..10
+    try testing.expectEqual(@as(u21, 'A'), buf.getChar(0, 0));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(5, 0));
 }
 
 test "FlowText two columns text distribution across columns" {
@@ -506,8 +515,10 @@ test "FlowText two columns text distribution across columns" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    // Should distribute text across both columns
-    try testing.expect(buf.getChar(0, 0) != ' ' or buf.getChar(0, 1) != ' ');
+    // Should distribute text across both columns—at least one of these should have text
+    const col0_has_text = buf.getChar(0, 0) != ' ';
+    const col1_has_text = buf.getChar(10, 0) != ' ';
+    try testing.expect(col0_has_text or col1_has_text);
 }
 
 test "FlowText two columns alignment applies per-line in each column" {
@@ -563,7 +574,9 @@ test "FlowText three columns calculates correct positions" {
     // Column 1: x=9..16 (width=8)
     // Gutter: x=17
     // Column 2: x=18..25 (width=8)
-    try testing.expect(true);
+    try testing.expectEqual(@as(u21, '1'), buf.getChar(0, 0));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(8, 0));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(17, 0));
 }
 
 test "FlowText three columns column 1 position correct" {
@@ -578,9 +591,11 @@ test "FlowText three columns column 1 position correct" {
     const area = Rect{ .x = 0, .y = 0, .width = 27, .height = 10 };
     widget.render(&buf, area);
 
-    // Column 1 should start at some offset within buffer
-    // and have text flowing into it
-    try testing.expect(true);
+    // Column width = (27 - 2) / 3 = 8
+    // Column 1 starts at x = 0 + 1 * (8 + 1) = 9
+    // Column 1 should have text at some row
+    const has_text_in_col1 = buf.getChar(9, 0) != ' ' or buf.getChar(9, 1) != ' ' or buf.getChar(9, 2) != ' ';
+    try testing.expect(has_text_in_col1);
 }
 
 test "FlowText three columns column 2 starts at correct x" {
@@ -595,8 +610,10 @@ test "FlowText three columns column 2 starts at correct x" {
     const area = Rect{ .x = 0, .y = 0, .width = 27, .height = 10 };
     widget.render(&buf, area);
 
-    // Column 2 should be populated
-    try testing.expect(true);
+    // Column width = (27 - 2) / 3 = 8
+    // Column 2 starts at x = 0 + 2 * (8 + 1) = 18
+    const has_text_in_col2 = buf.getChar(18, 0) != ' ' or buf.getChar(18, 1) != ' ';
+    try testing.expect(has_text_in_col2);
 }
 
 test "FlowText three columns text not reaching column 2" {
@@ -611,7 +628,8 @@ test "FlowText three columns text not reaching column 2" {
     const area = Rect{ .x = 0, .y = 0, .width = 27, .height = 10 };
     widget.render(&buf, area);
 
-    try testing.expect(true);
+    // "Short" is only 5 chars (1 word), so only column 0 gets it
+    try testing.expectEqual(@as(u21, 'S'), buf.getChar(0, 0));
 }
 
 test "FlowText three columns gutter separation maintained" {
@@ -626,8 +644,11 @@ test "FlowText three columns gutter separation maintained" {
     const area = Rect{ .x = 0, .y = 0, .width = 28, .height = 10 };
     widget.render(&buf, area);
 
-    // Gutters should be preserved
-    try testing.expect(true);
+    // Column width = (28 - 4) / 3 = 8
+    // Gutters at x=8,9 and x=18,19
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(8, 0));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(9, 0));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(18, 0));
 }
 
 test "FlowText three columns equal width distribution" {
@@ -642,7 +663,8 @@ test "FlowText three columns equal width distribution" {
     const area = Rect{ .x = 0, .y = 0, .width = 27, .height = 10 };
     widget.render(&buf, area);
 
-    try testing.expect(true);
+    // Should render text starting in column 0
+    try testing.expectEqual(@as(u21, 'T'), buf.getChar(0, 0));
 }
 
 // ============================================================================
@@ -663,7 +685,9 @@ test "FlowText gutter=0 places columns adjacent with no separation" {
 
     // Column 0: width = 20 / 2 = 10
     // Column 1: starts at x = 10 (no gutter)
-    try testing.expect(true);
+    try testing.expectEqual(@as(u21, 'A'), buf.getChar(0, 0));
+    // Column 1 should have text at x=10 (second word 'B' distributed to word_idx 1, col_idx 1)
+    try testing.expect(buf.getChar(10, 0) != ' ' or buf.getChar(10, 1) != ' ');
 }
 
 test "FlowText gutter=2 creates 2-width separation" {
@@ -678,7 +702,11 @@ test "FlowText gutter=2 creates 2-width separation" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    try testing.expect(true);
+    // Column width = (20 - 2) / 2 = 9
+    // Gutter cells at x=9,10
+    try testing.expectEqual(@as(u21, 'A'), buf.getChar(0, 0));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(9, 0));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(10, 0));
 }
 
 test "FlowText gutter=3 creates 3-width separation" {
@@ -693,7 +721,11 @@ test "FlowText gutter=3 creates 3-width separation" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
     widget.render(&buf, area);
 
-    try testing.expect(true);
+    // Column width = (20 - 3) / 2 = 8
+    // Gutter cells at x=8,9,10
+    try testing.expectEqual(@as(u21, 'T'), buf.getChar(0, 0));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(8, 0));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(10, 0));
 }
 
 test "FlowText gutter cells remain as spaces" {
@@ -743,7 +775,8 @@ test "FlowText large gutter with 2 columns leaves narrow text area" {
     widget.render(&buf, area);
 
     // Column width = (20 - 18) / 2 = 1 (very narrow)
-    try testing.expect(true);
+    // Single char 'A' fits in column 0
+    try testing.expectEqual(@as(u21, 'A'), buf.getChar(0, 0));
 }
 
 // ============================================================================
@@ -857,9 +890,10 @@ test "FlowText alignment applies to each wrapped line independently" {
     const area = Rect{ .x = 0, .y = 0, .width = 6, .height = 5 };
     widget.render(&buf, area);
 
-    // "Short" on line 0, "Long" on line 1
-    // Both should be right-aligned within their column
-    try testing.expect(true);
+    // "Short" (5 chars) on line 0, right-aligned in width 6: starts at x=1
+    // "Long" (4 chars) on line 1, right-aligned in width 6: starts at x=2
+    try testing.expectEqual(@as(u21, 'S'), buf.getChar(1, 0));
+    try testing.expectEqual(@as(u21, 'L'), buf.getChar(2, 1));
 }
 
 test "FlowText alignment applies in multi-column layout" {
@@ -875,7 +909,11 @@ test "FlowText alignment applies in multi-column layout" {
     const area = Rect{ .x = 0, .y = 0, .width = 11, .height = 5 };
     widget.render(&buf, area);
 
-    try testing.expect(true);
+    // Column width = (11 - 1) / 2 = 5
+    // Word 0 'A' (1 char) center-aligned in col 0: x=0+(5-1)/2=2
+    // Word 1 'B' (1 char) center-aligned in col 1: x=6+(5-1)/2=8
+    try testing.expectEqual(@as(u21, 'A'), buf.getChar(2, 0));
+    try testing.expectEqual(@as(u21, 'B'), buf.getChar(8, 0));
 }
 
 // ============================================================================
@@ -1021,7 +1059,8 @@ test "FlowText with block shrinks inner area by 1 on each side" {
     widget.render(&buf, area);
 
     // Inner area: (1, 1) to (8, 3)
-    try testing.expect(true);
+    // Border at (0,0), text starts at (1,1)
+    try testing.expectEqual(@as(u21, 'C'), buf.getChar(1, 1));
 }
 
 test "FlowText with block title renders in border" {
@@ -1038,7 +1077,8 @@ test "FlowText with block title renders in border" {
     const area = Rect{ .x = 0, .y = 0, .width = 15, .height = 5 };
     widget.render(&buf, area);
 
-    try testing.expect(true);
+    // Block renders border, text renders inside
+    try testing.expectEqual(@as(u21, 'C'), buf.getChar(1, 1));
 }
 
 test "FlowText with block and no inner area does not crash" {
@@ -1053,7 +1093,9 @@ test "FlowText with block and no inner area does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 2, .height = 2 };
     widget.render(&buf, area);
 
-    try testing.expect(true);
+    // Should have border at corners
+    try testing.expect(buf.getChar(0, 0) != ' ');
+    try testing.expect(buf.getChar(1, 0) != ' ');
 }
 
 test "FlowText with block border remains visible while text renders inside" {
@@ -1136,7 +1178,9 @@ test "FlowText word wrap multiple spaces between words" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     widget.render(&buf, area);
 
-    try testing.expect(true);
+    // "Word1" on line 0, "Word2" on line 1 (multiple spaces are skipped)
+    try testing.expectEqual(@as(u21, 'W'), buf.getChar(0, 0));
+    try testing.expectEqual(@as(u21, 'W'), buf.getChar(0, 1));
 }
 
 test "FlowText word wrap single space treated as word separator" {
@@ -1167,7 +1211,8 @@ test "FlowText word wrap respects word boundaries in multi-column" {
     const area = Rect{ .x = 0, .y = 0, .width = 15, .height = 10 };
     widget.render(&buf, area);
 
-    try testing.expect(true);
+    // Text should distribute across columns respecting word boundaries
+    try testing.expectEqual(@as(u21, 'T'), buf.getChar(0, 0));
 }
 
 // ============================================================================
@@ -1213,8 +1258,9 @@ test "FlowText columns=255 handled safely with area width constraint" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     widget.render(&buf, area);
 
-    // Should not crash; many columns exceed area width
-    try testing.expect(true);
+    // With 255 columns and width 10, total_gutter = 254, available_width = 0
+    // So column_width = 0 and render early-exits. Buffer remains spaces.
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(0, 0));
 }
 
 test "FlowText same text rendered twice produces same result" {
@@ -1261,8 +1307,14 @@ test "FlowText different column counts produce different layouts" {
     const area2 = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     widget2.render(&buf2, area2);
 
-    // Different layouts (not all same)
-    try testing.expect(true);
+    // Different layouts—1-column should have more rows filled, 2-column should have fewer
+    var buf1_rows: usize = 0;
+    var buf2_rows: usize = 0;
+    for (0..5) |y| {
+        if (buf1.getChar(0, @intCast(y)) != ' ') buf1_rows += 1;
+        if (buf2.getChar(0, @intCast(y)) != ' ') buf2_rows += 1;
+    }
+    try testing.expect(buf1_rows != buf2_rows or buf1.getChar(5, 0) != buf2.getChar(5, 0));
 }
 
 test "FlowText text with tabs treated as word boundary or space" {
@@ -1276,8 +1328,9 @@ test "FlowText text with tabs treated as word boundary or space" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     widget.render(&buf, area);
 
-    // Tab treated as boundary or rendered as space
-    try testing.expect(true);
+    // Tab treated as boundary—"Before" on line 0, "After" on line 1
+    try testing.expectEqual(@as(u21, 'B'), buf.getChar(0, 0));
+    try testing.expectEqual(@as(u21, 'A'), buf.getChar(0, 1));
 }
 
 test "FlowText unicode text does not crash" {
@@ -1291,7 +1344,9 @@ test "FlowText unicode text does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 15, .height = 5 };
     widget.render(&buf, area);
 
-    try testing.expect(true);
+    // Should render first char of first word
+    const first_char = buf.getChar(0, 0);
+    try testing.expect(first_char != ' ');
 }
 
 test "FlowText rendered area offset from (0,0) applies correctly" {

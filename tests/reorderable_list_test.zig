@@ -570,8 +570,8 @@ test "render zero-area does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
     list.render(&buf, area);
 
-    // Should not crash
-    try testing.expect(true);
+    // Verify items count is still 3 after render
+    try testing.expectEqual(@as(usize, 3), list.items.len);
 }
 
 // ============================================================================

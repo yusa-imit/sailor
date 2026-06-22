@@ -31,8 +31,12 @@ test "FilterBar deinit doesn't crash on empty FilterBar" {
     const allocator = testing.allocator;
     var fb = FilterBar.init(allocator);
     fb.deinit();
-    // If we get here, deinit succeeded
-    try testing.expect(true);
+    // If we get here, deinit succeeded; verify tagCount returns 0 before deinit
+    // (we can't check after deinit as state is invalid)
+    // So instead verify basic struct init
+    var fb2 = FilterBar.init(allocator);
+    defer fb2.deinit();
+    try testing.expectEqual(@as(usize, 0), fb2.tagCount());
 }
 
 test "FilterBar deinit frees memory properly" {
@@ -40,9 +44,10 @@ test "FilterBar deinit frees memory properly" {
     var fb = FilterBar.init(allocator);
     try fb.addTag("key1", "value1");
     try fb.addTag("key2", "value2");
+    try testing.expectEqual(@as(usize, 2), fb.tagCount());
     fb.deinit();
     // Memory leak detection via testing.allocator
-    try testing.expect(true);
+    // After deinit succeeds, test is complete
 }
 
 test "FilterBar init sets default placeholder 'No filters'" {
@@ -446,10 +451,10 @@ test "FilterBar clearAll frees memory properly" {
     try fb.addTag("key2", "value2");
 
     fb.clearAll();
+    try testing.expectEqual(@as(usize, 0), fb.tagCount());
     fb.deinit();
 
     // If we get here without a memory leak, success
-    try testing.expect(true);
 }
 
 test "FilterBar after clearAll can addTag again" {
@@ -661,7 +666,8 @@ test "FilterBar render zero-width area doesn't crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 10 };
     fb.render(&buf, area);
 
-    try testing.expect(true);
+    // Verify tagCount is still 1 after render
+    try testing.expectEqual(@as(usize, 1), fb.tagCount());
 }
 
 test "FilterBar render zero-height area doesn't crash" {
@@ -677,7 +683,8 @@ test "FilterBar render zero-height area doesn't crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 0 };
     fb.render(&buf, area);
 
-    try testing.expect(true);
+    // Verify activeCount is 1 after render to zero-height area
+    try testing.expectEqual(@as(usize, 1), fb.activeCount());
 }
 
 test "FilterBar render 0x0 area doesn't crash" {
@@ -691,7 +698,9 @@ test "FilterBar render 0x0 area doesn't crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
     fb.render(&buf, area);
 
-    try testing.expect(true);
+    // Verify buffer dimensions unchanged after render
+    try testing.expectEqual(@as(u16, 10), buf.width);
+    try testing.expectEqual(@as(u16, 10), buf.height);
 }
 
 test "FilterBar render with empty tags shows default placeholder 'No filters'" {
@@ -730,7 +739,8 @@ test "FilterBar render with narrow area (width=1) doesn't crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 1, .height = 10 };
     fb.render(&buf, area);
 
-    try testing.expect(true);
+    // Verify placeholder is still default after render
+    try testing.expectEqualStrings("No filters", fb.placeholder);
 }
 
 test "FilterBar render with 1 active tag renders pill [key:value]" {
@@ -1134,11 +1144,11 @@ test "FilterBar memory safety with many allocations and deallocations" {
             try fb.addTag(key, val);
         }
 
+        try testing.expectEqual(@as(usize, 10), fb.tagCount());
         fb.clearAll();
+        try testing.expectEqual(@as(usize, 0), fb.tagCount());
         fb.deinit();
     }
-
-    try testing.expect(true);
 }
 
 test "FilterBar all operations on single large tag" {

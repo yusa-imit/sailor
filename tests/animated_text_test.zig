@@ -1411,8 +1411,8 @@ test "AnimatedText block with zero inner area skips text" {
     widget.render(&buf, area);
 
     // Border renders, but inner area is 0x0 so no content
-    // Still should not crash
-    try testing.expect(true);
+    // Verify block is set
+    try testing.expect(widget.block != null);
 }
 
 test "AnimatedText block with blink keeps border visible during blink off" {

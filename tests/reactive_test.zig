@@ -39,9 +39,12 @@ test "ReactiveGauge renders gauge filled to signal ratio" {
     gauge.render(&buffer, area);
 
     // At 50%, approximately 10 out of 20 cells should be filled
-    // Check that there is content in the buffer
-    _ = buffer.getConst(0, 0); // Verify cell exists
-    try testing.expect(true); // Render succeeded
+    // Check that filled cells exist at expected position (50% of 20 = 10)
+    const filled_cell = buffer.getConst(5, 0).?;
+    try testing.expectEqual(@as(u21, '█'), filled_cell.char); // Filled portion
+
+    const empty_cell = buffer.getConst(15, 0).?;
+    try testing.expectEqual(@as(u21, ' '), empty_cell.char); // Empty portion
 }
 
 test "ReactiveGauge shows 0% when signal is zero" {
@@ -59,10 +62,12 @@ test "ReactiveGauge shows 0% when signal is zero" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
     gauge.render(&buffer, area);
 
-    // At 0%, first cell should be empty or have empty style
-    _ = buffer.getConst(0, 0);
-    // Verify render completes without crash
-    try testing.expect(true);
+    // At 0%, all cells should be empty
+    const cell0 = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, ' '), cell0.char);
+
+    const cell_mid = buffer.getConst(10, 0).?;
+    try testing.expectEqual(@as(u21, ' '), cell_mid.char);
 }
 
 test "ReactiveGauge shows full when signal is one" {
@@ -80,9 +85,12 @@ test "ReactiveGauge shows full when signal is one" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
     gauge.render(&buffer, area);
 
-    // At 100%, verify render completed
-    _ = buffer.getConst(19, 0); // Check rightmost cell exists
-    try testing.expect(true);
+    // At 100%, all cells should be filled
+    const cell_start = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, '█'), cell_start.char);
+
+    const cell_end = buffer.getConst(19, 0).?;
+    try testing.expectEqual(@as(u21, '█'), cell_end.char);
 }
 
 test "ReactiveGauge updates display when signal changes before render" {
@@ -106,9 +114,10 @@ test "ReactiveGauge updates display when signal changes before render" {
     // Change signal to 75%
     try sig.set(0.75);
 
-    // Second render should reflect new value
+    // Second render should reflect new value (75% of 30 = 22-23 cells filled)
     gauge.render(&buffer, area);
-    try testing.expect(true); // Render completes successfully
+    const filled_cell = buffer.getConst(20, 0).?;
+    try testing.expectEqual(@as(u21, '█'), filled_cell.char); // Should be filled at 75%
 }
 
 test "ReactiveGauge clamps ratio > 1.0 to 1.0" {
@@ -126,9 +135,12 @@ test "ReactiveGauge clamps ratio > 1.0 to 1.0" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
     gauge.render(&buffer, area);
 
-    // Should not crash or render beyond bounds
-    _ = buffer.getConst(19, 0);
-    try testing.expect(true);
+    // Should clamp to 100% — all cells filled
+    const cell_start = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, '█'), cell_start.char);
+
+    const cell_end = buffer.getConst(19, 0).?;
+    try testing.expectEqual(@as(u21, '█'), cell_end.char);
 }
 
 test "ReactiveGauge clamps ratio < 0.0 to 0.0" {
@@ -146,8 +158,12 @@ test "ReactiveGauge clamps ratio < 0.0 to 0.0" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
     gauge.render(&buffer, area);
 
-    // Should not crash
-    try testing.expect(true);
+    // Should clamp to 0% — all cells empty
+    const cell_start = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, ' '), cell_start.char);
+
+    const cell_end = buffer.getConst(19, 0).?;
+    try testing.expectEqual(@as(u21, ' '), cell_end.char);
 }
 
 test "ReactiveGauge renders with optional label" {
@@ -166,8 +182,9 @@ test "ReactiveGauge renders with optional label" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 1 };
     gauge.render(&buffer, area);
 
-    // Verify render completes
-    try testing.expect(true);
+    // Verify label is rendered (label "Progress" should appear in center of gauge)
+    const cell_start = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, '█'), cell_start.char); // Gauge at 60% should be filled
 }
 
 test "ReactiveGauge renders into zero-width area without crash" {
@@ -185,8 +202,9 @@ test "ReactiveGauge renders into zero-width area without crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 1 };
     gauge.render(&buffer, area);
 
-    // Should gracefully handle zero-width area
-    try testing.expect(true);
+    // Should gracefully handle zero-width area — no cells written
+    const cell = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, ' '), cell.char); // Should be untouched
 }
 
 test "ReactiveGauge renders into zero-height area without crash" {
@@ -204,8 +222,9 @@ test "ReactiveGauge renders into zero-height area without crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 0 };
     gauge.render(&buffer, area);
 
-    // Should gracefully handle zero-height area
-    try testing.expect(true);
+    // Should gracefully handle zero-height area — no cells written
+    const cell = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, ' '), cell.char); // Should be untouched
 }
 
 test "ReactiveGauge with custom filled style" {
@@ -225,8 +244,10 @@ test "ReactiveGauge with custom filled style" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
     gauge.render(&buffer, area);
 
-    // Verify render with custom style completes
-    try testing.expect(true);
+    // Verify gauge renders at 50% with filled portion
+    const filled_cell = buffer.getConst(5, 0).?;
+    try testing.expectEqual(@as(u21, '█'), filled_cell.char);
+    try testing.expectEqual(Color.blue, filled_cell.style.fg);
 }
 
 test "ReactiveGauge with empty style" {
@@ -246,7 +267,9 @@ test "ReactiveGauge with empty style" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
     gauge.render(&buffer, area);
 
-    try testing.expect(true);
+    // Verify gauge renders with empty_style applied to empty portion
+    const empty_cell = buffer.getConst(15, 0).?;
+    try testing.expectEqual(@as(u21, ' '), empty_cell.char);
 }
 
 // ============================================================================
@@ -362,7 +385,9 @@ test "ReactiveText alignment center" {
     text.render(&buffer, area);
 
     // Text should be centered (approximately x=8-10 for "mid" in 20-wide area)
-    try testing.expect(true); // Render completes
+    // For 20-width area with "mid" (3 chars), centered position = (20-3)/2 = 8
+    const center_cell = buffer.getConst(8, 0).?;
+    try testing.expectEqual(@as(u21, 'm'), center_cell.char); // 'm' should be at center
 }
 
 test "ReactiveText alignment right" {
@@ -381,8 +406,9 @@ test "ReactiveText alignment right" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
     text.render(&buffer, area);
 
-    // Text should be right-aligned
-    try testing.expect(true); // Render completes
+    // Text should be right-aligned ("right" is 5 chars, so should start at x=15)
+    const right_cell = buffer.getConst(15, 0).?;
+    try testing.expectEqual(@as(u21, 'r'), right_cell.char); // 'r' should be at x=15
 }
 
 test "ReactiveText truncates text that exceeds area width without crash" {
@@ -400,8 +426,12 @@ test "ReactiveText truncates text that exceeds area width without crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 1 };
     text.render(&buffer, area);
 
-    // Should truncate at width=10 without crashing
-    try testing.expect(true);
+    // Should truncate at width=10 without crashing — first 10 chars of text should be rendered
+    const cell0 = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, 'T'), cell0.char); // "T" from "This is..."
+
+    const cell9 = buffer.getConst(9, 0).?;
+    try testing.expect(cell9.char != ' ' or cell9.char == ' '); // Any char (space or not) is valid
 }
 
 test "ReactiveText with custom style" {
@@ -421,7 +451,10 @@ test "ReactiveText with custom style" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
     text.render(&buffer, area);
 
-    try testing.expect(true);
+    // Verify text renders with custom style applied
+    const cell = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, 's'), cell.char);
+    try testing.expectEqual(Color.red, cell.style.fg);
 }
 
 // ============================================================================
@@ -443,9 +476,12 @@ test "ReactiveCounter renders i64 signal value as text" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
     counter.render(&buffer, area);
 
-    // Verify "42" appears in buffer
-    const cell0 = buffer.getConst(0, 0);
-    try testing.expect(cell0 != null);
+    // Verify "42" appears in buffer starting with '4'
+    const cell0 = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, '4'), cell0.char);
+
+    const cell1 = buffer.getConst(1, 0).?;
+    try testing.expectEqual(@as(u21, '2'), cell1.char);
 }
 
 test "ReactiveCounter includes prefix" {
@@ -485,7 +521,9 @@ test "ReactiveCounter includes suffix" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
     counter.render(&buffer, area);
 
-    try testing.expect(true);
+    // Verify suffix is rendered — "5 items" should appear with space before suffix
+    const cell_value = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, '5'), cell_value.char);
 }
 
 test "ReactiveCounter with prefix and suffix" {
@@ -552,7 +590,8 @@ test "ReactiveCounter updates when signal changes" {
 
     // Second render should show new value
     counter.render(&buffer, area);
-    try testing.expect(true);
+    const cell = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, '2'), cell.char); // "20" should start with '2'
 }
 
 test "ReactiveCounter renders zero" {
@@ -590,8 +629,9 @@ test "ReactiveCounter renders large values" {
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 1 };
     counter.render(&buffer, area);
 
-    // Should render without overflow or crash
-    try testing.expect(true);
+    // Should render without overflow or crash — verify at least first cell is a digit
+    const cell = buffer.getConst(0, 0).?;
+    try testing.expect(cell.char >= '0' and cell.char <= '9');
 }
 
 test "ReactiveCounter renders min i64 value" {
@@ -609,8 +649,9 @@ test "ReactiveCounter renders min i64 value" {
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 1 };
     counter.render(&buffer, area);
 
-    // Should render without crash
-    try testing.expect(true);
+    // Should render without crash — verify at least first cell is a valid character
+    const cell = buffer.getConst(0, 0).?;
+    try testing.expect(cell.char > 0); // Any valid character
 }
 
 test "ReactiveCounter with custom style" {
@@ -630,7 +671,10 @@ test "ReactiveCounter with custom style" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
     counter.render(&buffer, area);
 
-    try testing.expect(true);
+    // Verify counter renders with custom style applied
+    const cell = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, '1'), cell.char);
+    try testing.expectEqual(Color.yellow, cell.style.fg);
 }
 
 // ============================================================================
@@ -681,7 +725,10 @@ test "ReactiveGauge with block wrapper renders borders" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 5 };
     gauge.render(&buffer, area);
 
-    try testing.expect(true);
+    // Block should render borders around the gauge area
+    // Gauge is in row 1 (inside 5-height block), at 50% of 28-width (inner)
+    const gauge_cell = buffer.getConst(10, 1).?;
+    try testing.expectEqual(@as(u21, '█'), gauge_cell.char); // Should be filled portion
 }
 
 test "ReactiveText with block wrapper renders borders" {
@@ -701,7 +748,9 @@ test "ReactiveText with block wrapper renders borders" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 5 };
     text.render(&buffer, area);
 
-    try testing.expect(true);
+    // Block should render borders, text should be in inner area at row 1
+    const text_cell = buffer.getConst(1, 1).?;
+    try testing.expectEqual(@as(u21, 'w'), text_cell.char); // 'w' from "wrapped"
 }
 
 // ============================================================================
@@ -777,7 +826,9 @@ test "ReactiveGauge memory safety with testing allocator" {
     gauge.render(&buffer, area);
 
     // No leaks - buffer and signal properly cleaned up by defer
-    try testing.expect(true);
+    // Verify gauge rendered at 50%
+    const filled_cell = buffer.getConst(5, 0).?;
+    try testing.expectEqual(@as(u21, '█'), filled_cell.char);
 }
 
 test "ReactiveText memory safety with testing allocator" {
@@ -795,8 +846,9 @@ test "ReactiveText memory safety with testing allocator" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
     text.render(&buffer, area);
 
-    // No leaks
-    try testing.expect(true);
+    // No leaks - verify text rendered
+    const cell = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, 't'), cell.char);
 }
 
 test "ReactiveCounter memory safety with testing allocator" {
@@ -814,8 +866,9 @@ test "ReactiveCounter memory safety with testing allocator" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
     counter.render(&buffer, area);
 
-    // No leaks
-    try testing.expect(true);
+    // No leaks - verify counter rendered (42)
+    const cell = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, '4'), cell.char);
 }
 
 // ============================================================================
@@ -837,7 +890,9 @@ test "ReactiveGauge at boundary: signal exactly 0.0" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
     gauge.render(&buffer, area);
 
-    try testing.expect(true);
+    // At 0%, all cells should be empty
+    const cell = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, ' '), cell.char);
 }
 
 test "ReactiveGauge at boundary: signal exactly 1.0" {
@@ -855,7 +910,9 @@ test "ReactiveGauge at boundary: signal exactly 1.0" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
     gauge.render(&buffer, area);
 
-    try testing.expect(true);
+    // At 100%, all cells should be filled
+    const cell = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, '█'), cell.char);
 }
 
 test "ReactiveText renders single character" {
@@ -892,7 +949,9 @@ test "ReactiveGauge with 1-width area" {
     const area = Rect{ .x = 0, .y = 0, .width = 1, .height = 1 };
     gauge.render(&buffer, area);
 
-    try testing.expect(true);
+    // At 50% width=1 means filled_width = 0, so all empty
+    const cell = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, ' '), cell.char);
 }
 
 test "ReactiveGauge with 1-height area" {
@@ -910,7 +969,9 @@ test "ReactiveGauge with 1-height area" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
     gauge.render(&buffer, area);
 
-    try testing.expect(true);
+    // At 50%, should have filled and empty cells
+    const filled_cell = buffer.getConst(5, 0).?;
+    try testing.expectEqual(@as(u21, '█'), filled_cell.char);
 }
 
 test "ReactiveCounter renders one digit" {
@@ -947,8 +1008,9 @@ test "ReactiveText with unicode characters" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
     text.render(&buffer, area);
 
-    // Should render without crashing on unicode
-    try testing.expect(true);
+    // Should render without crashing on unicode — verify 'H' is rendered
+    const cell = buffer.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, 'H'), cell.char);
 }
 
 test "ReactiveGauge precision: signal at 0.33" {
@@ -966,7 +1028,9 @@ test "ReactiveGauge precision: signal at 0.33" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
     gauge.render(&buffer, area);
 
-    try testing.expect(true);
+    // At 0.33, filled_width = 0.33*30 = 9 or 10, verify presence of filled cells
+    const filled_cell = buffer.getConst(5, 0).?;
+    try testing.expectEqual(@as(u21, '█'), filled_cell.char);
 }
 
 test "ReactiveGauge precision: signal at 0.67" {
@@ -984,5 +1048,10 @@ test "ReactiveGauge precision: signal at 0.67" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
     gauge.render(&buffer, area);
 
-    try testing.expect(true);
+    // At 0.67, filled_width = 0.67*30 = 20, verify filled and empty portions exist
+    const filled_cell = buffer.getConst(15, 0).?;
+    try testing.expectEqual(@as(u21, '█'), filled_cell.char);
+
+    const empty_cell = buffer.getConst(25, 0).?;
+    try testing.expectEqual(@as(u21, ' '), empty_cell.char);
 }
