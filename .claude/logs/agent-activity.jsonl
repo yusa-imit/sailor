@@ -161,3 +161,9 @@
 {"timestamp":"2026-06-21T06:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write 92 tests for AnimatedText widget in tests/animated_text_test.zig","project":"sailor"}
 {"timestamp":"2026-06-21T06:10:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement AnimatedText widget with 5 animation styles - 92 tests pass","project":"sailor"}
 {"timestamp":"2026-06-21T18:37:12Z","action":"subagent","agent_type":"zig-developer","task":"Fix FlowText wrapTextByWord method and render loop row tracking","project":"sailor"}
+{"timestamp":"2026-06-22T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Replace 24 expect(true) stubs in reactive_test.zig with real assertions","project":"sailor"}
+{"timestamp":"2026-06-22T00:05:00Z","action":"subagent","agent_type":"test-writer","task":"Replace 21 expect(true) stubs in dag_test.zig with real assertions","project":"sailor"}
+{"timestamp":"2026-06-22T00:05:00Z","action":"subagent","agent_type":"test-writer","task":"Replace 24 expect(true) stubs in flow_text_test.zig with real assertions","project":"sailor"}
+{"timestamp":"2026-06-22T00:15:00Z","action":"subagent","agent_type":"test-writer","task":"Replace 17 expect(true) stubs in pagination_test.zig with real assertions","project":"sailor"}
+{"timestamp":"2026-06-22T00:15:00Z","action":"subagent","agent_type":"test-writer","task":"Replace 14+15 expect(true) stubs in wizard_test.zig and pipeline_test.zig","project":"sailor"}
+{"timestamp":"2026-06-22T00:15:00Z","action":"subagent","agent_type":"test-writer","task":"Replace stubs in keymap/diffstat/filter_bar/marquee/animated_text/reorderable_list tests","project":"sailor"}
