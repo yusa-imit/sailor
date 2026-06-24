@@ -357,11 +357,15 @@ pub const SystemClipboard = struct {
         };
 
         const stdin = child.stdin.?;
-        try stdin.writeAll(text);
+        // Ignore write errors — if exec failed the pipe is broken; wait() will surface the real error
+        stdin.writeAll(text) catch {};
         stdin.close();
         child.stdin = null;
 
-        const term = try child.wait();
+        // On Linux, exec failure is reported asynchronously via wait() rather than spawn()
+        const term = child.wait() catch |err| {
+            return if (err == error.FileNotFound) error.ClipboardUnavailable else err;
+        };
         switch (term) {
             .Exited => |code| if (code != 0) return error.ClipboardWriteFailed,
             else => return error.ClipboardWriteFailed,
@@ -401,11 +405,15 @@ pub const SystemClipboard = struct {
         };
 
         const stdin = child.stdin.?;
-        try stdin.writeAll(text);
+        // Ignore write errors — if exec failed the pipe is broken; wait() will surface the real error
+        stdin.writeAll(text) catch {};
         stdin.close();
         child.stdin = null;
 
-        const term = try child.wait();
+        // On Linux, exec failure is reported asynchronously via wait() rather than spawn()
+        const term = child.wait() catch |err| {
+            return if (err == error.FileNotFound) error.ClipboardUnavailable else err;
+        };
         switch (term) {
             .Exited => |code| if (code != 0) return error.ClipboardWriteFailed,
             else => return error.ClipboardWriteFailed,

@@ -1296,11 +1296,13 @@ test "sixel palette: octree color space coverage (verify distribution)" {
 }
 
 test "sixel palette: octree performance: 10000 colors to 256 in <100ms" {
-    const allocator = testing.allocator;
+    // Use arena allocator: octree creates ~80k nodes; GPA debug overhead makes this >5s on CI
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
 
     // Generate 10000 colors
     const colors = try allocator.alloc(SixelImage.Color, 10000);
-    defer allocator.free(colors);
 
     for (colors, 0..) |*c, i| {
         c.* = randomColor(i + 10000);
@@ -1314,7 +1316,6 @@ test "sixel palette: octree performance: 10000 colors to 256 in <100ms" {
         256,
         .octree,
     );
-    defer palette.deinit();
 
     const end = std.time.nanoTimestamp();
     const elapsed_ms = @divTrunc(end - start, 1_000_000);
