@@ -2,11 +2,31 @@
 
 ## Current Status
 
-- **Latest release**: v2.55.0 (2026-06-22) — FlowText Widget
-- **Latest minor**: v2.55.0 (2026-06-22) — FlowText Widget
+- **Latest release**: v2.56.0 (2026-06-25) — MiniMap Widget
+- **Latest minor**: v2.56.0 (2026-06-25) — MiniMap Widget
 - **Next release**: TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.56.0 — MiniMap Widget (Complete)
+
+**Theme**: A compressed content overview widget showing which portion of a large content area is currently visible. Each rendered row represents N content lines (scale = ceil(total/height)). The viewport region is highlighted with a distinct style. Uses configurable characters for content rows vs empty rows. Useful for code editors, log viewers, and document navigation alongside the existing editor.zig and diff_viewer.zig widgets.
+
+**Checklist**:
+- [x] **src/tui/widgets/minimap.zig** — MiniMap: lines ([]const []const u8=&.{}); viewport_top (usize=0); viewport_height (usize=10); style (Style={}); viewport_style (Style={}); highlight_char (u21='▌'); empty_char (u21=' '); block (?Block=null); init(); builder API (withLines/ViewportTop/ViewportHeight/Style/ViewportStyle/HighlightChar/EmptyChar/Block); render(*Buffer, Rect)
+- [x] **tests/minimap_test.zig** — 63 tests: init/defaults, builder immutability, render zero/minimal area, basic content, viewport detection, scaling algorithm, block borders, style application, edge cases
+- [x] Export MiniMap via tui.zig widgets struct and top-level
+- [x] Add minimap_tests to build.zig
+- [x] Release v2.56.0
+
+**Success Criteria**:
+- scale = ceil(total_lines / inner.height) = (total_lines + inner.height - 1) / inner.height
+- Row r represents content lines [r*scale .. min(total_lines, (r+1)*scale))
+- in_viewport: content range overlaps [viewport_top .. viewport_top + viewport_height)
+- has_content: any line in content range has .len > 0
+- No allocations — pure stack computation
+- viewport_height=0: no rows highlighted
+- Empty lines array: all rows render empty_char with base style
 
 ### v2.55.0 — FlowText Widget (Complete)
 
