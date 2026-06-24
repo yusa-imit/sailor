@@ -1,3 +1,33 @@
+✅ **Session 321** — FEATURE MODE (2026-06-25)
+  - **Mode**: NORMAL (session 321, 321 % 5 == 1)
+  - **Achievement**: Fixed 2 CI failures + implemented MiniMap Widget + released v2.56.0
+
+  **Completed Work**:
+    - ✅ CI was RED: fixed 2 Linux test failures
+      1. clipboard: `child.wait()` returns `error.FileNotFound` when exec fails async (fork succeeds, exec fails) — now caught in writeLinuxXclip/writeLinuxXsel
+      2. sixel: octree perf test using testing.allocator (GPA debug) took >5s for 80k nodes — switched to arena allocator
+    - ✅ Established v2.56.0 milestone: MiniMap Widget
+    - ✅ TDD Red: test-writer wrote 63 tests in tests/minimap_test.zig
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/minimap.zig (164 lines)
+    - ✅ All tests pass (exit code 0)
+    - ✅ Released v2.56.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#101, zoltraak#68, silica#79
+    - ✅ Discord notification sent
+
+  **MiniMap Widget Summary**:
+    - Fields: `lines` ([]const []const u8=&.{}), `viewport_top` (usize=0), `viewport_height` (usize=10), `style` (Style={}), `viewport_style` (Style={}), `highlight_char` (u21='▌'), `empty_char` (u21=' '), `block` (?Block=null)
+    - Methods: `init()`, builder withLines/ViewportTop/ViewportHeight/Style/ViewportStyle/HighlightChar/EmptyChar/Block, `render(*Buffer, Rect)`
+    - Algorithm: scale=ceil(total_lines/inner.height); each row r represents lines[r*scale..(r+1)*scale); in_viewport = content range overlaps [viewport_top..viewport_top+viewport_height); has_content = any line in range has .len>0
+    - No allocations — pure stack
+
+  **Current State**:
+    - **Latest release**: v2.56.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 99 widgets in src/tui/widgets/
+
+  **Next Priority**:
+    - Establish v2.57.0 milestone (candidates: RingMenu, SplitText, ScrollableList, or add tests to untested widgets)
+
 ✅ **Session 320** — STABILIZATION MODE (2026-06-22)
   - **Mode**: STABILIZATION (session 320, 320 % 5 == 0)
   - **Achievement**: Test quality audit — replaced 155 `expect(true)` stubs across 12 test files
