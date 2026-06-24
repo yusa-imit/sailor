@@ -1324,6 +1324,17 @@ pub fn build(b: *std.Build) void {
     flow_text_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(flow_text_tests).step);
 
+    const minimap_tests = b.addTest(.{
+        .name = "minimap_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/minimap_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    minimap_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(minimap_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",
