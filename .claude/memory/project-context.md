@@ -1,3 +1,31 @@
+✅ **Session 322** — FEATURE MODE (2026-06-25)
+  - **Mode**: NORMAL (session 322, 322 % 5 == 2)
+  - **Achievement**: Implemented RingMenu Widget + released v2.57.0
+
+  **Completed Work**:
+    - ✅ CI queued (not RED); 0 open issues
+    - ✅ Established v2.57.0 milestone: RingMenu Widget
+    - ✅ TDD Red: test-writer wrote 65 tests in tests/ring_menu_test.zig (53 pass, 12 render fail)
+    - ✅ TDD Green: zig-developer implemented render() in src/tui/widgets/ring_menu.zig
+    - ✅ All 8669 tests pass (exit 0)
+    - ✅ Released v2.57.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#102, zoltraak#69, silica#80
+    - ✅ Discord notification sent
+
+  **RingMenu Widget Summary**:
+    - Fields: `items` ([]const []const u8=&.{}), `selected` (usize=0), `center_label` ([]const u8=""), `style` (Style={}), `selected_style` (Style={}), `center_style` (Style={}), `radius` (u8=4), `block` (?Block=null)
+    - Methods: `init()`, `next(*self)`, `prev(*self)`, `selectedItem() ?[]const u8`, builder withItems/Selected/CenterLabel/Style/SelectedStyle/CenterStyle/Radius/Block, `render(*Buffer, Rect)`
+    - Algorithm: angle_i = tau*i/N - pi/2; ix = cx + round(radius*cos(angle)*2); iy = cy + round(radius*sin(angle)); clamped to inner area; label centered at (ix-len/2, iy)
+    - No allocations — pure stack
+
+  **Current State**:
+    - **Latest release**: v2.57.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 100 widgets in src/tui/widgets/
+
+  **Next Priority**:
+    - Establish v2.58.0 milestone (candidates: SplitText, ScrollableList, ContextViewer, or test quality audit for new widgets)
+
 ✅ **Session 321** — FEATURE MODE (2026-06-25)
   - **Mode**: NORMAL (session 321, 321 % 5 == 1)
   - **Achievement**: Fixed 2 CI failures + implemented MiniMap Widget + released v2.56.0

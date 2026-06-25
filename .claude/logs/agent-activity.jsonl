@@ -169,3 +169,5 @@
 {"timestamp":"2026-06-22T00:15:00Z","action":"subagent","agent_type":"test-writer","task":"Replace stubs in keymap/diffstat/filter_bar/marquee/animated_text/reorderable_list tests","project":"sailor"}
 {"timestamp":"2026-06-25T08:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write 63 failing tests for MiniMap widget in tests/minimap_test.zig","project":"sailor"}
 {"timestamp":"2026-06-25T08:10:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement MiniMap widget in src/tui/widgets/minimap.zig, export in tui.zig, register in build.zig","project":"sailor"}
+{"timestamp":"2026-06-25T20:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write RingMenu widget tests (65 tests, TDD Red phase)","project":"sailor"}
+{"timestamp":"2026-06-25T20:15:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement RingMenu render() to pass 12 failing render tests","project":"sailor"}
