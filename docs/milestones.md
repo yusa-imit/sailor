@@ -4,20 +4,20 @@
 
 - **Latest release**: v2.56.0 (2026-06-25) — MiniMap Widget
 - **Latest minor**: v2.56.0 (2026-06-25) — MiniMap Widget
-- **Next release**: v2.57.0 — RingMenu Widget
-- **Active milestones**: 1 pending implementation
+- **Next release**: TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
-### v2.57.0 — RingMenu Widget (In Progress)
+### v2.57.0 — RingMenu Widget (Complete)
 
 **Theme**: A radial context menu widget that arranges selectable items in a circular ring around a central point. Items are positioned at equal angular intervals clockwise from the top, using terminal aspect ratio compensation (dx×2 for circular appearance). The selected item is highlighted with a configurable style. A center label can be shown at the ring's origin. Useful for action menus, mode selectors, and quick-access command wheels in TUI applications.
 
 **Checklist**:
-- [ ] **src/tui/widgets/ring_menu.zig** — RingMenu: items ([]const []const u8=&.{}); selected (usize=0); center_label ([]const u8=""); style (Style={}); selected_style (Style={}); center_style (Style={}); radius (u8=4); block (?Block=null); init(); next(*self); prev(*self); selectedItem() ?[]const u8; builder API (withItems/Selected/CenterLabel/Style/SelectedStyle/CenterStyle/Radius/Block); render(*Buffer, Rect)
-- [ ] **tests/ring_menu_test.zig** — 63 tests: init/defaults, builder immutability, next/prev navigation, selectedItem, render zero/minimal area, item positioning (4/8 items), selected style, center label, block borders, radius variants, edge cases
-- [ ] Export RingMenu via tui.zig widgets struct and top-level
-- [ ] Add ring_menu_tests to build.zig
-- [ ] Release v2.57.0
+- [x] **src/tui/widgets/ring_menu.zig** — RingMenu: items ([]const []const u8=&.{}); selected (usize=0); center_label ([]const u8=""); style (Style={}); selected_style (Style={}); center_style (Style={}); radius (u8=4); block (?Block=null); init(); next(*self); prev(*self); selectedItem() ?[]const u8; builder API (withItems/Selected/CenterLabel/Style/SelectedStyle/CenterStyle/Radius/Block); render(*Buffer, Rect)
+- [x] **tests/ring_menu_test.zig** — 65 tests: init/defaults, builder immutability, next/prev navigation, selectedItem, render zero/minimal area, item positioning (4/8 items), selected style, center label, block borders, radius variants, edge cases
+- [x] Export RingMenu via tui.zig widgets struct and top-level
+- [x] Add ring_menu_tests to build.zig
+- [x] Release v2.57.0
 
 **Success Criteria**:
 - N items arranged at angles: angle_i = tau * i / N - pi/2 (clockwise from top)
