@@ -1,3 +1,31 @@
+✅ **Session 323** — FEATURE MODE (2026-06-25)
+  - **Mode**: NORMAL (session 323, 323 % 5 == 3)
+  - **Achievement**: Implemented SplitText Widget + released v2.58.0
+
+  **Completed Work**:
+    - ✅ CI queued (not RED); 0 open issues
+    - ✅ Established v2.58.0 milestone: SplitText Widget
+    - ✅ TDD Red: test-writer wrote 60 tests in tests/split_text_test.zig (24 pass, 36 render/sectionCount fail)
+    - ✅ TDD Green: zig-developer implemented sectionCount() and render() in src/tui/widgets/split_text.zig
+    - ✅ All tests pass (exit 0)
+    - ✅ Released v2.58.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#103, zoltraak#70, silica#81
+    - ✅ Discord notification sent
+
+  **SplitText Widget Summary**:
+    - Fields: `text` ([]const u8=""), `delimiter` ([]const u8="\n---\n"), `section_headers` ([]const []const u8=&.{}), `style` (Style={}), `header_style` (Style={}), `divider_style` (Style={}), `divider_char` (u21='─'), `show_dividers` (bool=true), `alignment` (Alignment=.left), `block` (?Block=null)
+    - Methods: `init()`, `sectionCount() usize`, builder withText/Delimiter/SectionHeaders/Style/HeaderStyle/DividerStyle/DividerChar/ShowDividers/Alignment/Block, `render(*Buffer, Rect)`
+    - Algorithm: scan text for delimiter → stack arrays of section start/end offsets; N sections get even height distribution; optional header at section top, divider at section bottom; word-wrap per section; alignment applied per line
+    - MAX_SECTIONS=64, no heap allocations
+
+  **Current State**:
+    - **Latest release**: v2.58.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 101 widgets in src/tui/widgets/
+
+  **Next Priority**:
+    - Establish v2.59.0 milestone (candidates: ScrollableList, ContextViewer, StatusMatrix, or test quality audit)
+
 ✅ **Session 322** — FEATURE MODE (2026-06-25)
   - **Mode**: NORMAL (session 322, 322 % 5 == 2)
   - **Achievement**: Implemented RingMenu Widget + released v2.57.0
