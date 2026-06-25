@@ -433,6 +433,9 @@ pub const widgets = struct {
 
     // v2.58.0 — SplitText Widget
     pub const SplitText = @import("widgets/split_text.zig").SplitText;
+
+    // v2.59.0 — StopWatch Widget
+    pub const StopWatch = @import("widgets/stopwatch.zig").StopWatch;
 };
 
 // Export commonly used types
@@ -506,6 +509,9 @@ pub const RingMenu = @import("widgets/ring_menu.zig").RingMenu;
 
 // v2.58.0 — SplitText Widget (top-level export)
 pub const SplitText = @import("widgets/split_text.zig").SplitText;
+
+// v2.59.0 — StopWatch Widget (top-level export)
+pub const StopWatch = @import("widgets/stopwatch.zig").StopWatch;
 
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;

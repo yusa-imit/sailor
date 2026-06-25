@@ -2,11 +2,36 @@
 
 ## Current Status
 
-- **Latest release**: v2.58.0 (2026-06-25) — SplitText Widget
-- **Latest minor**: v2.58.0 (2026-06-25) — SplitText Widget
+- **Latest release**: v2.59.0 (2026-06-25) — StopWatch Widget
+- **Latest minor**: v2.59.0 (2026-06-25) — StopWatch Widget
 - **Next release**: TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.59.0 — StopWatch Widget (In Progress)
+
+**Theme**: A count-up stopwatch widget with lap time tracking, complementing the existing CountdownTimer. Displays elapsed time in HH:MM:SS.mmm format, running/paused state indicator, and an optional lap list showing split times and cumulative totals. Useful for benchmarking TUI workflows, timing operations, and interactive time tracking.
+
+**Checklist**:
+- [x] **src/tui/widgets/stopwatch.zig** — StopWatch: elapsed_ms (u64=0); laps ([]const u64=&.{}); running (bool=false); show_laps (bool=true); show_milliseconds (bool=true); label ([]const u8=""); style (Style={}); time_style (Style={}); lap_style (Style={}); status_style (Style={}); block (?Block=null); init(); formatTime(u64, bool) [12]u8; lastLapMs() u64; lapCount() usize; builder API (withElapsedMs/Laps/Running/ShowLaps/ShowMilliseconds/Label/Style/TimeStyle/LapStyle/StatusStyle/Block); render(*Buffer, Rect)
+- [x] **tests/stopwatch_test.zig** — 67 tests: init/defaults, builder immutability, formatTime (zero, seconds, minutes, hours, ms toggle), lastLapMs (no laps, single lap, multiple), lapCount, render zero/minimal area, time display, status indicator, lap list, styles, block border, edge cases
+- [x] Export StopWatch via tui.zig widgets struct and top-level
+- [x] Add stopwatch_tests to build.zig
+- [x] Release v2.59.0
+
+**Success Criteria**:
+- MAX_LAPS = 32 (comptime constant, no heap allocations)
+- formatTime(ms, show_ms): HH:MM:SS.mmm (12 chars) or HH:MM:SS (8 chars)
+- lastLapMs(): elapsed_ms - laps[laps.len-1] (if laps exist), else elapsed_ms
+- lapCount() returns min(laps.len, MAX_LAPS)
+- Render layout (inner area):
+  - Row 0: centered time string (elapsed_ms formatted)
+  - Row 1: centered status "[RUNNING]" or "[PAUSED]" using status_style
+  - Row 2+: if show_laps and laps.len > 0: divider, then lap rows
+  - Lap row format: "Lap N  +MM:SS.mmm  MM:SS.mmm" (split | cumulative)
+  - show last min(laps.len, inner.height - 3) laps if height constrained
+- Empty area / zero area: no crash
+- No allocations — pure stack computation; formatTime returns [12]u8 array
 
 ### v2.58.0 — SplitText Widget (Complete)
 
