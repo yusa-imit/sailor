@@ -427,6 +427,9 @@ pub const widgets = struct {
 
     // v2.56.0 — MiniMap Widget
     pub const MiniMap = @import("widgets/minimap.zig").MiniMap;
+
+    // v2.57.0 — RingMenu Widget
+    pub const RingMenu = @import("widgets/ring_menu.zig").RingMenu;
 };
 
 // Export commonly used types
@@ -494,6 +497,9 @@ pub const FlowText = @import("widgets/flow_text.zig").FlowText;
 
 // v2.56.0 — MiniMap Widget (top-level export)
 pub const MiniMap = @import("widgets/minimap.zig").MiniMap;
+
+// v2.57.0 — RingMenu Widget (top-level export)
+pub const RingMenu = @import("widgets/ring_menu.zig").RingMenu;
 
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;

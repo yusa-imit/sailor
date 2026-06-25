@@ -1335,6 +1335,17 @@ pub fn build(b: *std.Build) void {
     minimap_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(minimap_tests).step);
 
+    const ring_menu_tests = b.addTest(.{
+        .name = "ring_menu_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/ring_menu_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    ring_menu_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(ring_menu_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",
