@@ -2,11 +2,37 @@
 
 ## Current Status
 
-- **Latest release**: v2.56.0 (2026-06-25) — MiniMap Widget
-- **Latest minor**: v2.56.0 (2026-06-25) — MiniMap Widget
+- **Latest release**: v2.58.0 (2026-06-25) — SplitText Widget
+- **Latest minor**: v2.58.0 (2026-06-25) — SplitText Widget
 - **Next release**: TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.58.0 — SplitText Widget (Complete)
+
+**Theme**: A text display widget that splits content into labeled sections by a configurable delimiter. Each section is rendered vertically with optional section headers, optional divider lines between sections, and configurable text alignment. Vertical space is distributed evenly among sections. Useful for multi-section help text, changelogs, configuration panels, and any content with natural divisions (paragraphs, chapters, categories).
+
+**Checklist**:
+- [x] **src/tui/widgets/split_text.zig** — SplitText: text ([]const u8=""); delimiter ([]const u8="\n---\n"); section_headers ([]const []const u8=&.{}); style (Style={}); header_style (Style={}); divider_style (Style={}); divider_char (u21='─'); show_dividers (bool=true); alignment (Alignment=.left); block (?Block=null); init(); sectionCount() usize; builder API (withText/Delimiter/SectionHeaders/Style/HeaderStyle/DividerStyle/DividerChar/ShowDividers/Alignment/Block); render(*Buffer, Rect)
+- [x] **tests/split_text_test.zig** — 60 tests: init/defaults, builder immutability, sectionCount, render zero/minimal area, single section, multiple sections (2/3/4), section headers, dividers, alignment (left/center/right), style application, block border, delimiter variants, long text wrapping, edge cases
+- [x] Export SplitText via tui.zig widgets struct and top-level
+- [x] Add split_text_tests to build.zig
+- [x] Release v2.58.0
+
+**Success Criteria**:
+- MAX_SECTIONS = 64 (comptime limit, no heap allocations)
+- Sections found by scanning text for delimiter occurrences
+- sectionCount() returns number of sections (1 if no delimiter found, 0 if text is empty)
+- Vertical space per section: base_h = inner.height / N; last section gets remainder
+- Section i rendered at y = inner.y + sum of prior section heights
+- If section_headers[i] exists, render header at section y, content starts at y+1
+- If show_dividers and not last section, render divider at section y + section_height - 1
+- Divider: fill inner.width chars with divider_char using divider_style
+- Text wrapped at inner.width, alignment applied per line (left/center/right)
+- Empty text: no crash, blank render; sectionCount() = 0
+- Single section (no delimiter): full area used for text, no dividers
+- Alignment: left=inner.x, center=inner.x+(inner.width-line.len)/2, right=inner.x+inner.width-line.len
+- No heap allocations — uses fixed stack arrays [MAX_SECTIONS]
 
 ### v2.57.0 — RingMenu Widget (Complete)
 

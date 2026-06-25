@@ -1346,6 +1346,17 @@ pub fn build(b: *std.Build) void {
     ring_menu_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(ring_menu_tests).step);
 
+    const split_text_tests = b.addTest(.{
+        .name = "split_text_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/split_text_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    split_text_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(split_text_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",

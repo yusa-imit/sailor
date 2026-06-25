@@ -430,6 +430,9 @@ pub const widgets = struct {
 
     // v2.57.0 — RingMenu Widget
     pub const RingMenu = @import("widgets/ring_menu.zig").RingMenu;
+
+    // v2.58.0 — SplitText Widget
+    pub const SplitText = @import("widgets/split_text.zig").SplitText;
 };
 
 // Export commonly used types
@@ -500,6 +503,9 @@ pub const MiniMap = @import("widgets/minimap.zig").MiniMap;
 
 // v2.57.0 — RingMenu Widget (top-level export)
 pub const RingMenu = @import("widgets/ring_menu.zig").RingMenu;
+
+// v2.58.0 — SplitText Widget (top-level export)
+pub const SplitText = @import("widgets/split_text.zig").SplitText;
 
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;
