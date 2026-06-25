@@ -1,3 +1,37 @@
+✅ **Session 324** — FEATURE MODE (2026-06-25)
+  - **Mode**: NORMAL (session 324, 324 % 5 == 4)
+  - **Achievement**: Implemented StopWatch Widget + released v2.59.0
+
+  **Completed Work**:
+    - ✅ CI queued (not RED); 0 open issues
+    - ✅ Established v2.59.0 milestone: StopWatch Widget
+    - ✅ TDD Red: test-writer wrote 67 tests in tests/stopwatch_test.zig
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/stopwatch.zig
+    - ✅ Fixed 2 post-implementation issues: rowContains UTF-8 byte→codepoint bug; Block.init() removal (broke lifecycle tests)
+    - ✅ All tests pass (exit 0)
+    - ✅ Released v2.59.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#104, zoltraak#71, silica#82
+    - ✅ Discord notification sent
+
+  **StopWatch Widget Summary**:
+    - Fields: `elapsed_ms` (u64=0), `laps` ([]const u64=&.{}), `running` (bool=false), `show_laps` (bool=true), `show_milliseconds` (bool=true), `label` ([]const u8=""), `style` (Style={}), `time_style` (Style={}), `lap_style` (Style={}), `status_style` (Style={}), `block` (?Block=null)
+    - Methods: `init()`, `formatTime(u64, bool) [12]u8`, `lastLapMs() u64`, `lapCount() usize`, builder withElapsedMs/Laps/Running/ShowLaps/ShowMilliseconds/Label/Style/TimeStyle/LapStyle/StatusStyle/Block, `render(*Buffer, Rect)`
+    - Render: Row 0=centered time, Row 1=status [RUNNING]/[PAUSED], Row 2=divider, Row 3+=lap rows (last N laps if height-constrained)
+    - Lap row: "Lap N  +HH:MM:SS.mmm  HH:MM:SS.mmm" (split | cumulative)
+    - MAX_LAPS=32, no heap allocations
+
+  **Current State**:
+    - **Latest release**: v2.59.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 102 widgets in src/tui/widgets/
+
+  **Next Priority**:
+    - Establish v2.60.0 milestone (candidates: WordCloud, ColumnBrowser, BracketViewer, or test quality audit)
+
+  **Lesson Learned**:
+    - test-writer used `Block.init()` which didn't exist → zig-developer added it → broke lifecycle tests. Fix: remove Block.init(), replace calls with `Block{}` struct literal.
+    - rowContains UTF-8 bug: comparing text bytes vs cell.char (u21). Fix: decode text to codepoints first using Utf8View.iterator().
+
 ✅ **Session 323** — FEATURE MODE (2026-06-25)
   - **Mode**: NORMAL (session 323, 323 % 5 == 3)
   - **Achievement**: Implemented SplitText Widget + released v2.58.0
