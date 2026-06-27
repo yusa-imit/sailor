@@ -2,11 +2,32 @@
 
 ## Current Status
 
-- **Latest release**: v2.60.0 (2026-06-27) — WordCloud Widget
-- **Latest minor**: v2.60.0 (2026-06-27) — WordCloud Widget
+- **Latest release**: v2.61.0 (2026-06-27) — KanbanBoard Widget
+- **Latest minor**: v2.61.0 (2026-06-27) — KanbanBoard Widget
 - **Next release**: TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.61.0 — KanbanBoard Widget (Complete)
+
+**Theme**: A kanban board widget for task management TUI apps. Shows labeled columns (lanes) each containing scrollable cards. Cards support title, optional description, optional tags, and priority levels (low/normal/high/critical). Focused column and card are visually highlighted. Useful for project tracking, task management, and multi-stage workflow visualization.
+
+**Checklist**:
+- [x] **src/tui/widgets/kanban.zig** — KanbanBoard: columns ([]const Column=&.{}); focused_column (usize=0); focused_card (usize=0); style (Style={}); column_style (Style={}); focused_column_style (Style={}); card_style (Style={}); focused_card_style (Style={}); block (?Block=null); Column struct (title []const u8; cards []const Card); Card struct (title []const u8; description []const u8=""; tags []const []const u8=&.{}; priority Priority=.normal); Priority enum (.low, .normal, .high, .critical); init(); builder API (withColumns/FocusedColumn/FocusedCard/Style/ColumnStyle/FocusedColumnStyle/CardStyle/FocusedCardStyle/Block); render(*Buffer, Rect)
+- [x] **tests/kanban_test.zig** — 80 tests: init/defaults, builder immutability, Priority enum, render zero/minimal area, single column, multiple columns, column header with card count, focused column highlight, focused card highlight, priority indicators, description/tags display, overflow (more cards than height), block border, edge cases
+- [x] Export KanbanBoard, Column, Card, Priority via tui.zig widgets struct and top-level
+- [x] Add kanban_tests to build.zig
+- [x] Release v2.61.0
+
+**Success Criteria**:
+- MAX_COLUMNS = 8, MAX_CARDS_PER_COLUMN = 32 (comptime constants, no heap allocations)
+- Columns evenly divide the available width (separators between columns using │)
+- Column header: "Title (N)" where N = card count, using column_style; focused column uses focused_column_style
+- Priority indicators: "●" critical, "▲" high, "·" normal, "–" low (prepended to card title)
+- Card rows: priority+title on first row; tags as "#tag1 #tag2" on second row (if any); description truncated on third row (if any)
+- focused_card highlighted with focused_card_style within focused_column
+- Scrolling: if more cards than available height, show cards starting from focused_card (if in focused column)
+- No heap allocations — pure stack arrays
 
 ### v2.60.0 — WordCloud Widget (Complete)
 

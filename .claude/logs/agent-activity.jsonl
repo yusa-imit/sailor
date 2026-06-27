@@ -173,3 +173,5 @@
 {"timestamp":"2026-06-25T20:15:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement RingMenu render() to pass 12 failing render tests","project":"sailor"}
 {"timestamp":"2026-06-27T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write WordCloud widget tests (59 tests) for v2.60.0","project":"sailor"}
 {"timestamp":"2026-06-27T00:00:00Z","action":"subagent","agent_type":"orchestrator","task":"Fix WordCloud test compile errors and release v2.60.0","project":"sailor"}
+{"timestamp":"2026-06-27T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for KanbanBoard widget (v2.61.0)","project":"sailor"}
+{"timestamp":"2026-06-27T00:05:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement KanbanBoard widget to pass 80 failing tests (v2.61.0)","project":"sailor"}

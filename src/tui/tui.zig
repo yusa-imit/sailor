@@ -440,6 +440,14 @@ pub const widgets = struct {
     // v2.60.0 — WordCloud Widget
     pub const WordCloud = @import("widgets/wordcloud.zig").WordCloud;
     pub const Word = @import("widgets/wordcloud.zig").Word;
+
+    // v2.61.0 — KanbanBoard Widget
+    pub const KanbanBoard = @import("widgets/kanban.zig").KanbanBoard;
+    pub const kanban = struct {
+        pub const Column = @import("widgets/kanban.zig").Column;
+        pub const Card = @import("widgets/kanban.zig").Card;
+        pub const Priority = @import("widgets/kanban.zig").Priority;
+    };
 };
 
 // Export commonly used types
