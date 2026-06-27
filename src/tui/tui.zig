@@ -448,6 +448,16 @@ pub const widgets = struct {
         pub const Card = @import("widgets/kanban.zig").Card;
         pub const Priority = @import("widgets/kanban.zig").Priority;
     };
+
+    // v2.62.0 — BracketViewer Widget
+    pub const BracketViewer = @import("widgets/bracket_viewer.zig").BracketViewer;
+    pub const bracket_viewer = struct {
+        pub const Round = @import("widgets/bracket_viewer.zig").Round;
+        pub const Match = @import("widgets/bracket_viewer.zig").Match;
+        pub const Winner = @import("widgets/bracket_viewer.zig").Winner;
+        pub const MAX_ROUNDS = @import("widgets/bracket_viewer.zig").BracketViewer.MAX_ROUNDS;
+        pub const MAX_MATCHES_PER_ROUND = @import("widgets/bracket_viewer.zig").BracketViewer.MAX_MATCHES_PER_ROUND;
+    };
 };
 
 // Export commonly used types
