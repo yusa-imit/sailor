@@ -1,3 +1,37 @@
+✅ **Session 327** — FEATURE MODE (2026-06-27)
+  - **Mode**: NORMAL (session 327, 327 % 5 == 2)
+  - **Achievement**: Fixed WordCloud test compile errors + released v2.60.0
+
+  **Completed Work**:
+    - ✅ CI: all cancelled (not RED); 0 open issues
+    - ✅ Found pre-started WordCloud files (wordcloud.zig, wordcloud_test.zig) with compile error
+    - ✅ Fixed 2 compile errors in tests/wordcloud_test.zig:
+      1. `testing.expectEqual(wc.bold_style.fg, Style{}.fg)` → Zig can't parse `Style{}.fg` as function arg → replaced with `testing.expect(wc.bold_style.fg == null)`
+      2. `var fill_area` never mutated → changed to `const fill_area`
+    - ✅ All 59 wordcloud tests pass; overall suite exit code 0
+    - ✅ Released v2.60.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#105, zoltraak#72, silica#83
+    - ✅ Discord notification sent
+
+  **WordCloud Widget Summary**:
+    - Fields: `words` ([]const Word=&.{}), `style` (Style={}), `bold_style` (Style={}), `dim_style` (Style={}), `block` (?Block=null)
+    - Word struct: `text` ([]const u8), `weight` (u8=1)
+    - Methods: `init()`, builder withWords/Style/BoldStyle/DimStyle/Block, `render(*Buffer, Rect)`
+    - Algorithm: sort by weight desc; Archimedean spiral (theta+=0.5, r=0.3+theta*0.25, x*=2 for aspect ratio); overlap detection (1-char gap same row)
+    - Weight >= 5 → bold_style; weight <= 2 → dim_style; else style
+    - MAX_WORDS=64, no heap allocations
+
+  **Lesson Learned**:
+    - Zig 0.15 cannot parse `SomeStruct{}.field` as a function argument (parser expects `,` after `{}`). Fix: extract to const or use simpler assertion.
+
+  **Current State**:
+    - **Latest release**: v2.60.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 103 widgets in src/tui/widgets/
+
+  **Next Priority**:
+    - Establish v2.61.0 milestone (candidates: ColumnBrowser, BracketViewer, ScrollableList, or test quality audit)
+
 ✅ **Session 324** — FEATURE MODE (2026-06-25)
   - **Mode**: NORMAL (session 324, 324 % 5 == 4)
   - **Achievement**: Implemented StopWatch Widget + released v2.59.0
