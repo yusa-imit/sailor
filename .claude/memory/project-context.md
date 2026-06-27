@@ -1,3 +1,34 @@
+✅ **Session 328** — FEATURE MODE (2026-06-27)
+  - **Mode**: NORMAL (session 328, 328 % 5 == 3)
+  - **Achievement**: Implemented KanbanBoard widget + released v2.61.0
+
+  **Completed Work**:
+    - ✅ CI: queued (not RED); 0 open issues
+    - ✅ Established v2.61.0 milestone: KanbanBoard Widget
+    - ✅ TDD Red: test-writer wrote 80 tests in tests/kanban_test.zig
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/kanban.zig (358 lines)
+    - ✅ All tests pass (exit 0)
+    - ✅ Released v2.61.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#106, zoltraak#73, silica#84
+    - ✅ Discord notification sent
+
+  **KanbanBoard Widget Summary**:
+    - Fields: `columns` ([]const Column=&.{}), `focused_column` (usize=0), `focused_card` (usize=0), `style` (Style={}), `column_style` (Style={}), `focused_column_style` (Style={}), `card_style` (Style={}), `focused_card_style` (Style={}), `block` (?Block=null)
+    - Column struct: `title` ([]const u8), `cards` ([]const Card)
+    - Card struct: `title` ([]const u8), `description` ([]const u8=""), `tags` ([]const []const u8=&.{}), `priority` (Priority=.normal)
+    - Priority enum: `.low`(–) `.normal`(·) `.high`(▲) `.critical`(●)
+    - Methods: `init()`, builder withColumns/FocusedColumn/FocusedCard/Style/ColumnStyle/FocusedColumnStyle/CardStyle/FocusedCardStyle/Block, `render(*Buffer, Rect)`
+    - Render: evenly divides width; │ separators; header "Title (N)"; priority+title row, tags row (#tag), description row per card; focused column/card styling
+    - MAX_COLUMNS=8, MAX_CARDS_PER_COLUMN=32, no heap allocations
+
+  **Current State**:
+    - **Latest release**: v2.61.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 104 widgets in src/tui/widgets/
+
+  **Next Priority**:
+    - Establish v2.62.0 milestone (candidates: BracketViewer, ScrollableList, FlowChart, or test quality audit)
+
 ✅ **Session 327** — FEATURE MODE (2026-06-27)
   - **Mode**: NORMAL (session 327, 327 % 5 == 2)
   - **Achievement**: Fixed WordCloud test compile errors + released v2.60.0
