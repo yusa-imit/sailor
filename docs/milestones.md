@@ -2,11 +2,33 @@
 
 ## Current Status
 
-- **Latest release**: v2.61.0 (2026-06-27) — KanbanBoard Widget
-- **Latest minor**: v2.61.0 (2026-06-27) — KanbanBoard Widget
+- **Latest release**: v2.62.0 (2026-06-28) — BracketViewer Widget
+- **Latest minor**: v2.62.0 (2026-06-28) — BracketViewer Widget
 - **Next release**: TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.62.0 — BracketViewer Widget (Complete)
+
+**Theme**: A tournament bracket display widget for TUI applications. Shows elimination-style brackets with rounds and matches rendered as columns. Draws connecting lines between rounds showing winner advancement. Supports winner highlighting, score display, focused match tracking, and Block border. Useful for tournament management, competition tracking, and decision-tree visualization.
+
+**Checklist**:
+- [x] **src/tui/widgets/bracket_viewer.zig** — BracketViewer: rounds ([]const Round=&.{}); focused_match (usize=0); focused_round (usize=0); style (Style={}); win_style (Style={}); focused_style (Style={}); show_scores (bool=true); block (?Block=null); Round struct (matches []const Match); Match struct (team_a []const u8; team_b []const u8; score_a i32=0; score_b i32=0; winner Winner=.none); Winner enum (.none, .a, .b); init(); totalRounds() usize; matchCount() usize; builder API (withRounds/FocusedMatch/FocusedRound/Style/WinStyle/FocusedStyle/ShowScores/Block); render(*Buffer, Rect)
+- [x] **tests/bracket_viewer_test.zig** — 76 tests: init/defaults, builder immutability, totalRounds/matchCount, render zero/minimal area, single round/match, multiple rounds, winner highlighting, score display, focused match/round styling, show_scores toggle, connecting lines, block border, edge cases
+- [x] Export BracketViewer, Round, Match, Winner via tui.zig widgets struct and top-level
+- [x] Add bracket_viewer_tests to build.zig
+- [x] Release v2.62.0
+
+**Success Criteria**:
+- MAX_ROUNDS = 8, MAX_MATCHES_PER_ROUND = 16 (comptime constants, no heap allocations)
+- Column width = (inner.width - (rounds.len-1)) / rounds.len; each round gets one column, │ separators between rounds
+- Each match rendered as 3 rows: team_a row, divider "───", team_b row (or 2 rows without divider if height constrained)
+- Matches are evenly spaced vertically within each round column
+- Connecting lines: for round r<len-1, draw │ from match center to next-round match input
+- Winner: team name with win_style; loser: team name with normal style (dim if not .none)
+- show_scores: append " [score_a:score_b]" to divider row
+- Focused match (focused_round, focused_match): rendered with focused_style border/highlight
+- No heap allocations — pure stack computation
 
 ### v2.61.0 — KanbanBoard Widget (Complete)
 
