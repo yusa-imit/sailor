@@ -1368,6 +1368,17 @@ pub fn build(b: *std.Build) void {
     stopwatch_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(stopwatch_tests).step);
 
+    const wordcloud_tests = b.addTest(.{
+        .name = "wordcloud_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/wordcloud_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    wordcloud_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(wordcloud_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",

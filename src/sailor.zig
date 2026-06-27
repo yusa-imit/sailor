@@ -202,6 +202,7 @@ pub const layout = tui.layout;
 pub const Rect = tui.layout.Rect;
 pub const Style = tui.style.Style;
 pub const widgets = tui.widgets;
+pub const Word = tui.Word;
 pub const Viewport = tui.viewport.Viewport;
 pub const VirtualRenderer = tui.virtual.VirtualRenderer;
 pub const IncrementalLayout = tui.incremental_layout.IncrementalLayout;

@@ -2,13 +2,33 @@
 
 ## Current Status
 
-- **Latest release**: v2.59.0 (2026-06-25) — StopWatch Widget
-- **Latest minor**: v2.59.0 (2026-06-25) — StopWatch Widget
+- **Latest release**: v2.60.0 (2026-06-27) — WordCloud Widget
+- **Latest minor**: v2.60.0 (2026-06-27) — WordCloud Widget
 - **Next release**: TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
-### v2.59.0 — StopWatch Widget (In Progress)
+### v2.60.0 — WordCloud Widget (Complete)
+
+**Theme**: A weighted word cloud widget that arranges words in an Archimedean spiral layout. High-weight words appear near the center, low-weight words toward the edges. Includes overlap detection with 1-char gaps, weight-based styling (bold/dim), and Block border support. Useful for tag clouds, frequency visualizations, and keyword displays in TUI applications.
+
+**Checklist**:
+- [x] **src/tui/widgets/wordcloud.zig** — WordCloud: words ([]const Word=&.{}); style (Style={}); bold_style (Style={}); dim_style (Style={}); block (?Block=null); Word struct (text []const u8; weight u8=1); init(); builder API (withWords/Style/BoldStyle/DimStyle/Block); render(*Buffer, Rect)
+- [x] **tests/wordcloud_test.zig** — 59 tests: init/defaults, builder immutability, render zero/minimal area, empty words, single word, multiple words, spiral placement, overlap detection, weight-based styles, block border, edge cases (unicode, long words, offset areas)
+- [x] Export WordCloud and Word via tui.zig widgets struct and top-level
+- [x] Add wordcloud_tests to build.zig
+- [x] Release v2.60.0
+
+**Success Criteria**:
+- MAX_WORDS = 64 (comptime constant, no heap allocations)
+- Words sorted by weight descending before placement
+- Archimedean spiral: theta step 0.5, r = 0.3 + theta * 0.25; x *= 2 for terminal aspect ratio
+- Overlap detection: 1-char gap on same row
+- Weight >= 5 → bold_style (if non-empty); weight <= 2 → dim_style (if non-empty); else style
+- Zero-area / empty words: no crash
+- No heap allocations — pure stack arrays [MAX_WORDS]
+
+### v2.59.0 — StopWatch Widget (Complete)
 
 **Theme**: A count-up stopwatch widget with lap time tracking, complementing the existing CountdownTimer. Displays elapsed time in HH:MM:SS.mmm format, running/paused state indicator, and an optional lap list showing split times and cumulative totals. Useful for benchmarking TUI workflows, timing operations, and interactive time tracking.
 

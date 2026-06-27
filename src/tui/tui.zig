@@ -436,6 +436,10 @@ pub const widgets = struct {
 
     // v2.59.0 — StopWatch Widget
     pub const StopWatch = @import("widgets/stopwatch.zig").StopWatch;
+
+    // v2.60.0 — WordCloud Widget
+    pub const WordCloud = @import("widgets/wordcloud.zig").WordCloud;
+    pub const Word = @import("widgets/wordcloud.zig").Word;
 };
 
 // Export commonly used types
@@ -512,6 +516,10 @@ pub const SplitText = @import("widgets/split_text.zig").SplitText;
 
 // v2.59.0 — StopWatch Widget (top-level export)
 pub const StopWatch = @import("widgets/stopwatch.zig").StopWatch;
+
+// v2.60.0 — WordCloud Widget (top-level export)
+pub const WordCloud = @import("widgets/wordcloud.zig").WordCloud;
+pub const Word = @import("widgets/wordcloud.zig").Word;
 
 pub const Constraint = layout.Constraint;
 pub const Direction = layout.Direction;

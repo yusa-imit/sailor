@@ -171,3 +171,5 @@
 {"timestamp":"2026-06-25T08:10:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement MiniMap widget in src/tui/widgets/minimap.zig, export in tui.zig, register in build.zig","project":"sailor"}
 {"timestamp":"2026-06-25T20:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write RingMenu widget tests (65 tests, TDD Red phase)","project":"sailor"}
 {"timestamp":"2026-06-25T20:15:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement RingMenu render() to pass 12 failing render tests","project":"sailor"}
+{"timestamp":"2026-06-27T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write WordCloud widget tests (59 tests) for v2.60.0","project":"sailor"}
+{"timestamp":"2026-06-27T00:00:00Z","action":"subagent","agent_type":"orchestrator","task":"Fix WordCloud test compile errors and release v2.60.0","project":"sailor"}
