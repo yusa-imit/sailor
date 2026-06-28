@@ -464,6 +464,10 @@ pub const widgets = struct {
     pub const ActivityFeed = activity_feed.ActivityFeed;
     pub const Activity = activity_feed.Activity;
     pub const Kind = activity_feed.Kind;
+
+    // v2.64.0 — GanttChart Widget
+    pub const gantt = @import("widgets/gantt.zig");
+    pub const GanttChart = gantt.GanttChart;
 };
 
 // Export commonly used types
