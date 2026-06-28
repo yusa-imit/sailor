@@ -458,6 +458,12 @@ pub const widgets = struct {
         pub const MAX_ROUNDS = @import("widgets/bracket_viewer.zig").BracketViewer.MAX_ROUNDS;
         pub const MAX_MATCHES_PER_ROUND = @import("widgets/bracket_viewer.zig").BracketViewer.MAX_MATCHES_PER_ROUND;
     };
+
+    // v2.63.0 — ActivityFeed Widget
+    pub const activity_feed = @import("widgets/activity_feed.zig");
+    pub const ActivityFeed = activity_feed.ActivityFeed;
+    pub const Activity = activity_feed.Activity;
+    pub const Kind = activity_feed.Kind;
 };
 
 // Export commonly used types

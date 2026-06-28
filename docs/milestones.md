@@ -4,9 +4,30 @@
 
 - **Latest release**: v2.62.0 (2026-06-28) — BracketViewer Widget
 - **Latest minor**: v2.62.0 (2026-06-28) — BracketViewer Widget
-- **Next release**: TBD
-- **Active milestones**: 0 pending implementation
+- **Next release**: v2.63.0 — ActivityFeed Widget
+- **Active milestones**: 1 pending implementation
 - **Blockers**: None
+
+### v2.63.0 — ActivityFeed Widget (In Progress)
+
+**Theme**: A scrollable activity feed widget showing timestamped events with actor, kind-based icons, and color coding. Each entry displays one line: icon prefix + optional timestamp + optional actor + event description. Supports five event kinds (info, success, warning, error, action) with distinct icons (·, ●, ⚠, ✗, →). Focused item is highlighted. Useful for audit logs, command history, system event monitoring, and changelog displays in TUI applications.
+
+**Checklist**:
+- [ ] **src/tui/widgets/activity_feed.zig** — ActivityFeed: items ([]const Activity=&.{}); focused (usize=0); show_timestamp (bool=true); show_actor (bool=true); style (Style={}); timestamp_style (Style={}); actor_style (Style={}); focused_style (Style={}); info_style (Style={}); success_style (Style={}); warning_style (Style={}); error_style (Style={}); action_style (Style={}); block (?Block=null); Activity struct (timestamp []const u8=""; actor []const u8=""; event []const u8=""; kind Kind=.info); Kind enum (.info, .success, .warning, .error, .action); init(); itemCount() usize; builder API (withItems/Focused/ShowTimestamp/ShowActor/Style/TimestampStyle/ActorStyle/FocusedStyle/InfoStyle/SuccessStyle/WarningStyle/ErrorStyle/ActionStyle/Block); render(*Buffer, Rect)
+- [ ] **tests/activity_feed_test.zig** — 70 tests: init/defaults, builder immutability, Kind enum, itemCount, render zero/minimal area, single item, multiple items, focused item highlight, show_timestamp toggle, show_actor toggle, kind icons (·●⚠✗→), kind styles, overflow (more items than height), scroll-to-focused, block border, edge cases
+- [ ] Export ActivityFeed, Activity, Kind via tui.zig widgets struct and top-level
+- [ ] Add activity_feed_tests to build.zig
+- [ ] Release v2.63.0
+
+**Success Criteria**:
+- MAX_ITEMS = 64 (comptime constant, no heap allocations)
+- Kind icons: .info → "·", .success → "●", .warning → "⚠", .error → "✗", .action → "→"
+- Each activity renders on ONE line: "[icon] [timestamp] [actor] event"
+- If show_timestamp=false: omit timestamp column; if show_actor=false: omit actor column
+- Focused item: rendered with focused_style background highlight across full row width
+- Overflow: if more items than inner.height, show the window that includes focused item (scroll to keep focused visible); show last N items if focused is near end
+- Kind style applied to the icon character; rest of line uses base style (or focused_style if focused)
+- No heap allocations — pure stack computation
 
 ### v2.62.0 — BracketViewer Widget (Complete)
 

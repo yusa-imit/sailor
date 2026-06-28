@@ -1401,6 +1401,17 @@ pub fn build(b: *std.Build) void {
     bracket_viewer_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(bracket_viewer_tests).step);
 
+    const activity_feed_tests = b.addTest(.{
+        .name = "activity_feed_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/activity_feed_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    activity_feed_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(activity_feed_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",
