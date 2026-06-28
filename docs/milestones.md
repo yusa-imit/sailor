@@ -4,7 +4,9 @@
 
 - **Latest release**: v2.62.0 (2026-06-28) — BracketViewer Widget
 - **Latest minor**: v2.62.0 (2026-06-28) — BracketViewer Widget
-- **Next release**: v2.63.0 — ActivityFeed Widget (releasing)
+- **Latest release**: v2.63.0 (2026-06-28) — ActivityFeed Widget
+- **Latest minor**: v2.63.0 (2026-06-28) — ActivityFeed Widget
+- **Next release**: TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
@@ -17,7 +19,7 @@
 - [x] **tests/activity_feed_test.zig** — 70 tests: init/defaults, builder immutability, Kind enum, itemCount, render zero/minimal area, single item, multiple items, focused item highlight, show_timestamp toggle, show_actor toggle, kind icons (·●⚠✗→), kind styles, overflow (more items than height), scroll-to-focused, block border, edge cases
 - [x] Export ActivityFeed, Activity, Kind via tui.zig widgets struct and top-level
 - [x] Add activity_feed_tests to build.zig
-- [ ] Release v2.63.0
+- [x] Release v2.63.0
 
 **Success Criteria**:
 - MAX_ITEMS = 64 (comptime constant, no heap allocations)

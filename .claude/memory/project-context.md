@@ -1,3 +1,31 @@
+✅ **Session 331** — FEATURE MODE (2026-06-28)
+  - **Mode**: NORMAL (session 331, 331 % 5 == 1)
+  - **Achievement**: Implemented ActivityFeed widget + released v2.63.0
+
+  **Completed Work**:
+    - ✅ CI: queued (not RED); 0 open issues
+    - ✅ Established v2.63.0 milestone: ActivityFeed Widget
+    - ✅ TDD Red: test-writer wrote 70 tests in tests/activity_feed_test.zig
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/activity_feed.zig
+    - ✅ All tests pass (exit 0)
+    - ✅ Released v2.63.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#108, zoltraak#75, silica#86
+
+  **ActivityFeed Widget Summary**:
+    - Fields: `items` ([]const Activity=&.{}), `focused` (usize=0), `show_timestamp` (bool=true), `show_actor` (bool=true), `style/timestamp_style/actor_style/focused_style` (Style={}), `info/success/warning/error/action_style` (Style={}), `block` (?Block=null)
+    - Activity struct: `timestamp` ([]const u8=""), `actor` ([]const u8=""), `event` ([]const u8=""), `kind` (Kind=.info)
+    - Kind enum: `.info` (·), `.success` (●), `.warning` (⚠), `.error_kind` (✗), `.action` (→)
+    - Methods: `init()`, `itemCount() usize`, builder withItems/Focused/ShowTimestamp/ShowActor/Style/TimestampStyle/ActorStyle/FocusedStyle/InfoStyle/SuccessStyle/WarningStyle/ErrorStyle/ActionStyle/Block, `render(*Buffer, Rect)`
+    - MAX_ITEMS=64, no heap allocations, scrolling to keep focused visible
+
+  **Current State**:
+    - **Latest release**: v2.63.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 106 widgets in src/tui/widgets/
+
+  **Next Priority**:
+    - Establish v2.64.0 milestone (candidates: GanttChart, NetworkDiagram, FlowChart)
+
 ✅ **Session 330** — STABILIZATION MODE (2026-06-28)
   - **Mode**: STABILIZATION (session 330, 330 % 5 == 0)
   - **Achievement**: Test quality audit — replaced 79 `expect(true)` stubs across 6 test files
