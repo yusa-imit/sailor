@@ -468,6 +468,13 @@ pub const widgets = struct {
     // v2.64.0 — GanttChart Widget
     pub const gantt = @import("widgets/gantt.zig");
     pub const GanttChart = gantt.GanttChart;
+
+    // v2.65.0 — FlowChart Widget
+    pub const flowchart = @import("widgets/flowchart.zig");
+    pub const FlowChart = flowchart.FlowChart;
+    pub const FlowNode = flowchart.FlowNode;
+    pub const FlowEdge = flowchart.FlowEdge;
+    pub const NodeKind = flowchart.NodeKind;
 };
 
 // Export commonly used types

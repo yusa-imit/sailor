@@ -2,13 +2,29 @@
 
 ## Current Status
 
-- **Latest release**: v2.63.0 (2026-06-28) — ActivityFeed Widget
-- **Latest minor**: v2.63.0 (2026-06-28) — ActivityFeed Widget
-- **Latest release**: v2.64.0 (2026-06-28) — GanttChart Widget
-- **Latest minor**: v2.64.0 (2026-06-28) — GanttChart Widget
+- **Latest release**: v2.65.0 (2026-06-29) — FlowChart Widget
+- **Latest minor**: v2.65.0 (2026-06-29) — FlowChart Widget
 - **Next release**: TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.65.0 — FlowChart Widget (Complete)
+
+**Theme**: A flow chart widget with grid-based node positioning, four node shapes (process=rectangle, terminal=rounded, decision=diamond, io=parallelogram), and labeled directional edge connectors. Supports focused node highlighting, customizable grid spacing, and Block border. MAX_NODES=32, MAX_EDGES=64, no heap allocations. Useful for algorithm visualization, process flows, decision trees, and workflow diagrams in TUI applications.
+
+**Checklist**:
+- [x] **src/tui/widgets/flowchart.zig** — FlowChart: nodes ([]const FlowNode=&.{}); edges ([]const FlowEdge=&.{}); focused (usize=0); style (Style={}); focused_style (Style={}); node_width (u16=12); node_height (u16=3); h_spacing (u16=4); v_spacing (u16=2); block (?Block=null); FlowNode (label/kind/col/row/style); FlowEdge (from/to/label/style); NodeKind (.process/.decision/.terminal/.io); init(); nodeCount()/edgeCount(); builder withNodes/Edges/Focused/Style/FocusedStyle/NodeWidth/NodeHeight/HSpacing/VSpacing/Block; render(*Buffer, Rect)
+- [x] **tests/flowchart_test.zig** — 68 tests: init/defaults, NodeKind enum, nodeCount/edgeCount capping, builder immutability, render zero/minimal area, single process node, terminal node shape, multiple nodes, focused styling, edge connector, edge label, block border, grid spacing, all NodeKind, edge cases
+- [x] Export FlowChart, FlowNode, FlowEdge, NodeKind via tui.zig widgets struct and top-level
+- [x] Add flowchart_tests to build.zig
+- [x] Release v2.65.0
+
+**Success Criteria**:
+- MAX_NODES = 32, MAX_EDGES = 64 (no heap allocations)
+- Grid: cell_width = node_width + h_spacing, cell_height = node_height + v_spacing
+- .process → `┌─...─┐` / `│label│` / `└─...─┘`; .terminal → `╭─...─╮` / `│label│` / `╰─...─╯`
+- Edge arrows: ▼ (down), ▶ (right), ▲ (up), ◀ (left) at destination
+- Focused node rendered with focused_style
 
 ### v2.64.0 — GanttChart Widget (Complete)
 
