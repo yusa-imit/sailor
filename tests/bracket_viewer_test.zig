@@ -462,7 +462,8 @@ test "render with zero-width area does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 20 };
 
     bv.render(&buf, area);
-    try testing.expect(true);
+    // Zero-width area: no cells rendered
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
 }
 
 test "render with zero-height area does not crash" {
@@ -473,7 +474,8 @@ test "render with zero-height area does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 0 };
 
     bv.render(&buf, area);
-    try testing.expect(true);
+    // Zero-height area: no cells rendered
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
 }
 
 test "render with 1x1 area does not crash" {
@@ -486,7 +488,8 @@ test "render with 1x1 area does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 1, .height = 1 };
 
     bv.render(&buf, area);
-    try testing.expect(true);
+    // 1x1 area: at most 1 cell
+    try testing.expect(countNonEmptyCells(buf, area) <= 1);
 }
 
 test "render with empty rounds does not crash" {
@@ -497,7 +500,9 @@ test "render with empty rounds does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
 
     bv.render(&buf, area);
-    try testing.expect(true);
+    // Empty rounds: area should be empty or minimal
+    const empty = countNonEmptyCells(buf, area) == 0;
+    try testing.expect(empty);
 }
 
 test "render area smaller than minimum does not crash" {
@@ -510,7 +515,9 @@ test "render area smaller than minimum does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 3, .height = 1 };
 
     bv.render(&buf, area);
-    try testing.expect(true);
+    // Very small area: minimal or no rendering
+    const cells = countNonEmptyCells(buf, area);
+    try testing.expect(cells <= 3);
 }
 
 test "render with offset area does not crash" {
@@ -523,7 +530,8 @@ test "render with offset area does not crash" {
     const area = Rect{ .x = 10, .y = 5, .width = 40, .height = 15 };
 
     bv.render(&buf, area);
-    try testing.expect(true);
+    // Offset area: teams should render
+    try testing.expect(findInArea(buf, area, "A") or findInArea(buf, area, "B"));
 }
 
 // ============================================================================
@@ -587,7 +595,8 @@ test "match renders score when show_scores=true" {
     bv.render(&buf, area);
 
     // Scores should appear in some form
-    try testing.expect(findInArea(buf, area, "3") or findInArea(buf, area, "2"));
+    const has_scores = findInArea(buf, area, "3") or findInArea(buf, area, "2");
+    try testing.expect(has_scores);
 }
 
 test "match hides score when show_scores=false" {
@@ -603,8 +612,8 @@ test "match hides score when show_scores=false" {
 
     bv.render(&buf, area);
 
-    // Teams should still appear
-    try testing.expect(findInArea(buf, area, "A") or findInArea(buf, area, "B"));
+    // Teams should still appear and no scores shown
+    try testing.expect((findInArea(buf, area, "A") or findInArea(buf, area, "B")) and !findInArea(buf, area, "10"));
 }
 
 test "match with empty team names does not crash" {
@@ -617,7 +626,8 @@ test "match with empty team names does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
 
     bv.render(&buf, area);
-    try testing.expect(true);
+    // Empty names: divider should still render
+    try testing.expect(areaHasChar(buf, area, '─'));
 }
 
 // ============================================================================
@@ -742,7 +752,8 @@ test "negative scores render correctly" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
 
     bv.render(&buf, area);
-    try testing.expect(true);
+    // Match content should render
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "large scores render without truncation crash" {
@@ -757,7 +768,8 @@ test "large scores render without truncation crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
 
     bv.render(&buf, area);
-    try testing.expect(true);
+    // Match content renders with large scores
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "zero scores display correctly" {
@@ -772,7 +784,8 @@ test "zero scores display correctly" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
 
     bv.render(&buf, area);
-    try testing.expect(true);
+    // Match with zero scores should render
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "show_scores toggle affects rendering" {
@@ -793,8 +806,9 @@ test "show_scores toggle affects rendering" {
     bv_on.render(&buf_on, area);
     bv_off.render(&buf_off, area);
 
-    // Both should render without crash
-    try testing.expect(true);
+    // Both should render content (scores may or may not differ based on flag)
+    try testing.expect(countNonEmptyCells(buf_on, area) > 0);
+    try testing.expect(countNonEmptyCells(buf_off, area) > 0);
 }
 
 // ============================================================================
@@ -872,7 +886,8 @@ test "each round column has correct width" {
 
     bv.render(&buf, area);
 
-    try testing.expect(true);
+    // Rounds should render content
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "MAX_ROUNDS constant is defined" {
@@ -893,7 +908,8 @@ test "8 rounds do not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 200, .height = 20 };
 
     bv.render(&buf, area);
-    try testing.expect(true);
+    // 8 rounds should render content
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 // ============================================================================
@@ -958,7 +974,9 @@ test "focused_round index changes which round is focused" {
 
     bv.render(&buf, area);
 
+    // Verify focused_round was set and content renders
     try testing.expectEqual(@as(usize, 1), bv.focused_round);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "all matches appear even when one is focused" {
@@ -1039,8 +1057,8 @@ test "block inner area smaller than outer area" {
 
     bv.render(&buf, area);
 
-    // Content should be inside border
-    try testing.expect(true);
+    // Content should render inside border area
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "matches render inside block border area" {
@@ -1115,7 +1133,8 @@ test "content at area offset is rendered correctly" {
 
     bv.render(&buf, area);
 
-    try testing.expect(true);
+    // Offset area should contain content
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "area with width less than minimum does not crash" {
@@ -1128,7 +1147,9 @@ test "area with width less than minimum does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 5, .height = 20 };
 
     bv.render(&buf, area);
-    try testing.expect(true);
+    // Narrow area: should render something or nothing
+    const cells = countNonEmptyCells(buf, area);
+    try testing.expect(cells < 100);
 }
 
 test "many rounds at narrow width renders without crash" {
@@ -1145,7 +1166,8 @@ test "many rounds at narrow width renders without crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
 
     bv.render(&buf, area);
-    try testing.expect(true);
+    // Multiple rounds in narrow space should render some content
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 // ============================================================================
@@ -1166,7 +1188,8 @@ test "base style applied to background" {
 
     bv.render(&buf, area);
 
-    try testing.expect(true);
+    // Style should be applied to content
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "win_style applied to winning team" {
@@ -1185,7 +1208,10 @@ test "win_style applied to winning team" {
 
     bv.render(&buf, area);
 
-    try testing.expect(findInArea(buf, area, "Winner"));
+    // Winner team should be rendered with styling applied
+    const has_winner = findInArea(buf, area, "Winner");
+    const has_loser = findInArea(buf, area, "Loser");
+    try testing.expect(has_winner and has_loser);
 }
 
 test "focused_style applied to focused match" {
@@ -1203,7 +1229,10 @@ test "focused_style applied to focused match" {
 
     bv.render(&buf, area);
 
-    try testing.expect(findInArea(buf, area, "A"));
+    // Focused match should render both teams with focused style
+    const has_a = findInArea(buf, area, "A");
+    const has_b = findInArea(buf, area, "B");
+    try testing.expect(has_a and has_b);
 }
 
 test "all styles can be applied simultaneously" {
@@ -1227,7 +1256,10 @@ test "all styles can be applied simultaneously" {
 
     bv.render(&buf, area);
 
-    try testing.expect(findInArea(buf, area, "A"));
+    // All styles applied: content should render
+    const has_a = findInArea(buf, area, "A");
+    const has_b = findInArea(buf, area, "B");
+    try testing.expect(has_a and has_b);
 }
 
 // ============================================================================
@@ -1344,6 +1376,6 @@ test "bracket state immutability across renders" {
     bv.render(&buf1, area);
     bv.render(&buf2, area);
 
-    // Both renders should complete without crash
-    try testing.expect(true);
+    // Both renders should be identical/deterministic
+    try testing.expect(countNonEmptyCells(buf1, area) == countNonEmptyCells(buf2, area));
 }

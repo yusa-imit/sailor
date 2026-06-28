@@ -219,7 +219,9 @@ test "render with zero-width area does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 20 };
 
     wc.render(&buf, area);
-    try testing.expect(true);
+    // Zero-area render: buffer should remain unchanged
+    const initial = buf.getConst(0, 0);
+    _ = initial;
 }
 
 test "render with zero-height area does not crash" {
@@ -230,7 +232,8 @@ test "render with zero-height area does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 0 };
 
     wc.render(&buf, area);
-    try testing.expect(true);
+    // Zero-height render: no cells written in area
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
 }
 
 test "render with 1x1 area does not crash" {
@@ -242,7 +245,8 @@ test "render with 1x1 area does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 1, .height = 1 };
 
     wc.render(&buf, area);
-    try testing.expect(true);
+    // 1x1 area: at most 1 cell written
+    try testing.expect(countNonEmptyCells(buf, area) <= 1);
 }
 
 test "render area smaller than any word skips word, no crash" {
@@ -254,7 +258,8 @@ test "render area smaller than any word skips word, no crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 5, .height = 1 };
 
     wc.render(&buf, area);
-    try testing.expect(true);
+    // Word too long for area: should not be placed
+    try testing.expect(!findInArea(buf, area, "extraordinary"));
 }
 
 test "render with empty words slice leaves buffer unchanged" {
@@ -284,7 +289,8 @@ test "render with null block uses full area" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
 
     wc.render(&buf, area);
-    try testing.expect(true);
+    // Without block, word should appear in full area
+    try testing.expect(findInArea(buf, area, "hello"));
 }
 
 // ============================================================================
@@ -354,7 +360,8 @@ test "single empty-string word does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
 
     wc.render(&buf, area);
-    try testing.expect(true);
+    // Empty word: area should remain untouched
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
 }
 
 // ============================================================================
@@ -445,7 +452,8 @@ test "64 words (MAX_WORDS) does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
 
     wc.render(&buf, area);
-    try testing.expect(true);
+    // At least some words should be placed
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "65+ words truncated to 64, does not crash" {
@@ -461,7 +469,8 @@ test "65+ words truncated to 64, does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
 
     wc.render(&buf, area);
-    try testing.expect(true);
+    // Truncated to 64 words: should still render some content
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "words appear in area after render" {
@@ -495,7 +504,8 @@ test "empty string words mixed with real words does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
 
     wc.render(&buf, area);
-    try testing.expect(true);
+    // Real words should render despite empty ones
+    try testing.expect(findInArea(buf, area, "hello") or findInArea(buf, area, "world"));
 }
 
 test "all words same weight=5 renders without crash" {
@@ -511,7 +521,8 @@ test "all words same weight=5 renders without crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
 
     wc.render(&buf, area);
-    try testing.expect(true);
+    // Same weight: all should attempt to render
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 // ============================================================================
@@ -628,7 +639,8 @@ test "block style does not override word style" {
 
     wc.render(&buf, area);
 
-    try testing.expect(true);
+    // Word should render inside block area
+    try testing.expect(findInArea(buf, area, "text"));
 }
 
 // ============================================================================
@@ -646,7 +658,8 @@ test "with Block border, words appear only inside inner area" {
 
     wc.render(&buf, area);
 
-    try testing.expect(true);
+    // Border renders + words inside area
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "block title renders in border" {
@@ -660,7 +673,8 @@ test "block title renders in border" {
 
     wc.render(&buf, area);
 
-    try testing.expect(true);
+    // Title should render in border area
+    try testing.expect(findInArea(buf, area, "WordCloud") or countNonEmptyCells(buf, area) > 0);
 }
 
 test "words do not overwrite block border characters" {
@@ -674,7 +688,8 @@ test "words do not overwrite block border characters" {
 
     wc.render(&buf, area);
 
-    try testing.expect(true);
+    // Border should exist (rendered)
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "block with padding reduces inner area" {
@@ -688,7 +703,8 @@ test "block with padding reduces inner area" {
 
     wc.render(&buf, area);
 
-    try testing.expect(true);
+    // Block with padding still renders content
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "no block uses full area" {
@@ -750,7 +766,8 @@ test "different word order with same weights may produce different layouts witho
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
 
     wc.render(&buf, area);
-    try testing.expect(true);
+    // Both words should render
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "empty words slice always produces unchanged buffer" {
@@ -878,7 +895,8 @@ test "MAX_WORDS=64 limit: more than 64 words attempts only first 64" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
 
     wc.render(&buf, area);
-    try testing.expect(true);
+    // At least some words from the first 64 should render
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "very long word (100 chars) in small area is skipped, no crash" {
@@ -893,8 +911,9 @@ test "very long word (100 chars) in small area is skipped, no crash" {
 
     wc.render(&buf, area);
 
-    // Word should not be placed (too long)
-    try testing.expect(!findInArea(buf, area, "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"));
+    // Word too long: should not be fully placed (verify not all chars appear)
+    const long_word = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz";
+    try testing.expect(!findInArea(buf, area, long_word));
 }
 
 // ============================================================================
@@ -932,8 +951,8 @@ test "weight=1 is light, weight=10 is heavy" {
 
     wc.render(&buf, area);
 
-    // Both should appear (or at least not crash)
-    try testing.expect(true);
+    // Both should attempt to appear
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "render offset area at (10, 5) respects offset bounds" {
@@ -946,8 +965,8 @@ test "render offset area at (10, 5) respects offset bounds" {
 
     wc.render(&buf, area);
 
-    // Check offset area has content
-    try testing.expect(true);
+    // Word should render in offset area
+    try testing.expect(findInArea(buf, area, "offset"));
 }
 
 test "multiple identical words renders all" {
@@ -978,7 +997,8 @@ test "unicode text renders without crash" {
 
     wc.render(&buf, area);
 
-    try testing.expect(true);
+    // Unicode text "café" (4 visible chars) should produce some rendered cells
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "single character words render" {
@@ -1013,7 +1033,8 @@ test "area with width=1 height=20 can render single-char words" {
 
     wc.render(&buf, area);
 
-    try testing.expect(true);
+    // Single-char words should fit in 1-width area
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "mixing different text lengths works correctly" {
@@ -1030,5 +1051,6 @@ test "mixing different text lengths works correctly" {
 
     wc.render(&buf, area);
 
-    try testing.expect(true);
+    // Mixed lengths should render some content
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }

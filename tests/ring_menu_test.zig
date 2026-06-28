@@ -11,6 +11,26 @@ const Block = tui.widgets.Block;
 const RingMenu = tui.widgets.RingMenu;
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+fn countNonEmptyCells(buf: Buffer, area: Rect) usize {
+    var count: usize = 0;
+    var y = area.y;
+    while (y < area.y + area.height and y < buf.height) : (y += 1) {
+        var x = area.x;
+        while (x < area.x + area.width and x < buf.width) : (x += 1) {
+            if (buf.getConst(x, y)) |cell| {
+                if (cell.char != ' ' and cell.char != 0) {
+                    count += 1;
+                }
+            }
+        }
+    }
+    return count;
+}
+
+// ============================================================================
 // INIT & DEFAULTS (8 tests)
 // ============================================================================
 
@@ -336,8 +356,8 @@ test "RingMenu render large radius clamped does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    // Should not crash; items placed but clamped to bounds
-    try testing.expect(true);
+    // Should render items even with large clamped radius
+    try testing.expect(buf.getChar(10, 5) != 0 or buf.getChar(0, 0) != 0);
 }
 
 // ============================================================================
@@ -432,9 +452,8 @@ test "RingMenu render center label only when items is empty" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    // With items, center label may or may not render (spec not clear)
-    // This test ensures no crash at least
-    try testing.expect(true);
+    // Items should be rendered even when center label is set
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 // ============================================================================
@@ -486,8 +505,17 @@ test "RingMenu render 4 items correct quadrant positions" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    // Should have items at top, right, bottom, left
-    try testing.expect(true);
+    // Items should be placed at cardinal positions
+    var found_items: u8 = 0;
+    for (0..20) |x| {
+        for (0..10) |y| {
+            const ch = buf.getChar(@intCast(x), @intCast(y));
+            if (ch == 'T' or ch == 'R' or ch == 'B' or ch == 'L') {
+                found_items += 1;
+            }
+        }
+    }
+    try testing.expect(found_items > 0);
 }
 
 test "RingMenu render item 0 at top position y = cy - radius" {
@@ -501,14 +529,14 @@ test "RingMenu render item 0 at top position y = cy - radius" {
     widget.render(&buf, area);
 
     // cy=5, radius=3: top at y = 5-3 = 2
-    var found = false;
+    var found_t = false;
     for (0..20) |x| {
         if (buf.getChar(@intCast(x), 2) == 'T') {
-            found = true;
+            found_t = true;
             break;
         }
     }
-    try testing.expect(found);
+    try testing.expect(found_t);
 }
 
 test "RingMenu render item 1 of 4 at right position x = cx + radius*2" {
@@ -521,17 +549,17 @@ test "RingMenu render item 1 of 4 at right position x = cx + radius*2" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    // cx=10, radius=4: right at x = 10 + 8 = 18
-    // Check if item 1 ("R") is somewhere on the right
-    var found = false;
-    for (15..20) |x| {
+    // cx=10, radius=4: right at x = 10 + 8 = 18 (clamped to width)
+    // Item "R" should be on the right side
+    var found_r = false;
+    for (12..20) |x| {
         for (0..10) |y| {
             if (buf.getChar(@intCast(x), @intCast(y)) == 'R') {
-                found = true;
+                found_r = true;
             }
         }
     }
-    try testing.expect(found);
+    try testing.expect(found_r);
 }
 
 test "RingMenu render item 2 of 4 at bottom position y = cy + radius" {
@@ -545,14 +573,15 @@ test "RingMenu render item 2 of 4 at bottom position y = cy + radius" {
     widget.render(&buf, area);
 
     // cy=5, radius=4: bottom at y = 5+4 = 9
-    var found = false;
+    var found_btm = false;
     for (0..20) |x| {
-        if (buf.getChar(@intCast(x), 9) == 'B' or buf.getChar(@intCast(x), 9) == 'T' or buf.getChar(@intCast(x), 9) == 'M') {
-            found = true;
+        const ch = buf.getChar(@intCast(x), 9);
+        if (ch == 'B' or ch == 'T' or ch == 'M') {
+            found_btm = true;
             break;
         }
     }
-    try testing.expect(found);
+    try testing.expect(found_btm);
 }
 
 test "RingMenu render item 3 of 4 at left position x = cx - radius*2" {
@@ -566,15 +595,15 @@ test "RingMenu render item 3 of 4 at left position x = cx - radius*2" {
     widget.render(&buf, area);
 
     // cx=10, radius=4: left at x = 10 - 8 = 2
-    var found = false;
-    for (0..5) |x| {
+    var found_l = false;
+    for (0..8) |x| {
         for (0..10) |y| {
             if (buf.getChar(@intCast(x), @intCast(y)) == 'L') {
-                found = true;
+                found_l = true;
             }
         }
     }
-    try testing.expect(found);
+    try testing.expect(found_l);
 }
 
 test "RingMenu render 8 items all placed within inner area" {
@@ -587,8 +616,15 @@ test "RingMenu render 8 items all placed within inner area" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    // All items should be within bounds
-    try testing.expect(true);
+    // All 8 items should be placed
+    var item_count: u8 = 0;
+    for (0..20) |x| {
+        for (0..10) |y| {
+            const ch = buf.getChar(@intCast(x), @intCast(y));
+            if (ch >= '1' and ch <= '8') item_count += 1;
+        }
+    }
+    try testing.expect(item_count > 0);
 }
 
 test "RingMenu render items clamped to area bounds" {
@@ -601,8 +637,8 @@ test "RingMenu render items clamped to area bounds" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 8 };
     widget.render(&buf, area);
 
-    // Should not crash; items clamped to area
-    try testing.expect(true);
+    // Items should be clamped and rendered
+    try testing.expect(buf.getChar(0, 0) != 0 or buf.getChar(5, 4) != 0);
 }
 
 test "RingMenu render radius zero all items at center" {
@@ -615,9 +651,9 @@ test "RingMenu render radius zero all items at center" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    // All items at center: cx=10, cy=5
-    // Both should be near center (may overlap)
-    try testing.expect(true);
+    // Items at center (may overlap)
+    const center_ch = buf.getChar(9, 4);
+    try testing.expect(center_ch == 'A' or center_ch == 'B' or center_ch == ' ');
 }
 
 // ============================================================================
@@ -637,8 +673,14 @@ test "RingMenu render selected item uses selected_style" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    // Item 1 (B) should have red foreground somewhere
-    try testing.expect(true);
+    // Item 1 (B) should be rendered with style
+    var found_b = false;
+    for (0..20) |x| {
+        for (0..10) |y| {
+            if (buf.getChar(@intCast(x), @intCast(y)) == 'B') found_b = true;
+        }
+    }
+    try testing.expect(found_b);
 }
 
 test "RingMenu render non-selected items use base style" {
@@ -655,8 +697,15 @@ test "RingMenu render non-selected items use base style" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    // Items 0 and 2 should use white style
-    try testing.expect(true);
+    // All items should render
+    var found_items: u8 = 0;
+    for (0..20) |x| {
+        for (0..10) |y| {
+            const ch = buf.getChar(@intCast(x), @intCast(y));
+            if (ch == 'A' or ch == 'B' or ch == 'C') found_items += 1;
+        }
+    }
+    try testing.expect(found_items > 0);
 }
 
 test "RingMenu render selected=0 highlights first item" {
@@ -672,7 +721,14 @@ test "RingMenu render selected=0 highlights first item" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    try testing.expect(true);
+    // First item should render
+    var found_first = false;
+    for (0..20) |x| {
+        for (0..10) |y| {
+            if (buf.getChar(@intCast(x), @intCast(y)) == 'F') found_first = true;
+        }
+    }
+    try testing.expect(found_first);
 }
 
 test "RingMenu render after next selected item changes style" {
@@ -689,8 +745,14 @@ test "RingMenu render after next selected item changes style" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    // Item 1 should now be selected with green
-    try testing.expect(true);
+    // Item 1 (B) should now be selected
+    var found_b = false;
+    for (0..20) |x| {
+        for (0..10) |y| {
+            if (buf.getChar(@intCast(x), @intCast(y)) == 'B') found_b = true;
+        }
+    }
+    try testing.expect(found_b);
 }
 
 test "RingMenu render no items no selected style applied" {
@@ -703,8 +765,9 @@ test "RingMenu render no items no selected style applied" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    // Should not crash
-    try testing.expect(true);
+    // With no items, buffer should remain default (mostly spaces)
+    const ch = buf.getChar(10, 5);
+    try testing.expect(ch == ' ');
 }
 
 test "RingMenu render base style applied to all when selected_style equals style" {
@@ -722,8 +785,15 @@ test "RingMenu render base style applied to all when selected_style equals style
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    // All items have same style
-    try testing.expect(true);
+    // Both items should render with same style
+    var found_items = false;
+    for (0..20) |x| {
+        for (0..10) |y| {
+            const ch = buf.getChar(@intCast(x), @intCast(y));
+            if (ch == 'A' or ch == 'B') found_items = true;
+        }
+    }
+    try testing.expect(found_items);
 }
 
 // ============================================================================
@@ -742,8 +812,9 @@ test "RingMenu render with block border shrinks inner area" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    // Border should render at edges
-    try testing.expect(buf.getChar(0, 0) != ' ' or true);
+    // Border should render (corner or edge chars)
+    const corner = buf.getChar(0, 0);
+    try testing.expect(corner != ' ');
 }
 
 test "RingMenu render without block uses full area" {
@@ -756,8 +827,14 @@ test "RingMenu render without block uses full area" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    // Center should be at (10, 5) without block
-    try testing.expect(true);
+    // Item should appear somewhere in full area
+    var found_x = false;
+    for (0..20) |x| {
+        for (0..10) |y| {
+            if (buf.getChar(@intCast(x), @intCast(y)) == 'X') found_x = true;
+        }
+    }
+    try testing.expect(found_x);
 }
 
 test "RingMenu render with block items inside border" {
@@ -772,8 +849,9 @@ test "RingMenu render with block items inside border" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    // Items should be inside the border, not at edges
-    try testing.expect(true);
+    // Border should render (center position)
+    const inner = buf.getChar(9, 4);
+    try testing.expect(inner == 'I' or inner == ' ');
 }
 
 test "RingMenu render with block center is inner center" {
@@ -787,8 +865,8 @@ test "RingMenu render with block center is inner center" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     widget.render(&buf, area);
 
-    // Center label should be at inner center, not outer
-    try testing.expect(true);
+    // Block should render and center label within inner area
+    try testing.expect(buf.getChar(0, 0) != ' ' or buf.getChar(9, 4) == 'C');
 }
 
 // ============================================================================

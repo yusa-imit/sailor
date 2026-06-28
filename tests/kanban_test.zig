@@ -381,7 +381,8 @@ test "render with zero-width area does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 20 };
 
     kb.render(&buf, area);
-    try testing.expect(true);
+    // Zero-width: no cells rendered
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
 }
 
 test "render with zero-height area does not crash" {
@@ -392,7 +393,8 @@ test "render with zero-height area does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 0 };
 
     kb.render(&buf, area);
-    try testing.expect(true);
+    // Zero-height: no cells rendered
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
 }
 
 test "render with 1x1 area does not crash" {
@@ -404,7 +406,8 @@ test "render with 1x1 area does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 1, .height = 1 };
 
     kb.render(&buf, area);
-    try testing.expect(true);
+    // 1x1 area: at most 1 cell
+    try testing.expect(countNonEmptyCells(buf, area) <= 1);
 }
 
 test "render with empty columns does not crash" {
@@ -415,7 +418,8 @@ test "render with empty columns does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
 
     kb.render(&buf, area);
-    try testing.expect(true);
+    // Empty columns: area should be empty or minimal
+    try testing.expect(countNonEmptyCells(buf, area) == 0);
 }
 
 test "render with zero columns does not crash" {
@@ -427,7 +431,8 @@ test "render with zero columns does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
 
     kb.render(&buf, area);
-    try testing.expect(true);
+    // Zero columns: area should be empty
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
 }
 
 test "render area smaller than column headers does not crash" {
@@ -439,7 +444,9 @@ test "render area smaller than column headers does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 3, .height = 1 };
 
     kb.render(&buf, area);
-    try testing.expect(true);
+    // Very small area: minimal rendering expected
+    const cells = countNonEmptyCells(buf, area);
+    try testing.expect(cells <= 3);
 }
 
 // ============================================================================
@@ -801,8 +808,10 @@ test "focused card only applies in focused column" {
 
     kb.render(&buf, area);
 
-    // Focused card should be in focused column (Col1)
-    try testing.expect(findInArea(buf, area, "Task1"));
+    // Both columns should render
+    const has_task1 = findInArea(buf, area, "Task1");
+    const has_col1 = findInArea(buf, area, "Col1");
+    try testing.expect(has_task1 and has_col1);
 }
 
 // ============================================================================
@@ -901,7 +910,8 @@ test "more cards than rows do not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 5 };
 
     kb.render(&buf, area);
-    try testing.expect(true);
+    // Column header should render
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "focused card remains visible with overflow" {
@@ -920,8 +930,8 @@ test "focused card remains visible with overflow" {
 
     kb.render(&buf, area);
 
-    // Should not crash and layout should be reasonable
-    try testing.expect(true);
+    // Cards should render within area bounds
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "MAX_CARDS_PER_COLUMN=32 constant is defined" {
@@ -941,7 +951,8 @@ test "32 cards in column renders without crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 100 };
 
     kb.render(&buf, area);
-    try testing.expect(true);
+    // Maximum cards should render
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 // ============================================================================
@@ -1052,8 +1063,8 @@ test "content at area offset is rendered correctly" {
 
     kb.render(&buf, area);
 
-    // Content should be within offset area
-    try testing.expect(true);
+    // Offset area should have content (column header)
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "area with width less than column header does not crash" {
@@ -1065,7 +1076,9 @@ test "area with width less than column header does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 5, .height = 20 };
 
     kb.render(&buf, area);
-    try testing.expect(true);
+    // Narrow area: minimal rendering
+    const cells = countNonEmptyCells(buf, area);
+    try testing.expect(cells <= 5);
 }
 
 test "many columns at narrow width renders without crash" {
@@ -1083,7 +1096,8 @@ test "many columns at narrow width renders without crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
 
     kb.render(&buf, area);
-    try testing.expect(true);
+    // Multiple columns should render content
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 // ============================================================================
@@ -1103,8 +1117,8 @@ test "base style applied to background" {
 
     kb.render(&buf, area);
 
-    // Should render without crashing with the style applied
-    try testing.expect(true);
+    // Style applied: content should render
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "column style applied to unfocused columns" {
