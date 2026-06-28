@@ -2,13 +2,35 @@
 
 ## Current Status
 
-- **Latest release**: v2.62.0 (2026-06-28) — BracketViewer Widget
-- **Latest minor**: v2.62.0 (2026-06-28) — BracketViewer Widget
 - **Latest release**: v2.63.0 (2026-06-28) — ActivityFeed Widget
 - **Latest minor**: v2.63.0 (2026-06-28) — ActivityFeed Widget
+- **Latest release**: v2.64.0 (2026-06-28) — GanttChart Widget
+- **Latest minor**: v2.64.0 (2026-06-28) — GanttChart Widget
 - **Next release**: TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.64.0 — GanttChart Widget (Complete)
+
+**Theme**: A project timeline Gantt chart widget that renders tasks as horizontal bars across a timeline. Each task has a name label, a start position, an end position, and an optional progress percentage that fills the bar partially. The chart auto-scales to fit all tasks within the available inner width. Focused task row is highlighted. Useful for project tracking, sprint boards, timeline visualization, and schedule displays in TUI applications.
+
+**Checklist**:
+- [x] **src/tui/widgets/gantt.zig** — GanttChart: tasks ([]const Task=&.{}); focused (usize=0); style (Style={}); bar_style (Style={}); focused_style (Style={}); complete_style (Style={}); label_width (u16=20); show_progress (bool=true); block (?Block=null); Task struct (name []const u8=""; start u16=0; end u16=0; progress u8=0; style ?Style=null); init(); taskCount() usize; builder API (withTasks/Focused/Style/BarStyle/FocusedStyle/CompleteStyle/LabelWidth/ShowProgress/Block); render(*Buffer, Rect)
+- [x] **tests/gantt_test.zig** — 64 tests: init/defaults, builder immutability, taskCount, render zero/minimal area, single task, multiple tasks, focused highlight, progress fill, show_progress toggle, label truncation, auto-scaling, bar chars (█ complete, ░ pending), label_width, block border, edge cases
+- [x] Export GanttChart, Task via tui.zig widgets struct and top-level
+- [x] Add gantt_tests to build.zig
+- [x] Release v2.64.0
+
+**Success Criteria**:
+- MAX_TASKS = 64 (comptime constant, no heap allocations)
+- Bar fill chars: `█` for completed portion (progress%), `░` for remaining portion
+- Each task renders on ONE line: label (left-aligned, padded/truncated to label_width) + "│" separator + bar
+- Auto-scale: find max `end` across all tasks; timeline_width = inner.width - label_width - 1; each unit = timeline_width / max_end columns
+- Bar spans from column `start * scale` to `end * scale` (0-indexed in timeline area)
+- If show_progress=true: filled portion = bar_width * progress / 100 chars of `█`, rest `░`; if false: all `█`
+- Task with optional per-task style: if style != null, use it for bar; otherwise use bar_style
+- Focused task (focused index): entire row rendered with focused_style background
+- No heap allocations — pure stack computation
 
 ### v2.63.0 — ActivityFeed Widget (Complete)
 
