@@ -1,3 +1,34 @@
+✅ **Session 333** — FEATURE MODE (2026-06-29)
+  - **Mode**: NORMAL (session 333, 333 % 5 == 3)
+  - **Achievement**: Implemented FlowChart widget + released v2.65.0
+
+  **Completed Work**:
+    - ✅ CI: queued (not RED); 0 open issues
+    - ✅ Established v2.65.0 milestone: FlowChart Widget
+    - ✅ TDD Red: test-writer wrote 68 tests in tests/flowchart_test.zig
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/flowchart.zig
+    - ✅ All tests pass (exit 0)
+    - ✅ Released v2.65.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#110, zoltraak#77, silica#88
+
+  **FlowChart Widget Summary**:
+    - Fields: `nodes` ([]const FlowNode=&.{}), `edges` ([]const FlowEdge=&.{}), `focused` (usize=0), `style/focused_style` (Style={}), `node_width` (u16=12), `node_height` (u16=3), `h_spacing` (u16=4), `v_spacing` (u16=2), `block` (?Block=null)
+    - FlowNode: `label` ([]const u8=""), `kind` (NodeKind=.process), `col/row` (u16=0), `style` (Style={})
+    - FlowEdge: `from/to` (usize=0), `label` ([]const u8=""), `style` (Style={})
+    - NodeKind: `.process` (rectangle), `.terminal` (rounded), `.decision` (diamond), `.io` (parallelogram)
+    - Methods: `init()`, `nodeCount() usize`, `edgeCount() usize`, builder withNodes/Edges/Focused/Style/FocusedStyle/NodeWidth/NodeHeight/HSpacing/VSpacing/Block, `render(*Buffer, Rect)`
+    - Grid layout: cell_width=node_width+h_spacing, cell_height=node_height+v_spacing
+    - Edge arrows: ▼ (down), ▶ (right), ▲ (up), ◀ (left) at destination
+    - MAX_NODES=32, MAX_EDGES=64, no heap allocations
+
+  **Current State**:
+    - **Latest release**: v2.65.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 108 widgets in src/tui/widgets/
+
+  **Next Priority**:
+    - Establish v2.66.0 milestone (candidates: NetworkDiagram, DependencyGraph, MindMap)
+
 ✅ **Session 332** — FEATURE MODE (2026-06-28)
   - **Mode**: NORMAL (session 332, 332 % 5 == 2)
   - **Achievement**: Implemented GanttChart widget + released v2.64.0
