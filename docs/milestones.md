@@ -2,11 +2,33 @@
 
 ## Current Status
 
-- **Latest release**: v2.65.0 (2026-06-29) — FlowChart Widget
-- **Latest minor**: v2.65.0 (2026-06-29) — FlowChart Widget
+- **Latest release**: v2.66.0 (2026-06-29) — MindMap Widget
+- **Latest minor**: v2.66.0 (2026-06-29) — MindMap Widget
 - **Next release**: TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.66.0 — MindMap Widget (Complete)
+
+**Theme**: A hub-and-spoke mind map widget with root at center, left/right branch distribution, and grandchild nodes. Children of root alternate left/right by index (0→right, 1→left, 2→right, …). Each branch can have up to MAX_CHILDREN_PER_NODE sub-children placed further out in the same direction. Connecting lines use `─`, `│`, `├`, `┤`, `┐`, `┘`, `┌`, `└`. Focused node highlighted. Useful for brainstorming, concept mapping, hierarchical note-taking, and outline visualization. MAX_NODES=32, no heap allocations.
+
+**Checklist**:
+- [x] **src/tui/widgets/mindmap.zig** — MindMap: nodes ([]const MindNode=&.{}); focused (usize=0); style (Style={}); root_style (Style={}); focused_style (Style={}); node_width (u16=14); node_height (u16=3); h_gap (u16=2); block (?Block=null); MindNode (label []const u8=""; parent usize=0; style Style={}); init(); nodeCount() usize; childCount(usize) usize; builder withNodes/Focused/Style/RootStyle/FocusedStyle/NodeWidth/NodeHeight/HGap/Block; render(*Buffer, Rect)
+- [x] **tests/mindmap_test.zig** — 79 tests: init/defaults, nodeCount, childCount, builder immutability, render zero/minimal area, root only, one right branch, one left branch, multiple branches, grandchildren, focused styling, left/right alternation, node_width/height/h_gap, block border, edge cases
+- [x] Export MindMap, MindNode via tui.zig widgets struct and top-level
+- [x] Add mindmap_tests to build.zig
+- [x] Release v2.66.0
+
+**Success Criteria**:
+- MAX_NODES = 32 (no heap allocations)
+- nodes[0] = root, placed at center of inner area
+- Direct children of root: even index among siblings → right side, odd index → left side
+- h_gap chars of space between root and branch node, and between branch and grandchild
+- Grandchildren: same horizontal side as their parent branch; stacked vertically near parent's y
+- Connection lines: root connects to each branch with `─` + junction chars at both ends
+- Branch connects to each grandchild with `─` + junction chars
+- Focused node rendered with focused_style
+- Root node rendered with root_style (unless focused, then focused_style takes priority)
 
 ### v2.65.0 — FlowChart Widget (Complete)
 

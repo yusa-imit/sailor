@@ -475,6 +475,10 @@ pub const widgets = struct {
     pub const FlowNode = flowchart.FlowNode;
     pub const FlowEdge = flowchart.FlowEdge;
     pub const NodeKind = flowchart.NodeKind;
+
+    // v2.66.0 — MindMap Widget
+    pub const mindmap = @import("widgets/mindmap.zig");
+    pub const MindMap = mindmap.MindMap;
 };
 
 // Export commonly used types
