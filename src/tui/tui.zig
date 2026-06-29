@@ -484,6 +484,10 @@ pub const widgets = struct {
     pub const radar_chart = @import("widgets/radar_chart.zig");
     pub const RadarChart = radar_chart.RadarChart;
     pub const RadarSeries = radar_chart.RadarSeries;
+
+    // v2.68.0 — HexEditor Widget
+    pub const hex_editor = @import("widgets/hex_editor.zig");
+    pub const HexEditor = hex_editor.HexEditor;
 };
 
 // Export commonly used types

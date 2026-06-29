@@ -2,9 +2,9 @@
 
 ## Current Status
 
-- **Latest release**: v2.67.0 (2026-06-29) — RadarChart Widget
-- **Latest minor**: v2.67.0 (2026-06-29) — RadarChart Widget
-- **Next release**: v2.68.0 — TBD
+- **Latest release**: v2.68.0 (2026-06-30) — HexEditor Widget
+- **Latest minor**: v2.68.0 (2026-06-30) — HexEditor Widget
+- **Next release**: v2.69.0 — TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
@@ -28,16 +28,16 @@
 - Axis lines: from center to edge, labeled at the far end
 - Multiple series rendered in sequence; focused series uses focused_style
 
-### v2.68.0 — HexEditor Widget (Pending)
+### v2.68.0 — HexEditor Widget (Complete)
 
 **Theme**: A hex editor widget that displays binary data as both hexadecimal bytes and ASCII characters side-by-side. Shows an offset column, hex bytes in groups of 16 per row, and a printable ASCII preview. Supports focused byte/nibble highlighting, cursor navigation, read-only and edit modes, customizable group sizes, and Block border. Useful for binary file inspection, protocol analysis, memory debugging, and firmware visualization in TUI applications. MAX_BYTES=4096, no heap allocations.
 
 **Checklist**:
-- [ ] **src/tui/widgets/hex_editor.zig** — HexEditor: `data` ([]const u8=&.{}); `cursor` (usize=0); `offset` (usize=0); `bytes_per_row` (u8=16); `group_size` (u8=1); `show_ascii` (bool=true); `show_offset` (bool=true); `style` (Style={}); `cursor_style` (Style={}); `modified_style` (Style={}); `block` (?Block=null); `pub const MAX_BYTES: usize = 4096`; `init()`; `byteCount() usize`; `rowCount() usize`; builder withData/Cursor/Offset/BytesPerRow/GroupSize/ShowAscii/ShowOffset/Style/CursorStyle/ModifiedStyle/Block; `render(*Buffer, Rect)`
-- [ ] **tests/hex_editor_test.zig** — 70+ tests: init/defaults, byteCount/rowCount, builder immutability, render zero/minimal area, empty data, offset column, hex bytes layout, ASCII preview, cursor highlighting, group_size, show_ascii toggle, show_offset toggle, block border, multi-row data, MAX_BYTES capping, edge cases
-- [ ] Export HexEditor via tui.zig widgets struct and top-level
-- [ ] Add hex_editor_tests to build.zig
-- [ ] Release v2.68.0
+- [x] **src/tui/widgets/hex_editor.zig** — HexEditor: `data` ([]const u8=&.{}); `cursor` (usize=0); `offset` (usize=0); `bytes_per_row` (u8=16); `group_size` (u8=1); `show_ascii` (bool=true); `show_offset` (bool=true); `style` (Style={}); `cursor_style` (Style={}); `modified_style` (Style={}); `block` (?Block=null); `pub const MAX_BYTES: usize = 4096`; `init()`; `byteCount() usize`; `rowCount() usize`; builder withData/Cursor/Offset/BytesPerRow/GroupSize/ShowAscii/ShowOffset/Style/CursorStyle/ModifiedStyle/Block; `render(*Buffer, Rect)`
+- [x] **tests/hex_editor_test.zig** — 80 tests: init/defaults, byteCount/rowCount, builder immutability, render zero/minimal area, empty data, offset column, hex bytes layout, ASCII preview, cursor highlighting, group_size, show_ascii toggle, show_offset toggle, block border, multi-row data, MAX_BYTES capping, edge cases
+- [x] Export HexEditor via tui.zig widgets struct and top-level
+- [x] Add hex_editor_tests to build.zig
+- [x] Release v2.68.0
 
 **Success Criteria**:
 - MAX_BYTES = 4096 (no heap allocations)
