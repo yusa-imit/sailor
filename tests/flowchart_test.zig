@@ -666,8 +666,9 @@ test "render edge with out-of-bounds node indices does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     fc.render(&buf, area);
 
-    // Should not crash even with invalid indices
-    try testing.expect(true);
+    // Valid node "A" should still render despite invalid edge indices
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
+    try testing.expect(findInArea(buf, area, "A"));
 }
 
 // ============================================================================
@@ -984,8 +985,8 @@ test "render edges without matching nodes does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     fc.render(&buf, area);
 
-    // Should not crash with orphaned edges
-    try testing.expect(true);
+    // No nodes to render — buffer should remain empty
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
 }
 
 test "render single node with no edges renders only the node" {

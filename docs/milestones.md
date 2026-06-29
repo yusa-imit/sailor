@@ -4,9 +4,29 @@
 
 - **Latest release**: v2.66.0 (2026-06-29) — MindMap Widget
 - **Latest minor**: v2.66.0 (2026-06-29) — MindMap Widget
-- **Next release**: TBD
-- **Active milestones**: 0 pending implementation
+- **Next release**: v2.67.0 — RadarChart Widget
+- **Active milestones**: 1 pending implementation
 - **Blockers**: None
+
+### v2.67.0 — RadarChart Widget (Pending)
+
+**Theme**: A radar/spider chart widget that plots multiple data dimensions on axes radiating from a center point, drawing a polygon through the data points. Supports multiple data series (datasets), axis labels, configurable polygon fill, and focused series highlighting. Useful for comparing multi-dimensional metrics, benchmark comparisons, skill matrices, and performance profiling displays. MAX_AXES=16, MAX_SERIES=8, no heap allocations.
+
+**Checklist**:
+- [ ] **src/tui/widgets/radar_chart.zig** — RadarChart: axes ([]const []const u8=&.{}); series ([]const RadarSeries=&.{}); focused (usize=0); style (Style={}); axis_style (Style={}); focused_style (Style={}); filled (bool=false); block (?Block=null); RadarSeries (label []const u8=""; values []const f32=&.{}; style Style={}); init(); axisCount() usize; seriesCount() usize; builder withAxes/Series/Focused/Style/AxisStyle/FocusedStyle/Filled/Block; render(*Buffer, Rect)
+- [ ] **tests/radar_chart_test.zig** — 70+ tests: init/defaults, axisCount/seriesCount capping, builder immutability, render zero/minimal area, single axis, multiple axes, axis labels, single series, multiple series, focused styling, filled polygon, block border, max axes, max series, edge cases
+- [ ] Export RadarChart, RadarSeries via tui.zig widgets struct and top-level
+- [ ] Add radar_chart_tests to build.zig
+- [ ] Release v2.67.0
+
+**Success Criteria**:
+- MAX_AXES = 16, MAX_SERIES = 8 (no heap allocations)
+- Axes radiate from center: angle = (2π / axis_count) * i, starting from top (π/2 offset)
+- Data values are 0.0–1.0 normalized; axis length = min(width, height) / 2 - 1
+- Polygon vertices: for each axis i, point = center + (value[i] * axis_length) * unit_vector(angle_i)
+- Connect polygon vertices with line-drawing characters (Braille or box-drawing)
+- Axis lines: from center to edge, labeled at the far end
+- Multiple series rendered in sequence; focused series uses focused_style
 
 ### v2.66.0 — MindMap Widget (Complete)
 
