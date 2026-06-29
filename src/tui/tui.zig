@@ -479,6 +479,11 @@ pub const widgets = struct {
     // v2.66.0 — MindMap Widget
     pub const mindmap = @import("widgets/mindmap.zig");
     pub const MindMap = mindmap.MindMap;
+
+    // v2.67.0 — RadarChart Widget
+    pub const radar_chart = @import("widgets/radar_chart.zig");
+    pub const RadarChart = radar_chart.RadarChart;
+    pub const RadarSeries = radar_chart.RadarSeries;
 };
 
 // Export commonly used types
