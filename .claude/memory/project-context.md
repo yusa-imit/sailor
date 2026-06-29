@@ -1,3 +1,30 @@
+✅ **Session 337** — FEATURE MODE (2026-06-30)
+  - **Mode**: NORMAL (session 337, 337 % 5 == 2)
+  - **Achievement**: Implemented HexEditor widget + released v2.68.0
+
+  **Completed Work**:
+    - ✅ CI: queued (not RED); 0 open issues
+    - ✅ TDD Red: test-writer wrote 80 tests in tests/hex_editor_test.zig
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/hex_editor.zig
+    - ✅ Fixed API mismatches in test file (Color.Red→.red, Block.init()→Block{}, buf.deinit(allocator)→buf.deinit())
+    - ✅ All tests pass (exit 0)
+    - ✅ Released v2.68.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#113, zoltraak#80, silica#91
+
+  **HexEditor Widget Summary**:
+    - Fields: `data` ([]const u8=&.{}), `cursor` (usize=0), `offset` (usize=0), `bytes_per_row` (u8=16), `group_size` (u8=1), `show_ascii` (bool=true), `show_offset` (bool=true), `style/cursor_style/modified_style` (Style={}), `block` (?Block=null)
+    - Methods: `init()`, `byteCount() usize`, `rowCount() usize`, builder withData/Cursor/Offset/BytesPerRow/GroupSize/ShowAscii/ShowOffset/Style/CursorStyle/ModifiedStyle/Block, `render(*Buffer, Rect)`
+    - Layout: offset column (8-char hex addr), hex bytes (grouped by group_size), ASCII preview (printable or '.')
+    - MAX_BYTES=4096, no heap allocations
+
+  **Current State**:
+    - **Latest release**: v2.68.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 111 widgets in src/tui/widgets/
+
+  **Next Priority**:
+    - Establish v2.69.0 milestone (candidates: NetworkDiagram, DependencyGraph, Calendar, DiffViewer)
+
 ✅ **Session 336** — FEATURE MODE (2026-06-29)
   - **Mode**: NORMAL (session 336, 336 % 5 == 1)
   - **Achievement**: Implemented RadarChart widget + released v2.67.0
