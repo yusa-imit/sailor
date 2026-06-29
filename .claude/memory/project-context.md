@@ -1,3 +1,30 @@
+✅ **Session 336** — FEATURE MODE (2026-06-29)
+  - **Mode**: NORMAL (session 336, 336 % 5 == 1)
+  - **Achievement**: Implemented RadarChart widget + released v2.67.0
+
+  **Completed Work**:
+    - ✅ CI: queued (not RED); 0 open issues
+    - ✅ TDD Red: test-writer wrote 76 tests in tests/radar_chart_test.zig
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/radar_chart.zig
+    - ✅ All tests pass (exit 0)
+    - ✅ Released v2.67.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#112, zoltraak#79, silica#90
+
+  **RadarChart Widget Summary**:
+    - Fields: `axes` ([]const []const u8=&.{}), `series` ([]const RadarSeries=&.{}), `focused` (usize=0), `style/axis_style/focused_style` (Style={}), `filled` (bool=false), `block` (?Block=null)
+    - RadarSeries: `label` ([]const u8=""), `values` ([]const f32=&.{}), `style` (Style={})
+    - Methods: `init()`, `axisCount() usize`, `seriesCount() usize`, builder withAxes/Series/Focused/Style/AxisStyle/FocusedStyle/Filled/Block, `render(*Buffer, Rect)`
+    - Geometry: Bresenham line drawing, terminal aspect ratio correction (y×0.5), axes at equal angular spacing starting from top
+    - MAX_AXES=16, MAX_SERIES=8, no heap allocations
+
+  **Current State**:
+    - **Latest release**: v2.67.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 110 widgets in src/tui/widgets/
+
+  **Next Priority**:
+    - Establish v2.68.0 milestone (candidates: HexEditor, NetworkDiagram, DependencyGraph, Calendar)
+
 ✅ **Session 335** — STABILIZATION MODE (2026-06-29)
   - **Mode**: STABILIZATION (session 335, 335 % 5 == 0)
   - **Achievement**: Test quality audit + cross-compile verification

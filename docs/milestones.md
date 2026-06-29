@@ -2,22 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.66.0 (2026-06-29) — MindMap Widget
-- **Latest minor**: v2.66.0 (2026-06-29) — MindMap Widget
-- **Next release**: v2.67.0 — RadarChart Widget
-- **Active milestones**: 1 pending implementation
+- **Latest release**: v2.67.0 (2026-06-29) — RadarChart Widget
+- **Latest minor**: v2.67.0 (2026-06-29) — RadarChart Widget
+- **Next release**: v2.68.0 — TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
-### v2.67.0 — RadarChart Widget (Pending)
+### v2.67.0 — RadarChart Widget (Complete)
 
 **Theme**: A radar/spider chart widget that plots multiple data dimensions on axes radiating from a center point, drawing a polygon through the data points. Supports multiple data series (datasets), axis labels, configurable polygon fill, and focused series highlighting. Useful for comparing multi-dimensional metrics, benchmark comparisons, skill matrices, and performance profiling displays. MAX_AXES=16, MAX_SERIES=8, no heap allocations.
 
 **Checklist**:
-- [ ] **src/tui/widgets/radar_chart.zig** — RadarChart: axes ([]const []const u8=&.{}); series ([]const RadarSeries=&.{}); focused (usize=0); style (Style={}); axis_style (Style={}); focused_style (Style={}); filled (bool=false); block (?Block=null); RadarSeries (label []const u8=""; values []const f32=&.{}; style Style={}); init(); axisCount() usize; seriesCount() usize; builder withAxes/Series/Focused/Style/AxisStyle/FocusedStyle/Filled/Block; render(*Buffer, Rect)
-- [ ] **tests/radar_chart_test.zig** — 70+ tests: init/defaults, axisCount/seriesCount capping, builder immutability, render zero/minimal area, single axis, multiple axes, axis labels, single series, multiple series, focused styling, filled polygon, block border, max axes, max series, edge cases
-- [ ] Export RadarChart, RadarSeries via tui.zig widgets struct and top-level
-- [ ] Add radar_chart_tests to build.zig
-- [ ] Release v2.67.0
+- [x] **src/tui/widgets/radar_chart.zig** — RadarChart: axes ([]const []const u8=&.{}); series ([]const RadarSeries=&.{}); focused (usize=0); style (Style={}); axis_style (Style={}); focused_style (Style={}); filled (bool=false); block (?Block=null); RadarSeries (label []const u8=""; values []const f32=&.{}; style Style={}); init(); axisCount() usize; seriesCount() usize; builder withAxes/Series/Focused/Style/AxisStyle/FocusedStyle/Filled/Block; render(*Buffer, Rect)
+- [x] **tests/radar_chart_test.zig** — 76 tests: init/defaults, axisCount/seriesCount capping, builder immutability, render zero/minimal area, single axis, multiple axes, axis labels, single series, multiple series, focused styling, filled polygon, block border, max axes, max series, edge cases
+- [x] Export RadarChart, RadarSeries via tui.zig widgets struct and top-level
+- [x] Add radar_chart_tests to build.zig
+- [x] Release v2.67.0
 
 **Success Criteria**:
 - MAX_AXES = 16, MAX_SERIES = 8 (no heap allocations)
@@ -27,6 +27,27 @@
 - Connect polygon vertices with line-drawing characters (Braille or box-drawing)
 - Axis lines: from center to edge, labeled at the far end
 - Multiple series rendered in sequence; focused series uses focused_style
+
+### v2.68.0 — HexEditor Widget (Pending)
+
+**Theme**: A hex editor widget that displays binary data as both hexadecimal bytes and ASCII characters side-by-side. Shows an offset column, hex bytes in groups of 16 per row, and a printable ASCII preview. Supports focused byte/nibble highlighting, cursor navigation, read-only and edit modes, customizable group sizes, and Block border. Useful for binary file inspection, protocol analysis, memory debugging, and firmware visualization in TUI applications. MAX_BYTES=4096, no heap allocations.
+
+**Checklist**:
+- [ ] **src/tui/widgets/hex_editor.zig** — HexEditor: `data` ([]const u8=&.{}); `cursor` (usize=0); `offset` (usize=0); `bytes_per_row` (u8=16); `group_size` (u8=1); `show_ascii` (bool=true); `show_offset` (bool=true); `style` (Style={}); `cursor_style` (Style={}); `modified_style` (Style={}); `block` (?Block=null); `pub const MAX_BYTES: usize = 4096`; `init()`; `byteCount() usize`; `rowCount() usize`; builder withData/Cursor/Offset/BytesPerRow/GroupSize/ShowAscii/ShowOffset/Style/CursorStyle/ModifiedStyle/Block; `render(*Buffer, Rect)`
+- [ ] **tests/hex_editor_test.zig** — 70+ tests: init/defaults, byteCount/rowCount, builder immutability, render zero/minimal area, empty data, offset column, hex bytes layout, ASCII preview, cursor highlighting, group_size, show_ascii toggle, show_offset toggle, block border, multi-row data, MAX_BYTES capping, edge cases
+- [ ] Export HexEditor via tui.zig widgets struct and top-level
+- [ ] Add hex_editor_tests to build.zig
+- [ ] Release v2.68.0
+
+**Success Criteria**:
+- MAX_BYTES = 4096 (no heap allocations)
+- Layout: `[offset] [hex bytes grouped] [ascii preview]`
+- Offset column: 8-char hex address (e.g., `00000000`)
+- Hex bytes: `XX XX XX XX  XX XX XX XX  XX XX XX XX  XX XX XX XX` (grouped by group_size with extra space between groups)
+- ASCII: printable chars as-is, non-printable as `.`
+- Cursor byte highlighted with cursor_style
+- show_ascii=false omits the ASCII column
+- show_offset=false omits the offset column
 
 ### v2.66.0 — MindMap Widget (Complete)
 
