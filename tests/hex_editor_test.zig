@@ -19,7 +19,7 @@ const HexEditor = sailor.tui.widgets.HexEditor;
 
 /// Find text in buffer area
 fn findInArea(buf: Buffer, area: Rect, text: []const u8) bool {
-    if (text.len == 0) return true;
+    if (text.len == 0) return false;
 
     var y = area.y;
     while (y < area.y + area.height and y < buf.height) : (y += 1) {
@@ -759,6 +759,10 @@ test "HexEditor.render applies cursor_style to cursor byte position" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
 
     he.render(&buf, area);
+    // Offset column = 8 chars + 1 space = 9 chars. First hex byte at x=9.
+    // The cursor byte (0x41 = 'A', hex "41") should have red fg style.
+    const style_hi = buf.getStyle(9, 0);
+    try testing.expectEqual(@as(?sailor.tui.style.Color, .red), style_hi.fg);
 }
 
 test "HexEditor.render with cursor=0 highlights first byte" {
@@ -770,10 +774,14 @@ test "HexEditor.render with cursor=0 highlights first byte" {
     defer buf.deinit();
 
     const data = [_]u8{ 0x41, 0x42 };
-    const he = HexEditor.init().withData(&data).withCursor(0);
+    const cursor_style = Style{ .bold = true };
+    const he = HexEditor.init().withData(&data).withCursor(0).withCursorStyle(cursor_style);
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
 
     he.render(&buf, area);
+    // First byte (cursor=0) at x=9 should be bold; second byte at x=12 should not be
+    try testing.expect(buf.getStyle(9, 0).bold);
+    try testing.expect(!buf.getStyle(12, 0).bold);
 }
 
 test "HexEditor.render with cursor at last byte" {
@@ -958,6 +966,10 @@ test "HexEditor.render respects MAX_BYTES limit correctly" {
     const area = Rect{ .x = 0, .y = 0, .width = 120, .height = 24 };
 
     he.render(&buf, area);
+    // 200 bytes < MAX_BYTES=4096, so byteCount should be 200
+    try testing.expectEqual(@as(usize, 200), he.byteCount());
+    // 200 bytes / 16 per row = 13 rows (ceil)
+    try testing.expect(he.rowCount() > 0 and he.rowCount() <= HexEditor.MAX_BYTES / 16 + 1);
 }
 
 // ============================================================================
@@ -978,6 +990,8 @@ test "HexEditor.render draws block border when block is set" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
 
     he.render(&buf, area);
+    // Block renders corner chars at (0,0); default border uses '┌'
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(0, 0));
 }
 
 test "HexEditor.render with block uses inner area for content" {
@@ -994,6 +1008,10 @@ test "HexEditor.render with block uses inner area for content" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
 
     he.render(&buf, area);
+    // Content starts at inner area (x=1, y=1 with default block), not at border
+    // The hex content ("4" in "41") should appear somewhere inside the frame
+    const inner = Rect{ .x = 1, .y = 1, .width = 78, .height = 22 };
+    try testing.expect(countNonEmptyCells(buf, inner) > 0);
 }
 
 test "HexEditor.render with block reduces drawable area" {

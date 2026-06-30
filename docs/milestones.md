@@ -4,9 +4,20 @@
 
 - **Latest release**: v2.70.0 (2026-06-30) — MatrixView Widget
 - **Latest minor**: v2.70.0 (2026-06-30) — MatrixView Widget
-- **Next release**: v2.71.0 — TBD
-- **Active milestones**: 0 pending implementation
+- **Next release**: v2.71.0 — SankeyDiagram Widget
+- **Active milestones**: 1 pending implementation
 - **Blockers**: None
+
+### v2.71.0 — SankeyDiagram Widget (In Progress)
+
+**Theme**: A Sankey diagram widget that visualizes quantitative flows between nodes using proportional vertical bars and horizontal connectors. Nodes are grouped into columns and rendered as block-character bars whose height is proportional to their total flow. Flow connections are drawn as horizontal lines between adjacent columns. Supports focused node highlighting, customizable node width and column gap, optional block borders, and per-node/per-flow styling. Useful for energy/budget flows, network traffic visualization, user journey funnels, and any quantitative source-to-target data. MAX_NODES=32, MAX_FLOWS=64, no heap allocations.
+
+**Checklist**:
+- [ ] **src/tui/widgets/sankey.zig** — SankeyDiagram: `nodes` ([]const SankeyNode=&.{}); `flows` ([]const SankeyFlow=&.{}); `focused` (usize=0); `node_width` (u16=2); `col_gap` (u16=8); `style` (Style={}); `node_style` (Style={}); `flow_style` (Style={}); `focused_style` (Style={}); `block` (?Block=null); `pub const MAX_NODES: usize = 32`; `pub const MAX_FLOWS: usize = 64`; SankeyNode (label []const u8=""; column usize=0; style Style={}); SankeyFlow (source usize=0; target usize=0; value f32=0.0; style Style={}); `init()`; `nodeCount() usize`; `flowCount() usize`; builder withNodes/Flows/Focused/NodeWidth/ColGap/Style/NodeStyle/FlowStyle/FocusedStyle/Block; `render(*Buffer, Rect)`
+- [ ] **tests/sankey_test.zig** — ~75 tests: init/defaults, nodeCount/flowCount capping, builder immutability, render zero/minimal area, empty nodes/flows, single node, two nodes no flows, two nodes one flow, column layout, focused node styling, non-focused node styling, flow drawing, node height proportional to flow, block border, MAX_NODES/FLOWS cap, edge cases
+- [ ] Export SankeyDiagram, SankeyNode, SankeyFlow via tui.zig widgets struct and top-level
+- [ ] Add sankey_tests to build.zig
+- [ ] Release v2.71.0
 
 ### v2.70.0 — MatrixView Widget (Complete)
 
