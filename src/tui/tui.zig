@@ -488,6 +488,11 @@ pub const widgets = struct {
     // v2.68.0 — HexEditor Widget
     pub const hex_editor = @import("widgets/hex_editor.zig");
     pub const HexEditor = hex_editor.HexEditor;
+
+    // v2.69.0 — Treemap Widget
+    pub const treemap = @import("widgets/treemap.zig");
+    pub const Treemap = treemap.Treemap;
+    pub const TreemapItem = treemap.TreemapItem;
 };
 
 // Export commonly used types
