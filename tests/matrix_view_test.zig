@@ -365,19 +365,26 @@ test "MatrixView.render single cell has focused style applied" {
         .withFocusedStyle(focused_style);
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     mv.render(&buf, area);
+    // Cell (0,0) is focused, must have bold style
+    try testing.expect(buf.getStyle(0, 0).bold);
 }
 
 test "MatrixView.render single cell outside focused area uses base style" {
     var buf = try Buffer.init(testing.allocator, 20, 10);
     defer buf.deinit();
+    const base_style = Style{ .dim = true };
     var row = [_]f32{0.5};
     var data = [_][]const f32{&row};
     const mv = MatrixView.init()
         .withData(&data)
+        .withStyle(base_style)
         .withFocusedRow(5)
         .withFocusedCol(5);
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     mv.render(&buf, area);
+    // (0,0) is NOT focused (focused is 5,5 which is out of data bounds), must use base style
+    try testing.expect(buf.getStyle(0, 0).dim);
+    try testing.expect(!buf.getStyle(0, 0).bold);
 }
 
 // ============================================================================
@@ -632,6 +639,9 @@ test "MatrixView.render col headers appear in first row" {
     const mv = MatrixView.init().withData(&data).withColHeaders(&headers);
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };
     mv.render(&buf, area);
+    // Header row is at y=0; verify header chars appear in the first row
+    const header_row = Rect{ .x = 0, .y = 0, .width = 50, .height = 1 };
+    try testing.expect(areaHasChar(buf, header_row, 'A') or areaHasChar(buf, header_row, 'B') or areaHasChar(buf, header_row, 'C'));
 }
 
 test "MatrixView.render col headers centered in cell_width" {
@@ -697,6 +707,9 @@ test "MatrixView.render row headers appear in left column" {
     const mv = MatrixView.init().withData(&data).withRowHeaders(&headers);
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     mv.render(&buf, area);
+    // Row header column is 8 chars wide at x=0; header text must appear there
+    const header_col = Rect{ .x = 0, .y = 0, .width = 8, .height = 20 };
+    try testing.expect(areaHasChar(buf, header_col, 'R') or countNonEmptyCells(buf, header_col) > 0);
 }
 
 test "MatrixView.render row headers left aligned in column" {
@@ -753,6 +766,10 @@ test "MatrixView.render focused cell at (0,0) uses focused_style" {
         .withFocusedStyle(focused_style);
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 15 };
     mv.render(&buf, area);
+    // Cell (0,0): x=0, y=0 must have reverse style
+    try testing.expect(buf.getStyle(0, 0).reverse);
+    // Cell (0,6): x=6 (second cell, cell_width=6) must NOT have reverse
+    try testing.expect(!buf.getStyle(6, 0).reverse);
 }
 
 test "MatrixView.render focused cell at (1,1) uses focused_style" {
@@ -770,6 +787,10 @@ test "MatrixView.render focused cell at (1,1) uses focused_style" {
         .withFocusedStyle(focused_style);
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     mv.render(&buf, area);
+    // Cell (1,1): x=6 (col 1 * cell_width 6), y=1 (row 1) must have underline style
+    try testing.expect(buf.getStyle(6, 1).underline);
+    // Cell (0,0): not focused, must NOT have underline
+    try testing.expect(!buf.getStyle(0, 0).underline);
 }
 
 test "MatrixView.render only focused cell gets focused_style" {
@@ -786,6 +807,12 @@ test "MatrixView.render only focused cell gets focused_style" {
         .withFocusedStyle(focused_style);
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 15 };
     mv.render(&buf, area);
+    // Only (0,0) is focused → bold
+    try testing.expect(buf.getStyle(0, 0).bold);
+    // (0,1): x=6, y=0 — NOT focused → not bold
+    try testing.expect(!buf.getStyle(6, 0).bold);
+    // (1,0): x=0, y=1 — NOT focused → not bold
+    try testing.expect(!buf.getStyle(0, 1).bold);
 }
 
 test "MatrixView.render focused row out of bounds handled safely" {
@@ -996,9 +1023,14 @@ test "MatrixView.render with base style applied to cells" {
     const base_style = Style{ .dim = true };
     var row = [_]f32{ 0.5, 0.75 };
     var data = [_][]const f32{&row};
-    const mv = MatrixView.init().withData(&data).withStyle(base_style);
+    // focused_row/col=99 to ensure no cell is focused, so base_style applies everywhere
+    const mv = MatrixView.init().withData(&data).withStyle(base_style).withFocusedRow(99).withFocusedCol(99);
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 15 };
     mv.render(&buf, area);
+    // Data cell at (0,0) (row 0, col 0, x=0 y=0) must carry the dim base style
+    try testing.expect(buf.getStyle(0, 0).dim);
+    // Data cell at col 1: x=6, y=0 — also must be dim
+    try testing.expect(buf.getStyle(6, 0).dim);
 }
 
 test "MatrixView.render with header_style applied to headers" {
@@ -1014,6 +1046,18 @@ test "MatrixView.render with header_style applied to headers" {
         .withHeaderStyle(header_style);
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 15 };
     mv.render(&buf, area);
+    // Header row is y=0; the 'C' char of "C1" must have bold style
+    var found_bold_header = false;
+    var x: u16 = 0;
+    while (x < 40) : (x += 1) {
+        const s = buf.getStyle(x, 0);
+        const c = buf.getChar(x, 0);
+        if (s.bold and (c == 'C' or c == '1' or c == '2')) {
+            found_bold_header = true;
+            break;
+        }
+    }
+    try testing.expect(found_bold_header);
 }
 
 test "MatrixView.render focused_style overrides base style for focused cell" {

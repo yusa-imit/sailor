@@ -34,11 +34,11 @@ fn decodeUtf8(text: []const u8, out: []u21) usize {
 
 /// Find text in buffer area (UTF-8 aware)
 fn findInArea(buf: Buffer, area: Rect, text: []const u8) bool {
-    if (text.len == 0) return true;
+    if (text.len == 0) return false;
 
     var cps: [256]u21 = undefined;
     const cp_count = decodeUtf8(text, &cps);
-    if (cp_count == 0) return true;
+    if (cp_count == 0) return false;
 
     var y = area.y;
     while (y < area.y + area.height and y < buf.height) : (y += 1) {
