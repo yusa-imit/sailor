@@ -1478,6 +1478,17 @@ pub fn build(b: *std.Build) void {
     treemap_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(treemap_tests).step);
 
+    const matrix_view_tests = b.addTest(.{
+        .name = "matrix_view_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/matrix_view_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    matrix_view_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(matrix_view_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",

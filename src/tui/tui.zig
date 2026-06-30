@@ -493,6 +493,10 @@ pub const widgets = struct {
     pub const treemap = @import("widgets/treemap.zig");
     pub const Treemap = treemap.Treemap;
     pub const TreemapItem = treemap.TreemapItem;
+
+    // v2.70.0 — MatrixView Widget
+    pub const matrix_view = @import("widgets/matrix_view.zig");
+    pub const MatrixView = matrix_view.MatrixView;
 };
 
 // Export commonly used types
