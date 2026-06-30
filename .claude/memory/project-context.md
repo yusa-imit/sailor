@@ -1,3 +1,32 @@
+✅ **Session 339** — FEATURE MODE (2026-06-30)
+  - **Mode**: NORMAL (session 339, 339 % 5 == 4)
+  - **Achievement**: Implemented MatrixView widget + released v2.70.0
+
+  **Completed Work**:
+    - ✅ CI: queued (not RED); 0 open issues
+    - ✅ Established v2.70.0 milestone: MatrixView widget
+    - ✅ TDD Red: test-writer wrote 94 tests in tests/matrix_view_test.zig
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/matrix_view.zig
+    - ✅ All 94 MatrixView tests pass; 9,613 total tests, 0 failures
+    - ✅ Released v2.70.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#115, zoltraak#82, silica#93
+
+  **MatrixView Widget Summary**:
+    - Fields: `data` ([]const []const f32=&.{}), `row_headers`/`col_headers` ([]const []const u8=&.{}), `focused_row`/`focused_col` (usize=0), `min_val` (f32=0.0), `max_val` (f32=1.0), `cell_width` (u16=6), `show_values` (bool=true), `style/header_style/focused_style` (Style={}), `block` (?Block=null)
+    - Methods: `init()`, `rowCount() usize`, `colCount() usize`, builder withData/RowHeaders/ColHeaders/FocusedRow/FocusedCol/MinVal/MaxVal/CellWidth/ShowValues/Style/HeaderStyle/FocusedStyle/Block, `render(*Buffer, Rect)`
+    - Layout: optional col header row (1 row), optional row header col (8 chars wide), cells are cell_width wide × 1 row tall
+    - Value display: `{d:.3}` format centered in cell_width
+    - Focused cell at (focused_row, focused_col) uses focused_style
+    - MAX_ROWS=32, MAX_COLS=32, no heap allocations
+
+  **Current State**:
+    - **Latest release**: v2.70.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 113 widgets in src/tui/widgets/
+
+  **Next Priority**:
+    - Establish v2.71.0 milestone (candidates: SankeyDiagram, QRCode, CodeMap, GanttChart)
+
 ✅ **Session 338** — FEATURE MODE (2026-06-30)
   - **Mode**: NORMAL (session 338, 338 % 5 == 3)
   - **Achievement**: Implemented Treemap widget + released v2.69.0
