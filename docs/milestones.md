@@ -2,22 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.69.0 (2026-06-30) — Treemap Widget
-- **Latest minor**: v2.69.0 (2026-06-30) — Treemap Widget
-- **Next release**: v2.70.0 — MatrixView Widget
-- **Active milestones**: 1 pending implementation
+- **Latest release**: v2.70.0 (2026-06-30) — MatrixView Widget
+- **Latest minor**: v2.70.0 (2026-06-30) — MatrixView Widget
+- **Next release**: v2.71.0 — TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
-### v2.70.0 — MatrixView Widget (In Progress)
+### v2.70.0 — MatrixView Widget (Complete)
 
 **Theme**: A 2D matrix display widget that renders numeric data as a colored heatmap grid. Each cell displays an optional value label and is colored by its magnitude using a configurable color scale. Supports row/column headers, focused cell highlighting, and optional block borders. Useful for correlation matrices, confusion matrices, distance matrices, heatmaps, and any 2D numeric data visualization. MAX_ROWS=32, MAX_COLS=32, no heap allocations.
 
 **Checklist**:
-- [ ] **src/tui/widgets/matrix_view.zig** — MatrixView: `data` ([]const []const f32=&.{}); `row_headers` ([]const []const u8=&.{}); `col_headers` ([]const []const u8=&.{}); `focused_row` (usize=0); `focused_col` (usize=0); `min_val` (f32=0.0); `max_val` (f32=1.0); `cell_width` (u16=6); `show_values` (bool=true); `style` (Style={}); `header_style` (Style={}); `focused_style` (Style={}); `block` (?Block=null); `pub const MAX_ROWS: usize = 32`; `pub const MAX_COLS: usize = 32`; `init()`; `rowCount() usize`; `colCount() usize`; builder withData/RowHeaders/ColHeaders/FocusedRow/FocusedCol/MinVal/MaxVal/CellWidth/ShowValues/Style/HeaderStyle/FocusedStyle/Block; `render(*Buffer, Rect)`
-- [ ] **tests/matrix_view_test.zig** — 75+ tests: init/defaults, rowCount/colCount capping, builder immutability, render zero/minimal area, empty data, single cell, single row, single column, multi-row multi-col, row/col headers, focused cell highlighting, value display, min/max normalization, cell_width, show_values toggle, block border, MAX_ROWS/COLS cap, edge cases
-- [ ] Export MatrixView via tui.zig widgets struct and top-level
-- [ ] Add matrix_view_tests to build.zig
-- [ ] Release v2.70.0
+- [x] **src/tui/widgets/matrix_view.zig** — MatrixView: `data` ([]const []const f32=&.{}); `row_headers` ([]const []const u8=&.{}); `col_headers` ([]const []const u8=&.{}); `focused_row` (usize=0); `focused_col` (usize=0); `min_val` (f32=0.0); `max_val` (f32=1.0); `cell_width` (u16=6); `show_values` (bool=true); `style` (Style={}); `header_style` (Style={}); `focused_style` (Style={}); `block` (?Block=null); `pub const MAX_ROWS: usize = 32`; `pub const MAX_COLS: usize = 32`; `init()`; `rowCount() usize`; `colCount() usize`; builder withData/RowHeaders/ColHeaders/FocusedRow/FocusedCol/MinVal/MaxVal/CellWidth/ShowValues/Style/HeaderStyle/FocusedStyle/Block; `render(*Buffer, Rect)`
+- [x] **tests/matrix_view_test.zig** — 94 tests: init/defaults, rowCount/colCount capping, builder immutability, render zero/minimal area, empty data, single cell, single row, single column, multi-row multi-col, row/col headers, focused cell highlighting, value display, min/max normalization, cell_width, show_values toggle, block border, MAX_ROWS/COLS cap, edge cases
+- [x] Export MatrixView via tui.zig widgets struct and top-level
+- [x] Add matrix_view_tests to build.zig
+- [x] Release v2.70.0
 
 ### v2.69.0 — Treemap Widget (Complete)
 
