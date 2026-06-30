@@ -2,11 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.68.0 (2026-06-30) — HexEditor Widget
-- **Latest minor**: v2.68.0 (2026-06-30) — HexEditor Widget
-- **Next release**: v2.69.0 — TBD
+- **Latest release**: v2.69.0 (2026-06-30) — Treemap Widget
+- **Latest minor**: v2.69.0 (2026-06-30) — Treemap Widget
+- **Next release**: v2.70.0 — TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.69.0 — Treemap Widget (Complete)
+
+**Theme**: A binary partition treemap widget that displays items as proportional rectangles. Supports focused item styling, centered label rendering, optional block borders, and handles up to MAX_ITEMS=64 items without heap allocation. Aspect ratio-aware splitting: horizontal when width>=height, vertical otherwise. Style merging ensures item.style shows through default focused_style. Useful for disk usage visualization, portfolio allocation, time breakdown, and any proportional data display.
+
+**Checklist**:
+- [x] **src/tui/widgets/treemap.zig** — Treemap: items ([]const TreemapItem=&.{}); focused (usize=0); style/label_style/focused_style (Style={}); show_value (bool=false); block (?Block=null); TreemapItem (label/value/style); init(); itemCount() usize; totalValue() f32; builder withItems/Focused/Style/LabelStyle/FocusedStyle/ShowValue/Block; render(*Buffer, Rect)
+- [x] **tests/treemap_test.zig** — 75 tests: init/defaults, itemCount/totalValue, builder immutability, render zero/minimal area, empty items, single item, multiple items proportional layout, focused styling, block border, labels, show_value, MAX_ITEMS cap, edge cases
+- [x] Export Treemap, TreemapItem via tui.zig widgets struct and top-level
+- [x] Add treemap_tests to build.zig
+- [x] Release v2.69.0
 
 ### v2.67.0 — RadarChart Widget (Complete)
 

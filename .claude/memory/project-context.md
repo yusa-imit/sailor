@@ -1,3 +1,33 @@
+✅ **Session 338** — FEATURE MODE (2026-06-30)
+  - **Mode**: NORMAL (session 338, 338 % 5 == 3)
+  - **Achievement**: Implemented Treemap widget + released v2.69.0
+
+  **Completed Work**:
+    - ✅ CI: queued (not RED); 0 open issues
+    - ✅ TDD Red: test-writer wrote 75 tests in tests/treemap_test.zig
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/treemap.zig
+    - ✅ Fixed 2 test failures: (1) removed invalid `ptr != null` comparison; (2) style merging — `item.style.merge(focused_style)` so item.style shows through default focused_style
+    - ✅ All 75 tests pass (exit 0)
+    - ✅ Released v2.69.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#114, zoltraak#81, silica#92
+
+  **Treemap Widget Summary**:
+    - Fields: `items` ([]const TreemapItem=&.{}), `focused` (usize=0), `style/label_style/focused_style` (Style={}), `show_value` (bool=false), `block` (?Block=null)
+    - TreemapItem: `label` ([]const u8=""), `value` (f32=0), `style` (Style={})
+    - Methods: `init()`, `itemCount() usize`, `totalValue() f32`, builder withItems/Focused/Style/LabelStyle/FocusedStyle/ShowValue/Block, `render(*Buffer, Rect)`
+    - Layout: binary partition treemap — insertion sort descending, recursive split at items/2 boundary, horizontal split when width>=height else vertical
+    - Cell rendering: `buf.fill` + box chars (┌─┐│└┘) when >=2×2; label centered if width>=4 and height>=3
+    - Style: `cell_style = item.style.merge(focused_style)` when focused; `label_style.merge(focused_style)` for label when focused
+    - MAX_ITEMS=64, no heap allocations
+
+  **Current State**:
+    - **Latest release**: v2.69.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 112 widgets in src/tui/widgets/
+
+  **Next Priority**:
+    - Establish v2.70.0 milestone (candidates: SankeyDiagram, MatrixView, QRCode, CodeMap)
+
 ✅ **Session 337** — FEATURE MODE (2026-06-30)
   - **Mode**: NORMAL (session 337, 337 % 5 == 2)
   - **Achievement**: Implemented HexEditor widget + released v2.68.0
