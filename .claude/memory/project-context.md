@@ -1,3 +1,36 @@
+✅ **Session 344** — FEATURE MODE (2026-07-03)
+  - **Mode**: NORMAL (session 344, 344 % 5 == 4)
+  - **Achievement**: Released v2.74.0 (ChordDiagram widget)
+
+  **Completed Work**:
+    - ✅ CI: queued (not RED); 0 open issues
+    - ✅ Established v2.74.0 milestone: ChordDiagram widget
+    - ✅ TDD Red: test-writer wrote 81 tests in tests/chord_diagram_test.zig
+    - ✅ TDD Green: implemented src/tui/widgets/chord_diagram.zig (243 lines)
+    - ✅ Fixed 2 compile errors: @divTrunc for i32 division; withBlock(?Block) instead of withBlock(Block)
+    - ✅ All tests pass (exit 0)
+    - ✅ Released v2.74.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#119, zoltraak#86, silica#97
+
+  **Current State**:
+    - **Latest release**: v2.74.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 117 widgets in src/tui/widgets/ (chord_diagram.zig added)
+    - **CI**: queued for v2.74.0 commit
+
+  **ChordDiagram Widget Summary**:
+    - Fields: `nodes` ([]const []const u8=&.{}), `matrix` ([]const []const f32=&.{}), `focused` (usize=0), `style/arc_style/focused_style` (Style={}), `show_labels` (bool=true), `block` (?Block=null)
+    - Methods: `init()`, `nodeCount() usize`, `totalFlow() f32`, builder withNodes/Matrix/Focused/Style/ArcStyle/FocusedStyle/ShowLabels/Block, `render(*Buffer, Rect)`
+    - Layout: nodes at angle_i = (2π*i/nodeCount) - π/2 on ellipse (radius_x, radius_y); y not multiplied by 0.5 — uses actual terminal cell ratio via separate radius_x/radius_y
+    - Node markers: '◉' for focused, '●' for others
+    - Chord lines: Bresenham from node_i to node_j for matrix[i][j] > 0
+    - Label offset: right of node if cos_a > 0.3, left if cos_a < -0.3, centered otherwise; above if sin_a < -0.2
+    - MAX_NODES=16, no heap allocations
+    - Key fix: withBlock accepts ?Block (can pass null to unset)
+
+  **Next Priority**:
+    - Establish v2.75.0 milestone (candidates: StreamGraph, FunnelChart, ViolinPlot, Waterfall)
+
 ✅ **Session 343** — FEATURE MODE (2026-07-02)
   - **Mode**: NORMAL (session 343, 343 % 5 == 3)
   - **Achievement**: Released v2.73.0 (BubbleChart widget)
