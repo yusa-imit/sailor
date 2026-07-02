@@ -497,6 +497,12 @@ pub const widgets = struct {
     // v2.70.0 — MatrixView Widget
     pub const matrix_view = @import("widgets/matrix_view.zig");
     pub const MatrixView = matrix_view.MatrixView;
+
+    // v2.71.0 — SankeyDiagram Widget
+    pub const sankey = @import("widgets/sankey.zig");
+    pub const SankeyDiagram = sankey.SankeyDiagram;
+    pub const SankeyNode = sankey.SankeyNode;
+    pub const SankeyFlow = sankey.SankeyFlow;
 };
 
 // Export commonly used types
