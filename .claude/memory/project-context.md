@@ -1,3 +1,25 @@
+✅ **Session 343** — FEATURE MODE (2026-07-02)
+  - **Mode**: NORMAL (session 343, 343 % 5 == 3)
+  - **Achievement**: Released v2.73.0 (BubbleChart widget)
+
+  **Completed Work**:
+    - ✅ CI: queued (not RED); 0 open issues
+    - ✅ Found in-progress BubbleChart work from previous session (uncommitted)
+    - ✅ bubble_chart.zig (392 lines): BubbleChart + Bubble structs, 5 marker sizes, X/Y scaling, axes, focused highlighting, MAX_BUBBLES=64
+    - ✅ bubble_chart_test.zig (1077 lines): comprehensive test coverage
+    - ✅ All integrations already done (build.zig, tui.zig, sailor.zig)
+    - ✅ All tests pass (exit 0)
+    - ✅ Released v2.73.0: BubbleChart widget; consumer issues zr#118, zoltraak#85, silica#96
+
+  **Current State**:
+    - **Latest release**: v2.73.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 116 widgets in src/tui/widgets/ (bubble_chart.zig added)
+    - **CI**: queued for v2.73.0 commit
+
+  **Next Priority**:
+    - Establish v2.74.0 milestone (candidates: ChordDiagram, StreamGraph, FunnelChart, ViolinPlot)
+
 ✅ **Session 341** — FEATURE MODE (2026-07-02)
   - **Mode**: NORMAL (session 341, 341 % 5 == 1)
   - **Achievement**: Fixed CI red, released v2.71.0 (SankeyDiagram) + v2.72.0 (GanttChart)
