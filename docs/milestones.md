@@ -2,11 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.72.0 (2026-07-02) — GanttChart Widget (time-range based)
-- **Latest minor**: v2.72.0 (2026-07-02) — GanttChart Widget (time-range based)
-- **Next release**: v2.73.0 — TBD
+- **Latest release**: v2.73.0 (2026-07-02) — BubbleChart Widget
+- **Latest minor**: v2.73.0 (2026-07-02) — BubbleChart Widget
+- **Next release**: v2.74.0 — TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.73.0 — BubbleChart Widget (Complete)
+
+**Theme**: A 2D bubble chart widget that displays data points as variable-size bubbles on a 2D plot with X-Y coordinates. Each bubble has a label, X/Y position, size (0.0–1.0), and optional per-bubble style. Features 5 bubble-size marker levels (·•○◉●), configurable X/Y ranges, optional axis lines and labels, focused bubble highlighting, optional block border, and MAX_BUBBLES=64 cap. Useful for scatter plots, correlation visualization, financial data, and any 2D positional + magnitude display.
+
+**Checklist**:
+- [x] **src/tui/widgets/bubble_chart.zig** — BubbleChart: `bubbles` ([]const Bubble=&.{}); `focused` (usize=0); `x_min/x_max` (f32=0.0/1.0); `y_min/y_max` (f32=0.0/1.0); `show_labels` (bool=true); `show_axes` (bool=false); `style/bubble_style/focused_style/axis_style` (Style={}); `block` (?Block=null); `pub const MAX_BUBBLES: usize = 64`; Bubble (label []const u8=""; x/y f32=0.0; size f32=0.5; style Style={}); `init()`; `bubbleCount() usize`; builder withBubbles/Focused/XMin/XMax/YMin/YMax/ShowLabels/ShowAxes/Style/BubbleStyle/FocusedStyle/AxisStyle/Block; `render(*Buffer, Rect)`
+- [x] **tests/bubble_chart_test.zig** — tests: init/defaults, bubbleCount capping, builder immutability, render zero/minimal area, empty bubbles, single bubble, multiple bubbles, x/y range scaling, focused bubble styling, bubble size markers, show_labels, show_axes, block border, MAX_BUBBLES cap, edge cases
+- [x] Export BubbleChart, Bubble via tui.zig widgets struct and top-level sailor.zig
+- [x] Add bubble_chart_tests to build.zig
+- [x] Release v2.73.0
 
 ### v2.72.0 — GanttChart Widget (Complete)
 

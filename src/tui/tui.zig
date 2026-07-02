@@ -508,6 +508,11 @@ pub const widgets = struct {
     pub const gantt_chart = @import("widgets/gantt_chart.zig");
     pub const GanttChart = gantt_chart.GanttChart;
     pub const GanttTask = gantt_chart.GanttTask;
+
+    // v2.73.0 — BubbleChart Widget
+    pub const bubble_chart = @import("widgets/bubble_chart.zig");
+    pub const BubbleChart = bubble_chart.BubbleChart;
+    pub const Bubble = bubble_chart.BubbleChart.Bubble;
 };
 
 // Export commonly used types
