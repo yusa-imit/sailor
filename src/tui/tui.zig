@@ -465,9 +465,9 @@ pub const widgets = struct {
     pub const Activity = activity_feed.Activity;
     pub const Kind = activity_feed.Kind;
 
-    // v2.64.0 — GanttChart Widget
+    // v2.64.0 — GanttChart Widget (legacy; access via sailor.tui.widgets.gantt.GanttChart)
+    // v2.72.0 introduces new time-range based GanttChart — old API available via gantt namespace
     pub const gantt = @import("widgets/gantt.zig");
-    pub const GanttChart = gantt.GanttChart;
 
     // v2.65.0 — FlowChart Widget
     pub const flowchart = @import("widgets/flowchart.zig");
@@ -503,6 +503,11 @@ pub const widgets = struct {
     pub const SankeyDiagram = sankey.SankeyDiagram;
     pub const SankeyNode = sankey.SankeyNode;
     pub const SankeyFlow = sankey.SankeyFlow;
+
+    // v2.72.0 — GanttChart Widget
+    pub const gantt_chart = @import("widgets/gantt_chart.zig");
+    pub const GanttChart = gantt_chart.GanttChart;
+    pub const GanttTask = gantt_chart.GanttTask;
 };
 
 // Export commonly used types

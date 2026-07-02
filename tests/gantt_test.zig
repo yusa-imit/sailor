@@ -11,7 +11,7 @@ const Buffer = sailor.tui.buffer.Buffer;
 const Rect = sailor.tui.layout.Rect;
 const Style = sailor.tui.style.Style;
 const Block = sailor.tui.widgets.Block;
-const GanttChart = sailor.tui.widgets.GanttChart;
+const GanttChart = sailor.tui.widgets.gantt.GanttChart;
 const Task = sailor.tui.widgets.gantt.Task;
 
 // ============================================================================
