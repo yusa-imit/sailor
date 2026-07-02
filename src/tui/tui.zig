@@ -513,6 +513,10 @@ pub const widgets = struct {
     pub const bubble_chart = @import("widgets/bubble_chart.zig");
     pub const BubbleChart = bubble_chart.BubbleChart;
     pub const Bubble = bubble_chart.BubbleChart.Bubble;
+
+    // v2.74.0 — ChordDiagram Widget
+    pub const chord_diagram = @import("widgets/chord_diagram.zig");
+    pub const ChordDiagram = chord_diagram.ChordDiagram;
 };
 
 // Export commonly used types

@@ -2,11 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.73.0 (2026-07-02) — BubbleChart Widget
-- **Latest minor**: v2.73.0 (2026-07-02) — BubbleChart Widget
-- **Next release**: v2.74.0 — TBD
+- **Latest release**: v2.74.0 (2026-07-03) — ChordDiagram Widget
+- **Latest minor**: v2.74.0 (2026-07-03) — ChordDiagram Widget
+- **Next release**: v2.75.0 — TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.74.0 — ChordDiagram Widget (Complete)
+
+**Theme**: A chord diagram widget that displays relationships/flows between N entities arranged in a circle. Each node occupies a position on the circle's perimeter, and chords (lines) connecting nodes represent flows defined by an NxN matrix. Supports focused node highlighting, optional labels at node positions, configurable styles, and optional block borders. Useful for visualizing relationships between categories, network traffic, migration flows, and any pairwise interaction data. MAX_NODES=16, no heap allocations.
+
+**Checklist**:
+- [x] **src/tui/widgets/chord_diagram.zig** — ChordDiagram: `nodes` ([]const []const u8=&.{}); `matrix` ([]const []const f32=&.{}); `focused` (usize=0); `style/arc_style/focused_style` (Style={}); `show_labels` (bool=true); `block` (?Block=null); `pub const MAX_NODES: usize = 16`; `init()`; `nodeCount() usize`; `totalFlow() f32`; builder withNodes/Matrix/Focused/Style/ArcStyle/FocusedStyle/ShowLabels/Block; `render(*Buffer, Rect)`
+- [x] **tests/chord_diagram_test.zig** — 81 tests: init/defaults, nodeCount capping, totalFlow, builder immutability, render zero/minimal area, empty nodes, single node, two nodes, multiple nodes, matrix flows, focused node styling, show_labels, block border, MAX_NODES cap, edge cases
+- [x] Export ChordDiagram via tui.zig widgets struct and top-level sailor.zig
+- [x] Add chord_diagram_tests to build.zig
+- [x] Release v2.74.0
 
 ### v2.73.0 — BubbleChart Widget (Complete)
 
