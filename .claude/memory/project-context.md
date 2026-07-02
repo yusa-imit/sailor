@@ -1,3 +1,33 @@
+✅ **Session 341** — FEATURE MODE (2026-07-02)
+  - **Mode**: NORMAL (session 341, 341 % 5 == 1)
+  - **Achievement**: Fixed CI red, released v2.71.0 (SankeyDiagram) + v2.72.0 (GanttChart)
+
+  **Completed Work**:
+    - ✅ CI was RED: sankey_test.zig + sankey.zig were untracked (build.zig referenced them but they weren't committed)
+    - ✅ Fixed: committed sankey.zig + sankey_test.zig; fixed style merge bug (base_style applied to node bars)
+    - ✅ Released v2.71.0: SankeyDiagram widget, 79 tests; consumer issues zr#116, zoltraak#83, silica#94
+    - ✅ Established v2.72.0 milestone: GanttChart widget (time-range based)
+    - ✅ TDD Red: test-writer wrote 70 tests in tests/gantt_chart_test.zig
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/gantt_chart.zig (275 lines)
+    - ✅ Fixed 7 test compilation errors in gantt_chart_test.zig (Block.init() → Block{}, withTitle args, GanttChart→GanttTask)
+    - ✅ Fixed gantt_test.zig: old GanttChart now accessed via sailor.tui.widgets.gantt.GanttChart namespace
+    - ✅ All 9,817+ tests pass, 0 failures
+    - ✅ Released v2.72.0: GanttChart widget, 70 tests; consumer issues zr#117, zoltraak#84, silica#95
+
+  **Current State**:
+    - **Latest release**: v2.72.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 115 widgets in src/tui/widgets/ (sankey.zig + gantt_chart.zig added)
+    - **CI**: Should be GREEN after sankey commit; v2.71.0 + v2.72.0 both tagged
+
+  **Key Design Decision**:
+    - Old GanttChart (v2.64.0, progress-based, Task struct) still accessible via `sailor.tui.widgets.gantt.GanttChart`
+    - New GanttChart (v2.72.0, time-range based, GanttTask struct) is `sailor.tui.widgets.GanttChart`
+    - SankeyDiagram: base_style.merge(node_style) applied to node bar cells (test caught missing merge)
+
+  **Next Priority**:
+    - Establish v2.73.0 milestone (candidates: BubbleChart, ChordDiagram, StreamGraph, FunnelChart)
+
 ✅ **Session 340** — STABILIZATION MODE (2026-06-30)
   - **Mode**: STABILIZATION (session 340, 340 % 5 == 0)
   - **Achievement**: Test quality audit + cross-platform verification + SankeyDiagram v2.71.0 in progress
