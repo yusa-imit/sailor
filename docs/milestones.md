@@ -2,22 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.71.0 (2026-07-02) — SankeyDiagram Widget
-- **Latest minor**: v2.71.0 (2026-07-02) — SankeyDiagram Widget
-- **Next release**: v2.72.0 — GanttChart Widget
-- **Active milestones**: 1 pending implementation
+- **Latest release**: v2.72.0 (2026-07-02) — GanttChart Widget (time-range based)
+- **Latest minor**: v2.72.0 (2026-07-02) — GanttChart Widget (time-range based)
+- **Next release**: v2.73.0 — TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
-### v2.72.0 — GanttChart Widget (In Progress)
+### v2.72.0 — GanttChart Widget (Complete)
 
 **Theme**: A Gantt chart widget for project/task timeline visualization. Renders tasks as horizontal bars spanning a time range, with each task occupying one row. Supports focused task highlighting, customizable time scale (start/end), optional task labels, optional block borders, and per-task styling. Useful for project management dashboards, build pipeline visualization, schedule views, and any time-ranged task display. MAX_TASKS=32, no heap allocations.
 
 **Checklist**:
-- [ ] **src/tui/widgets/gantt_chart.zig** — GanttChart: `tasks` ([]const GanttTask=&.{}); `focused` (usize=0); `time_start` (f32=0.0); `time_end` (f32=1.0); `show_labels` (bool=true); `style` (Style={}); `task_style` (Style={}); `focused_style` (Style={}); `block` (?Block=null); `pub const MAX_TASKS: usize = 32`; GanttTask (label []const u8=""; start f32=0.0; end f32=1.0; style Style={}); `init()`; `taskCount() usize`; builder withTasks/Focused/TimeStart/TimeEnd/ShowLabels/Style/TaskStyle/FocusedStyle/Block; `render(*Buffer, Rect)`
-- [ ] **tests/gantt_chart_test.zig** — ~75 tests: init/defaults, taskCount capping, builder immutability, render zero/minimal area, empty tasks, single task, multiple tasks, time range normalization, focused task styling, task labels, overlapping time ranges, clipped tasks, block border, MAX_TASKS cap, edge cases
-- [ ] Export GanttChart, GanttTask via tui.zig widgets struct and top-level
-- [ ] Add gantt_chart_tests to build.zig
-- [ ] Release v2.72.0
+- [x] **src/tui/widgets/gantt_chart.zig** — GanttChart: `tasks` ([]const GanttTask=&.{}); `focused` (usize=0); `time_start` (f32=0.0); `time_end` (f32=1.0); `show_labels` (bool=true); `style` (Style={}); `task_style` (Style={}); `focused_style` (Style={}); `block` (?Block=null); `pub const MAX_TASKS: usize = 32`; GanttTask (label []const u8=""; start f32=0.0; end f32=1.0; style Style={}); `init()`; `taskCount() usize`; builder withTasks/Focused/TimeStart/TimeEnd/ShowLabels/Style/TaskStyle/FocusedStyle/Block; `render(*Buffer, Rect)`
+- [x] **tests/gantt_chart_test.zig** — 70 tests: init/defaults, taskCount capping, builder immutability, render zero/minimal area, empty tasks, single task, multiple tasks, time range normalization, focused task styling, task labels, overlapping time ranges, clipped tasks, block border, MAX_TASKS cap, edge cases
+- [x] Export GanttChart, GanttTask via tui.zig widgets struct and top-level
+- [x] Add gantt_chart_tests to build.zig
+- [x] Release v2.72.0
 
 ### v2.71.0 — SankeyDiagram Widget (Complete)
 
