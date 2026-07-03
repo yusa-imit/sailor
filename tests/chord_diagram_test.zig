@@ -92,6 +92,21 @@ fn findTextInArea(buf: Buffer, area: Rect, text: []const u8) bool {
     return false;
 }
 
+/// Find the style of the first occurrence of a character in a buffer area.
+/// Returns null if the character is not found.
+fn findCharStyle(buf: Buffer, area: Rect, ch: u21) ?Style {
+    var y = area.y;
+    while (y < area.y + area.height and y < buf.height) : (y += 1) {
+        var x = area.x;
+        while (x < area.x + area.width and x < buf.width) : (x += 1) {
+            if (buf.getConst(x, y)) |cell| {
+                if (cell.char == ch) return cell.style;
+            }
+        }
+    }
+    return null;
+}
+
 // ============================================================================
 // Group 1: Init and Defaults (5 tests)
 // ============================================================================
@@ -184,7 +199,8 @@ test "ChordDiagram.totalFlow with single flow 2x2 matrix" {
     var matrix = [_][]const f32{ &row0, &row1 };
     const cd = ChordDiagram.init().withNodes(&nodes).withMatrix(&matrix);
     const flow = cd.totalFlow();
-    try testing.expect(flow > 0.0);
+    // 0.0 + 1.0 + 0.5 + 0.0 = 1.5
+    try testing.expectApproxEqAbs(@as(f32, 1.5), flow, 0.001);
 }
 
 test "ChordDiagram.totalFlow with all zeros matrix returns 0.0" {
@@ -204,7 +220,8 @@ test "ChordDiagram.totalFlow sums all non-zero flows" {
     var matrix = [_][]const f32{ &row0, &row1 };
     const cd = ChordDiagram.init().withNodes(&nodes).withMatrix(&matrix);
     const flow = cd.totalFlow();
-    try testing.expect(flow >= 8.0);
+    // 0.0 + 5.0 + 3.0 + 0.0 = 8.0
+    try testing.expectApproxEqAbs(@as(f32, 8.0), flow, 0.001);
 }
 
 test "ChordDiagram.totalFlow with single node self-referential matrix" {
@@ -213,7 +230,8 @@ test "ChordDiagram.totalFlow with single node self-referential matrix" {
     var matrix = [_][]const f32{&row0};
     const cd = ChordDiagram.init().withNodes(&nodes).withMatrix(&matrix);
     const flow = cd.totalFlow();
-    try testing.expect(flow > 0.0);
+    // Self-referential flow: matrix[0][0] = 2.5
+    try testing.expectApproxEqAbs(@as(f32, 2.5), flow, 0.001);
 }
 
 // ============================================================================
@@ -302,44 +320,54 @@ test "ChordDiagram.withBlock with null unsets block" {
 // Group 7: Render — Zero/Minimal Area (5 tests)
 // ============================================================================
 
-test "ChordDiagram.render on 0x0 area does not crash" {
+test "ChordDiagram.render on 0x0 area exits early without writing" {
     var buf = try Buffer.init(testing.allocator, 0, 0);
     defer buf.deinit();
     const cd = ChordDiagram.init();
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
     cd.render(&buf, area);
+    // 0x0 buffer has no cells; early-exit means nothing was written
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
 }
 
-test "ChordDiagram.render on 1x1 area does not crash" {
+test "ChordDiagram.render on 1x1 area exits early (below min 5x5)" {
     var buf = try Buffer.init(testing.allocator, 1, 1);
     defer buf.deinit();
     const cd = ChordDiagram.init();
     const area = Rect{ .x = 0, .y = 0, .width = 1, .height = 1 };
     cd.render(&buf, area);
+    // render returns early when inner area < 5x5; buffer cells stay at default space
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
 }
 
-test "ChordDiagram.render on 2x2 area does not crash" {
+test "ChordDiagram.render on 2x2 area exits early (below min 5x5)" {
     var buf = try Buffer.init(testing.allocator, 2, 2);
     defer buf.deinit();
     const cd = ChordDiagram.init();
     const area = Rect{ .x = 0, .y = 0, .width = 2, .height = 2 };
     cd.render(&buf, area);
+    // render returns early when inner area < 5x5; buffer cells stay at default space
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
 }
 
-test "ChordDiagram.render on 0-width area does not crash" {
+test "ChordDiagram.render on 0-width area exits early without writing" {
     var buf = try Buffer.init(testing.allocator, 1, 10);
     defer buf.deinit();
     const cd = ChordDiagram.init();
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 10 };
     cd.render(&buf, area);
+    // render returns early when area.width == 0; no cells written in that area
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
 }
 
-test "ChordDiagram.render on 0-height area does not crash" {
+test "ChordDiagram.render on 0-height area exits early without writing" {
     var buf = try Buffer.init(testing.allocator, 10, 1);
     defer buf.deinit();
     const cd = ChordDiagram.init();
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 0 };
     cd.render(&buf, area);
+    // render returns early when area.height == 0; no cells written in that area
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
 }
 
 // ============================================================================
@@ -606,8 +634,10 @@ test "ChordDiagram.render focused=0 on two-node diagram applies focus style to f
         .withShowLabels(false);
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 20 };
     cd.render(&buf, area);
-    const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);
+    // The focused node (index 0) is rendered with '◉' marker using focused_style
+    const focused_char_style = findCharStyle(buf, area, '◉');
+    try testing.expect(focused_char_style != null);
+    try testing.expect(focused_char_style.?.bold);
 }
 
 test "ChordDiagram.render focused=1 on three-node diagram" {
@@ -716,12 +746,13 @@ test "ChordDiagram.render show_labels=true displays node labels" {
     try testing.expect(non_empty > 0);
 }
 
-test "ChordDiagram.render show_labels=false omits node labels" {
+test "ChordDiagram.render show_labels=false produces fewer cells than show_labels=true" {
     var buf1 = try Buffer.init(testing.allocator, 30, 20);
     defer buf1.deinit();
     var buf2 = try Buffer.init(testing.allocator, 30, 20);
     defer buf2.deinit();
 
+    // Use long node names so labels contribute many cells when enabled
     var nodes = [_][]const u8{ "VeryLongNodeName", "AnotherLongName" };
     var row0 = [_]f32{ 0.0, 1.0 };
     var row1 = [_]f32{ 1.0, 0.0 };
@@ -740,10 +771,10 @@ test "ChordDiagram.render show_labels=false omits node labels" {
     cd_with_labels.render(&buf1, area);
     cd_no_labels.render(&buf2, area);
 
-    const content1 = countNonEmptyCells(buf1, area);
-    const content2 = countNonEmptyCells(buf2, area);
-    try testing.expect(content1 > 0);
-    try testing.expect(content2 > 0);
+    const content_with = countNonEmptyCells(buf1, area);
+    const content_without = countNonEmptyCells(buf2, area);
+    // Labels add text characters; show_labels=true must produce more content
+    try testing.expect(content_with > content_without);
 }
 
 test "ChordDiagram.render labels appear near node positions" {
@@ -965,6 +996,8 @@ test "ChordDiagram.render with exactly MAX_NODES=16" {
     try testing.expectEqual(@as(usize, 16), cd.nodeCount());
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 20 };
     cd.render(&buf, area);
+    const non_empty = countNonEmptyCells(buf, area);
+    try testing.expect(non_empty > 0);
 }
 
 test "ChordDiagram.nodeCount caps at MAX_NODES with 20 nodes" {
@@ -1002,9 +1035,13 @@ test "ChordDiagram.render with 20 nodes caps internally to 16" {
         .withNodes(&nodes)
         .withMatrix(&matrix_rows)
         .withShowLabels(false);
+    // nodeCount() caps at 16 even with 20 nodes
+    try testing.expectEqual(@as(usize, 16), cd.nodeCount());
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 20 };
     cd.render(&buf, area);
-    // Should not crash and should handle gracefully
+    // Rendering 16 effective nodes should produce node markers
+    const non_empty = countNonEmptyCells(buf, area);
+    try testing.expect(non_empty > 0);
 }
 
 test "ChordDiagram.render 16 nodes with proper matrix layout" {
@@ -1063,7 +1100,7 @@ test "ChordDiagram.render with custom style applies to diagram" {
     try testing.expect(non_empty > 0);
 }
 
-test "ChordDiagram.render with arc_style for chords" {
+test "ChordDiagram.render arc_style is applied to chord line cells" {
     var buf = try Buffer.init(testing.allocator, 30, 20);
     defer buf.deinit();
     var nodes = [_][]const u8{ "A", "B", "C" };
@@ -1071,16 +1108,21 @@ test "ChordDiagram.render with arc_style for chords" {
     var row1 = [_]f32{ 1.0, 0.0, 1.0 };
     var row2 = [_]f32{ 1.0, 1.0, 0.0 };
     var matrix = [_][]const f32{ &row0, &row1, &row2 };
-    const arc_style = Style{ .fg = .{ .indexed = 3 } };
+    // Chord lines are drawn with '·' (U+00B7).
+    // Set focused=99 (out of range) so ALL chords use arc_style, none use focused_style.
+    const arc_style = Style{ .bold = true };
     const cd = ChordDiagram.init()
         .withNodes(&nodes)
         .withMatrix(&matrix)
         .withArcStyle(arc_style)
+        .withFocused(99)
         .withShowLabels(false);
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 20 };
     cd.render(&buf, area);
-    const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);
+    // Every '·' chord cell should carry arc_style (bold=true)
+    const chord_style = findCharStyle(buf, area, '·');
+    try testing.expect(chord_style != null);
+    try testing.expect(chord_style.?.bold);
 }
 
 test "ChordDiagram.render with multiple styles renders" {
