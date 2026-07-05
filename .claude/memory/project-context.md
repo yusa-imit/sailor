@@ -1,3 +1,35 @@
+✅ **Session 346** — FEATURE MODE (2026-07-06)
+  - **Mode**: NORMAL (session 346, 346 % 5 == 1)
+  - **Achievement**: Fixed CI red + Released v2.75.0 (WaterfallChart widget)
+
+  **Completed Work**:
+    - ✅ CI was RED: macos-latest now resolves to macOS 26 (Tahoe); Zig 0.15.2 can't link (undefined libc symbols)
+    - ✅ Fixed: pinned ARM64 runner to macos-15 in ci.yml; committed 4c51a84
+    - ✅ Established v2.75.0 milestone: WaterfallChart widget
+    - ✅ TDD Red: test-writer wrote 90 tests in tests/waterfall_chart_test.zig
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/waterfall_chart.zig (410 lines)
+    - ✅ Exports in tui.zig (waterfall_chart, WaterfallChart, WaterfallBar, WaterfallKind) and sailor.zig
+    - ✅ All tests pass (exit 0)
+    - ✅ Released v2.75.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#120, zoltraak#87, silica#98
+
+  **Current State**:
+    - **Latest release**: v2.75.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 118 widgets in src/tui/widgets/ (waterfall_chart.zig added)
+    - **CI**: triggered for v2.75.0 commit (macos-15 fix should green)
+
+  **WaterfallChart Widget Summary**:
+    - WaterfallKind: .relative (cumulative delta), .absolute (reset baseline), .total (show running total)
+    - WaterfallBar: label/value/kind/style
+    - WaterfallChart: bars/focused/show_values/show_connectors/positive_style/negative_style/total_style/focused_style/connector_style/style/block
+    - Two-pass render: first pass computes global min/max running totals; second pass renders bars
+    - MAX_BARS=32, no heap allocations
+    - 90 tests
+
+  **Next Priority**:
+    - Establish v2.76.0 milestone (candidates: StreamGraph, FunnelChart, ViolinPlot)
+
 ✅ **Session 345** — STABILIZATION MODE (2026-07-03)
   - **Mode**: STABILIZATION (session 345, 345 % 5 == 0)
   - **Achievement**: Test quality hardening for chord_diagram_test.zig
