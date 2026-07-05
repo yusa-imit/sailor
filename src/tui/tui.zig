@@ -517,6 +517,12 @@ pub const widgets = struct {
     // v2.74.0 — ChordDiagram Widget
     pub const chord_diagram = @import("widgets/chord_diagram.zig");
     pub const ChordDiagram = chord_diagram.ChordDiagram;
+
+    // v2.75.0 — WaterfallChart Widget
+    pub const waterfall_chart = @import("widgets/waterfall_chart.zig");
+    pub const WaterfallChart = waterfall_chart.WaterfallChart;
+    pub const WaterfallBar = waterfall_chart.WaterfallBar;
+    pub const WaterfallKind = waterfall_chart.WaterfallKind;
 };
 
 // Export commonly used types
