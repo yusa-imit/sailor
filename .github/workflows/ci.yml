@@ -33,7 +33,7 @@ jobs:
           # macOS ARM64 (Apple Silicon)
           - os: macOS
             arch: ARM64
-            runner: macos-latest
+            runner: macos-15
           # Windows x86_64
           - os: Windows
             arch: x86_64
