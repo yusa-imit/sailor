@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v2.74.0 (2026-07-03) — ChordDiagram Widget
-- **Latest minor**: v2.74.0 (2026-07-03) — ChordDiagram Widget
-- **Next release**: v2.75.0 — WaterfallChart Widget
-- **Active milestones**: 1 (v2.75.0 in progress)
+- **Latest release**: v2.75.0 (2026-07-06) — WaterfallChart Widget
+- **Latest minor**: v2.75.0 (2026-07-06) — WaterfallChart Widget
+- **Next release**: v2.76.0 — TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
 ### v2.75.0 — WaterfallChart Widget (In Progress)
@@ -13,11 +13,11 @@
 **Theme**: A waterfall chart widget that visualizes sequential cumulative contributions to a total. Each bar represents a step — positive (upward) or negative (downward) — floating above/below the running total. Supports three bar kinds: relative (cumulative delta), absolute (reset baseline), and total (display running total). Features positive/negative/total/focused/connector styles, optional value labels on bars, optional connector lines between bars, and block borders. MAX_BARS=32, no heap allocations. Useful for financial P&L breakdowns, budget variance analysis, pipeline stage conversions, and any step-by-step cumulative data.
 
 **Checklist**:
-- [ ] **src/tui/widgets/waterfall_chart.zig** — WaterfallChart + WaterfallBar + WaterfallKind; `bars` ([]const WaterfallBar=&.{}); `focused` (usize=0); `show_values` (bool=true); `show_connectors` (bool=true); `positive_style/negative_style/total_style/focused_style/connector_style/style` (Style={}); `block` (?Block=null); `pub const MAX_BARS: usize = 32`; `init()`; `barCount() usize`; builder withBars/Focused/ShowValues/ShowConnectors/PositiveStyle/NegativeStyle/TotalStyle/FocusedStyle/ConnectorStyle/Style/Block; `render(*Buffer, Rect)`
-- [ ] **tests/waterfall_chart_test.zig** — ~70 tests: init/defaults, barCount capping, WaterfallKind variants, builder immutability, render zero/minimal area, empty bars, single positive/negative/total/absolute bar, multiple bars, mixed kinds, focused styling, positive/negative/total styling, show_values, show_connectors, block border, MAX_BARS cap, edge cases
-- [ ] Export WaterfallChart, WaterfallBar, WaterfallKind via tui.zig widgets struct and top-level sailor.zig
-- [ ] Add waterfall_chart_tests to build.zig
-- [ ] Release v2.75.0
+- [x] **src/tui/widgets/waterfall_chart.zig** — WaterfallChart + WaterfallBar + WaterfallKind; `bars` ([]const WaterfallBar=&.{}); `focused` (usize=0); `show_values` (bool=true); `show_connectors` (bool=true); `positive_style/negative_style/total_style/focused_style/connector_style/style` (Style={}); `block` (?Block=null); `pub const MAX_BARS: usize = 32`; `init()`; `barCount() usize`; builder withBars/Focused/ShowValues/ShowConnectors/PositiveStyle/NegativeStyle/TotalStyle/FocusedStyle/ConnectorStyle/Style/Block; `render(*Buffer, Rect)`
+- [x] **tests/waterfall_chart_test.zig** — 90 tests: init/defaults, barCount capping, WaterfallKind variants, builder immutability, render zero/minimal area, empty bars, single positive/negative/total/absolute bar, multiple bars, mixed kinds, focused styling, positive/negative/total styling, show_values, show_connectors, block border, MAX_BARS cap, edge cases
+- [x] Export WaterfallChart, WaterfallBar, WaterfallKind via tui.zig widgets struct and top-level sailor.zig
+- [x] Add waterfall_chart_tests to build.zig
+- [x] Release v2.75.0
 
 ### v2.74.0 — ChordDiagram Widget (Complete)
 
