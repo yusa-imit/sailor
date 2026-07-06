@@ -306,7 +306,12 @@ test "BarChart.render renders empty chart" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
 
     chart.render(&buf, area);
-    // Should not crash
+    // Empty chart leaves buffer unchanged (all spaces)
+    for (0..10) |y| {
+        for (0..10) |x| {
+            try testing.expectEqual(@as(u21, ' '), buf.getConst(@intCast(x), @intCast(y)).?.char);
+        }
+    }
 }
 
 test "BarChart.render renders single bar" {
@@ -451,7 +456,12 @@ test "BarChart.render with zero area" {
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
 
     chart.render(&buf, area);
-    // Should not crash
+    // Zero-area render must not write to any cells in the 10x10 buffer
+    for (0..10) |y| {
+        for (0..10) |x| {
+            try testing.expectEqual(@as(u21, ' '), buf.getConst(@intCast(x), @intCast(y)).?.char);
+        }
+    }
 }
 
 test "BarChart.render with max value" {

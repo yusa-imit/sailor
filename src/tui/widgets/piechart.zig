@@ -335,11 +335,11 @@ test "PieChart.render with legend right" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
     chart.render(&buf, area);
 
-    // Verify legend text appears
-    const cell_cpu = buf.get(27, 0); // Approximate legend position
-    const cell_mem = buf.get(27, 1);
-    try testing.expect(cell_cpu != null);
-    try testing.expect(cell_mem != null);
+    // legend_width = min(40/3, 20) = 13 → legend starts at x=27
+    // First entry is "■ CPU: ..." rendered at (27, 0)
+    try testing.expectEqual(@as(u21, '■'), buf.getConst(27, 0).?.char);
+    // Second entry "■ Mem: ..." rendered at (27, 1)
+    try testing.expectEqual(@as(u21, '■'), buf.getConst(27, 1).?.char);
 }
 
 test "PieChart.render with legend bottom" {
@@ -355,9 +355,11 @@ test "PieChart.render with legend bottom" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
     chart.render(&buf, area);
 
-    // Verify legend text appears at bottom
-    const cell = buf.get(0, 7); // Approximate bottom legend position
-    try testing.expect(cell != null);
+    // legend_height = min(10/3, 2+1) = 3 → chart_height=7, legend at y=7
+    // First entry "■ A: ..." at (0, 7)
+    try testing.expectEqual(@as(u21, '■'), buf.getConst(0, 7).?.char);
+    // Second entry "■ B: ..." at (0, 8)
+    try testing.expectEqual(@as(u21, '■'), buf.getConst(0, 8).?.char);
 }
 
 test "PieChart.render with no legend" {
@@ -371,7 +373,19 @@ test "PieChart.render with no legend" {
 
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     chart.render(&buf, area);
-    // Should render without legend
+
+    // With .none legend position, '■' bullet should not appear anywhere in buffer
+    var found_bullet = false;
+    for (0..10) |y| {
+        for (0..10) |x| {
+            if (buf.getConst(@intCast(x), @intCast(y)).?.char == '■') {
+                found_bullet = true;
+                break;
+            }
+        }
+        if (found_bullet) break;
+    }
+    try testing.expect(!found_bullet);
 }
 
 test "PieChart.render with block" {

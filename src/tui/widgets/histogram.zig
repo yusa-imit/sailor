@@ -465,5 +465,18 @@ test "Histogram.render values disabled" {
     defer buf.deinit();
 
     hist.render(&buf, Rect{ .x = 0, .y = 0, .width = 20, .height = 10 });
-    // Should render without values (no verification needed, just shouldn't crash)
+
+    // With show_values=false, no digit characters should appear in render area
+    var found_digit = false;
+    for (0..10) |y| {
+        for (0..20) |x| {
+            const ch = buf.getConst(@intCast(x), @intCast(y)).?.char;
+            if (ch >= '0' and ch <= '9') {
+                found_digit = true;
+                break;
+            }
+        }
+        if (found_digit) break;
+    }
+    try std.testing.expect(!found_digit);
 }
