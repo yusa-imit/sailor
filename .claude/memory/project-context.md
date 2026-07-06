@@ -1,3 +1,34 @@
+✅ **Session 347** — FEATURE MODE (2026-07-06)
+  - **Mode**: NORMAL (session 347, 347 % 5 == 2)
+  - **Achievement**: Released v2.76.0 (FunnelChart widget)
+
+  **Completed Work**:
+    - ✅ CI: queued (not RED); 0 open issues
+    - ✅ Established v2.76.0 milestone: FunnelChart widget
+    - ✅ TDD Red: test-writer wrote 89 tests in tests/funnel_chart_test.zig
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/funnel_chart.zig (339 lines)
+    - ✅ Exports in tui.zig (funnel_chart, FunnelChart, FunnelStage) and sailor.zig
+    - ✅ All tests pass (exit 0)
+    - ✅ Released v2.76.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#121, zoltraak#88, silica#99
+
+  **Current State**:
+    - **Latest release**: v2.76.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 119 widgets in src/tui/widgets/ (funnel_chart.zig added)
+    - **CI**: triggered for v2.76.0 commit
+
+  **FunnelChart Widget Summary**:
+    - FunnelStage: label/value/style
+    - FunnelChart: stages/focused/style/label_style/value_style/focused_style/show_values/show_percentages/block
+    - Centered bars proportional to stage.value/maxValue; stages narrow top-to-bottom
+    - Optional value and percentage labels
+    - MAX_STAGES=16, no heap allocations
+    - 89 tests
+
+  **Next Priority**:
+    - Establish v2.77.0 milestone (candidates: StreamGraph, ViolinPlot, DotPlot)
+
 ✅ **Session 346** — FEATURE MODE (2026-07-06)
   - **Mode**: NORMAL (session 346, 346 % 5 == 1)
   - **Achievement**: Fixed CI red + Released v2.75.0 (WaterfallChart widget)

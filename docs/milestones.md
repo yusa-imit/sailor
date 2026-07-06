@@ -2,13 +2,24 @@
 
 ## Current Status
 
-- **Latest release**: v2.75.0 (2026-07-06) — WaterfallChart Widget
-- **Latest minor**: v2.75.0 (2026-07-06) — WaterfallChart Widget
-- **Next release**: v2.76.0 — TBD
+- **Latest release**: v2.76.0 (2026-07-06) — FunnelChart Widget
+- **Latest minor**: v2.76.0 (2026-07-06) — FunnelChart Widget
+- **Next release**: v2.77.0 — TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
-### v2.75.0 — WaterfallChart Widget (In Progress)
+### v2.76.0 — FunnelChart Widget (Complete)
+
+**Theme**: A funnel chart widget that visualizes conversion stages as proportionally-sized centered horizontal bars stacking top-to-bottom. Each stage narrows relative to the maximum value, creating the classic funnel shape. Supports focused stage highlighting, optional value and percentage labels, per-stage styling, and block borders. Useful for sales pipelines, signup flows, conversion analytics, and any multi-stage filtering data. MAX_STAGES=16, no heap allocations.
+
+**Checklist**:
+- [x] **src/tui/widgets/funnel_chart.zig** — FunnelChart + FunnelStage; `stages` ([]const FunnelStage=&.{}); `focused` (usize=0); `style/label_style/value_style/focused_style` (Style={}); `show_values` (bool=true); `show_percentages` (bool=false); `block` (?Block=null); `pub const MAX_STAGES: usize = 16`; `init()`; `stageCount() usize`; `maxValue() f32`; builder withStages/Focused/Style/LabelStyle/ValueStyle/FocusedStyle/ShowValues/ShowPercentages/Block; `render(*Buffer, Rect)`
+- [x] **tests/funnel_chart_test.zig** — 89 tests: init/defaults, stageCount capping, maxValue, builder immutability, render zero/minimal area, empty stages, single/multiple stages, focused styling, show_values, show_percentages, block border, MAX_STAGES cap, per-stage styles, zero-value stages, real-world scenarios
+- [x] Export FunnelChart, FunnelStage via tui.zig widgets struct and top-level sailor.zig
+- [x] Add funnel_chart_tests to build.zig
+- [x] Release v2.76.0
+
+### v2.75.0 — WaterfallChart Widget (Complete)
 
 **Theme**: A waterfall chart widget that visualizes sequential cumulative contributions to a total. Each bar represents a step — positive (upward) or negative (downward) — floating above/below the running total. Supports three bar kinds: relative (cumulative delta), absolute (reset baseline), and total (display running total). Features positive/negative/total/focused/connector styles, optional value labels on bars, optional connector lines between bars, and block borders. MAX_BARS=32, no heap allocations. Useful for financial P&L breakdowns, budget variance analysis, pipeline stage conversions, and any step-by-step cumulative data.
 
