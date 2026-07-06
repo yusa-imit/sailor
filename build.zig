@@ -1566,6 +1566,17 @@ pub fn build(b: *std.Build) void {
     dot_plot_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(dot_plot_tests).step);
 
+    const radial_bar_tests = b.addTest(.{
+        .name = "radial_bar_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/radial_bar_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    radial_bar_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(radial_bar_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",

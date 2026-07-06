@@ -533,6 +533,11 @@ pub const widgets = struct {
     pub const dot_plot = @import("widgets/dot_plot.zig");
     pub const DotPlot = dot_plot.DotPlot;
     pub const DotPlotItem = dot_plot.DotPlotItem;
+
+    // v2.78.0 — RadialBar Widget
+    pub const radial_bar = @import("widgets/radial_bar.zig");
+    pub const RadialBar = radial_bar.RadialBar;
+    pub const RadialArc = radial_bar.RadialArc;
 };
 
 // Export commonly used types
