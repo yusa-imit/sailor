@@ -2,11 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.76.0 (2026-07-06) — FunnelChart Widget
-- **Latest minor**: v2.76.0 (2026-07-06) — FunnelChart Widget
-- **Next release**: v2.77.0 — TBD
+- **Latest release**: v2.77.0 (2026-07-06) — DotPlot Widget
+- **Latest minor**: v2.77.0 (2026-07-06) — DotPlot Widget
+- **Next release**: v2.78.0 — TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.77.0 — DotPlot Widget (Complete)
+
+**Theme**: A Cleveland dot plot widget that visualizes categorical data as dots positioned along a horizontal numeric scale. Each item occupies one row, with an optional label column on the left, a dashed connecting line, and a dot placed at the normalized x position. Supports focused item highlighting, optional value labels after the dot, configurable dot character, per-item styling, and block borders. Useful for rankings, comparisons, survey results, benchmark comparisons, and any categorical-vs-numeric data. MAX_ITEMS=64, no heap allocations.
+
+**Checklist**:
+- [x] **src/tui/widgets/dot_plot.zig** — DotPlot + DotPlotItem; `items` ([]const DotPlotItem=&.{}); `focused` (usize=0); `x_min` (f32=0.0); `x_max` (f32=1.0); `show_labels` (bool=true); `show_values` (bool=false); `dot_char` (u21='●'); `style/dot_style/focused_style/label_style/line_style` (Style={}); `block` (?Block=null); `pub const MAX_ITEMS: usize = 64`; `init()`; `itemCount() usize`; builder withItems/Focused/XMin/XMax/ShowLabels/ShowValues/DotChar/Style/DotStyle/FocusedStyle/LabelStyle/LineStyle/Block; `render(*Buffer, Rect)`
+- [x] **tests/dot_plot_test.zig** — 94 tests: init/defaults, itemCount capping, builder immutability, render zero/minimal area, empty items, single/multiple items, x_min/x_max normalization, show_labels, show_values, focused styling, dot_char, block border, MAX_ITEMS cap, negative values, equal range, clipping, line_style, label column width
+- [x] Export DotPlot, DotPlotItem via tui.zig widgets struct and top-level sailor.zig
+- [x] Add dot_plot_tests to build.zig
+- [x] Release v2.77.0
 
 ### v2.76.0 — FunnelChart Widget (Complete)
 

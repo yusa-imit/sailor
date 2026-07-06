@@ -528,6 +528,11 @@ pub const widgets = struct {
     pub const funnel_chart = @import("widgets/funnel_chart.zig");
     pub const FunnelChart = funnel_chart.FunnelChart;
     pub const FunnelStage = funnel_chart.FunnelStage;
+
+    // v2.77.0 — DotPlot Widget
+    pub const dot_plot = @import("widgets/dot_plot.zig");
+    pub const DotPlot = dot_plot.DotPlot;
+    pub const DotPlotItem = dot_plot.DotPlotItem;
 };
 
 // Export commonly used types
