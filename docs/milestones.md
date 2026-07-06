@@ -2,11 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.77.0 (2026-07-06) — DotPlot Widget
-- **Latest minor**: v2.77.0 (2026-07-06) — DotPlot Widget
-- **Next release**: v2.78.0 — TBD
+- **Latest release**: v2.78.0 (2026-07-06) — RadialBar Widget
+- **Latest minor**: v2.78.0 (2026-07-06) — RadialBar Widget
+- **Next release**: v2.79.0 — TBD
 - **Active milestones**: 0 pending implementation
 - **Blockers**: None
+
+### v2.78.0 — RadialBar Widget (Complete)
+
+**Theme**: A radial bar chart widget that displays multiple concentric arc bars, each representing a different metric's progress from 0.0 to 1.0. The outermost arc corresponds to arcs[0], with each successive arc drawn at a smaller radius. Each arc fills clockwise from the 12 o'clock position proportional to its value; the remainder shows an empty-style character. Supports focused arc highlighting, optional label/value columns to the right of the circle, per-arc styling, and block borders. Useful for dashboards, multi-metric progress comparison, system resource monitoring, and any scenario where multiple ratios need side-by-side circular visualization. MAX_ARCS=8, no heap allocations.
+
+**Checklist**:
+- [x] **src/tui/widgets/radial_bar.zig** — RadialBar + RadialArc; `arcs` ([]const RadialArc=&.{}); `focused` (usize=0); `show_labels` (bool=true); `show_values` (bool=true); `style/arc_style/focused_style/label_style/empty_style` (Style={}); `block` (?Block=null); `pub const MAX_ARCS: usize = 8`; `init()`; `arcCount() usize`; builder withArcs/Focused/ShowLabels/ShowValues/Style/ArcStyle/FocusedStyle/LabelStyle/EmptyStyle/Block; `render(*Buffer, Rect)`
+- [x] **tests/radial_bar_test.zig** — 88 tests: init/defaults, RadialArc defaults, MAX_ARCS constant, arcCount capping, builder immutability, render zero/minimal area, empty arcs, single/multiple arcs, value clamping, focused styling, show_labels/show_values toggles, block border, per-arc styles, edge cases (value=0, value=1)
+- [x] Export RadialBar, RadialArc via tui.zig widgets struct and top-level sailor.zig
+- [x] Add radial_bar_tests to build.zig
+- [x] Release v2.78.0
 
 ### v2.77.0 — DotPlot Widget (Complete)
 
