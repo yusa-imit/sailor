@@ -1,3 +1,41 @@
+✅ **Session 348** — FEATURE MODE (2026-07-06)
+  - **Mode**: NORMAL (session 348, 348 % 5 == 3)
+  - **Achievement**: Released v2.77.0 (DotPlot widget)
+
+  **Completed Work**:
+    - ✅ CI: queued (not RED); 0 open issues
+    - ✅ Established v2.77.0 milestone: DotPlot widget
+    - ✅ TDD Red: test-writer wrote 94 tests in tests/dot_plot_test.zig
+    - ✅ Fixed 10 @floatFromInt type-inference errors in test file (Zig 0.15.x struct literal issue)
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/dot_plot.zig (320 lines)
+    - ✅ Exports in tui.zig (dot_plot, DotPlot, DotPlotItem) and sailor.zig
+    - ✅ All tests pass (exit 0)
+    - ✅ Released v2.77.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#122, zoltraak#89, silica#100
+
+  **Current State**:
+    - **Latest release**: v2.77.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 120 widgets in src/tui/widgets/ (dot_plot.zig added)
+    - **CI**: triggered for v2.77.0 commit
+
+  **DotPlot Widget Summary**:
+    - DotPlotItem: label/value/style
+    - DotPlot: items/focused/x_min/x_max/show_labels/show_values/dot_char/style/dot_style/focused_style/label_style/line_style/block
+    - Label column auto-sized to min(max_label_len, inner_width/3)
+    - Dashed line (─) from label to dot position
+    - Dot placed at normalized x: (value - x_min) / (x_max - x_min) * (plot_width - 1)
+    - Focused item uses focused_style on dot cell
+    - MAX_ITEMS=64, no heap allocations
+    - 94 tests
+
+  **Known Issue — Test Pattern**:
+    - @floatFromInt(i) in struct literal .{.value = @floatFromInt(i)} needs @as(f32, @floatFromInt(i)) in Zig 0.15.x
+    - Future test-writers must use explicit type annotation in struct literal contexts
+
+  **Next Priority**:
+    - Establish v2.78.0 milestone (candidates: StreamGraph, ViolinPlot, RadialBar)
+
 ✅ **Session 347** — FEATURE MODE (2026-07-06)
   - **Mode**: NORMAL (session 347, 347 % 5 == 2)
   - **Achievement**: Released v2.76.0 (FunnelChart widget)
@@ -12,12 +50,6 @@
     - ✅ Released v2.76.0: bumped build.zig.zon, tagged, pushed, GitHub release created
     - ✅ Consumer migration issues filed: zr#121, zoltraak#88, silica#99
 
-  **Current State**:
-    - **Latest release**: v2.76.0 (tagged + GitHub release)
-    - **Open issues**: 0 (sailor)
-    - **Widget count**: 119 widgets in src/tui/widgets/ (funnel_chart.zig added)
-    - **CI**: triggered for v2.76.0 commit
-
   **FunnelChart Widget Summary**:
     - FunnelStage: label/value/style
     - FunnelChart: stages/focused/style/label_style/value_style/focused_style/show_values/show_percentages/block
@@ -25,9 +57,6 @@
     - Optional value and percentage labels
     - MAX_STAGES=16, no heap allocations
     - 89 tests
-
-  **Next Priority**:
-    - Establish v2.77.0 milestone (candidates: StreamGraph, ViolinPlot, DotPlot)
 
 ✅ **Session 346** — FEATURE MODE (2026-07-06)
   - **Mode**: NORMAL (session 346, 346 % 5 == 1)
@@ -44,365 +73,9 @@
     - ✅ Released v2.75.0: bumped build.zig.zon, tagged, pushed, GitHub release created
     - ✅ Consumer migration issues filed: zr#120, zoltraak#87, silica#98
 
-  **Current State**:
-    - **Latest release**: v2.75.0 (tagged + GitHub release)
-    - **Open issues**: 0 (sailor)
-    - **Widget count**: 118 widgets in src/tui/widgets/ (waterfall_chart.zig added)
-    - **CI**: triggered for v2.75.0 commit (macos-15 fix should green)
-
   **WaterfallChart Widget Summary**:
     - WaterfallKind: .relative (cumulative delta), .absolute (reset baseline), .total (show running total)
     - WaterfallBar: label/value/kind/style
     - WaterfallChart: bars/focused/show_values/show_connectors/positive_style/negative_style/total_style/focused_style/connector_style/style/block
-    - Two-pass render: first pass computes global min/max running totals; second pass renders bars
     - MAX_BARS=32, no heap allocations
     - 90 tests
-
-  **Next Priority**:
-    - Establish v2.76.0 milestone (candidates: StreamGraph, FunnelChart, ViolinPlot)
-
-✅ **Session 345** — STABILIZATION MODE (2026-07-03)
-  - **Mode**: STABILIZATION (session 345, 345 % 5 == 0)
-  - **Achievement**: Test quality hardening for chord_diagram_test.zig
-
-  **Completed Work**:
-    - ✅ CI: queued (not RED); 0 open issues
-    - ✅ All 6 cross-compile targets pass (x86_64-linux-gnu, x86_64-windows-msvc, aarch64-macos, x86_64-macos, aarch64-linux-gnu, aarch64-windows-msvc)
-    - ✅ Test quality audit via Explore agent
-    - ✅ Replaced 5 no-assertion "does not crash" tests with early-exit buffer-state assertions
-    - ✅ Strengthened totalFlow tests: exact values (1.5, 8.0, 2.5) via expectApproxEqAbs
-    - ✅ Added findCharStyle helper to locate a character's applied style in buffer
-    - ✅ Focused node test: verifies '◉' marker cell has focused_style.bold applied
-    - ✅ Arc_style test: verifies '·' chord cells carry arc_style.bold (focused=99 forces all chords to arc_style)
-    - ✅ show_labels test: verifies content_with > content_without (structural comparison)
-    - ✅ MAX_NODES cap tests now assert non_empty > 0 (was assertion-free)
-    - ✅ All 9987+ tests pass (exit 0) after improvements
-    - ✅ Committed and pushed: 6464183
-
-  **Current State**:
-    - **Latest release**: v2.74.0 (tagged + GitHub release)
-    - **Open issues**: 0 (sailor)
-    - **Widget count**: 117 widgets in src/tui/widgets/
-    - **CI**: triggered for test quality commit
-
-  **Next Priority**:
-    - Establish v2.75.0 milestone (candidates: StreamGraph, FunnelChart, ViolinPlot, Waterfall)
-
-✅ **Session 344** — FEATURE MODE (2026-07-03)
-  - **Mode**: NORMAL (session 344, 344 % 5 == 4)
-  - **Achievement**: Released v2.74.0 (ChordDiagram widget)
-
-  **Completed Work**:
-    - ✅ CI: queued (not RED); 0 open issues
-    - ✅ Established v2.74.0 milestone: ChordDiagram widget
-    - ✅ TDD Red: test-writer wrote 81 tests in tests/chord_diagram_test.zig
-    - ✅ TDD Green: implemented src/tui/widgets/chord_diagram.zig (243 lines)
-    - ✅ Fixed 2 compile errors: @divTrunc for i32 division; withBlock(?Block) instead of withBlock(Block)
-    - ✅ All tests pass (exit 0)
-    - ✅ Released v2.74.0: bumped build.zig.zon, tagged, pushed, GitHub release created
-    - ✅ Consumer migration issues filed: zr#119, zoltraak#86, silica#97
-
-  **Current State**:
-    - **Latest release**: v2.74.0 (tagged + GitHub release)
-    - **Open issues**: 0 (sailor)
-    - **Widget count**: 117 widgets in src/tui/widgets/ (chord_diagram.zig added)
-    - **CI**: queued for v2.74.0 commit
-
-  **ChordDiagram Widget Summary**:
-    - Fields: `nodes` ([]const []const u8=&.{}), `matrix` ([]const []const f32=&.{}), `focused` (usize=0), `style/arc_style/focused_style` (Style={}), `show_labels` (bool=true), `block` (?Block=null)
-    - Methods: `init()`, `nodeCount() usize`, `totalFlow() f32`, builder withNodes/Matrix/Focused/Style/ArcStyle/FocusedStyle/ShowLabels/Block, `render(*Buffer, Rect)`
-    - Layout: nodes at angle_i = (2π*i/nodeCount) - π/2 on ellipse (radius_x, radius_y); y not multiplied by 0.5 — uses actual terminal cell ratio via separate radius_x/radius_y
-    - Node markers: '◉' for focused, '●' for others
-    - Chord lines: Bresenham from node_i to node_j for matrix[i][j] > 0
-    - Label offset: right of node if cos_a > 0.3, left if cos_a < -0.3, centered otherwise; above if sin_a < -0.2
-    - MAX_NODES=16, no heap allocations
-    - Key fix: withBlock accepts ?Block (can pass null to unset)
-
-  **Next Priority**:
-    - Establish v2.75.0 milestone (candidates: StreamGraph, FunnelChart, ViolinPlot, Waterfall)
-
-✅ **Session 343** — FEATURE MODE (2026-07-02)
-  - **Mode**: NORMAL (session 343, 343 % 5 == 3)
-  - **Achievement**: Released v2.73.0 (BubbleChart widget)
-
-  **Completed Work**:
-    - ✅ CI: queued (not RED); 0 open issues
-    - ✅ Found in-progress BubbleChart work from previous session (uncommitted)
-    - ✅ bubble_chart.zig (392 lines): BubbleChart + Bubble structs, 5 marker sizes, X/Y scaling, axes, focused highlighting, MAX_BUBBLES=64
-    - ✅ bubble_chart_test.zig (1077 lines): comprehensive test coverage
-    - ✅ All integrations already done (build.zig, tui.zig, sailor.zig)
-    - ✅ All tests pass (exit 0)
-    - ✅ Released v2.73.0: BubbleChart widget; consumer issues zr#118, zoltraak#85, silica#96
-
-  **Current State**:
-    - **Latest release**: v2.73.0 (tagged + GitHub release)
-    - **Open issues**: 0 (sailor)
-    - **Widget count**: 116 widgets in src/tui/widgets/ (bubble_chart.zig added)
-    - **CI**: queued for v2.73.0 commit
-
-  **Next Priority**:
-    - Establish v2.74.0 milestone (candidates: ChordDiagram, StreamGraph, FunnelChart, ViolinPlot)
-
-✅ **Session 341** — FEATURE MODE (2026-07-02)
-  - **Mode**: NORMAL (session 341, 341 % 5 == 1)
-  - **Achievement**: Fixed CI red, released v2.71.0 (SankeyDiagram) + v2.72.0 (GanttChart)
-
-  **Completed Work**:
-    - ✅ CI was RED: sankey_test.zig + sankey.zig were untracked (build.zig referenced them but they weren't committed)
-    - ✅ Fixed: committed sankey.zig + sankey_test.zig; fixed style merge bug (base_style applied to node bars)
-    - ✅ Released v2.71.0: SankeyDiagram widget, 79 tests; consumer issues zr#116, zoltraak#83, silica#94
-    - ✅ Established v2.72.0 milestone: GanttChart widget (time-range based)
-    - ✅ TDD Red: test-writer wrote 70 tests in tests/gantt_chart_test.zig
-    - ✅ TDD Green: zig-developer implemented src/tui/widgets/gantt_chart.zig (275 lines)
-    - ✅ Fixed 7 test compilation errors in gantt_chart_test.zig (Block.init() → Block{}, withTitle args, GanttChart→GanttTask)
-    - ✅ Fixed gantt_test.zig: old GanttChart now accessed via sailor.tui.widgets.gantt.GanttChart namespace
-    - ✅ All 9,817+ tests pass, 0 failures
-    - ✅ Released v2.72.0: GanttChart widget, 70 tests; consumer issues zr#117, zoltraak#84, silica#95
-
-  **Current State**:
-    - **Latest release**: v2.72.0 (tagged + GitHub release)
-    - **Open issues**: 0 (sailor)
-    - **Widget count**: 115 widgets in src/tui/widgets/ (sankey.zig + gantt_chart.zig added)
-    - **CI**: Should be GREEN after sankey commit; v2.71.0 + v2.72.0 both tagged
-
-  **Key Design Decision**:
-    - Old GanttChart (v2.64.0, progress-based, Task struct) still accessible via `sailor.tui.widgets.gantt.GanttChart`
-    - New GanttChart (v2.72.0, time-range based, GanttTask struct) is `sailor.tui.widgets.GanttChart`
-    - SankeyDiagram: base_style.merge(node_style) applied to node bar cells (test caught missing merge)
-
-  **Next Priority**:
-    - Establish v2.73.0 milestone (candidates: BubbleChart, ChordDiagram, StreamGraph, FunnelChart)
-
-✅ **Session 340** — STABILIZATION MODE (2026-06-30)
-  - **Mode**: STABILIZATION (session 340, 340 % 5 == 0)
-  - **Achievement**: Test quality audit + cross-platform verification + SankeyDiagram v2.71.0 in progress
-
-  **Completed Work**:
-    - ✅ CI: queued (not RED); 0 open issues
-    - ✅ Cross-compiled 6 targets: all pass (linux-x86_64, linux-aarch64, macos-x86_64, macos-aarch64, windows-x86_64, windows-aarch64)
-    - ✅ Test quality audit: identified missing assertions in matrix_view and mindmap tests
-    - ✅ Fixed findInArea() in mindmap_test.zig: empty text now returns false (was true = false positive)
-    - ✅ Added getStyle() assertions to 8 matrix_view render tests (focused_style, base style, header_style)
-    - ✅ Established v2.71.0 milestone: SankeyDiagram widget
-    - ✅ TDD Red: test-writer writing ~75 tests in tests/sankey_test.zig (in progress)
-
-  **Current State**:
-    - **Latest release**: v2.70.0 (tagged + GitHub release)
-    - **Open issues**: 0 (sailor)
-    - **Widget count**: 113 widgets in src/tui/widgets/
-    - **Test quality**: Strengthened — style assertions now verify actual buffer cell styles
-
-  **Next Priority**:
-    - Complete SankeyDiagram widget (tests → impl → release v2.71.0)
-
-✅ **Session 339** — FEATURE MODE (2026-06-30)
-  - **Mode**: NORMAL (session 339, 339 % 5 == 4)
-  - **Achievement**: Implemented MatrixView widget + released v2.70.0
-
-  **Completed Work**:
-    - ✅ CI: queued (not RED); 0 open issues
-    - ✅ Established v2.70.0 milestone: MatrixView widget
-    - ✅ TDD Red: test-writer wrote 94 tests in tests/matrix_view_test.zig
-    - ✅ TDD Green: zig-developer implemented src/tui/widgets/matrix_view.zig
-    - ✅ All 94 MatrixView tests pass; 9,613 total tests, 0 failures
-    - ✅ Released v2.70.0: bumped build.zig.zon, tagged, pushed, GitHub release created
-    - ✅ Consumer migration issues filed: zr#115, zoltraak#82, silica#93
-
-  **MatrixView Widget Summary**:
-    - Fields: `data` ([]const []const f32=&.{}), `row_headers`/`col_headers` ([]const []const u8=&.{}), `focused_row`/`focused_col` (usize=0), `min_val` (f32=0.0), `max_val` (f32=1.0), `cell_width` (u16=6), `show_values` (bool=true), `style/header_style/focused_style` (Style={}), `block` (?Block=null)
-    - Methods: `init()`, `rowCount() usize`, `colCount() usize`, builder withData/RowHeaders/ColHeaders/FocusedRow/FocusedCol/MinVal/MaxVal/CellWidth/ShowValues/Style/HeaderStyle/FocusedStyle/Block, `render(*Buffer, Rect)`
-    - Layout: optional col header row (1 row), optional row header col (8 chars wide), cells are cell_width wide × 1 row tall
-    - Value display: `{d:.3}` format centered in cell_width
-    - Focused cell at (focused_row, focused_col) uses focused_style
-    - MAX_ROWS=32, MAX_COLS=32, no heap allocations
-
-  **Current State**:
-    - **Latest release**: v2.70.0 (tagged + GitHub release)
-    - **Open issues**: 0 (sailor)
-    - **Widget count**: 113 widgets in src/tui/widgets/
-
-  **Next Priority**:
-    - Establish v2.71.0 milestone (candidates: SankeyDiagram, QRCode, CodeMap, GanttChart)
-
-✅ **Session 338** — FEATURE MODE (2026-06-30)
-  - **Mode**: NORMAL (session 338, 338 % 5 == 3)
-  - **Achievement**: Implemented Treemap widget + released v2.69.0
-
-  **Completed Work**:
-    - ✅ CI: queued (not RED); 0 open issues
-    - ✅ TDD Red: test-writer wrote 75 tests in tests/treemap_test.zig
-    - ✅ TDD Green: zig-developer implemented src/tui/widgets/treemap.zig
-    - ✅ Fixed 2 test failures: (1) removed invalid `ptr != null` comparison; (2) style merging — `item.style.merge(focused_style)` so item.style shows through default focused_style
-    - ✅ All 75 tests pass (exit 0)
-    - ✅ Released v2.69.0: bumped build.zig.zon, tagged, pushed, GitHub release created
-    - ✅ Consumer migration issues filed: zr#114, zoltraak#81, silica#92
-
-  **Treemap Widget Summary**:
-    - Fields: `items` ([]const TreemapItem=&.{}), `focused` (usize=0), `style/label_style/focused_style` (Style={}), `show_value` (bool=false), `block` (?Block=null)
-    - TreemapItem: `label` ([]const u8=""), `value` (f32=0), `style` (Style={})
-    - Methods: `init()`, `itemCount() usize`, `totalValue() f32`, builder withItems/Focused/Style/LabelStyle/FocusedStyle/ShowValue/Block, `render(*Buffer, Rect)`
-    - Layout: binary partition treemap — insertion sort descending, recursive split at items/2 boundary, horizontal split when width>=height else vertical
-    - Cell rendering: `buf.fill` + box chars (┌─┐│└┘) when >=2×2; label centered if width>=4 and height>=3
-    - Style: `cell_style = item.style.merge(focused_style)` when focused; `label_style.merge(focused_style)` for label when focused
-    - MAX_ITEMS=64, no heap allocations
-
-  **Current State**:
-    - **Latest release**: v2.69.0 (tagged + GitHub release)
-    - **Open issues**: 0 (sailor)
-    - **Widget count**: 112 widgets in src/tui/widgets/
-
-  **Next Priority**:
-    - Establish v2.70.0 milestone (candidates: SankeyDiagram, MatrixView, QRCode, CodeMap)
-
-✅ **Session 337** — FEATURE MODE (2026-06-30)
-  - **Mode**: NORMAL (session 337, 337 % 5 == 2)
-  - **Achievement**: Implemented HexEditor widget + released v2.68.0
-
-  **Completed Work**:
-    - ✅ CI: queued (not RED); 0 open issues
-    - ✅ TDD Red: test-writer wrote 80 tests in tests/hex_editor_test.zig
-    - ✅ TDD Green: zig-developer implemented src/tui/widgets/hex_editor.zig
-    - ✅ Fixed API mismatches in test file (Color.Red→.red, Block.init()→Block{}, buf.deinit(allocator)→buf.deinit())
-    - ✅ All tests pass (exit 0)
-    - ✅ Released v2.68.0: bumped build.zig.zon, tagged, pushed, GitHub release created
-    - ✅ Consumer migration issues filed: zr#113, zoltraak#80, silica#91
-
-  **HexEditor Widget Summary**:
-    - Fields: `data` ([]const u8=&.{}), `cursor` (usize=0), `offset` (usize=0), `bytes_per_row` (u8=16), `group_size` (u8=1), `show_ascii` (bool=true), `show_offset` (bool=true), `style/cursor_style/modified_style` (Style={}), `block` (?Block=null)
-    - Methods: `init()`, `byteCount() usize`, `rowCount() usize`, builder withData/Cursor/Offset/BytesPerRow/GroupSize/ShowAscii/ShowOffset/Style/CursorStyle/ModifiedStyle/Block, `render(*Buffer, Rect)`
-    - Layout: offset column (8-char hex addr), hex bytes (grouped by group_size), ASCII preview (printable or '.')
-    - MAX_BYTES=4096, no heap allocations
-
-  **Current State**:
-    - **Latest release**: v2.68.0 (tagged + GitHub release)
-    - **Open issues**: 0 (sailor)
-    - **Widget count**: 111 widgets in src/tui/widgets/
-
-  **Next Priority**:
-    - Establish v2.69.0 milestone (candidates: NetworkDiagram, DependencyGraph, Calendar, DiffViewer)
-
-✅ **Session 336** — FEATURE MODE (2026-06-29)
-  - **Mode**: NORMAL (session 336, 336 % 5 == 1)
-  - **Achievement**: Implemented RadarChart widget + released v2.67.0
-
-  **Completed Work**:
-    - ✅ CI: queued (not RED); 0 open issues
-    - ✅ TDD Red: test-writer wrote 76 tests in tests/radar_chart_test.zig
-    - ✅ TDD Green: zig-developer implemented src/tui/widgets/radar_chart.zig
-    - ✅ All tests pass (exit 0)
-    - ✅ Released v2.67.0: bumped build.zig.zon, tagged, pushed, GitHub release created
-    - ✅ Consumer migration issues filed: zr#112, zoltraak#79, silica#90
-
-  **RadarChart Widget Summary**:
-    - Fields: `axes` ([]const []const u8=&.{}), `series` ([]const RadarSeries=&.{}), `focused` (usize=0), `style/axis_style/focused_style` (Style={}), `filled` (bool=false), `block` (?Block=null)
-    - RadarSeries: `label` ([]const u8=""), `values` ([]const f32=&.{}), `style` (Style={})
-    - Methods: `init()`, `axisCount() usize`, `seriesCount() usize`, builder withAxes/Series/Focused/Style/AxisStyle/FocusedStyle/Filled/Block, `render(*Buffer, Rect)`
-    - Geometry: Bresenham line drawing, terminal aspect ratio correction (y×0.5), axes at equal angular spacing starting from top
-    - MAX_AXES=16, MAX_SERIES=8, no heap allocations
-
-  **Current State**:
-    - **Latest release**: v2.67.0 (tagged + GitHub release)
-    - **Open issues**: 0 (sailor)
-    - **Widget count**: 110 widgets in src/tui/widgets/
-
-  **Next Priority**:
-    - Establish v2.68.0 milestone (candidates: HexEditor, NetworkDiagram, DependencyGraph, Calendar)
-
-✅ **Session 335** — STABILIZATION MODE (2026-06-29)
-  - **Mode**: STABILIZATION (session 335, 335 % 5 == 0)
-  - **Achievement**: Test quality audit + cross-compile verification
-
-  **Completed Work**:
-    - ✅ CI: queued (not RED); 0 open issues
-    - ✅ Fixed 2 trivial `expect(true)` assertions in tests/flowchart_test.zig
-      - "render edge with out-of-bounds node indices does not crash" → now checks `countNonEmptyCells > 0` + `findInArea(buf, area, "A")`
-      - "render edges without matching nodes does not crash" → now checks `countNonEmptyCells == 0`
-    - ✅ Cross-compile: all 6 targets pass (x86_64-linux-gnu, aarch64-linux-gnu, x86_64-macos-none, aarch64-macos-none, x86_64-windows-msvc, aarch64-windows-msvc)
-    - ✅ Established v2.67.0 milestone: RadarChart Widget
-    - ✅ All tests pass (exit 0)
-
-  **Current State**:
-    - **Latest release**: v2.66.0 (tagged + GitHub release)
-    - **Open issues**: 0 (sailor)
-    - **Widget count**: 109 widgets in src/tui/widgets/
-
-  **Next Priority**:
-    - v2.67.0: RadarChart widget (spider chart for multi-dimensional data)
-    - MAX_AXES=16, MAX_SERIES=8, polygon rendering with Braille/line chars
-
-✅ **Session 334** — FEATURE MODE (2026-06-29)
-  - **Mode**: NORMAL (session 334, 334 % 5 == 4)
-  - **Achievement**: Implemented MindMap widget + released v2.66.0
-
-  **Completed Work**:
-    - ✅ CI: queued (not RED); 0 open issues
-    - ✅ Established v2.66.0 milestone: MindMap Widget
-    - ✅ TDD Red: test-writer wrote 79 tests in tests/mindmap_test.zig
-    - ✅ TDD Green: zig-developer implemented src/tui/widgets/mindmap.zig
-    - ✅ All tests pass (exit 0)
-    - ✅ Released v2.66.0: bumped build.zig.zon, tagged, pushed, GitHub release created
-    - ✅ Consumer migration issues filed: zr#111, zoltraak#78, silica#89
-
-  **MindMap Widget Summary**:
-    - Fields: `nodes` ([]const MindNode=&.{}), `focused` (usize=0), `style/root_style/focused_style` (Style={}), `node_width` (u16=14), `node_height` (u16=3), `h_gap` (u16=2), `block` (?Block=null)
-    - MindNode: `label` ([]const u8=""), `parent` (usize=0), `style` (Style={})
-    - Methods: `init()`, `nodeCount() usize`, `childCount(usize) usize`, builder withNodes/Focused/Style/RootStyle/FocusedStyle/NodeWidth/NodeHeight/HGap/Block, `render(*Buffer, Rect)`
-    - Layout: nodes[0]=root at center; even-indexed root children → right, odd → left; grandchildren same side as parent branch
-    - Connection lines: horizontal `─` with junction chars between nodes
-    - MAX_NODES=32, no heap allocations
-
-  **Current State**:
-    - **Latest release**: v2.66.0 (tagged + GitHub release)
-    - **Open issues**: 0 (sailor)
-    - **Widget count**: 109 widgets in src/tui/widgets/
-
-  **Next Priority**:
-    - Establish v2.67.0 milestone (candidates: NetworkDiagram, DependencyGraph, HexEditor)
-
-✅ **Session 333** — FEATURE MODE (2026-06-29)
-  - **Mode**: NORMAL (session 333, 333 % 5 == 3)
-  - **Achievement**: Implemented FlowChart widget + released v2.65.0
-
-  **Completed Work**:
-    - ✅ CI: queued (not RED); 0 open issues
-    - ✅ Established v2.65.0 milestone: FlowChart Widget
-    - ✅ TDD Red: test-writer wrote 68 tests in tests/flowchart_test.zig
-    - ✅ TDD Green: zig-developer implemented src/tui/widgets/flowchart.zig
-    - ✅ All tests pass (exit 0)
-    - ✅ Released v2.65.0: bumped build.zig.zon, tagged, pushed, GitHub release created
-    - ✅ Consumer migration issues filed: zr#110, zoltraak#77, silica#88
-
-  **FlowChart Widget Summary**:
-    - Fields: `nodes` ([]const FlowNode=&.{}), `edges` ([]const FlowEdge=&.{}), `focused` (usize=0), `style/focused_style` (Style={}), `node_width` (u16=12), `node_height` (u16=3), `h_spacing` (u16=4), `v_spacing` (u16=2), `block` (?Block=null)
-    - FlowNode: `label` ([]const u8=""), `kind` (NodeKind=.process), `col/row` (u16=0), `style` (Style={})
-    - FlowEdge: `from/to` (usize=0), `label` ([]const u8=""), `style` (Style={})
-    - NodeKind: `.process` (rectangle), `.terminal` (rounded), `.decision` (diamond), `.io` (parallelogram)
-    - Methods: `init()`, `nodeCount() usize`, `edgeCount() usize`, builder withNodes/Edges/Focused/Style/FocusedStyle/NodeWidth/NodeHeight/HSpacing/VSpacing/Block, `render(*Buffer, Rect)`
-    - Grid layout: cell_width=node_width+h_spacing, cell_height=node_height+v_spacing
-    - Edge arrows: ▼ (down), ▶ (right), ▲ (up), ◀ (left) at destination
-    - MAX_NODES=32, MAX_EDGES=64, no heap allocations
-
-  **Current State**:
-    - **Latest release**: v2.65.0 (tagged + GitHub release)
-    - **Open issues**: 0 (sailor)
-    - **Widget count**: 108 widgets in src/tui/widgets/
-
-✅ **Session 332** — FEATURE MODE (2026-06-28)
-  - **Achievement**: Implemented GanttChart widget + released v2.64.0
-  - **Widget count**: 107 widgets in src/tui/widgets/
-
-✅ **Session 331** — FEATURE MODE (2026-06-28)
-  - **Achievement**: Implemented ActivityFeed widget + released v2.63.0
-  - **Widget count**: 106 widgets in src/tui/widgets/
-
-✅ **Session 330** — STABILIZATION MODE (2026-06-28)
-  - **Achievement**: Test quality audit — replaced 79 expect(true) stubs across 6 test files
-  - **Cross-compile**: all 6 targets pass
-
-✅ **Session 329** — FEATURE MODE (2026-06-28)
-  - **Achievement**: Implemented BracketViewer widget + released v2.62.0
-  - **Widget count**: 105 widgets in src/tui/widgets/
-
-✅ **Session 328** — FEATURE MODE (2026-06-27)
-  - **Achievement**: Implemented KanbanBoard widget + released v2.61.0
-  - **Widget count**: 104 widgets in src/tui/widgets/
