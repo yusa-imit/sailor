@@ -1,3 +1,40 @@
+✅ **Session 349** — FEATURE MODE (2026-07-06)
+  - **Mode**: NORMAL (session 349, 349 % 5 == 4)
+  - **Achievement**: Released v2.78.0 (RadialBar widget)
+
+  **Completed Work**:
+    - ✅ CI: queued (not RED); 0 open issues
+    - ✅ Established v2.78.0 milestone: RadialBar widget
+    - ✅ TDD Red: test-writer wrote 88 tests in tests/radial_bar_test.zig
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/radial_bar.zig (454 lines)
+    - ✅ Exports in tui.zig (radial_bar, RadialBar, RadialArc) and sailor.zig
+    - ✅ All tests pass (exit 0)
+    - ✅ Released v2.78.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#123, zoltraak#90, silica#101
+
+  **Current State**:
+    - **Latest release**: v2.78.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 121 widgets in src/tui/widgets/ (radial_bar.zig added)
+    - **CI**: triggered for v2.78.0 commit
+
+  **RadialBar Widget Summary**:
+    - RadialArc: label/value/style
+    - RadialBar: arcs/focused/show_labels/show_values/style/arc_style/focused_style/label_style/empty_style/block
+    - Concentric rings, outermost = arcs[0], innermost = last
+    - Clockwise fill from 12 o'clock (top), remainder shows empty_style char
+    - Terminal aspect ratio compensation (x*0.5 scaling for circular appearance)
+    - Label/value column rendered to the right of the circle
+    - MAX_ARCS=8, no heap allocations
+    - 88 tests
+
+  **Known Issue — Test Pattern**:
+    - @floatFromInt in struct literal .{.value = @floatFromInt(i)} needs @as(f32, @floatFromInt(i)) in Zig 0.15.x
+    - Future test-writers must use explicit type annotation in struct literal contexts
+
+  **Next Priority**:
+    - Establish v2.79.0 milestone (candidates: StreamGraph, ViolinPlot, SunburstChart)
+
 ✅ **Session 348** — FEATURE MODE (2026-07-06)
   - **Mode**: NORMAL (session 348, 348 % 5 == 3)
   - **Achievement**: Released v2.77.0 (DotPlot widget)
