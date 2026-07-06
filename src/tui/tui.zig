@@ -523,6 +523,11 @@ pub const widgets = struct {
     pub const WaterfallChart = waterfall_chart.WaterfallChart;
     pub const WaterfallBar = waterfall_chart.WaterfallBar;
     pub const WaterfallKind = waterfall_chart.WaterfallKind;
+
+    // v2.76.0 — FunnelChart Widget
+    pub const funnel_chart = @import("widgets/funnel_chart.zig");
+    pub const FunnelChart = funnel_chart.FunnelChart;
+    pub const FunnelStage = funnel_chart.FunnelStage;
 };
 
 // Export commonly used types

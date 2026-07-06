@@ -198,3 +198,5 @@
 {"timestamp":"2026-07-03T00:10:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement ChordDiagram widget src/tui/widgets/chord_diagram.zig","project":"sailor"}
 {"timestamp":"2026-07-06T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write WaterfallChart widget tests (TDD Red phase)","project":"sailor"}
 {"timestamp":"2026-07-06T00:05:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement WaterfallChart widget src/tui/widgets/waterfall_chart.zig","project":"sailor"}
+{"timestamp":"2026-07-06T00:26:14Z","action":"subagent","agent_type":"test-writer","task":"Write TDD tests for FunnelChart widget (v2.76.0)","project":"sailor"}
+{"timestamp":"2026-07-06T00:26:14Z","action":"subagent","agent_type":"zig-developer","task":"Implement FunnelChart widget (v2.76.0)","project":"sailor"}
