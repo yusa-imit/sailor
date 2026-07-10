@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v2.78.0 (2026-07-06) — RadialBar Widget
-- **Latest minor**: v2.78.0 (2026-07-06) — RadialBar Widget
-- **Next release**: v2.79.0 — StreamGraph Widget
-- **Active milestones**: 1 in progress
+- **Latest release**: v2.79.0 (2026-07-11) — StreamGraph Widget
+- **Latest minor**: v2.79.0 (2026-07-11) — StreamGraph Widget
+- **Next release**: v2.80.0 — TBD
+- **Active milestones**: 0 pending implementation
 - **Blockers**: None
 
 ### v2.79.0 — StreamGraph Widget (Complete)
@@ -17,7 +17,7 @@
 - [x] **tests/stream_graph_test.zig** — 70 tests: init/defaults, StreamLayer defaults, MAX_LAYERS constant, layerCount capping, builder immutability, render zero/minimal area, empty layers, single/multiple layers, vertical centering, mismatched-length value arrays, all-zero values, focused styling, show_labels toggle, block border, MAX_LAYERS capping, large values, edge cases
 - [x] Export StreamGraph, StreamLayer via tui.zig widgets struct and top-level sailor.zig
 - [x] Add stream_graph_tests to build.zig
-- [ ] Release v2.79.0
+- [x] Release v2.79.0
 
 ### v2.78.0 — RadialBar Widget (Complete)
 
