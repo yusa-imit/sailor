@@ -4,9 +4,20 @@
 
 - **Latest release**: v2.78.0 (2026-07-06) — RadialBar Widget
 - **Latest minor**: v2.78.0 (2026-07-06) — RadialBar Widget
-- **Next release**: v2.79.0 — TBD
-- **Active milestones**: 0 pending implementation
+- **Next release**: v2.79.0 — StreamGraph Widget
+- **Active milestones**: 1 in progress
 - **Blockers**: None
+
+### v2.79.0 — StreamGraph Widget (In Progress)
+
+**Theme**: A themeriver-style stacked area chart where multiple layers are stacked around a vertically centered baseline, producing a "silhouette" streamgraph shape rather than a chart anchored to a bottom axis. Each layer holds a series of non-negative data points sampled across the available width; layers stack outward from the center in array order. Useful for visualizing composition-over-time (e.g. resource usage by category, traffic by source) where the overall volume trend matters as much as the per-layer contribution. MAX_LAYERS=8, no heap allocations.
+
+**Checklist**:
+- [ ] **src/tui/widgets/stream_graph.zig** — StreamGraph + StreamLayer; `layers` ([]const StreamLayer=&.{}); `focused` (usize=0); `show_labels` (bool=true); `style/focused_style/label_style` (Style={}); `block` (?Block=null); `pub const MAX_LAYERS: usize = 8`; `init()`; `layerCount() usize`; builder withLayers/Focused/ShowLabels/Style/FocusedStyle/LabelStyle/Block; `render(*Buffer, Rect)`
+- [ ] **tests/stream_graph_test.zig** — meaningful tests: init/defaults, StreamLayer defaults, MAX_LAYERS constant, layerCount capping, builder immutability, render zero/minimal area, empty layers, single/multiple layers, mismatched-length value arrays, focused styling, show_labels toggle, block border, per-layer styles, edge cases (all-zero values, single data point)
+- [ ] Export StreamGraph, StreamLayer via tui.zig widgets struct and top-level sailor.zig
+- [ ] Add stream_graph_tests to build.zig
+- [ ] Release v2.79.0
 
 ### v2.78.0 — RadialBar Widget (Complete)
 
