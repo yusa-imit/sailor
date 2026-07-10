@@ -1577,6 +1577,17 @@ pub fn build(b: *std.Build) void {
     radial_bar_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(radial_bar_tests).step);
 
+    const stream_graph_tests = b.addTest(.{
+        .name = "stream_graph_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/stream_graph_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    stream_graph_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(stream_graph_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",

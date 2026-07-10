@@ -538,6 +538,11 @@ pub const widgets = struct {
     pub const radial_bar = @import("widgets/radial_bar.zig");
     pub const RadialBar = radial_bar.RadialBar;
     pub const RadialArc = radial_bar.RadialArc;
+
+    // v2.79.0 — StreamGraph Widget
+    pub const stream_graph = @import("widgets/stream_graph.zig");
+    pub const StreamGraph = stream_graph.StreamGraph;
+    pub const StreamLayer = stream_graph.StreamLayer;
 };
 
 // Export commonly used types
