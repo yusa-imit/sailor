@@ -574,7 +574,28 @@ test "BarChart.render with bar gap" {
 
     chart.render(&buf, area);
 
-    // Should render with gap (verification by visual inspection in real use)
+    // With gap=3 and bar_width=3 (default), bar_unit_width=6
+    // Two bars starting centered: both should have '█' but with empty columns between them
+    var bar_cols = [_]bool{false} ** 30;
+    for (0..10) |y| {
+        for (0..30) |x| {
+            if (buf.getConst(@intCast(x), @intCast(y)).?.char == '█') {
+                bar_cols[x] = true;
+            }
+        }
+    }
+    // Count distinct bar column groups (gap must produce non-bar columns between bars)
+    var groups: usize = 0;
+    var in_group = false;
+    for (bar_cols[0..]) |has_bar| {
+        if (has_bar and !in_group) {
+            groups += 1;
+            in_group = true;
+        } else if (!has_bar) {
+            in_group = false;
+        }
+    }
+    try testing.expectEqual(@as(usize, 2), groups);
 }
 
 test "BarChart.render truncates long labels" {
@@ -615,5 +636,39 @@ test "BarChart.render with insufficient height" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 2 };
 
     chart.render(&buf, area);
-    // Should not crash (height < 3, renders nothing)
+    // height=2 < 3 minimum: nothing should be rendered (all cells remain spaces)
+    for (0..2) |y| {
+        for (0..10) |x| {
+            try testing.expectEqual(@as(u21, ' '), buf.getConst(@intCast(x), @intCast(y)).?.char);
+        }
+    }
+}
+
+test "BarChart.render bar height proportional to value" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 20, 12);
+    defer buf.deinit();
+
+    // Two bars: value=100 (full) and value=50 (half)
+    const bars = [_]BarChart.Bar{
+        .{ .label = "A", .value = 100 },
+        .{ .label = "B", .value = 50 },
+    };
+    const chart = BarChart.init(&bars);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 12 };
+    chart.render(&buf, area);
+
+    // Count '█' cells in each bar column (columns 3 and 6 based on centering for bar_width=3, bar_gap=1)
+    // bar_unit_width = 4, total = 8, center_offset = (20 - 8)/2 = 6
+    // bar A at x=6..8, bar B at x=10..12
+    var count_a: usize = 0;
+    var count_b: usize = 0;
+    for (0..12) |y| {
+        if (buf.getConst(6, @intCast(y)).?.char == '█') count_a += 1;
+        if (buf.getConst(10, @intCast(y)).?.char == '█') count_b += 1;
+    }
+    // Bar A (value=100) must be taller than bar B (value=50)
+    try testing.expect(count_a > count_b);
+    // Bar A should be exactly twice bar B's height
+    try testing.expectEqual(count_a, count_b * 2);
 }
