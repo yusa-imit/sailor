@@ -4,9 +4,20 @@
 
 - **Latest release**: v2.79.0 (2026-07-11) — StreamGraph Widget
 - **Latest minor**: v2.79.0 (2026-07-11) — StreamGraph Widget
-- **Next release**: v2.80.0 — TBD
-- **Active milestones**: 0 pending implementation
+- **Next release**: v2.80.0 — ViolinPlot Widget
+- **Active milestones**: 1 established (not yet started)
 - **Blockers**: None
+
+### v2.80.0 — ViolinPlot Widget (Not Started)
+
+**Theme**: A violin plot widget showing the distribution shape of one or more datasets via a mirrored, smoothed density silhouette per category — complements the existing BoxPlot-style statistics widgets (histogram, scatterplot) with a density-shape view. Candidate scope: `ViolinPlot` + `ViolinSeries` (label, values, style), horizontal category axis, density estimated via simple binning (no heap allocations — fixed-size bins), symmetric silhouette per category akin to StreamGraph's centered-band technique. Established as the next themed milestone per the milestone-establishment protocol (candidate list carried over from v2.78.0/v2.79.0 planning: StreamGraph done, ViolinPlot next, SunburstChart after).
+
+**Checklist**:
+- [ ] **src/tui/widgets/violin_plot.zig** — ViolinPlot + ViolinSeries; render()
+- [ ] **tests/violin_plot_test.zig** — meaningful tests covering defaults, builder immutability, rendering edge cases, density scaling
+- [ ] Export ViolinPlot, ViolinSeries via tui.zig widgets struct and top-level sailor.zig
+- [ ] Add violin_plot_tests to build.zig
+- [ ] Release v2.80.0
 
 ### v2.79.0 — StreamGraph Widget (Complete)
 

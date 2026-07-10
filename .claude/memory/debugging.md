@@ -210,3 +210,21 @@ grep -r "// Should" src/tui/widgets/*.zig | wc -l  # Find incomplete tests
 - File-scope: `const X = expr;` (no `comptime` keyword — redundant error)
 - `zig build test` uses `--listen=-` protocol — NEVER use `stdout()` in test code
 - Ambiguous type references: Use module-level references (`const mod = @This()`) when re-exporting types
+
+## Test Pattern Gotcha — Whole-Area Scans Can Hide Asymmetric Rendering (Session 351, v2.79.0)
+**Symptom**: `StreamGraph`'s "single layer fills above and below center" test passed even though the
+initial implementation only ever filled *downward* from center for a single layer (alternating
+above/below stacking, layer 0 always went down). The test's helper functions scanned the *entire*
+render area width, including the optional label column — and the layer's label text (e.g. "A")
+happened to land in a row above the vertical midpoint, satisfying `above > 0` for a reason
+unrelated to the chart's actual symmetry.
+
+**Root Cause**: Geometric/symmetry assertions that scan `area` (label column + all) rather than just
+the plotted-data columns can be satisfied by unrelated content (labels, borders, focus markers) that
+happens to occupy the checked region.
+
+**Fix**: Rewrote the stacking algorithm so the *whole stack* is centered on the middle row per column
+(`row_cursor` starts at `center - total_rows/2`), which is correct regardless of the test artifact —
+but future test-writers should still either (a) restrict such scans to the data-plot sub-rect
+excluding label/border columns, or (b) render with `show_labels=false` / no block, when asserting a
+geometric property of the plotted data itself.

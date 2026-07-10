@@ -1,3 +1,43 @@
+✅ **Session 351** — FEATURE MODE (2026-07-11)
+  - **Mode**: NORMAL (session 351, 351 % 5 == 1)
+  - **Achievement**: Released v2.79.0 (StreamGraph widget)
+
+  **Completed Work**:
+    - ✅ Committed prior session's uncommitted test-quality fix (barchart.zig: replaced placeholder/visual-inspection comments with real cell assertions)
+    - ✅ Removed stray leftover binary `check_api` (untracked build artifact from a prior session)
+    - ✅ CI: prior runs cancelled (not RED); 0 open issues
+    - ✅ Established v2.79.0 milestone: StreamGraph widget
+    - ✅ TDD Red: test-writer wrote 70 tests in tests/stream_graph_test.zig
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/stream_graph.zig (initial version used alternating above/below layer stacking)
+    - ✅ Post-implementation fix (orchestrator): the alternating stacking scheme meant a *single* layer only filled downward from center — never upward — so it wasn't a genuine centered silhouette. The single-layer centering test only passed because a label character happened to land above the midpoint (test artifact, not real coverage). Rewrote the stacking algorithm to center the *whole stack* on the middle row per column (standard streamgraph baseline-offset technique: row_cursor starts at center - total_rows/2, layers stack downward from there) — now genuinely symmetric for any layer count, including n=1.
+    - ✅ Exports in tui.zig (stream_graph, StreamGraph, StreamLayer) and sailor.zig
+    - ✅ All 70 tests pass (exit 0); 6/6 cross-compile targets built clean
+    - ✅ Released v2.79.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#125, zoltraak#91, silica#102
+    - ✅ zoltraak and silica repos were missing the `migration`/`from:sailor` labels used by this project's migration-issue protocol — created both labels in each repo before filing
+    - ✅ Established v2.80.0 milestone (theme only, not implemented): ViolinPlot widget
+
+  **Current State**:
+    - **Latest release**: v2.79.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 122 widgets in src/tui/widgets/ (stream_graph.zig added)
+    - **CI**: triggered for v2.79.0 commit
+
+  **StreamGraph Widget Summary**:
+    - StreamLayer: label/values(non-negative f32 slice)/style
+    - StreamGraph: layers/focused/show_labels/style/focused_style/label_style/block
+    - Whole stack centered on middle row per column (silhouette, not bottom-anchored)
+    - Data points sampled across inner width; scaling by max column total across the chart
+    - Optional label column on the right (reserved when show_labels and inner.width >= 4)
+    - MAX_LAYERS=8, no heap allocations
+    - 70 tests
+
+  **Known Issue — Test Pattern (new)**:
+    - Watch for "above/below center" or similar symmetry assertions that scan the FULL render area (including a label column) rather than just the data-plot columns — a label character alone can satisfy a loose "something exists above the midpoint" check even if the plotted data itself isn't symmetric. Future test-writers should exclude label columns (or explicitly test with show_labels=false) when asserting geometric properties of the plotted data.
+
+  **Next Priority**:
+    - Implement v2.80.0 milestone: ViolinPlot widget (see docs/milestones.md for scope)
+
 ✅ **Session 349** — FEATURE MODE (2026-07-06)
   - **Mode**: NORMAL (session 349, 349 % 5 == 4)
   - **Achievement**: Released v2.78.0 (RadialBar widget)
