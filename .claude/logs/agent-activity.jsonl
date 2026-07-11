@@ -206,3 +206,5 @@
 {"timestamp":"2026-07-06T00:00:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement RadialBar widget (TDD Green phase) for v2.78.0","project":"sailor"}
 {"timestamp":"2026-07-10T18:28:06Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for StreamGraph widget (v2.79.0)","project":"sailor"}
 {"timestamp":"2026-07-10T18:32:14Z","action":"subagent","agent_type":"zig-developer","task":"Implement StreamGraph widget to pass failing tests (v2.79.0)","project":"sailor"}
+{"timestamp":"2026-07-11T00:30:36Z","action":"subagent","agent_type":"test-writer","task":"Write ViolinPlot widget tests (violin_plot_test.zig, 88 tests)","project":"sailor"}
+{"timestamp":"2026-07-11T00:44:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement ViolinPlot widget (violin_plot.zig) + wire exports + build.zig","project":"sailor"}

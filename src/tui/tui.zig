@@ -543,6 +543,11 @@ pub const widgets = struct {
     pub const stream_graph = @import("widgets/stream_graph.zig");
     pub const StreamGraph = stream_graph.StreamGraph;
     pub const StreamLayer = stream_graph.StreamLayer;
+
+    // v2.80.0 — ViolinPlot Widget
+    pub const violin_plot = @import("widgets/violin_plot.zig");
+    pub const ViolinPlot = violin_plot.ViolinPlot;
+    pub const ViolinSeries = violin_plot.ViolinSeries;
 };
 
 // Export commonly used types
