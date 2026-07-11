@@ -1610,6 +1610,17 @@ pub fn build(b: *std.Build) void {
     violin_plot_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(violin_plot_tests).step);
 
+    const box_plot_tests = b.addTest(.{
+        .name = "box_plot_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/box_plot_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    box_plot_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(box_plot_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",

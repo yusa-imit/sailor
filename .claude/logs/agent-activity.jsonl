@@ -210,3 +210,5 @@
 {"timestamp":"2026-07-11T00:44:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement ViolinPlot widget (violin_plot.zig) + wire exports + build.zig","project":"sailor"}
 {"timestamp":"2026-07-11T06:27:44Z","action":"subagent","agent_type":"test-writer","task":"Write TDD Red tests for SunburstChart widget (tests/sunburst_chart_test.zig)","project":"sailor"}
 {"timestamp":"2026-07-11T06:33:18Z","action":"subagent","agent_type":"zig-developer","task":"Implement SunburstChart widget (src/tui/widgets/sunburst_chart.zig) to pass TDD tests","project":"sailor"}
+{"timestamp":"2026-07-11T12:27:39Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for BoxPlot widget (v2.82.0) per scratchpad spec","project":"sailor"}
+{"timestamp":"2026-07-11T12:31:17Z","action":"subagent","agent_type":"zig-developer","task":"Implement BoxPlot widget (v2.82.0) to pass box_plot_test.zig","project":"sailor"}

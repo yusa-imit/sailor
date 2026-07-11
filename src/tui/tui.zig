@@ -553,6 +553,12 @@ pub const widgets = struct {
     pub const sunburst_chart = @import("widgets/sunburst_chart.zig");
     pub const SunburstChart = sunburst_chart.SunburstChart;
     pub const SunburstNode = sunburst_chart.SunburstNode;
+
+    // v2.82.0 — BoxPlot Widget
+    pub const box_plot = @import("widgets/box_plot.zig");
+    pub const BoxPlot = box_plot.BoxPlot;
+    pub const BoxPlotSeries = box_plot.BoxPlotSeries;
+    pub const FiveNumberSummary = box_plot.FiveNumberSummary;
 };
 
 // Export commonly used types
