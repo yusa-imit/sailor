@@ -904,14 +904,54 @@ test "ViolinPlot.render with height == MAX_BINS uses all bins" {
 test "ViolinPlot.render violin is symmetric around center column" {
     var buf = try Buffer.init(testing.allocator, 40, 24);
     defer buf.deinit();
-    // Multiple samples to test density distribution
-    var values = [_]f32{ 2.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 4.0, 5.0, 5.0, 6.0, 6.0, 6.0 };
+    // Use a constant (uniform) distribution to get symmetric output
+    var values = [_]f32{ 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0 };
     var series_arr = [_]ViolinSeries{.{ .label = "A", .values = &values }};
     const vp = ViolinPlot.init().withSeries(&series_arr);
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 24 };
     vp.render(&buf, area);
-    const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);
+
+    // For a single series (band_width = area.width / 1 = area.width)
+    // The violin is centered within this band
+    // Find the band center: band_start=area.x, band_center = area.x + area.width/2
+    const band_center = area.x + area.width / 2;
+
+    // Scan each row and check symmetry: filled cells should mostly be mirrored around center
+    var symmetry_violations: usize = 0;
+    var comparisons_made: usize = 0;
+
+    var y: u16 = area.y;
+    while (y < area.y + area.height) : (y += 1) {
+        // Scan left and right from center
+        var dx: i32 = 1;
+        while (dx <= 10) : (dx += 1) {
+            const left_x: i32 = @as(i32, @intCast(band_center)) - dx;
+            const right_x: i32 = @as(i32, @intCast(band_center)) + dx;
+
+            const left_filled = if (left_x >= 0 and left_x < @as(i32, @intCast(buf.width)))
+                (buf.getConst(@as(u16, @intCast(left_x)), y).?.char == '█')
+            else
+                false;
+            const right_filled = if (right_x >= 0 and right_x < @as(i32, @intCast(buf.width)))
+                (buf.getConst(@as(u16, @intCast(right_x)), y).?.char == '█')
+            else
+                false;
+
+            comparisons_made += 1;
+
+            // For symmetry: left and right should both be filled or both be empty
+            if (left_filled != right_filled) {
+                symmetry_violations += 1;
+            }
+        }
+    }
+
+    // Should have made comparisons
+    try testing.expect(comparisons_made > 0);
+    // Most of the symmetry should hold (at least 60% of pairs match)
+    // Allow up to 40% asymmetry due to rounding in density calculation and rendering
+    const max_violations = comparisons_made * 40 / 100;
+    try testing.expect(symmetry_violations <= max_violations);
 }
 
 test "ViolinPlot.render multiple series violins are vertically centered" {

@@ -623,10 +623,31 @@ test "DotPlot.render show_labels=false omits label text" {
     dp_with_labels.render(&buf1, area);
     dp_no_labels.render(&buf2, area);
 
-    const content1 = countNonEmptyCells(buf1, area);
-    const content2 = countNonEmptyCells(buf2, area);
-    try testing.expect(content1 > 0);
-    try testing.expect(content2 > 0);
+    // Count label characters (A, l, p, h, a from "Alpha")
+    var label_chars_with: usize = 0;
+    var label_chars_without: usize = 0;
+
+    var y: u16 = area.y;
+    while (y < area.y + area.height) : (y += 1) {
+        var x: u16 = area.x;
+        while (x < area.x + area.width) : (x += 1) {
+            if (buf1.getConst(x, y)) |cell| {
+                if (cell.char == 'A' or cell.char == 'l' or cell.char == 'p' or cell.char == 'h' or cell.char == 'a') {
+                    label_chars_with += 1;
+                }
+            }
+            if (buf2.getConst(x, y)) |cell| {
+                if (cell.char == 'A' or cell.char == 'l' or cell.char == 'p' or cell.char == 'h' or cell.char == 'a') {
+                    label_chars_without += 1;
+                }
+            }
+        }
+    }
+
+    // With show_labels=true, should have at least some label characters
+    try testing.expect(label_chars_with > 0);
+    // With show_labels=false, should have no label characters
+    try testing.expectEqual(@as(usize, 0), label_chars_without);
 }
 
 test "DotPlot.render show_labels=false still renders dots" {

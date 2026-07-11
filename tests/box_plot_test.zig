@@ -637,15 +637,42 @@ test "BoxPlot.render series with lower outlier" {
 }
 
 test "BoxPlot.render with show_outliers=false hides outlier markers" {
-    var buf = try Buffer.init(testing.allocator, 50, 20);
-    defer buf.deinit();
+    var buf_with_outliers = try Buffer.init(testing.allocator, 50, 20);
+    defer buf_with_outliers.deinit();
+    var buf_without_outliers = try Buffer.init(testing.allocator, 50, 20);
+    defer buf_without_outliers.deinit();
+
     var values = [_]f32{ 1.0, 2.0, 3.0, 4.0, 5.0, 100.0 };
     var series_arr = [_]BoxPlotSeries{.{ .label = "A", .values = &values }};
-    const bp = BoxPlot.init().withSeries(&series_arr).withShowOutliers(false);
+
+    const bp_with = BoxPlot.init().withSeries(&series_arr).withShowOutliers(true);
+    const bp_without = BoxPlot.init().withSeries(&series_arr).withShowOutliers(false);
+
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };
-    bp.render(&buf, area);
-    const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);
+    bp_with.render(&buf_with_outliers, area);
+    bp_without.render(&buf_without_outliers, area);
+
+    // Count outlier markers ('·' glyph) in both buffers
+    var outlier_count_with: usize = 0;
+    var outlier_count_without: usize = 0;
+
+    var y: u16 = area.y;
+    while (y < area.y + area.height) : (y += 1) {
+        var x: u16 = area.x;
+        while (x < area.x + area.width) : (x += 1) {
+            if (buf_with_outliers.getConst(x, y)) |cell| {
+                if (cell.char == '·') outlier_count_with += 1;
+            }
+            if (buf_without_outliers.getConst(x, y)) |cell| {
+                if (cell.char == '·') outlier_count_without += 1;
+            }
+        }
+    }
+
+    // With show_outliers=true should have at least one outlier marker for value 100.0
+    try testing.expect(outlier_count_with > 0);
+    // With show_outliers=false should have zero outlier markers
+    try testing.expectEqual(@as(usize, 0), outlier_count_without);
 }
 
 test "BoxPlot.render with multiple outliers on both sides" {
@@ -693,11 +720,40 @@ test "BoxPlot.render focused=0 on two-series plot applies focus style" {
     const bp = BoxPlot.init()
         .withSeries(&series_arr)
         .withFocused(0)
-        .withFocusedStyle(focused_style);
+        .withFocusedStyle(focused_style)
+        .withBoxStyle(Style{ .bold = false });
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
     bp.render(&buf, area);
-    const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);
+
+    // Series 0 is focused: scan its band for bold cells
+    // Series 0 occupies left half, Series 1 occupies right half
+    const band_width = area.width / 2;
+    const series0_band_end = area.x + band_width;
+
+    var found_focused_box_cell = false;
+    var found_unfocused_box_cell = false;
+
+    var y: u16 = area.y;
+    while (y < area.y + area.height) : (y += 1) {
+        var x: u16 = area.x;
+        while (x < area.x + area.width) : (x += 1) {
+            if (buf.getConst(x, y)) |cell| {
+                if (cell.char == '█' or cell.char == '│' or cell.char == '─' or cell.char == '━') {
+                    // Box/whisker/median glyphs
+                    if (x < series0_band_end) {
+                        // Series 0 (focused) should have bold style
+                        if (cell.style.bold) found_focused_box_cell = true;
+                    } else {
+                        // Series 1 (not focused) should not have bold style
+                        if (!cell.style.bold) found_unfocused_box_cell = true;
+                    }
+                }
+            }
+        }
+    }
+
+    try testing.expect(found_focused_box_cell);
+    try testing.expect(found_unfocused_box_cell);
 }
 
 test "BoxPlot.render focused=1 applies style to second series" {
@@ -715,11 +771,40 @@ test "BoxPlot.render focused=1 applies style to second series" {
     const bp = BoxPlot.init()
         .withSeries(&series_arr)
         .withFocused(1)
-        .withFocusedStyle(focused_style);
+        .withFocusedStyle(focused_style)
+        .withBoxStyle(Style{ .dim = false });
     const area = Rect{ .x = 0, .y = 0, .width = 70, .height = 20 };
     bp.render(&buf, area);
-    const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);
+
+    // Series 1 is focused: scan its band for dim cells
+    // 3 series: each gets width 70/3 ≈ 23
+    const band_width = area.width / 3;
+    const series1_band_start = area.x + band_width;
+    const series1_band_end = series1_band_start + band_width;
+
+    var found_focused_dim_cell = false;
+    var found_unfocused_non_dim_cell = false;
+
+    var y: u16 = area.y;
+    while (y < area.y + area.height) : (y += 1) {
+        var x: u16 = area.x;
+        while (x < area.x + area.width) : (x += 1) {
+            if (buf.getConst(x, y)) |cell| {
+                if (cell.char == '█' or cell.char == '│' or cell.char == '─' or cell.char == '━') {
+                    if (x >= series1_band_start and x < series1_band_end) {
+                        // Series 1 (focused) should have dim style
+                        if (cell.style.dim) found_focused_dim_cell = true;
+                    } else if (x < series1_band_start) {
+                        // Series 0 (not focused) should not have dim style
+                        if (!cell.style.dim) found_unfocused_non_dim_cell = true;
+                    }
+                }
+            }
+        }
+    }
+
+    try testing.expect(found_focused_dim_cell);
+    try testing.expect(found_unfocused_non_dim_cell);
 }
 
 test "BoxPlot.render focused out of range does not crash" {
@@ -740,7 +825,7 @@ test "BoxPlot.render focused out of range does not crash" {
     try testing.expect(non_empty > 0);
 }
 
-test "BoxPlot.render changing focused index still renders all series" {
+test "BoxPlot.render changing focused index applies style to different series" {
     var buf1 = try Buffer.init(testing.allocator, 60, 20);
     defer buf1.deinit();
     var buf2 = try Buffer.init(testing.allocator, 60, 20);
@@ -753,17 +838,57 @@ test "BoxPlot.render changing focused index still renders all series" {
         .{ .label = "B", .values = &values2 },
     };
 
-    const bp1 = BoxPlot.init().withSeries(&series_arr).withFocused(0);
-    const bp2 = BoxPlot.init().withSeries(&series_arr).withFocused(1);
+    const focused_style = Style{ .bold = true };
+    const bp1 = BoxPlot.init()
+        .withSeries(&series_arr)
+        .withFocused(0)
+        .withFocusedStyle(focused_style)
+        .withBoxStyle(Style{ .bold = false });
+    const bp2 = BoxPlot.init()
+        .withSeries(&series_arr)
+        .withFocused(1)
+        .withFocusedStyle(focused_style)
+        .withBoxStyle(Style{ .bold = false });
 
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
     bp1.render(&buf1, area);
     bp2.render(&buf2, area);
 
-    const content1 = countNonEmptyCells(buf1, area);
-    const content2 = countNonEmptyCells(buf2, area);
-    try testing.expect(content1 > 0);
-    try testing.expect(content2 > 0);
+    // In buf1: Series 0 (left half) should be focused and bold
+    // In buf2: Series 1 (right half) should be focused and bold
+    const band_width = area.width / 2;
+    const series0_band_end = area.x + band_width;
+
+    var buf1_series0_bold: usize = 0;
+    var buf1_series1_bold: usize = 0;
+    var buf2_series0_bold: usize = 0;
+    var buf2_series1_bold: usize = 0;
+
+    var y: u16 = area.y;
+    while (y < area.y + area.height) : (y += 1) {
+        var x: u16 = area.x;
+        while (x < area.x + area.width) : (x += 1) {
+            if (buf1.getConst(x, y)) |cell| {
+                if ((cell.char == '█' or cell.char == '│' or cell.char == '─' or cell.char == '━') and cell.style.bold) {
+                    if (x < series0_band_end) buf1_series0_bold += 1
+                    else buf1_series1_bold += 1;
+                }
+            }
+            if (buf2.getConst(x, y)) |cell| {
+                if ((cell.char == '█' or cell.char == '│' or cell.char == '─' or cell.char == '━') and cell.style.bold) {
+                    if (x < series0_band_end) buf2_series0_bold += 1
+                    else buf2_series1_bold += 1;
+                }
+            }
+        }
+    }
+
+    // buf1: focused=0, so series 0 should have bold cells, series 1 should not
+    try testing.expect(buf1_series0_bold > 0);
+    try testing.expectEqual(@as(usize, 0), buf1_series1_bold);
+    // buf2: focused=1, so series 1 should have bold cells, series 0 should not
+    try testing.expectEqual(@as(usize, 0), buf2_series0_bold);
+    try testing.expect(buf2_series1_bold > 0);
 }
 
 // ============================================================================
