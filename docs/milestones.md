@@ -2,22 +2,38 @@
 
 ## Current Status
 
-- **Latest release**: v2.80.0 (2026-07-11) — ViolinPlot Widget
-- **Latest minor**: v2.80.0 (2026-07-11) — ViolinPlot Widget
-- **Next release**: v2.81.0 — SunburstChart Widget
+- **Latest release**: v2.81.0 (2026-07-11) — SunburstChart Widget
+- **Latest minor**: v2.81.0 (2026-07-11) — SunburstChart Widget
+- **Next release**: v2.82.0 — BoxPlot Widget
 - **Active milestones**: 1 established (not yet started)
 - **Blockers**: None
 
-### v2.81.0 — SunburstChart Widget (Not Started)
+### v2.82.0 — BoxPlot Widget (Not Started)
 
-**Theme**: A hierarchical radial chart widget that renders nested categorical data as concentric rings of arcs, where each ring's arc width is proportional to its value share within its parent — the terminal-cell analog of a sunburst/multi-level pie chart. Complements the existing RadialBar (single-level concentric progress arcs) by adding hierarchy: each arc can have child arcs on the next ring out, angularly constrained to its parent's arc span. Candidate scope: `SunburstChart` + `SunburstNode` (label, value, children: []const SunburstNode, style), root ring at center, depth capped (e.g. MAX_DEPTH=4), per-node arc computed from value / siblings-sum * parent-angle-span, reusing RadialBar's clockwise-from-12-o'clock arc-fill and terminal aspect-ratio compensation (x*0.5 scaling) techniques. No heap allocations — fixed-size node/arc buffers. Final candidate from the v2.78.0/v2.79.0/v2.80.0 planning carryover list (StreamGraph done, ViolinPlot done, SunburstChart next); a new candidate list should be drafted during this milestone's implementation for what follows.
+**Theme**: A box-and-whisker plot widget showing five-number-summary distribution statistics (min, Q1, median, Q3, max) per category, with optional outlier markers beyond the whisker range (1.5×IQR convention). Complements ViolinPlot (density shape) and Histogram (binned frequency) with the classic compact statistical-summary view — useful when comparing many categories' spread/skew at a glance without density detail. Candidate scope: `BoxPlot` + `BoxPlotSeries` (label, values: []const f32, style), horizontal category axis (one column band per series, mirroring ViolinPlot/StreamGraph's per-series column layout), each series independently computes its five-number summary from `values` (no pre-supplied quantiles — computed at render time via sort-free order-statistics selection since no heap allocation is available for a full sort buffer... actually a bounded on-stack sort of a fixed-size `[MAX_SAMPLES]f32` scratch array is acceptable, mirroring the MAX_BINS-style fixed buffer convention), vertical box (Q1 to Q3) with median line, whisker lines extending to min/max within 1.5×IQR, outlier points marked beyond. MAX_SERIES=8, MAX_SAMPLES=64 (values beyond cap ignored, consistent with other widgets' truncation convention), no heap allocations.
 
 **Checklist**:
-- [ ] **src/tui/widgets/sunburst_chart.zig** — SunburstChart + SunburstNode; render()
-- [ ] **tests/sunburst_chart_test.zig** — meaningful tests covering defaults, builder immutability, hierarchical arc-span math, depth capping, rendering edge cases
-- [ ] Export SunburstChart, SunburstNode via tui.zig widgets struct and top-level sailor.zig
-- [ ] Add sunburst_chart_tests to build.zig
-- [ ] Release v2.81.0
+- [ ] **src/tui/widgets/box_plot.zig** — BoxPlot + BoxPlotSeries; render()
+- [ ] **tests/box_plot_test.zig** — meaningful tests covering defaults, builder immutability, five-number-summary computation, outlier detection, MAX_SERIES/MAX_SAMPLES capping, rendering edge cases
+- [ ] Export BoxPlot, BoxPlotSeries via tui.zig widgets struct and top-level sailor.zig
+- [ ] Add box_plot_tests to build.zig
+- [ ] Release v2.82.0
+
+**Future candidate list** (drafted during v2.81.0 SunburstChart implementation, for milestones after v2.82.0 — not yet scoped in detail):
+- **CandlestickChart** — OHLC (open/high/low/close) financial chart, one column per period, wick+body rendering, up/down coloring
+- **BulletChart** — compact single-metric KPI widget (value vs. target vs. qualitative ranges), horizontal bar with target tick mark
+- **ParallelCoordinates** — multi-dimensional categorical data as vertical axes connected by per-item polylines
+
+### v2.81.0 — SunburstChart Widget (Complete)
+
+**Theme**: A hierarchical radial chart widget that renders nested categorical data as concentric rings of arcs, where each ring's arc width is proportional to its value share within its parent — the terminal-cell analog of a sunburst/multi-level pie chart. Complements the existing RadialBar (single-level concentric progress arcs) by adding hierarchy: each arc can have child arcs on the next ring out, angularly constrained to its parent's arc span. Scope: `SunburstChart` + `SunburstNode` (label, value, children: []const SunburstNode, style), root ring at center, depth capped at MAX_DEPTH=4, per-node arc computed from value / siblings-sum * parent-angle-span via recursive per-cell tree descent, reusing RadialBar's clockwise-from-12-o'clock arc-fill and terminal aspect-ratio compensation (x*0.5 scaling) techniques. MAX_NODES=8 top-level nodes. No heap allocations — bounded recursion depth.
+
+**Checklist**:
+- [x] **src/tui/widgets/sunburst_chart.zig** — SunburstChart + SunburstNode; render()
+- [x] **tests/sunburst_chart_test.zig** — 89 tests: init/defaults, MAX_DEPTH/MAX_NODES constants, nodeCount/totalValue, builder immutability, render zero/minimal area, empty nodes, single/multiple top-level nodes, hierarchical children (2-3 levels), depth capping, zero-value/negative-value siblings, focused branch styling, show_labels/show_values toggles, block border, MAX_NODES cap, buffer bounds, style precedence, real-world scenarios (disk usage, org hierarchy)
+- [x] Export SunburstChart, SunburstNode via tui.zig widgets struct and top-level sailor.zig
+- [x] Add sunburst_chart_tests to build.zig
+- [x] Release v2.81.0
 
 ### v2.80.0 — ViolinPlot Widget (Complete)
 
