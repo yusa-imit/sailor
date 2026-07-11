@@ -2,27 +2,41 @@
 
 ## Current Status
 
-- **Latest release**: v2.81.0 (2026-07-11) — SunburstChart Widget
-- **Latest minor**: v2.81.0 (2026-07-11) — SunburstChart Widget
-- **Next release**: v2.82.0 — BoxPlot Widget
+- **Latest release**: v2.82.0 (2026-07-11) — BoxPlot Widget
+- **Latest minor**: v2.82.0 (2026-07-11) — BoxPlot Widget
+- **Next release**: v2.83.0 — CandlestickChart Widget
 - **Active milestones**: 1 established (not yet started)
 - **Blockers**: None
 
-### v2.82.0 — BoxPlot Widget (Not Started)
+### v2.83.0 — CandlestickChart Widget (Not Started)
 
-**Theme**: A box-and-whisker plot widget showing five-number-summary distribution statistics (min, Q1, median, Q3, max) per category, with optional outlier markers beyond the whisker range (1.5×IQR convention). Complements ViolinPlot (density shape) and Histogram (binned frequency) with the classic compact statistical-summary view — useful when comparing many categories' spread/skew at a glance without density detail. Candidate scope: `BoxPlot` + `BoxPlotSeries` (label, values: []const f32, style), horizontal category axis (one column band per series, mirroring ViolinPlot/StreamGraph's per-series column layout), each series independently computes its five-number summary from `values` (no pre-supplied quantiles — computed at render time via sort-free order-statistics selection since no heap allocation is available for a full sort buffer... actually a bounded on-stack sort of a fixed-size `[MAX_SAMPLES]f32` scratch array is acceptable, mirroring the MAX_BINS-style fixed buffer convention), vertical box (Q1 to Q3) with median line, whisker lines extending to min/max within 1.5×IQR, outlier points marked beyond. MAX_SERIES=8, MAX_SAMPLES=64 (values beyond cap ignored, consistent with other widgets' truncation convention), no heap allocations.
+**Theme**: An OHLC (open/high/low/close) financial chart widget rendering one column per time period, with a wick+body candle glyph per period and up/down coloring. Complements the existing WaterfallChart/GanttChart time-series-style widgets with a dedicated financial-data view. Candidate scope: `CandlestickChart` + `Candle` (label/timestamp, open/high/low/close: f32, style), one column band per candle (mirroring the ViolinPlot/BoxPlot per-series column layout), wick line from high to low, body block from open to close (bullish/bearish distinguished by up_style/down_style), shared global value scale across all candles. MAX_CANDLES=64, no heap allocations.
 
 **Checklist**:
-- [ ] **src/tui/widgets/box_plot.zig** — BoxPlot + BoxPlotSeries; render()
-- [ ] **tests/box_plot_test.zig** — meaningful tests covering defaults, builder immutability, five-number-summary computation, outlier detection, MAX_SERIES/MAX_SAMPLES capping, rendering edge cases
-- [ ] Export BoxPlot, BoxPlotSeries via tui.zig widgets struct and top-level sailor.zig
-- [ ] Add box_plot_tests to build.zig
-- [ ] Release v2.82.0
+- [ ] **src/tui/widgets/candlestick_chart.zig** — CandlestickChart + Candle; render()
+- [ ] **tests/candlestick_chart_test.zig** — meaningful tests covering defaults, builder immutability, wick/body geometry correctness, up/down coloring, MAX_CANDLES capping, rendering edge cases
+- [ ] Export CandlestickChart, Candle via tui.zig widgets struct and top-level sailor.zig
+- [ ] Add candlestick_chart_tests to build.zig
+- [ ] Release v2.83.0
 
-**Future candidate list** (drafted during v2.81.0 SunburstChart implementation, for milestones after v2.82.0 — not yet scoped in detail):
-- **CandlestickChart** — OHLC (open/high/low/close) financial chart, one column per period, wick+body rendering, up/down coloring
+**Future candidate list** (drafted during v2.81.0 SunburstChart implementation, for milestones after v2.83.0 — not yet scoped in detail):
 - **BulletChart** — compact single-metric KPI widget (value vs. target vs. qualitative ranges), horizontal bar with target tick mark
 - **ParallelCoordinates** — multi-dimensional categorical data as vertical axes connected by per-item polylines
+
+### v2.82.0 — BoxPlot Widget (Complete)
+
+**Theme**: A box-and-whisker plot widget showing five-number-summary distribution statistics (min, Q1, median, Q3, max) per category, with optional outlier markers beyond the whisker range (1.5×IQR convention). Complements ViolinPlot (density shape) and Histogram (binned frequency) with the classic compact statistical-summary view — useful when comparing many categories' spread/skew at a glance without density detail. Scope: `BoxPlot` + `BoxPlotSeries` (label, values: []const f32, style), horizontal category axis (one column band per series, mirroring ViolinPlot/StreamGraph's per-series column layout), each series independently computes its five-number summary from `values` at render time via a public `fiveNumberSummary()` function (linear-interpolation/R-7 percentile method) over a bounded on-stack `[MAX_SAMPLES]f32` scratch buffer, vertical box (Q1 to Q3) with median line, whisker lines extending to the most extreme non-outlier sample within 1.5×IQR of Q1/Q3, outlier points marked beyond. MAX_SERIES=8, MAX_SAMPLES=64, no heap allocations.
+
+**Checklist**:
+- [x] **src/tui/widgets/box_plot.zig** — BoxPlot + BoxPlotSeries + FiveNumberSummary + fiveNumberSummary(); render()
+- [x] **tests/box_plot_test.zig** — 95 tests: init/defaults, BoxPlotSeries defaults, MAX_SERIES/MAX_SAMPLES constants, seriesCount capping, builder immutability (12 methods), five-number-summary correctness (hand-computed quartiles via linear interpolation), outlier detection (actual-sample whisker endpoints vs. theoretical fence), MAX_SERIES/MAX_SAMPLES capping, degenerate cases (n=1, n=0, all-identical), focused styling, show_labels/show_outliers toggles, block border, buffer bounds, series.style vs box_style vs focused_style precedence, real-world scenarios
+- [x] Export BoxPlot, BoxPlotSeries, FiveNumberSummary via tui.zig widgets struct and top-level sailor.zig
+- [x] Add box_plot_tests to build.zig
+- [x] Release v2.82.0
+
+**Known Issue — caught during orchestrator review, fixed before release**:
+- zig-developer's initial box-drawing loop condition (`row_q1 <= row_q3`) had the row direction backwards — since row 0 is the top of the plot (mapped to the max value) and Q3 > Q1, `row_q3` is actually the smaller row number. The loop as written required `row_q1 <= row_q3`, which is essentially never true, so the box body silently never rendered in normal (non-degenerate) cases. This was masked because the existing test suite's rendering assertions only checked `countNonEmptyCells(...) > 0`, which whiskers/median/labels alone satisfied. Fixed by computing `box_top = min(row_q1, row_q3)` / `box_bottom = max(row_q1, row_q3)` and looping between them; added a test that inspects actual `'█'` cell styles to lock in both the box's existence and its style precedence. Future test-writers: prefer asserting on specific glyph/style presence over blanket non-empty-cell counts when a widget has multiple independently-toggleable visual elements — a passing element can hide a broken one.
+- Separately, `BoxPlotSeries.style` was defined but never read in `render()` (dead field) — fixed by applying the same per-series style override convention used by ViolinPlot (series.style wins over box_style when it has any attribute set, unless the series is focused).
 
 ### v2.81.0 — SunburstChart Widget (Complete)
 
