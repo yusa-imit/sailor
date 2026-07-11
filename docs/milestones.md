@@ -4,9 +4,20 @@
 
 - **Latest release**: v2.80.0 (2026-07-11) — ViolinPlot Widget
 - **Latest minor**: v2.80.0 (2026-07-11) — ViolinPlot Widget
-- **Next release**: TBD — SunburstChart Widget (candidate, not yet established)
-- **Active milestones**: 0 established (need to establish next milestone — 2-or-fewer rule triggered)
+- **Next release**: v2.81.0 — SunburstChart Widget
+- **Active milestones**: 1 established (not yet started)
 - **Blockers**: None
+
+### v2.81.0 — SunburstChart Widget (Not Started)
+
+**Theme**: A hierarchical radial chart widget that renders nested categorical data as concentric rings of arcs, where each ring's arc width is proportional to its value share within its parent — the terminal-cell analog of a sunburst/multi-level pie chart. Complements the existing RadialBar (single-level concentric progress arcs) by adding hierarchy: each arc can have child arcs on the next ring out, angularly constrained to its parent's arc span. Candidate scope: `SunburstChart` + `SunburstNode` (label, value, children: []const SunburstNode, style), root ring at center, depth capped (e.g. MAX_DEPTH=4), per-node arc computed from value / siblings-sum * parent-angle-span, reusing RadialBar's clockwise-from-12-o'clock arc-fill and terminal aspect-ratio compensation (x*0.5 scaling) techniques. No heap allocations — fixed-size node/arc buffers. Final candidate from the v2.78.0/v2.79.0/v2.80.0 planning carryover list (StreamGraph done, ViolinPlot done, SunburstChart next); a new candidate list should be drafted during this milestone's implementation for what follows.
+
+**Checklist**:
+- [ ] **src/tui/widgets/sunburst_chart.zig** — SunburstChart + SunburstNode; render()
+- [ ] **tests/sunburst_chart_test.zig** — meaningful tests covering defaults, builder immutability, hierarchical arc-span math, depth capping, rendering edge cases
+- [ ] Export SunburstChart, SunburstNode via tui.zig widgets struct and top-level sailor.zig
+- [ ] Add sunburst_chart_tests to build.zig
+- [ ] Release v2.81.0
 
 ### v2.80.0 — ViolinPlot Widget (Complete)
 
