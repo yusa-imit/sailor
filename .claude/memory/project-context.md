@@ -1,3 +1,40 @@
+✅ **Session 354** — FEATURE MODE (2026-07-11)
+  - **Mode**: NORMAL (session 354, 354 % 5 == 4)
+  - **Achievement**: Completed the abandoned v2.81.0 release + released v2.82.0 (BoxPlot widget)
+
+  **Completed Work**:
+    - ✅ CI: queued (not RED); 0 open issues
+    - ✅ **Found and fixed a stalled release**: session 352/353 had implemented SunburstChart and marked docs/milestones.md's v2.81.0 checklist fully `[x]` ("Release v2.81.0" included), but `build.zig.zon` was still at 2.80.0 and no `v2.81.0` git tag existed — the release steps were simply never executed. Completed them now: bumped version, tagged, pushed, created GitHub release, filed consumer migration issues (zr#127, zoltraak#93, silica#104).
+    - ✅ Established v2.82.0 milestone: BoxPlot widget (box-and-whisker plot, five-number-summary stats)
+    - ✅ TDD Red: test-writer wrote 89 tests in tests/box_plot_test.zig (later 95 after orchestrator additions), plus registered box_plot_tests in build.zig
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/box_plot.zig (622 lines) — BoxPlotSeries, FiveNumberSummary, public fiveNumberSummary() (linear-interpolation/R-7 percentiles), BoxPlot with 12 builder methods
+    - ✅ **Orchestrator review caught two real bugs before commit** (not just smoke-tested): (1) the box-drawing loop's row-direction condition was inverted — row 0 is the top of the plot mapped to the max value, so Q3 (higher value) maps to a *smaller* row than Q1, but the loop required `row_q1 <= row_q3` which is essentially never true, so the box body silently never rendered outside degenerate cases. This was fully masked by the test suite because rendering assertions only checked `countNonEmptyCells(...) > 0`, satisfied by whiskers/median/labels alone. (2) `BoxPlotSeries.style` was defined but never read in `render()` — a dead field inconsistent with ViolinPlot's established per-series-style-override convention. Fixed both, added a new test that inspects actual `'█'` cell styles directly to lock in the fix.
+    - ✅ Exports wired in tui.zig and sailor.zig; all 95 box_plot tests + full suite pass (exit 0)
+    - ✅ Released v2.82.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#128, zoltraak#94, silica#105
+    - ✅ Established v2.83.0 milestone: CandlestickChart widget (OHLC financial chart, wick+body per period)
+
+  **Current State**:
+    - **Latest release**: v2.82.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 125 widgets in src/tui/widgets/ (box_plot.zig added)
+    - **CI**: triggered for v2.82.0 commit
+
+  **BoxPlot Widget Summary**:
+    - BoxPlotSeries: label/values(f32 slice)/style
+    - FiveNumberSummary + fiveNumberSummary(values): public, independently-testable quartile function — linear interpolation (R-7/numpy method), whisker_low/whisker_high are the actual most-extreme non-outlier sample within 1.5×IQR of Q1/Q3 (NOT the theoretical fence bounds)
+    - BoxPlot: series/focused/show_labels/show_outliers/style/box_style/median_style/whisker_style/outlier_style/focused_style/label_style/block
+    - Column-band-per-series layout (same convention as ViolinPlot), shared global vertical scale across all series' actual whisker extents
+    - MAX_SERIES=8, MAX_SAMPLES=64, no heap allocations
+    - 95 tests
+
+  **Process Insight — release-protocol discipline**:
+    - A prior session marked a milestone checklist `[x]` including "Release vX.Y.0" without actually running the release steps (version bump/tag/GitHub release/migration issues). The orchestrator must independently verify claimed-complete releases against `build.zig.zon` version + `git tag -l` before trusting docs/milestones.md — a checked box is not proof a release happened.
+    - Test-quality insight: widgets with multiple independently-toggleable visual elements (box + whisker + median + labels) need assertions on SPECIFIC glyph/style presence, not just `countNonEmptyCells > 0` — a broken element can hide behind working ones. Apply this scrutiny in future stabilization-session test audits.
+
+  **Next Priority**:
+    - Implement v2.83.0 milestone: CandlestickChart widget (see docs/milestones.md for scope)
+
 ✅ **Session 352** — FEATURE MODE (2026-07-11)
   - **Mode**: NORMAL (session 352, 352 % 5 == 2)
   - **Achievement**: Released v2.80.0 (ViolinPlot widget)
