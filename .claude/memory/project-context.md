@@ -1,3 +1,39 @@
+✅ **Session 352** — FEATURE MODE (2026-07-11)
+  - **Mode**: NORMAL (session 352, 352 % 5 == 2)
+  - **Achievement**: Released v2.80.0 (ViolinPlot widget)
+
+  **Completed Work**:
+    - ✅ CI: prior runs cancelled (not RED, no real failures on recent commits); 0 open issues
+    - ✅ TDD Red: test-writer wrote 88 tests in tests/violin_plot_test.zig
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/violin_plot.zig (445 lines)
+    - ✅ Exports in tui.zig (violin_plot, ViolinPlot, ViolinSeries) and sailor.zig
+    - ✅ Added violin_plot_tests to build.zig
+    - ✅ All 88 tests pass (exit 0); reviewed implementation directly (no findings) — verified no @panic/stdout/global state
+    - ✅ 6/6 cross-compile targets built clean (sequential, per Test Execution Policy)
+    - ✅ Released v2.80.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#126, zoltraak#92, silica#103
+    - ✅ Established v2.81.0 milestone: SunburstChart widget (hierarchical radial chart, extends RadialBar's arc-fill technique with parent/child nesting)
+    - ✅ Discord notification sent
+
+  **Current State**:
+    - **Latest release**: v2.80.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 123 widgets in src/tui/widgets/ (violin_plot.zig added)
+    - **CI**: triggered for v2.80.0 commit
+
+  **ViolinPlot Widget Summary**:
+    - ViolinSeries: label/values(f32 slice, any sign)/style
+    - ViolinPlot: series/focused/show_labels/style/focused_style/label_style/block
+    - Each series occupies a horizontal column band; density rendered as a vertical silhouette mirrored around the band's center column
+    - Binning uses a GLOBAL min/max across all series' values (shared scale for cross-series comparison), not per-series — density widths are also normalized against the global max bin count across all series
+    - show_labels reserves exactly 1 bottom row for centered per-series labels
+    - min==max (zero-range) data has a dedicated fallback path (renderConstantCase) that fills symmetric rows around the band's vertical middle rather than dividing by zero
+    - MAX_SERIES=8, MAX_BINS=64, no heap allocations (fixed [MAX_SERIES][MAX_BINS]usize bin-count array on stack)
+    - 88 tests
+
+  **Next Priority**:
+    - Implement v2.81.0 milestone: SunburstChart widget (see docs/milestones.md for scope — SunburstNode with children, MAX_DEPTH capping, arc-span-from-parent math, reuse RadialBar's clockwise-arc-fill + aspect-ratio compensation techniques)
+
 ✅ **Session 351** — FEATURE MODE (2026-07-11)
   - **Mode**: NORMAL (session 351, 351 % 5 == 1)
   - **Achievement**: Released v2.79.0 (StreamGraph widget)
