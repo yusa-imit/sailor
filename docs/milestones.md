@@ -2,22 +2,22 @@
 
 ## Current Status
 
-- **Latest release**: v2.79.0 (2026-07-11) — StreamGraph Widget
-- **Latest minor**: v2.79.0 (2026-07-11) — StreamGraph Widget
-- **Next release**: v2.80.0 — ViolinPlot Widget
-- **Active milestones**: 1 established (not yet started)
+- **Latest release**: v2.80.0 (2026-07-11) — ViolinPlot Widget
+- **Latest minor**: v2.80.0 (2026-07-11) — ViolinPlot Widget
+- **Next release**: TBD — SunburstChart Widget (candidate, not yet established)
+- **Active milestones**: 0 established (need to establish next milestone — 2-or-fewer rule triggered)
 - **Blockers**: None
 
-### v2.80.0 — ViolinPlot Widget (Not Started)
+### v2.80.0 — ViolinPlot Widget (Complete)
 
-**Theme**: A violin plot widget showing the distribution shape of one or more datasets via a mirrored, smoothed density silhouette per category — complements the existing BoxPlot-style statistics widgets (histogram, scatterplot) with a density-shape view. Candidate scope: `ViolinPlot` + `ViolinSeries` (label, values, style), horizontal category axis, density estimated via simple binning (no heap allocations — fixed-size bins), symmetric silhouette per category akin to StreamGraph's centered-band technique. Established as the next themed milestone per the milestone-establishment protocol (candidate list carried over from v2.78.0/v2.79.0 planning: StreamGraph done, ViolinPlot next, SunburstChart after).
+**Theme**: A violin plot widget showing the distribution shape of one or more datasets via a mirrored, smoothed density silhouette per category — complements the existing BoxPlot-style statistics widgets (histogram, scatterplot) with a density-shape view. Scope: `ViolinPlot` + `ViolinSeries` (label, values, style), horizontal category axis (one column band per series), density estimated via simple binning against a shared global min/max scale across all series (no heap allocations — fixed-size `[MAX_SERIES][MAX_BINS]` bin-count array), symmetric silhouette per category mirrored around each band's center column. MAX_SERIES=8, MAX_BINS=64, no heap allocations.
 
 **Checklist**:
-- [ ] **src/tui/widgets/violin_plot.zig** — ViolinPlot + ViolinSeries; render()
-- [ ] **tests/violin_plot_test.zig** — meaningful tests covering defaults, builder immutability, rendering edge cases, density scaling
-- [ ] Export ViolinPlot, ViolinSeries via tui.zig widgets struct and top-level sailor.zig
-- [ ] Add violin_plot_tests to build.zig
-- [ ] Release v2.80.0
+- [x] **src/tui/widgets/violin_plot.zig** — ViolinPlot + ViolinSeries; `series` ([]const ViolinSeries=&.{}); `focused` (usize=0); `show_labels` (bool=true); `style/focused_style/label_style` (Style={}); `block` (?Block=null); `pub const MAX_SERIES: usize = 8`; `pub const MAX_BINS: usize = 64`; `init()`; `seriesCount() usize`; builder withSeries/Focused/ShowLabels/Style/FocusedStyle/LabelStyle/Block; `render(*Buffer, Rect)`
+- [x] **tests/violin_plot_test.zig** — 88 tests: init/defaults, ViolinSeries defaults, MAX_SERIES/MAX_BINS constants, seriesCount capping, builder immutability, render zero/minimal area, empty series, single/multiple series, shared min/max scaling (incl. negative values), identical-values zero-range fallback, focused styling, show_labels toggle + label row reservation, block border, MAX_SERIES/MAX_BINS capping, symmetry/centering, buffer bounds, style application, real-world distribution scenarios
+- [x] Export ViolinPlot, ViolinSeries via tui.zig widgets struct and top-level sailor.zig
+- [x] Add violin_plot_tests to build.zig
+- [x] Release v2.80.0
 
 ### v2.79.0 — StreamGraph Widget (Complete)
 
