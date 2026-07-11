@@ -1577,6 +1577,17 @@ pub fn build(b: *std.Build) void {
     radial_bar_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(radial_bar_tests).step);
 
+    const sunburst_chart_tests = b.addTest(.{
+        .name = "sunburst_chart_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/sunburst_chart_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    sunburst_chart_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(sunburst_chart_tests).step);
+
     const stream_graph_tests = b.addTest(.{
         .name = "stream_graph_tests",
         .root_module = b.createModule(.{

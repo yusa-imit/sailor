@@ -548,6 +548,11 @@ pub const widgets = struct {
     pub const violin_plot = @import("widgets/violin_plot.zig");
     pub const ViolinPlot = violin_plot.ViolinPlot;
     pub const ViolinSeries = violin_plot.ViolinSeries;
+
+    // v2.81.0 — SunburstChart Widget
+    pub const sunburst_chart = @import("widgets/sunburst_chart.zig");
+    pub const SunburstChart = sunburst_chart.SunburstChart;
+    pub const SunburstNode = sunburst_chart.SunburstNode;
 };
 
 // Export commonly used types
