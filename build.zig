@@ -1621,6 +1621,17 @@ pub fn build(b: *std.Build) void {
     box_plot_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(box_plot_tests).step);
 
+    const candlestick_chart_tests = b.addTest(.{
+        .name = "candlestick_chart_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/candlestick_chart_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    candlestick_chart_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(candlestick_chart_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",

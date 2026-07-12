@@ -559,6 +559,11 @@ pub const widgets = struct {
     pub const BoxPlot = box_plot.BoxPlot;
     pub const BoxPlotSeries = box_plot.BoxPlotSeries;
     pub const FiveNumberSummary = box_plot.FiveNumberSummary;
+
+    // v2.83.0 — CandlestickChart Widget
+    pub const candlestick_chart = @import("widgets/candlestick_chart.zig");
+    pub const CandlestickChart = candlestick_chart.CandlestickChart;
+    pub const Candle = candlestick_chart.Candle;
 };
 
 // Export commonly used types
