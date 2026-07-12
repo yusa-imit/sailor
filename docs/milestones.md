@@ -2,26 +2,39 @@
 
 ## Current Status
 
-- **Latest release**: v2.82.0 (2026-07-11) — BoxPlot Widget
-- **Latest minor**: v2.82.0 (2026-07-11) — BoxPlot Widget
-- **Next release**: v2.83.0 — CandlestickChart Widget
+- **Latest release**: v2.83.0 (2026-07-12) — CandlestickChart Widget
+- **Latest minor**: v2.83.0 (2026-07-12) — CandlestickChart Widget
+- **Next release**: v2.84.0 — BulletChart Widget
 - **Active milestones**: 1 established (not yet started)
 - **Blockers**: None
 
-### v2.83.0 — CandlestickChart Widget (Not Started)
+### v2.84.0 — BulletChart Widget (Not Started)
 
-**Theme**: An OHLC (open/high/low/close) financial chart widget rendering one column per time period, with a wick+body candle glyph per period and up/down coloring. Complements the existing WaterfallChart/GanttChart time-series-style widgets with a dedicated financial-data view. Candidate scope: `CandlestickChart` + `Candle` (label/timestamp, open/high/low/close: f32, style), one column band per candle (mirroring the ViolinPlot/BoxPlot per-series column layout), wick line from high to low, body block from open to close (bullish/bearish distinguished by up_style/down_style), shared global value scale across all candles. MAX_CANDLES=64, no heap allocations.
+**Theme**: A compact single-metric KPI widget (value vs. target vs. qualitative ranges), rendered as a horizontal bar with a target tick mark — the terminal-cell analog of a Few-style bullet graph. Complements the existing GaugeChart/RadialBar progress widgets with a denser, dashboard-friendly comparison view (actual vs. target vs. qualitative bands like poor/satisfactory/good). Candidate scope: `BulletChart` + `Bullet` (label, value, target, ranges: []const f32 qualitative band boundaries, style) — one row per bullet (mirroring GanttChart/WaterfallChart's per-item row layout), qualitative range bands rendered as background shading from lightest-to-darkest, value bar drawn as a thin filled bar overlaying the bands, target marked with a vertical tick character. MAX_BULLETS=32, no heap allocations.
 
 **Checklist**:
-- [ ] **src/tui/widgets/candlestick_chart.zig** — CandlestickChart + Candle; render()
-- [ ] **tests/candlestick_chart_test.zig** — meaningful tests covering defaults, builder immutability, wick/body geometry correctness, up/down coloring, MAX_CANDLES capping, rendering edge cases
-- [ ] Export CandlestickChart, Candle via tui.zig widgets struct and top-level sailor.zig
-- [ ] Add candlestick_chart_tests to build.zig
-- [ ] Release v2.83.0
+- [ ] **src/tui/widgets/bullet_chart.zig** — BulletChart + Bullet; render()
+- [ ] **tests/bullet_chart_test.zig** — meaningful tests covering defaults, builder immutability, range band rendering, value bar geometry, target tick placement, MAX_BULLETS capping, rendering edge cases
+- [ ] Export BulletChart, Bullet via tui.zig widgets struct and top-level sailor.zig
+- [ ] Add bullet_chart_tests to build.zig
+- [ ] Release v2.84.0
 
-**Future candidate list** (drafted during v2.81.0 SunburstChart implementation, for milestones after v2.83.0 — not yet scoped in detail):
-- **BulletChart** — compact single-metric KPI widget (value vs. target vs. qualitative ranges), horizontal bar with target tick mark
+**Future candidate list** (drafted during v2.81.0 SunburstChart implementation, for milestones after v2.84.0 — not yet scoped in detail):
 - **ParallelCoordinates** — multi-dimensional categorical data as vertical axes connected by per-item polylines
+
+### v2.83.0 — CandlestickChart Widget (Complete)
+
+**Theme**: An OHLC (open/high/low/close) financial chart widget rendering one column per time period, with a wick+body candle glyph per period and up/down coloring. Complements the existing WaterfallChart/GanttChart time-series-style widgets with a dedicated financial-data view. Scope: `CandlestickChart` + `Candle` (label/timestamp, open/high/low/close: f32, style), one column band per candle (mirroring the ViolinPlot/BoxPlot per-series column layout), wick line from high to low, body block from open to close (bullish/bearish distinguished by up_style/down_style), shared global value scale across all candles. MAX_CANDLES=64, no heap allocations.
+
+**Checklist**:
+- [x] **src/tui/widgets/candlestick_chart.zig** — CandlestickChart + Candle; render()
+- [x] **tests/candlestick_chart_test.zig** — 79 tests: defaults, builder immutability, wick/body geometry correctness, up/down coloring, MAX_CANDLES capping, rendering edge cases
+- [x] Export CandlestickChart, Candle via tui.zig widgets struct and top-level sailor.zig
+- [x] Add candlestick_chart_tests to build.zig
+- [x] Release v2.83.0
+
+**Known Issue — caught during orchestrator review, fixed before release**:
+- `valueToRow.calc`'s row mapping only clamped the *lower* bound (`@max(0, row_from_bottom)`), not the upper bound. Since the global min/max scale is derived from each candle's `high`/`low` only, a malformed OHLC record with `open`/`close` far outside its own `high`/`low` range produced a `normalized` value outside `[0, 1]`, which propagated to a row index outside the plot's valid range and overflowed the `@intCast` to `u16` in `Buffer.set`, panicking. Fixed by clamping `normalized` to `[0.0, 1.0]` before computing `row_offset`, and clamping `final_row` to `[0, height - 1]` in addition to the existing lower-bound clamp. Covered by `tests/candlestick_chart_test.zig`'s "render with out-of-range open price does not crash" test.
 
 ### v2.82.0 — BoxPlot Widget (Complete)
 
