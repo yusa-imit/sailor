@@ -23,6 +23,24 @@ const ENABLE_ECHO_INPUT: std.os.windows.DWORD = 0x0004;
 const ENABLE_LINE_INPUT: std.os.windows.DWORD = 0x0002;
 const ENABLE_VIRTUAL_TERMINAL_INPUT: std.os.windows.DWORD = 0x0200;
 
+// GetFileType() return values (missing from std.os.windows)
+const FILE_TYPE_UNKNOWN: std.os.windows.DWORD = 0x0000;
+const FILE_TYPE_PIPE: std.os.windows.DWORD = 0x0003;
+
+// kernel32 bindings missing from std.os.windows: needed to distinguish
+// console handles (where WaitForSingleObject correctly reports input
+// readiness) from pipe handles (where it does not — see readByteWindows).
+extern "kernel32" fn GetFileType(hFile: std.os.windows.HANDLE) callconv(.winapi) std.os.windows.DWORD;
+extern "kernel32" fn PeekNamedPipe(
+    hNamedPipe: std.os.windows.HANDLE,
+    lpBuffer: ?*anyopaque,
+    nBufferSize: std.os.windows.DWORD,
+    lpBytesRead: ?*std.os.windows.DWORD,
+    lpTotalBytesAvail: ?*std.os.windows.DWORD,
+    lpBytesLeftThisMessage: ?*std.os.windows.DWORD,
+) callconv(.winapi) std.os.windows.BOOL;
+extern "kernel32" fn SetStdHandle(nStdHandle: std.os.windows.DWORD, hHandle: std.os.windows.HANDLE) callconv(.winapi) std.os.windows.BOOL;
+
 pub const Error = error{
     NotATty,
     UnsupportedPlatform,
@@ -410,11 +428,32 @@ fn readByteWindows(timeout_ms: u32) !?u8 {
     const win = std.os.windows;
     const handle = try win.GetStdHandle(win.STD_INPUT_HANDLE);
 
-    // WaitForSingleObject returns void on success (WAIT_OBJECT_0), or error on timeout/abandoned
-    win.WaitForSingleObject(handle, timeout_ms) catch {
-        // Timeout or other wait result
-        return null;
-    };
+    // WaitForSingleObject only reliably reports data-readiness for console
+    // handles. For pipes (e.g. redirected/piped stdin, as used by CI
+    // runners), a pipe handle with no data pending is still reported as
+    // "signaled", so blindly following it with a blocking ReadFile() can
+    // hang forever waiting for input that never arrives. Poll pipe handles
+    // with PeekNamedPipe instead, bounded by the same timeout.
+    if (GetFileType(handle) == FILE_TYPE_PIPE) {
+        const deadline = std.time.milliTimestamp() + @as(i64, timeout_ms);
+        while (true) {
+            var bytes_avail: win.DWORD = 0;
+            if (PeekNamedPipe(handle, null, 0, null, &bytes_avail, null) == 0) {
+                // Broken/closed pipe (e.g. write end closed) — treat as EOF.
+                return null;
+            }
+            if (bytes_avail > 0) break;
+            if (std.time.milliTimestamp() >= deadline) return null;
+            std.Thread.sleep(1 * std.time.ns_per_ms);
+        }
+    } else {
+        // Console handles and regular files: WaitForSingleObject correctly
+        // reports readiness (files are always immediately signaled).
+        win.WaitForSingleObject(handle, timeout_ms) catch {
+            // Timeout or other wait result
+            return null;
+        };
+    }
 
     var buf: [1]u8 = undefined;
     var bytes_read: win.DWORD = undefined;
@@ -836,6 +875,40 @@ test "readByte with zero timeout" {
 
     // If no error, we should get null (timeout) or a byte
     _ = byte;
+}
+
+test "readByte on empty pipe stdin returns null instead of blocking" {
+    // Regression test: on Windows, WaitForSingleObject reports pipe handles
+    // as "signaled" even when no data is pending, so a naive implementation
+    // that follows it with a blocking ReadFile() hangs forever when stdin is
+    // an open-but-empty pipe (as on CI runners). This reproduces that exact
+    // condition with a real pipe and asserts readByte() returns promptly.
+    if (builtin.os.tag != .windows) return error.SkipZigTest;
+    const win = std.os.windows;
+
+    var read_handle: win.HANDLE = undefined;
+    var write_handle: win.HANDLE = undefined;
+    var sattr = win.SECURITY_ATTRIBUTES{
+        .nLength = @sizeOf(win.SECURITY_ATTRIBUTES),
+        .lpSecurityDescriptor = null,
+        .bInheritHandle = 1,
+    };
+    try win.CreatePipe(&read_handle, &write_handle, &sattr);
+    defer win.CloseHandle(write_handle);
+    defer win.CloseHandle(read_handle);
+
+    const original_stdin = try win.GetStdHandle(win.STD_INPUT_HANDLE);
+    defer _ = SetStdHandle(win.STD_INPUT_HANDLE, original_stdin);
+    _ = SetStdHandle(win.STD_INPUT_HANDLE, read_handle);
+
+    const start = std.time.milliTimestamp();
+    const result = try readByte(50);
+    const elapsed = std.time.milliTimestamp() - start;
+
+    try std.testing.expect(result == null);
+    // Bounded well above the 50ms timeout to tolerate CI scheduling jitter,
+    // but far below what an indefinite ReadFile() block would take.
+    try std.testing.expect(elapsed < 5000);
 }
 
 // XTGETTCAP Tests
