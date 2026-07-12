@@ -339,7 +339,22 @@ pub const SystemClipboard = struct {
                     },
                 }
 
-                return result.stdout;
+                // Strip exactly one trailing line terminator ("\r\n" if present, else "\n")
+                // PowerShell's Get-Clipboard always appends a trailing newline
+                var trimmed = result.stdout;
+                if (std.mem.endsWith(u8, trimmed, "\r\n")) {
+                    trimmed = trimmed[0 .. trimmed.len - 2];
+                } else if (std.mem.endsWith(u8, trimmed, "\n")) {
+                    trimmed = trimmed[0 .. trimmed.len - 1];
+                }
+
+                // Allocate a copy of the trimmed slice
+                const trimmed_copy = try allocator.dupe(u8, trimmed);
+
+                // Free the original result.stdout
+                allocator.free(result.stdout);
+
+                return trimmed_copy;
             },
             else => return error.ClipboardUnavailable,
         }

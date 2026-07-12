@@ -192,6 +192,12 @@ test "get returns default for unset variable" {
 }
 
 test "get returns empty string when variable is set to empty" {
+    // Windows CRT _putenv_s(key, "") actually removes the variable instead of setting it to empty.
+    // This is documented Windows CRT behavior: empty-string values cause variable removal.
+    // This test can only be meaningfully run on POSIX systems where setenv(key, "", 1)
+    // genuinely sets an empty value. On Windows, the scenario is architecturally unfeasible.
+    if (builtin.os.tag == .windows) return error.SkipZigTest;
+
     const allocator = std.testing.allocator;
 
     _ = setenv("SAILOR_TEST_EMPTY", "", 1);
@@ -317,6 +323,12 @@ test "getBool returns default when variable is unset" {
 }
 
 test "getBool treats empty string as false" {
+    // Windows CRT _putenv_s(key, "") actually removes the variable instead of setting it to empty.
+    // This is documented Windows CRT behavior: empty-string values cause variable removal.
+    // This test can only be meaningfully run on POSIX systems where setenv(key, "", 1)
+    // genuinely sets an empty value. On Windows, the scenario is architecturally unfeasible.
+    if (builtin.os.tag == .windows) return error.SkipZigTest;
+
     _ = setenv("SAILOR_TEST_BOOL", "", 1);
     defer _ = unsetenv("SAILOR_TEST_BOOL");
 
