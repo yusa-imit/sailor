@@ -1,3 +1,37 @@
+✅ **Session 357** — FEATURE MODE (2026-07-12)
+  - **Mode**: NORMAL (session 357, 357 % 5 == 2)
+  - **Achievement**: Fixed a pre-existing crash in the uncommitted CandlestickChart widget, committed it, and released v2.83.0
+
+  **Completed Work**:
+    - ✅ CI: prior runs cancelled (not RED); 0 open issues
+    - ✅ Found session-356's work-in-progress: CandlestickChart widget (374-line impl + 1299-line/79-test suite) was fully written but never committed, and `zig build test` failed with a panic ("integer does not fit in destination type") in a test that intentionally supplies an out-of-range open price
+    - ✅ Root cause: `valueToRow.calc`'s row mapping only clamped the *lower* bound (`@max(0, row_from_bottom)`). The global min/max scale is derived from each candle's `high`/`low` only — a malformed OHLC record with `open`/`close` outside its own `high`/`low` range produces `normalized` outside `[0,1]`, propagating to a row index outside the plot's valid range and overflowing the `@intCast` to `u16` in `Buffer.set`.
+    - ✅ Fixed by clamping `normalized` to `[0.0, 1.0]` before computing `row_offset`, and clamping `final_row` to `[0, height-1]` (not just the lower bound). All 79 candlestick_chart tests + full suite pass.
+    - ✅ Committed the widget (ab16043), verified 6-target cross-compile (linux x86_64/aarch64, macos aarch64, windows gnu — plus native macos aarch64 test run)
+    - ✅ Released v2.83.0: bumped build.zig.zon, tagged, pushed, GitHub release created
+    - ✅ Consumer migration issues filed: zr#129, zoltraak#95, silica#107
+    - ✅ Established v2.84.0 milestone: BulletChart widget (KPI value-vs-target-vs-qualitative-range horizontal bar)
+
+  **Current State**:
+    - **Latest release**: v2.83.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 126 widgets in src/tui/widgets/ (candlestick_chart.zig added)
+    - **CI**: triggered for v2.83.0 commit
+
+  **CandlestickChart Widget Summary**:
+    - Candle: label/open/high/low/close(f32)/style
+    - CandlestickChart: candles/focused/show_labels/style/up_style/down_style/wick_style/focused_style/label_style/block
+    - Column-band-per-candle layout; wick '│' from high to low, body '█' from open to close overwriting wick cells
+    - Global min/max scale from high/low across ALL candles (not per-candle) — cross-period comparability
+    - MAX_CANDLES=64, no heap allocations
+    - 79 tests
+
+  **Process Insight — uncommitted work across sessions**:
+    - Prior session (356, inferred — not logged here) left a fully-implemented widget + tests uncommitted with a crashing edge-case test, rather than committing a working state per the "commit+push before moving to next unit" rule. Always run `zig build test` on any uncommitted working-tree state found at session start BEFORE assuming it's ready to ship — a red test suite blocks the release protocol's "100% pass, 0 failures" gate regardless of how complete the code looks.
+
+  **Next Priority**:
+    - Implement v2.84.0 milestone: BulletChart widget (see docs/milestones.md for scope)
+
 ✅ **Session 354** — FEATURE MODE (2026-07-11)
   - **Mode**: NORMAL (session 354, 354 % 5 == 4)
   - **Achievement**: Completed the abandoned v2.81.0 release + released v2.82.0 (BoxPlot widget)
