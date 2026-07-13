@@ -575,6 +575,11 @@ pub const widgets = struct {
     pub const ParallelCoordinates = parallel_coordinates.ParallelCoordinates;
     pub const PCAxis = parallel_coordinates.PCAxis;
     pub const PCItem = parallel_coordinates.PCItem;
+
+    // v2.86.0 — ParetoChart Widget
+    pub const pareto_chart = @import("widgets/pareto_chart.zig");
+    pub const ParetoChart = pareto_chart.ParetoChart;
+    pub const ParetoItem = pareto_chart.ParetoItem;
 };
 
 // Export commonly used types

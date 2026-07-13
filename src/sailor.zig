@@ -267,6 +267,11 @@ pub const bullet_chart = tui.widgets.bullet_chart;
 pub const ParallelCoordinates = tui.widgets.ParallelCoordinates;
 pub const PCAxis = tui.widgets.PCAxis;
 pub const PCItem = tui.widgets.PCItem;
+
+// v2.86.0 — ParetoChart Widget
+pub const ParetoChart = tui.widgets.ParetoChart;
+pub const ParetoItem = tui.widgets.ParetoItem;
+pub const pareto_chart = tui.widgets.pareto_chart;
 pub const parallel_coordinates = tui.widgets.parallel_coordinates;
 pub const Viewport = tui.viewport.Viewport;
 pub const VirtualRenderer = tui.virtual.VirtualRenderer;

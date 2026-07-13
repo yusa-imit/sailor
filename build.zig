@@ -1654,6 +1654,17 @@ pub fn build(b: *std.Build) void {
     parallel_coordinates_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(parallel_coordinates_tests).step);
 
+    const pareto_chart_tests = b.addTest(.{
+        .name = "pareto_chart_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/pareto_chart_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    pareto_chart_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(pareto_chart_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",
