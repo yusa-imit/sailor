@@ -275,7 +275,7 @@ fn axisX(inner: Rect, axis_idx: usize, n_axes: usize) u16 {
     const idx_f = @as(f32, @floatFromInt(axis_idx));
     const n_f = @as(f32, @floatFromInt(n_axes - 1));
     const frac = idx_f / n_f;
-    const x_offset = @as(u16, @intFromFloat(frac * @as(f32, @floatFromInt(inner.width))));
+    const x_offset = @as(u16, @intFromFloat(frac * @as(f32, @floatFromInt(inner.width - 1))));
     return inner.x + x_offset;
 }
 
