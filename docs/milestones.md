@@ -2,24 +2,42 @@
 
 ## Current Status
 
-- **Latest release**: v2.83.1 (2026-07-13) — patch: Windows clipboard/env/pipe-stdin fixes
-- **Latest minor**: v2.83.0 (2026-07-12) — CandlestickChart Widget
-- **Next release**: v2.84.0 — BulletChart Widget
+- **Latest release**: v2.84.0 (2026-07-13) — BulletChart Widget
+- **Latest minor**: v2.84.0 (2026-07-13) — BulletChart Widget
+- **Next release**: v2.85.0 — ParallelCoordinates Widget
 - **Active milestones**: 1 established (not yet started)
 - **Blockers**: None
 
-### v2.84.0 — BulletChart Widget (Not Started)
+### v2.85.0 — ParallelCoordinates Widget (Not Started)
 
-**Theme**: A compact single-metric KPI widget (value vs. target vs. qualitative ranges), rendered as a horizontal bar with a target tick mark — the terminal-cell analog of a Few-style bullet graph. Complements the existing GaugeChart/RadialBar progress widgets with a denser, dashboard-friendly comparison view (actual vs. target vs. qualitative bands like poor/satisfactory/good). Candidate scope: `BulletChart` + `Bullet` (label, value, target, ranges: []const f32 qualitative band boundaries, style) — one row per bullet (mirroring GanttChart/WaterfallChart's per-item row layout), qualitative range bands rendered as background shading from lightest-to-darkest, value bar drawn as a thin filled bar overlaying the bands, target marked with a vertical tick character. MAX_BULLETS=32, no heap allocations.
+**Theme**: A parallel coordinates widget for visualizing multi-dimensional categorical/numeric data as a set of vertical axes (one per dimension) connected by per-item polylines. Each item draws one line crossing every axis at its normalized value on that axis — reveals correlations and clusters across many dimensions at once, complementing RadarChart (which plots per-item polygons around a single radial center rather than parallel linear axes). Candidate scope: `ParallelCoordinates` + `PCAxis` (label, min, max) + `PCItem` (label, values: []const f32 — one per axis, style) — axes evenly spaced across the inner width, each axis drawn as a vertical line with a label at top/bottom and min/max tick labels, each item's polyline connects its per-axis normalized point using line-drawing chars between adjacent axis columns, focused item highlighting, optional axis min/max/label display toggles. MAX_AXES=8, MAX_ITEMS=16, no heap allocations.
 
 **Checklist**:
-- [ ] **src/tui/widgets/bullet_chart.zig** — BulletChart + Bullet; render()
-- [ ] **tests/bullet_chart_test.zig** — meaningful tests covering defaults, builder immutability, range band rendering, value bar geometry, target tick placement, MAX_BULLETS capping, rendering edge cases
-- [ ] Export BulletChart, Bullet via tui.zig widgets struct and top-level sailor.zig
-- [ ] Add bullet_chart_tests to build.zig
-- [ ] Release v2.84.0
+- [ ] **src/tui/widgets/parallel_coordinates.zig** — ParallelCoordinates + PCAxis + PCItem; render()
+- [ ] **tests/parallel_coordinates_test.zig** — meaningful tests covering defaults, builder immutability, axis layout/spacing, per-item polyline geometry, out-of-range value clamping (no-panic regression, following the CandlestickChart/BulletChart precedent), focused item styling, MAX_AXES/MAX_ITEMS capping, rendering edge cases
+- [ ] Export ParallelCoordinates, PCAxis, PCItem via tui.zig widgets struct and top-level sailor.zig
+- [ ] Add parallel_coordinates_tests to build.zig
+- [ ] Release v2.85.0
 
-**Future candidate list** (drafted during v2.81.0 SunburstChart implementation, for milestones after v2.84.0 — not yet scoped in detail):
+**Future candidate list** (carried forward — not yet scoped in detail):
+- (none currently queued beyond ParallelCoordinates — replenish this list once v2.85.0 is established as Complete)
+
+### v2.84.0 — BulletChart Widget (Complete)
+
+**Theme**: A compact single-metric KPI widget (value vs. target vs. qualitative ranges), rendered as a horizontal bar with a target tick mark — the terminal-cell analog of a Few-style bullet graph. Complements the existing GaugeChart/RadialBar progress widgets with a denser, dashboard-friendly comparison view (actual vs. target vs. qualitative bands like poor/satisfactory/good). Scope: `BulletChart` + `Bullet` (label, value, target, ranges: []const f32 qualitative band boundaries, style) — one row per bullet (mirroring GanttChart/WaterfallChart's per-item row layout), qualitative range bands rendered as background shading from lightest-to-darkest ('░'→'▒'→'▓', cycling), value bar drawn as a thin filled '█' bar overlaying the bands, target marked with a '│' tick character drawn after the bar so it stays visible. MAX_BULLETS=32, no heap allocations.
+
+**Checklist**:
+- [x] **src/tui/widgets/bullet_chart.zig** — BulletChart + Bullet; render()
+- [x] **tests/bullet_chart_test.zig** — 88 tests: defaults, builder immutability, range band rendering, value bar geometry, target tick placement, out-of-range value/target/ranges (no-panic regression), MAX_BULLETS capping, rendering edge cases
+- [x] Export BulletChart, Bullet via tui.zig widgets struct and top-level sailor.zig
+- [x] Add bullet_chart_tests to build.zig
+- [x] Release v2.84.0
+
+**Known Issue — caught during orchestrator verification before release**:
+- zig-developer's implementation report claimed `src/sailor.zig` top-level exports (`BulletChart`, `Bullet`) were already wired, but they were absent — `tui.zig`'s widgets struct had the exports, but the top-level `sailor.zig` re-export lines (matching the `CandlestickChart`/`Candle`/`candlestick_chart` pattern) were missing. Caught by independently grepping `src/sailor.zig` after the agent's completion report rather than trusting the summary; added the 3 missing `pub const` lines before committing. Reinforces the "trust but verify agent reports" practice — grep for claimed changes rather than accepting the summary at face value.
+- Separately, test-writer's own summary claimed 99 tests but the actual file contains 88 (`grep -c '^test "'`); harmless bookkeeping drift, not a functional issue, but another instance of not fully trusting agent self-reported counts.
+
+**Future candidate list** (drafted during v2.81.0 SunburstChart implementation, carried forward):
 - **ParallelCoordinates** — multi-dimensional categorical data as vertical axes connected by per-item polylines
 
 ### v2.83.0 — CandlestickChart Widget (Complete)
