@@ -1,3 +1,27 @@
+✅ **Session 363** — FEATURE MODE (2026-07-14)
+  - **Mode**: NORMAL (session 363, 363 % 5 == 3)
+  - **Achievement**: Completed uncommitted v2.85.0 (ParallelCoordinates) fix + release, then implemented and released v2.86.0 (ParetoChart widget)
+
+  **Completed Work**:
+    - ✅ CI: latest 3 runs green/cancelled; 0 open issues
+    - ✅ Found prior session's uncommitted work: a fix to `parallel_coordinates.zig`'s `axisX()` off-by-one (divided by `inner.width` instead of `inner.width - 1`, dropping/mispositioning the last axis) plus strengthened previously-trivial `>= 0` assertions in `tests/parallel_coordinates_test.zig`. Verified `zig build test` passed, committed (e3680b3).
+    - ✅ Discovered the ParallelCoordinates widget itself was already fully implemented, exported (tui.zig/sailor.zig), and wired into build.zig (83 tests) — milestone checklist just hadn't been marked complete. Ran all 6 cross-compile targets (all exit 0), released v2.85.0: bumped build.zig.zon, updated milestones.md, tagged, pushed, GitHub release created. Filed consumer migration issues: zr#132, zoltraak#98, silica#110.
+    - ✅ Milestone backlog was empty after v2.85.0 — established v2.86.0 (ParetoChart: descending bars + cumulative % line + 80% threshold marker, MAX_ITEMS=32) from the future-candidate list.
+    - ✅ TDD Red: test-writer wrote 86 tests in `tests/pareto_chart_test.zig`. Locked in API: `ParetoChart` + `ParetoItem` (label/value/style), `sorted` bool toggle (descending sort vs. preserve input order), `show_values`/`show_cumulative_line`/`show_threshold` toggles, `threshold: f32 = 0.8`, focused_style precedence pattern matching recent widgets.
+    - ✅ TDD Green: zig-developer implemented `src/tui/widgets/pareto_chart.zig` (509 lines incl. bottom test block) — on-stack insertion sort over index array (no heap allocation) for descending order, cumulative-percentage line mapped to an implicit 0–100% scale, safe division-by-zero/negative-value clamping matching BulletChart/CandlestickChart conventions.
+    - ✅ **Verified agent self-report against actual files before trusting it** (per session 361's lesson): grepped `src/sailor.zig`, `src/tui/tui.zig`, `build.zig` directly for the 3 claimed wiring edits — all present and correct this time, no gap found.
+    - ✅ Full suite passes (`zig build test` 100%), all 6 cross-compile targets exit 0, no `@panic`/`std.debug.print`/global state in the new widget. Committed (2236e1c), pushed.
+    - ✅ Released v2.86.0: bumped build.zig.zon, updated milestones.md, tagged, pushed, GitHub release created. Filed consumer migration issues: zr#133, zoltraak#99, silica#111.
+    - ✅ Established v2.87.0 milestone: SlopeChart (before/after two-point comparison lines per category, complements DotPlot, MAX_ITEMS=16). Queued RidgelinePlot as the remaining future candidate.
+
+  **Current State**:
+    - **Latest release**: v2.86.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 129 widgets in src/tui/widgets/ (parallel_coordinates already existed; pareto_chart added this session)
+
+  **Next Priority**:
+    - Implement v2.87.0 milestone: SlopeChart widget (see docs/milestones.md for scope)
+
 ✅ **Session 361** — FEATURE MODE (2026-07-13)
   - **Mode**: NORMAL (session 361, 361 % 5 == 1)
   - **Achievement**: Implemented and released v2.84.0 — BulletChart widget
