@@ -9,6 +9,12 @@
     - ✅ Delegated to test-writer (agent ad734f6f9f3ead504): audited and fixed the 4 disjunction-pattern tests in tests/flowchart_test.zig (Block border rendering, label placement inside block inner-area, process-vs-terminal shape differentiation, offset-area label placement). All 4 specific claims verified true against current flowchart.zig — no latent bug found this time; tightened assertions to remove the always-true fallback. Committed 241fc20, pushed.
     - ✅ Ran all 6 CI cross-compile targets locally sequentially (x86_64/aarch64 × linux/macos/windows, ReleaseSafe) — all exit 0
     - ✅ Cleaned up zig-out after cross-compile verification
+    - ✅ Noticed 2 unreleased `fix:` commits since v2.83.0 (ab254a8 Windows clipboard/env, 5a77a8d Windows pipe-stdin readByte hang) — met patch-release conditions (tests pass, 6/6 cross-compile, 0 bug issues), so released **v2.83.1** (tag + GitHub release, no build.zig.zon bump per patch protocol)
+    - ✅ Consumer migration issues filed for v2.83.1: zr#130, zoltraak#96, silica#108
+    - ✅ Discord notification sent
+
+  **Current State**:
+    - **Latest release**: v2.83.1 (patch, tagged + GitHub release)
 
   **Next Priority**:
     - Continue the weak-assertion audit on the remaining flagged files: mindmap_test.zig, radar_chart_test.zig, bracket_viewer_test.zig, wordcloud_test.zig (same `or countNonEmptyCells > 0` disjunction pattern, not yet audited — could hide a real bug like BoxPlot did)

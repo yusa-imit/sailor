@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- **Latest release**: v2.83.0 (2026-07-12) — CandlestickChart Widget
+- **Latest release**: v2.83.1 (2026-07-13) — patch: Windows clipboard/env/pipe-stdin fixes
 - **Latest minor**: v2.83.0 (2026-07-12) — CandlestickChart Widget
 - **Next release**: v2.84.0 — BulletChart Widget
 - **Active milestones**: 1 established (not yet started)
