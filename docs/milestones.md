@@ -4,9 +4,24 @@
 
 - **Latest release**: v2.85.0 (2026-07-14) — ParallelCoordinates Widget
 - **Latest minor**: v2.85.0 (2026-07-14) — ParallelCoordinates Widget
-- **Next release**: TBD — milestone backlog needs replenishing
-- **Active milestones**: 0 established (backlog empty — establish next milestone soon)
+- **Next release**: v2.86.0 — ParetoChart Widget
+- **Active milestones**: 1 established (not yet started)
 - **Blockers**: None
+
+### v2.86.0 — ParetoChart Widget (Not Started)
+
+**Theme**: A Pareto chart widget combining a descending-sorted bar chart with an overlaid cumulative-percentage line — the classic "80/20" QA/six-sigma visualization for identifying the vital-few categories driving most of an effect. Complements BarChart (no cumulative overlay) and LineChart (no bars) by fusing both into one dual-scale view. Candidate scope: `ParetoChart` + `ParetoItem` (label, value, style) — items auto-sorted descending by value at render time (or `sorted: bool` toggle to preserve input order), bars drawn against the left value scale (mirroring BarChart's per-item column layout), cumulative percentage line drawn as connected points against an implicit right 0–100% scale using line-drawing chars, optional 80% threshold marker line, focused item highlighting. MAX_ITEMS=32, no heap allocations.
+
+**Checklist**:
+- [ ] **src/tui/widgets/pareto_chart.zig** — ParetoChart + ParetoItem; render()
+- [ ] **tests/pareto_chart_test.zig** — meaningful tests covering defaults, builder immutability, auto-sort vs preserve-order, bar geometry, cumulative-percentage line correctness (hand-computed against known value sets), 80% threshold marker, focused item styling, MAX_ITEMS capping, rendering edge cases, out-of-range/negative value handling (no-panic regression)
+- [ ] Export ParetoChart, ParetoItem via tui.zig widgets struct and top-level sailor.zig
+- [ ] Add pareto_chart_tests to build.zig
+- [ ] Release v2.86.0
+
+**Future candidate list** (carried forward — not yet scoped in detail):
+- **SlopeChart** — two-point (before/after) comparison lines per category, complements DotPlot's single-point comparison
+- **RidgelinePlot** — stacked, vertically-offset density silhouettes per category (joyplot), complements ViolinPlot/StreamGraph
 
 ### v2.85.0 — ParallelCoordinates Widget (Complete)
 
