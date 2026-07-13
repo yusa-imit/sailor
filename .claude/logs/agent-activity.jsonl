@@ -215,3 +215,5 @@
 {"timestamp":"2026-07-13T00:00:00Z","action":"subagent","agent_type":"zig-developer","task":"Fix Windows clipboard read trailing newline bug in src/clipboard.zig","project":"sailor"}
 {"timestamp":"2026-07-13T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Fix Windows env-var empty-string tests in src/env.zig with platform-aware skip","project":"sailor"}
 {"timestamp":"2026-07-13T00:31:32Z","action":"subagent","agent_type":"test-writer","task":"Strengthen 4 weak disjunction assertions in tests/flowchart_test.zig (countNonEmptyCells>0 fallback masking specific claims)","project":"sailor"}
+{"timestamp":"2026-07-13T06:25:36Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for BulletChart widget (v2.84.0)","project":"sailor"}
+{"timestamp":"2026-07-13T06:30:35Z","action":"subagent","agent_type":"zig-developer","task":"Implement BulletChart widget to pass 99 tests (v2.84.0)","project":"sailor"}
