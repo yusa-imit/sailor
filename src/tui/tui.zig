@@ -569,6 +569,12 @@ pub const widgets = struct {
     pub const bullet_chart = @import("widgets/bullet_chart.zig");
     pub const BulletChart = bullet_chart.BulletChart;
     pub const Bullet = bullet_chart.Bullet;
+
+    // v2.85.0 — ParallelCoordinates Widget
+    pub const parallel_coordinates = @import("widgets/parallel_coordinates.zig");
+    pub const ParallelCoordinates = parallel_coordinates.ParallelCoordinates;
+    pub const PCAxis = parallel_coordinates.PCAxis;
+    pub const PCItem = parallel_coordinates.PCItem;
 };
 
 // Export commonly used types
