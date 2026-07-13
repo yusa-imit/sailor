@@ -564,6 +564,11 @@ pub const widgets = struct {
     pub const candlestick_chart = @import("widgets/candlestick_chart.zig");
     pub const CandlestickChart = candlestick_chart.CandlestickChart;
     pub const Candle = candlestick_chart.Candle;
+
+    // v2.84.0 — BulletChart Widget
+    pub const bullet_chart = @import("widgets/bullet_chart.zig");
+    pub const BulletChart = bullet_chart.BulletChart;
+    pub const Bullet = bullet_chart.Bullet;
 };
 
 // Export commonly used types
