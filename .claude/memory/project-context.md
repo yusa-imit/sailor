@@ -1,3 +1,19 @@
+✅ **Session 360** — STABILIZATION MODE (2026-07-13)
+  - **Mode**: STABILIZATION (session 360, 360 % 5 == 0)
+  - **Achievement**: Test-quality audit — strengthened 4 weak assertions in flowchart_test.zig; verified all 6 cross-compile targets
+
+  **Completed Work**:
+    - ✅ CI: latest run on main green; 0 open issues (both sailor and no `bug`/`from:*` labels pending)
+    - ✅ `zig build test` — 100% pass before and after changes
+    - ✅ Scanned all `tests/*.zig` for the `countNonEmptyCells(...) > 0` weak-assertion anti-pattern (the same shape that hid the v2.82.0 BoxPlot bug — see that milestone entry). Found it in 26 files; most uses are legitimate ("does not crash" tests), but flagged files with a high ratio of the *disjunction* variant (`specific_claim or countNonEmptyCells > 0`), which is strictly worse since it defeats a more specific check: flowchart_test.zig (20/32), mindmap_test.zig (22/43), radar_chart_test.zig (19/31), bracket_viewer_test.zig (12/20), wordcloud_test.zig (13/20)
+    - ✅ Delegated to test-writer (agent ad734f6f9f3ead504): audited and fixed the 4 disjunction-pattern tests in tests/flowchart_test.zig (Block border rendering, label placement inside block inner-area, process-vs-terminal shape differentiation, offset-area label placement). All 4 specific claims verified true against current flowchart.zig — no latent bug found this time; tightened assertions to remove the always-true fallback. Committed 241fc20, pushed.
+    - ✅ Ran all 6 CI cross-compile targets locally sequentially (x86_64/aarch64 × linux/macos/windows, ReleaseSafe) — all exit 0
+    - ✅ Cleaned up zig-out after cross-compile verification
+
+  **Next Priority**:
+    - Continue the weak-assertion audit on the remaining flagged files: mindmap_test.zig, radar_chart_test.zig, bracket_viewer_test.zig, wordcloud_test.zig (same `or countNonEmptyCells > 0` disjunction pattern, not yet audited — could hide a real bug like BoxPlot did)
+    - v2.84.0 BulletChart milestone still queued for next FEATURE mode session (see docs/milestones.md)
+
 ✅ **Session 357** — FEATURE MODE (2026-07-12)
   - **Mode**: NORMAL (session 357, 357 % 5 == 2)
   - **Achievement**: Fixed a pre-existing crash in the uncommitted CandlestickChart widget, committed it, and released v2.83.0
@@ -145,121 +161,10 @@
   **Next Priority**:
     - Implement v2.80.0 milestone: ViolinPlot widget (see docs/milestones.md for scope)
 
-✅ **Session 349** — FEATURE MODE (2026-07-06)
-  - **Mode**: NORMAL (session 349, 349 % 5 == 4)
-  - **Achievement**: Released v2.78.0 (RadialBar widget)
+✅ **Session 349** — Released v2.78.0 (RadialBar: concentric-ring arcs, clockwise fill from 12 o'clock, aspect-ratio x*0.5 compensation, MAX_ARCS=8, 88 tests). Known issue: `@floatFromInt` in struct literals needs explicit `@as(f32, ...)` in Zig 0.15.x.
 
-  **Completed Work**:
-    - ✅ CI: queued (not RED); 0 open issues
-    - ✅ Established v2.78.0 milestone: RadialBar widget
-    - ✅ TDD Red: test-writer wrote 88 tests in tests/radial_bar_test.zig
-    - ✅ TDD Green: zig-developer implemented src/tui/widgets/radial_bar.zig (454 lines)
-    - ✅ Exports in tui.zig (radial_bar, RadialBar, RadialArc) and sailor.zig
-    - ✅ All tests pass (exit 0)
-    - ✅ Released v2.78.0: bumped build.zig.zon, tagged, pushed, GitHub release created
-    - ✅ Consumer migration issues filed: zr#123, zoltraak#90, silica#101
+✅ **Session 348** — Released v2.77.0 (DotPlot: label+dashed-line+dot per item, auto-sized label column, MAX_ITEMS=64, 94 tests).
 
-  **Current State**:
-    - **Latest release**: v2.78.0 (tagged + GitHub release)
-    - **Open issues**: 0 (sailor)
-    - **Widget count**: 121 widgets in src/tui/widgets/ (radial_bar.zig added)
-    - **CI**: triggered for v2.78.0 commit
+✅ **Session 347** — Released v2.76.0 (FunnelChart: centered proportional bars narrowing top-to-bottom, MAX_STAGES=16, 89 tests).
 
-  **RadialBar Widget Summary**:
-    - RadialArc: label/value/style
-    - RadialBar: arcs/focused/show_labels/show_values/style/arc_style/focused_style/label_style/empty_style/block
-    - Concentric rings, outermost = arcs[0], innermost = last
-    - Clockwise fill from 12 o'clock (top), remainder shows empty_style char
-    - Terminal aspect ratio compensation (x*0.5 scaling for circular appearance)
-    - Label/value column rendered to the right of the circle
-    - MAX_ARCS=8, no heap allocations
-    - 88 tests
-
-  **Known Issue — Test Pattern**:
-    - @floatFromInt in struct literal .{.value = @floatFromInt(i)} needs @as(f32, @floatFromInt(i)) in Zig 0.15.x
-    - Future test-writers must use explicit type annotation in struct literal contexts
-
-  **Next Priority**:
-    - Establish v2.79.0 milestone (candidates: StreamGraph, ViolinPlot, SunburstChart)
-
-✅ **Session 348** — FEATURE MODE (2026-07-06)
-  - **Mode**: NORMAL (session 348, 348 % 5 == 3)
-  - **Achievement**: Released v2.77.0 (DotPlot widget)
-
-  **Completed Work**:
-    - ✅ CI: queued (not RED); 0 open issues
-    - ✅ Established v2.77.0 milestone: DotPlot widget
-    - ✅ TDD Red: test-writer wrote 94 tests in tests/dot_plot_test.zig
-    - ✅ Fixed 10 @floatFromInt type-inference errors in test file (Zig 0.15.x struct literal issue)
-    - ✅ TDD Green: zig-developer implemented src/tui/widgets/dot_plot.zig (320 lines)
-    - ✅ Exports in tui.zig (dot_plot, DotPlot, DotPlotItem) and sailor.zig
-    - ✅ All tests pass (exit 0)
-    - ✅ Released v2.77.0: bumped build.zig.zon, tagged, pushed, GitHub release created
-    - ✅ Consumer migration issues filed: zr#122, zoltraak#89, silica#100
-
-  **Current State**:
-    - **Latest release**: v2.77.0 (tagged + GitHub release)
-    - **Open issues**: 0 (sailor)
-    - **Widget count**: 120 widgets in src/tui/widgets/ (dot_plot.zig added)
-    - **CI**: triggered for v2.77.0 commit
-
-  **DotPlot Widget Summary**:
-    - DotPlotItem: label/value/style
-    - DotPlot: items/focused/x_min/x_max/show_labels/show_values/dot_char/style/dot_style/focused_style/label_style/line_style/block
-    - Label column auto-sized to min(max_label_len, inner_width/3)
-    - Dashed line (─) from label to dot position
-    - Dot placed at normalized x: (value - x_min) / (x_max - x_min) * (plot_width - 1)
-    - Focused item uses focused_style on dot cell
-    - MAX_ITEMS=64, no heap allocations
-    - 94 tests
-
-  **Known Issue — Test Pattern**:
-    - @floatFromInt(i) in struct literal .{.value = @floatFromInt(i)} needs @as(f32, @floatFromInt(i)) in Zig 0.15.x
-    - Future test-writers must use explicit type annotation in struct literal contexts
-
-  **Next Priority**:
-    - Establish v2.78.0 milestone (candidates: StreamGraph, ViolinPlot, RadialBar)
-
-✅ **Session 347** — FEATURE MODE (2026-07-06)
-  - **Mode**: NORMAL (session 347, 347 % 5 == 2)
-  - **Achievement**: Released v2.76.0 (FunnelChart widget)
-
-  **Completed Work**:
-    - ✅ CI: queued (not RED); 0 open issues
-    - ✅ Established v2.76.0 milestone: FunnelChart widget
-    - ✅ TDD Red: test-writer wrote 89 tests in tests/funnel_chart_test.zig
-    - ✅ TDD Green: zig-developer implemented src/tui/widgets/funnel_chart.zig (339 lines)
-    - ✅ Exports in tui.zig (funnel_chart, FunnelChart, FunnelStage) and sailor.zig
-    - ✅ All tests pass (exit 0)
-    - ✅ Released v2.76.0: bumped build.zig.zon, tagged, pushed, GitHub release created
-    - ✅ Consumer migration issues filed: zr#121, zoltraak#88, silica#99
-
-  **FunnelChart Widget Summary**:
-    - FunnelStage: label/value/style
-    - FunnelChart: stages/focused/style/label_style/value_style/focused_style/show_values/show_percentages/block
-    - Centered bars proportional to stage.value/maxValue; stages narrow top-to-bottom
-    - Optional value and percentage labels
-    - MAX_STAGES=16, no heap allocations
-    - 89 tests
-
-✅ **Session 346** — FEATURE MODE (2026-07-06)
-  - **Mode**: NORMAL (session 346, 346 % 5 == 1)
-  - **Achievement**: Fixed CI red + Released v2.75.0 (WaterfallChart widget)
-
-  **Completed Work**:
-    - ✅ CI was RED: macos-latest now resolves to macOS 26 (Tahoe); Zig 0.15.2 can't link (undefined libc symbols)
-    - ✅ Fixed: pinned ARM64 runner to macos-15 in ci.yml; committed 4c51a84
-    - ✅ Established v2.75.0 milestone: WaterfallChart widget
-    - ✅ TDD Red: test-writer wrote 90 tests in tests/waterfall_chart_test.zig
-    - ✅ TDD Green: zig-developer implemented src/tui/widgets/waterfall_chart.zig (410 lines)
-    - ✅ Exports in tui.zig (waterfall_chart, WaterfallChart, WaterfallBar, WaterfallKind) and sailor.zig
-    - ✅ All tests pass (exit 0)
-    - ✅ Released v2.75.0: bumped build.zig.zon, tagged, pushed, GitHub release created
-    - ✅ Consumer migration issues filed: zr#120, zoltraak#87, silica#98
-
-  **WaterfallChart Widget Summary**:
-    - WaterfallKind: .relative (cumulative delta), .absolute (reset baseline), .total (show running total)
-    - WaterfallBar: label/value/kind/style
-    - WaterfallChart: bars/focused/show_values/show_connectors/positive_style/negative_style/total_style/focused_style/connector_style/style/block
-    - MAX_BARS=32, no heap allocations
-    - 90 tests
+✅ **Session 346** — Fixed CI red (macos-latest→macOS 26 broke Zig 0.15.2 linking; pinned ARM64 runner to macos-15) + released v2.75.0 (WaterfallChart: relative/absolute/total bar kinds, MAX_BARS=32, 90 tests).
