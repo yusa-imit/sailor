@@ -2,25 +2,28 @@
 
 ## Current Status
 
-- **Latest release**: v2.84.0 (2026-07-13) — BulletChart Widget
-- **Latest minor**: v2.84.0 (2026-07-13) — BulletChart Widget
-- **Next release**: v2.85.0 — ParallelCoordinates Widget
-- **Active milestones**: 1 established (not yet started)
+- **Latest release**: v2.85.0 (2026-07-14) — ParallelCoordinates Widget
+- **Latest minor**: v2.85.0 (2026-07-14) — ParallelCoordinates Widget
+- **Next release**: TBD — milestone backlog needs replenishing
+- **Active milestones**: 0 established (backlog empty — establish next milestone soon)
 - **Blockers**: None
 
-### v2.85.0 — ParallelCoordinates Widget (Not Started)
+### v2.85.0 — ParallelCoordinates Widget (Complete)
 
-**Theme**: A parallel coordinates widget for visualizing multi-dimensional categorical/numeric data as a set of vertical axes (one per dimension) connected by per-item polylines. Each item draws one line crossing every axis at its normalized value on that axis — reveals correlations and clusters across many dimensions at once, complementing RadarChart (which plots per-item polygons around a single radial center rather than parallel linear axes). Candidate scope: `ParallelCoordinates` + `PCAxis` (label, min, max) + `PCItem` (label, values: []const f32 — one per axis, style) — axes evenly spaced across the inner width, each axis drawn as a vertical line with a label at top/bottom and min/max tick labels, each item's polyline connects its per-axis normalized point using line-drawing chars between adjacent axis columns, focused item highlighting, optional axis min/max/label display toggles. MAX_AXES=8, MAX_ITEMS=16, no heap allocations.
+**Theme**: A parallel coordinates widget for visualizing multi-dimensional categorical/numeric data as a set of vertical axes (one per dimension) connected by per-item polylines. Each item draws one line crossing every axis at its normalized value on that axis — reveals correlations and clusters across many dimensions at once, complementing RadarChart (which plots per-item polygons around a single radial center rather than parallel linear axes). Scope: `ParallelCoordinates` + `PCAxis` (label, min, max) + `PCItem` (label, values: []const f32 — one per axis, style) — axes evenly spaced across the inner width, each axis drawn as a vertical line with a label at top/bottom and min/max tick labels, each item's polyline connects its per-axis normalized point using line-drawing chars between adjacent axis columns, focused item highlighting, optional axis min/max/label display toggles. MAX_AXES=8, MAX_ITEMS=16, no heap allocations.
 
 **Checklist**:
-- [ ] **src/tui/widgets/parallel_coordinates.zig** — ParallelCoordinates + PCAxis + PCItem; render()
-- [ ] **tests/parallel_coordinates_test.zig** — meaningful tests covering defaults, builder immutability, axis layout/spacing, per-item polyline geometry, out-of-range value clamping (no-panic regression, following the CandlestickChart/BulletChart precedent), focused item styling, MAX_AXES/MAX_ITEMS capping, rendering edge cases
-- [ ] Export ParallelCoordinates, PCAxis, PCItem via tui.zig widgets struct and top-level sailor.zig
-- [ ] Add parallel_coordinates_tests to build.zig
-- [ ] Release v2.85.0
+- [x] **src/tui/widgets/parallel_coordinates.zig** — ParallelCoordinates + PCAxis + PCItem; render()
+- [x] **tests/parallel_coordinates_test.zig** — 83 tests covering defaults, builder immutability, axis layout/spacing, per-item polyline geometry, out-of-range value clamping (no-panic regression, following the CandlestickChart/BulletChart precedent), focused item styling, MAX_AXES/MAX_ITEMS capping, rendering edge cases
+- [x] Export ParallelCoordinates, PCAxis, PCItem via tui.zig widgets struct and top-level sailor.zig
+- [x] Add parallel_coordinates_tests to build.zig
+- [x] Release v2.85.0
+
+**Known Issue — found uncommitted from a prior session, fixed before release**:
+- `axisX()` divided by `inner.width` instead of `inner.width - 1` when spacing axis columns across the inner area, placing the last axis one column past the visible width (or dropping it entirely for the multi-axis case). Found alongside several render tests that had been weakened to `>= 0` no-op assertions (labels, axis range, block border groups) — strengthened those to check for actual glyph presence/absence, and added a dedicated regression test locking in the corrected last-axis column position. Same "verify specific glyph presence, not just non-empty-cell counts" lesson as the v2.82.0 BoxPlot issue.
 
 **Future candidate list** (carried forward — not yet scoped in detail):
-- (none currently queued beyond ParallelCoordinates — replenish this list once v2.85.0 is established as Complete)
+- (none currently queued — replenish this list next session)
 
 ### v2.84.0 — BulletChart Widget (Complete)
 
