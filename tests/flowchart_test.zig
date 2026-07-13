@@ -758,11 +758,11 @@ test "render with Block renders frame around content" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
     fc.render(&buf, area);
 
-    // Block border should render (box drawing chars)
+    // Block border should render (box drawing chars) — verify the border is actually present
     const has_border = areaHasChar(buf, area, '─') or
                        areaHasChar(buf, area, '│') or
                        areaHasChar(buf, area, '┌');
-    try testing.expect(has_border or countNonEmptyCells(buf, area) > 0);
+    try testing.expect(has_border);
 }
 
 test "render block reduces inner area for node content" {
@@ -787,7 +787,8 @@ test "render nodes inside block border inner area" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
     fc.render(&buf, area);
 
-    try testing.expect(findInArea(buf, area, "Inside") or countNonEmptyCells(buf, area) > 0);
+    // Verify the label text actually appears in the block's inner area
+    try testing.expect(findInArea(buf, area, "Inside"));
 }
 
 test "render block in tiny area does not crash" {
@@ -932,10 +933,10 @@ test "render process and terminal nodes have different shapes" {
     fc1.render(&buf1, area);
     fc2.render(&buf2, area);
 
-    // Process has ┌, terminal has ╭
+    // Process nodes must have sharp corner ┌, terminal nodes must have rounded corner ╭
     const process_has_corner = areaHasChar(buf1, area, '┌');
     const terminal_has_rounded = areaHasChar(buf2, area, '╭');
-    try testing.expect(process_has_corner or terminal_has_rounded or (countNonEmptyCells(buf1, area) > 0 and countNonEmptyCells(buf2, area) > 0));
+    try testing.expect(process_has_corner and terminal_has_rounded);
 }
 
 test "render all four kinds render without crash" {
@@ -1027,5 +1028,6 @@ test "render in offset area (x>0, y>0) renders correctly" {
     const area = Rect{ .x = 10, .y = 5, .width = 50, .height = 10 };
     fc.render(&buf, area);
 
-    try testing.expect(findInArea(buf, area, "Offset") or countNonEmptyCells(buf, area) > 0);
+    // Verify the label text actually appears at the offset location
+    try testing.expect(findInArea(buf, area, "Offset"));
 }
