@@ -222,3 +222,5 @@
 {"timestamp":"2026-07-14T04:00:00Z","action":"subagent","agent_type":"test-writer","task":"TDD Red: write SlopeChart widget tests (tests/slope_chart_test.zig)","project":"sailor"}
 {"timestamp":"2026-07-14T04:10:00Z","action":"subagent","agent_type":"zig-developer","task":"TDD Green: implement SlopeChart widget (src/tui/widgets/slope_chart.zig) + wiring","project":"sailor"}
 {"timestamp":"2026-07-14T05:00:00Z","action":"subagent","agent_type":"test-writer","task":"Stabilization session 365: strengthen 6 vacuous assertion-free tests in focus.zig, eventbus.zig, taskrunner.zig","project":"sailor"}
+{"timestamp":"2026-07-14T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for RidgelinePlot widget (v2.88.0) per scratchpad spec","project":"sailor"}
+{"timestamp":"2026-07-14T00:10:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement RidgelinePlot widget to pass tests/ridgeline_plot_test.zig (v2.88.0)","project":"sailor"}

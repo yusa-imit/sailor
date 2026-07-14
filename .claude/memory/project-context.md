@@ -1,3 +1,25 @@
+✅ **Session 366** — FEATURE MODE (2026-07-14)
+  - **Mode**: NORMAL (session 366, 366 % 5 == 1)
+  - **Achievement**: Implemented and released v2.88.0 — RidgelinePlot widget
+
+  **Completed Work**:
+    - ✅ CI: latest 3 runs green/cancelled; 0 open issues
+    - ✅ TDD Red: test-writer wrote 85 tests in tests/ridgeline_plot_test.zig against a scratchpad-locked API: `RidgelinePlot` + `RidgelineSeries` (label/values/style), `reverse` (top-to-bottom vs bottom-to-top baseline ordering), `shared_scale` (global vs per-series max normalization), `overlap: u16` (silhouette rise into rows above baseline), focused_style "only override if explicitly set" precedence (matching SlopeChart/CandlestickChart/BulletChart), MAX_SERIES=8, MAX_BINS=64.
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/ridgeline_plot.zig (430 lines) — 8-level block-height glyph ramp (▁▂▃▄▅▆▇█), safe clamping of negative/inf/nan values to 0 before row math (following the CandlestickChart clamp-both-bounds lesson), no heap allocations.
+    - ✅ **Verified agent self-reports independently before trusting them** (per session 361/364 lesson): grepped src/sailor.zig (line 283-285: RidgelinePlot, RidgelineSeries, ridgeline_plot all present), src/tui/tui.zig (lines 589-592), build.zig (lines 1679-1688) directly — all 3 wiring claims checked out this time. Ran `zig build test` myself (exit 0) rather than trusting the agent's claimed exit code. Confirmed 85 tests via `grep -c '^test "'` (matched test-writer's claim, no drift this session). Grepped the widget file for `@panic`/`std.debug.print`/allocator calls — none found.
+    - ✅ Committed widget (6ef1717), ran all 6 cross-compile targets sequentially (linux/macos/windows × x86_64/aarch64, ReleaseSafe) — all exit 0, confirmed no concurrent `zig build` process first.
+    - ✅ Released v2.88.0: bumped build.zig.zon, updated docs/milestones.md (checked off v2.88.0, established v2.89.0 BumpChart milestone from the future-candidate list), tagged, pushed, GitHub release created.
+    - ✅ Consumer migration issues filed: zr#135, zoltraak#101, silica#113.
+    - ✅ Established v2.89.0 milestone: BumpChart (multi-time-point rank-over-time lines per category, MAX_SERIES=8, MAX_TIMEPOINTS=16). Future candidate list now empty — replenish next session.
+
+  **Current State**:
+    - **Latest release**: v2.88.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 131 widgets in src/tui/widgets/ (ridgeline_plot added)
+
+  **Next Priority**:
+    - Implement v2.89.0 milestone: BumpChart widget (see docs/milestones.md for scope)
+
 ✅ **Session 365** — STABILIZATION MODE (2026-07-14)
   - **Mode**: STABILIZATION (session 365, 365 % 5 == 0)
   - **Achievement**: CI green + 0 open issues, so this cycle focused on the mandatory test-quality audit + cross-platform verification (no release needed — no new commits warranting one beyond the test fix).
