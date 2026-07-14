@@ -1,3 +1,25 @@
+✅ **Session 367** — FEATURE MODE (2026-07-15)
+  - **Mode**: NORMAL (session 367, 367 % 5 == 2)
+  - **Achievement**: Implemented and released v2.89.0 — BumpChart widget
+
+  **Completed Work**:
+    - ✅ CI: latest 3 runs green/cancelled; 0 open issues
+    - ✅ TDD Red: test-writer wrote 88 tests in tests/bump_chart_test.zig against a scratchpad-locked API: `BumpChart` + `BumpSeries` (label/ranks: []const u32, one rank per time point/style), evenly spaced time-point columns (mirroring ParallelCoordinates' `axisX` pattern), rank-to-row mapping (rank 1 = top row), direction glyphs ('/' improved, '\' worsened, '─' unchanged), focused_style "only override if explicitly set" precedence (matching SlopeChart/CandlestickChart/BulletChart/RidgelinePlot), MAX_SERIES=8, MAX_TIMEPOINTS=16.
+    - ✅ TDD Green: zig-developer implemented src/tui/widgets/bump_chart.zig (441 lines) — Bresenham-style line segments between adjacent timepoint columns, safe rank==0/rank>maxRank clamping (no unsigned-underflow on `rank - 1`), no heap allocations.
+    - ✅ **Verified agent self-report independently before trusting it** (per session 361/364/366 lesson): grepped src/sailor.zig (lines 287-290), src/tui/tui.zig (lines 594-597), build.zig (lines 1690-1699) directly — all 3 claimed wiring points present and correct this session (no gap found). Ran `zig build test` myself (exit 0). Confirmed 88 tests via `grep -c '^test "'` (matched agent's claim exactly, no drift). Grepped the widget file for `@panic`/`std.debug.print`/global state — none found.
+    - ✅ Read through the full widget implementation manually (rankToRow/rankToRowSafe clamping logic, focused-style precedence check, drawLineSegment bounds checks) — no bugs found, matches established conventions.
+    - ✅ Committed widget (4ded3aa), ran all 6 cross-compile targets sequentially (linux/macos/windows × x86_64/aarch64, ReleaseSafe) after confirming no concurrent `zig build` process — all exit 0.
+    - ✅ Released v2.89.0: bumped build.zig.zon, updated docs/milestones.md (checked off v2.89.0, established v2.90.0 MosaicPlot milestone — a Marimekko-style variable-width-column + stacked-segment-height proportional chart, queued IcicleChart as the new future candidate), tagged, pushed, GitHub release created.
+    - ✅ Consumer migration issues filed: zr#136, zoltraak#102, silica#114.
+
+  **Current State**:
+    - **Latest release**: v2.89.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 132 widgets in src/tui/widgets/ (bump_chart added)
+
+  **Next Priority**:
+    - Implement v2.90.0 milestone: MosaicPlot widget (see docs/milestones.md for scope)
+
 ✅ **Session 366** — FEATURE MODE (2026-07-14)
   - **Mode**: NORMAL (session 366, 366 % 5 == 1)
   - **Achievement**: Implemented and released v2.88.0 — RidgelinePlot widget
