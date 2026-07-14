@@ -1,3 +1,24 @@
+✅ **Session 364** — FEATURE MODE (2026-07-14)
+  - **Mode**: NORMAL (session 364, 364 % 5 == 4)
+  - **Achievement**: Fixed red CI (Windows timing flake) before feature work, then implemented and released v2.87.0 (SlopeChart widget)
+
+  **Completed Work**:
+    - ✅ CI check found latest run RED on main (Windows x86_64 only) — per protocol, fixed this before any feature work regardless of NORMAL mode.
+    - ✅ Root cause: `src/profiler.zig` test "flame graph self time excludes children" asserted `total_time_ns >= 2_000_000` after sleeping for an accumulated *exactly* 2ms via 3x `std.Thread.sleep` calls — zero tolerance margin for OS timer imprecision. Windows CI occasionally undershoots `Thread.sleep` by a small amount, causing the exact-boundary assertion to fail intermittently (other platforms/most runs have enough call overhead to clear the boundary). Loosened this and a similarly-tight assertion in the "nested scopes" test to ~10% tolerance (`>= 1_800_000` / `>= 900_000` instead of exact `2_000_000` / `1_000_000`). Verified locally, pushed (609e0c7), watched CI go green on the new commit before proceeding.
+    - ✅ TDD Red: test-writer wrote 86 tests in `tests/slope_chart_test.zig` (self-reported 131 — same bookkeeping-drift pattern as session 361/363, harmless, caught by independent grep). Locked in API up front via scratchpad spec before dispatching: `SlopeChart` + `SlopeItem` (label/left_value/right_value/style), two shared-scale value columns, direction-based line char ('/' increase, '\' decrease, '─' flat), style precedence focused > per-item > direction > line default, MAX_ITEMS=16.
+    - ✅ TDD Green: zig-developer implemented `src/tui/widgets/slope_chart.zig` (569 lines) reusing ParallelCoordinates' normalizeValue/axisY/Bresenham-line patterns adapted to a fixed 2-column layout, DotPlot's label-column-width computation, and the established focused_style-is-set precedence check.
+    - ✅ **Verified agent self-report independently before trusting it** (per session 361 lesson): grepped `src/sailor.zig`, `src/tui/tui.zig`, `build.zig` directly for all 3 claimed wiring edits — all present and correct. Ran `zig build test` myself (exit 0) rather than trusting the agent's "131 tests pass" claim; actual test count is 86 via `grep -c '^test "'`.
+    - ✅ All 6 cross-compile targets built successfully (sequential, ReleaseSafe), 0 open `bug` issues — all release conditions met.
+    - ✅ Released v2.87.0: bumped build.zig.zon, updated milestones.md (checked off v2.87.0, established v2.88.0 RidgelinePlot milestone from the backlog, queued BumpChart as new future candidate to keep backlog stocked), tagged, pushed, GitHub release created. Filed consumer migration issues: zr#134, zoltraak#100, silica#112.
+
+  **Current State**:
+    - **Latest release**: v2.87.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 130 widgets in src/tui/widgets/ (slope_chart added)
+
+  **Next Priority**:
+    - Implement v2.88.0 milestone: RidgelinePlot widget (see docs/milestones.md for scope)
+
 ✅ **Session 363** — FEATURE MODE (2026-07-14)
   - **Mode**: NORMAL (session 363, 363 % 5 == 3)
   - **Achievement**: Completed uncommitted v2.85.0 (ParallelCoordinates) fix + release, then implemented and released v2.86.0 (ParetoChart widget)
