@@ -580,6 +580,11 @@ pub const widgets = struct {
     pub const pareto_chart = @import("widgets/pareto_chart.zig");
     pub const ParetoChart = pareto_chart.ParetoChart;
     pub const ParetoItem = pareto_chart.ParetoItem;
+
+    // v2.87.0 — SlopeChart Widget
+    pub const slope_chart = @import("widgets/slope_chart.zig");
+    pub const SlopeChart = slope_chart.SlopeChart;
+    pub const SlopeItem = slope_chart.SlopeItem;
 };
 
 // Export commonly used types

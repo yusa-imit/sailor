@@ -1665,6 +1665,17 @@ pub fn build(b: *std.Build) void {
     pareto_chart_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(pareto_chart_tests).step);
 
+    const slope_chart_tests = b.addTest(.{
+        .name = "slope_chart_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/slope_chart_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    slope_chart_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(slope_chart_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",

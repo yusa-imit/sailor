@@ -273,6 +273,11 @@ pub const ParetoChart = tui.widgets.ParetoChart;
 pub const ParetoItem = tui.widgets.ParetoItem;
 pub const pareto_chart = tui.widgets.pareto_chart;
 pub const parallel_coordinates = tui.widgets.parallel_coordinates;
+
+// v2.87.0 — SlopeChart Widget
+pub const SlopeChart = tui.widgets.SlopeChart;
+pub const SlopeItem = tui.widgets.SlopeItem;
+pub const slope_chart = tui.widgets.slope_chart;
 pub const Viewport = tui.viewport.Viewport;
 pub const VirtualRenderer = tui.virtual.VirtualRenderer;
 pub const IncrementalLayout = tui.incremental_layout.IncrementalLayout;
