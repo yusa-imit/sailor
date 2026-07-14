@@ -744,9 +744,14 @@ test "focus: FocusStyle withIndicator sets position" {
 }
 
 test "focus: IndicatorPosition enum has all values" {
-    _ = FocusStyle.IndicatorPosition.left;
-    _ = FocusStyle.IndicatorPosition.right;
-    _ = FocusStyle.IndicatorPosition.both;
+    const left = FocusStyle.IndicatorPosition.left;
+    const right = FocusStyle.IndicatorPosition.right;
+    const both = FocusStyle.IndicatorPosition.both;
+
+    // Assert each variant is distinct
+    try std.testing.expect(left != right);
+    try std.testing.expect(right != both);
+    try std.testing.expect(left != both);
 }
 
 test "focus: FocusStyle indicator can be null" {

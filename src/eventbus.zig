@@ -566,9 +566,17 @@ test "EventBus: no subscribers for event type" {
     var bus = EventBus.init(std.testing.allocator);
     defer bus.deinit();
 
+    // Assert bus is empty before publish
+    try std.testing.expectEqual(@as(usize, 0), bus.subscribers.count());
+    try std.testing.expectEqual(@as(usize, 0), bus.subscriberCount("nonexistent.event"));
+
     // Should not crash when publishing to non-existent event type
     const event = EventBus.Event.init("nonexistent.event", null);
     bus.publish(event);
+
+    // Assert bus remains empty after publish (true no-op)
+    try std.testing.expectEqual(@as(usize, 0), bus.subscribers.count());
+    try std.testing.expectEqual(@as(usize, 0), bus.subscriberCount("nonexistent.event"));
 }
 
 test "EventBus: multiple event types" {
@@ -616,8 +624,13 @@ test "EventBus: unsubscribe invalid ID" {
     }.call;
 
     _ = try bus.subscribe("test.event", callback, null, 0);
+    try std.testing.expectEqual(@as(usize, 1), bus.subscriberCount("test.event"));
 
-    // Should not crash
+    // Unsubscribe with invalid IDs (should not crash or corrupt state)
     bus.unsubscribe("test.event", 999);
+    try std.testing.expectEqual(@as(usize, 1), bus.subscriberCount("test.event")); // Still there
+
     bus.unsubscribe("nonexistent.event", 0);
+    try std.testing.expectEqual(@as(usize, 0), bus.subscriberCount("nonexistent.event")); // Nonexistent stays empty
+    try std.testing.expectEqual(@as(usize, 1), bus.subscriberCount("test.event")); // Real subscriber unchanged
 }

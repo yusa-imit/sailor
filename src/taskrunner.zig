@@ -317,9 +317,23 @@ test "TaskRunner: cancel non-existent task" {
     var runner = TaskRunner.init(testing.allocator);
     defer runner.deinit();
 
-    // Should not crash
+    const taskFn = struct {
+        fn run(_: ?*anyopaque) !void {}
+    }.run;
+
+    const real_task_id = try runner.enqueue(.normal, taskFn, null, null);
+    try testing.expectEqual(@as(usize, 1), runner.pendingCount());
+
+    // Cancel non-existent tasks (should not crash or corrupt existing state)
     runner.cancel(999);
+    try testing.expectEqual(@as(usize, 1), runner.pendingCount()); // Real task still there
+
     runner.cancel(0);
+    try testing.expectEqual(@as(usize, 1), runner.pendingCount()); // Real task still there
+
+    // Verify the real task is actually still pending (not cancelled)
+    try testing.expect(!runner.tasks.items[0].cancelled);
+    try testing.expectEqual(real_task_id, runner.tasks.items[0].id);
 }
 
 test "TaskRunner: cancel task during execution" {
@@ -363,29 +377,32 @@ test "TaskRunner: progress callback" {
     var runner = TaskRunner.init(testing.allocator);
     defer runner.deinit();
 
-    var progress_values: std.ArrayList(f32) = .{};
-    defer progress_values.deinit(testing.allocator);
+    var executed = false;
 
     const progressFn = struct {
         fn report(progress: f32) void {
-            // Note: Can't capture ArrayList here, need to use global or pass through context
-            _ = progress;
+            _ = progress; // Progress callback is available
         }
     }.report;
 
     const taskFn = struct {
         fn run(ctx: ?*anyopaque) !void {
-            _ = ctx;
-            // Task would call progress callback internally
+            const flag = @as(*bool, @ptrCast(@alignCast(ctx.?)));
+            flag.* = true;
         }
     }.run;
 
-    _ = try runner.enqueue(.normal, taskFn, &progress_values, progressFn);
+    const task_id = try runner.enqueue(.normal, taskFn, &executed, progressFn);
+
+    // Verify progress callback is actually stored in the task
+    try testing.expect(runner.tasks.items[0].progressFn != null);
+    try testing.expectEqual(task_id, runner.tasks.items[0].id);
 
     try runner.runAll();
 
-    // This test will need actual progress reporting in implementation
-    // For now, just verify task completes with progress callback set
+    // Verify task executed successfully even with progress callback set
+    try testing.expect(executed);
+    try testing.expectEqual(@as(usize, 0), runner.pendingCount());
 }
 
 test "TaskRunner: task error handling" {
@@ -438,8 +455,14 @@ test "TaskRunner: runAll on empty queue" {
     var runner = TaskRunner.init(testing.allocator);
     defer runner.deinit();
 
-    // Should not crash
+    // Assert queue is empty before runAll
+    try testing.expectEqual(@as(usize, 0), runner.pendingCount());
+
+    // Should not crash and complete immediately
     try runner.runAll();
+
+    // Assert queue still empty after runAll
+    try testing.expectEqual(@as(usize, 0), runner.pendingCount());
 }
 
 test "TaskRunner: pendingCount" {
