@@ -585,6 +585,11 @@ pub const widgets = struct {
     pub const slope_chart = @import("widgets/slope_chart.zig");
     pub const SlopeChart = slope_chart.SlopeChart;
     pub const SlopeItem = slope_chart.SlopeItem;
+
+    // v2.88.0 — RidgelinePlot Widget
+    pub const ridgeline_plot = @import("widgets/ridgeline_plot.zig");
+    pub const RidgelinePlot = ridgeline_plot.RidgelinePlot;
+    pub const RidgelineSeries = ridgeline_plot.RidgelineSeries;
 };
 
 // Export commonly used types

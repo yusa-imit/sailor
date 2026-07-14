@@ -278,6 +278,12 @@ pub const parallel_coordinates = tui.widgets.parallel_coordinates;
 pub const SlopeChart = tui.widgets.SlopeChart;
 pub const SlopeItem = tui.widgets.SlopeItem;
 pub const slope_chart = tui.widgets.slope_chart;
+
+// v2.88.0 — RidgelinePlot Widget
+pub const RidgelinePlot = tui.widgets.RidgelinePlot;
+pub const RidgelineSeries = tui.widgets.RidgelineSeries;
+pub const ridgeline_plot = tui.widgets.ridgeline_plot;
+
 pub const Viewport = tui.viewport.Viewport;
 pub const VirtualRenderer = tui.virtual.VirtualRenderer;
 pub const IncrementalLayout = tui.incremental_layout.IncrementalLayout;
