@@ -590,6 +590,11 @@ pub const widgets = struct {
     pub const ridgeline_plot = @import("widgets/ridgeline_plot.zig");
     pub const RidgelinePlot = ridgeline_plot.RidgelinePlot;
     pub const RidgelineSeries = ridgeline_plot.RidgelineSeries;
+
+    // v2.89.0 — BumpChart Widget
+    pub const bump_chart = @import("widgets/bump_chart.zig");
+    pub const BumpChart = bump_chart.BumpChart;
+    pub const BumpSeries = bump_chart.BumpSeries;
 };
 
 // Export commonly used types

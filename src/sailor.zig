@@ -284,6 +284,11 @@ pub const RidgelinePlot = tui.widgets.RidgelinePlot;
 pub const RidgelineSeries = tui.widgets.RidgelineSeries;
 pub const ridgeline_plot = tui.widgets.ridgeline_plot;
 
+// v2.89.0 — BumpChart Widget
+pub const BumpChart = tui.widgets.BumpChart;
+pub const BumpSeries = tui.widgets.BumpSeries;
+pub const bump_chart = tui.widgets.bump_chart;
+
 pub const Viewport = tui.viewport.Viewport;
 pub const VirtualRenderer = tui.virtual.VirtualRenderer;
 pub const IncrementalLayout = tui.incremental_layout.IncrementalLayout;
