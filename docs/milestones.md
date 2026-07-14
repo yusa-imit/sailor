@@ -2,22 +2,36 @@
 
 ## Current Status
 
-- **Latest release**: v2.87.0 (2026-07-14) — SlopeChart Widget
-- **Latest minor**: v2.87.0 (2026-07-14) — SlopeChart Widget
-- **Next release**: v2.88.0 — RidgelinePlot Widget
+- **Latest release**: v2.88.0 (2026-07-14) — RidgelinePlot Widget
+- **Latest minor**: v2.88.0 (2026-07-14) — RidgelinePlot Widget
+- **Next release**: v2.89.0 — BumpChart Widget
 - **Active milestones**: 1 established (not yet started)
 - **Blockers**: None
 
-### v2.88.0 — RidgelinePlot Widget (Not Started)
+### v2.89.0 — BumpChart Widget (Not Started)
 
-**Theme**: A ridgeline plot (joyplot) widget showing stacked, vertically-offset density silhouettes per category — useful for comparing distribution shape/shift across many categories in a compact space. Complements ViolinPlot (single mirrored density per series, unstacked) and StreamGraph (stacked but centered-on-middle, not per-category baseline) by giving each category its own baseline row with a silhouette that can overlap the row above it. Candidate scope: `RidgelinePlot` + `RidgelineSeries` (label, values: []const f32 — pre-binned density/frequency samples, style) — one baseline row per series ordered top-to-bottom (or bottom-to-top), each series' values normalized against a shared or per-series max and drawn as a silhouette rising above its baseline using block-height characters (mirroring the bar-glyph approach in sparkline/barchart), configurable vertical overlap between adjacent baselines, optional per-series label, focused series highlighting. MAX_SERIES=8, MAX_BINS=64 (following ViolinPlot's precedent), no heap allocations.
+**Theme**: A bump chart widget showing multi-time-point rank-over-time lines per category — tracks ordinal rank (not raw value) across more than two time points, complementing SlopeChart's fixed two-point before/after comparison with an arbitrary-length rank trajectory view. Candidate scope: `BumpChart` + `BumpSeries` (label, ranks: []const u32 — one rank per time point, style) — evenly spaced time-point columns across the inner width (mirroring ParallelCoordinates' axis spacing), each series drawn as a connected polyline crossing every time-point column at its rank row (lower rank = higher row, following leaderboard convention), rank ties handled without overlap corruption, focused series highlighting, optional per-time-point column labels and per-series end labels. MAX_SERIES=8, MAX_TIMEPOINTS=16, no heap allocations.
 
 **Checklist**:
-- [ ] **src/tui/widgets/ridgeline_plot.zig** — RidgelinePlot + RidgelineSeries; render()
-- [ ] **tests/ridgeline_plot_test.zig** — meaningful tests covering defaults, builder immutability, baseline row placement per series, silhouette height mapping (hand-computed against known bin values), overlap configuration, focused series styling, MAX_SERIES/MAX_BINS capping, rendering edge cases, out-of-range/negative value handling (no-panic regression)
-- [ ] Export RidgelinePlot, RidgelineSeries via tui.zig widgets struct and top-level sailor.zig
-- [ ] Add ridgeline_plot_tests to build.zig
-- [ ] Release v2.88.0
+- [ ] **src/tui/widgets/bump_chart.zig** — BumpChart + BumpSeries; render()
+- [ ] **tests/bump_chart_test.zig** — meaningful tests covering defaults, builder immutability, time-point column spacing, rank-to-row mapping (hand-computed against known rank sets), tie handling, focused series styling, MAX_SERIES/MAX_TIMEPOINTS capping, rendering edge cases, out-of-range rank handling (no-panic regression)
+- [ ] Export BumpChart, BumpSeries via tui.zig widgets struct and top-level sailor.zig
+- [ ] Add bump_chart_tests to build.zig
+- [ ] Release v2.89.0
+
+**Future candidate list** (carried forward — not yet scoped in detail):
+- (none currently queued — replenish this list next session)
+
+### v2.88.0 — RidgelinePlot Widget (Complete)
+
+**Theme**: A ridgeline plot (joyplot) widget showing stacked, vertically-offset density silhouettes per category — useful for comparing distribution shape/shift across many categories in a compact space. Complements ViolinPlot (single mirrored density per series, unstacked) and StreamGraph (stacked but centered-on-middle, not per-category baseline) by giving each category its own baseline row with a silhouette that can overlap the row above it. Scope: `RidgelinePlot` + `RidgelineSeries` (label, values: []const f32 — pre-binned density/frequency samples, style) — one baseline row per series ordered top-to-bottom (or bottom-to-top via `reverse`), each series' values normalized against a shared or per-series max (`shared_scale`) and drawn as a silhouette rising above its baseline using block-height characters (▁▂▃▄▅▆▇█), configurable vertical overlap between adjacent baselines (`overlap: u16`), optional per-series label column, focused series highlighting. MAX_SERIES=8, MAX_BINS=64, no heap allocations.
+
+**Checklist**:
+- [x] **src/tui/widgets/ridgeline_plot.zig** — RidgelinePlot + RidgelineSeries; render()
+- [x] **tests/ridgeline_plot_test.zig** — 85 tests covering defaults, builder immutability, baseline row placement per series (normal + reverse), silhouette height mapping (hand-computed against known bin values), shared vs per-series scale normalization, overlap configuration, focused series styling, MAX_SERIES/MAX_BINS capping, rendering edge cases, out-of-range/negative value handling (no-panic regression)
+- [x] Export RidgelinePlot, RidgelineSeries via tui.zig widgets struct and top-level sailor.zig
+- [x] Add ridgeline_plot_tests to build.zig
+- [x] Release v2.88.0
 
 **Future candidate list** (carried forward — not yet scoped in detail):
 - **BumpChart** — multi-time-point rank-over-time lines per category (>2 points, tracks ordinal rank rather than raw value), complements SlopeChart's fixed two-point comparison
