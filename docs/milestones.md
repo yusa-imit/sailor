@@ -2,25 +2,39 @@
 
 ## Current Status
 
-- **Latest release**: v2.88.0 (2026-07-14) — RidgelinePlot Widget
-- **Latest minor**: v2.88.0 (2026-07-14) — RidgelinePlot Widget
-- **Next release**: v2.89.0 — BumpChart Widget
+- **Latest release**: v2.89.0 (2026-07-15) — BumpChart Widget
+- **Latest minor**: v2.89.0 (2026-07-15) — BumpChart Widget
+- **Next release**: v2.90.0 — MosaicPlot Widget
 - **Active milestones**: 1 established (not yet started)
 - **Blockers**: None
 
-### v2.89.0 — BumpChart Widget (Not Started)
+### v2.90.0 — MosaicPlot Widget (Not Started)
 
-**Theme**: A bump chart widget showing multi-time-point rank-over-time lines per category — tracks ordinal rank (not raw value) across more than two time points, complementing SlopeChart's fixed two-point before/after comparison with an arbitrary-length rank trajectory view. Candidate scope: `BumpChart` + `BumpSeries` (label, ranks: []const u32 — one rank per time point, style) — evenly spaced time-point columns across the inner width (mirroring ParallelCoordinates' axis spacing), each series drawn as a connected polyline crossing every time-point column at its rank row (lower rank = higher row, following leaderboard convention), rank ties handled without overlap corruption, focused series highlighting, optional per-time-point column labels and per-series end labels. MAX_SERIES=8, MAX_TIMEPOINTS=16, no heap allocations.
+**Theme**: A Marimekko-style mosaic plot widget combining variable-width columns (proportional to each category's share of the total) with variable-height stacked segments within each column (proportional to sub-category shares within that category) — a genuinely two-dimensional proportional chart. Complements Treemap (non-axis-aligned recursive rectangles) and BarChart (single-dimension bars only) by encoding two independent proportions (column width AND segment height) simultaneously. Candidate scope: `MosaicPlot` + `MosaicColumn` (label, segments: []const MosaicSegment, style) + `MosaicSegment` (label, value: f32, style) — column widths computed from each column's total value share of the grand total across all columns, segment heights within a column computed from that segment's value share of its column's total, focused column/segment highlighting, optional column header labels and segment value labels. MAX_COLUMNS=16, MAX_SEGMENTS_PER_COLUMN=8, no heap allocations.
 
 **Checklist**:
-- [ ] **src/tui/widgets/bump_chart.zig** — BumpChart + BumpSeries; render()
-- [ ] **tests/bump_chart_test.zig** — meaningful tests covering defaults, builder immutability, time-point column spacing, rank-to-row mapping (hand-computed against known rank sets), tie handling, focused series styling, MAX_SERIES/MAX_TIMEPOINTS capping, rendering edge cases, out-of-range rank handling (no-panic regression)
-- [ ] Export BumpChart, BumpSeries via tui.zig widgets struct and top-level sailor.zig
-- [ ] Add bump_chart_tests to build.zig
-- [ ] Release v2.89.0
+- [ ] **src/tui/widgets/mosaic_plot.zig** — MosaicPlot + MosaicColumn + MosaicSegment; render()
+- [ ] **tests/mosaic_plot_test.zig** — meaningful tests covering defaults, builder immutability, column width proportionality (hand-computed against known value sets), segment height proportionality within a column, focused column/segment styling, MAX_COLUMNS/MAX_SEGMENTS_PER_COLUMN capping, rendering edge cases, zero-value/negative-value handling (no-panic regression)
+- [ ] Export MosaicPlot, MosaicColumn, MosaicSegment via tui.zig widgets struct and top-level sailor.zig
+- [ ] Add mosaic_plot_tests to build.zig
+- [ ] Release v2.90.0
 
 **Future candidate list** (carried forward — not yet scoped in detail):
-- (none currently queued — replenish this list next session)
+- **IcicleChart** — rectangular (axis-aligned) hierarchical chart alternative to SunburstChart, same nested-value-share semantics but laid out as stacked horizontal/vertical bands instead of radial arcs
+
+### v2.89.0 — BumpChart Widget (Complete)
+
+**Theme**: A bump chart widget showing multi-time-point rank-over-time lines per category — tracks ordinal rank (not raw value) across more than two time points, complementing SlopeChart's fixed two-point before/after comparison with an arbitrary-length rank trajectory view. Scope: `BumpChart` + `BumpSeries` (label, ranks: []const u32 — one rank per time point, style) — evenly spaced time-point columns across the inner width (mirroring ParallelCoordinates' axis spacing), each series drawn as a connected polyline crossing every time-point column at its rank row (lower rank = higher row, following leaderboard convention), rank ties handled without overlap corruption, focused series highlighting, optional per-time-point column labels and per-series end labels. MAX_SERIES=8, MAX_TIMEPOINTS=16, no heap allocations.
+
+**Checklist**:
+- [x] **src/tui/widgets/bump_chart.zig** — BumpChart + BumpSeries; render()
+- [x] **tests/bump_chart_test.zig** — 88 tests covering defaults, builder immutability, time-point column spacing, rank-to-row mapping (hand-computed against known rank sets), tie handling, focused series styling, MAX_SERIES/MAX_TIMEPOINTS capping, rendering edge cases, out-of-range rank handling (no-panic regression)
+- [x] Export BumpChart, BumpSeries via tui.zig widgets struct and top-level sailor.zig
+- [x] Add bump_chart_tests to build.zig
+- [x] Release v2.89.0
+
+**Future candidate list** (carried forward — not yet scoped in detail):
+- **MosaicPlot** — Marimekko-style variable-width-column + stacked-segment-height proportional chart
 
 ### v2.88.0 — RidgelinePlot Widget (Complete)
 

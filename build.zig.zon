@@ -1,6 +1,6 @@
 .{
     .name = .sailor,
-    .version = "2.88.0",
+    .version = "2.89.0",
     .fingerprint = 0xc3ab6d84dcf37fe7,
     .minimum_zig_version = "0.15.0",
     .paths = .{
