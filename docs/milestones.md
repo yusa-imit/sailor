@@ -2,22 +2,36 @@
 
 ## Current Status
 
-- **Latest release**: v2.86.0 (2026-07-14) — ParetoChart Widget
-- **Latest minor**: v2.86.0 (2026-07-14) — ParetoChart Widget
-- **Next release**: v2.87.0 — SlopeChart Widget
+- **Latest release**: v2.87.0 (2026-07-14) — SlopeChart Widget
+- **Latest minor**: v2.87.0 (2026-07-14) — SlopeChart Widget
+- **Next release**: v2.88.0 — RidgelinePlot Widget
 - **Active milestones**: 1 established (not yet started)
 - **Blockers**: None
 
-### v2.87.0 — SlopeChart Widget (Not Started)
+### v2.88.0 — RidgelinePlot Widget (Not Started)
 
-**Theme**: A slope chart widget showing before/after (or two-time-point) comparisons per category as a pair of labeled endpoints connected by a straight line — a compact alternative to a grouped bar chart for emphasizing rank change and direction of movement between two measurements. Complements DotPlot (single-point-per-category comparison) by adding a second point and an explicit connecting line whose slope communicates increase/decrease/no-change at a glance. Candidate scope: `SlopeChart` + `SlopeItem` (label, left_value, right_value, style) — two vertical value scales (left column, right column) sharing one normalized min/max range (or independently configurable), each item drawn as a line from its left-column point to its right-column point using line-drawing/diagonal characters, endpoint labels with optional value labels, focused item highlighting, optional increase/decrease/flat coloring via distinct styles. MAX_ITEMS=16, no heap allocations.
+**Theme**: A ridgeline plot (joyplot) widget showing stacked, vertically-offset density silhouettes per category — useful for comparing distribution shape/shift across many categories in a compact space. Complements ViolinPlot (single mirrored density per series, unstacked) and StreamGraph (stacked but centered-on-middle, not per-category baseline) by giving each category its own baseline row with a silhouette that can overlap the row above it. Candidate scope: `RidgelinePlot` + `RidgelineSeries` (label, values: []const f32 — pre-binned density/frequency samples, style) — one baseline row per series ordered top-to-bottom (or bottom-to-top), each series' values normalized against a shared or per-series max and drawn as a silhouette rising above its baseline using block-height characters (mirroring the bar-glyph approach in sparkline/barchart), configurable vertical overlap between adjacent baselines, optional per-series label, focused series highlighting. MAX_SERIES=8, MAX_BINS=64 (following ViolinPlot's precedent), no heap allocations.
 
 **Checklist**:
-- [ ] **src/tui/widgets/slope_chart.zig** — SlopeChart + SlopeItem; render()
-- [ ] **tests/slope_chart_test.zig** — meaningful tests covering defaults, builder immutability, endpoint positioning on both columns, line/slope-direction correctness (hand-computed against known before/after pairs), increase/decrease/flat styling, focused item styling, MAX_ITEMS capping, rendering edge cases, out-of-range value handling (no-panic regression)
-- [ ] Export SlopeChart, SlopeItem via tui.zig widgets struct and top-level sailor.zig
-- [ ] Add slope_chart_tests to build.zig
-- [ ] Release v2.87.0
+- [ ] **src/tui/widgets/ridgeline_plot.zig** — RidgelinePlot + RidgelineSeries; render()
+- [ ] **tests/ridgeline_plot_test.zig** — meaningful tests covering defaults, builder immutability, baseline row placement per series, silhouette height mapping (hand-computed against known bin values), overlap configuration, focused series styling, MAX_SERIES/MAX_BINS capping, rendering edge cases, out-of-range/negative value handling (no-panic regression)
+- [ ] Export RidgelinePlot, RidgelineSeries via tui.zig widgets struct and top-level sailor.zig
+- [ ] Add ridgeline_plot_tests to build.zig
+- [ ] Release v2.88.0
+
+**Future candidate list** (carried forward — not yet scoped in detail):
+- **BumpChart** — multi-time-point rank-over-time lines per category (>2 points, tracks ordinal rank rather than raw value), complements SlopeChart's fixed two-point comparison
+
+### v2.87.0 — SlopeChart Widget (Complete)
+
+**Theme**: A slope chart widget showing before/after (or two-time-point) comparisons per category as a pair of labeled endpoints connected by a straight line — a compact alternative to a grouped bar chart for emphasizing rank change and direction of movement between two measurements. Complements DotPlot (single-point-per-category comparison) by adding a second point and an explicit connecting line whose slope communicates increase/decrease/no-change at a glance. Scope: `SlopeChart` + `SlopeItem` (label, left_value, right_value, style) — two vertical value scales (left column, right column) sharing one normalized min/max range, each item drawn as a line from its left-column point to its right-column point using line-drawing/diagonal characters ('/' increase, '\' decrease, '─' flat), endpoint labels with optional value labels, focused item highlighting, increase/decrease/flat coloring via distinct styles. MAX_ITEMS=16, no heap allocations.
+
+**Checklist**:
+- [x] **src/tui/widgets/slope_chart.zig** — SlopeChart + SlopeItem; render()
+- [x] **tests/slope_chart_test.zig** — 86 tests covering defaults, builder immutability, endpoint positioning on both columns, line/slope-direction correctness (hand-computed against known before/after pairs), increase/decrease/flat styling, focused item styling, MAX_ITEMS capping, rendering edge cases, out-of-range value handling (no-panic regression)
+- [x] Export SlopeChart, SlopeItem via tui.zig widgets struct and top-level sailor.zig
+- [x] Add slope_chart_tests to build.zig
+- [x] Release v2.87.0
 
 **Future candidate list** (carried forward — not yet scoped in detail):
 - **RidgelinePlot** — stacked, vertically-offset density silhouettes per category (joyplot), complements ViolinPlot/StreamGraph
