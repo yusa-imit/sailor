@@ -1,3 +1,27 @@
+✅ **Session 369** — FEATURE MODE (2026-07-15)
+  - **Mode**: NORMAL (session 369, 369 % 5 == 4)
+  - **Achievement**: Found a prior session's fully-implemented-but-uncommitted MosaicPlot widget (v2.90.0), verified it independently, committed, and released it.
+
+  **Completed Work**:
+    - ✅ Found uncommitted working-tree changes at session start: `src/tui/widgets/mosaic_plot.zig` (468 lines) + `tests/mosaic_plot_test.zig` (1355 lines, 83 tests) plus wiring already done in `build.zig`/`src/sailor.zig`/`src/tui/tui.zig`. Agent-activity log showed a `team_create` for "v2.90.0-mosaic-plot" (test-writer/zig-developer/code-reviewer) with no matching `team_delete` — prior session's work was never finalized/committed.
+    - ✅ Did not trust the found state blindly (per session 357/361/363's repeated lesson): ran `zig build test` myself (exit 0), counted tests via `grep -c '^test "'` (83, matches), read the full widget implementation manually (cumulative-floor column/segment layout, focused-style precedence, block-border handling, no `@panic`/stdout/global state/heap allocations).
+    - ✅ Dispatched a code-reviewer agent for an independent second pass before committing (per CLAUDE.md's TDD sequence: test-writer → zig-developer → review). Findings: 0 critical, 2 warnings — both are **pre-existing patterns inherited from BumpChart**, not new defects: (1) 1-row-tall inner area with `show_column_labels=true` skips the header row entirely (same early-return-before-label-render shape as `bump_chart.zig:236`); (2) two focused-style tests only assert `countNonEmptyCells > 0` rather than checking the specific style at the focused coordinate (same weak-assertion shape flagged for BumpChart). Neither blocks release; noted as a candidate for a shared cross-widget fix in a future stabilization cycle.
+    - ✅ Verified all 6 CI cross-compile targets (linux/macos/windows × x86_64/aarch64, ReleaseSafe) build clean, confirmed no concurrent `zig build` process first.
+    - ✅ Committed the widget (5314310), logged the missing `team_delete` entry for "v2.90.0-mosaic-plot" plus the code-reviewer subagent call retroactively.
+    - ✅ Released v2.90.0: bumped build.zig.zon, updated docs/milestones.md (checked off v2.90.0, established v2.91.0 IcicleChart milestone — rectangular axis-aligned hierarchy chart, alternative layout to SunburstChart, from the carried-forward future-candidate list), tagged, pushed, GitHub release created.
+    - ✅ Consumer migration issues filed: zr#137, zoltraak#103, silica#115.
+
+  **Current State**:
+    - **Latest release**: v2.90.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor)
+    - **Widget count**: 133 widgets in src/tui/widgets/ (mosaic_plot added)
+
+  **Process Insight — finalize the loop, not just the code**:
+    - This is the second session (after 357/363) where a prior session's widget was fully coded and tested but left uncommitted. The `team_create`-without-`team_delete` gap in the agent-activity log was a useful tripwire for spotting the abandoned cycle. Lesson: a `team_delete` log entry is a cheap, greppable signal for "this unit of work actually closed out" — worth checking at the start of a session alongside `git status`.
+
+  **Next Priority**:
+    - Implement v2.91.0 milestone: IcicleChart widget (see docs/milestones.md for scope)
+
 ✅ **Session 367** — FEATURE MODE (2026-07-15)
   - **Mode**: NORMAL (session 367, 367 % 5 == 2)
   - **Achievement**: Implemented and released v2.89.0 — BumpChart widget
