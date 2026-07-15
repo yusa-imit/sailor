@@ -227,3 +227,6 @@
 {"timestamp":"2026-07-14T18:26:37Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for BumpChart widget (v2.89.0 milestone)","project":"sailor"}
 {"timestamp":"2026-07-14T18:30:33Z","action":"subagent","agent_type":"zig-developer","task":"Implement BumpChart widget to pass failing tests (v2.89.0 milestone)","project":"sailor"}
 {"timestamp":"2026-07-15T00:26:45Z","action":"subagent","agent_type":"test-writer","task":"Fix flaky Windows timing test in profiler.zig (CI red on main)","project":"sailor"}
+{"timestamp":"2026-07-15T00:37:14Z","action":"team_create","team_name":"v2.90.0-mosaic-plot","members":["test-writer","zig-developer","code-reviewer"],"task":"Implement MosaicPlot widget (v2.90.0 milestone)","project":"sailor"}
+{"timestamp":"2026-07-15T00:40:00Z","action":"subagent","agent_type":"code-reviewer","task":"Review MosaicPlot widget implementation before commit (v2.90.0 milestone)","project":"sailor"}
+{"timestamp":"2026-07-15T00:41:00Z","action":"team_delete","team_name":"v2.90.0-mosaic-plot","project":"sailor"}
