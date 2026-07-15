@@ -1,3 +1,27 @@
+✅ **Session 370** — STABILIZATION MODE (2026-07-15)
+  - **Mode**: STABILIZATION (session 370, 370 % 5 == 0)
+  - **Achievement**: CI green + 0 open issues, so this cycle continued the weak-disjunction-assertion audit carried forward from session 360 (mindmap/radar_chart/bracket_viewer/wordcloud) + full 6-target cross-compile verification. No release needed (test-only changes, no `fix:` commits since v2.90.0).
+
+  **Completed Work**:
+    - ✅ CI check: latest run green on main; `gh issue list` empty — no bug-fix work required.
+    - ✅ `zig build test` — 100% pass (exit 0) both before and after changes.
+    - ✅ Resumed session 360's carried-forward audit of the `or countNonEmptyCells(...) > N` weak-assertion disjunction pattern in the 4 files it flagged but didn't reach: `mindmap_test.zig`, `radar_chart_test.zig`, `bracket_viewer_test.zig`, `wordcloud_test.zig`.
+    - ✅ Dispatched test-writer: found and fixed 9 instances total — 7 in `mindmap_test.zig` (box corners, 4x label-presence checks, block border, offset-area label), 1 in `radar_chart_test.zig` (block border), 1 in `wordcloud_test.zig` (block title label). `bracket_viewer_test.zig` audited clean — no instances found (session 360's earlier grep count of 12/20 was the total `countNonEmptyCells` occurrence count in that file, not disjunction-pattern instances; most of those are legitimate standalone smoke-test assertions).
+    - ✅ Verified test-writer's diff directly (`git diff`) before committing — all 9 changes are straight removals of the `or countNonEmptyCells(...) > N` fallback, keeping only the specific claim (`has_corners`, `findInArea(...)`, `has_border`); each was confirmed true against current widget behavior (no latent bug found this cycle, unlike BoxPlot in session 354). Ran `zig build test` myself independently (exit 0) rather than trusting the agent's claimed result.
+    - ✅ Committed (54ca7b8), pushed.
+    - ✅ Cross-platform verification (Stabilization-session-only allowance): confirmed no concurrent heavy `zig build` process (`pgrep -f "zig build"` empty) before each target, ran all 6 cross-compile targets sequentially (x86_64/aarch64 × linux/macos/windows) — all exit 0.
+    - ℹ️ No `fix:` commits since v2.90.0, so no patch release triggered this cycle (test-only changes don't qualify per release protocol) — consistent with sessions 360/365 precedent.
+
+  **Current State**:
+    - **Latest release**: v2.90.0 (no new release this session)
+    - **Open issues**: 0 (sailor)
+    - **CI**: green
+
+  **Weak-assertion audit status**: The `or countNonEmptyCells(...) > N` disjunction anti-pattern has now been fully audited and fixed across all files flagged in session 360 (flowchart, mindmap, radar_chart, bracket_viewer [clean], wordcloud). Future stabilization sessions should re-scan the broader ~979-item zero-assertion test backlog noted in session 365 if picking up this thread again, or move to auditing a different anti-pattern category.
+
+  **Next Priority**:
+    - Resume FEATURE mode: continue widget milestone work (see docs/milestones.md for the current v2.91.0 IcicleChart milestone, per session 369)
+
 ✅ **Session 369** — FEATURE MODE (2026-07-15)
   - **Mode**: NORMAL (session 369, 369 % 5 == 4)
   - **Achievement**: Found a prior session's fully-implemented-but-uncommitted MosaicPlot widget (v2.90.0), verified it independently, committed, and released it.
@@ -179,9 +203,7 @@
     - ✅ Ran all 6 CI cross-compile targets locally sequentially — all exit 0
     - ✅ Noticed 2 unreleased `fix:` commits since v2.83.0 (Windows clipboard/env, Windows pipe-stdin readByte hang) — met patch-release conditions, so released **v2.83.1** (tag + GitHub release, no build.zig.zon bump per patch protocol)
     - ✅ Consumer migration issues filed for v2.83.1: zr#130, zoltraak#96, silica#108
-
-  **Next Priority (carried forward, still open)**:
-    - Continue the weak-assertion audit on remaining flagged files: mindmap_test.zig, radar_chart_test.zig, bracket_viewer_test.zig, wordcloud_test.zig (same `or countNonEmptyCells > 0` disjunction pattern, not yet audited — could hide a real bug like BoxPlot did)
+    - ℹ️ Carried-forward audit (mindmap/radar_chart/bracket_viewer/wordcloud) completed in session 370 — bracket_viewer_test.zig was clean, 9 instances fixed across the other 3.
 
 ✅ **Session 357** — Released v2.83.0 (CandlestickChart: OHLC wick+body per period, global min/max scale from high/low only, 79 tests). Fixed a shipped panic: unclamped `open`/`close` outside candle's own high/low overflowed `@intCast` on row mapping — clamp `normalized` to [0,1] AND clamp final row to [0,height-1], not just the lower bound. **Process insight**: found a prior session's fully-implemented-but-uncommitted widget with a crashing edge-case test — always run `zig build test` on found uncommitted work before assuming it's ship-ready.
 
@@ -189,12 +211,4 @@
 
 ✅ **Session 352** — Released v2.80.0 (ViolinPlot: mirrored density silhouette per series, GLOBAL min/max binning across all series, MAX_SERIES=8, MAX_BINS=64, 88 tests, dedicated zero-range fallback path).
 
-✅ **Session 351** — Released v2.79.0 (StreamGraph: whole-stack-centered-on-middle-row silhouette, not per-layer alternating — rewrote after catching a non-genuine single-layer-centering test artifact, MAX_LAYERS=8, 70 tests). Known test-pattern: symmetry assertions must exclude the label column or they can pass on a stray label char alone.
-
-✅ **Session 349** — Released v2.78.0 (RadialBar: concentric-ring arcs, clockwise fill from 12 o'clock, aspect-ratio x*0.5 compensation, MAX_ARCS=8, 88 tests). Known issue: `@floatFromInt` in struct literals needs explicit `@as(f32, ...)` in Zig 0.15.x.
-
-✅ **Session 348** — Released v2.77.0 (DotPlot: label+dashed-line+dot per item, auto-sized label column, MAX_ITEMS=64, 94 tests).
-
-✅ **Session 347** — Released v2.76.0 (FunnelChart: centered proportional bars narrowing top-to-bottom, MAX_STAGES=16, 89 tests).
-
-✅ **Session 346** — Fixed CI red (macos-latest→macOS 26 broke Zig 0.15.2 linking; pinned ARM64 runner to macos-15) + released v2.75.0 (WaterfallChart: relative/absolute/total bar kinds, MAX_BARS=32, 90 tests).
+✅ **Sessions 346–351** (compressed) — Released v2.75.0–v2.79.0: WaterfallChart, FunnelChart, DotPlot, RadialBar, StreamGraph. Recurring gotchas: `@floatFromInt` in struct literals needs explicit `@as(f32, ...)` in Zig 0.15.x; symmetry assertions must exclude the label column; pin macOS ARM64 CI runner to macos-15 (macos-latest→26 broke Zig 0.15.2 linking).
