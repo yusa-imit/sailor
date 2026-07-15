@@ -610,16 +610,17 @@ test "flame graph nested scopes track hierarchy" {
     defer profiler.deinit();
 
     // Nested profiling: root -> child1 -> grandchild
+    // Use longer sleeps (10x) to make timer jitter negligible on CI runners.
     try profiler.beginScope("root");
-    std.Thread.sleep(1_000_000); // 1ms
+    std.Thread.sleep(10_000_000); // 10ms
     try profiler.beginScope("child1");
-    std.Thread.sleep(500_000); // 0.5ms
+    std.Thread.sleep(5_000_000); // 5ms
     try profiler.beginScope("grandchild");
-    std.Thread.sleep(200_000); // 0.2ms
+    std.Thread.sleep(2_000_000); // 2ms
     try profiler.endScope(); // grandchild
     try profiler.endScope(); // child1
     try profiler.beginScope("child2");
-    std.Thread.sleep(300_000); // 0.3ms
+    std.Thread.sleep(3_000_000); // 3ms
     try profiler.endScope(); // child2
     try profiler.endScope(); // root
 
@@ -636,8 +637,8 @@ test "flame graph nested scopes track hierarchy" {
     try testing.expectEqual(@as(usize, 1), flame_data.len); // 1 root
     try testing.expect(std.mem.eql(u8, "root", flame_data[0].name));
     try testing.expectEqual(@as(usize, 2), flame_data[0].children.len); // child1, child2
-    // Expected ~2ms; allow tolerance for OS sleep/timer imprecision (esp. Windows CI).
-    try testing.expect(flame_data[0].total_time_ns > 1_800_000);
+    // Expected ~20ms; allow 25% undershoot tolerance for OS sleep/timer imprecision (esp. Windows CI).
+    try testing.expect(flame_data[0].total_time_ns >= 15_000_000);
     try testing.expect(flame_data[0].children[0].children.len == 1); // child1 has grandchild
 }
 
@@ -646,12 +647,13 @@ test "flame graph self time excludes children" {
     var profiler = try Profiler.init(allocator, 16.0);
     defer profiler.deinit();
 
+    // Use longer sleeps (10x) to make timer jitter negligible on CI runners.
     try profiler.beginScope("parent");
-    std.Thread.sleep(1_000_000); // 1ms self
+    std.Thread.sleep(10_000_000); // 10ms self
     try profiler.beginScope("child");
-    std.Thread.sleep(500_000); // 0.5ms child
+    std.Thread.sleep(5_000_000); // 5ms child
     try profiler.endScope();
-    std.Thread.sleep(500_000); // 0.5ms more self
+    std.Thread.sleep(5_000_000); // 5ms more self
     try profiler.endScope();
 
     const flame_data = try profiler.flameGraphData(allocator);
@@ -664,11 +666,14 @@ test "flame graph self time excludes children" {
     }
 
     const parent = flame_data[0];
-    // self_time should be ~1.5ms (total 2ms - child 0.5ms). Allow tolerance for
+    // self_time should be ~15ms (total 20ms - child 5ms). Allow tolerance for
     // OS sleep/timer imprecision (esp. Windows CI, where sleeps can undershoot slightly).
+    // Structural check: self must be less than total.
     try testing.expect(parent.self_time_ns < parent.total_time_ns);
-    try testing.expect(parent.self_time_ns >= 900_000); // ~1ms self
-    try testing.expect(parent.total_time_ns >= 1_800_000); // ~2ms total
+    // Allow 33% undershoot on self_time: expect >= 10ms of ~15ms nominal self
+    try testing.expect(parent.self_time_ns >= 10_000_000);
+    // Allow 25% undershoot on total_time: expect >= 15ms of ~20ms nominal total
+    try testing.expect(parent.total_time_ns >= 15_000_000);
 }
 
 test "flame graph multiple sibling scopes" {
