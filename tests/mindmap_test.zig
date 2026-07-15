@@ -404,9 +404,10 @@ test "render root node has box characters (corners)" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     mm.render(&buf, area);
 
+    // Node box must have all four corners when width >= 2 and height >= 1
     const has_corners = areaHasChar(buf, area, '┌') or areaHasChar(buf, area, '┐') or
                         areaHasChar(buf, area, '└') or areaHasChar(buf, area, '┘');
-    try testing.expect(has_corners or countNonEmptyCells(buf, area) > 0);
+    try testing.expect(has_corners);
 }
 
 test "render root label appears in node" {
@@ -461,7 +462,8 @@ test "render one right branch draws content right of root" {
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 24 };
     mm.render(&buf, area);
 
-    try testing.expect(findInArea(buf, area, "Right") or countNonEmptyCells(buf, area) > 10);
+    // Right branch label must appear in the rendered output
+    try testing.expect(findInArea(buf, area, "Right"));
 }
 
 test "render right branch with connection line" {
@@ -491,7 +493,8 @@ test "render right branch not overlapping root" {
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 24 };
     mm.render(&buf, area);
 
-    try testing.expect(findInArea(buf, area, "Root") or countNonEmptyCells(buf, area) > 0);
+    // Root node label must be rendered
+    try testing.expect(findInArea(buf, area, "Root"));
 }
 
 test "render right branch label visible" {
@@ -526,7 +529,8 @@ test "render one left branch draws content left of root" {
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 24 };
     mm.render(&buf, area);
 
-    try testing.expect(findInArea(buf, area, "Left") or countNonEmptyCells(buf, area) > 10);
+    // Left branch label must appear in the rendered output
+    try testing.expect(findInArea(buf, area, "Left"));
 }
 
 test "render left branch with connection line" {
@@ -556,7 +560,8 @@ test "render left branch not overlapping root" {
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 24 };
     mm.render(&buf, area);
 
-    try testing.expect(findInArea(buf, area, "Root") or countNonEmptyCells(buf, area) > 0);
+    // Root node label must be rendered
+    try testing.expect(findInArea(buf, area, "Root"));
 }
 
 test "render left branch label visible" {
@@ -962,8 +967,9 @@ test "render with Block renders frame around content" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
     mm.render(&buf, area);
 
+    // Block border must render with box-drawing characters
     const has_border = areaHasChar(buf, area, '─') or areaHasChar(buf, area, '│') or areaHasChar(buf, area, '┌');
-    try testing.expect(has_border or countNonEmptyCells(buf, area) > 0);
+    try testing.expect(has_border);
 }
 
 test "render block reduces inner area for nodes" {
@@ -1038,7 +1044,8 @@ test "render in offset area (x>0, y>0)" {
     const area = Rect{ .x = 10, .y = 5, .width = 50, .height = 10 };
     mm.render(&buf, area);
 
-    try testing.expect(findInArea(buf, area, "Offset") or countNonEmptyCells(buf, area) > 0);
+    // Label must appear in offset area
+    try testing.expect(findInArea(buf, area, "Offset"));
 }
 
 test "render complex tree in offset area" {

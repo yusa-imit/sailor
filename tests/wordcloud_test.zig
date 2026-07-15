@@ -673,8 +673,8 @@ test "block title renders in border" {
 
     wc.render(&buf, area);
 
-    // Title should render in border area
-    try testing.expect(findInArea(buf, area, "WordCloud") or countNonEmptyCells(buf, area) > 0);
+    // Block title must render in border area
+    try testing.expect(findInArea(buf, area, "WordCloud"));
 }
 
 test "words do not overwrite block border characters" {
