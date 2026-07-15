@@ -595,6 +595,12 @@ pub const widgets = struct {
     pub const bump_chart = @import("widgets/bump_chart.zig");
     pub const BumpChart = bump_chart.BumpChart;
     pub const BumpSeries = bump_chart.BumpSeries;
+
+    // v2.90.0 — MosaicPlot Widget
+    pub const mosaic_plot = @import("widgets/mosaic_plot.zig");
+    pub const MosaicPlot = mosaic_plot.MosaicPlot;
+    pub const MosaicColumn = mosaic_plot.MosaicColumn;
+    pub const MosaicSegment = mosaic_plot.MosaicSegment;
 };
 
 // Export commonly used types

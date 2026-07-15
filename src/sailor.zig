@@ -289,6 +289,12 @@ pub const BumpChart = tui.widgets.BumpChart;
 pub const BumpSeries = tui.widgets.BumpSeries;
 pub const bump_chart = tui.widgets.bump_chart;
 
+// v2.90.0 — MosaicPlot Widget
+pub const MosaicPlot = tui.widgets.MosaicPlot;
+pub const MosaicColumn = tui.widgets.MosaicColumn;
+pub const MosaicSegment = tui.widgets.MosaicSegment;
+pub const mosaic_plot = tui.widgets.mosaic_plot;
+
 pub const Viewport = tui.viewport.Viewport;
 pub const VirtualRenderer = tui.virtual.VirtualRenderer;
 pub const IncrementalLayout = tui.incremental_layout.IncrementalLayout;
