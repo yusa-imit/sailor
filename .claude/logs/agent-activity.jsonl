@@ -234,3 +234,7 @@
 {"timestamp":"2026-07-15T18:26:42Z","action":"subagent","agent_type":"test-writer","task":"Write tests/icicle_chart_test.zig TDD red phase for IcicleChart widget (v2.91.0)","project":"sailor"}
 {"timestamp":"2026-07-15T18:30:37Z","action":"subagent","agent_type":"zig-developer","task":"Implement src/tui/widgets/icicle_chart.zig to pass 63 tests in tests/icicle_chart_test.zig (v2.91.0 IcicleChart)","project":"sailor"}
 {"timestamp":"2026-07-15T18:49:30Z","action":"subagent","agent_type":"test-writer","task":"Strengthen 4 weak focused-path tests in tests/icicle_chart_test.zig to catch confirmed root-always-focused and off-by-one child-match bugs","project":"sailor"}
+{"timestamp":"2026-07-16T06:26:41Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for ToggleSwitch + ToggleSwitchGroup widget (v2.92.0)","project":"sailor"}
+{"timestamp":"2026-07-16T06:31:08Z","action":"subagent","agent_type":"zig-developer","task":"Implement src/tui/widgets/toggle_switch.zig to pass 66 tests in tests/toggle_switch_test.zig (v2.92.0 ToggleSwitch)","project":"sailor"}
+{"timestamp":"2026-07-16T06:36:14Z","action":"subagent","agent_type":"test-writer","task":"Fix Block.withTitle() call arity compile error in tests/toggle_switch_test.zig:690","project":"sailor"}
+{"timestamp":"2026-07-16T06:37:35Z","action":"subagent","agent_type":"zig-developer","task":"Resume ToggleSwitch implementation — fix 2 remaining failing tests, verify full test suite, finish wiring","project":"sailor"}

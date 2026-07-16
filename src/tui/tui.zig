@@ -606,6 +606,10 @@ pub const widgets = struct {
     pub const icicle_chart = @import("widgets/icicle_chart.zig");
     pub const IcicleChart = icicle_chart.IcicleChart;
     pub const IcicleNode = icicle_chart.IcicleNode;
+
+    // v2.92.0 — ToggleSwitch Widget
+    pub const ToggleSwitch = @import("widgets/toggle_switch.zig").ToggleSwitch;
+    pub const ToggleSwitchGroup = @import("widgets/toggle_switch.zig").ToggleSwitchGroup;
 };
 
 // Export commonly used types

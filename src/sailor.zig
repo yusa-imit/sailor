@@ -300,6 +300,10 @@ pub const IcicleChart = tui.widgets.IcicleChart;
 pub const IcicleNode = tui.widgets.IcicleNode;
 pub const icicle_chart = tui.widgets.icicle_chart;
 
+// v2.92.0 — ToggleSwitch Widget
+pub const ToggleSwitch = tui.widgets.ToggleSwitch;
+pub const ToggleSwitchGroup = tui.widgets.ToggleSwitchGroup;
+
 pub const Viewport = tui.viewport.Viewport;
 pub const VirtualRenderer = tui.virtual.VirtualRenderer;
 pub const IncrementalLayout = tui.incremental_layout.IncrementalLayout;

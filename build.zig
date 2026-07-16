@@ -1720,6 +1720,17 @@ pub fn build(b: *std.Build) void {
     icicle_chart_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(icicle_chart_tests).step);
 
+    const toggle_switch_tests = b.addTest(.{
+        .name = "toggle_switch_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/toggle_switch_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    toggle_switch_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(toggle_switch_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",
