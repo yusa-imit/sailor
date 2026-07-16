@@ -323,7 +323,7 @@ test "BubbleChart.render single bubble applies correct marker for size=0.5 (○)
     chart.render(&buf, area);
     // Should have white circle marker (0x25CB = ○)
     const has_marker = areaHasChar(buf, area, 0x25CB);
-    try testing.expect(has_marker or countNonEmptyCells(buf, area) > 0);
+    try testing.expect(has_marker);
 }
 
 test "BubbleChart.render single bubble with label=X shows content" {
@@ -512,7 +512,7 @@ test "BubbleChart.render size=0.1 uses middle dot (·)" {
     chart.render(&buf, area);
     // Should have middle dot (0x00B7 = ·)
     const has_marker = areaHasChar(buf, area, 0x00B7);
-    try testing.expect(has_marker or countNonEmptyCells(buf, area) > 0);
+    try testing.expect(has_marker);
 }
 
 test "BubbleChart.render size=0.3 uses bullet (•)" {
@@ -525,7 +525,7 @@ test "BubbleChart.render size=0.3 uses bullet (•)" {
     chart.render(&buf, area);
     // Should have bullet (0x2022 = •)
     const has_marker = areaHasChar(buf, area, 0x2022);
-    try testing.expect(has_marker or countNonEmptyCells(buf, area) > 0);
+    try testing.expect(has_marker);
 }
 
 test "BubbleChart.render size=0.5 uses white circle (○)" {
@@ -538,7 +538,7 @@ test "BubbleChart.render size=0.5 uses white circle (○)" {
     chart.render(&buf, area);
     // Should have white circle (0x25CB = ○)
     const has_marker = areaHasChar(buf, area, 0x25CB);
-    try testing.expect(has_marker or countNonEmptyCells(buf, area) > 0);
+    try testing.expect(has_marker);
 }
 
 test "BubbleChart.render size=0.7 uses fisheye (◉)" {
@@ -551,7 +551,7 @@ test "BubbleChart.render size=0.7 uses fisheye (◉)" {
     chart.render(&buf, area);
     // Should have fisheye (0x25C9 = ◉)
     const has_marker = areaHasChar(buf, area, 0x25C9);
-    try testing.expect(has_marker or countNonEmptyCells(buf, area) > 0);
+    try testing.expect(has_marker);
 }
 
 test "BubbleChart.render size=0.9 uses black circle (●)" {
@@ -564,7 +564,7 @@ test "BubbleChart.render size=0.9 uses black circle (●)" {
     chart.render(&buf, area);
     // Should have black circle (0x25CF = ●)
     const has_marker = areaHasChar(buf, area, 0x25CF);
-    try testing.expect(has_marker or countNonEmptyCells(buf, area) > 0);
+    try testing.expect(has_marker);
 }
 
 // ============================================================================
@@ -582,7 +582,7 @@ test "BubbleChart.render show_axes=false produces no axis characters" {
     // Should not have vertical bar │ (if axes disabled)
     const has_v_axis = areaHasChar(buf, area, '│');
     // If bubble is rendered but no axes, v_axis should be false
-    try testing.expect(!has_v_axis or countNonEmptyCells(buf, area) > 0);
+    try testing.expect(!has_v_axis);
 }
 
 test "BubbleChart.render show_axes=false uses full area for plot" {

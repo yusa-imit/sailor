@@ -857,7 +857,7 @@ test "render with Block renders frame around content" {
     const has_border = areaHasChar(buf, area, '─') or
                        areaHasChar(buf, area, '│') or
                        areaHasChar(buf, area, '┌');
-    try testing.expect(has_border or countNonEmptyCells(buf, area) > 0);
+    try testing.expect(has_border);
 }
 
 test "render block reduces inner area for content" {
@@ -883,7 +883,7 @@ test "render tasks render inside block border inner area" {
     gc.render(&buf, area);
 
     // Task content should be visible
-    try testing.expect(findInArea(buf, area, "inside") or countNonEmptyCells(buf, area) > 0);
+    try testing.expect(findInArea(buf, area, "inside"));
 }
 
 test "render block in tiny area does not crash" {
@@ -942,7 +942,7 @@ test "render in offset area (x>0, y>0) renders correctly" {
     gc.render(&buf, area);
 
     // Should render in offset area
-    try testing.expect(findInArea(buf, area, "offset") or countNonEmptyCells(buf, area) > 0);
+    try testing.expect(findInArea(buf, area, "offset"));
 }
 
 test "render ASCII task name renders correctly" {

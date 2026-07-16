@@ -211,7 +211,14 @@ pub const FlowChart = struct {
         const node_cnt = self.nodeCount();
         const edge_cnt = self.edgeCount();
 
-        // Render edges first (behind nodes)
+        // Render nodes first
+        var node_idx: usize = 0;
+        while (node_idx < node_cnt) : (node_idx += 1) {
+            const node = self.nodes[node_idx];
+            renderNode(self, buf, inner, node, node_idx);
+        }
+
+        // Render edges on top (including arrows and labels)
         var edge_idx: usize = 0;
         while (edge_idx < edge_cnt) : (edge_idx += 1) {
             const edge = self.edges[edge_idx];
@@ -219,13 +226,6 @@ pub const FlowChart = struct {
                 continue;
             }
             renderEdge(self, buf, inner, edge);
-        }
-
-        // Render nodes on top
-        var node_idx: usize = 0;
-        while (node_idx < node_cnt) : (node_idx += 1) {
-            const node = self.nodes[node_idx];
-            renderNode(self, buf, inner, node, node_idx);
         }
     }
 };

@@ -709,7 +709,7 @@ test "MatrixView.render row headers appear in left column" {
     mv.render(&buf, area);
     // Row header column is 8 chars wide at x=0; header text must appear there
     const header_col = Rect{ .x = 0, .y = 0, .width = 8, .height = 20 };
-    try testing.expect(areaHasChar(buf, header_col, 'R') or countNonEmptyCells(buf, header_col) > 0);
+    try testing.expect(areaHasChar(buf, header_col, 'R'));
 }
 
 test "MatrixView.render row headers left aligned in column" {

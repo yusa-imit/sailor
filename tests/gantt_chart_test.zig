@@ -860,7 +860,7 @@ test "GanttChart.render produces block character (█) in bar area" {
     chart.render(&buf, area);
     // Should have block character in render
     const has_block = areaHasChar(buf, area, '█');
-    try testing.expect(has_block or countNonEmptyCells(buf, area) > 0);
+    try testing.expect(has_block);
 }
 
 // ============================================================================

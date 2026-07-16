@@ -615,7 +615,7 @@ test "render edge between nodes draws connector" {
     fc.render(&buf, area);
 
     // Edge connector should render (vertical bar or similar)
-    try testing.expect(areaHasChar(buf, area, '│') or countNonEmptyCells(buf, area) > 10);
+    try testing.expect(areaHasChar(buf, area, '│'));
 }
 
 test "render vertical edge arrow appears at destination" {
@@ -632,7 +632,7 @@ test "render vertical edge arrow appears at destination" {
     fc.render(&buf, area);
 
     // Downward arrow should be present (▼)
-    try testing.expect(areaHasChar(buf, area, '▼') or countNonEmptyCells(buf, area) > 10);
+    try testing.expect(areaHasChar(buf, area, '▼'));
 }
 
 test "render edge from node 0 to node 1 does not crash" {
@@ -689,7 +689,7 @@ test "render edge with label shows label text on connector" {
     fc.render(&buf, area);
 
     // Label "Yes" should appear somewhere
-    try testing.expect(findInArea(buf, area, "Yes") or countNonEmptyCells(buf, area) > 10);
+    try testing.expect(findInArea(buf, area, "Yes"));
 }
 
 test "render edge with empty label does not crash" {
