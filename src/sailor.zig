@@ -295,6 +295,11 @@ pub const MosaicColumn = tui.widgets.MosaicColumn;
 pub const MosaicSegment = tui.widgets.MosaicSegment;
 pub const mosaic_plot = tui.widgets.mosaic_plot;
 
+// v2.91.0 — IcicleChart Widget
+pub const IcicleChart = tui.widgets.IcicleChart;
+pub const IcicleNode = tui.widgets.IcicleNode;
+pub const icicle_chart = tui.widgets.icicle_chart;
+
 pub const Viewport = tui.viewport.Viewport;
 pub const VirtualRenderer = tui.virtual.VirtualRenderer;
 pub const IncrementalLayout = tui.incremental_layout.IncrementalLayout;

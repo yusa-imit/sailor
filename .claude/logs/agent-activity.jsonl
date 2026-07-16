@@ -231,3 +231,6 @@
 {"timestamp":"2026-07-15T00:40:00Z","action":"subagent","agent_type":"code-reviewer","task":"Review MosaicPlot widget implementation before commit (v2.90.0 milestone)","project":"sailor"}
 {"timestamp":"2026-07-15T00:41:00Z","action":"team_delete","team_name":"v2.90.0-mosaic-plot","project":"sailor"}
 {"timestamp":"2026-07-15T12:26:59Z","action":"subagent","agent_type":"test-writer","task":"Fix weak disjunction assertions (or countNonEmptyCells) in mindmap_test.zig, radar_chart_test.zig, bracket_viewer_test.zig, wordcloud_test.zig","project":"sailor"}
+{"timestamp":"2026-07-15T18:26:42Z","action":"subagent","agent_type":"test-writer","task":"Write tests/icicle_chart_test.zig TDD red phase for IcicleChart widget (v2.91.0)","project":"sailor"}
+{"timestamp":"2026-07-15T18:30:37Z","action":"subagent","agent_type":"zig-developer","task":"Implement src/tui/widgets/icicle_chart.zig to pass 63 tests in tests/icicle_chart_test.zig (v2.91.0 IcicleChart)","project":"sailor"}
+{"timestamp":"2026-07-15T18:49:30Z","action":"subagent","agent_type":"test-writer","task":"Strengthen 4 weak focused-path tests in tests/icicle_chart_test.zig to catch confirmed root-always-focused and off-by-one child-match bugs","project":"sailor"}

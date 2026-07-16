@@ -601,6 +601,11 @@ pub const widgets = struct {
     pub const MosaicPlot = mosaic_plot.MosaicPlot;
     pub const MosaicColumn = mosaic_plot.MosaicColumn;
     pub const MosaicSegment = mosaic_plot.MosaicSegment;
+
+    // v2.91.0 — IcicleChart Widget
+    pub const icicle_chart = @import("widgets/icicle_chart.zig");
+    pub const IcicleChart = icicle_chart.IcicleChart;
+    pub const IcicleNode = icicle_chart.IcicleNode;
 };
 
 // Export commonly used types

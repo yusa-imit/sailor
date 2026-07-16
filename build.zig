@@ -1709,6 +1709,17 @@ pub fn build(b: *std.Build) void {
     mosaic_plot_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(mosaic_plot_tests).step);
 
+    const icicle_chart_tests = b.addTest(.{
+        .name = "icicle_chart_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/icicle_chart_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    icicle_chart_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(icicle_chart_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",
