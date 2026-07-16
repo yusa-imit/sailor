@@ -790,12 +790,17 @@ test "show_labels=false omits labels" {
     // May still have block borders or other content, but no label text
 }
 
-test "show_values=true renders percentage values" {
+test "show_values=true renders percentage of sibling sum, not of parent's own value" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
 
+    // Root's own value (100) is irrelevant to the percentages shown below it —
+    // percentages are each child's share of childrenTotal (sum of positive
+    // siblings), matching SunburstChart's convention and the same denominator
+    // used for band-width proportions.
     const children = [_]IcicleNode{
-        .{ .label = "Child", .value = 50 },
+        .{ .label = "A", .value = 25 },
+        .{ .label = "B", .value = 75 },
     };
     const root = IcicleChart{ .root = .{ .label = "Root", .value = 100, .children = &children } };
     const chart = IcicleChart.init()
@@ -805,11 +810,25 @@ test "show_values=true renders percentage values" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 10 };
 
     chart.render(&buf, area);
-    // Root should show "100%", child should show "50%"
-    try testing.expect(countNonEmptyCells(buf, area) > 0);
+
+    // Root has no siblings, so it is shown as 100% of itself at (0, 0).
+    try testing.expectEqual(@as(u21, '1'), getCell(buf, area, 0, 0).?.char);
+    try testing.expectEqual(@as(u21, '0'), getCell(buf, area, 1, 0).?.char);
+    try testing.expectEqual(@as(u21, '0'), getCell(buf, area, 2, 0).?.char);
+    try testing.expectEqual(@as(u21, '%'), getCell(buf, area, 3, 0).?.char);
+
+    // A: band [0,15) at depth 1 (25/100 of the 60-wide row) -> "25%" at x=0
+    try testing.expectEqual(@as(u21, '2'), getCell(buf, area, 0, 1).?.char);
+    try testing.expectEqual(@as(u21, '5'), getCell(buf, area, 1, 1).?.char);
+    try testing.expectEqual(@as(u21, '%'), getCell(buf, area, 2, 1).?.char);
+
+    // B: band [15,60) at depth 1 (75/100 of the 60-wide row) -> "75%" at x=15
+    try testing.expectEqual(@as(u21, '7'), getCell(buf, area, 15, 1).?.char);
+    try testing.expectEqual(@as(u21, '5'), getCell(buf, area, 16, 1).?.char);
+    try testing.expectEqual(@as(u21, '%'), getCell(buf, area, 17, 1).?.char);
 }
 
-test "show_labels=true and show_values=true together" {
+test "show_labels=true and show_values=true together renders labels, not values" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
 
@@ -824,7 +843,15 @@ test "show_labels=true and show_values=true together" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 10 };
 
     chart.render(&buf, area);
-    try testing.expect(countNonEmptyCells(buf, area) > 0);
+
+    // Labels take priority over values when a node has a non-empty label:
+    // "Root" is rendered, not "100%".
+    try testing.expectEqual(@as(u21, 'R'), getCell(buf, area, 0, 0).?.char);
+    try testing.expectEqual(@as(u21, 'o'), getCell(buf, area, 1, 0).?.char);
+    try testing.expectEqual(@as(u21, 'o'), getCell(buf, area, 2, 0).?.char);
+    try testing.expectEqual(@as(u21, 't'), getCell(buf, area, 3, 0).?.char);
+    // No '%' anywhere on the root's row — the percentage branch never ran.
+    try testing.expectEqual(@as(usize, 0), countChar(buf, .{ .x = area.x, .y = area.y, .width = area.width, .height = 1 }, '%'));
 }
 
 // ============================================================================

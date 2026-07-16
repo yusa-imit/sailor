@@ -161,8 +161,9 @@ pub const IcicleChart = struct {
             if (inner.width == 0 or inner.height == 0) return;
         }
 
-        // Render the tree structure
-        renderTree(buf, self, self.root.?, inner, 0, 0, inner.width, self.focused.len > 0);
+        // Render the tree structure. The root has no siblings, so it is
+        // always shown as 100% of itself.
+        renderTree(buf, self, self.root.?, inner, 0, 0, inner.width, self.focused.len > 0, 100.0);
     }
 };
 
@@ -226,6 +227,7 @@ fn renderTree(
     col_x0: u16,
     col_width: u16,
     path_valid: bool,
+    percent_of_siblings: f32,
 ) void {
     if (depth >= IcicleChart.MAX_DEPTH) return;
     if (depth >= inner.height) return; // No more rows available
@@ -259,8 +261,11 @@ fn renderTree(
         }
     } else if (chart.show_values and col_width >= 1) {
         // If not showing labels but showing values, render the percentage
+        // this node represents of its parent's positive-value children sum
+        // (the same denominator used for band-width proportions).
         var percent_str: [6]u8 = undefined;
-        const percent = if (depth == 0) @as(u32, 100) else @as(u32, 0); // TODO: compute from parent total
+        const clamped_percent = @max(0.0, @min(100.0, percent_of_siblings));
+        const percent = @as(u32, @intFromFloat(clamped_percent));
         var str_len: usize = 0;
 
         if (percent >= 100) {
@@ -337,7 +342,9 @@ fn renderTree(
         else
             path_valid;
 
-        renderTree(buf, chart, child, inner, depth + 1, child_x0, child_width, child_path_valid);
+        const child_percent = (child.value / total) * 100.0;
+
+        renderTree(buf, chart, child, inner, depth + 1, child_x0, child_width, child_path_valid, child_percent);
         positive_idx += 1;
     }
 }
