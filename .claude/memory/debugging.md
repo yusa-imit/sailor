@@ -1,204 +1,7 @@
 # Sailor Debugging Notes
 
-## Fixed Issues
-
-### Incomplete Test Assertions - Comment-Only Tests (2026-04-04 STABILIZATION Session 65)
-**Symptom**: 263 tests across widget files contain only "// Should..." comments without actual assertions
-  - Example: `tooltip.zig` had 20+ tests with comments like "// Arrow should be ▼ for above position" but no `try std.testing.expect*()`
-  - These tests always pass even if implementation is broken
-  - False sense of test coverage
-
-**Root Cause**:
-  - Tests written as documentation/TODOs rather than validation
-  - Happy-path-only testing without checking actual output
-  - Copy-paste test skeletons without filling in assertions
-
-**Pattern to Detect**:
-```bash
-grep -r "// Should" src/tui/widgets/*.zig | wc -l  # Find incomplete tests
-```
-
-**Fix (commit: d91e69d)**:
-  1. **tooltip.zig** - Strengthened 20+ tests:
-     - Added `buf.getChar(x, y)` assertions to verify actual rendering
-     - Replaced "// Should render content" with concrete character checks
-     - Added boundary condition validation (top/bottom/left/right edges)
-     - Verified positioning logic for all 5 positions
-     - Edge case validation: empty content, zero-area, Unicode, overflow
-  2. **Test patterns applied**:
-     - Positioning tests: Check first character of content at expected coords
-     - Arrow tests: Verify arrow character (▲ ▼ ◀ ▶) appears at correct position
-     - Boundary tests: Ensure auto-positioning chooses correct fallback
-     - Edge case tests: Verify no crash + buffer integrity
-
-**Impact**: Tests now catch real bugs. Example: border test initially failed because expected border characters didn't match actual rendering.
-
-**Next Steps**: Apply same pattern to remaining 243 incomplete tests in other widget files
-**Test Coverage**: All tests pass (2763/2793 passed, 30 skipped)
-**Commit**: d91e69d
-
-### Windows Compilation Failures - posix.fd_t Type Mismatch (2026-03-31 Session 45, FULLY FIXED 2026-04-06 Session 75)
-**Symptom**: Multiple Windows compilation errors:
-  1. ✅ `term.zig:44`: "value with comptime-only type depends on runtime control flow" - `@intCast(switch (fd))`
-  2. ✅ `term.zig:232`: "expected type '*anyopaque', found 'comptime_int'" - using fd as integer in switch
-  3. ✅ `term.zig:410`: "incompatible types" - WaitForSingleObject return type mismatch
-  4. ✅ `color.zig:28`: "std.posix.getenv unavailable for Windows" - UTF-16 environment strings
-  5. ✅ Multiple files using std.posix.getenv without Windows guards (kitty.zig, sixel.zig, screen_reader.zig)
-
-**Root Cause**:
-  - **Fundamental issue**: On Windows, `posix.fd_t` is `*anyopaque` (HANDLE), not `i32`
-  - Code was treating Windows handles as if they were integers (0, 1, 2)
-  - `std.posix.getenv()` doesn't exist on Windows (env vars are UTF-16, not UTF-8)
-  - WaitForSingleObject returns error union, not raw DWORD
-
-**Fix (commits: fb40a43, 26f507e, b30ff59)**:
-  1. **term.zig**:
-     - Changed `isatty(fd: i32)` → `isatty(fd: anytype)` to accept both i32 (Unix) and *anyopaque (Windows)
-     - `enterWindows()/deinitWindows()`: Cast fd directly to HANDLE instead of using switch
-     - `readByteWindows()`: Use `try windows.WaitForSingleObject()` to handle error union
-     - `MockTerminal.fd()`: Return `@ptrCast(self)` on Windows, `42` on Unix
-     - `queryTerminalCapability()`: Platform-specific mock detection (address comparison on Windows)
-  2. **color.zig**:
-     - Added `getEnvVar()` helper that returns `null` on Windows (TERM/COLORTERM not applicable)
-  3. **screen_reader.zig, sixel.zig, kitty.zig** (Session 75, commit b30ff59):
-     - **CRITICAL FIX**: Wrapped ALL `std.posix.getenv()` calls inside else blocks
-     - Previous fix had early return guards, but compiler still analyzed unreachable code and failed
-     - Changed pattern from `if (windows) return false; getenv()` → `if (windows) return false; else { getenv() }`
-     - Now all 6 cross-compile targets succeed: x86_64/aarch64-windows-msvc, x86_64/aarch64-linux-gnu, x86_64/aarch64-macos
-  4. **windows_unicode_test.zig**:
-     - Made test more lenient: skip if codepoint ≤ 0xFFFF instead of failing (CI environment limitation)
-
-**Test Coverage**: All tests pass locally, Windows cross-compilation succeeds
-**Commits**: fb40a43 (cache fix), 26f507e (compilation fixes), b30ff59 (final guard fix)
-**STATUS**: ✅ FULLY RESOLVED (2026-04-06 Session 75)
-
-### Test Quality Audit - Trivial Tests Removed (2026-03-25 STABILIZATION Session 10)
-**Symptom**: Tests that cannot fail unless there's a compiler bug:
-  1. `term.zig` - "Size struct" test verifies struct field assignment
-  2. `color.zig` - "BasicColor values" test verifies enum integer values
-  3. `color.zig` - "Color.fromRgb" and "Color.fromIndex" verify union field assignment
-  4. `color.zig` - "ColorLevel.detect respects NO_COLOR" has no assertions (only calls function)
-**Root Cause**: These tests add noise without value - they verify compiler behavior, not our logic
-**Fix**:
-  1. Removed Size struct field test - struct assignment can't fail
-  2. Removed BasicColor enum test - enum values are explicitly declared
-  3. Removed Color constructor tests - union field assignment is trivial
-  4. Removed NO_COLOR test with no assertions - replaced with explanatory comment
-**Impact**: Cleaner test suite, reduced false sense of coverage
-**Test Coverage**: All tests still pass (1deba79)
-**Commits**: 1deba79
-
-### Markdown & Inspector Test Failures (2026-03-21 STABILIZATION)
-**Symptom**: 5 test failures blocking CI:
-  1. inspector_test.zig: `detectLayoutViolations()` called without allocator argument
-  2. markdown_test "bold requires closing delimiter": Expected .text, found .italic
-  3. markdown_test "nested list items": Expected indent_level=1, found 0
-  4. markdown_test "scroll clamps at boundaries": scroll_offset not clamped
-  5. markdown_test "line wraps at width boundary": lineCount() doesn't reflect wrapping
-**Root Cause**:
-  1. API call missing allocator parameter (Inspector signature changed)
-  2. Unclosed bold `**` falls through to italic `*` parsing without proper handling
-  3. Indent calculation bug: `if (i > 0 and i % 2 == 0)` executed in loop body, not after counting spaces
-  4. `scrollDown()` uses wrapping addition `+%=` without bounds checking
-  5. `lineCount()` returns node count, not rendered line count (wrapping happens in render())
-**Fix**:
-  1. Added allocator arg + proper ArrayList cleanup with defer
-  2. Added `else { i += 1; continue; }` to unclosed delimiter handlers to treat as literal text
-  3. Changed to `const indent_level = @intCast(i / 2)` calculated AFTER counting spaces
-  4. Clamped scroll_offset to `max(0, lineCount - 1)`
-  5. Changed test to verify buffer content (y0 and y1 both have content) instead of lineCount
-**Test Coverage**: All 5 failures resolved, compilation clean
-**Commits**: 2c3c5b3
-
-### Inspector Module Zig 0.15 API Compatibility (2026-03-20 STABILIZATION)
-**Symptom**: Compilation errors blocking inspector_test.zig:
-  1. `clearRetainingCapacity(allocator)` - method expects 0 arguments, found 1
-  2. `ArrayList(T).init(allocator)` - struct has no member named 'init'
-  3. `std.time.sleep()` - root source file has no member named 'sleep'
-  4. Ignored return value from `recordWidget()` - returns u32
-**Root Cause**: Zig 0.15 ArrayList API changes + std.time module reorganization
-**Fix**:
-  1. ArrayList cleared without allocator: `list.clearRetainingCapacity()`
-  2. ArrayList unmanaged initialization: `ArrayList(T){}` with explicit allocator in methods
-  3. Thread sleep API: `std.Thread.sleep(ns)` not `std.time.sleep`
-  4. Discard return values: `_ = inspector.recordWidget(...)`
-  5. Memory leak: Added `deinit()` + `destroy()` calls for widget tree in tests
-**Test Coverage**: Compilation errors fixed, memory leaks resolved
-**Commits**: 1c2f502, 252af25, 5a73864
-
-### Markdown Widget Ambiguous Reference and ArrayList API (2026-03-20)
-**Symptom**: Compilation errors blocking all tests:
-  1. Ambiguous reference to `Node` type in markdown.zig
-  2. ArrayList.init() method doesn't exist in Zig 0.15
-  3. ArrayList.deinit() and append() missing allocator parameter
-**Root Cause**:
-  1. Duplicate `Node` type declarations: module-level + struct-level re-export created conflict
-  2. Unmanaged ArrayList API in Zig 0.15 requires explicit allocator for all operations
-**Fix**:
-  1. Use module reference `const markdown_mod = @This()` and qualified names `markdown_mod.Node` internally
-  2. ArrayList initialization: `ArrayList(T){}` not `.init(allocator)`
-  3. Add allocator parameter: `lines.deinit(self.allocator)` and `lines.append(self.allocator, item)`
-**Test Coverage**: All compilation errors resolved, cross-compilation verified (Linux, Windows)
-**Commits**: e2b9d74, 12c83a6
-
-### Calendar Date Arithmetic and Navigation Constraints (2026-03-19)
-**Symptom**: Test failures in Calendar widget:
-  1. `addMonths()` incorrectly calculated month 10 + 5 months → month 4 instead of month 3
-  2. `nextYear()` didn't respect `max_date` constraint, allowing navigation beyond boundaries
-**Root Cause**:
-  1. Year-wrapping logic used `(12 - month)` instead of `(12 - month + 1)` to account for jumping to January
-  2. Navigation methods (`nextYear`, `prevYear`, `nextMonth`, `prevMonth`) lacked constraint checking
-**Fix**:
-  1. Corrected arithmetic: when at month 10 adding 5, consume 3 months to reach next January, leaving 2 to add → month 3
-  2. Added min/max date boundary checks in all navigation methods
-**Test Coverage**:
-  - "Date.addMonths wraps to next year" now passes
-  - "Calendar prevents navigation with min/max year constraints" now passes
-**Commit**: a5fcd8f
-
-### UTF-8 Handling in Menu Widget Submenu Indicators (2026-03-18)
-**Symptom**: Unicode submenu indicator '▶' rendered as byte 226 instead of codepoint 9654.
-**Root Cause**: `Menu.renderItems()` iterated over `submenu_indicator` as bytes (`for (self.submenu_indicator) |c|`), treating UTF-8 multi-byte sequences as individual characters.
-**Fix**: Use `std.unicode.Utf8View.init()` and iterator to decode codepoints properly.
-**Impact**: Render function signature changed to `!void` to handle UTF-8 validation errors.
-**Test Coverage**: Existing test "Menu.render with custom unicode submenu indicator" now passes.
-**Commit**: 578a46f
-
-### UTF-8 Handling in Buffer.setString (2026-02-28)
-**Symptom**: Emoji and CJK characters rendered as individual bytes instead of proper Unicode codepoints.
-**Root Cause**: `Buffer.setString()` was iterating byte-by-byte instead of decoding UTF-8 sequences.
-**Fix**: Use `std.unicode.utf8ByteSequenceLength()` and `std.unicode.utf8Decode()` to properly extract codepoints.
-**Test Coverage**: Added 6 edge case tests for Unicode, CJK, zero-width chars, boundaries.
-
-### Test Suite Hangs on Debug Print Output (2026-04-12 STABILIZATION Session 90)
-**Symptom**: `zig build test` hangs indefinitely after printing debug messages from stack_trace.zig tests
-  - Output shown: `[stack_trace.zig:97] test debug message` and similar debug values
-  - Build succeeds without issues: `zig build` completes instantly
-  - All 6 cross-compile targets build successfully
-  - Individual module compilation works, but full test suite hangs
-
-**Root Cause**: UNDER INVESTIGATION
-  - Likely culprits: async_loop.zig tests with Thread.sleep() and retry loops (lines 373-747)
-  - Tests spawn background threads and wait with timeout loops
-  - Possible deadlock or thread spawn failure causing infinite wait
-  - Or: stack_trace.zig debug print tests interfering with test protocol
-
-**Workaround**:
-  - Use `zig build` to verify compilation
-  - Use cross-compile targets to verify platform compatibility
-  - Individual file tests don't work due to module imports
-
-**Impact**: STABILIZATION mode blocked from running test suite
-  - Cannot verify test pass rate
-  - Cannot audit test quality without running tests
-  - Cross-platform verification still works (all 6 targets compile)
-
-**Next Steps**:
-  1. Isolate which test file causes hang (try commenting out test suites in build.zig)
-  2. Check if async_loop.zig thread spawn works in test environment
-  3. Consider skipping problematic tests with `test.skip()` or build flags
-
-**STATUS**: ⚠️ ACTIVE ISSUE (blocking test execution)
+> Compressed 2026-07-17 (session 375) — kept patterns with ongoing/future relevance, dropped
+> narrative detail on one-off fixes now fully resolved. Full history in git log if needed.
 
 ## Known Zig 0.15.x Gotchas (from zr experience)
 - `std.ArrayList(T){}` not `.init(allocator)` — unmanaged API
@@ -210,21 +13,53 @@ grep -r "// Should" src/tui/widgets/*.zig | wc -l  # Find incomplete tests
 - File-scope: `const X = expr;` (no `comptime` keyword — redundant error)
 - `zig build test` uses `--listen=-` protocol — NEVER use `stdout()` in test code
 - Ambiguous type references: Use module-level references (`const mod = @This()`) when re-exporting types
+- On Windows, `posix.fd_t` is `*anyopaque` (HANDLE), not `i32` — don't treat handles as integers
+- `std.posix.getenv()` doesn't exist on Windows (env vars are UTF-16) — guard with
+  `if (windows) return false; else { getenv() }`, NOT an early-return before the call (compiler
+  still analyzes the "unreachable" branch and fails to compile it on Windows targets)
+- `@floatFromInt` in struct literals needs explicit `@as(f32, ...)` wrapping
+- Pin macOS ARM64 CI runner to macos-15 — macos-latest→26 broke Zig 0.15.2 linking
 
-## Test Pattern Gotcha — Whole-Area Scans Can Hide Asymmetric Rendering (Session 351, v2.79.0)
-**Symptom**: `StreamGraph`'s "single layer fills above and below center" test passed even though the
-initial implementation only ever filled *downward* from center for a single layer (alternating
-above/below stacking, layer 0 always went down). The test's helper functions scanned the *entire*
-render area width, including the optional label column — and the layer's label text (e.g. "A")
-happened to land in a row above the vertical midpoint, satisfying `above > 0` for a reason
-unrelated to the chart's actual symmetry.
+## Test-Quality Anti-Patterns (recurring — audit for these every STABILIZATION session)
 
-**Root Cause**: Geometric/symmetry assertions that scan `area` (label column + all) rather than just
-the plotted-data columns can be satisfied by unrelated content (labels, borders, focus markers) that
-happens to occupy the checked region.
+### 1. Weak disjunction: `<specific_claim> or countNonEmptyCells(...) > N`
+Lets a test pass even when the specific claimed behavior (a marker char, border, label text) never
+renders, as long as SOME unrelated content occupies the area. Masked a real backwards-comparison
+bug in BoxPlot (session 354) and a real FlowChart render-order bug (session 375, see below).
+**Fix**: assert the specific claim directly; drop the `countNonEmptyCells` fallback unless the test
+name itself is genuinely generic ("produces content") with no specific claim to check.
+Swept clean as of session 375 (26+ instances across sessions 360/370, plus 15 more in
+bubble_chart/flowchart/gantt/gantt_chart/matrix_view found in session 375).
 
-**Fix**: Rewrote the stacking algorithm so the *whole stack* is centered on the middle row per column
-(`row_cursor` starts at `center - total_rows/2`), which is correct regardless of the test artifact —
-but future test-writers should still either (a) restrict such scans to the data-plot sub-rect
-excluding label/border columns, or (b) render with `show_labels=false` / no block, when asserting a
-geometric property of the plotted data itself.
+### 2. Placeholder `expect(true)` — literal no-op assertions
+Comment says "Placeholder; implementation will set style" or similar — the test always passes
+regardless of implementation. Found in toggle_switch_test.zig (session 375, widget added session
+374): fixing "applies base style to items" uncovered that `ToggleSwitchGroup.style` was never
+applied to items at all. **Detection**: `grep -rn "expect(true)\|expect(1 == 1)" tests/*.zig`.
+The project convention (confirmed across 12 "does not panic" tests elsewhere) is that even
+panic-safety tests pair the check with a real assertion of resulting buffer/cell state.
+
+### 3. Whole-area scans hide asymmetric/positional bugs (session 351, StreamGraph)
+Geometric/symmetry assertions that scan the entire `area` (including label/border columns) can be
+satisfied by unrelated content (labels, borders, focus markers) landing in the checked region by
+coincidence, rather than the property actually being verified. **Fix**: restrict scans to the
+data-plot sub-rect excluding label/border columns, or render with `show_labels=false`/no block when
+asserting a geometric property of plotted data itself.
+
+**Process insight (session 375)**: a widget being "uncommitted but `zig build test` green" (the
+session 363/369/374 pattern) is NOT evidence its tests are meaningful — apply the same
+weak-assertion scrutiny to newly-found work as to old files. Two real bugs shipped in v2.92.0
+(FlowChart render order predates v2.92.0; ToggleSwitchGroup.style bug was net-new) and only
+surfaced when stabilization forced weak assertions into strict ones.
+
+## Resolved Compilation/API Migration Issues (compressed)
+- **Zig 0.15 ArrayList/Thread API migration** (sessions 20, 45-75): unmanaged ArrayList, explicit
+  allocator params, `std.Thread.sleep` — see gotchas list above, all call sites fixed.
+- **Windows fd_t/getenv compilation failures** (sessions 45-75, commits fb40a43/26f507e/b30ff59):
+  fully resolved, all 6 cross-compile targets green since session 75.
+- **UTF-8 byte-vs-codepoint bugs** (Buffer.setString session ~feb, Menu submenu indicator session
+  18): iterating `for (str) |c|` treats UTF-8 multi-byte sequences as individual bytes — always
+  decode via `std.unicode.Utf8View`/`utf8Decode()` for user-facing text.
+- **"Test suite hangs" (session 90)**: was never root-caused but has not recurred in 280+ sessions
+  since — `zig build test` completes reliably (debug prints from stack_trace.zig tests are expected
+  stderr output, not a hang symptom). Considered stale; re-open only if the hang actually recurs.

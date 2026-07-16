@@ -2,11 +2,26 @@
 
 ## Current Status
 
-- **Latest release**: v2.92.0 (2026-07-16) — ToggleSwitch Widget
+- **Latest release**: v2.92.2 (2026-07-17) — patch: FlowChart render-order fix + ToggleSwitchGroup.style fix
 - **Latest minor**: v2.92.0 (2026-07-16) — ToggleSwitch Widget
 - **Next release**: TBD — replenish from feature-request issues, PRD gaps, or consumer feedback
 - **Active milestones**: 0 established
 - **Blockers**: None
+
+### v2.92.1 / v2.92.2 — Stabilization Patches (Complete)
+
+**Session 375 STABILIZATION**: continued the session 360/370 weak-disjunction-assertion audit (5
+more files: bubble_chart, flowchart, gantt, gantt_chart, matrix_view) and found 6 placeholder
+`expect(true)` tests in toggle_switch_test.zig. Strengthening both classes of weak test surfaced two
+real bugs:
+- **v2.92.1**: FlowChart rendered edges (arrows/labels) before nodes — node borders overwrote them.
+  Fixed render order (nodes first, edges on top).
+- **v2.92.2**: ToggleSwitchGroup.render() never applied `self.style` (group base style) to items —
+  silently dropped since v2.92.0. Fixed with applyGroupStyle/mergeStyles helpers.
+
+No new widgets/features — both are patch releases. 6/6 cross-compile targets verified for each.
+Consumer migration issues: zr#140, zoltraak#106, silica#118 (filed for v2.92.1, updated in place to
+point at v2.92.2 rather than filing duplicates).
 
 ### v2.92.0 — ToggleSwitch Widget (Complete)
 
