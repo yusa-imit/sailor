@@ -2,11 +2,25 @@
 
 ## Current Status
 
-- **Latest release**: v2.91.0 (2026-07-16) — IcicleChart Widget
-- **Latest minor**: v2.91.0 (2026-07-16) — IcicleChart Widget
+- **Latest release**: v2.92.0 (2026-07-16) — ToggleSwitch Widget
+- **Latest minor**: v2.92.0 (2026-07-16) — ToggleSwitch Widget
 - **Next release**: TBD — replenish from feature-request issues, PRD gaps, or consumer feedback
 - **Active milestones**: 0 established
 - **Blockers**: None
+
+### v2.92.0 — ToggleSwitch Widget (Complete)
+
+**Theme**: A boolean on/off slider-style form control, distinct from Checkbox's tick-mark convention — renders as a fixed-width bracketed track `[◯    ]`/`[    ◉]` with the knob sliding from left (off) to right (on), the layout convention most TUI/GUI toolkits use for binary settings. Scope: `ToggleSwitch` (label, checked, disabled, focused, on_label/off_label, per-state styles) + `ToggleSwitchGroup` (manages a slice of switches with radio-like exclusive-toggle focus navigation). Fixed TRACK_WIDTH=6, style precedence disabled > focused > checked-based (on/off), no heap allocations.
+
+**Checklist**:
+- [x] **src/tui/widgets/toggle_switch.zig** — ToggleSwitch + ToggleSwitchGroup; render()
+- [x] **tests/toggle_switch_test.zig** — 66 tests covering defaults, builder immutability, track/knob rendering, label truncation, style precedence, rendering edge cases (zero-width/height, narrow area), group focus navigation with disabled-item skipping and wrap-around, toggleFocused exclusivity
+- [x] Export ToggleSwitch, ToggleSwitchGroup via tui.zig widgets struct and top-level sailor.zig
+- [x] Add toggle_switch_tests to build.zig
+- [x] Release v2.92.0
+
+**Future candidate list** (carried forward — not yet scoped in detail):
+- (none currently — replenish from `gh issue list --label feature-request`, PRD gaps, or consumer feedback)
 
 ### v2.91.0 — IcicleChart Widget (Complete)
 
