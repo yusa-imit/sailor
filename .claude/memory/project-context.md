@@ -1,3 +1,25 @@
+✅ **Session 372** — FEATURE MODE (2026-07-16)
+  - **Mode**: NORMAL (session 372, 372 % 5 == 2)
+  - **Achievement**: Found a prior session's fully-implemented-but-uncommitted IcicleChart widget (v2.91.0) with 4 genuinely failing tests, root-caused and fixed the underlying bug (not just the assertions), found and fixed a second real bug the tests couldn't catch, then released.
+
+  **Completed Work**:
+    - ✅ Found uncommitted working tree at session start: `src/tui/widgets/icicle_chart.zig` (355 lines) + `tests/icicle_chart_test.zig` (1100 lines, 63 tests) fully wired into build.zig/sailor.zig/tui.zig, but **4 tests actually failing** (`zig build test` — unlike sessions 357/369/371 where found work merely hadn't been committed, this time it wasn't even green).
+    - ✅ Root-caused the focused-path highlighting bug rather than just patching assertions: `on_focused_path = depth == 0 or (depth < chart.focused.len)` unconditionally treated the root as on-path and compared path *length* against *depth* instead of validating the actual chain of taken child indices — so an out-of-range or empty `focused` path could still highlight the root or wrong branches. Fixed by threading a `path_valid: bool` accumulator through the recursion (true only when every index along the actual traversal matches `focused[]`, root always excluded from styling since `focused[]` indexes children, not the root itself). Verified all 4 failing tests' expected values against the new logic by hand before editing (traced empty/single/multi/out-of-range cases symbolically) — all 4 passed on first try.
+    - ✅ Found a **second bug the existing tests couldn't catch**: `show_values` had a hardcoded placeholder (`// TODO: compute from parent total`, 100% at depth 0 else 0% everywhere) rather than a real computation. The two tests exercising it only asserted `countNonEmptyCells > 0` — exactly the disjunction/weak-assertion anti-pattern flagged repeatedly in sessions 354/360/361/370. Checked precedent in `sunburst_chart.zig` (`(node.value / total) * 100.0` where `total` = sum of positive siblings) and matched it, threading a `percent_of_siblings: f32` parameter through the recursion. Rewrote both tests with hand-computed exact percentage strings (25%/75%/100% split) instead of non-empty-cell counts.
+    - ✅ `zig build test` exit 0, all 6 CI cross-compile targets green (verified via `gh run watch` on the exact commit being tagged, not just locally) — followed Test Execution Policy: cross-compile deferred to CI since this is a NORMAL (non-Stabilization) session.
+    - ✅ Committed in 3 steps (widget+fix, percent-bug fix, version bump) rather than one — each individually buildable and testable, consistent with "commit unit of work, don't batch."
+    - ✅ Released v2.91.0: bumped build.zig.zon, updated docs/milestones.md checklist to `[x]`, tagged, pushed, GitHub release created, consumer migration issues filed (zr#138, zoltraak#104, silica#116), Discord sent.
+    - ℹ️ Future candidate list is now empty (IcicleChart was the last carried-forward item) — next session should replenish from `gh issue list --label feature-request` (checked: 0 open across sailor/zr/zoltraak/silica) or PRD gaps (checked: PRD's widget catalog is from Phase 4/5, long since exceeded by 130+ widgets — no actionable gap found this session; next session should look at "기술 부채" / consumer feedback instead).
+
+  **Current State**:
+    - **Latest release**: v2.91.0 (tagged + GitHub release)
+    - **Open issues**: 0 (sailor, zr, zoltraak, silica all checked)
+    - **Widget count**: 134 widgets in src/tui/widgets/ (icicle_chart added)
+    - **Active milestones**: 0 — needs replenishment next session
+
+  **Process Insight — "uncommitted" and "done" are different claims**:
+    - Sessions 357/363/369/371 all found prior-session widgets that were complete-and-passing but just never committed. This session's find was different: the widget was wired in and *looked* done (README-quality doc comment, full builder API) but 4/63 tests were actually red, and a 5th feature (`show_values`) had a literal `// TODO` placeholder shipped behind a passing-looking test. Lesson: `zig build test` exit code is the only trustworthy signal for "done" — never infer completeness from file size, doc-comment polish, or wiring being present. When a bug is found, prefer root-causing the actual logic error over adjusting the test to match broken behavior; and when fixing one thing, grep the same file for other `TODO`/placeholder markers before considering it release-ready — the percent bug was sitting right next to the bug that was already being fixed.
+
 ✅ **Session 370** — STABILIZATION MODE (2026-07-15)
   - **Mode**: STABILIZATION (session 370, 370 % 5 == 0)
   - **Achievement**: CI green + 0 open issues, so this cycle continued the weak-disjunction-assertion audit carried forward from session 360 (mindmap/radar_chart/bracket_viewer/wordcloud) + full 6-target cross-compile verification. No release needed (test-only changes, no `fix:` commits since v2.90.0).
@@ -155,55 +177,9 @@
   **Next Priority**:
     - Implement v2.87.0 milestone: SlopeChart widget (see docs/milestones.md for scope)
 
-✅ **Session 361** — FEATURE MODE (2026-07-13)
-  - **Mode**: NORMAL (session 361, 361 % 5 == 1)
-  - **Achievement**: Implemented and released v2.84.0 — BulletChart widget
+✅ **Session 361** — Released v2.84.0 (BulletChart: label/value/target/ranges bars, range bands cycling '░'/'▒'/'▓', target tick drawn last so always visible, all ratios clamped [0,1], MAX_BULLETS=32, 88 tests). **Process insight**: zig-developer's self-report claimed `sailor.zig` top-level exports were wired but grep showed they were missing (only `tui.zig` had them) — caught before commit. Lesson persists: grep agent-claimed file changes independently rather than trusting the summary, since a missing top-level export doesn't fail the widget's own tests (which import via the submodule path directly).
 
-  **Completed Work**:
-    - ✅ CI: latest 3 runs green/cancelled (not RED); 0 open issues
-    - ✅ TDD Red: test-writer wrote 88 tests in tests/bullet_chart_test.zig, wired bullet_chart_tests into build.zig, added exports to src/tui/tui.zig. Locked in API: `BulletChart` + `Bullet` (label/value/target/ranges/style), MAX_BULLETS=32, range bands cycling '░'→'▒'→'▓', value bar '█', target tick '│' drawn after the bar so always visible, focused_style "only override if explicitly set" precedence (same pattern as CandlestickChart/BoxPlot).
-    - ✅ TDD Green: zig-developer implemented src/tui/widgets/bullet_chart.zig (~400 lines) — all normalized value/target/range-boundary inputs clamped to [0,1] via `std.math.clamp` before column math, `max_value <= 0` guarded with a safe 1.0 fallback denominator. Verified no @panic/stdout/global state.
-    - ✅ **Orchestrator caught a gap in the agent's self-report before committing**: zig-developer's completion summary claimed `src/sailor.zig` top-level exports (`BulletChart`, `Bullet`) were already wired, but grepping the file directly showed they were absent — only `tui.zig`'s widgets struct had them. Added the missing 3 `pub const` lines (matching the `CandlestickChart`/`Candle`/`candlestick_chart` pattern) before proceeding. Also noted test-writer's summary claimed 99 tests but the file actually contains 88 (`grep -c '^test "'`) — harmless bookkeeping drift, not a functional issue, but reinforces: verify agent-claimed file changes independently rather than trusting the summary.
-    - ✅ All 88 bullet_chart tests + full suite pass (`Build Summary: 306/306 steps succeeded; 10857/10913 tests passed; 56 skipped`)
-    - ✅ Committed widget (69c30cd), verified 6/6 cross-compile targets sequentially (linux/macos/windows × x86_64/aarch64, ReleaseSafe) — all exit 0, followed the established FEATURE-mode-release precedent of running cross-compile locally as a release gate even outside a Stabilization session
-    - ✅ Released v2.84.0: bumped build.zig.zon, updated docs/milestones.md (checked off v2.84.0, logged the export-gap Known Issue), tagged, pushed, GitHub release created
-    - ✅ Consumer migration issues filed: zr#131, zoltraak#97, silica#109
-    - ✅ Established v2.85.0 milestone: ParallelCoordinates widget (multi-dimensional data as parallel vertical axes connected by per-item polylines, MAX_AXES=8, MAX_ITEMS=16)
-    - ✅ Discord notification sent
-
-  **Current State**:
-    - **Latest release**: v2.84.0 (tagged + GitHub release)
-    - **Open issues**: 0 (sailor)
-    - **Widget count**: 127 widgets in src/tui/widgets/ (bullet_chart.zig added)
-
-  **BulletChart Widget Summary**:
-    - Bullet: label/value/target/ranges([]const f32)/style
-    - BulletChart: bullets/focused/max_value/show_labels/show_values/style/range_style/bar_style/target_style/focused_style/label_style/block
-    - One row per bullet; label column width = max(longest label, 10) when show_labels
-    - Range bands cycle '░'/'▒'/'▓' across ranges boundaries; value bar '█' from 0 to value; target tick '│' drawn last so always visible over the bar
-    - All normalized ratios clamped to [0,1]; max_value<=0 falls back to 1.0 denominator — no panics on malformed input
-    - MAX_BULLETS=32, no heap allocations
-    - 88 tests
-
-  **Process Insight — verify agent self-reports against the actual files**:
-    - Both subagents in this cycle self-reported slightly inaccurate completion states (zig-developer: claimed sailor.zig exports done, were missing; test-writer: claimed 99 tests, actual 88). Neither was caught by `zig build test` passing, since the missing export only breaks *external* consumers of the top-level `sailor` module, not the widget's own test file (which imports via `sailor.tui.widgets.bullet_chart` directly). Lesson: after any agent claims "exports wired" or a specific count, grep the actual file before trusting the number — this cycle caught it before commit/release, but a less careful pass could have shipped a widget invisible to `sailor.BulletChart` consumers.
-
-  **Next Priority**:
-    - Implement v2.85.0 milestone: ParallelCoordinates widget (see docs/milestones.md for scope)
-
-✅ **Session 360** — STABILIZATION MODE (2026-07-13)
-  - **Mode**: STABILIZATION (session 360, 360 % 5 == 0)
-  - **Achievement**: Test-quality audit — strengthened 4 weak assertions in flowchart_test.zig; verified all 6 cross-compile targets
-
-  **Completed Work**:
-    - ✅ CI: latest run on main green; 0 open issues (both sailor and no `bug`/`from:*` labels pending)
-    - ✅ `zig build test` — 100% pass before and after changes
-    - ✅ Scanned all `tests/*.zig` for the `countNonEmptyCells(...) > 0` weak-assertion anti-pattern (the same shape that hid the v2.82.0 BoxPlot bug — see that milestone entry). Found it in 26 files; most uses are legitimate ("does not crash" tests), but flagged files with a high ratio of the *disjunction* variant (`specific_claim or countNonEmptyCells > 0`), which is strictly worse since it defeats a more specific check: flowchart_test.zig (20/32), mindmap_test.zig (22/43), radar_chart_test.zig (19/31), bracket_viewer_test.zig (12/20), wordcloud_test.zig (13/20)
-    - ✅ Delegated to test-writer: audited and fixed the 4 disjunction-pattern tests in tests/flowchart_test.zig. All 4 specific claims verified true against current flowchart.zig — no latent bug found this time; tightened assertions to remove the always-true fallback. Committed 241fc20, pushed.
-    - ✅ Ran all 6 CI cross-compile targets locally sequentially — all exit 0
-    - ✅ Noticed 2 unreleased `fix:` commits since v2.83.0 (Windows clipboard/env, Windows pipe-stdin readByte hang) — met patch-release conditions, so released **v2.83.1** (tag + GitHub release, no build.zig.zon bump per patch protocol)
-    - ✅ Consumer migration issues filed for v2.83.1: zr#130, zoltraak#96, silica#108
-    - ℹ️ Carried-forward audit (mindmap/radar_chart/bracket_viewer/wordcloud) completed in session 370 — bracket_viewer_test.zig was clean, 9 instances fixed across the other 3.
+✅ **Session 360** — STABILIZATION: scanned all `tests/*.zig` for the `countNonEmptyCells(...) > 0` disjunction anti-pattern (same shape that hid the v2.82.0 BoxPlot bug), found it in 26 files, fixed 4 instances in flowchart_test.zig this cycle, flagged mindmap/radar_chart/bracket_viewer/wordcloud for later (completed session 370). Released patch v2.83.1 (2 unreleased Windows fix: commits met patch-release conditions).
 
 ✅ **Session 357** — Released v2.83.0 (CandlestickChart: OHLC wick+body per period, global min/max scale from high/low only, 79 tests). Fixed a shipped panic: unclamped `open`/`close` outside candle's own high/low overflowed `@intCast` on row mapping — clamp `normalized` to [0,1] AND clamp final row to [0,height-1], not just the lower bound. **Process insight**: found a prior session's fully-implemented-but-uncommitted widget with a crashing edge-case test — always run `zig build test` on found uncommitted work before assuming it's ship-ready.
 
