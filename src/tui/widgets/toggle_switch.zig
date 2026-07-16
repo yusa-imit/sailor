@@ -201,6 +201,43 @@ pub const ToggleSwitch = struct {
     }
 };
 
+/// Helper function to merge a group base style into an item's styles
+/// If the item's style property is not set (null/default), use the group's property
+fn applyGroupStyle(item: ToggleSwitch, group_style: Style) ToggleSwitch {
+    var result = item;
+
+    // Apply group style as base to each style property
+    // Item's explicit styles override group style
+    result.on_style = mergeStyles(group_style, item.on_style);
+    result.off_style = mergeStyles(group_style, item.off_style);
+    result.disabled_style = mergeStyles(group_style, item.disabled_style);
+    result.focused_style = mergeStyles(group_style, item.focused_style);
+    result.style = mergeStyles(group_style, item.style);
+
+    return result;
+}
+
+/// Merge base style with an override style
+/// Base provides defaults; override takes precedence where specified
+fn mergeStyles(base: Style, override: Style) Style {
+    var result = base;
+
+    // Color properties: override takes precedence if set
+    if (override.fg != null) result.fg = override.fg;
+    if (override.bg != null) result.bg = override.bg;
+
+    // Boolean properties: OR them together (if either has the flag, result has it)
+    result.bold = result.bold or override.bold;
+    result.dim = result.dim or override.dim;
+    result.italic = result.italic or override.italic;
+    result.underline = result.underline or override.underline;
+    result.blink = result.blink or override.blink;
+    result.reverse = result.reverse or override.reverse;
+    result.strikethrough = result.strikethrough or override.strikethrough;
+
+    return result;
+}
+
 /// Toggle switch group for managing multiple related toggle switches
 pub const ToggleSwitchGroup = struct {
     items: []ToggleSwitch,
@@ -330,7 +367,8 @@ pub const ToggleSwitchGroup = struct {
             if (y >= items_height) break;
 
             const is_focused = (i == self.focused);
-            const switch_item = item.withFocus(is_focused);
+            // Apply group base style to item, then apply focus
+            const styled_item = applyGroupStyle(item, self.style).withFocus(is_focused);
 
             const item_area = Rect{
                 .x = render_area.x,
@@ -338,7 +376,7 @@ pub const ToggleSwitchGroup = struct {
                 .width = render_area.width,
                 .height = 1,
             };
-            switch_item.render(buf, item_area);
+            styled_item.render(buf, item_area);
             y += 1;
         }
 

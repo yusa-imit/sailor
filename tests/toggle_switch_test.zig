@@ -426,8 +426,10 @@ test "render with zero-width area does not panic" {
     const ts = ToggleSwitch.init("Test");
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 1 };
     ts.render(&buf, area);
-    // Should not panic; buffer should remain unchanged
-    try testing.expect(true);
+    // Should not panic; buffer should remain unchanged (all default cells)
+    const cell = buf.getConst(0, 0);
+    try testing.expectEqual(' ', cell.?.char);
+    try testing.expectEqual(Style{}, cell.?.style);
 }
 
 test "render with zero-height area does not panic" {
@@ -437,8 +439,10 @@ test "render with zero-height area does not panic" {
     const ts = ToggleSwitch.init("Test");
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 0 };
     ts.render(&buf, area);
-    // Should not panic
-    try testing.expect(true);
+    // Should not panic; buffer should remain unchanged (all default cells)
+    const cell = buf.getConst(0, 0);
+    try testing.expectEqual(' ', cell.?.char);
+    try testing.expectEqual(Style{}, cell.?.style);
 }
 
 test "render with very narrow area (width < 7) does not panic" {
@@ -448,8 +452,9 @@ test "render with very narrow area (width < 7) does not panic" {
     const ts = ToggleSwitch.init("Test");
     const area = Rect{ .x = 0, .y = 0, .width = 5, .height = 1 };
     ts.render(&buf, area);
-    // Should not panic; may render partial track or nothing
-    try testing.expect(true);
+    // Should not panic; partial track should render (opening bracket at x=0)
+    const bracket = buf.getConst(0, 0);
+    try testing.expectEqual('[', bracket.?.char);
 }
 
 test "render at offset position (x, y) respects area origin" {
@@ -618,8 +623,8 @@ test "focusNext does nothing on empty group" {
     var empty_items: [0]ToggleSwitch = undefined;
     var group = ToggleSwitchGroup.init(&empty_items);
     group.focusNext();
-    // Should remain at 0 (or not change)
-    try testing.expect(true);
+    // Should remain at 0 (initial focused value, early return on empty items)
+    try testing.expectEqual(@as(usize, 0), group.focused);
 }
 
 // ============================================================================
@@ -714,17 +719,19 @@ test "ToggleSwitchGroup render applies base style to items" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 5 };
     group.render(&buf, area);
 
-    // Item should have base_style applied
+    // Item's track bracket should render with base_style foreground applied
     const item_cell = buf.getConst(0, 0);
     try testing.expect(item_cell != null);
-    // Style should include base_style or its components
-    try testing.expect(true); // Placeholder; implementation will set style
+    try testing.expectEqual('[', item_cell.?.char);
+    // Base style (blue) should be applied to the cell
+    try testing.expectEqual(.blue, item_cell.?.style.fg);
 }
 
 test "ToggleSwitchGroup render focuses first item by default" {
+    const focused_style = Style{ .bold = true };
     var items = [_]ToggleSwitch{
-        ToggleSwitch.init("A"),
-        ToggleSwitch.init("B"),
+        ToggleSwitch.init("A").withFocusedStyle(focused_style),
+        ToggleSwitch.init("B").withFocusedStyle(focused_style),
     };
     var group = ToggleSwitchGroup.init(&items);
     var buf = try Buffer.init(testing.allocator, 40, 5);
@@ -733,9 +740,14 @@ test "ToggleSwitchGroup render focuses first item by default" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 5 };
     group.render(&buf, area);
 
-    // First item (y=0) should be marked as focused
-    // Focused items typically get focused_style applied
-    try testing.expect(true); // Placeholder; exact assertion depends on implementation
+    // First item (y=0) should be rendered with focused_style (bold)
+    const first_item_cell = buf.getConst(0, 0);
+    try testing.expect(first_item_cell != null);
+    try testing.expect(first_item_cell.?.style.bold);
+    // Second item (y=1) should NOT have bold (not focused)
+    const second_item_cell = buf.getConst(0, 1);
+    try testing.expect(second_item_cell != null);
+    try testing.expect(!second_item_cell.?.style.bold);
 }
 
 // ============================================================================
