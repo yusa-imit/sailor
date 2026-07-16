@@ -2,25 +2,25 @@
 
 ## Current Status
 
-- **Latest release**: v2.90.0 (2026-07-15) — MosaicPlot Widget
-- **Latest minor**: v2.90.0 (2026-07-15) — MosaicPlot Widget
-- **Next release**: v2.91.0 — IcicleChart Widget
-- **Active milestones**: 1 established (not yet started)
+- **Latest release**: v2.91.0 (2026-07-16) — IcicleChart Widget
+- **Latest minor**: v2.91.0 (2026-07-16) — IcicleChart Widget
+- **Next release**: TBD — replenish from feature-request issues, PRD gaps, or consumer feedback
+- **Active milestones**: 0 established
 - **Blockers**: None
 
-### v2.91.0 — IcicleChart Widget (Not Started)
+### v2.91.0 — IcicleChart Widget (Complete)
 
-**Theme**: A rectangular (axis-aligned) hierarchical chart alternative to SunburstChart — same nested-value-share semantics but laid out as stacked horizontal bands instead of radial arcs, trading the radial widget's compactness for easier value-share comparison via aligned band widths. Complements SunburstChart (radial hierarchy) and Treemap (non-axis-aligned recursive rectangles, no explicit depth axis) by giving each hierarchy depth its own row, with each node's band width proportional to its value share of its parent. Candidate scope: `IcicleChart` + `IcicleNode` (label, value: f32, children: []const IcicleNode, style) — depth-first layout where depth 0 spans the full width as a single root row, each subsequent depth row subdivides its parent's width span proportionally among its children (cumulative-floor formula, consistent with MosaicPlot/SunburstChart precedent), focused node highlighting (path-to-root or single-node), optional node labels rendered when band width permits. MAX_DEPTH=6, MAX_CHILDREN_PER_NODE=8, no heap allocations (fixed-depth recursion or explicit stack).
+**Theme**: A rectangular (axis-aligned) hierarchical chart alternative to SunburstChart — same nested-value-share semantics but laid out as stacked horizontal bands instead of radial arcs, trading the radial widget's compactness for easier value-share comparison via aligned band widths. Complements SunburstChart (radial hierarchy) and Treemap (non-axis-aligned recursive rectangles, no explicit depth axis) by giving each hierarchy depth its own row, with each node's band width proportional to its value share of its parent. Scope: `IcicleChart` + `IcicleNode` (label, value: f32, children: []const IcicleNode, style) — depth-first layout where depth 0 spans the full width as a single root row, each subsequent depth row subdivides its parent's width span proportionally among its children (cumulative-floor formula, consistent with MosaicPlot/SunburstChart precedent), focused node highlighting (path-to-root or single-node), optional node labels rendered when band width permits. MAX_DEPTH=6, MAX_CHILDREN_PER_NODE=8, no heap allocations (fixed-depth recursion).
 
 **Checklist**:
-- [ ] **src/tui/widgets/icicle_chart.zig** — IcicleChart + IcicleNode; render()
-- [ ] **tests/icicle_chart_test.zig** — meaningful tests covering defaults, builder immutability, band width proportionality per depth (hand-computed against known value trees), MAX_DEPTH/MAX_CHILDREN_PER_NODE capping, focused node styling, rendering edge cases, zero-value/negative-value handling (no-panic regression)
-- [ ] Export IcicleChart, IcicleNode via tui.zig widgets struct and top-level sailor.zig
-- [ ] Add icicle_chart_tests to build.zig
-- [ ] Release v2.91.0
+- [x] **src/tui/widgets/icicle_chart.zig** — IcicleChart + IcicleNode; render()
+- [x] **tests/icicle_chart_test.zig** — 63 tests covering defaults, builder immutability, band width proportionality per depth (hand-computed against known value trees), MAX_DEPTH/MAX_CHILDREN_PER_NODE capping, focused node styling, rendering edge cases, zero-value/negative-value handling (no-panic regression)
+- [x] Export IcicleChart, IcicleNode via tui.zig widgets struct and top-level sailor.zig
+- [x] Add icicle_chart_tests to build.zig
+- [x] Release v2.91.0
 
 **Future candidate list** (carried forward — not yet scoped in detail):
-- (none currently — replenish from `gh issue list --label feature-request`, PRD gaps, or consumer feedback when this milestone completes)
+- (none currently — replenish from `gh issue list --label feature-request`, PRD gaps, or consumer feedback)
 
 ### v2.90.0 — MosaicPlot Widget (Complete)
 
