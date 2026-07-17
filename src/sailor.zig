@@ -304,6 +304,10 @@ pub const icicle_chart = tui.widgets.icicle_chart;
 pub const ToggleSwitch = tui.widgets.ToggleSwitch;
 pub const ToggleSwitchGroup = tui.widgets.ToggleSwitchGroup;
 
+// v2.93.0 — CalendarHeatmap Widget
+pub const CalendarHeatmap = tui.widgets.CalendarHeatmap;
+pub const calendar_heatmap = tui.widgets.calendar_heatmap;
+
 pub const Viewport = tui.viewport.Viewport;
 pub const VirtualRenderer = tui.virtual.VirtualRenderer;
 pub const IncrementalLayout = tui.incremental_layout.IncrementalLayout;

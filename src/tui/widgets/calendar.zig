@@ -378,6 +378,12 @@ pub const Calendar = struct {
         self.range_end = date;
     }
 
+    /// Set both range start and end dates
+    pub fn setRange(self: *Calendar, start: Date, end: Date) void {
+        self.range_start = start;
+        self.range_end = end;
+    }
+
     /// Clear the date range
     pub fn clearRange(self: *Calendar) void {
         self.range_start = null;

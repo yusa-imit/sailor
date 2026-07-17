@@ -2,11 +2,31 @@
 
 ## Current Status
 
-- **Latest release**: v2.92.2 (2026-07-17) — patch: FlowChart render-order fix + ToggleSwitchGroup.style fix
-- **Latest minor**: v2.92.0 (2026-07-16) — ToggleSwitch Widget
+- **Latest release**: v2.93.0 (2026-07-17) — minor: CalendarHeatmap Widget
+- **Latest minor**: v2.93.0 (2026-07-17) — CalendarHeatmap Widget
 - **Next release**: TBD — replenish from feature-request issues, PRD gaps, or consumer feedback
 - **Active milestones**: 0 established
 - **Blockers**: None
+
+### v2.93.0 — CalendarHeatmap Widget (Complete)
+
+**Theme**: A GitHub-style contribution/activity heatmap — daily values plotted as a week-columns ×
+weekday-rows grid, each cell shaded by intensity level. Distinct from `Calendar` (month-view date
+picker, no value encoding) and `Heatmap` (generic 2D numeric matrix, no date/week semantics) —
+combines date-aware weekly layout with value-intensity shading. Reuses `Calendar.Date` (already
+has `dayOfWeek()`/`addDays()`) rather than reimplementing date arithmetic. Scope: `CalendarHeatmap`
+— `values: []const f32` (index 0 = `start_date`, index n = `start_date + n` days), `start_date:
+Date`, `first_day_of_week: u3`, 5-level intensity shading (empty + 4 levels via `min_val`/`max_val`
+normalization, block-shade chars), optional month labels (placed at each month's first week
+column) and weekday labels (Mon/Wed/Fri convention), focused cell highlighting. MAX_ENTRIES=371
+(53 weeks × 7 days), no heap allocations.
+
+**Checklist**:
+- [x] **src/tui/widgets/calendar_heatmap.zig** — CalendarHeatmap; render()
+- [x] **tests/calendar_heatmap_test.zig** — tests covering defaults, builder immutability, week/weekday column-row mapping (hand-computed against known start dates), intensity-level bucketing, month label placement, weekday label placement, focused cell styling, MAX_ENTRIES capping, rendering edge cases (zero-width/height, empty values, all-zero values, negative values no-panic)
+- [x] Export CalendarHeatmap via tui.zig widgets struct and top-level sailor.zig
+- [x] Add calendar_heatmap_tests to build.zig
+- [x] Release v2.93.0
 
 ### v2.92.1 / v2.92.2 — Stabilization Patches (Complete)
 

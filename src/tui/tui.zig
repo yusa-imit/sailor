@@ -610,6 +610,11 @@ pub const widgets = struct {
     // v2.92.0 — ToggleSwitch Widget
     pub const ToggleSwitch = @import("widgets/toggle_switch.zig").ToggleSwitch;
     pub const ToggleSwitchGroup = @import("widgets/toggle_switch.zig").ToggleSwitchGroup;
+
+    // v2.93.0 — CalendarHeatmap Widget
+    pub const calendar = @import("widgets/calendar.zig");
+    pub const calendar_heatmap = @import("widgets/calendar_heatmap.zig");
+    pub const CalendarHeatmap = calendar_heatmap.CalendarHeatmap;
 };
 
 // Export commonly used types
