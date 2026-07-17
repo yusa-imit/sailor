@@ -322,7 +322,10 @@ pub const ErrorBarChart = struct {
 /// Helper: Format and draw value label
 fn drawValueLabel(buf: *Buffer, x: u16, y: u16, value: f32, style: Style) void {
     var value_str: [16]u8 = undefined;
-    const int_part: i32 = @intFromFloat(value);
+    // Clamp value to safe i32 range to prevent panic on @intFromFloat
+    // Use ±999_999_999 to stay well within i32 range and be safely representable in f32
+    const clamped_value = @max(-999_999_999.0, @min(value, 999_999_999.0));
+    const int_part: i32 = @intFromFloat(clamped_value);
     var str_len: usize = 0;
 
     if (int_part < 0) {

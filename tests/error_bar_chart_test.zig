@@ -557,11 +557,24 @@ test "ErrorBarChart.render value at min_val renders at leftmost position" {
     const chart = ErrorBarChart.init()
         .withItems(&items)
         .withMinVal(0.0)
-        .withMaxVal(1.0);
+        .withMaxVal(1.0)
+        .withMarkerChar('*');
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     chart.render(&buf, area);
-    const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);
+    // When value=min_val=0.0, normalized value=0.0, marker should be at leftmost column (0 offset in plot)
+    // With label column width (~min(1, 40/3)=1) + separator, plot starts around x=2
+    // Marker should be at plot_x + 0 = around x=2
+    // Verify marker appears at leftmost part of plot area
+    var found_marker_in_leftmost = false;
+    for (0..10) |x| { // Check leftmost 10 columns of the plot
+        if (buf.getConst(@as(u16, @intCast(area.x + x)), 0)) |cell| {
+            if (cell.char == '*') {
+                found_marker_in_leftmost = true;
+                break;
+            }
+        }
+    }
+    try testing.expect(found_marker_in_leftmost);
 }
 
 test "ErrorBarChart.render value at max_val renders at rightmost position" {
@@ -571,11 +584,22 @@ test "ErrorBarChart.render value at max_val renders at rightmost position" {
     const chart = ErrorBarChart.init()
         .withItems(&items)
         .withMinVal(0.0)
-        .withMaxVal(1.0);
+        .withMaxVal(1.0)
+        .withMarkerChar('*');
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     chart.render(&buf, area);
-    const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);
+    // When value=max_val=1.0, normalized value=1.0, marker should be at rightmost column
+    // Verify marker appears in rightmost part of the area
+    var found_marker_in_rightmost = false;
+    for (30..40) |x| { // Check rightmost 10 columns
+        if (buf.getConst(@as(u16, @intCast(area.x + x)), 0)) |cell| {
+            if (cell.char == '*') {
+                found_marker_in_rightmost = true;
+                break;
+            }
+        }
+    }
+    try testing.expect(found_marker_in_rightmost);
 }
 
 test "ErrorBarChart.render value at middle of range renders near middle" {
@@ -621,11 +645,15 @@ test "ErrorBarChart.render with custom range scales correctly" {
     const chart = ErrorBarChart.init()
         .withItems(&items)
         .withMinVal(100.0)
-        .withMaxVal(200.0);
+        .withMaxVal(200.0)
+        .withWhiskerChar('│');
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };
     chart.render(&buf, area);
-    const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);
+    // Verify that whiskers are rendered across multiple rows (custom range allows different scales)
+    const whisker_count = countChar(buf, area, '│');
+    try testing.expect(whisker_count > 0);
+    // At least 3 items should produce multiple whisker segments
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 // ============================================================================
@@ -757,8 +785,7 @@ test "ErrorBarChart.render with custom cap_char displays the character" {
     const chart = ErrorBarChart.init().withItems(&items).withCapChar('=');
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     chart.render(&buf, area);
-    const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);
+    try testing.expect(areaHasChar(buf, area, '='));
 }
 
 test "ErrorBarChart.render with custom whisker_char displays the character" {
@@ -768,8 +795,7 @@ test "ErrorBarChart.render with custom whisker_char displays the character" {
     const chart = ErrorBarChart.init().withItems(&items).withWhiskerChar('!');
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     chart.render(&buf, area);
-    const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);
+    try testing.expect(areaHasChar(buf, area, '!'));
 }
 
 // ============================================================================
@@ -1018,12 +1044,12 @@ test "ErrorBarChart.render very large err_low and err_high does not crash" {
     const chart = ErrorBarChart.init()
         .withItems(&items)
         .withMinVal(0.0)
-        .withMaxVal(1.0);
+        .withMaxVal(1.0)
+        .withMarkerChar('*');
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     chart.render(&buf, area);
-    // No panic is success
-    const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0); // Just ensure it ran
+    // No panic is success; verify marker is present (clamped to valid position)
+    try testing.expect(areaHasChar(buf, area, '*'));
 }
 
 test "ErrorBarChart.render asymmetric errors renders marker correctly" {
@@ -1050,11 +1076,53 @@ test "ErrorBarChart.render zero error bars (point estimate only) does not crash"
     const chart = ErrorBarChart.init()
         .withItems(&items)
         .withMinVal(0.0)
-        .withMaxVal(1.0);
+        .withMaxVal(1.0)
+        .withMarkerChar('*')
+        .withCapChar('=');
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     chart.render(&buf, area);
-    const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);
+    // When err_low=err_high=0, low_col==high_col==value_col, so whisker, cap, and marker all target the same cell.
+    // Draw order (whisker → caps → marker) means marker should win (drawn last).
+    // Verify marker is present (not overwritten by cap):
+    try testing.expect(areaHasChar(buf, area, '*'));
+    // The marker should be at the value position, not the cap character
+    // Since all three coincide at same column, marker must be drawn last to "win" and be visible
+}
+
+test "ErrorBarChart.render extremely large item.value with show_values=true does not panic" {
+    var buf = try Buffer.init(testing.allocator, 60, 20);
+    defer buf.deinit();
+    // CRITICAL REGRESSION: drawValueLabel() casts raw item.value to i32 without clamping.
+    // Values outside i32 range (~±2.147e9) cause panic: "integer part of floating point value out of bounds"
+    // This test locks in the fix: extremely large values must be handled gracefully.
+    var items = [_]ErrorBarItem{.{ .label = "LargeVal", .value = 5_000_000_000.0, .err_low = 1e8, .err_high = 1e8 }};
+    const chart = ErrorBarChart.init()
+        .withItems(&items)
+        .withMinVal(0.0)
+        .withMaxVal(1e10)
+        .withShowValues(true)
+        .withMarkerChar('*');
+    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
+    chart.render(&buf, area);
+    // No panic is success; marker must be rendered at valid clamped position
+    try testing.expect(areaHasChar(buf, area, '*'));
+}
+
+test "ErrorBarChart.render extremely large negative item.value with show_values=true does not panic" {
+    var buf = try Buffer.init(testing.allocator, 60, 20);
+    defer buf.deinit();
+    // CRITICAL REGRESSION: same as above but with very large negative value
+    var items = [_]ErrorBarItem{.{ .label = "NegLarge", .value = -5_000_000_000.0, .err_low = 1e8, .err_high = 1e8 }};
+    const chart = ErrorBarChart.init()
+        .withItems(&items)
+        .withMinVal(-1e10)
+        .withMaxVal(1e10)
+        .withShowValues(true)
+        .withMarkerChar('*');
+    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
+    chart.render(&buf, area);
+    // No panic is success; marker must be rendered at valid clamped position
+    try testing.expect(areaHasChar(buf, area, '*'));
 }
 
 // ============================================================================
@@ -1068,12 +1136,12 @@ test "ErrorBarChart.render min_val == max_val does not crash" {
     const chart = ErrorBarChart.init()
         .withItems(&items)
         .withMinVal(0.5)
-        .withMaxVal(0.5);
+        .withMaxVal(0.5)
+        .withMarkerChar('*');
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     chart.render(&buf, area);
-    // No panic is success; marker should still render (likely centered)
-    const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    // No panic is success; marker should still render (centered when range is 0)
+    try testing.expect(areaHasChar(buf, area, '*'));
 }
 
 test "ErrorBarChart.render min_val > max_val does not crash" {
@@ -1083,12 +1151,12 @@ test "ErrorBarChart.render min_val > max_val does not crash" {
     const chart = ErrorBarChart.init()
         .withItems(&items)
         .withMinVal(1.0)
-        .withMaxVal(0.0);
+        .withMaxVal(0.0)
+        .withMarkerChar('*');
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     chart.render(&buf, area);
-    // No panic is success
-    const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    // No panic is success; marker should still render (degenerate range handled)
+    try testing.expect(areaHasChar(buf, area, '*'));
 }
 
 test "ErrorBarChart.render very small range (near-degenerate) does not crash" {
@@ -1098,12 +1166,12 @@ test "ErrorBarChart.render very small range (near-degenerate) does not crash" {
     const chart = ErrorBarChart.init()
         .withItems(&items)
         .withMinVal(0.0)
-        .withMaxVal(0.0002);
+        .withMaxVal(0.0002)
+        .withMarkerChar('*');
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     chart.render(&buf, area);
-    // No panic is success
-    const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    // No panic is success; marker should render at valid position despite tiny range
+    try testing.expect(areaHasChar(buf, area, '*'));
 }
 
 // ============================================================================
