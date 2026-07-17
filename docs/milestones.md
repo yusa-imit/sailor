@@ -2,11 +2,47 @@
 
 ## Current Status
 
-- **Latest release**: v2.93.0 (2026-07-17) — minor: CalendarHeatmap Widget
-- **Latest minor**: v2.93.0 (2026-07-17) — CalendarHeatmap Widget
+- **Latest release**: v2.94.0 (2026-07-17) — minor: ErrorBarChart Widget
+- **Latest minor**: v2.94.0 (2026-07-17) — ErrorBarChart Widget
 - **Next release**: TBD — replenish from feature-request issues, PRD gaps, or consumer feedback
 - **Active milestones**: 0 established
 - **Blockers**: None
+
+### v2.94.0 — ErrorBarChart Widget (Complete)
+
+**Theme**: A vertical error-bar chart widget showing a point estimate with a whisker spanning
+`value - err_low` to `value + err_high` per category — encodes measurement uncertainty / confidence
+intervals, distinct from BoxPlot (full five-number distribution summary), BulletChart (target vs
+qualitative range bands), and DotPlot (single point, no uncertainty). No PRD/issue backing existed
+this session (0 open issues across sailor/zr/zoltraak/silica, 0 feature-request issues, 0 TODOs in
+source) — proposed organically per the "no active milestone" fallback, following the same pattern
+as recent chart-widget releases (v2.86.0–v2.93.0). Scope: `ErrorBarChart` + `ErrorBarItem` (label,
+value, err_low, err_high, style) — one row per item (mirrors DotPlot/BulletChart layout), asymmetric
+whisker normalized against min_val/max_val, draw order whisker → caps → marker (marker always wins,
+regression-tested via the zero-error-bar coincident-cell case), focused item highlighting, optional
+labels/value display, custom marker/cap/whisker characters. MAX_ITEMS=32, no heap allocations.
+
+**Checklist**:
+- [x] **src/tui/widgets/error_bar_chart.zig** — ErrorBarChart + ErrorBarItem; render()
+- [x] **tests/error_bar_chart_test.zig** — 98 tests covering defaults, builder immutability, hand-computed geometry (leftmost/rightmost marker column, whisker span length via `countChar`), draw-order regression (marker wins over coincident whisker/cap), custom character rendering, focused styling, label/value toggles, block border, MAX_ITEMS capping, rendering edge cases, no-panic regressions (asymmetric/out-of-range errors, degenerate min_val>=max_val range, extreme i32-overflowing values with show_values=true)
+- [x] Export ErrorBarChart, ErrorBarItem via tui.zig widgets struct and top-level sailor.zig
+- [x] Add error_bar_chart_tests to build.zig
+- [x] Release v2.94.0
+
+**Known Issue — caught by code-reviewer before release, fixed same cycle**:
+- `drawValueLabel()`'s `@intFromFloat(value)` to `i32` cast operated on the raw, unclamped
+  `item.value` whenever `show_values=true` — any value outside i32 range (e.g. 5e9) triggered a
+  reproducible panic. Same bug class as CandlestickChart (session 357) and BoxPlot (session 354):
+  a normalization/formatting helper clamped the *plot-position* math correctly but missed a
+  separate unclamped cast elsewhere in the same render path. Fixed by clamping `value` to
+  `±999_999_999.0` before the cast. Caught because code-reviewer independently reproduced the
+  panic with a scoped test rather than trusting the "no-panic" test group's existing (tautological
+  `non_empty >= 0`) assertions — reinforces that weak assertions don't just fail to catch bugs,
+  they can actively mask a reviewer's own verification if taken at face value.
+- Separately, code-reviewer found 4 tautological `expect(non_empty >= 0)` assertions (always true
+  on `usize`) and several "hand-computed" geometry tests that only checked `non_empty > 0` despite
+  the section header's claim — both fixed by test-writer using the already-defined-but-unused
+  `areaHasChar`/`countChar` helpers before the implementation fix landed.
 
 ### v2.93.0 — CalendarHeatmap Widget (Complete)
 
