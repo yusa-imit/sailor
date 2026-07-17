@@ -242,6 +242,10 @@ pub const funnel_chart = tui.widgets.funnel_chart;
 pub const DotPlot = tui.widgets.DotPlot;
 pub const DotPlotItem = tui.widgets.DotPlotItem;
 pub const dot_plot = tui.widgets.dot_plot;
+
+pub const ErrorBarChart = tui.widgets.ErrorBarChart;
+pub const ErrorBarItem = tui.widgets.ErrorBarItem;
+pub const error_bar_chart = tui.widgets.error_bar_chart;
 pub const RadialBar = tui.widgets.RadialBar;
 pub const RadialArc = tui.widgets.RadialArc;
 pub const radial_bar = tui.widgets.radial_bar;

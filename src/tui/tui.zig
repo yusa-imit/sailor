@@ -534,6 +534,11 @@ pub const widgets = struct {
     pub const DotPlot = dot_plot.DotPlot;
     pub const DotPlotItem = dot_plot.DotPlotItem;
 
+    // v2.94.0 — ErrorBarChart Widget
+    pub const error_bar_chart = @import("widgets/error_bar_chart.zig");
+    pub const ErrorBarChart = error_bar_chart.ErrorBarChart;
+    pub const ErrorBarItem = error_bar_chart.ErrorBarItem;
+
     // v2.78.0 — RadialBar Widget
     pub const radial_bar = @import("widgets/radial_bar.zig");
     pub const RadialBar = radial_bar.RadialBar;
