@@ -240,3 +240,6 @@
 {"timestamp":"2026-07-16T06:37:35Z","action":"subagent","agent_type":"zig-developer","task":"Resume ToggleSwitch implementation — fix 2 remaining failing tests, verify full test suite, finish wiring","project":"sailor"}
 {"timestamp":"2026-07-17T04:00:00Z","action":"subagent","agent_type":"test-writer","task":"Strengthen 15 weak 'or countNonEmptyCells(...) > N' disjunction assertions across bubble_chart/flowchart/gantt/gantt_chart/matrix_view test files; found and fixed FlowChart edge/node render-order bug","project":"sailor"}
 {"timestamp":"2026-07-17T04:30:00Z","action":"subagent","agent_type":"test-writer","task":"Replace 6 placeholder expect(true) assertions in toggle_switch_test.zig with real assertions; found and fixed ToggleSwitchGroup.style not being applied to items","project":"sailor"}
+{"timestamp":"2026-07-17T00:28:54Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for CalendarHeatmap widget (v2.93.0)","project":"sailor"}
+{"timestamp":"2026-07-17T00:32:55Z","action":"subagent","agent_type":"zig-developer","task":"Implement CalendarHeatmap widget to pass failing tests (v2.93.0)","project":"sailor"}
+{"timestamp":"2026-07-17T00:52:08Z","action":"subagent","agent_type":"code-reviewer","task":"Review CalendarHeatmap widget implementation and calendar.zig setRange fix (v2.93.0)","project":"sailor"}
