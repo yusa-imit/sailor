@@ -79,10 +79,8 @@ test "flamegraph tracks self time correctly" {
     const parent = frames[0];
     // Total should be >= some time, self should be < total
     // On Windows, timer resolution may be lower, so just verify ordering
-    try testing.expect(parent.total_time_ns >= 0); // no negative time
-    if (parent.total_time_ns > 0) {
-        try testing.expect(parent.self_time_ns <= parent.total_time_ns);
-    }
+    try testing.expect(parent.total_time_ns > 0);  // Work was done, time should be recorded
+    try testing.expect(parent.self_time_ns <= parent.total_time_ns);  // Self time <= total time invariant
 }
 
 test "flamegraph deep nesting 5 levels" {
@@ -243,7 +241,7 @@ test "flamegraph timing accumulates correctly" {
         allocator.free(frames);
     }
 
-    try testing.expect(frames[0].total_time_ns >= 0);
+    try testing.expect(frames[0].total_time_ns > 0);  // Work was done, time should be recorded
     if (frames[0].children.len > 0) {
         try testing.expect(frames[0].children[0].total_time_ns <= frames[0].total_time_ns);
     }

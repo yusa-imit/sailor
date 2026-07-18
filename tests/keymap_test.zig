@@ -440,7 +440,7 @@ test "KeyMap goToBottom sets to max" {
     var km = KeyMap.init(&sections);
     km.goToBottom();
     // Total rows = 4 (1 title + 3 bindings), max scroll should clamp properly
-    try testing.expect(km.scroll_offset >= 0);
+    try testing.expectEqual(@as(usize, 4), km.scroll_offset);  // goToBottom sets offset to total rows
 }
 
 test "KeyMap goToTop after goToBottom returns to 0" {
@@ -1303,7 +1303,7 @@ test "KeyMap goToBottom then goToTop cycles correctly" {
     const sections = [_]KeySection{section};
     var km = KeyMap.init(&sections);
     km.goToBottom();
-    try testing.expect(km.scroll_offset >= 0);
+    try testing.expectEqual(@as(usize, 2), km.scroll_offset);  // 1 title + 1 binding = 2 rows total
     km.goToTop();
     try testing.expectEqual(@as(usize, 0), km.scroll_offset);
 }

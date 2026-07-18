@@ -335,7 +335,7 @@ test "CandlestickChart.render with degenerate candle (all OHLC identical)" {
     chart.render(&buf, area);
     // Should not crash; may produce minimal or no content due to degenerate scaling
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    try testing.expect(non_empty > 0);  // Degenerate: identical OHLC still renders a centered doji marker
 }
 
 // ============================================================================
@@ -1102,7 +1102,7 @@ test "CandlestickChart.render with all identical OHLC (high==low==open==close)" 
     chart.render(&buf, area);
     // Should not crash; may produce minimal content due to degenerate scaling
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    try testing.expect(non_empty > 0);  // Degenerate: no price variation still renders centered doji markers
 }
 
 test "CandlestickChart.render multiple candles all with identical OHLC" {
@@ -1116,7 +1116,7 @@ test "CandlestickChart.render multiple candles all with identical OHLC" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
     chart.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    try testing.expect(non_empty > 0);  // Degenerate: each centered doji marker renders even with identical OHLC
 }
 
 test "CandlestickChart.render with negative and positive prices" {
@@ -1138,7 +1138,7 @@ test "CandlestickChart.render single candle with n=1 does not divide by zero" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     chart.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    try testing.expect(non_empty > 0);  // Single valid candle should render
 }
 
 // ============================================================================
@@ -1153,7 +1153,7 @@ test "CandlestickChart.render minimal height (3 rows) without label row" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 3 };
     chart.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    try testing.expect(non_empty > 0);  // Valid candle should render even in constrained height
 }
 
 test "CandlestickChart.render very narrow width" {
@@ -1164,7 +1164,7 @@ test "CandlestickChart.render very narrow width" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 15 };
     chart.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    try testing.expect(non_empty > 0);  // Valid candle should render even at narrow width
 }
 
 test "CandlestickChart.render tiny area (8x6) does not crash" {
@@ -1295,5 +1295,5 @@ test "CandlestickChart.render with out-of-range open price does not crash" {
 
     // Render completed without panic — verify some content was produced
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    try testing.expect(non_empty > 0);  // Valid high/low range should render despite malformed open
 }

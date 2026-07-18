@@ -313,7 +313,7 @@ test "render with no tasks but with block renders border only" {
 
     // Border characters should render (or minimal rendering)
     const cells = countNonEmptyCells(buf, area);
-    try testing.expect(cells >= 0); // No crash is the key requirement
+    try testing.expect(cells > 0); // Block border should render
 }
 
 // ============================================================================
@@ -779,7 +779,7 @@ test "render with no tasks or end=0 defaults scale gracefully" {
 
     // Should not crash even with end=0
     const cells = countNonEmptyCells(buf, area);
-    try testing.expect(cells >= 0);
+    try testing.expect(cells > 0);  // Task label should render despite zero duration
 }
 
 // ============================================================================
@@ -915,7 +915,7 @@ test "render task with start == end renders no-width bar without crash" {
 
     // Should not crash even with zero-width bar
     const cells = countNonEmptyCells(buf, area);
-    try testing.expect(cells >= 0);
+    try testing.expect(cells > 0);  // Task label should render
 }
 
 test "render task with end=0 does not crash" {
@@ -929,7 +929,7 @@ test "render task with end=0 does not crash" {
 
     // Should handle gracefully
     const cells = countNonEmptyCells(buf, area);
-    try testing.expect(cells >= 0);
+    try testing.expect(cells > 0);  // Task label should render
 }
 
 test "render in offset area (x>0, y>0) renders correctly" {

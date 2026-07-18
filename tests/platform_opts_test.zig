@@ -207,7 +207,7 @@ test "macOS MetalCapability struct contains version info" {
     defer result.deinit();
 
     // Version should be either 0 (not available) or > 0
-    try testing.expect(result.version >= 0);
+    try testing.expect(result.version == 0 or result.version == 1);  // Metal version is 0 or 1
 }
 
 test "macOS detectMetalSupport returns allocated result that must be freed" {

@@ -947,7 +947,7 @@ test "negative values in series clamp safely without overflow" {
 
     plot.render(&buf, area);
     // Should not crash or overflow
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);  // Valid positive values should render ridge
 }
 
 test "all-negative values do not crash" {

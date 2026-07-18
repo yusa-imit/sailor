@@ -444,7 +444,7 @@ test "render with 2 axes produces content" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 24 };
     pc.render(&buf, area);
 
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);  // Test name asserts content production
 }
 
 test "render with 2 axes and 1 item shows polyline" {
@@ -528,7 +528,7 @@ test "render with 3 axes produces content" {
     const area = Rect{ .x = 0, .y = 0, .width = 70, .height = 24 };
     pc.render(&buf, area);
 
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);  // Test name asserts content production
 }
 
 test "render with 4 axes shows even spacing" {
@@ -1219,7 +1219,7 @@ test "render with block in offset area" {
     const area = Rect{ .x = 10, .y = 5, .width = 50, .height = 20 };
     pc.render(&buf, area);
 
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);  // Block with axes should render content
 }
 
 test "render block in tiny area does not crash" {

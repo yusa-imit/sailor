@@ -244,3 +244,5 @@
 {"timestamp":"2026-07-17T00:32:55Z","action":"subagent","agent_type":"zig-developer","task":"Implement CalendarHeatmap widget to pass failing tests (v2.93.0)","project":"sailor"}
 {"timestamp":"2026-07-17T00:52:08Z","action":"subagent","agent_type":"code-reviewer","task":"Review CalendarHeatmap widget implementation and calendar.zig setRange fix (v2.93.0)","project":"sailor"}
 {"timestamp":"2026-07-18T00:34:32Z","action":"subagent","agent_type":"test-writer","task":"Fix tautological >=0 assertions and expect(true) placeholders in box_plot_test.zig, bullet_chart_test.zig, calendar_heatmap_test.zig","project":"sailor"}
+{"timestamp":"2026-07-18T06:27:22Z","action":"subagent","agent_type":"test-writer","task":"Strengthen tautological >=0 assertions across 11 test files (weak-assertion audit continuation)","project":"sailor"}
+{"timestamp":"2026-07-18T06:38:08Z","action":"subagent","agent_type":"test-writer","task":"Correct 4 mis-assigned expectations from prior pass: degenerate-OHLC candlestick and tiny-value violin plot both intentionally render content, not nothing","project":"sailor"}

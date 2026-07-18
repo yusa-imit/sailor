@@ -585,7 +585,7 @@ test "ViolinPlot.render single series with all identical values does not divide 
     vp.render(&buf, area);
     // Should not crash and should render something
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);  // May be 0 or > 0, but should not crash
+    try testing.expect(non_empty > 0);  // Should render visualization for valid data
 }
 
 test "ViolinPlot.render multiple series all with identical values does not crash" {
@@ -602,7 +602,7 @@ test "ViolinPlot.render multiple series all with identical values does not crash
     vp.render(&buf, area);
     // Should not crash
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    try testing.expect(non_empty > 0);  // Multiple series should render visible content
 }
 
 // ============================================================================
@@ -1003,7 +1003,7 @@ test "ViolinPlot.render minimal height (3 rows) without label row reservation" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 3 };
     vp.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);  // May be 0, but should not crash
+    try testing.expect(non_empty > 0);  // Should render with varied data even in constrained height
 }
 
 test "ViolinPlot.render very narrow width (one series wide band per series)" {
@@ -1015,7 +1015,7 @@ test "ViolinPlot.render very narrow width (one series wide band per series)" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 15 };
     vp.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);  // May be very small but should work
+    try testing.expect(non_empty > 0);  // Should render band even at narrow width
 }
 
 test "ViolinPlot.render tiny area still does not crash" {
@@ -1056,7 +1056,7 @@ test "ViolinPlot.render zero-height after label row reservation (height=1, show_
     vp.render(&buf, area);
     // Should handle gracefully (no content or just labels)
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    try testing.expect(non_empty == 0);  // Degenerate height: no room for plot visualization
 }
 
 // ============================================================================
@@ -1361,7 +1361,7 @@ test "ViolinPlot.render with very small fractional values" {
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };
     vp.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);  // May be 0 due to scaling
+    try testing.expect(non_empty > 0);  // Small values still normalize and render like any other range
 }
 
 // ============================================================================
@@ -1377,7 +1377,7 @@ test "ViolinPlot.render series with one sample repeated many times" {
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };
     vp.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    try testing.expect(non_empty > 0);  // Repeated values should still render visualization
 }
 
 test "ViolinPlot.render skewed distribution (heavily weighted to one side)" {

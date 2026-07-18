@@ -590,7 +590,7 @@ test "Calendar prevents selection of date before min_date" {
 
     calendar.selectDate(createDate(2026, 3, 5));
     // Selection should be rejected or moved to nearest valid date
-    try std.testing.expect(calendar.selected == null or calendar.selected.?.compare(createDate(2026, 3, 10)) >= 0);
+    try std.testing.expectEqual(@as(?Date, null), calendar.selected);  // Date before min_date is rejected
 }
 
 test "Calendar prevents selection of date after max_date" {
@@ -600,7 +600,7 @@ test "Calendar prevents selection of date after max_date" {
 
     calendar.selectDate(createDate(2026, 3, 30));
     // Selection should be rejected or moved to nearest valid date
-    try std.testing.expect(calendar.selected == null or calendar.selected.?.compare(createDate(2026, 3, 25)) <= 0);
+    try std.testing.expectEqual(@as(?Date, null), calendar.selected);  // Date after max_date is rejected
 }
 
 // ============================================================================
