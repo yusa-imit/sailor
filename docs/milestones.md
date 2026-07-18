@@ -2,11 +2,43 @@
 
 ## Current Status
 
-- **Latest release**: v2.94.0 (2026-07-17) — minor: ErrorBarChart Widget
-- **Latest minor**: v2.94.0 (2026-07-17) — ErrorBarChart Widget
+- **Latest release**: v2.94.0 (2026-07-18) — minor: ErrorBarChart + DonutChart Widgets
+- **Latest minor**: v2.94.0 (2026-07-18) — ErrorBarChart + DonutChart Widgets
 - **Next release**: TBD — replenish from feature-request issues, PRD gaps, or consumer feedback
 - **Active milestones**: 0 established
 - **Blockers**: None
+
+### v2.94.0 — DonutChart Widget (Complete)
+
+**Theme**: Hollow-center variant of `PieChart` — same slice/legend/percentage conventions, plus an
+adjustable `hole_ratio` (inner radius / outer radius, clamped to [0.0, 0.9]) and an optional
+`center_label` rendered inside the hollow center (e.g. a headline percentage or total). Found as a
+prior session's uncommitted-but-mostly-complete work (widget + 56-test suite already wired into
+`src/sailor.zig`/`src/tui/tui.zig`, following the session 354/361/372/374/377 "uncommitted-but-green"
+pattern) — but `build.zig` was missing the `donut_chart_tests` registration entirely, so `zig build
+test` had never actually exercised the suite. Registering it surfaced a compile error (an `orelse`
+default-value anonymous-struct-literal type-inference quirk in one test) and, after fixing that, a
+real rendering bug matching the suite's own regression-test description: `render()` centered the
+optional `center_label` on the pre-legend-split `inner` area instead of the post-split `chart_area`
+used by `renderDonut()`, so with the default `legend_position=.right` the label rendered offset from
+the actual visual hole. Fixed by passing `chart_area` to `renderCenterLabel()`; four other tests that
+had encoded the old (buggy) center coordinates as literal pixel checks were corrected to match.
+
+**Checklist**:
+- [x] **src/tui/widgets/donut_chart.zig** — `DonutChart` + `Slice`; render() with hollow-center ring
+      drawing, center label, legend (.none/.right/.bottom), block border
+- [x] **tests/donut_chart_test.zig** — 56 tests: init/defaults, builder immutability, `calcTotal()`,
+      zero/minimal-area and zero-slice early exits, hole_ratio hollow-center geometry (0.0/0.5/0.7/
+      out-of-range clamping), legend positions, center label rendering/truncation/styling, block
+      border, no-panic regressions, and a dedicated post-legend-split center-alignment regression test
+- [x] Export `DonutChart`, `donut_chart` via tui.zig widgets struct and top-level sailor.zig
+- [x] Add `donut_chart_tests` to build.zig
+- [x] Release v2.94.0
+
+**Process insight**: "uncommitted but `zig build test` exits 0" isn't sufficient verification when a
+new test file exists but was never wired into `build.zig` — the green exit code was from tests that
+didn't include the new suite at all. Always grep `build.zig` for the new test file's registration,
+not just confirm the overall command succeeds.
 
 ### v2.94.0 — ErrorBarChart Widget (Complete)
 
