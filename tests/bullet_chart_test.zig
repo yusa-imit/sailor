@@ -560,7 +560,7 @@ test "BulletChart.render with value far above max_value does not crash" {
 
     // Verify some content was produced or area was handled gracefully
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    try testing.expect(non_empty > 0);
 }
 
 test "BulletChart.render with target far above max_value does not crash" {

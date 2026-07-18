@@ -303,7 +303,7 @@ test "col/row mapping: start_date=Jan 1 (Sunday), first_day=0 (Sunday)" {
     hm.render(&buf, area);
 
     // Grid should render without crash; heatmap should occupy some cells
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);  // render succeeded
+    try testing.expect(countNonEmptyCells(buf, area) > 0);  // render succeeded
 }
 
 test "col/row mapping: first_day_of_week=1 (Monday) shifts offset" {
@@ -325,7 +325,7 @@ test "col/row mapping: first_day_of_week=1 (Monday) shifts offset" {
     hm.render(&buf, area);
 
     // Should render without crash
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "col/row mapping: entries wrap to next week column after 7 rows" {
@@ -345,7 +345,7 @@ test "col/row mapping: entries wrap to next week column after 7 rows" {
     hm.render(&buf, area);
 
     // Should render 8 cells total (or accounting for wrapping)
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "col/row mapping: MAX_ENTRIES cap at 371 entries produces 53 columns * 7 rows grid" {
@@ -364,7 +364,7 @@ test "col/row mapping: MAX_ENTRIES cap at 371 entries produces 53 columns * 7 ro
     hm.render(&buf, area);
 
     // Should render full grid (53 cols * 7 rows = 371 cells)
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 // ============================================================================
@@ -389,7 +389,7 @@ test "intensity: value <= min_val renders glyph ' ' with empty_style" {
 
     // Entry 0 should render as space with empty_style (dim=true)
     // We verify render succeeds and cell at entry 0 position has dim style
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "intensity: value > min_val and value < max_val renders intermediate glyph (level 1-3)" {
@@ -410,7 +410,7 @@ test "intensity: value > min_val and value < max_val renders intermediate glyph 
     hm.render(&buf, area);
 
     // Verify render succeeds; glyphs will be validated once implementation is done
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "intensity: max_val > min_val normalizes correctly" {
@@ -431,7 +431,7 @@ test "intensity: max_val > min_val normalizes correctly" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 15 };
     hm.render(&buf, area);
 
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "intensity: max_val <= min_val (degenerate case, no divide-by-zero)" {
@@ -455,7 +455,7 @@ test "intensity: max_val <= min_val (degenerate case, no divide-by-zero)" {
     // Entry 0 (5.0): value == min_val → level 0 → ' '
     // Entry 1 (5.1): value > min_val → level 4 → '█'
     // Entry 2 (4.9): value < min_val → level 0 → ' '
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "intensity: auto-detected max_val from values when max_val==null" {
@@ -474,7 +474,7 @@ test "intensity: auto-detected max_val from values when max_val==null" {
     hm.render(&buf, area);
 
     // Should use 5 as effective_max
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "intensity: all-zero values render as level 0" {
@@ -492,7 +492,7 @@ test "intensity: all-zero values render as level 0" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 15 };
     hm.render(&buf, area);
 
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 // ============================================================================
@@ -517,7 +517,7 @@ test "month labels show=true renders month abbr at first entry of each month" {
     hm.render(&buf, area);
 
     // Should render and have month labels visible (exact positions verified in impl)
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "month labels show=false omits month abbreviations" {
@@ -536,7 +536,7 @@ test "month labels show=false omits month abbreviations" {
     hm.render(&buf, area);
 
     // Should still render grid, but no month label row
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "month labels placed at column of first entry in new month" {
@@ -556,7 +556,7 @@ test "month labels placed at column of first entry in new month" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 15 };
     hm.render(&buf, area);
 
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 // ============================================================================
@@ -580,7 +580,7 @@ test "weekday labels show=true renders labels on Mon/Wed/Fri rows only (GitHub c
     hm.render(&buf, area);
 
     // Should have weekday label gutter on left, labels on Mon/Wed/Fri rows
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "weekday labels show=false omits weekday label gutter" {
@@ -599,7 +599,7 @@ test "weekday labels show=false omits weekday label gutter" {
     hm.render(&buf, area);
 
     // Should render heatmap without label gutter
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "weekday labels with first_day_of_week=1 (Monday) maps Mon/Wed/Fri correctly" {
@@ -619,7 +619,7 @@ test "weekday labels with first_day_of_week=1 (Monday) maps Mon/Wed/Fri correctl
     hm.render(&buf, area);
 
     // Should show labels relative to Monday as first day
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 // ============================================================================
@@ -640,7 +640,7 @@ test "focused=null renders all cells with normal style" {
     hm.render(&buf, area);
 
     // All cells use normal (non-focused) style
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "focused=valid_index renders that cell with focused_style" {
@@ -657,7 +657,7 @@ test "focused=valid_index renders that cell with focused_style" {
     hm.render(&buf, area);
 
     // Entry at index 2 should render with reverse=true style
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "focused=out_of_bounds does not crash" {
@@ -674,7 +674,7 @@ test "focused=out_of_bounds does not crash" {
     hm.render(&buf, area);
 
     // Should not crash, just render normally
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 // ============================================================================
@@ -722,7 +722,7 @@ test "render without Block renders heatmap without frame" {
     hm.render(&buf, area);
 
     // Should render without block border
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 test "render block in offset area (x=10, y=5)" {
@@ -741,7 +741,7 @@ test "render block in offset area (x=10, y=5)" {
     hm.render(&buf, area);
 
     // Should render at offset without crash
-    try testing.expect(countNonEmptyCells(buf, area) >= 0);
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
 // ============================================================================
@@ -810,7 +810,11 @@ test "render with empty values slice produces no content" {
     hm.render(&buf, area);
 
     // No heatmap content, but may have labels/border
-    try testing.expect(true);  // no crash
+    // Entry count is 0, so no heatmap cells render at all
+    try testing.expectEqual(@as(usize, 0), countChar(buf, area, '░'));
+    try testing.expectEqual(@as(usize, 0), countChar(buf, area, '▒'));
+    try testing.expectEqual(@as(usize, 0), countChar(buf, area, '▓'));
+    try testing.expectEqual(@as(usize, 0), countChar(buf, area, '█'));
 }
 
 test "render with all-zero values does not crash" {
@@ -823,8 +827,12 @@ test "render with all-zero values does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 15 };
     hm.render(&buf, area);
 
-    // All cells render as level 0 (spaces)
-    try testing.expect(true);
+    // All cells render as level 0 (spaces) since all values <= min_val(0)
+    // No intensity glyphs should appear
+    try testing.expectEqual(@as(usize, 0), countChar(buf, area, '░'));
+    try testing.expectEqual(@as(usize, 0), countChar(buf, area, '▒'));
+    try testing.expectEqual(@as(usize, 0), countChar(buf, area, '▓'));
+    try testing.expectEqual(@as(usize, 0), countChar(buf, area, '█'));
 }
 
 test "render with negative values does not crash (clamped to 0 or level calc)" {
@@ -840,8 +848,12 @@ test "render with negative values does not crash (clamped to 0 or level calc)" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 15 };
     hm.render(&buf, area);
 
-    // Negative value should be clamped or handled without panic
-    try testing.expect(true);
+    // Negative value (-5) <= min_val (0) → level 0 → ' '
+    // Value 0 <= min_val (0) → level 0 → ' '
+    // Value 5: (5-0)/(10-0)=0.5, ceil(0.5*4)=2 → '▒'
+    // Value 10: (10-0)/(10-0)=1.0, ceil(4)=4 → '█'
+    try testing.expectEqual(@as(usize, 1), countChar(buf, area, '▒'));
+    try testing.expectEqual(@as(usize, 1), countChar(buf, area, '█'));
 }
 
 // ============================================================================

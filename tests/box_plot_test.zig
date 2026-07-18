@@ -1109,7 +1109,7 @@ test "BoxPlot.render with n=1 value does not divide by zero" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     bp.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    try testing.expect(non_empty > 0);
 }
 
 test "BoxPlot.render multiple series all with identical values" {
@@ -1125,7 +1125,7 @@ test "BoxPlot.render multiple series all with identical values" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
     bp.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    try testing.expect(non_empty > 0);
 }
 
 test "BoxPlot.render with negative and positive values" {
@@ -1153,7 +1153,7 @@ test "BoxPlot.render minimal height (3 rows) without label row" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 3 };
     bp.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    try testing.expect(non_empty > 0);
 }
 
 test "BoxPlot.render very narrow width" {
@@ -1165,7 +1165,7 @@ test "BoxPlot.render very narrow width" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 15 };
     bp.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    try testing.expect(non_empty > 0);
 }
 
 test "BoxPlot.render tiny area (8x6) still does not crash" {
@@ -1203,7 +1203,9 @@ test "BoxPlot.render height=1 with show_labels=true handles gracefully" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
     bp.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty >= 0);
+    // Height=1 with show_labels reserves all space for labels, leaving 0 for plot,
+    // so render returns early without producing heatmap content (graceful handling)
+    try testing.expectEqual(@as(usize, 0), non_empty);
 }
 
 // ============================================================================
