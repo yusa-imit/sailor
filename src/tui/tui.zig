@@ -539,6 +539,10 @@ pub const widgets = struct {
     pub const ErrorBarChart = error_bar_chart.ErrorBarChart;
     pub const ErrorBarItem = error_bar_chart.ErrorBarItem;
 
+    // v2.95.0 — DonutChart Widget
+    pub const donut_chart = @import("widgets/donut_chart.zig");
+    pub const DonutChart = donut_chart.DonutChart;
+
     // v2.78.0 — RadialBar Widget
     pub const radial_bar = @import("widgets/radial_bar.zig");
     pub const RadialBar = radial_bar.RadialBar;
