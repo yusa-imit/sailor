@@ -672,26 +672,26 @@ pub const LineBuilder = struct {
     }
 
     /// Add a pre-built span
-    pub fn span(self: *LineBuilder, s: Span) *LineBuilder {
-        self.spans.append(self.allocator, s) catch @panic("LineBuilder.span: allocation failed");
+    pub fn span(self: *LineBuilder, s: Span) Allocator.Error!*LineBuilder {
+        try self.spans.append(self.allocator, s);
         return self;
     }
 
     /// Add a raw (unstyled) span
-    pub fn raw(self: *LineBuilder, content: []const u8) *LineBuilder {
-        self.spans.append(self.allocator, .{
+    pub fn raw(self: *LineBuilder, content: []const u8) Allocator.Error!*LineBuilder {
+        try self.spans.append(self.allocator, .{
             .content = content,
             .style = .{},
-        }) catch @panic("LineBuilder.raw: allocation failed");
+        });
         return self;
     }
 
     /// Add a styled span
-    pub fn text(self: *LineBuilder, content: []const u8, s: Style) *LineBuilder {
-        self.spans.append(self.allocator, .{
+    pub fn text(self: *LineBuilder, content: []const u8, s: Style) Allocator.Error!*LineBuilder {
+        try self.spans.append(self.allocator, .{
             .content = content,
             .style = s,
-        }) catch @panic("LineBuilder.text: allocation failed");
+        });
         return self;
     }
 

@@ -388,7 +388,7 @@ test "LineBuilder: single raw span" {
     var builder = LineBuilder.init(allocator);
     defer builder.deinit();
 
-    _ = builder.raw("hello");
+    _ = try builder.raw("hello");
     const line = builder.build();
 
     try testing.expectEqual(1, line.spans.len);
@@ -401,7 +401,7 @@ test "LineBuilder: single styled span" {
     defer builder.deinit();
 
     const style = Style{ .bold = true };
-    _ = builder.text("bold", style);
+    _ = try builder.text("bold", style);
     const line = builder.build();
 
     try testing.expectEqual(1, line.spans.len);
@@ -418,7 +418,7 @@ test "LineBuilder: add pre-built span" {
     _ = span_builder.text("styled").bold().fg(.red);
     const span = span_builder.build();
 
-    _ = builder.span(span);
+    _ = try builder.span(span);
     const line = builder.build();
 
     try testing.expectEqual(1, line.spans.len);
@@ -437,9 +437,9 @@ test "LineBuilder: multiple raw spans" {
     var builder = LineBuilder.init(allocator);
     defer builder.deinit();
 
-    _ = builder.raw("hello");
-    _ = builder.raw(" ");
-    _ = builder.raw("world");
+    _ = try builder.raw("hello");
+    _ = try builder.raw(" ");
+    _ = try builder.raw("world");
     const line = builder.build();
 
     try testing.expectEqual(3, line.spans.len);
@@ -453,9 +453,9 @@ test "LineBuilder: multiple styled spans" {
     var builder = LineBuilder.init(allocator);
     defer builder.deinit();
 
-    _ = builder.text("red", .{ .fg = .red });
-    _ = builder.text("green", .{ .fg = .green });
-    _ = builder.text("blue", .{ .fg = .blue });
+    _ = try builder.text("red", .{ .fg = .red });
+    _ = try builder.text("green", .{ .fg = .green });
+    _ = try builder.text("blue", .{ .fg = .blue });
     const line = builder.build();
 
     try testing.expectEqual(3, line.spans.len);
@@ -472,9 +472,9 @@ test "LineBuilder: mixed raw and styled" {
     var builder = LineBuilder.init(allocator);
     defer builder.deinit();
 
-    _ = builder.raw("Normal ");
-    _ = builder.text("bold", .{ .bold = true });
-    _ = builder.raw(" normal");
+    _ = try builder.raw("Normal ");
+    _ = try builder.text("bold", .{ .bold = true });
+    _ = try builder.raw(" normal");
     const line = builder.build();
 
     try testing.expectEqual(3, line.spans.len);
@@ -493,13 +493,13 @@ test "LineBuilder: mixed pre-built and raw" {
 
     var sb = SpanBuilder.init();
     _ = sb.text("span1").italic();
-    _ = builder.span(sb.build());
+    _ = try builder.span(sb.build());
 
-    _ = builder.raw(" text");
+    _ = try builder.raw(" text");
 
     var sb2 = SpanBuilder.init();
     _ = sb2.text("span2").underline();
-    _ = builder.span(sb2.build());
+    _ = try builder.span(sb2.build());
 
     const line = builder.build();
 
@@ -522,7 +522,7 @@ test "LineBuilder: render single span" {
     var builder = LineBuilder.init(allocator);
     defer builder.deinit();
 
-    _ = builder.raw("hello");
+    _ = try builder.raw("hello");
     const line = builder.build();
 
     try line.render(writer);
@@ -538,9 +538,9 @@ test "LineBuilder: render multiple spans" {
     var builder = LineBuilder.init(allocator);
     defer builder.deinit();
 
-    _ = builder.text("Hello", .{ .fg = .red });
-    _ = builder.raw(" ");
-    _ = builder.text("world", .{ .fg = .blue, .bold = true });
+    _ = try builder.text("Hello", .{ .fg = .red });
+    _ = try builder.raw(" ");
+    _ = try builder.text("world", .{ .fg = .blue, .bold = true });
     const line = builder.build();
 
     try line.render(writer);
@@ -557,9 +557,9 @@ test "LineBuilder: render complex formatting" {
     var builder = LineBuilder.init(allocator);
     defer builder.deinit();
 
-    _ = builder.text("Error", .{ .fg = .red, .bold = true });
-    _ = builder.raw(": ");
-    _ = builder.text("operation failed", .{ .fg = .yellow });
+    _ = try builder.text("Error", .{ .fg = .red, .bold = true });
+    _ = try builder.raw(": ");
+    _ = try builder.text("operation failed", .{ .fg = .yellow });
     const line = builder.build();
 
     try line.render(writer);
@@ -576,9 +576,9 @@ test "LineBuilder: buildOwned allocates memory" {
     var builder = LineBuilder.init(allocator);
     defer builder.deinit();
 
-    _ = builder.raw("hello");
-    _ = builder.raw(" ");
-    _ = builder.raw("world");
+    _ = try builder.raw("hello");
+    _ = try builder.raw(" ");
+    _ = try builder.raw("world");
 
     const line = try builder.buildOwned();
     defer allocator.free(line.spans);
@@ -592,9 +592,9 @@ test "LineBuilder: buildOwned with complex spans" {
     var builder = LineBuilder.init(allocator);
     defer builder.deinit();
 
-    _ = builder.text("red", .{ .fg = .red });
-    _ = builder.raw(" + ");
-    _ = builder.text("blue", .{ .fg = .blue });
+    _ = try builder.text("red", .{ .fg = .red });
+    _ = try builder.raw(" + ");
+    _ = try builder.text("blue", .{ .fg = .blue });
 
     const line = try builder.buildOwned();
     defer allocator.free(line.spans);
@@ -619,8 +619,8 @@ test "integration: build span then add to line" {
 
     var line_builder = LineBuilder.init(allocator);
     defer line_builder.deinit();
-    _ = line_builder.span(span);
-    _ = line_builder.raw(" text");
+    _ = try line_builder.span(span);
+    _ = try line_builder.raw(" text");
 
     const line = line_builder.build();
 
@@ -641,9 +641,9 @@ test "integration: multiple builders in single line" {
 
     var line_builder = LineBuilder.init(allocator);
     defer line_builder.deinit();
-    _ = line_builder.span(sb1.build());
-    _ = line_builder.raw(" ");
-    _ = line_builder.span(sb2.build());
+    _ = try line_builder.span(sb1.build());
+    _ = try line_builder.raw(" ");
+    _ = try line_builder.span(sb2.build());
 
     const line = line_builder.build();
 
@@ -664,9 +664,9 @@ test "integration: render complete styled line" {
 
     var lb = LineBuilder.init(allocator);
     defer lb.deinit();
-    _ = lb.span(sb.build());
-    _ = lb.raw(": ");
-    _ = lb.text("Complete", .{ .fg = .cyan });
+    _ = try lb.span(sb.build());
+    _ = try lb.raw(": ");
+    _ = try lb.text("Complete", .{ .fg = .cyan });
 
     const line = lb.build();
     try line.render(writer);
@@ -694,7 +694,7 @@ test "edge case: LineBuilder with only whitespace" {
     var builder = LineBuilder.init(allocator);
     defer builder.deinit();
 
-    _ = builder.raw("   ");
+    _ = try builder.raw("   ");
     const line = builder.build();
 
     try testing.expectEqual(1, line.spans.len);
@@ -717,7 +717,7 @@ test "edge case: LineBuilder with many spans" {
 
     var i: usize = 0;
     while (i < 100) : (i += 1) {
-        _ = builder.raw("x");
+        _ = try builder.raw("x");
     }
 
     const line = builder.build();
@@ -739,9 +739,9 @@ test "edge case: LineBuilder width calculation" {
     var builder = LineBuilder.init(allocator);
     defer builder.deinit();
 
-    _ = builder.raw("hello");
-    _ = builder.raw(" ");
-    _ = builder.raw("world");
+    _ = try builder.raw("hello");
+    _ = try builder.raw(" ");
+    _ = try builder.raw("world");
 
     const line = builder.build();
     try testing.expectEqual(11, line.width());
@@ -814,4 +814,39 @@ test "SpanBuilder: render reverse and blink" {
     try span.render(writer);
     const expected = "\x1b[7m\x1b[5meffects\x1b[0m";
     try testing.expectEqualStrings(expected, fbs.getWritten());
+}
+
+// ============================================================================
+// Allocator Error Handling Tests
+// ============================================================================
+
+test "LineBuilder: raw propagates allocator error" {
+    var failing_allocator = std.testing.FailingAllocator.init(testing.allocator, .{ .fail_index = 0 });
+    
+
+    var builder = LineBuilder.init(failing_allocator.allocator());
+    defer builder.deinit();
+
+    try testing.expectError(error.OutOfMemory, builder.raw("hello"));
+}
+
+test "LineBuilder: text propagates allocator error" {
+    var failing_allocator = std.testing.FailingAllocator.init(testing.allocator, .{ .fail_index = 0 });
+    
+
+    var builder = LineBuilder.init(failing_allocator.allocator());
+    defer builder.deinit();
+
+    try testing.expectError(error.OutOfMemory, builder.text("hello", .{}));
+}
+
+test "LineBuilder: span propagates allocator error" {
+    var failing_allocator = std.testing.FailingAllocator.init(testing.allocator, .{ .fail_index = 0 });
+    
+
+    var builder = LineBuilder.init(failing_allocator.allocator());
+    defer builder.deinit();
+
+    const span = Span{ .content = "test", .style = .{} };
+    try testing.expectError(error.OutOfMemory, builder.span(span));
 }

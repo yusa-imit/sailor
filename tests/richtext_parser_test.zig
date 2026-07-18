@@ -699,7 +699,7 @@ test "parseInline: produces spans compatible with SpanBuilder" {
     defer builder.deinit();
 
     for (line.spans) |span| {
-        _ = builder.span(span);
+        _ = try builder.span(span);
     }
 
     const result = builder.build();

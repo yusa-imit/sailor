@@ -87,7 +87,7 @@ pub const LineBreaker = struct {
                     break_point = last_space.? + 1; // Include the space in current line
                     const text_to_add = std.mem.trimRight(u8, remaining[0..break_point], " \t\n");
                     if (text_to_add.len > 0) {
-                        _ = builder.text(text_to_add, span_style);
+                        _ = try builder.text(text_to_add, span_style);
                         current_width += text_to_add.len;
                     }
 
@@ -106,8 +106,8 @@ pub const LineBreaker = struct {
                         const hyphen_len = options.hyphen_char.len;
                         if (available > hyphen_len) {
                             const take_len = available - hyphen_len;
-                            _ = builder.text(remaining[0..take_len], span_style);
-                            _ = builder.raw(options.hyphen_char);
+                            _ = try builder.text(remaining[0..take_len], span_style);
+                            _ = try builder.raw(options.hyphen_char);
                             current_width += take_len + hyphen_len;
 
                             const built_line = try builder.buildOwned();
@@ -125,7 +125,7 @@ pub const LineBreaker = struct {
                             } else {
                                 // Even on empty line, can't fit hyphen - just break anyway
                                 const take_len = if (available > 0) available else 1;
-                                _ = builder.text(remaining[0..take_len], span_style);
+                                _ = try builder.text(remaining[0..take_len], span_style);
                                 current_width += take_len;
                                 const built_line = try builder.buildOwned();
                                 try result_lines.append(self.allocator, built_line);
@@ -137,7 +137,7 @@ pub const LineBreaker = struct {
                     } else {
                         // Hyphenation disabled: hard break at max_width
                         const take_len = available;
-                        _ = builder.text(remaining[0..take_len], span_style);
+                        _ = try builder.text(remaining[0..take_len], span_style);
                         current_width += take_len;
 
                         const built_line = try builder.buildOwned();
@@ -148,7 +148,7 @@ pub const LineBreaker = struct {
                     }
                 } else if (available > 0) {
                     // Remaining text fits on current line
-                    _ = builder.text(remaining, span_style);
+                    _ = try builder.text(remaining, span_style);
                     current_width += remaining.len;
                     remaining = "";
                 } else {
@@ -206,7 +206,7 @@ test "single span fits on one line" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("hello");
+    _ = try builder.raw("hello");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -228,7 +228,7 @@ test "single word without spaces and fits width" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("test");
+    _ = try builder.raw("test");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -250,7 +250,7 @@ test "word wrap at whitespace boundary" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("hello world");
+    _ = try builder.raw("hello world");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -272,7 +272,7 @@ test "multiple words wrap across lines" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("one two three four");
+    _ = try builder.raw("one two three four");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -292,7 +292,7 @@ test "long word hyphenated when exceeds width" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("supercalifragilisticexpialidocious");
+    _ = try builder.raw("supercalifragilisticexpialidocious");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -312,7 +312,7 @@ test "hyphenation disabled truncates long word" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("verylongword");
+    _ = try builder.raw("verylongword");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -333,7 +333,7 @@ test "style preserved in first span" {
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
     const style = Style{ .bold = true, .fg = .red };
-    _ = builder.text("bold text", style);
+    _ = try builder.text("bold text", style);
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -355,7 +355,7 @@ test "style preserved across line breaks" {
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
     const style = Style{ .italic = true, .fg = .blue };
-    _ = builder.text("hello world test", style);
+    _ = try builder.text("hello world test", style);
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -376,8 +376,8 @@ test "multiple spans in one line" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.text("hello ", Style{ .bold = true });
-    _ = builder.text("world", Style{ .italic = true });
+    _ = try builder.text("hello ", Style{ .bold = true });
+    _ = try builder.text("world", Style{ .italic = true });
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -418,7 +418,7 @@ test "break in middle of span preserves style" {
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
     const style = Style{ .underline = true };
-    _ = builder.text("a very long text", style);
+    _ = try builder.text("a very long text", style);
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -458,7 +458,7 @@ test "exact width boundary no extra lines" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("exact");
+    _ = try builder.raw("exact");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -498,7 +498,7 @@ test "one char over width boundary" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("toolong");
+    _ = try builder.raw("toolong");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -538,7 +538,7 @@ test "leading whitespace trimmed on continuation line" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("word1  word2");
+    _ = try builder.raw("word1  word2");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -578,7 +578,7 @@ test "trailing whitespace preserved on wrapped line" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("hello  ");
+    _ = try builder.raw("hello  ");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -609,7 +609,7 @@ test "unicode grapheme clusters not split" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("café naïve");
+    _ = try builder.raw("café naïve");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -649,7 +649,7 @@ test "emoji in text handled correctly" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("hello 👋 world");
+    _ = try builder.raw("hello 👋 world");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -689,7 +689,7 @@ test "custom hyphen character" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("abcdefghij");
+    _ = try builder.raw("abcdefghij");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -729,7 +729,7 @@ test "hyphen added at end of first broken line" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("verylongword");
+    _ = try builder.raw("verylongword");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -769,7 +769,7 @@ test "no hyphen when word exactly fits remaining width" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("hello world");
+    _ = try builder.raw("hello world");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -809,9 +809,9 @@ test "multiple style changes within text" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.text("bold ", Style{ .bold = true });
-    _ = builder.text("italic ", Style{ .italic = true });
-    _ = builder.text("normal", Style{});
+    _ = try builder.text("bold ", Style{ .bold = true });
+    _ = try builder.text("italic ", Style{ .italic = true });
+    _ = try builder.text("normal", Style{});
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -851,7 +851,7 @@ test "only whitespace in span" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("   ");
+    _ = try builder.raw("   ");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -891,7 +891,7 @@ test "tab character treated as single char" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("hello\tworld");
+    _ = try builder.raw("hello\tworld");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -931,7 +931,7 @@ test "newline in span handled (single line context)" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("hello\nworld");
+    _ = try builder.raw("hello\nworld");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -962,7 +962,7 @@ test "hyphenate mid-word correctly" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("abcdefghijklmnop");
+    _ = try builder.raw("abcdefghijklmnop");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -1002,7 +1002,7 @@ test "very narrow width requires hyphenation of every word" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("hello world test");
+    _ = try builder.raw("hello world test");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -1042,9 +1042,9 @@ test "break with mixed styled and unstyled spans" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("plain ");
-    _ = builder.text("bold", Style{ .bold = true });
-    _ = builder.raw(" plain");
+    _ = try builder.raw("plain ");
+    _ = try builder.text("bold", Style{ .bold = true });
+    _ = try builder.raw(" plain");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -1084,7 +1084,7 @@ test "zero width max_width boundary case" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("test");
+    _ = try builder.raw("test");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -1124,7 +1124,7 @@ test "hyphen takes space from max_width" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("abcdefg");
+    _ = try builder.raw("abcdefg");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 
@@ -1164,7 +1164,7 @@ test "return value is owned slice" {
 
     var builder = LineBuilder.init(std.testing.allocator);
     defer builder.deinit();
-    _ = builder.raw("test");
+    _ = try builder.raw("test");
     const line = try builder.buildOwned();
     defer std.testing.allocator.free(line.spans);
 

@@ -87,7 +87,7 @@ pub const RichTextParser = struct {
                 .bold = true,
                 .fg = .bright_white,
             };
-            _ = builder.text(heading_text, heading_style);
+            _ = try builder.text(heading_text, heading_style);
             return try builder.buildOwned();
         }
 
@@ -138,9 +138,9 @@ pub const RichTextParser = struct {
             // Try *** (bold+italic)
             if (pos + 6 <= text.len and std.mem.eql(u8, text[pos .. pos + 3], "***")) {
                 if (tryMatchMarker(text, pos, "***")) |match| {
-                    if (pos > 0) _ = builder.raw(text[0..pos]);
+                    if (pos > 0) _ = try builder.raw(text[0..pos]);
                     const style = Style{ .bold = true, .italic = true };
-                    _ = builder.text(match.content, style);
+                    _ = try builder.text(match.content, style);
                     return self.parseInlineMarkdown(text[match.end_pos..], builder);
                 }
             }
@@ -148,9 +148,9 @@ pub const RichTextParser = struct {
             // Try ** (bold)
             if (pos + 4 <= text.len and std.mem.eql(u8, text[pos .. pos + 2], "**")) {
                 if (tryMatchMarker(text, pos, "**")) |match| {
-                    if (pos > 0) _ = builder.raw(text[0..pos]);
+                    if (pos > 0) _ = try builder.raw(text[0..pos]);
                     const style = Style{ .bold = true };
-                    _ = builder.text(match.content, style);
+                    _ = try builder.text(match.content, style);
                     return self.parseInlineMarkdown(text[match.end_pos..], builder);
                 }
             }
@@ -158,9 +158,9 @@ pub const RichTextParser = struct {
             // Try ~~ (strikethrough)
             if (pos + 4 <= text.len and std.mem.eql(u8, text[pos .. pos + 2], "~~")) {
                 if (tryMatchMarker(text, pos, "~~")) |match| {
-                    if (pos > 0) _ = builder.raw(text[0..pos]);
+                    if (pos > 0) _ = try builder.raw(text[0..pos]);
                     const style = Style{ .strikethrough = true };
-                    _ = builder.text(match.content, style);
+                    _ = try builder.text(match.content, style);
                     return self.parseInlineMarkdown(text[match.end_pos..], builder);
                 }
             }
@@ -168,9 +168,9 @@ pub const RichTextParser = struct {
             // Try ` (backtick code)
             if (text[pos] == '`') {
                 if (tryMatchMarker(text, pos, "`")) |match| {
-                    if (pos > 0) _ = builder.raw(text[0..pos]);
+                    if (pos > 0) _ = try builder.raw(text[0..pos]);
                     const style = Style{ .dim = true };
-                    _ = builder.text(match.content, style);
+                    _ = try builder.text(match.content, style);
                     return self.parseInlineMarkdown(text[match.end_pos..], builder);
                 }
             }
@@ -178,9 +178,9 @@ pub const RichTextParser = struct {
             // Try * (italic) — must avoid matching word-internal asterisks
             if (text[pos] == '*' and !isWordInternalMarker(text, pos, '*')) {
                 if (tryMatchMarker(text, pos, "*")) |match| {
-                    if (pos > 0) _ = builder.raw(text[0..pos]);
+                    if (pos > 0) _ = try builder.raw(text[0..pos]);
                     const style = Style{ .italic = true };
-                    _ = builder.text(match.content, style);
+                    _ = try builder.text(match.content, style);
                     return self.parseInlineMarkdown(text[match.end_pos..], builder);
                 }
             }
@@ -188,9 +188,9 @@ pub const RichTextParser = struct {
             // Try _ (italic) — must avoid matching word-internal underscores
             if (text[pos] == '_' and !isWordInternalMarker(text, pos, '_')) {
                 if (tryMatchMarker(text, pos, "_")) |match| {
-                    if (pos > 0) _ = builder.raw(text[0..pos]);
+                    if (pos > 0) _ = try builder.raw(text[0..pos]);
                     const style = Style{ .italic = true };
-                    _ = builder.text(match.content, style);
+                    _ = try builder.text(match.content, style);
                     return self.parseInlineMarkdown(text[match.end_pos..], builder);
                 }
             }
@@ -201,7 +201,7 @@ pub const RichTextParser = struct {
 
         // No formatting found, add entire text as plain
         if (text.len > 0) {
-            _ = builder.raw(text);
+            _ = try builder.raw(text);
         }
     }
 
