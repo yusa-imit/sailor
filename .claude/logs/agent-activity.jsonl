@@ -261,3 +261,5 @@
 {"timestamp":"2026-07-19T12:33:48Z","action":"subagent","agent_type":"zig-developer","task":"Implement ctx-pointer ValidateFn + CombinedStorage API in src/validation.zig to pass new failing tests, delete global CombinedValidator ring buffer","project":"sailor"}
 {"timestamp":"2026-07-19T12:39:08Z","action":"subagent","agent_type":"test-writer","task":"Fix comptime-value compile error in own regression test (minLength(min_val) with runtime loop variable)","project":"sailor"}
 {"timestamp":"2026-07-19T12:44:16Z","action":"subagent","agent_type":"code-reviewer","task":"Review CombinedValidator ctx-pointer refactor for correctness, memory safety, and API compat before commit","project":"sailor"}
+{"timestamp":"2026-07-19T18:27:43Z","action":"subagent","agent_type":"test-writer","task":"Write failing test proving term.zig fd=42 sentinel misroutes real fds into dead mock path without a mock installed","project":"sailor"}
+{"timestamp":"2026-07-19T18:34:21Z","action":"subagent","agent_type":"code-reviewer","task":"Review term.zig fd=42 sentinel guard fix for safety before commit","project":"sailor"}

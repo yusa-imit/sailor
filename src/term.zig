@@ -628,8 +628,10 @@ pub fn queryTerminalCapability(
         }
         return error.UnsupportedPlatform;
     } else {
-        // On Unix, check sentinel value
-        if (fd == 42) {
+        // On Unix, check sentinel value — only intercept when a mock is
+        // actually installed, so a real fd that happens to equal 42 falls
+        // through to the real query path instead of hitting the dead mock.
+        if (fd == 42 and global_mock_terminal != null) {
             return queryTerminalCapabilityMock(allocator, capability_name);
         }
     }
@@ -1173,6 +1175,20 @@ test "queryTerminalCapability - handles interleaved terminal output" {
     defer allocator.free(value);
 
     try std.testing.expectEqualStrings("1", value);
+}
+
+test "queryTerminalCapability with fd=42 returns NotATty when no mock is set" {
+    // Regression test: a real fd numbered exactly 42 (the mock sentinel) must
+    // not be silently routed into the mock path when no mock is installed.
+    if (builtin.os.tag == .windows) {
+        return error.SkipZigTest; // sentinel check is Unix-only
+    }
+
+    const allocator = std.testing.allocator;
+    try std.testing.expect(global_mock_terminal == null);
+
+    const result = queryTerminalCapability(allocator, 42, "Sixel", 50);
+    try std.testing.expectError(error.NotATty, result);
 }
 
 test "XTGETTCAP common capabilities" {
