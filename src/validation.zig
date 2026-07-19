@@ -50,30 +50,16 @@ pub const ValidatorResult = union(enum) {
 /// Validation function type
 pub const ValidateFn = *const fn ([]const u8) ValidatorResult;
 
-// Global error message storage for length validators
-var min_length_error_msg: [256]u8 = undefined;
-var max_length_error_msg: [256]u8 = undefined;
-
-// Static validators with fixed parameters
-const min_5_fn = makeMinLengthValidator(5);
-const min_10_fn = makeMinLengthValidator(10);
-const min_20_fn = makeMinLengthValidator(20);
-
-const max_10_fn = makeMaxLengthValidator(10);
-const max_100_fn = makeMaxLengthValidator(100);
-
 fn makeMinLengthValidator(comptime min: usize) ValidateFn {
     return struct {
+        const msg = std.fmt.comptimePrint("Input must be at least {d} characters", .{min});
+
         fn validate(input: []const u8) ValidatorResult {
             const len = std.unicode.utf8CountCodepoints(input) catch {
                 return .{ .invalid = "Input contains invalid UTF-8" };
             };
 
             if (len < min) {
-                const msg = std.fmt.bufPrint(&min_length_error_msg, "Input must be at least {d} characters", .{min}) catch {
-                    return .{ .invalid = "Input too short" };
-                };
-                // Copy to static storage so it persists
                 return .{ .invalid = msg };
             }
 
@@ -84,15 +70,14 @@ fn makeMinLengthValidator(comptime min: usize) ValidateFn {
 
 fn makeMaxLengthValidator(comptime max: usize) ValidateFn {
     return struct {
+        const msg = std.fmt.comptimePrint("Input must not exceed {d} characters", .{max});
+
         fn validate(input: []const u8) ValidatorResult {
             const len = std.unicode.utf8CountCodepoints(input) catch {
                 return .{ .invalid = "Input contains invalid UTF-8" };
             };
 
             if (len > max) {
-                const msg = std.fmt.bufPrint(&max_length_error_msg, "Input must not exceed {d} characters", .{max}) catch {
-                    return .{ .invalid = "Input too long" };
-                };
                 return .{ .invalid = msg };
             }
 
@@ -292,25 +277,16 @@ pub const Validator = struct {
     // ========================================================================
 
     /// Minimum length validator
-    pub fn minLength(min: usize) Validator {
+    pub fn minLength(comptime min: usize) Validator {
         return .{
-            .validateFn = switch (min) {
-                5 => min_5_fn,
-                10 => min_10_fn,
-                20 => min_20_fn,
-                else => unreachable, // Unsupported length
-            },
+            .validateFn = makeMinLengthValidator(min),
         };
     }
 
     /// Maximum length validator
-    pub fn maxLength(max: usize) Validator {
+    pub fn maxLength(comptime max: usize) Validator {
         return .{
-            .validateFn = switch (max) {
-                10 => max_10_fn,
-                100 => max_100_fn,
-                else => unreachable,
-            },
+            .validateFn = makeMaxLengthValidator(max),
         };
     }
 

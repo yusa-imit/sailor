@@ -476,3 +476,213 @@ test "combine validators - empty validator array" {
     const validation_result = result.validateFn("anything");
     try testing.expectEqual(ValidatorResult.valid, validation_result);
 }
+
+// ============================================================================
+// Arbitrary minLength/maxLength (comptime parameter fix)
+// ============================================================================
+
+test "minLength validator - arbitrary value 3" {
+    const validator = Validator.minLength(3);
+
+    // Exact minimum — should pass
+    {
+        const result = validator.validateFn("abc");
+        try testing.expectEqual(ValidatorResult.valid, result);
+    }
+
+    // Below minimum — should fail with correct message
+    {
+        const result = validator.validateFn("ab");
+        try testing.expect(result == .invalid);
+        try testing.expect(std.mem.indexOf(u8, result.invalid, "3 characters") != null);
+    }
+
+    // Above minimum — should pass
+    {
+        const result = validator.validateFn("abcd");
+        try testing.expectEqual(ValidatorResult.valid, result);
+    }
+}
+
+test "minLength validator - arbitrary value 7" {
+    const validator = Validator.minLength(7);
+
+    // Exact minimum — should pass
+    {
+        const result = validator.validateFn("abcdefg");
+        try testing.expectEqual(ValidatorResult.valid, result);
+    }
+
+    // Below minimum — should fail with correct message
+    {
+        const result = validator.validateFn("abcdef");
+        try testing.expect(result == .invalid);
+        try testing.expect(std.mem.indexOf(u8, result.invalid, "7 characters") != null);
+    }
+
+    // Above minimum — should pass
+    {
+        const result = validator.validateFn("abcdefgh");
+        try testing.expectEqual(ValidatorResult.valid, result);
+    }
+}
+
+test "minLength validator - arbitrary value 15" {
+    const validator = Validator.minLength(15);
+
+    // Exact minimum — should pass
+    {
+        const result = validator.validateFn("abcdefghijklmno");
+        try testing.expectEqual(ValidatorResult.valid, result);
+    }
+
+    // Below minimum — should fail with correct message
+    {
+        const result = validator.validateFn("abcdefghijklmn");
+        try testing.expect(result == .invalid);
+        try testing.expect(std.mem.indexOf(u8, result.invalid, "15 characters") != null);
+    }
+
+    // Above minimum — should pass
+    {
+        const result = validator.validateFn("abcdefghijklmnop");
+        try testing.expectEqual(ValidatorResult.valid, result);
+    }
+}
+
+test "minLength validator - edge case 1" {
+    const validator = Validator.minLength(1);
+
+    // Exact minimum (single character) — should pass
+    {
+        const result = validator.validateFn("x");
+        try testing.expectEqual(ValidatorResult.valid, result);
+    }
+
+    // Empty string — should fail
+    {
+        const result = validator.validateFn("");
+        try testing.expect(result == .invalid);
+        try testing.expect(std.mem.indexOf(u8, result.invalid, "1 character") != null);
+    }
+}
+
+test "maxLength validator - arbitrary value 1" {
+    const validator = Validator.maxLength(1);
+
+    // At maximum (single character) — should pass
+    {
+        const result = validator.validateFn("x");
+        try testing.expectEqual(ValidatorResult.valid, result);
+    }
+
+    // Below maximum (empty string) — should pass
+    {
+        const result = validator.validateFn("");
+        try testing.expectEqual(ValidatorResult.valid, result);
+    }
+
+    // Exceeds maximum — should fail with correct message
+    {
+        const result = validator.validateFn("xy");
+        try testing.expect(result == .invalid);
+        try testing.expect(std.mem.indexOf(u8, result.invalid, "1 character") != null);
+    }
+}
+
+test "maxLength validator - arbitrary value 50" {
+    const validator = Validator.maxLength(50);
+
+    // Exactly at maximum — should pass
+    {
+        const result = validator.validateFn("12345678901234567890123456789012345678901234567890");
+        try testing.expectEqual(ValidatorResult.valid, result);
+    }
+
+    // Below maximum — should pass
+    {
+        const result = validator.validateFn("hello");
+        try testing.expectEqual(ValidatorResult.valid, result);
+    }
+
+    // Exceeds maximum — should fail with correct message
+    {
+        const result = validator.validateFn("123456789012345678901234567890123456789012345678901");
+        try testing.expect(result == .invalid);
+        try testing.expect(std.mem.indexOf(u8, result.invalid, "50 characters") != null);
+    }
+}
+
+test "maxLength validator - edge case 0" {
+    const validator = Validator.maxLength(0);
+
+    // Empty string should pass (at boundary)
+    {
+        const result = validator.validateFn("");
+        try testing.expectEqual(ValidatorResult.valid, result);
+    }
+
+    // Any non-empty string should fail
+    {
+        const result = validator.validateFn("x");
+        try testing.expect(result == .invalid);
+    }
+}
+
+test "minLength/maxLength validators - no cross-contamination between different instances" {
+    // This test proves that two different comptime instantiations of minLength
+    // don't share error message buffers or get clobbered by each other.
+
+    const min3_validator = Validator.minLength(3);
+    const min5_validator = Validator.minLength(5);
+
+    // First call with min3 — should require 3 chars
+    const result1 = min3_validator.validateFn("ab"); // 2 chars, fails min3
+    try testing.expect(result1 == .invalid);
+    try testing.expect(std.mem.indexOf(u8, result1.invalid, "3 characters") != null);
+
+    // Second call with min5 — should require 5 chars
+    const result2 = min5_validator.validateFn("abcd"); // 4 chars, fails min5
+    try testing.expect(result2 == .invalid);
+    try testing.expect(std.mem.indexOf(u8, result2.invalid, "5 characters") != null);
+
+    // Third call with min3 again — should still report 3, not clobbered by min5
+    const result3 = min3_validator.validateFn("ab"); // 2 chars, fails min3
+    try testing.expect(result3 == .invalid);
+    try testing.expect(std.mem.indexOf(u8, result3.invalid, "3 characters") != null);
+    // Prove it's not the "5 characters" message from the other validator
+    try testing.expect(std.mem.indexOf(u8, result3.invalid, "5 characters") == null);
+
+    // Fourth call with min5 again — should still report 5
+    const result4 = min5_validator.validateFn("abcd"); // 4 chars, fails min5
+    try testing.expect(result4 == .invalid);
+    try testing.expect(std.mem.indexOf(u8, result4.invalid, "5 characters") != null);
+    // Prove it's not the "3 characters" message from the other validator
+    try testing.expect(std.mem.indexOf(u8, result4.invalid, "3 characters") == null);
+}
+
+test "minLength/maxLength composition - arbitrary values" {
+    // Prove that combining two arbitrary-value length validators works correctly
+    const min3_validator = Validator.minLength(3);
+    const max7_validator = Validator.maxLength(7);
+
+    const range_validator = Validator.combine(&.{ min3_validator, max7_validator }, .all);
+
+    // Within range — should pass
+    {
+        const result = range_validator.validateFn("abcd");
+        try testing.expectEqual(ValidatorResult.valid, result);
+    }
+
+    // Below minimum — should fail
+    {
+        const result = range_validator.validateFn("ab");
+        try testing.expect(result == .invalid);
+    }
+
+    // Above maximum — should fail
+    {
+        const result = range_validator.validateFn("abcdefgh");
+        try testing.expect(result == .invalid);
+    }
+}
