@@ -19,51 +19,51 @@ const CombineMode = validation.CombineMode; // WILL FAIL
 
 test "email validator - valid simple email" {
     const validator = Validator.email();
-    const result = validator.validateFn("user@example.com");
+    const result = validator.validate("user@example.com");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "email validator - valid email with subdomain" {
     const validator = Validator.email();
-    const result = validator.validateFn("user@mail.example.com");
+    const result = validator.validate("user@mail.example.com");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "email validator - valid email with plus sign" {
     const validator = Validator.email();
-    const result = validator.validateFn("user+tag@example.com");
+    const result = validator.validate("user+tag@example.com");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "email validator - invalid missing at sign" {
     const validator = Validator.email();
-    const result = validator.validateFn("userexample.com");
+    const result = validator.validate("userexample.com");
     try testing.expect(result == .invalid);
     try testing.expect(std.mem.indexOf(u8, result.invalid, "@ sign") != null);
 }
 
 test "email validator - invalid missing domain" {
     const validator = Validator.email();
-    const result = validator.validateFn("user@");
+    const result = validator.validate("user@");
     try testing.expect(result == .invalid);
     try testing.expect(std.mem.indexOf(u8, result.invalid, "domain") != null);
 }
 
 test "email validator - invalid missing local part" {
     const validator = Validator.email();
-    const result = validator.validateFn("@example.com");
+    const result = validator.validate("@example.com");
     try testing.expect(result == .invalid);
 }
 
 test "email validator - invalid double at sign" {
     const validator = Validator.email();
-    const result = validator.validateFn("user@@example.com");
+    const result = validator.validate("user@@example.com");
     try testing.expect(result == .invalid);
 }
 
 test "email validator - empty string" {
     const validator = Validator.email();
-    const result = validator.validateFn("");
+    const result = validator.validate("");
     try testing.expect(result == .invalid);
 }
 
@@ -73,38 +73,38 @@ test "email validator - empty string" {
 
 test "url validator - valid http url" {
     const validator = Validator.url();
-    const result = validator.validateFn("http://example.com");
+    const result = validator.validate("http://example.com");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "url validator - valid https url" {
     const validator = Validator.url();
-    const result = validator.validateFn("https://example.com/path");
+    const result = validator.validate("https://example.com/path");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "url validator - valid url with query params" {
     const validator = Validator.url();
-    const result = validator.validateFn("https://example.com/path?foo=bar&baz=qux");
+    const result = validator.validate("https://example.com/path?foo=bar&baz=qux");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "url validator - invalid missing protocol" {
     const validator = Validator.url();
-    const result = validator.validateFn("example.com");
+    const result = validator.validate("example.com");
     try testing.expect(result == .invalid);
     try testing.expect(std.mem.indexOf(u8, result.invalid, "protocol") != null);
 }
 
 test "url validator - invalid malformed url" {
     const validator = Validator.url();
-    const result = validator.validateFn("ht!tp://exam ple.com");
+    const result = validator.validate("ht!tp://exam ple.com");
     try testing.expect(result == .invalid);
 }
 
 test "url validator - empty string" {
     const validator = Validator.url();
-    const result = validator.validateFn("");
+    const result = validator.validate("");
     try testing.expect(result == .invalid);
 }
 
@@ -114,38 +114,38 @@ test "url validator - empty string" {
 
 test "phone validator US - valid format with dashes" {
     const validator = Validator.phoneUS();
-    const result = validator.validateFn("555-123-4567");
+    const result = validator.validate("555-123-4567");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "phone validator US - valid format with parentheses" {
     const validator = Validator.phoneUS();
-    const result = validator.validateFn("(555) 123-4567");
+    const result = validator.validate("(555) 123-4567");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "phone validator US - valid format digits only" {
     const validator = Validator.phoneUS();
-    const result = validator.validateFn("5551234567");
+    const result = validator.validate("5551234567");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "phone validator US - invalid too short" {
     const validator = Validator.phoneUS();
-    const result = validator.validateFn("123-4567");
+    const result = validator.validate("123-4567");
     try testing.expect(result == .invalid);
     try testing.expect(std.mem.indexOf(u8, result.invalid, "10 digits") != null);
 }
 
 test "phone validator US - invalid too long" {
     const validator = Validator.phoneUS();
-    const result = validator.validateFn("1-555-123-4567");
+    const result = validator.validate("1-555-123-4567");
     try testing.expect(result == .invalid);
 }
 
 test "phone validator US - invalid contains letters" {
     const validator = Validator.phoneUS();
-    const result = validator.validateFn("555-ABC-DEFG");
+    const result = validator.validate("555-ABC-DEFG");
     try testing.expect(result == .invalid);
 }
 
@@ -155,13 +155,13 @@ test "phone validator US - invalid contains letters" {
 
 test "regex validator - valid pattern match" {
     const validator = try Validator.regex("^[0-9]{3}-[0-9]{2}-[0-9]{4}$"); // SSN pattern
-    const result = validator.validateFn("123-45-6789");
+    const result = validator.validate("123-45-6789");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "regex validator - invalid pattern mismatch" {
     const validator = try Validator.regex("^[0-9]{3}-[0-9]{2}-[0-9]{4}$");
-    const result = validator.validateFn("123-456-789");
+    const result = validator.validate("123-456-789");
     try testing.expect(result == .invalid);
 }
 
@@ -177,7 +177,7 @@ test "regex validator - invalid regex syntax" {
 
 test "regex validator - complex pattern with alternation" {
     const validator = try Validator.regex("^(foo|bar|baz)$");
-    const result = validator.validateFn("bar");
+    const result = validator.validate("bar");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
@@ -187,32 +187,32 @@ test "regex validator - complex pattern with alternation" {
 
 test "minLength validator - valid meets minimum" {
     const validator = Validator.minLength(5);
-    const result = validator.validateFn("hello");
+    const result = validator.validate("hello");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "minLength validator - valid exceeds minimum" {
     const validator = Validator.minLength(5);
-    const result = validator.validateFn("hello world");
+    const result = validator.validate("hello world");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "minLength validator - invalid too short" {
     const validator = Validator.minLength(5);
-    const result = validator.validateFn("hi");
+    const result = validator.validate("hi");
     try testing.expect(result == .invalid);
     try testing.expect(std.mem.indexOf(u8, result.invalid, "5 characters") != null);
 }
 
 test "maxLength validator - valid under maximum" {
     const validator = Validator.maxLength(10);
-    const result = validator.validateFn("hello");
+    const result = validator.validate("hello");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "maxLength validator - invalid exceeds maximum" {
     const validator = Validator.maxLength(10);
-    const result = validator.validateFn("hello world is too long");
+    const result = validator.validate("hello world is too long");
     try testing.expect(result == .invalid);
     try testing.expect(std.mem.indexOf(u8, result.invalid, "10 characters") != null);
 }
@@ -220,24 +220,27 @@ test "maxLength validator - invalid exceeds maximum" {
 test "length range validator - valid within range" {
     const min_validator = Validator.minLength(5);
     const max_validator = Validator.maxLength(10);
-    const validator = Validator.combine(&.{ min_validator, max_validator }, .all);
-    const result = validator.validateFn("hello");
+    var storage: validation.CombinedStorage = undefined;
+    const validator = Validator.combine(&storage, &.{ min_validator, max_validator }, .all);
+    const result = validator.validate("hello");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "length range validator - invalid below minimum" {
     const min_validator = Validator.minLength(5);
     const max_validator = Validator.maxLength(10);
-    const validator = Validator.combine(&.{ min_validator, max_validator }, .all);
-    const result = validator.validateFn("hi");
+    var storage: validation.CombinedStorage = undefined;
+    const validator = Validator.combine(&storage, &.{ min_validator, max_validator }, .all);
+    const result = validator.validate("hi");
     try testing.expect(result == .invalid);
 }
 
 test "length range validator - invalid above maximum" {
     const min_validator = Validator.minLength(5);
     const max_validator = Validator.maxLength(10);
-    const validator = Validator.combine(&.{ min_validator, max_validator }, .all);
-    const result = validator.validateFn("this is way too long");
+    var storage: validation.CombinedStorage = undefined;
+    const validator = Validator.combine(&storage, &.{ min_validator, max_validator }, .all);
+    const result = validator.validate("this is way too long");
     try testing.expect(result == .invalid);
 }
 
@@ -248,24 +251,27 @@ test "length range validator - invalid above maximum" {
 test "combine validators AND mode - all pass" {
     const email_validator = Validator.email();
     const min_validator = Validator.minLength(5);
-    const validator = Validator.combine(&.{ email_validator, min_validator }, .all);
-    const result = validator.validateFn("user@example.com");
+    var storage: validation.CombinedStorage = undefined;
+    const validator = Validator.combine(&storage, &.{ email_validator, min_validator }, .all);
+    const result = validator.validate("user@example.com");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "combine validators AND mode - one fails" {
     const email_validator = Validator.email();
     const min_validator = Validator.minLength(20); // Too long for typical email
-    const validator = Validator.combine(&.{ email_validator, min_validator }, .all);
-    const result = validator.validateFn("a@b.c"); // Valid email but too short
+    var storage: validation.CombinedStorage = undefined;
+    const validator = Validator.combine(&storage, &.{ email_validator, min_validator }, .all);
+    const result = validator.validate("a@b.c"); // Valid email but too short
     try testing.expect(result == .invalid);
 }
 
 test "combine validators AND mode - all fail" {
     const email_validator = Validator.email();
     const min_validator = Validator.minLength(20);
-    const validator = Validator.combine(&.{ email_validator, min_validator }, .all);
-    const result = validator.validateFn("not-an-email");
+    var storage: validation.CombinedStorage = undefined;
+    const validator = Validator.combine(&storage, &.{ email_validator, min_validator }, .all);
+    const result = validator.validate("not-an-email");
     try testing.expect(result == .invalid);
 }
 
@@ -276,24 +282,27 @@ test "combine validators AND mode - all fail" {
 test "combine validators OR mode - first passes" {
     const email_validator = Validator.email();
     const url_validator = Validator.url();
-    const validator = Validator.combine(&.{ email_validator, url_validator }, .any);
-    const result = validator.validateFn("user@example.com");
+    var storage: validation.CombinedStorage = undefined;
+    const validator = Validator.combine(&storage, &.{ email_validator, url_validator }, .any);
+    const result = validator.validate("user@example.com");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "combine validators OR mode - second passes" {
     const email_validator = Validator.email();
     const url_validator = Validator.url();
-    const validator = Validator.combine(&.{ email_validator, url_validator }, .any);
-    const result = validator.validateFn("https://example.com");
+    var storage: validation.CombinedStorage = undefined;
+    const validator = Validator.combine(&storage, &.{ email_validator, url_validator }, .any);
+    const result = validator.validate("https://example.com");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "combine validators OR mode - all fail" {
     const email_validator = Validator.email();
     const url_validator = Validator.url();
-    const validator = Validator.combine(&.{ email_validator, url_validator }, .any);
-    const result = validator.validateFn("not-email-or-url");
+    var storage: validation.CombinedStorage = undefined;
+    const validator = Validator.combine(&storage, &.{ email_validator, url_validator }, .any);
+    const result = validator.validate("not-email-or-url");
     try testing.expect(result == .invalid);
 }
 
@@ -336,7 +345,7 @@ test "async validator - timeout handling" {
     // Create validator with very slow validation function
     const slow_validator = Validator{
         .validateFn = struct {
-            fn validate(_: []const u8) ValidatorResult {
+            fn validate(_: ?*const anyopaque, _: []const u8) ValidatorResult {
                 std.Thread.sleep(500 * std.time.ns_per_ms); // 500ms delay
                 return .valid;
             }
@@ -387,7 +396,7 @@ test "visual feedback - pending style application" {
     const allocator = testing.allocator;
     const slow_validator = Validator{
         .validateFn = struct {
-            fn validate(_: []const u8) ValidatorResult {
+            fn validate(_: ?*const anyopaque, _: []const u8) ValidatorResult {
                 return .pending;
             }
         }.validate,
@@ -449,13 +458,13 @@ test "visual feedback - custom success style" {
 test "validator - null byte in input" {
     const validator = Validator.email();
     const input = "user\x00@example.com";
-    const result = validator.validateFn(input);
+    const result = validator.validate(input);
     try testing.expect(result == .invalid);
 }
 
 test "validator - unicode email address" {
     const validator = Validator.email();
-    const result = validator.validateFn("user@例え.jp");
+    const result = validator.validate("user@例え.jp");
     try testing.expectEqual(ValidatorResult.valid, result); // Should support IDN
 }
 
@@ -466,14 +475,15 @@ test "validator - very long input" {
     @memset(long_input, 'a');
 
     const validator = Validator.maxLength(100);
-    const result = validator.validateFn(long_input);
+    const result = validator.validate(long_input);
     try testing.expect(result == .invalid);
 }
 
 test "combine validators - empty validator array" {
-    const result = Validator.combine(&.{}, .all);
+    var storage: validation.CombinedStorage = undefined;
+    const validator = Validator.combine(&storage, &.{}, .all);
     // Should return validator that always passes for empty array
-    const validation_result = result.validateFn("anything");
+    const validation_result = validator.validate("anything");
     try testing.expectEqual(ValidatorResult.valid, validation_result);
 }
 
@@ -486,20 +496,20 @@ test "minLength validator - arbitrary value 3" {
 
     // Exact minimum — should pass
     {
-        const result = validator.validateFn("abc");
+        const result = validator.validate("abc");
         try testing.expectEqual(ValidatorResult.valid, result);
     }
 
     // Below minimum — should fail with correct message
     {
-        const result = validator.validateFn("ab");
+        const result = validator.validate("ab");
         try testing.expect(result == .invalid);
         try testing.expect(std.mem.indexOf(u8, result.invalid, "3 characters") != null);
     }
 
     // Above minimum — should pass
     {
-        const result = validator.validateFn("abcd");
+        const result = validator.validate("abcd");
         try testing.expectEqual(ValidatorResult.valid, result);
     }
 }
@@ -509,20 +519,20 @@ test "minLength validator - arbitrary value 7" {
 
     // Exact minimum — should pass
     {
-        const result = validator.validateFn("abcdefg");
+        const result = validator.validate("abcdefg");
         try testing.expectEqual(ValidatorResult.valid, result);
     }
 
     // Below minimum — should fail with correct message
     {
-        const result = validator.validateFn("abcdef");
+        const result = validator.validate("abcdef");
         try testing.expect(result == .invalid);
         try testing.expect(std.mem.indexOf(u8, result.invalid, "7 characters") != null);
     }
 
     // Above minimum — should pass
     {
-        const result = validator.validateFn("abcdefgh");
+        const result = validator.validate("abcdefgh");
         try testing.expectEqual(ValidatorResult.valid, result);
     }
 }
@@ -532,20 +542,20 @@ test "minLength validator - arbitrary value 15" {
 
     // Exact minimum — should pass
     {
-        const result = validator.validateFn("abcdefghijklmno");
+        const result = validator.validate("abcdefghijklmno");
         try testing.expectEqual(ValidatorResult.valid, result);
     }
 
     // Below minimum — should fail with correct message
     {
-        const result = validator.validateFn("abcdefghijklmn");
+        const result = validator.validate("abcdefghijklmn");
         try testing.expect(result == .invalid);
         try testing.expect(std.mem.indexOf(u8, result.invalid, "15 characters") != null);
     }
 
     // Above minimum — should pass
     {
-        const result = validator.validateFn("abcdefghijklmnop");
+        const result = validator.validate("abcdefghijklmnop");
         try testing.expectEqual(ValidatorResult.valid, result);
     }
 }
@@ -555,13 +565,13 @@ test "minLength validator - edge case 1" {
 
     // Exact minimum (single character) — should pass
     {
-        const result = validator.validateFn("x");
+        const result = validator.validate("x");
         try testing.expectEqual(ValidatorResult.valid, result);
     }
 
     // Empty string — should fail
     {
-        const result = validator.validateFn("");
+        const result = validator.validate("");
         try testing.expect(result == .invalid);
         try testing.expect(std.mem.indexOf(u8, result.invalid, "1 character") != null);
     }
@@ -572,19 +582,19 @@ test "maxLength validator - arbitrary value 1" {
 
     // At maximum (single character) — should pass
     {
-        const result = validator.validateFn("x");
+        const result = validator.validate("x");
         try testing.expectEqual(ValidatorResult.valid, result);
     }
 
     // Below maximum (empty string) — should pass
     {
-        const result = validator.validateFn("");
+        const result = validator.validate("");
         try testing.expectEqual(ValidatorResult.valid, result);
     }
 
     // Exceeds maximum — should fail with correct message
     {
-        const result = validator.validateFn("xy");
+        const result = validator.validate("xy");
         try testing.expect(result == .invalid);
         try testing.expect(std.mem.indexOf(u8, result.invalid, "1 character") != null);
     }
@@ -595,19 +605,19 @@ test "maxLength validator - arbitrary value 50" {
 
     // Exactly at maximum — should pass
     {
-        const result = validator.validateFn("12345678901234567890123456789012345678901234567890");
+        const result = validator.validate("12345678901234567890123456789012345678901234567890");
         try testing.expectEqual(ValidatorResult.valid, result);
     }
 
     // Below maximum — should pass
     {
-        const result = validator.validateFn("hello");
+        const result = validator.validate("hello");
         try testing.expectEqual(ValidatorResult.valid, result);
     }
 
     // Exceeds maximum — should fail with correct message
     {
-        const result = validator.validateFn("123456789012345678901234567890123456789012345678901");
+        const result = validator.validate("123456789012345678901234567890123456789012345678901");
         try testing.expect(result == .invalid);
         try testing.expect(std.mem.indexOf(u8, result.invalid, "50 characters") != null);
     }
@@ -618,13 +628,13 @@ test "maxLength validator - edge case 0" {
 
     // Empty string should pass (at boundary)
     {
-        const result = validator.validateFn("");
+        const result = validator.validate("");
         try testing.expectEqual(ValidatorResult.valid, result);
     }
 
     // Any non-empty string should fail
     {
-        const result = validator.validateFn("x");
+        const result = validator.validate("x");
         try testing.expect(result == .invalid);
     }
 }
@@ -637,24 +647,24 @@ test "minLength/maxLength validators - no cross-contamination between different 
     const min5_validator = Validator.minLength(5);
 
     // First call with min3 — should require 3 chars
-    const result1 = min3_validator.validateFn("ab"); // 2 chars, fails min3
+    const result1 = min3_validator.validate("ab"); // 2 chars, fails min3
     try testing.expect(result1 == .invalid);
     try testing.expect(std.mem.indexOf(u8, result1.invalid, "3 characters") != null);
 
     // Second call with min5 — should require 5 chars
-    const result2 = min5_validator.validateFn("abcd"); // 4 chars, fails min5
+    const result2 = min5_validator.validate("abcd"); // 4 chars, fails min5
     try testing.expect(result2 == .invalid);
     try testing.expect(std.mem.indexOf(u8, result2.invalid, "5 characters") != null);
 
     // Third call with min3 again — should still report 3, not clobbered by min5
-    const result3 = min3_validator.validateFn("ab"); // 2 chars, fails min3
+    const result3 = min3_validator.validate("ab"); // 2 chars, fails min3
     try testing.expect(result3 == .invalid);
     try testing.expect(std.mem.indexOf(u8, result3.invalid, "3 characters") != null);
     // Prove it's not the "5 characters" message from the other validator
     try testing.expect(std.mem.indexOf(u8, result3.invalid, "5 characters") == null);
 
     // Fourth call with min5 again — should still report 5
-    const result4 = min5_validator.validateFn("abcd"); // 4 chars, fails min5
+    const result4 = min5_validator.validate("abcd"); // 4 chars, fails min5
     try testing.expect(result4 == .invalid);
     try testing.expect(std.mem.indexOf(u8, result4.invalid, "5 characters") != null);
     // Prove it's not the "3 characters" message from the other validator
@@ -666,23 +676,138 @@ test "minLength/maxLength composition - arbitrary values" {
     const min3_validator = Validator.minLength(3);
     const max7_validator = Validator.maxLength(7);
 
-    const range_validator = Validator.combine(&.{ min3_validator, max7_validator }, .all);
+    var storage: validation.CombinedStorage = undefined;
+    const range_validator = Validator.combine(&storage, &.{ min3_validator, max7_validator }, .all);
 
     // Within range — should pass
     {
-        const result = range_validator.validateFn("abcd");
+        const result = range_validator.validate("abcd");
         try testing.expectEqual(ValidatorResult.valid, result);
     }
 
     // Below minimum — should fail
     {
-        const result = range_validator.validateFn("ab");
+        const result = range_validator.validate("ab");
         try testing.expect(result == .invalid);
     }
 
     // Above maximum — should fail
     {
-        const result = range_validator.validateFn("abcdefgh");
+        const result = range_validator.validate("abcdefgh");
         try testing.expect(result == .invalid);
     }
+}
+
+// ============================================================================
+// Regression Tests - CombinedValidator Global State Bug Fixes
+// ============================================================================
+
+test "combine validators - survives more than 32 concurrent combinations without corruption" {
+    // This test proves that creating more than 32 combined validators does not corrupt
+    // earlier validators (fixing the ring-buffer wraparound bug where idx % 32 would
+    // overwrite entries in the global storage table).
+    //
+    // Under the old code, after 32 combine() calls, the next call would overwrite
+    // storage[0], causing the first validator's cached entry to be lost. This test
+    // creates 40 combined validators with different minLength values, then validates
+    // that the FIRST one (created before the 32-combination mark) still works correctly.
+
+    var first_storage: validation.CombinedStorage = undefined;
+    const min10_validator = Validator.minLength(10);
+    const first_combined = Validator.combine(&first_storage, &.{min10_validator}, .all);
+
+    // Create 39 more combined validators to trigger the ring-buffer wraparound (if it existed)
+    var storages: [39]validation.CombinedStorage = undefined;
+    var combined: [39]Validator = undefined;
+    inline for (0..39) |i| {
+        const min_val = i + 5;  // comptime-known in inline for
+        const validators = &.{Validator.minLength(min_val)};
+        combined[i] = Validator.combine(&storages[i], validators, .all);
+    }
+
+    // Now validate that the FIRST combined validator still enforces min-length 10
+    // (and hasn't been corrupted to some other constraint)
+    {
+        const result = first_combined.validate("short"); // 5 chars, should fail min10
+        try testing.expect(result == .invalid);
+    }
+
+    {
+        const result = first_combined.validate("long enough"); // 11 chars, should pass
+        try testing.expectEqual(ValidatorResult.valid, result);
+    }
+}
+
+test "combine validators - no cross-contamination between separate combined validators" {
+    // This test proves that two separate combined validators, used interleaved,
+    // do not clobber each other's state (fixing the issue where a global next_idx
+    // counter would cause simultaneous validators to interfere).
+    //
+    // Under the old code, both validators would share the same global storage table
+    // and next_idx counter. If you called validator_A, then validator_B, then
+    // validator_A again, they might read each other's storage entries.
+
+    // Create first combined validator: email OR minLength(3)
+    var storage_a: validation.CombinedStorage = undefined;
+    const email_validator = Validator.email();
+    const min3_validator = Validator.minLength(3);
+    const validator_a = Validator.combine(&storage_a, &.{ email_validator, min3_validator }, .any);
+
+    // Create second combined validator: maxLength(5) AND phoneUS
+    var storage_b: validation.CombinedStorage = undefined;
+    const max5_validator = Validator.maxLength(5);
+    const phone_validator = Validator.phoneUS();
+    const validator_b = Validator.combine(&storage_b, &.{ max5_validator, phone_validator }, .all);
+
+    // Interleave calls: A, B, A, B, A
+
+    // Call A with email (should pass) — email OR minLength(3)
+    {
+        const result = validator_a.validate("user@example.com");
+        try testing.expectEqual(ValidatorResult.valid, result);
+    }
+
+    // Call B with short phone digits (should fail maxLength AND phoneUS)
+    {
+        const result = validator_b.validate("123");
+        try testing.expect(result == .invalid);
+    }
+
+    // Call A with short string that passes minLength(3) (should pass) — email OR minLength(3)
+    {
+        const result = validator_a.validate("abc");
+        try testing.expectEqual(ValidatorResult.valid, result);
+    }
+
+    // Call B with valid short phone (should pass) — maxLength(5) AND phoneUS
+    {
+        const result = validator_b.validate("5551234567"); // 10 digits, exceeds maxLength(5)
+        try testing.expect(result == .invalid); // Should fail because phone is too long
+    }
+
+    // Call A again with invalid email and short string (should fail both) — email OR minLength(3)
+    {
+        const result = validator_a.validate("ab");
+        try testing.expect(result == .invalid); // Fails: not email AND too short for minLength(3)
+    }
+
+    // Call B one more time with valid phone in correct format (should pass) — maxLength(5) AND phoneUS
+    // Actually, a valid phone is always longer than 5 chars, so let's use a short input
+    // that satisfies maxLength(5): a 5-char string that is NOT a valid phone
+    {
+        const result = validator_b.validate("12345");
+        try testing.expect(result == .invalid); // Fails: passes maxLength(5) but not phoneUS
+    }
+}
+
+test "combine validators - empty array always returns valid" {
+    // This test proves that combining an empty validator array returns a validator
+    // that always accepts any input, unchanged behavior under the new API.
+    var storage: validation.CombinedStorage = undefined;
+    const empty_validator = Validator.combine(&storage, &.{}, .all);
+
+    try testing.expectEqual(ValidatorResult.valid, empty_validator.validate(""));
+    try testing.expectEqual(ValidatorResult.valid, empty_validator.validate("anything"));
+    try testing.expectEqual(ValidatorResult.valid, empty_validator.validate("with special chars !@#$%^&*()"));
+    try testing.expectEqual(ValidatorResult.valid, empty_validator.validate("very long string that would normally fail many validators but passes an empty one"));
 }

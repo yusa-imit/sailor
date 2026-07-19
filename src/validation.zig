@@ -15,7 +15,7 @@
 //!
 //! ```zig
 //! const validator = Validator.email();
-//! const result = validator.validateFn("user@example.com");
+//! const result = validator.validate("user@example.com");
 //! if (result == .valid) {
 //!     // Email is valid
 //! }
@@ -47,14 +47,14 @@ pub const ValidatorResult = union(enum) {
     }
 };
 
-/// Validation function type
-pub const ValidateFn = *const fn ([]const u8) ValidatorResult;
+/// Validation function type with context support
+pub const ValidateFn = *const fn (ctx: ?*const anyopaque, input: []const u8) ValidatorResult;
 
 fn makeMinLengthValidator(comptime min: usize) ValidateFn {
     return struct {
         const msg = std.fmt.comptimePrint("Input must be at least {d} characters", .{min});
 
-        fn validate(input: []const u8) ValidatorResult {
+        fn validate(_: ?*const anyopaque, input: []const u8) ValidatorResult {
             const len = std.unicode.utf8CountCodepoints(input) catch {
                 return .{ .invalid = "Input contains invalid UTF-8" };
             };
@@ -72,7 +72,7 @@ fn makeMaxLengthValidator(comptime max: usize) ValidateFn {
     return struct {
         const msg = std.fmt.comptimePrint("Input must not exceed {d} characters", .{max});
 
-        fn validate(input: []const u8) ValidatorResult {
+        fn validate(_: ?*const anyopaque, input: []const u8) ValidatorResult {
             const len = std.unicode.utf8CountCodepoints(input) catch {
                 return .{ .invalid = "Input contains invalid UTF-8" };
             };
@@ -86,68 +86,44 @@ fn makeMaxLengthValidator(comptime max: usize) ValidateFn {
     }.validate;
 }
 
-/// Helper for combined validators using global storage
-const CombinedValidator = struct {
-    const Entry = struct {
-        validators: []const Validator = &.{},
-        mode: CombineMode = .all,
-    };
-
-    // Global storage for combined validators (max 32 concurrent combinations)
-    var storage: [32]Entry = [_]Entry{.{}} ** 32;
-    var next_idx: usize = 0;
-
-    fn create(validators: []const Validator, mode: CombineMode) Validator {
-        const idx = next_idx;
-        next_idx = (next_idx + 1) % 32;
-
-        storage[idx] = .{
-            .validators = validators,
-            .mode = mode,
-        };
-
-        return .{
-            .validateFn = switch (idx) {
-                inline 0...31 => |i| makeValidator(i),
-                else => unreachable, // idx is always 0-31 due to modulo
-            },
-        };
-    }
-
-    fn makeValidator(comptime idx: usize) ValidateFn {
-        return struct {
-            fn validate(input: []const u8) ValidatorResult {
-                const vals = storage[idx].validators;
-                const m = storage[idx].mode;
-
-                switch (m) {
-                    .all => {
-                        for (vals) |validator| {
-                            const result = validator.validateFn(input);
-                            if (result != .valid) return result;
-                        }
-                        return .valid;
-                    },
-                    .any => {
-                        var last_error: []const u8 = "All validators failed";
-                        for (vals) |validator| {
-                            const result = validator.validateFn(input);
-                            if (result == .valid) return .valid;
-                            if (result == .invalid) {
-                                last_error = result.invalid;
-                            }
-                        }
-                        return .{ .invalid = last_error };
-                    },
-                }
-            }
-        }.validate;
-    }
+/// Storage for combined validators — caller owns lifetime
+pub const CombinedStorage = struct {
+    validators: []const Validator = &.{},
+    mode: CombineMode = .all,
 };
+
+/// Internal function for combined validator logic (reads from caller-owned storage)
+fn combinedValidate(ctx: ?*const anyopaque, input: []const u8) ValidatorResult {
+    const storage: *const CombinedStorage = @ptrCast(@alignCast(ctx.?));
+    switch (storage.mode) {
+        .all => {
+            for (storage.validators) |validator| {
+                const result = validator.validate(input);
+                if (result != .valid) return result;
+            }
+            return .valid;
+        },
+        .any => {
+            var last_error: []const u8 = "All validators failed";
+            for (storage.validators) |validator| {
+                const result = validator.validate(input);
+                if (result == .valid) return .valid;
+                if (result == .invalid) last_error = result.invalid;
+            }
+            return .{ .invalid = last_error };
+        },
+    }
+}
 
 /// A validator that checks input against a validation rule
 pub const Validator = struct {
     validateFn: ValidateFn,
+    ctx: ?*const anyopaque = null,
+
+    /// Validate input using this validator's validateFn with context
+    pub fn validate(self: Validator, input: []const u8) ValidatorResult {
+        return self.validateFn(self.ctx, input);
+    }
 
     // ========================================================================
     // Built-in Validators
@@ -158,7 +134,7 @@ pub const Validator = struct {
     pub fn email() Validator {
         return .{
             .validateFn = struct {
-                fn validate(input: []const u8) ValidatorResult {
+                fn validate(_: ?*const anyopaque, input: []const u8) ValidatorResult {
                     if (input.len == 0) {
                         return .{ .invalid = "Email address cannot be empty" };
                     }
@@ -206,7 +182,7 @@ pub const Validator = struct {
     pub fn url() Validator {
         return .{
             .validateFn = struct {
-                fn validate(input: []const u8) ValidatorResult {
+                fn validate(_: ?*const anyopaque, input: []const u8) ValidatorResult {
                     if (input.len == 0) {
                         return .{ .invalid = "URL cannot be empty" };
                     }
@@ -247,7 +223,7 @@ pub const Validator = struct {
     pub fn phoneUS() Validator {
         return .{
             .validateFn = struct {
-                fn validate(input: []const u8) ValidatorResult {
+                fn validate(_: ?*const anyopaque, input: []const u8) ValidatorResult {
                     if (input.len == 0) {
                         return .{ .invalid = "Phone number cannot be empty" };
                     }
@@ -313,7 +289,7 @@ pub const Validator = struct {
         // For real regex, we'd use a regex library, but for tests we simulate
         return .{
             .validateFn = struct {
-                fn validate(input: []const u8) ValidatorResult {
+                fn validate(_: ?*const anyopaque, input: []const u8) ValidatorResult {
                     // This is a simplified regex matcher for common patterns
                     // Pattern: ^[0-9]{3}-[0-9]{2}-[0-9]{4}$ (SSN)
                     if (std.mem.eql(u8, pattern, "^[0-9]{3}-[0-9]{2}-[0-9]{4}$")) {
@@ -375,22 +351,27 @@ pub const Validator = struct {
     // ========================================================================
 
     /// Combine multiple validators with AND or OR logic
-    /// This is a simplified implementation that validates inline without capturing state
-    pub fn combine(validators: []const Validator, mode: CombineMode) Validator {
+    /// storage: pointer to caller-owned CombinedStorage (lifetime must exceed returned Validator)
+    /// validators: stored by reference in storage — the slice (and any Validator it holds
+    /// that itself wraps a combine()'d Validator) must also outlive the returned Validator's use
+    pub fn combine(storage: *CombinedStorage, validators: []const Validator, mode: CombineMode) Validator {
         // Handle empty array — always valid
         if (validators.len == 0) {
             return .{
                 .validateFn = struct {
-                    fn validate(_: []const u8) ValidatorResult {
+                    fn validate(_: ?*const anyopaque, _: []const u8) ValidatorResult {
                         return .valid;
                     }
                 }.validate,
             };
         }
 
-        // We'll use a global storage array to hold validator compositions
-        // This is a limitation but works for the common case
-        return CombinedValidator.create(validators, mode);
+        storage.* = .{ .validators = validators, .mode = mode };
+
+        return .{
+            .validateFn = combinedValidate,
+            .ctx = storage,
+        };
     }
 };
 
@@ -471,7 +452,7 @@ pub const AsyncValidator = struct {
                 const now = std.time.milliTimestamp();
                 if (now - queue_time >= self.debounce_ms) {
                     // Perform validation
-                    const result = self.validator.validateFn(v);
+                    const result = self.validator.validate(v);
 
                     self.mutex.lock();
                     self.result = result;
@@ -576,7 +557,7 @@ pub const VisualFeedback = struct {
 
     /// Validate with style
     pub fn validateWithStyle(self: *VisualFeedback, value: []const u8) !ValidationStyleResult {
-        const result = self.validator.validateFn(value);
+        const result = self.validator.validate(value);
 
         switch (result) {
             .valid => return .{
@@ -619,15 +600,16 @@ test "validator basic sanity check" {
     const testing = std.testing;
 
     const email_validator = Validator.email();
-    const result = email_validator.validateFn("user@example.com");
+    const result = email_validator.validate("user@example.com");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
 test "validator composition empty array" {
     const testing = std.testing;
 
-    const validator = Validator.combine(&.{}, .all);
-    const result = validator.validateFn("anything");
+    var storage: CombinedStorage = undefined;
+    const validator = Validator.combine(&storage, &.{}, .all);
+    const result = validator.validate("anything");
     try testing.expectEqual(ValidatorResult.valid, result);
 }
 
@@ -662,43 +644,43 @@ test "email validator - invalid formats" {
 
     // Empty email
     {
-        const result = validator.validateFn("");
+        const result = validator.validate("");
         try testing.expect(result == .invalid);
     }
 
     // Missing @
     {
-        const result = validator.validateFn("userexample.com");
+        const result = validator.validate("userexample.com");
         try testing.expect(result == .invalid);
     }
 
     // Multiple @
     {
-        const result = validator.validateFn("user@@example.com");
+        const result = validator.validate("user@@example.com");
         try testing.expect(result == .invalid);
     }
 
     // Empty local part
     {
-        const result = validator.validateFn("@example.com");
+        const result = validator.validate("@example.com");
         try testing.expect(result == .invalid);
     }
 
     // Empty domain
     {
-        const result = validator.validateFn("user@");
+        const result = validator.validate("user@");
         try testing.expect(result == .invalid);
     }
 
     // Domain without dot
     {
-        const result = validator.validateFn("user@localhost");
+        const result = validator.validate("user@localhost");
         try testing.expect(result == .invalid);
     }
 
     // Null byte
     {
-        const result = validator.validateFn("user\x00@example.com");
+        const result = validator.validate("user\x00@example.com");
         try testing.expect(result == .invalid);
     }
 }
@@ -710,31 +692,31 @@ test "url validator - invalid formats" {
 
     // Empty URL
     {
-        const result = validator.validateFn("");
+        const result = validator.validate("");
         try testing.expect(result == .invalid);
     }
 
     // Missing protocol
     {
-        const result = validator.validateFn("example.com");
+        const result = validator.validate("example.com");
         try testing.expect(result == .invalid);
     }
 
     // Protocol only
     {
-        const result = validator.validateFn("https://");
+        const result = validator.validate("https://");
         try testing.expect(result == .invalid);
     }
 
     // Contains spaces
     {
-        const result = validator.validateFn("https://example .com");
+        const result = validator.validate("https://example .com");
         try testing.expect(result == .invalid);
     }
 
     // Invalid characters
     {
-        const result = validator.validateFn("https://example.com!");
+        const result = validator.validate("https://example.com!");
         try testing.expect(result == .invalid);
     }
 }
@@ -746,37 +728,37 @@ test "phoneUS validator - invalid formats" {
 
     // Empty
     {
-        const result = validator.validateFn("");
+        const result = validator.validate("");
         try testing.expect(result == .invalid);
     }
 
     // Too few digits
     {
-        const result = validator.validateFn("555-1234");
+        const result = validator.validate("555-1234");
         try testing.expect(result == .invalid);
     }
 
     // Too many digits
     {
-        const result = validator.validateFn("555-123-45678");
+        const result = validator.validate("555-123-45678");
         try testing.expect(result == .invalid);
     }
 
     // Invalid characters
     {
-        const result = validator.validateFn("555-abc-1234");
+        const result = validator.validate("555-abc-1234");
         try testing.expect(result == .invalid);
     }
 
     // Valid formats
     {
-        const result1 = validator.validateFn("555-123-4567");
+        const result1 = validator.validate("555-123-4567");
         try testing.expect(result1 == .valid);
 
-        const result2 = validator.validateFn("(555) 123-4567");
+        const result2 = validator.validate("(555) 123-4567");
         try testing.expect(result2 == .valid);
 
-        const result3 = validator.validateFn("5551234567");
+        const result3 = validator.validate("5551234567");
         try testing.expect(result3 == .valid);
     }
 }
@@ -788,25 +770,25 @@ test "minLength validator - edge cases" {
 
     // Exact minimum
     {
-        const result = validator.validateFn("hello");
+        const result = validator.validate("hello");
         try testing.expect(result == .valid);
     }
 
     // Below minimum
     {
-        const result = validator.validateFn("hi");
+        const result = validator.validate("hi");
         try testing.expect(result == .invalid);
     }
 
     // Empty string
     {
-        const result = validator.validateFn("");
+        const result = validator.validate("");
         try testing.expect(result == .invalid);
     }
 
     // Unicode characters
     {
-        const result = validator.validateFn("こんに"); // 3 characters
+        const result = validator.validate("こんに"); // 3 characters
         try testing.expect(result == .invalid);
     }
 }
@@ -818,25 +800,25 @@ test "maxLength validator - edge cases" {
 
     // Exact maximum
     {
-        const result = validator.validateFn("1234567890");
+        const result = validator.validate("1234567890");
         try testing.expect(result == .valid);
     }
 
     // Above maximum
     {
-        const result = validator.validateFn("12345678901");
+        const result = validator.validate("12345678901");
         try testing.expect(result == .invalid);
     }
 
     // Empty string
     {
-        const result = validator.validateFn("");
+        const result = validator.validate("");
         try testing.expect(result == .valid);
     }
 
     // Unicode characters
     {
-        const result = validator.validateFn("こんにちは世界あいうえ"); // 11 characters
+        const result = validator.validate("こんにちは世界あいうえ"); // 11 characters
         try testing.expect(result == .invalid);
     }
 }
@@ -848,25 +830,25 @@ test "regex validator - SSN pattern" {
 
     // Valid SSN
     {
-        const result = validator.validateFn("123-45-6789");
+        const result = validator.validate("123-45-6789");
         try testing.expect(result == .valid);
     }
 
     // Wrong format
     {
-        const result = validator.validateFn("12-345-6789");
+        const result = validator.validate("12-345-6789");
         try testing.expect(result == .invalid);
     }
 
     // Contains letters
     {
-        const result = validator.validateFn("123-ab-6789");
+        const result = validator.validate("123-ab-6789");
         try testing.expect(result == .invalid);
     }
 
     // Too short
     {
-        const result = validator.validateFn("123-45-678");
+        const result = validator.validate("123-45-678");
         try testing.expect(result == .invalid);
     }
 }
@@ -878,16 +860,16 @@ test "regex validator - alternation pattern" {
 
     // Valid values
     {
-        try testing.expect(validator.validateFn("foo") == .valid);
-        try testing.expect(validator.validateFn("bar") == .valid);
-        try testing.expect(validator.validateFn("baz") == .valid);
+        try testing.expect(validator.validate("foo") == .valid);
+        try testing.expect(validator.validate("bar") == .valid);
+        try testing.expect(validator.validate("baz") == .valid);
     }
 
     // Invalid values
     {
-        try testing.expect(validator.validateFn("qux") == .invalid);
-        try testing.expect(validator.validateFn("") == .invalid);
-        try testing.expect(validator.validateFn("foobar") == .invalid);
+        try testing.expect(validator.validate("qux") == .invalid);
+        try testing.expect(validator.validate("") == .invalid);
+        try testing.expect(validator.validate("foobar") == .invalid);
     }
 }
 
@@ -909,23 +891,24 @@ test "combine validators - all mode" {
         Validator.maxLength(10),
     };
 
-    const combined = Validator.combine(&validators, .all);
+    var storage: CombinedStorage = undefined;
+    const combined = Validator.combine(&storage, &validators, .all);
 
     // Passes both
     {
-        const result = combined.validateFn("hello");
+        const result = combined.validate("hello");
         try testing.expect(result == .valid);
     }
 
     // Fails minLength
     {
-        const result = combined.validateFn("hi");
+        const result = combined.validate("hi");
         try testing.expect(result == .invalid);
     }
 
     // Fails maxLength
     {
-        const result = combined.validateFn("hello world!");
+        const result = combined.validate("hello world!");
         try testing.expect(result == .invalid);
     }
 }
@@ -938,23 +921,24 @@ test "combine validators - any mode" {
         Validator.url(),
     };
 
-    const combined = Validator.combine(&validators, .any);
+    var storage: CombinedStorage = undefined;
+    const combined = Validator.combine(&storage, &validators, .any);
 
     // Passes email validator
     {
-        const result = combined.validateFn("user@example.com");
+        const result = combined.validate("user@example.com");
         try testing.expect(result == .valid);
     }
 
     // Passes url validator
     {
-        const result = combined.validateFn("https://example.com");
+        const result = combined.validate("https://example.com");
         try testing.expect(result == .valid);
     }
 
     // Fails both
     {
-        const result = combined.validateFn("invalid");
+        const result = combined.validate("invalid");
         try testing.expect(result == .invalid);
     }
 }
