@@ -1091,3 +1091,161 @@ test "CountdownTimer render with styles applied" {
     }
     try testing.expect(found_styled_char);
 }
+
+// ============================================================================
+// BUFFER OVERFLOW PANIC TESTS (RED: prove the bug exists)
+// ============================================================================
+
+test "CountdownTimer render hh_mm_ss format overflows buffer at 3600000 seconds (1000+ hours)" {
+    // This test WILL PANIC because the format string "{d:0>2}:{d:0>2}:{d:0>2}"
+    // with hours >= 1000 produces "1000:00:00" (10 chars) into a 9-byte buffer.
+    // 3,600,000 seconds = 1000 hours, which triggers the panic in formatHhMmSs.
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 50, 10);
+    defer buf.deinit();
+
+    var timer = CountdownTimer.init(3_600_000); // 1000 hours
+    timer.remaining_seconds = 3_600_000;
+    timer.format = .hh_mm_ss;
+    timer.show_progress_bar = false;
+    const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 3 };
+
+    // This call to render() will invoke formatHhMmSs with 3,600,000 seconds,
+    // which calculates hours=1000, mins=0, secs=0, and tries to format
+    // "1000:00:00" (10 chars) into a 9-byte buffer, causing @panic.
+    timer.render(&buf, area);
+}
+
+test "CountdownTimer render hh_mm_ss format overflows buffer at 4000000 seconds" {
+    // Similar panic at an even larger value: 4,000,000 seconds = 1111+ hours.
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 50, 10);
+    defer buf.deinit();
+
+    var timer = CountdownTimer.init(4_000_000);
+    timer.remaining_seconds = 4_000_000;
+    timer.format = .hh_mm_ss;
+    timer.show_progress_bar = false;
+    const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 3 };
+
+    timer.render(&buf, area);
+}
+
+test "CountdownTimer render mm_ss format overflows buffer at 60000000 seconds (1000000+ minutes)" {
+    // This test WILL PANIC because the format string "{d:0>2}:{d:0>2}"
+    // with mins >= 1,000,000 produces "1000000:00" (10 chars) into a 9-byte buffer.
+    // 60,000,000 seconds = 1,000,000 minutes, which triggers the panic in formatMmSs.
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 50, 10);
+    defer buf.deinit();
+
+    var timer = CountdownTimer.init(60_000_000);
+    timer.remaining_seconds = 60_000_000;
+    timer.format = .mm_ss;
+    timer.show_progress_bar = false;
+    const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 3 };
+
+    timer.render(&buf, area);
+}
+
+test "CountdownTimer render seconds format overflows buffer at 1000000000 seconds (10+ digits)" {
+    // This test WILL PANIC because the format string "{d}"
+    // with seconds >= 1,000,000,000 produces "1000000000" (10 chars) into a 9-byte buffer.
+    // 1,000,000,000 seconds triggers the panic in formatSeconds.
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 50, 10);
+    defer buf.deinit();
+
+    var timer = CountdownTimer.init(1_000_000_000);
+    timer.remaining_seconds = 1_000_000_000;
+    timer.format = .seconds;
+    timer.show_progress_bar = false;
+    const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 3 };
+
+    timer.render(&buf, area);
+}
+
+// ============================================================================
+// FORMATTIME CLAMPING TESTS (GREEN: verify expected clamped behavior)
+// ============================================================================
+// These tests call formatTime directly and assert the output matches expected
+// clamped values. Once the implementation clamps before formatting, these tests
+// will verify the exact clamped output.
+
+test "formatTime hh_mm_ss clamped max value (999:59:59 for 3599999 seconds)" {
+    var buf: [9]u8 = undefined;
+    // Expected: hh_mm_ss format clamped at 999 hours (3,599,999 seconds = 999:59:59)
+    const result = CountdownTimer.formatTime(3_599_999, .hh_mm_ss, &buf);
+    try testing.expectEqualStrings("999:59:59", result);
+    try testing.expectEqual(@as(usize, 9), result.len);
+}
+
+test "formatTime hh_mm_ss clamped when hours would exceed 999" {
+    var buf: [9]u8 = undefined;
+    // Input: 3,600,000 seconds (1000 hours)
+    // Expected: clamped to "999:59:59"
+    const result = CountdownTimer.formatTime(3_600_000, .hh_mm_ss, &buf);
+    try testing.expectEqualStrings("999:59:59", result);
+    try testing.expectEqual(@as(usize, 9), result.len);
+}
+
+test "formatTime hh_mm_ss clamped at large overflow value" {
+    var buf: [9]u8 = undefined;
+    // Input: 4,000,000 seconds (1111+ hours)
+    // Expected: clamped to "999:59:59"
+    const result = CountdownTimer.formatTime(4_000_000, .hh_mm_ss, &buf);
+    try testing.expectEqualStrings("999:59:59", result);
+    try testing.expectEqual(@as(usize, 9), result.len);
+}
+
+test "formatTime mm_ss clamped max value (999999:59 for 59999999 seconds)" {
+    var buf: [9]u8 = undefined;
+    // Expected: mm_ss format clamped at 999,999 minutes (59,999,999 seconds = 999999:59)
+    const result = CountdownTimer.formatTime(59_999_999, .mm_ss, &buf);
+    try testing.expectEqualStrings("999999:59", result);
+    try testing.expectEqual(@as(usize, 9), result.len);
+}
+
+test "formatTime mm_ss clamped when minutes would exceed 999999" {
+    var buf: [9]u8 = undefined;
+    // Input: 60,000,000 seconds (1,000,000 minutes)
+    // Expected: clamped to "999999:59"
+    const result = CountdownTimer.formatTime(60_000_000, .mm_ss, &buf);
+    try testing.expectEqualStrings("999999:59", result);
+    try testing.expectEqual(@as(usize, 9), result.len);
+}
+
+test "formatTime mm_ss clamped at large overflow value" {
+    var buf: [9]u8 = undefined;
+    // Input: 70,000,000 seconds (1,166,666+ minutes)
+    // Expected: clamped to "999999:59"
+    const result = CountdownTimer.formatTime(70_000_000, .mm_ss, &buf);
+    try testing.expectEqualStrings("999999:59", result);
+    try testing.expectEqual(@as(usize, 9), result.len);
+}
+
+test "formatTime seconds clamped max value (999999999 for 999999999 seconds)" {
+    var buf: [9]u8 = undefined;
+    // Expected: seconds format clamped at 999,999,999 (exactly 9 digits)
+    const result = CountdownTimer.formatTime(999_999_999, .seconds, &buf);
+    try testing.expectEqualStrings("999999999", result);
+    try testing.expectEqual(@as(usize, 9), result.len);
+}
+
+test "formatTime seconds clamped when value exceeds 999999999" {
+    var buf: [9]u8 = undefined;
+    // Input: 1,000,000,000 seconds (10 digits)
+    // Expected: clamped to "999999999"
+    const result = CountdownTimer.formatTime(1_000_000_000, .seconds, &buf);
+    try testing.expectEqualStrings("999999999", result);
+    try testing.expectEqual(@as(usize, 9), result.len);
+}
+
+test "formatTime seconds clamped at very large overflow value" {
+    var buf: [9]u8 = undefined;
+    // Input: 9,999,999,999 seconds (10+ digits)
+    // Expected: clamped to "999999999"
+    const result = CountdownTimer.formatTime(9_999_999_999, .seconds, &buf);
+    try testing.expectEqualStrings("999999999", result);
+    try testing.expectEqual(@as(usize, 9), result.len);
+}

@@ -107,31 +107,28 @@ pub const CountdownTimer = struct {
 
     /// Format as MM:SS
     fn formatMmSs(seconds: u64, buf: *[9]u8) []u8 {
-        const mins = seconds / 60;
-        const secs = seconds % 60;
-        const len = std.fmt.bufPrint(buf, "{d:0>2}:{d:0>2}", .{ mins, secs }) catch {
-            @panic("formatMmSs buffer write failed");
-        };
+        const clamped = @min(seconds, 59_999_999);
+        const mins = clamped / 60;
+        const secs = clamped % 60;
+        const len = std.fmt.bufPrint(buf, "{d:0>2}:{d:0>2}", .{ mins, secs }) catch unreachable;
         return len;
     }
 
     /// Format as HH:MM:SS
     fn formatHhMmSs(seconds: u64, buf: *[9]u8) []u8 {
-        const hours = seconds / 3600;
-        const remaining = seconds % 3600;
+        const clamped = @min(seconds, 3_599_999);
+        const hours = clamped / 3600;
+        const remaining = clamped % 3600;
         const mins = remaining / 60;
         const secs = remaining % 60;
-        const len = std.fmt.bufPrint(buf, "{d:0>2}:{d:0>2}:{d:0>2}", .{ hours, mins, secs }) catch {
-            @panic("formatHhMmSs buffer write failed");
-        };
+        const len = std.fmt.bufPrint(buf, "{d:0>2}:{d:0>2}:{d:0>2}", .{ hours, mins, secs }) catch unreachable;
         return len;
     }
 
     /// Format as plain seconds
     fn formatSeconds(seconds: u64, buf: *[9]u8) []u8 {
-        const len = std.fmt.bufPrint(buf, "{d}", .{seconds}) catch {
-            @panic("formatSeconds buffer write failed");
-        };
+        const clamped = @min(seconds, 999_999_999);
+        const len = std.fmt.bufPrint(buf, "{d}", .{clamped}) catch unreachable;
         return len;
     }
 
