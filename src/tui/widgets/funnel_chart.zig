@@ -260,7 +260,10 @@ fn drawValueLabel(buf: *Buffer, area: Rect, value: f32, style: Style) void {
     if (area.height == 0) return;
 
     var value_str: [16]u8 = undefined;
-    const int_part: i32 = @intFromFloat(value);
+    // Clamp value to safe i32 range to prevent panic on @intFromFloat
+    // Use ±999_999_999 to stay well within i32 range and be safely representable in f32
+    const clamped_value = @max(-999_999_999.0, @min(value, 999_999_999.0));
+    const int_part: i32 = @intFromFloat(clamped_value);
     var str_len: usize = 0;
 
     if (int_part < 0) {
@@ -306,7 +309,10 @@ fn drawPercentageLabel(buf: *Buffer, area: Rect, percentage: f32, style: Style) 
     if (area.height == 0) return;
 
     var pct_str: [16]u8 = undefined;
-    const pct_int: i32 = @intFromFloat(percentage);
+    // Clamp percentage to safe i32 range to prevent panic on @intFromFloat
+    // Use ±999_999_999 to stay well within i32 range and be safely representable in f32
+    const clamped_percentage = @max(-999_999_999.0, @min(percentage, 999_999_999.0));
+    const pct_int: i32 = @intFromFloat(clamped_percentage);
     var str_len: usize = 0;
 
     const abs_val: u32 = if (pct_int < 0) @intCast(-pct_int) else @intCast(pct_int);

@@ -1405,3 +1405,28 @@ test "DotPlot.render with mixed magnitude values" {
     const non_empty = countNonEmptyCells(buf, area);
     try testing.expect(non_empty > 0);
 }
+
+// ============================================================================
+// No-Panic Regression Tests — @intFromFloat Overflow (Session 387)
+// ============================================================================
+
+test "DotPlot.render extremely large item.value with show_values=true does not panic" {
+    var buf = try Buffer.init(testing.allocator, 60, 20);
+    defer buf.deinit();
+    // CRITICAL REGRESSION: drawValueLabel() at line 282 casts raw item.value to i32 without clamping.
+    // Values outside i32 range (~±2.147e9) cause panic: "integer part of floating point value out of bounds"
+    // This test locks in the fix: extremely large values must be handled gracefully (clamped before cast).
+    var items = [_]DotPlotItem{
+        .{ .label = "VeryLarge", .value = 3_000_000_000.0 }
+    };
+    const dp = DotPlot.init()
+        .withItems(&items)
+        .withXMin(0.0)
+        .withXMax(1e10)
+        .withShowValues(true)
+        .withDotChar('●');
+    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
+    dp.render(&buf, area);
+    // No panic is success; dot marker must be rendered at valid clamped position
+    try testing.expect(areaHasChar(buf, area, '●'));
+}

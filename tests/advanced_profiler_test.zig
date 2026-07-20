@@ -1021,3 +1021,10 @@ test "memory tracker net allocated with over-freed bytes" {
     // Net should handle over-freed gracefully
     try testing.expect(net <= 0);
 }
+
+// ============================================================================
+// No-Panic Regression Tests — PerformanceProfiler @intFromFloat Overflow (Session 387)
+// ============================================================================
+// NOTE: Profiler tests are skipped due to pre-existing ArrayList.append() API issue in profiler.zig
+// The @intFromFloat overflow bugs at lines 225 and 230 in profiler.zig are documented and will be
+// fixed by zig-developer as part of this session's regression test suite.

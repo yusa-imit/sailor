@@ -1075,3 +1075,29 @@ test "BubbleChart render with MAX_BUBBLES all at different positions safe" {
     const non_empty = countNonEmptyCells(buf, area);
     try testing.expect(non_empty <= 2400); // 80*30 cells max
 }
+
+// ============================================================================
+// No-Panic Regression Tests — @intFromFloat Overflow (Session 387)
+// ============================================================================
+
+test "BubbleChart.render with extremely large x_max with show_axes=true does not panic" {
+    var buf = try Buffer.init(testing.allocator, 60, 20);
+    defer buf.deinit();
+    // CRITICAL REGRESSION: formatF32Into() at line 385 casts axis range values (x_max, etc.) to i32 without clamping.
+    // Values outside i32 range (~±2.147e9) cause panic: "integer part of floating point value out of bounds"
+    // This test locks in the fix: extreme axis values must be handled gracefully (clamped before cast).
+    var bubbles = [_]Bubble{
+        Bubble.init().withLabel("A").withX(0.5).withY(0.5).withSize(0.5),
+    };
+    const chart = BubbleChart.init()
+        .withBubbles(&bubbles)
+        .withXMin(0.0)
+        .withXMax(3_000_000_000.0) // 3e9, well outside i32 range (~2.147e9)
+        .withYMin(0.0)
+        .withYMax(1.0)
+        .withShowAxes(true);
+    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
+    chart.render(&buf, area);
+    // No panic is success; axes should render at clamped values
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
+}

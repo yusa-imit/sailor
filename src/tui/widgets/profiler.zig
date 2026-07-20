@@ -56,7 +56,7 @@ pub const PerformanceProfiler = struct {
     /// Initialize performance profiler with empty frame history.
     pub fn init(allocator: std.mem.Allocator) PerformanceProfiler {
         return .{
-            .frame_history = std.ArrayList(FrameStats).init(allocator),
+            .frame_history = std.ArrayList(FrameStats){},
             .alloc_stats = .{
                 .total_allocated = 0,
                 .total_freed = 0,
@@ -65,20 +65,20 @@ pub const PerformanceProfiler = struct {
                 .alloc_count = 0,
                 .free_count = 0,
             },
-            .hot_paths = std.ArrayList(HotPath).init(allocator),
+            .hot_paths = std.ArrayList(HotPath){},
             .allocator = allocator,
         };
     }
 
     /// Free frame history and hot path lists.
     pub fn deinit(self: *PerformanceProfiler) void {
-        self.frame_history.deinit();
-        self.hot_paths.deinit();
+        self.frame_history.deinit(self.allocator);
+        self.hot_paths.deinit(self.allocator);
     }
 
     /// Record a frame timing sample
     pub fn recordFrame(self: *PerformanceProfiler, stats: FrameStats) !void {
-        try self.frame_history.append(stats);
+        try self.frame_history.append(self.allocator, stats);
 
         // Trim history if exceeds max
         while (self.frame_history.items.len > self.max_history) {
@@ -104,7 +104,7 @@ pub const PerformanceProfiler = struct {
         }
 
         // Add new path
-        try self.hot_paths.append(path);
+        try self.hot_paths.append(self.allocator, path);
     }
 
     /// Clear all hot paths
@@ -207,11 +207,11 @@ pub const PerformanceProfiler = struct {
         }) catch "";
 
         const stats_style: Style = if (avg_fps >= self.target_fps * 0.9)
-            .{ .fg = .{ .basic = .green }, .bold = true }
+            .{ .fg = .green, .bold = true }
         else if (avg_fps >= self.target_fps * 0.7)
-            .{ .fg = .{ .basic = .yellow }, .bold = true }
+            .{ .fg = .yellow, .bold = true }
         else
-            .{ .fg = .{ .basic = .red }, .bold = true };
+            .{ .fg = .red, .bold = true };
 
         buf.setString(inner.x, inner.y, stats, stats_style);
 
@@ -222,12 +222,19 @@ pub const PerformanceProfiler = struct {
             defer self.allocator.free(frame_times);
 
             for (self.frame_history.items, 0..) |frame, i| {
-                frame_times[i] = @intFromFloat(frame.frame_time_ms * 100.0); // Scale for precision
+                // Clamp value to safe u64 range to prevent panic on @intFromFloat
+                // Use [0, 1e19] to stay well within u64 range
+                const scaled = frame.frame_time_ms * 100.0;
+                const clamped_value = @max(0.0, @min(scaled, 1e19));
+                frame_times[i] = @intFromFloat(clamped_value); // Scale for precision
             }
 
+            // Clamp target_ms * 2.0 * 100.0 to safe u64 range before cast
+            const scaled_max = target_ms * 2.0 * 100.0;
+            const clamped_max = @max(0.0, @min(scaled_max, 1e19));
             const sparkline = Sparkline{
                 .data = frame_times,
-                .max = @intFromFloat(target_ms * 2.0 * 100.0), // 2x target as max
+                .max_value = @intFromFloat(clamped_max), // 2x target as max
             };
 
             const chart_area = Rect{
@@ -243,7 +250,7 @@ pub const PerformanceProfiler = struct {
             const target_y = inner.y + 1;
             var target_buf: [64]u8 = undefined;
             const target_str = std.fmt.bufPrint(&target_buf, "Target: {d:.2}ms", .{target_ms}) catch "";
-            buf.setString(inner.x, target_y, target_str, .{ .fg = .{ .basic = .cyan } });
+            buf.setString(inner.x, target_y, target_str, .{ .fg = .cyan });
         }
     }
 
@@ -265,32 +272,32 @@ pub const PerformanceProfiler = struct {
         // Current usage
         if (y < max_y) {
             var buf1: [128]u8 = undefined;
-            const line1 = std.fmt.bufPrint(&buf1, "Current: {}", .{std.fmt.fmtIntSizeBin(self.alloc_stats.current_usage)}) catch "";
-            buf.setString(inner.x, y, line1, .{ .fg = .{ .basic = .white }, .bold = true });
+            const line1 = std.fmt.bufPrint(&buf1, "Current: {}", .{self.alloc_stats.current_usage}) catch "";
+            buf.setString(inner.x, y, line1, .{ .fg = .white, .bold = true });
             y += 1;
         }
 
         // Peak usage
         if (y < max_y) {
             var buf2: [128]u8 = undefined;
-            const line2 = std.fmt.bufPrint(&buf2, "Peak:    {}", .{std.fmt.fmtIntSizeBin(self.alloc_stats.peak_usage)}) catch "";
-            buf.setString(inner.x, y, line2, .{ .fg = .{ .basic = .yellow } });
+            const line2 = std.fmt.bufPrint(&buf2, "Peak:    {}", .{self.alloc_stats.peak_usage}) catch "";
+            buf.setString(inner.x, y, line2, .{ .fg = .yellow });
             y += 1;
         }
 
         // Total allocated
         if (y < max_y) {
             var buf3: [128]u8 = undefined;
-            const line3 = std.fmt.bufPrint(&buf3, "Total Allocated: {}", .{std.fmt.fmtIntSizeBin(self.alloc_stats.total_allocated)}) catch "";
-            buf.setString(inner.x, y, line3, .{ .fg = .{ .basic = .cyan } });
+            const line3 = std.fmt.bufPrint(&buf3, "Total Allocated: {}", .{self.alloc_stats.total_allocated}) catch "";
+            buf.setString(inner.x, y, line3, .{ .fg = .cyan });
             y += 1;
         }
 
         // Total freed
         if (y < max_y) {
             var buf4: [128]u8 = undefined;
-            const line4 = std.fmt.bufPrint(&buf4, "Total Freed:     {}", .{std.fmt.fmtIntSizeBin(self.alloc_stats.total_freed)}) catch "";
-            buf.setString(inner.x, y, line4, .{ .fg = .{ .basic = .cyan } });
+            const line4 = std.fmt.bufPrint(&buf4, "Total Freed:     {}", .{self.alloc_stats.total_freed}) catch "";
+            buf.setString(inner.x, y, line4, .{ .fg = .cyan });
             y += 1;
         }
 
@@ -298,7 +305,7 @@ pub const PerformanceProfiler = struct {
         if (y < max_y) {
             var buf5: [128]u8 = undefined;
             const line5 = std.fmt.bufPrint(&buf5, "Allocations: {}  Frees: {}", .{ self.alloc_stats.alloc_count, self.alloc_stats.free_count }) catch "";
-            buf.setString(inner.x, y, line5, .{ .fg = .{ .basic = .green } });
+            buf.setString(inner.x, y, line5, .{ .fg = .green });
             y += 1;
         }
 
@@ -308,7 +315,7 @@ pub const PerformanceProfiler = struct {
             if (leaked > 0) {
                 var buf6: [128]u8 = undefined;
                 const line6 = std.fmt.bufPrint(&buf6, "⚠ Potential Leaks: {} allocations not freed", .{leaked}) catch "";
-                buf.setString(inner.x, y, line6, .{ .fg = .{ .basic = .red }, .bold = true });
+                buf.setString(inner.x, y, line6, .{ .fg = .red, .bold = true });
             }
         }
     }
@@ -331,7 +338,7 @@ pub const PerformanceProfiler = struct {
         // Header
         if (y < max_y) {
             const header = "Name                      Calls      Total (ms)    Avg (ms)";
-            buf.setString(inner.x, y, header, .{ .fg = .{ .basic = .white }, .bold = true });
+            buf.setString(inner.x, y, header, .{ .fg = .white, .bold = true });
             y += 1;
         }
 
@@ -363,11 +370,11 @@ pub const PerformanceProfiler = struct {
 
             // Color based on average time
             const style: Style = if (path.avg_time_ms > 10.0)
-                .{ .fg = .{ .basic = .red } }
+                .{ .fg = .red }
             else if (path.avg_time_ms > 5.0)
-                .{ .fg = .{ .basic = .yellow } }
+                .{ .fg = .yellow }
             else
-                .{ .fg = .{ .basic = .green } };
+                .{ .fg = .green };
 
             buf.setString(inner.x, y, line, style);
             y += 1;
@@ -375,7 +382,7 @@ pub const PerformanceProfiler = struct {
 
         // Empty state
         if (self.hot_paths.items.len == 0 and y < max_y) {
-            buf.setString(inner.x, y, "No profiling data available", .{ .fg = .{ .basic = .yellow } });
+            buf.setString(inner.x, y, "No profiling data available", .{ .fg = .yellow });
         }
     }
 };

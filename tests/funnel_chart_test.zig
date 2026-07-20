@@ -1314,3 +1314,46 @@ test "FunnelChart.render single-stage funnel edge case" {
     const non_empty = countNonEmptyCells(buf, area);
     try testing.expect(non_empty > 0);
 }
+
+// ============================================================================
+// No-Panic Regression Tests — @intFromFloat Overflow (Session 387)
+// ============================================================================
+
+test "FunnelChart.render extremely large stage.value with show_values=true does not panic" {
+    var buf = try Buffer.init(testing.allocator, 60, 20);
+    defer buf.deinit();
+    // CRITICAL REGRESSION: drawValueLabel() at line 263 casts raw stage.value to i32 without clamping.
+    // Values outside i32 range (~±2.147e9) cause panic: "integer part of floating point value out of bounds"
+    // This test locks in the fix: extremely large values must be handled gracefully (clamped before cast).
+    var stages = [_]FunnelStage{
+        .{ .label = "VeryLarge", .value = 3_000_000_000.0 },
+        .{ .label = "Small", .value = 100.0 },
+    };
+    const fc = FunnelChart.init()
+        .withStages(&stages)
+        .withShowValues(true);
+    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
+    fc.render(&buf, area);
+    // No panic is success; at least some content should render
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
+}
+
+test "FunnelChart.render divergent stage magnitudes with show_percentages=true does not panic" {
+    var buf = try Buffer.init(testing.allocator, 60, 20);
+    defer buf.deinit();
+    // CRITICAL REGRESSION: drawPercentageLabel() at line 309 casts computed percentage to i32 without clamping.
+    // When percentage computation yields (value / max_val * 100.0) > i32_max (~2.147e9),
+    // the cast panics. Example: value=5e12, max_val=1.0 → percentage=5e14, outside i32 range.
+    // This test locks in the fix: percentage must be clamped before cast.
+    var stages = [_]FunnelStage{
+        .{ .label = "Normal", .value = 1.0 },
+        .{ .label = "Huge", .value = 5_000_000_000_000.0 }, // 5e12, will make max_val=5e12
+    };
+    const fc = FunnelChart.init()
+        .withStages(&stages)
+        .withShowPercentages(true);
+    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
+    fc.render(&buf, area);
+    // No panic is success; at least some content should render (bars and percentages)
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
+}

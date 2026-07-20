@@ -409,6 +409,14 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    const profiler_widget_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/profiler_widget_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
     const error_recovery_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("tests/error_recovery_test.zig"),
@@ -522,6 +530,7 @@ pub fn build(b: *std.Build) void {
     eventbus_tests.root_module.addImport("sailor", sailor_module_for_tests);
     platform_opts_tests.root_module.addImport("sailor", sailor_module_for_tests);
     advanced_profiler_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    profiler_widget_tests.root_module.addImport("sailor", sailor_module_for_tests);
     error_recovery_tests.root_module.addImport("sailor", sailor_module_for_tests);
     developer_console_tests.root_module.addImport("sailor", sailor_module_for_tests);
     llm_client_tests.root_module.addImport("sailor", sailor_module_for_tests);
@@ -730,6 +739,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(eventbus_tests).step);
     test_step.dependOn(&b.addRunArtifact(platform_opts_tests).step);
     test_step.dependOn(&b.addRunArtifact(advanced_profiler_tests).step);
+    test_step.dependOn(&b.addRunArtifact(profiler_widget_tests).step);
     test_step.dependOn(&b.addRunArtifact(error_recovery_tests).step);
     test_step.dependOn(&b.addRunArtifact(developer_console_tests).step);
     test_step.dependOn(&b.addRunArtifact(llm_client_tests).step);

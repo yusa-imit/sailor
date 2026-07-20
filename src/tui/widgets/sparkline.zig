@@ -86,8 +86,10 @@ pub const Sparkline = struct {
 
         if (bar_count == 0) return ' ';
 
-        // Scale value to bar level
-        const scaled = @min(value * bar_count / (max + 1), bar_count - 1);
+        // Scale value to bar level (widen to u128 to avoid overflow on extreme values)
+        const max_plus_one: u128 = @as(u128, max) + 1;
+        const scaled_wide: u128 = @as(u128, value) * @as(u128, bar_count) / max_plus_one;
+        const scaled: usize = @intCast(@min(scaled_wide, bar_count - 1));
 
         // Get the nth unicode char
         var char_iter = std.unicode.Utf8View.initUnchecked(self.bars).iterator();

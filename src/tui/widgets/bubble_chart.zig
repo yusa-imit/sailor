@@ -382,7 +382,10 @@ pub const BubbleChart = struct {
         @memset(buffer, ' ');
 
         // Simple formatting: convert to integer for display
-        const int_val: i32 = @intFromFloat(value);
+        // Clamp value to safe i32 range to prevent panic on @intFromFloat
+        // Use ±999_999_999 to stay well within i32 range and be safely representable in f32
+        const clamped_value = @max(-999_999_999.0, @min(value, 999_999_999.0));
+        const int_val: i32 = @intFromFloat(clamped_value);
         var str_buf: [16]u8 = undefined;
         const str = std.fmt.bufPrint(&str_buf, "{d}", .{int_val}) catch "0";
 

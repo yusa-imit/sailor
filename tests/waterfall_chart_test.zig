@@ -1266,3 +1266,26 @@ test "WaterfallChart.render with alternating bar kinds" {
     const non_empty = countNonEmptyCells(buf, area);
     try testing.expect(non_empty > 0);
 }
+
+// ============================================================================
+// No-Panic Regression Tests — @intFromFloat Overflow (Session 387)
+// ============================================================================
+
+test "WaterfallChart.render extremely large bar.value with show_values=true does not panic" {
+    var buf = try Buffer.init(testing.allocator, 60, 20);
+    defer buf.deinit();
+    // CRITICAL REGRESSION: render() at line 341 casts raw bar.value to i32 without clamping.
+    // Values outside i32 range (~±2.147e9) cause panic: "integer part of floating point value out of bounds"
+    // This test locks in the fix: extremely large values must be handled gracefully (clamped before cast).
+    var bars = [_]WaterfallBar{
+        .{ .label = "VeryLarge", .value = 3_000_000_000.0, .kind = .relative },
+        .{ .label = "Small", .value = 100.0, .kind = .relative },
+    };
+    const wc = WaterfallChart.init()
+        .withBars(&bars)
+        .withShowValues(true);
+    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
+    wc.render(&buf, area);
+    // No panic is success; at least some content should render (bars and values)
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
+}

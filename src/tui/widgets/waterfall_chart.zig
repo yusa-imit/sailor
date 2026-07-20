@@ -338,7 +338,10 @@ pub const WaterfallChart = struct {
                 // Format value as string (simple integer formatting)
                 var value_str: [16]u8 = undefined;
                 const value_to_display = bar.value;
-                const int_part: i32 = @intFromFloat(value_to_display);
+                // Clamp value to safe i32 range to prevent panic on @intFromFloat
+                // Use ±999_999_999 to stay well within i32 range and be safely representable in f32
+                const clamped_value = @max(-999_999_999.0, @min(value_to_display, 999_999_999.0));
+                const int_part: i32 = @intFromFloat(clamped_value);
                 var str_len: usize = 0;
 
                 if (int_part < 0) {
