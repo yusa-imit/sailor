@@ -19,6 +19,17 @@
   still analyzes the "unreachable" branch and fails to compile it on Windows targets)
 - `@floatFromInt` in struct literals needs explicit `@as(f32, ...)` wrapping
 - Pin macOS ARM64 CI runner to macos-15 — macos-latest→26 broke Zig 0.15.2 linking
+- `value * bar_count / (max + 1)` style scaling math on `u64` inputs can genuinely overflow
+  (integer-overflow panic, not just UB) when `value` is near `u64::max` — widen to `u128` for the
+  multiply/divide rather than clamping `value` first (session 388, `sparkline.zig getBarChar`);
+  `u128` safely holds the product since the other operand — an on-screen glyph count — is always
+  small in practice
+- `std.math.clamp(val, lo, hi)` does NOT sanitize `NaN` — `NaN < lo` and `NaN > hi` are both false,
+  so `NaN` passes through unclamped and can later panic an `@intFromFloat` cast downstream. Flagged
+  (not yet fixed) in session 388 for widgets that clamp a public `ratio`/`value` field via
+  `std.math.clamp` before casting (`gauge.zig`, `reactive.zig`, `splitpane.zig`, likely others) —
+  only reachable if a caller constructs the struct literal directly with `NaN` rather than going
+  through the clamping builder method.
 
 ## Test-Quality Anti-Patterns (recurring — audit for these every STABILIZATION session)
 
