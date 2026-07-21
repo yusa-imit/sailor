@@ -1784,6 +1784,17 @@ pub fn build(b: *std.Build) void {
     calendar_heatmap_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(calendar_heatmap_tests).step);
 
+    const core_coverage_audit_tests = b.addTest(.{
+        .name = "core_coverage_audit_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/core_coverage_audit.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    core_coverage_audit_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(core_coverage_audit_tests).step);
+
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",
