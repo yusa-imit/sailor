@@ -574,10 +574,16 @@ test "AsyncEventLoop task state transitions" {
     const initial_state = loop.getTaskState(handle);
     try std.testing.expect(initial_state == .pending or initial_state == .running);
 
-    // Wait for task to start running (or complete if very fast)
-    std.Thread.sleep(5 * std.time.ns_per_ms);
-
-    const running_state = loop.getTaskState(handle);
+    // Wait for task to start running (or complete if very fast). Poll with
+    // retries instead of a single fixed sleep — a loaded scheduler (observed
+    // on Windows CI) can take longer than 5ms to dispatch the spawned thread.
+    var running_state: ?TaskState = null;
+    var start_retries: usize = 0;
+    while (start_retries < 100) : (start_retries += 1) {
+        running_state = loop.getTaskState(handle);
+        if (running_state == .running or running_state == .completed) break;
+        std.Thread.sleep(5 * std.time.ns_per_ms);
+    }
     try std.testing.expect(running_state == .running or running_state == .completed);
 
     // Wait for completion
