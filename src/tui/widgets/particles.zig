@@ -252,11 +252,15 @@ pub const ParticleSystem = struct {
     /// Render particles to buffer
     pub fn render(self: *ParticleSystem, buf: *Buffer, area: Rect) void {
         for (self.particles.items) |particle| {
-            const px = @as(i32, @intFromFloat(particle.x));
-            const py = @as(i32, @intFromFloat(particle.y));
+            // Clamp extreme f32 values to safe i32 range to prevent @intFromFloat panic
+            // Use ±999_999_999 to stay well within i32 range and be safely representable in f32
+            const clamped_x = @max(-999_999_999.0, @min(particle.x, 999_999_999.0));
+            const clamped_y = @max(-999_999_999.0, @min(particle.y, 999_999_999.0));
+            const px = @as(i32, @intFromFloat(clamped_x));
+            const py = @as(i32, @intFromFloat(clamped_y));
 
-            // Check bounds
-            if (px < 0 or py < 0) continue;
+            // Check bounds: reject negative values and values outside u16 range
+            if (px < 0 or px > 65535 or py < 0 or py > 65535) continue;
             const ux: u16 = @intCast(px);
             const uy: u16 = @intCast(py);
 
