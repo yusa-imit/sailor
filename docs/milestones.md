@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- **Latest release**: v2.94.0 (2026-07-18) — minor: ErrorBarChart + DonutChart Widgets
+- **Latest release**: v2.94.2 (2026-08-22) — patch: 5 bundled fixes (validation ring buffer, term.zig fd=42 guard, chart widget clamps, ParticleSystem panic guard, ToastManager u16 overflow guard, flaky async_loop test fix)
 - **Latest minor**: v2.94.0 (2026-07-18) — ErrorBarChart + DonutChart Widgets
 - **Next release**: TBD — replenish from feature-request issues, PRD gaps, or consumer feedback
 - **Active milestones**: 0 established
