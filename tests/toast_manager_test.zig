@@ -613,3 +613,106 @@ test "ToastManager tick does not affect message or level" {
     try std.testing.expectEqualStrings("msg", tm.toasts[0].message);
     try std.testing.expectEqual(ToastLevel.success, tm.toasts[0].level);
 }
+
+// Regression tests for u16 overflow bugs (issue: unguarded addition on Rect fields)
+// These tests ensure that render() handles extreme Rect coordinates without panicking
+// when computing y+height or x+width that would overflow u16's max (65535).
+
+test "ToastManager.render with bottom_right position and y+height overflow completes without panic" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
+
+    var tm = ToastManager.init().withPosition(.bottom_right);
+    tm.push(ToastItem{ .message = "Toast", .level = .info });
+
+    // y + height = 65530 + 100 = 65630 (overflows u16 max of 65535)
+    // This triggers the `cur_y = screen.y + screen.height` computation at line 154
+    const screen = Rect{ .x = 0, .y = 65530, .width = 80, .height = 100 };
+    tm.render(&buf, screen); // Should not panic with u16 overflow
+    try std.testing.expectEqual(@as(usize, 1), tm.toastCount()); // Buffer still valid
+}
+
+test "ToastManager.render with bottom_left position and y+height overflow completes without panic" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
+
+    var tm = ToastManager.init().withPosition(.bottom_left);
+    tm.push(ToastItem{ .message = "Toast", .level = .info });
+
+    // y + height = 65530 + 100 = 65630 (overflows u16 max of 65535)
+    // This triggers the `cur_y = screen.y + screen.height` computation at line 154
+    const screen = Rect{ .x = 0, .y = 65530, .width = 80, .height = 100 };
+    tm.render(&buf, screen); // Should not panic with u16 overflow
+    try std.testing.expectEqual(@as(usize, 1), tm.toastCount()); // Buffer still valid
+}
+
+test "ToastManager.render with top_right position and y+height overflow visibility check completes without panic" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
+
+    var tm = ToastManager.init().withPosition(.top_right);
+    tm.push(ToastItem{ .message = "Toast", .level = .info });
+
+    // y + height = 65530 + 100 = 65630 (overflows u16 max of 65535)
+    // This triggers the visibility check `screen.y + screen.height` at lines 174-175
+    const screen = Rect{ .x = 0, .y = 65530, .width = 80, .height = 100 };
+    tm.render(&buf, screen); // Should not panic with u16 overflow
+    try std.testing.expectEqual(@as(usize, 1), tm.toastCount()); // Buffer still valid
+}
+
+test "ToastManager.render with top_left position and y+height overflow visibility check completes without panic" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
+
+    var tm = ToastManager.init().withPosition(.top_left);
+    tm.push(ToastItem{ .message = "Toast", .level = .info });
+
+    // y + height = 65530 + 100 = 65630 (overflows u16 max of 65535)
+    // This triggers the visibility check `screen.y + screen.height` at lines 174-175
+    const screen = Rect{ .x = 0, .y = 65530, .width = 80, .height = 100 };
+    tm.render(&buf, screen); // Should not panic with u16 overflow
+    try std.testing.expectEqual(@as(usize, 1), tm.toastCount()); // Buffer still valid
+}
+
+test "ToastManager.render with overflow x+width in icon/message rendering block completes without panic" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
+
+    var tm = ToastManager.init()
+        .withPosition(.top_right)
+        .withWidth(65500); // Large width to exercise rendering block
+
+    // Add a toast with a message long enough to trigger the icon/message rendering
+    // which uses computations like `inner.x + inner.width` and `x < inner.x + inner.width`
+    const long_message = "This is a very long message that will exercise the icon and message rendering path in the toast widget";
+    tm.push(ToastItem{ .message = long_message, .level = .info });
+
+    // x + width = 0 + 65500 = 65500 (near u16 max), should not overflow
+    // But combined with complex rendering, could expose edge cases
+    const screen = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    tm.render(&buf, screen); // Should not panic
+    try std.testing.expectEqual(@as(usize, 1), tm.toastCount()); // Buffer still valid
+}
+
+test "ToastManager.render with extreme x in screen Rect and wide toast completes without panic" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
+
+    var tm = ToastManager.init()
+        .withPosition(.top_right)
+        .withWidth(100);
+
+    tm.push(ToastItem{ .message = "Message", .level = .success });
+
+    // screen.x + screen.width = 65500 + 80 = 65580 (within u16 max but high)
+    // Combined with toast width calculations, should not overflow during rendering
+    const screen = Rect{ .x = 65500, .y = 0, .width = 80, .height = 24 };
+    tm.render(&buf, screen); // Should not panic
+    try std.testing.expectEqual(@as(usize, 1), tm.toastCount()); // Buffer still valid
+}

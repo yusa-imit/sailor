@@ -151,7 +151,7 @@ pub const ToastManager = struct {
             },
             .bottom_right, .bottom_left => {
                 // Stack upward from bottom: toast[n-1] at very bottom, toast[0] above
-                var cur_y: u16 = screen.y + screen.height;
+                var cur_y: u16 = screen.y +| screen.height;
                 var j = n;
                 while (j > 0) {
                     j -= 1;
@@ -163,17 +163,20 @@ pub const ToastManager = struct {
         }
 
         const toast_x: u16 = switch (self.position) {
-            .top_right, .bottom_right => screen.x + screen.width -| toast_width,
+            .top_right, .bottom_right => (screen.x +| screen.width) -| toast_width,
             .top_left, .bottom_left => screen.x,
         };
+
+        // Pre-compute screen bottom to avoid repeated unguarded addition
+        const screen_bottom = screen.y +| screen.height;
 
         for (0..n) |i| {
             const toast = self.toasts[i];
             const toast_y = y_positions[i];
 
             // Skip if toast would be outside screen bounds
-            if (toast_y >= screen.y + screen.height) continue;
-            const avail_height = screen.y + screen.height - toast_y;
+            if (toast_y >= screen_bottom) continue;
+            const avail_height = screen_bottom -| toast_y;
             if (avail_height == 0) continue;
 
             const area = Rect{
@@ -211,24 +214,26 @@ pub const ToastManager = struct {
             }
 
             // Render icon + message
+            // Pre-compute inner right boundary to avoid repeated unguarded addition
+            const inner_right = inner.x +| inner.width;
             var x = inner.x;
-            if (x < inner.x + inner.width) {
+            if (x < inner_right) {
                 // Encode icon as UTF-8 and render
                 var icon_buf: [4]u8 = undefined;
                 const icon_len = std.unicode.utf8Encode(toast.level.icon(), &icon_buf) catch 0;
-                if (icon_len > 0 and x < inner.x + inner.width) {
+                if (icon_len > 0 and x < inner_right) {
                     buf.setString(x, content_y, icon_buf[0..icon_len], level_style);
                     x += 1;
                 }
-                if (x < inner.x + inner.width) {
+                if (x < inner_right) {
                     buf.set(x, content_y, Cell{ .char = ' ', .style = level_style });
                     x += 1;
                 }
             }
 
             // Render message text (clamped to available width)
-            if (x < inner.x + inner.width) {
-                const avail = inner.x + inner.width - x;
+            if (x < inner_right) {
+                const avail = inner_right -| x;
                 const msg = if (toast.message.len > avail) toast.message[0..avail] else toast.message;
                 buf.setString(x, content_y, msg, level_style);
             }
