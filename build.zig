@@ -417,6 +417,14 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    const autocomplete_widget_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/autocomplete_widget_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
     const error_recovery_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("tests/error_recovery_test.zig"),
@@ -535,6 +543,7 @@ pub fn build(b: *std.Build) void {
     developer_console_tests.root_module.addImport("sailor", sailor_module_for_tests);
     llm_client_tests.root_module.addImport("sailor", sailor_module_for_tests);
     smart_autocomplete_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    autocomplete_widget_tests.root_module.addImport("sailor", sailor_module_for_tests);
     layout_intelligence_tests.root_module.addImport("sailor", sailor_module_for_tests);
     natural_language_commands_tests.root_module.addImport("sailor", sailor_module_for_tests);
     sixel_tests.root_module.addImport("sailor", sailor_module_for_tests);
@@ -753,6 +762,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(developer_console_tests).step);
     test_step.dependOn(&b.addRunArtifact(llm_client_tests).step);
     test_step.dependOn(&b.addRunArtifact(smart_autocomplete_tests).step);
+    test_step.dependOn(&b.addRunArtifact(autocomplete_widget_tests).step);
     test_step.dependOn(&b.addRunArtifact(layout_intelligence_tests).step);
     test_step.dependOn(&b.addRunArtifact(natural_language_commands_tests).step);
     test_step.dependOn(&b.addRunArtifact(sixel_tests).step);

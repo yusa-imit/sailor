@@ -90,7 +90,7 @@ pub const Autocomplete = struct {
         return .{
             .allocator = allocator,
             .input = "",
-            .suggestions = ArrayList(Suggestion).init(allocator),
+            .suggestions = ArrayList(Suggestion){},
             .selected_index = 0,
             .scroll_offset = 0,
             .max_visible = 10,
@@ -110,7 +110,7 @@ pub const Autocomplete = struct {
     /// Frees resources associated with this autocomplete widget.
     /// Clears the internal suggestions list.
     pub fn deinit(self: *Autocomplete) void {
-        self.suggestions.deinit();
+        self.suggestions.deinit(self.allocator);
     }
 
     /// Sets the optional border block around the autocomplete list.
@@ -205,7 +205,7 @@ pub const Autocomplete = struct {
         for (items) |item| {
             const score = fuzzyMatch(self.input, item);
             if (score > 0.0) {
-                try self.suggestions.append(.{ .text = item, .score = score });
+                try self.suggestions.append(self.allocator, .{ .text = item, .score = score });
             }
         }
         // Sort by score descending
@@ -220,7 +220,7 @@ pub const Autocomplete = struct {
         for (items) |item| {
             const score = fuzzyMatch(self.input, item.text);
             if (score > 0.0) {
-                try self.suggestions.append(.{
+                try self.suggestions.append(self.allocator, .{
                     .text = item.text,
                     .score = score,
                     .metadata = item.metadata,
@@ -318,6 +318,12 @@ pub const Autocomplete = struct {
 
         if (self.show_doc_preview and inner.width > self.preview_width + 2) {
             const list_width = inner.width - self.preview_width - 1; // -1 for separator
+
+            // Hoist boundaries to avoid u16 overflow
+            const sep_x = inner.x +| list_width;
+            const preview_x = sep_x +| 1;
+            const sep_bottom = inner.y +| inner.height;
+
             list_area = Rect{
                 .x = inner.x,
                 .y = inner.y,
@@ -325,16 +331,15 @@ pub const Autocomplete = struct {
                 .height = inner.height,
             };
             preview_area = Rect{
-                .x = inner.x + list_width + 1,
+                .x = preview_x,
                 .y = inner.y,
                 .width = self.preview_width,
                 .height = inner.height,
             };
 
             // Render separator between list and preview
-            const sep_x = inner.x + list_width;
             var sep_y: u16 = inner.y;
-            while (sep_y < inner.y + inner.height) : (sep_y += 1) {
+            while (sep_y < sep_bottom) : (sep_y += 1) {
                 buf.set(sep_x, sep_y, .{ .char = '│', .style = self.normal_style });
             }
         }
@@ -352,9 +357,13 @@ pub const Autocomplete = struct {
         const visible_count = @min(self.max_visible, self.suggestions.items.len);
         const end_index = @min(self.scroll_offset + visible_count, self.suggestions.items.len);
 
+        // Hoist boundaries to avoid repeated u16 overflow computations
+        const area_bottom = area.y +| area.height;
+        const area_right = area.x +| area.width;
+
         var y: u16 = area.y;
         for (self.suggestions.items[self.scroll_offset..end_index], 0..) |suggestion, i| {
-            if (y >= area.y + area.height) break;
+            if (y >= area_bottom) break;
 
             const is_selected = (self.scroll_offset + i) == self.selected_index;
             const style = if (is_selected) self.highlight_style else self.normal_style;
@@ -368,7 +377,7 @@ pub const Autocomplete = struct {
                 @min(suggestion.text.len, area.width);
 
             for (suggestion.text[0..text_width]) |c| {
-                if (x >= area.x + area.width) break;
+                if (x >= area_right) break;
                 buf.set(x, y, .{ .char = c, .style = style });
                 x += 1;
             }
@@ -376,8 +385,8 @@ pub const Autocomplete = struct {
             // Render metadata column if enabled
             if (self.show_metadata_column and suggestion.metadata != null) {
                 // Pad to metadata column start
-                const meta_start = area.x + area.width - self.metadata_column_width;
-                while (x < meta_start and x < area.x + area.width) : (x += 1) {
+                const meta_start = area_right -| self.metadata_column_width;
+                while (x < meta_start and x < area_right) : (x += 1) {
                     buf.set(x, y, .{ .char = ' ', .style = style });
                 }
 
@@ -388,14 +397,14 @@ pub const Autocomplete = struct {
                     self.metadata_style;
 
                 for (suggestion.metadata.?) |c| {
-                    if (x >= area.x + area.width) break;
+                    if (x >= area_right) break;
                     buf.set(x, y, .{ .char = c, .style = meta_style });
                     x += 1;
                 }
             }
 
             // Fill remaining width with background
-            while (x < area.x + area.width) : (x += 1) {
+            while (x < area_right) : (x += 1) {
                 buf.set(x, y, .{ .char = ' ', .style = style });
             }
 
@@ -411,16 +420,20 @@ pub const Autocomplete = struct {
 
         const doc = selected.doc.?;
 
+        // Hoist boundaries to avoid repeated u16 overflow computations
+        const area_bottom = area.y +| area.height;
+        const area_right = area.x +| area.width;
+
         // Render doc text with word wrapping
         var y: u16 = area.y;
         var char_idx: usize = 0;
 
-        while (char_idx < doc.len and y < area.y + area.height) {
+        while (char_idx < doc.len and y < area_bottom) {
             var x: u16 = area.x;
             const line_start = char_idx;
 
             // Find line break or wrap point
-            while (char_idx < doc.len and x < area.x + area.width) {
+            while (char_idx < doc.len and x < area_right) {
                 const c = doc[char_idx];
                 if (c == '\n') {
                     char_idx += 1;
@@ -432,7 +445,7 @@ pub const Autocomplete = struct {
             }
 
             // Fill rest of line
-            while (x < area.x + area.width) : (x += 1) {
+            while (x < area_right) : (x += 1) {
                 buf.set(x, y, .{ .char = ' ', .style = self.doc_style });
             }
 
