@@ -258,8 +258,8 @@ pub const ContextMenu = struct {
             // If block exists, content is inside the borders
             if (content_area.height > 2) content_area.height -= 2;
             if (content_area.width > 2) content_area.width -= 2;
-            content_area.x += 1;
-            content_area.y += 1;
+            content_area.x +|= 1;
+            content_area.y +|= 1;
         }
 
         // Render each item
@@ -267,7 +267,7 @@ pub const ContextMenu = struct {
         for (self.items, 0..) |item, idx| {
             if (row >= content_area.height) break;
 
-            const item_y = content_area.y + row;
+            const item_y = content_area.y +| row;
             const is_current = (self.cursor == idx);
 
             switch (item) {
@@ -275,7 +275,7 @@ pub const ContextMenu = struct {
                     // Draw separator line
                     const sep_char: u21 = if (content_area.width > 5) '─' else '-';
                     for (0..content_area.width) |col| {
-                        buf.set(@intCast(content_area.x + col), item_y, .{
+                        buf.set(@intCast(content_area.x +| col), item_y, .{
                             .char = sep_char,
                             .style = self.item_style,
                         });
@@ -304,7 +304,7 @@ pub const ContextMenu = struct {
                         else
                             std.unicode.utf8Decode(action.label[label_idx .. label_idx + char_len]) catch @as(u21, byte);
 
-                        buf.set(@intCast(content_area.x + x), item_y, .{
+                        buf.set(@intCast(content_area.x +| x), item_y, .{
                             .char = codepoint,
                             .style = item_style,
                         });
@@ -330,7 +330,7 @@ pub const ContextMenu = struct {
                                     else
                                         std.unicode.utf8Decode(shortcut[shortcut_idx .. shortcut_idx + char_len]) catch @as(u21, byte);
 
-                                    buf.set(@intCast(content_area.x + sx), item_y, .{
+                                    buf.set(@intCast(content_area.x +| sx), item_y, .{
                                         .char = codepoint,
                                         .style = self.shortcut_style,
                                     });
@@ -362,7 +362,7 @@ pub const ContextMenu = struct {
                         else
                             std.unicode.utf8Decode(submenu.label[label_idx .. label_idx + char_len]) catch @as(u21, byte);
 
-                        buf.set(@intCast(content_area.x + x), item_y, .{
+                        buf.set(@intCast(content_area.x +| x), item_y, .{
                             .char = codepoint,
                             .style = item_style,
                         });
@@ -372,7 +372,7 @@ pub const ContextMenu = struct {
 
                     // Draw submenu indicator (">") at right edge if space
                     if (content_area.width > 2) {
-                        buf.set(@intCast(content_area.x + content_area.width - 1), item_y, .{
+                        buf.set(@intCast(content_area.x +| content_area.width -| 1), item_y, .{
                             .char = '>',
                             .style = item_style,
                         });

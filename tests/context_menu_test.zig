@@ -1025,3 +1025,82 @@ test "ContextMenu.fittingArea post-fix returns sensible result when origin_y sat
     try testing.expect(area.width > 0); // Menu width should be sensible
     try testing.expect(area.height > 0); // Menu height should be sensible
 }
+
+// ============================================================================
+// RENDER WITH U16 OVERFLOW GUARD TESTS
+// ============================================================================
+// Regression tests for integer overflow bug in render() when area.x or area.y
+// are at u16::MAX (65535) and self.block is non-null.
+// Bug location: src/tui/widgets/context_menu.zig:261-262
+//   content_area.x += 1;  // Panics if area.x == 65535
+//   content_area.y += 1;  // Panics if area.y == 65535
+// Fix: Use saturating arithmetic (+| instead of +)
+
+test "ContextMenu render with area.x at u16::MAX and block completes without panic" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "Test", .enabled = true } },
+    };
+    var menu = ContextMenu.init(&items);
+    const block = Block{};
+    menu = menu.withBlock(block);
+
+    // Create a buffer large enough to hold content
+    var buf = try Buffer.init(testing.allocator, 80, 10);
+    defer buf.deinit();
+
+    // Trigger the overflow bug at line 261 (content_area.x += 1)
+    // Before fix: panics with "integer overflow" when trying to compute 65535 + 1
+    // After fix: completes without panic using saturating addition
+    const area = Rect{ .x = 65535, .y = 0, .width = 10, .height = 5 };
+    menu.render(&buf, area); // Should not panic
+}
+
+test "ContextMenu render with area.y at u16::MAX and block completes without panic" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "Test", .enabled = true } },
+    };
+    var menu = ContextMenu.init(&items);
+    const block = Block{};
+    menu = menu.withBlock(block);
+
+    // Create a buffer large enough to hold content
+    var buf = try Buffer.init(testing.allocator, 80, 10);
+    defer buf.deinit();
+
+    // Trigger the overflow bug at line 262 (content_area.y += 1)
+    // Before fix: panics with "integer overflow" when trying to compute 65535 + 1
+    // After fix: completes without panic using saturating addition
+    const area = Rect{ .x = 0, .y = 65535, .width = 10, .height = 5 };
+    menu.render(&buf, area); // Should not panic
+}
+
+test "ContextMenu render with block at normal position produces valid output" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "Save", .enabled = true } },
+        .{ .action = .{ .label = "Exit", .enabled = true } },
+    };
+    var menu = ContextMenu.init(&items);
+    const block = Block{};
+    menu = menu.withBlock(block);
+
+    // Create a buffer to render into
+    var buf = try Buffer.init(testing.allocator, 40, 10);
+    defer buf.deinit();
+
+    // Render at normal position to ensure saturating fix doesn't break normal behavior
+    const area = Rect{ .x = 2, .y = 1, .width = 20, .height = 8 };
+    menu.render(&buf, area);
+
+    // Meaningful regression test: Verify rendering actually occurred.
+    // Buffer.init() fills cells with char=' ' (space), not 0. A tautological check for `char != 0`
+    // would always pass. Instead, assert that specific content appears at expected position.
+    // With block set and area.x=2, area.y=1:
+    //   - content_area.x = area.x + 1 = 2 + 1 = 3
+    //   - content_area.y = area.y + 1 = 1 + 1 = 2
+    // First item "Save" label renders at x = content_area.x + 1 = 4, y = content_area.y = 2
+    const first_label_x: u16 = 4;
+    const first_label_y: u16 = 2;
+    const cell = buf.get(first_label_x, first_label_y);
+    try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, 'S'), cell.?.char); // Verify "Save" was rendered to expected position
+}
