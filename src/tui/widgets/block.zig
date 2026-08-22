@@ -142,14 +142,14 @@ pub const Block = struct {
 
         // Account for borders
         if (self.borders.left) {
-            result.x += 1;
+            result.x +|= 1;
             result.width -|= 1;
         }
         if (self.borders.right) {
             result.width -|= 1;
         }
         if (self.borders.top) {
-            result.y += 1;
+            result.y +|= 1;
             result.height -|= 1;
         }
         if (self.borders.bottom) {
@@ -157,10 +157,10 @@ pub const Block = struct {
         }
 
         // Account for padding
-        result.x += self.padding_left;
-        result.width -|= self.padding_left + self.padding_right;
-        result.y += self.padding_top;
-        result.height -|= self.padding_top + self.padding_bottom;
+        result.x +|= self.padding_left;
+        result.width -|= self.padding_left +| self.padding_right;
+        result.y +|= self.padding_top;
+        result.height -|= self.padding_top +| self.padding_bottom;
 
         // Ensure width and height don't underflow
         if (result.width == 0 or result.height == 0) {
@@ -498,4 +498,112 @@ test "Borders.any returns true if any border enabled" {
 
     const horizontal = Borders.horizontal;
     try std.testing.expect(horizontal.any());
+}
+
+// Regression tests for u16 overflow bugs in Block.inner()
+// These tests ensure that inner() handles extreme Rect coordinates without panicking
+// when computing x+1, y+1, x+padding, y+padding, or padding sums that would overflow u16's max (65535).
+
+test "Block.inner with borders.left and x near max completes without panic on result.x += 1" {
+    const block = (Block{}).withBorders(Borders{ .left = true });
+    // x + 1 = 65535 + 1 = 65536 (overflows u16 max of 65535)
+    // This triggers the `result.x += 1` computation at line 145
+    const area = Rect{ .x = 65535, .y = 0, .width = 10, .height = 10 };
+    const inner_area = block.inner(area); // Should not panic with u16 overflow
+    // After fix: x should wrap around (saturating to 65535) and width should be clamped
+    try std.testing.expectEqual(@as(u16, 10), inner_area.height);
+}
+
+test "Block.inner with borders.top and y near max completes without panic on result.y += 1" {
+    const block = (Block{}).withBorders(Borders{ .top = true });
+    // y + 1 = 65535 + 1 = 65536 (overflows u16 max of 65535)
+    // This triggers the `result.y += 1` computation at line 152
+    const area = Rect{ .x = 0, .y = 65535, .width = 10, .height = 10 };
+    const inner_area = block.inner(area); // Should not panic with u16 overflow
+    // After fix: y should wrap around (saturating to 65535) and height should be clamped
+    try std.testing.expectEqual(@as(u16, 10), inner_area.width);
+}
+
+test "Block.inner with large padding_left and x near max completes without panic on result.x += self.padding_left" {
+    const block = (Block{}).withPaddingCustom(0, 0, 0, 40000).withBorders(Borders.none);
+    // x + padding_left = 30000 + 40000 = 70000 (overflows u16 max of 65535)
+    // This triggers the `result.x += self.padding_left` computation at line 160
+    const area = Rect{ .x = 30000, .y = 0, .width = 20, .height = 10 };
+    const inner_area = block.inner(area); // Should not panic with u16 overflow
+    // After fix: x saturates to 65535, width underflows to 0, triggering early return
+    // Early return sets both width and height to 0 when either becomes 0
+    try std.testing.expectEqual(@as(u16, 65535), inner_area.x);
+    try std.testing.expectEqual(@as(u16, 0), inner_area.y);
+    try std.testing.expectEqual(@as(u16, 0), inner_area.width);
+    try std.testing.expectEqual(@as(u16, 0), inner_area.height);
+}
+
+test "Block.inner with large padding_top and y near max completes without panic on result.y += self.padding_top" {
+    const block = (Block{}).withPaddingCustom(40000, 0, 0, 0).withBorders(Borders.none);
+    // y + padding_top = 30000 + 40000 = 70000 (overflows u16 max of 65535)
+    // This triggers the `result.y += self.padding_top` computation at line 162
+    const area = Rect{ .x = 0, .y = 30000, .width = 10, .height = 20 };
+    const inner_area = block.inner(area); // Should not panic with u16 overflow
+    // After fix: y saturates to 65535, height underflows to 0, triggering early return
+    // Early return sets both width and height to 0 when either becomes 0
+    try std.testing.expectEqual(@as(u16, 0), inner_area.x);
+    try std.testing.expectEqual(@as(u16, 65535), inner_area.y);
+    try std.testing.expectEqual(@as(u16, 0), inner_area.width);
+    try std.testing.expectEqual(@as(u16, 0), inner_area.height);
+}
+
+test "Block.inner with large padding_left and padding_right sum overflow completes without panic" {
+    const block = (Block{}).withPaddingCustom(0, 40000, 0, 40000).withBorders(Borders.none);
+    // padding_left + padding_right = 40000 + 40000 = 80000 (overflows u16 max of 65535)
+    // This triggers the sum in the width subtraction at line 161:
+    // `result.width -|= self.padding_left +| self.padding_right` (saturated sum = 65535)
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 10 };
+    const inner_area = block.inner(area); // Should not panic with u16 overflow in padding sum
+    // After fix: x = 40000 (0 + padding_left), width underflows to 0 (100 - 65535), triggering early return
+    // Early return sets both width and height to 0
+    try std.testing.expectEqual(@as(u16, 40000), inner_area.x);
+    try std.testing.expectEqual(@as(u16, 0), inner_area.y);
+    try std.testing.expectEqual(@as(u16, 0), inner_area.width);
+    try std.testing.expectEqual(@as(u16, 0), inner_area.height);
+}
+
+test "Block.inner with large padding_top and padding_bottom sum overflow completes without panic" {
+    const block = (Block{}).withPaddingCustom(40000, 0, 40000, 0).withBorders(Borders.none);
+    // padding_top + padding_bottom = 40000 + 40000 = 80000 (overflows u16 max of 65535)
+    // This triggers the sum in the height subtraction at line 163:
+    // `result.height -|= self.padding_top +| self.padding_bottom` (saturated sum = 65535)
+    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 100 };
+    const inner_area = block.inner(area); // Should not panic with u16 overflow in padding sum
+    // After fix: y = 40000 (0 + padding_top), height underflows to 0 (100 - 65535), triggering early return
+    // Early return sets both width and height to 0
+    try std.testing.expectEqual(@as(u16, 0), inner_area.x);
+    try std.testing.expectEqual(@as(u16, 40000), inner_area.y);
+    try std.testing.expectEqual(@as(u16, 0), inner_area.width);
+    try std.testing.expectEqual(@as(u16, 0), inner_area.height);
+}
+
+test "Block.inner with all borders and x at max returns sensible result post-fix" {
+    const block = (Block{});
+    // x + 1 (left border) would overflow, test that post-fix it returns sane dimensions
+    const area = Rect{ .x = 65535, .y = 0, .width = 10, .height = 10 };
+    const inner_area = block.inner(area);
+    // Post-fix with saturating arithmetic: x saturates to 65535, but width/height both reduce by 1 per border
+    // No early-return (both dimensions > 0), so normal return applies
+    try std.testing.expectEqual(@as(u16, 65535), inner_area.x);
+    try std.testing.expectEqual(@as(u16, 1), inner_area.y);
+    try std.testing.expectEqual(@as(u16, 8), inner_area.width);
+    try std.testing.expectEqual(@as(u16, 8), inner_area.height);
+}
+
+test "Block.inner with all borders and y at max returns sensible result post-fix" {
+    const block = (Block{});
+    // y + 1 (top border) would overflow, test that post-fix it returns sane dimensions
+    const area = Rect{ .x = 0, .y = 65535, .width = 10, .height = 10 };
+    const inner_area = block.inner(area);
+    // Post-fix with saturating arithmetic: y saturates to 65535, but width/height both reduce by 1 per border
+    // No early-return (both dimensions > 0), so normal return applies
+    try std.testing.expectEqual(@as(u16, 1), inner_area.x);
+    try std.testing.expectEqual(@as(u16, 65535), inner_area.y);
+    try std.testing.expectEqual(@as(u16, 8), inner_area.width);
+    try std.testing.expectEqual(@as(u16, 8), inner_area.height);
 }
