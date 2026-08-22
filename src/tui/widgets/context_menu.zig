@@ -232,10 +232,10 @@ pub const ContextMenu = struct {
         };
 
         // Clamp to screen bounds
-        if (area.x + area.width > screen.x + screen.width) {
+        if (area.x +| area.width > screen.x +| screen.width) {
             area.x = @as(u16, @intCast(@max(0, @as(i32, screen.x) + @as(i32, screen.width) - @as(i32, area.width))));
         }
-        if (area.y + area.height > screen.y + screen.height) {
+        if (area.y +| area.height > screen.y +| screen.height) {
             area.y = @as(u16, @intCast(@max(0, @as(i32, screen.y) + @as(i32, screen.height) - @as(i32, area.height))));
         }
 

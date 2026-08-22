@@ -877,3 +877,151 @@ test "ContextMenu Submenu with nested separators" {
     };
     try testing.expectEqual(@as(usize, 3), submenu.items.len);
 }
+
+// ============================================================================
+// REGRESSION TESTS FOR U16 OVERFLOW BUGS IN FITTING AREA
+// ============================================================================
+// These tests reproduce the u16 overflow bug in fittingArea() at lines 235 and 238
+// when computing area.x + area.width or area.y + area.height with extreme origin values.
+// The bug: origin_x/origin_y (public u16 fields with withOrigin builder) are copied directly
+// to area.x/area.y with no clamp, then used in unguarded + comparisons that overflow u16 max.
+// See toast_manager.zig and block.zig for already-fixed same bug class and regression test patterns.
+
+test "ContextMenu.fittingArea with origin_x near u16::MAX and positive width completes without panic on area.x + area.width" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "A", .enabled = true } },
+    };
+    const menu = ContextMenu.init(&items).withOrigin(65535, 0);
+    // area.x = 65535, area.width will be >= 10 (minimum width)
+    // Comparison: 65535 + 10 = 65545 (overflows u16 max of 65535)
+    // This triggers line 235: if (area.x + area.width > screen.x + screen.width)
+    const screen = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
+    const area = menu.fittingArea(screen); // Should not panic with u16 overflow
+    // After fix with saturating arithmetic: area.x is clamped to screen bounds
+    // Derivation: area.x +| area.width (65535 +| 10) > screen.x +| screen.width (0 +| 100)?
+    // Yes (65535 > 100), so clamp: area.x = max(0, 0 + 100 - 10) = 90
+    try testing.expectEqual(@as(u16, 90), area.x);
+    try testing.expectEqual(@as(u16, 0), area.y);
+}
+
+test "ContextMenu.fittingArea with origin_y near u16::MAX and positive height completes without panic on area.y + area.height" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "A", .enabled = true } },
+        .{ .action = .{ .label = "B", .enabled = true } },
+    };
+    const menu = ContextMenu.init(&items).withOrigin(0, 65535);
+    // area.y = 65535, area.height will be >= 4 (2 items + 2 borders = 4)
+    // Comparison: 65535 + 4 = 65539 (overflows u16 max of 65535)
+    // This triggers line 238: if (area.y + area.height > screen.y + screen.height)
+    const screen = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
+    const area = menu.fittingArea(screen); // Should not panic with u16 overflow
+    // After fix with saturating arithmetic: area.y is clamped to screen bounds
+    // Derivation: area.y +| area.height (65535 +| 4) > screen.y +| screen.height (0 +| 100)?
+    // Yes (65535 > 100), so clamp: area.y = max(0, 0 + 100 - 4) = 96
+    try testing.expectEqual(@as(u16, 0), area.x);
+    try testing.expectEqual(@as(u16, 96), area.y);
+}
+
+test "ContextMenu.fittingArea with both origin_x and origin_y near u16::MAX completes without panic on both comparisons" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "A", .enabled = true } },
+    };
+    const menu = ContextMenu.init(&items).withOrigin(65535, 65535);
+    // Both area.x and area.y at u16::MAX, both + their dimensions will overflow
+    // This triggers both line 235 and line 238
+    const screen = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
+    const area = menu.fittingArea(screen); // Should not panic with u16 overflow on either axis
+    // After fix with saturating arithmetic: both axes are clamped to screen bounds
+    // Derivation: area.x +| 10 (65535 +| 10) > 0 +| 100? Yes, so area.x = max(0, 100-10) = 90
+    //            area.y +| 3 (65535 +| 3) > 0 +| 100? Yes, so area.y = max(0, 100-3) = 97
+    try testing.expectEqual(@as(u16, 90), area.x);
+    try testing.expectEqual(@as(u16, 97), area.y);
+    try testing.expectEqual(@as(u16, 3), area.height); // 1 item, so min height is 3, capped to screen (100)
+}
+
+test "ContextMenu.fittingArea with origin_x near MAX and small screen.width completes without panic" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "A", .enabled = true } },
+    };
+    const menu = ContextMenu.init(&items).withOrigin(65530, 10);
+    // area.x = 65530, area.width >= 10
+    // area.x + area.width = 65540 (overflows u16 max 65535)
+    // screen.x + screen.width = 0 + 20 = 20
+    const screen = Rect{ .x = 0, .y = 0, .width = 20, .height = 100 };
+    const area = menu.fittingArea(screen); // Should not panic with u16 overflow
+    // After fix with saturating arithmetic: area.x is clamped to screen bounds
+    // Derivation: area.x +| area.width (65530 +| 10) > screen.x +| screen.width (0 +| 20)?
+    // Yes (65530 > 20), so clamp: area.x = max(0, 0 + 20 - 10) = 10
+    try testing.expectEqual(@as(u16, 10), area.x);
+}
+
+test "ContextMenu.fittingArea with origin_y near MAX and small screen.height completes without panic" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "A", .enabled = true } },
+        .{ .action = .{ .label = "B", .enabled = true } },
+    };
+    const menu = ContextMenu.init(&items).withOrigin(10, 65530);
+    // area.y = 65530, area.height >= 4 (2 items + 2 borders)
+    // area.y + area.height = 65534 (near u16 max 65535)
+    // screen.y + screen.height = 0 + 10 = 10
+    const screen = Rect{ .x = 0, .y = 0, .width = 100, .height = 10 };
+    const area = menu.fittingArea(screen); // Should not panic with u16 overflow
+    // After fix with saturating arithmetic: area.y is clamped to screen bounds
+    // Derivation: area.y +| area.height (65530 +| 4) > screen.y +| screen.height (0 +| 10)?
+    // Yes (65530 > 10), so clamp: area.y = max(0, 0 + 10 - 4) = 6
+    try testing.expectEqual(@as(u16, 6), area.y);
+}
+
+test "ContextMenu.fittingArea with screen.x + screen.width overflow completes without panic" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "A", .enabled = true } },
+    };
+    const menu = ContextMenu.init(&items).withOrigin(10, 10);
+    // screen.x + screen.width = 65530 + 100 = 65630 (overflows u16 max 65535)
+    // This triggers line 235: if (area.x + area.width > screen.x + screen.width)
+    const screen = Rect{ .x = 65530, .y = 0, .width = 100, .height = 100 };
+    const area = menu.fittingArea(screen); // Should not panic with u16 overflow in screen bounds check
+    // After fix: should complete without panic even if screen coords overflow
+    try testing.expectEqual(@as(u16, 10), area.x); // Menu origin unchanged since comparison itself is safe
+}
+
+test "ContextMenu.fittingArea with screen.y + screen.height overflow completes without panic" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "A", .enabled = true } },
+    };
+    const menu = ContextMenu.init(&items).withOrigin(10, 10);
+    // screen.y + screen.height = 65530 + 100 = 65630 (overflows u16 max 65535)
+    // This triggers line 238: if (area.y + area.height > screen.y + screen.height)
+    const screen = Rect{ .x = 0, .y = 65530, .width = 100, .height = 100 };
+    const area = menu.fittingArea(screen); // Should not panic with u16 overflow in screen bounds check
+    // After fix: should complete without panic even if screen coords overflow
+    try testing.expectEqual(@as(u16, 10), area.y); // Menu origin unchanged since comparison itself is safe
+}
+
+test "ContextMenu.fittingArea post-fix returns sensible result when origin_x saturates" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "A", .enabled = true } },
+    };
+    const menu = ContextMenu.init(&items).withOrigin(65535, 5);
+    const screen = Rect{ .x = 0, .y = 0, .width = 80, .height = 100 };
+    const area = menu.fittingArea(screen);
+    // After fix with saturating arithmetic, result should have:
+    // - sensible dimensions (width, height > 0 or = 0)
+    // - x + width does not overflow or panics
+    try testing.expect(area.width > 0); // Menu width should be sensible
+    try testing.expect(area.height > 0); // Menu height should be sensible
+}
+
+test "ContextMenu.fittingArea post-fix returns sensible result when origin_y saturates" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "A", .enabled = true } },
+    };
+    const menu = ContextMenu.init(&items).withOrigin(5, 65535);
+    const screen = Rect{ .x = 0, .y = 0, .width = 100, .height = 24 };
+    const area = menu.fittingArea(screen);
+    // After fix with saturating arithmetic, result should have:
+    // - sensible dimensions (width, height > 0 or = 0)
+    // - y + height does not overflow or panics
+    try testing.expect(area.width > 0); // Menu width should be sensible
+    try testing.expect(area.height > 0); // Menu height should be sensible
+}
