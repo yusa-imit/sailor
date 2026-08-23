@@ -290,3 +290,5 @@
 {"timestamp":"2026-08-22T18:40:06Z","action":"subagent","agent_type":"test-writer","task":"Fix vacuous assertion in ContextMenu normal-position test (char != 0 should be != ' ' and != 0)","project":"sailor"}
 {"timestamp":"2026-08-23T00:27:31Z","action":"team_create","team_name":"nan-safety-fix","members":["test-writer","zig-developer","code-reviewer"],"task":"Fix reachable @intFromFloat NaN panics across 7 widget render paths (gauge, splitpane, progress_ring, reactive, rangeslider, bullet_chart, pareto_chart)","project":"sailor"}
 {"timestamp":"2026-08-23T06:27:36Z","action":"team_delete","team_name":"nan-safety-fix","project":"sailor"}
+{"timestamp":"2026-08-23T12:25:58Z","action":"team_create","team_name":"context-menu-i16-cast-fix","members":["test-writer","zig-developer","code-reviewer"],"task":"Fix ContextMenu.render() shortcut_x i16-cast-range overflow at context_menu.zig:318","project":"sailor"}
+{"timestamp":"2026-08-23T12:36:14Z","action":"team_delete","team_name":"context-menu-i16-cast-fix","project":"sailor"}

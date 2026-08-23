@@ -315,9 +315,13 @@ pub const ContextMenu = struct {
                     // Draw shortcut if present, right-aligned
                     if (action.shortcut) |shortcut| {
                         if (content_area.width > 5 and shortcut.len + 1 < content_area.width) {
-                            const shortcut_x = @as(i16, @intCast(content_area.width)) - @as(i16, @intCast(shortcut.len)) - 1;
-                            if (shortcut_x > 0) {
-                                var sx: u16 = @intCast(shortcut_x);
+                            // shortcut.len + 1 < content_area.width (checked above) guarantees
+                            // shortcut.len < content_area.width <= 65535, so it fits in u16.
+                            // Compute the start column with saturating u16 arithmetic instead of
+                            // casting content_area.width to i16, which panics for width > 32767.
+                            const shortcut_len_u16: u16 = @intCast(shortcut.len);
+                            if (content_area.width > shortcut_len_u16 + 1) {
+                                var sx: u16 = content_area.width -| shortcut_len_u16 -| 1;
                                 var shortcut_idx: usize = 0;
                                 while (shortcut_idx < shortcut.len and sx < content_area.width) {
                                     const byte = shortcut[shortcut_idx];

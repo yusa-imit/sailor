@@ -1104,3 +1104,98 @@ test "ContextMenu render with block at normal position produces valid output" {
     try testing.expect(cell != null);
     try testing.expectEqual(@as(u21, 'S'), cell.?.char); // Verify "Save" was rendered to expected position
 }
+
+// ============================================================================
+// REGRESSION TESTS FOR SHORTCUT_X I16 CAST OVERFLOW IN render()
+// ============================================================================
+// Bug location: src/tui/widgets/context_menu.zig:318
+//   const shortcut_x = @as(i16, @intCast(content_area.width)) - @as(i16, @intCast(shortcut.len)) - 1;
+// content_area.width is a u16 (range 0-65535) but gets @intCast to i16 (range
+// -32768..32767). Any content_area.width > 32767 makes the @intCast itself panic,
+// independent of shortcut.len, because the source value no longer fits the
+// destination type. render() takes a raw, caller-supplied `area: Rect` with no
+// screen clamping (fittingArea() clamping is opt-in), so a caller can trigger this
+// directly by passing an oversized area.width along with any action item that has
+// a `shortcut` set (the guard at line 317 only checks shortcut.len + 1 < content_area.width,
+// it does not bound content_area.width itself).
+//
+// Non-panicking tests below (safe/normal widths) are ordered BEFORE the
+// panic-reproduction tests so they execute and are verified to pass even before
+// the fix lands; the panic-reproduction tests are last since they abort the test
+// binary and prevent any subsequent test in this file from running.
+
+test "ContextMenu render with shortcut at i16-max boundary width (32767) does not panic and places shortcut correctly" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "Save", .shortcut = "Ctrl+S", .enabled = true } },
+    };
+    const menu = ContextMenu.init(&items);
+    var buf = try Buffer.init(testing.allocator, 32767, 5);
+    defer buf.deinit();
+
+    // No block set, so content_area == area, content_area.width == 32767 (i16 max,
+    // still representable). This must NOT panic even though it sits directly at
+    // the boundary the bug is about.
+    const area = Rect{ .x = 0, .y = 0, .width = 32767, .height = 5 };
+    menu.render(&buf, area);
+
+    // shortcut_x = content_area.width - shortcut.len - 1 = 32767 - 6 - 1 = 32760
+    // "Ctrl+S" is drawn starting at content_area.x + shortcut_x = 32760, row 0.
+    const shortcut_x: u16 = 32760;
+    const cell = buf.get(shortcut_x, 0);
+    try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, 'C'), cell.?.char); // first char of "Ctrl+S"
+}
+
+test "ContextMenu render with shortcut at realistic width (80) places shortcut at expected column" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "Save", .shortcut = "Ctrl+S", .enabled = true } },
+    };
+    const menu = ContextMenu.init(&items);
+    var buf = try Buffer.init(testing.allocator, 80, 10);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
+    menu.render(&buf, area);
+
+    // No block, so content_area.width == 80.
+    // shortcut_x = content_area.width - shortcut.len - 1 = 80 - 6 - 1 = 73
+    const shortcut_x: u16 = 73;
+    const cell = buf.get(shortcut_x, 0);
+    try testing.expect(cell != null);
+    try testing.expectEqual(@as(u21, 'C'), cell.?.char); // first char of "Ctrl+S"
+
+    // Also verify the label itself rendered where expected (x = content_area.x + 1 = 1),
+    // so we know the shortcut column check isn't accidentally passing due to unrelated
+    // buffer contents.
+    const label_cell = buf.get(1, 0);
+    try testing.expect(label_cell != null);
+    try testing.expectEqual(@as(u21, 'S'), label_cell.?.char); // first char of "Save"
+}
+
+test "ContextMenu render with content_area.width just above i16 max (32768) panics on shortcut_x cast (regression, pre-fix)" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "Save", .shortcut = "Ctrl+S", .enabled = true } },
+    };
+    const menu = ContextMenu.init(&items);
+    var buf = try Buffer.init(testing.allocator, 32768, 10);
+    defer buf.deinit();
+
+    // No block, so content_area.width == area.width == 32768, one past i16 max (32767).
+    // Guard at line 317 passes (32768 > 5, and 6 + 1 < 32768), so the vulnerable
+    // @intCast(content_area.width) to i16 executes and panics before the fix.
+    const area = Rect{ .x = 0, .y = 0, .width = 32768, .height = 10 };
+    menu.render(&buf, area);
+}
+
+test "ContextMenu render with content_area.width well above i16 max (40000) panics on shortcut_x cast (regression, pre-fix)" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "Save", .shortcut = "Ctrl+S", .enabled = true } },
+    };
+    const menu = ContextMenu.init(&items);
+    var buf = try Buffer.init(testing.allocator, 40000, 10);
+    defer buf.deinit();
+
+    // No block, so content_area.width == area.width == 40000, well past i16 max (32767).
+    const area = Rect{ .x = 0, .y = 0, .width = 40000, .height = 10 };
+    menu.render(&buf, area);
+}
