@@ -162,7 +162,8 @@ pub const SplitPane = struct {
         const usable_space = if (available > divider_size) available - divider_size else 0;
 
         // Calculate raw first pane size from ratio
-        var first_size: u16 = @intFromFloat(@as(f64, @floatFromInt(usable_space)) * self.split_ratio);
+        const split_ratio = if (std.math.isNan(self.split_ratio)) 0.0 else std.math.clamp(self.split_ratio, 0.0, 1.0);
+        var first_size: u16 = @intFromFloat(@as(f64, @floatFromInt(usable_space)) * split_ratio);
 
         // Apply constraints to first pane
         first_size = @max(first_size, self.min_first_size);

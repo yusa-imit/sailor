@@ -785,3 +785,42 @@ test "RangeSlider with equal low and high (single point)" {
     // Should render without crashing; both handles at same position
     try testing.expect(rowHasChar(buf, 0, '◄') or rowHasChar(buf, 0, '►'));
 }
+
+test "RangeSlider with NaN low value renders identically to low = min" {
+    // Render with NaN low value
+    var buf_nan = try Buffer.init(testing.allocator, 80, 1);
+    defer buf_nan.deinit();
+
+    const rs_nan = RangeSlider{
+        .low = std.math.nan(f64),
+        .high = 75,
+        .min = 0,
+        .max = 100,
+    };
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 1 };
+    rs_nan.render(&buf_nan, area);
+
+    // Render with low = min (the floor value, since lowRatio(min) = 0.0)
+    var buf_min = try Buffer.init(testing.allocator, 80, 1);
+    defer buf_min.deinit();
+
+    const rs_min = RangeSlider{
+        .low = 0, // equals .min
+        .high = 75,
+        .min = 0,
+        .max = 100,
+    };
+    rs_min.render(&buf_min, area);
+
+    // Assert all cells match
+    for (0..80) |x| {
+        try testing.expectEqual(
+            buf_min.get(@intCast(x), 0).?.char,
+            buf_nan.get(@intCast(x), 0).?.char
+        );
+        try testing.expectEqual(
+            buf_min.get(@intCast(x), 0).?.style.fg,
+            buf_nan.get(@intCast(x), 0).?.style.fg
+        );
+    }
+}

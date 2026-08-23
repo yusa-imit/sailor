@@ -881,3 +881,46 @@ test "ProgressRing render in large buffer at middle position" {
     try testing.expectEqual(@as(u21, ' '), buf.getChar(0, 0));
     try testing.expectEqual(@as(u21, ' '), buf.getChar(9, 9));
 }
+
+test "ProgressRing render with NaN value renders identically to value 0.0" {
+    const allocator = testing.allocator;
+
+    // Render with NaN value
+    var buf_nan = try Buffer.init(allocator, 20, 10);
+    defer buf_nan.deinit();
+    const ring_nan = ProgressRing{
+        .value = std.math.nan(f32),
+        .show_percentage = true,
+        .label = "",
+    };
+    ring_nan.render(&buf_nan, Rect{ .x = 0, .y = 0, .width = 20, .height = 10 });
+
+    // Render with 0.0 value (floor value)
+    var buf_zero = try Buffer.init(allocator, 20, 10);
+    defer buf_zero.deinit();
+    const ring_zero = ProgressRing{
+        .value = 0.0,
+        .show_percentage = true,
+        .label = "",
+    };
+    ring_zero.render(&buf_zero, Rect{ .x = 0, .y = 0, .width = 20, .height = 10 });
+
+    // Assert all cells match
+    for (0..20) |x| {
+        for (0..10) |y| {
+            const cell_nan = buf_nan.get(@intCast(x), @intCast(y));
+            const cell_zero = buf_zero.get(@intCast(x), @intCast(y));
+
+            if (cell_nan) |cn| {
+                if (cell_zero) |cz| {
+                    try testing.expectEqual(cz.char, cn.char);
+                    try testing.expectEqual(cz.style.fg, cn.style.fg);
+                } else {
+                    return error.BufferMismatch;
+                }
+            } else {
+                if (cell_zero != null) return error.BufferMismatch;
+            }
+        }
+    }
+}

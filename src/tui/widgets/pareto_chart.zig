@@ -323,7 +323,8 @@ pub const ParetoChart = struct {
 
         // ========== Step 6: Render threshold marker ==========
         if (self.show_threshold) {
-            const threshold_clamped = std.math.clamp(self.threshold, 0.0, 1.0);
+            const threshold_value = if (std.math.isNan(self.threshold)) 0.0 else self.threshold;
+            const threshold_clamped = std.math.clamp(threshold_value, 0.0, 1.0);
             const threshold_row_f = @as(f32, @floatFromInt(inner.height - 1)) * (1.0 - threshold_clamped);
             const threshold_row = @as(i32, @intFromFloat(@round(threshold_row_f)));
             const threshold_row_clamped = std.math.clamp(threshold_row, 0, @as(i32, @intCast(inner.height - 1)));

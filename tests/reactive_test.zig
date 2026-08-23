@@ -1055,3 +1055,46 @@ test "ReactiveGauge precision: signal at 0.67" {
     const empty_cell = buffer.getConst(25, 0).?;
     try testing.expectEqual(@as(u21, ' '), empty_cell.char);
 }
+
+test "ReactiveGauge with NaN signal value renders identically to 0.0 signal" {
+    const allocator = testing.allocator;
+
+    // Render with NaN signal
+    var buf_nan = try Buffer.init(allocator, 20, 1);
+    defer buf_nan.deinit();
+
+    var sig_nan = try signal_mod.Signal(f64).init(allocator, std.math.nan(f64));
+    defer sig_nan.deinit(allocator);
+
+    const gauge_nan = sailor.tui.widgets.ReactiveGauge{
+        .signal = &sig_nan,
+    };
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
+    gauge_nan.render(&buf_nan, area);
+
+    // Render with 0.0 signal (floor value)
+    var buf_zero = try Buffer.init(allocator, 20, 1);
+    defer buf_zero.deinit();
+
+    var sig_zero = try signal_mod.Signal(f64).init(allocator, 0.0);
+    defer sig_zero.deinit(allocator);
+
+    const gauge_zero = sailor.tui.widgets.ReactiveGauge{
+        .signal = &sig_zero,
+    };
+
+    gauge_zero.render(&buf_zero, area);
+
+    // Assert all cells match
+    for (0..20) |x| {
+        try testing.expectEqual(
+            buf_zero.get(@intCast(x), 0).?.char,
+            buf_nan.get(@intCast(x), 0).?.char
+        );
+        try testing.expectEqual(
+            buf_zero.get(@intCast(x), 0).?.style.fg,
+            buf_nan.get(@intCast(x), 0).?.style.fg
+        );
+    }
+}

@@ -106,13 +106,15 @@ pub const RangeSlider = struct {
     /// Calculate proportional position of low handle (0.0 to 1.0)
     pub fn lowRatio(self: RangeSlider) f64 {
         if (self.max == self.min) return 0.0;
-        return (self.low - self.min) / (self.max - self.min);
+        const low = if (std.math.isNan(self.low)) self.min else self.low;
+        return (low - self.min) / (self.max - self.min);
     }
 
     /// Calculate proportional position of high handle (0.0 to 1.0)
     pub fn highRatio(self: RangeSlider) f64 {
         if (self.max == self.min) return 1.0;
-        return (self.high - self.min) / (self.max - self.min);
+        const high = if (std.math.isNan(self.high)) self.max else self.high;
+        return (high - self.min) / (self.max - self.min);
     }
 
     /// Builder: set min value
@@ -342,8 +344,10 @@ pub const RangeSlider = struct {
             var val_buf_lo: [32]u8 = undefined;
             var val_buf_hi: [32]u8 = undefined;
 
-            const lo_str = self.formatValue(&val_buf_lo, self.low);
-            const hi_str = self.formatValue(&val_buf_hi, self.high);
+            const lo_value = if (std.math.isNan(self.low)) self.min else self.low;
+            const hi_value = if (std.math.isNan(self.high)) self.max else self.high;
+            const lo_str = self.formatValue(&val_buf_lo, lo_value);
+            const hi_str = self.formatValue(&val_buf_hi, hi_value);
 
             // Try to render low value
             const lo_start: usize = low_p + 1;

@@ -1443,3 +1443,53 @@ test "BulletChart.render all bullets above target" {
     const non_empty = countNonEmptyCells(buf, area);
     try testing.expect(non_empty > 0);
 }
+
+test "BulletChart with NaN bullet value renders identically to value 0.0" {
+    // Render with NaN value
+    var buf_nan = try Buffer.init(testing.allocator, 70, 3);
+    defer buf_nan.deinit();
+
+    var bullets_nan = [_]Bullet{
+        .{ .label = "Test", .value = std.math.nan(f32), .target = 1.0 },
+    };
+
+    const chart_nan = BulletChart.init()
+        .withBullets(&bullets_nan)
+        .withMaxValue(2.0)
+        .withShowLabels(true);
+    const area = Rect{ .x = 0, .y = 0, .width = 70, .height = 3 };
+    chart_nan.render(&buf_nan, area);
+
+    // Render with 0.0 value (floor value)
+    var buf_zero = try Buffer.init(testing.allocator, 70, 3);
+    defer buf_zero.deinit();
+
+    var bullets_zero = [_]Bullet{
+        .{ .label = "Test", .value = 0.0, .target = 1.0 },
+    };
+
+    const chart_zero = BulletChart.init()
+        .withBullets(&bullets_zero)
+        .withMaxValue(2.0)
+        .withShowLabels(true);
+    chart_zero.render(&buf_zero, area);
+
+    // Assert all cells match
+    for (0..70) |x| {
+        for (0..3) |y| {
+            const cell_nan = buf_nan.get(@intCast(x), @intCast(y));
+            const cell_zero = buf_zero.get(@intCast(x), @intCast(y));
+
+            if (cell_nan) |cn| {
+                if (cell_zero) |cz| {
+                    try testing.expectEqual(cz.char, cn.char);
+                    try testing.expectEqual(cz.style.fg, cn.style.fg);
+                } else {
+                    return error.BufferMismatch;
+                }
+            } else {
+                if (cell_zero != null) return error.BufferMismatch;
+            }
+        }
+    }
+}

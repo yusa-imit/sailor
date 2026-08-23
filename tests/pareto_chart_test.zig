@@ -1303,3 +1303,60 @@ test "sorted=false preserves exact input order" {
     try testing.expectEqual(@as(usize, 3), chart.itemCount());
     try testing.expectEqual(false, chart.sorted);
 }
+
+test "ParetoChart with NaN threshold renders identically to threshold 0.0" {
+    const allocator = testing.allocator;
+
+    // Render with NaN threshold
+    var buf_nan = try Buffer.init(allocator, 60, 15);
+    defer buf_nan.deinit();
+
+    var items_nan = [_]ParetoItem{
+        .{ .label = "A", .value = 100.0 },
+        .{ .label = "B", .value = 50.0 },
+    };
+
+    const chart_nan = ParetoChart{
+        .items = &items_nan,
+        .threshold = std.math.nan(f32),
+        .show_threshold = true,
+    };
+
+    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 15 };
+    chart_nan.render(&buf_nan, area);
+
+    // Render with 0.0 threshold (floor value)
+    var buf_zero = try Buffer.init(allocator, 60, 15);
+    defer buf_zero.deinit();
+
+    var items_zero = [_]ParetoItem{
+        .{ .label = "A", .value = 100.0 },
+        .{ .label = "B", .value = 50.0 },
+    };
+
+    const chart_zero = ParetoChart{
+        .items = &items_zero,
+        .threshold = 0.0,
+        .show_threshold = true,
+    };
+    chart_zero.render(&buf_zero, area);
+
+    // Assert all cells match
+    for (0..60) |x| {
+        for (0..15) |y| {
+            const cell_nan = buf_nan.get(@intCast(x), @intCast(y));
+            const cell_zero = buf_zero.get(@intCast(x), @intCast(y));
+
+            if (cell_nan) |cn| {
+                if (cell_zero) |cz| {
+                    try testing.expectEqual(cz.char, cn.char);
+                    try testing.expectEqual(cz.style.fg, cn.style.fg);
+                } else {
+                    return error.BufferMismatch;
+                }
+            } else {
+                if (cell_zero != null) return error.BufferMismatch;
+            }
+        }
+    }
+}

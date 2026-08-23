@@ -288,3 +288,5 @@
 {"timestamp":"2026-08-22T18:29:09Z","action":"subagent","agent_type":"zig-developer","task":"Apply saturating arithmetic fix to ContextMenu.render() u16 overflow (context_menu.zig:261-262)","project":"sailor"}
 {"timestamp":"2026-08-22T18:37:36Z","action":"subagent","agent_type":"code-reviewer","task":"Review ContextMenu.render() u16 overflow fix (8 sites, saturating arithmetic)","project":"sailor"}
 {"timestamp":"2026-08-22T18:40:06Z","action":"subagent","agent_type":"test-writer","task":"Fix vacuous assertion in ContextMenu normal-position test (char != 0 should be != ' ' and != 0)","project":"sailor"}
+{"timestamp":"2026-08-23T00:27:31Z","action":"team_create","team_name":"nan-safety-fix","members":["test-writer","zig-developer","code-reviewer"],"task":"Fix reachable @intFromFloat NaN panics across 7 widget render paths (gauge, splitpane, progress_ring, reactive, rangeslider, bullet_chart, pareto_chart)","project":"sailor"}
+{"timestamp":"2026-08-23T06:27:36Z","action":"team_delete","team_name":"nan-safety-fix","project":"sailor"}

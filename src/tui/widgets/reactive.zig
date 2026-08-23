@@ -57,7 +57,8 @@ pub const ReactiveGauge = struct {
 
         if (inner_area.width == 0 or inner_area.height == 0) return;
 
-        const ratio = std.math.clamp(self.signal.get(), 0.0, 1.0);
+        const signal_value = self.signal.get();
+        const ratio = if (std.math.isNan(signal_value)) 0.0 else std.math.clamp(signal_value, 0.0, 1.0);
         const width = inner_area.width;
         const y = inner_area.y;
         const x_start = inner_area.x;

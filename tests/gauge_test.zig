@@ -501,3 +501,32 @@ test "Gauge render preserves buffer state with empty area" {
     // Cell at (5,5) should still be 'X'
     try testing.expectEqual(@as(u21, 'X'), buf.get(5, 5).?.char);
 }
+
+test "Gauge render with NaN ratio renders identically to ratio 0.0" {
+    const allocator = testing.allocator;
+
+    // Render with NaN ratio
+    var buf_nan = try Buffer.init(allocator, 10, 1);
+    defer buf_nan.deinit();
+    const gauge_nan = Gauge{ .ratio = std.math.nan(f64) };
+    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 1 };
+    gauge_nan.render(&buf_nan, area);
+
+    // Render with 0.0 ratio (floor value)
+    var buf_zero = try Buffer.init(allocator, 10, 1);
+    defer buf_zero.deinit();
+    const gauge_zero = Gauge{ .ratio = 0.0 };
+    gauge_zero.render(&buf_zero, area);
+
+    // Assert all cells match (both should be empty)
+    for (0..10) |x| {
+        try testing.expectEqual(
+            buf_zero.get(@intCast(x), 0).?.char,
+            buf_nan.get(@intCast(x), 0).?.char
+        );
+        try testing.expectEqual(
+            buf_zero.get(@intCast(x), 0).?.style.fg,
+            buf_nan.get(@intCast(x), 0).?.style.fg
+        );
+    }
+}

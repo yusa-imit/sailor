@@ -140,7 +140,8 @@ pub const Gauge = struct {
         const width = inner_area.width;
 
         // Calculate filled width
-        const filled_width: usize = @intFromFloat(@as(f64, @floatFromInt(width)) * self.ratio);
+        const ratio = if (std.math.isNan(self.ratio)) 0.0 else std.math.clamp(self.ratio, 0.0, 1.0);
+        const filled_width: usize = @intFromFloat(@as(f64, @floatFromInt(width)) * ratio);
 
         // Render filled portion
         for (0..filled_width) |offset| {

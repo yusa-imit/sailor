@@ -61,6 +61,7 @@ pub const ProgressRing = struct {
 
     /// Get percentage (0-100) of current value
     pub fn percentage(self: ProgressRing) u8 {
+        if (std.math.isNan(self.value)) return 0;
         const clamped = std.math.clamp(self.value, 0.0, 1.0);
         return @as(u8, @intFromFloat(clamped * 100.0));
     }
@@ -82,7 +83,7 @@ pub const ProgressRing = struct {
         const cy: f32 = @as(f32, @floatFromInt(inner.y)) + @as(f32, @floatFromInt(inner.height)) / 2.0 - 0.5;
         const outer_r: f32 = @min(@as(f32, @floatFromInt(inner.width)) / 2.0, @as(f32, @floatFromInt(inner.height))) - 0.5;
         const inner_r: f32 = @max(0.0, outer_r - @as(f32, @floatFromInt(self.thickness)) * 2.0);
-        const progress: f32 = std.math.clamp(self.value, 0.0, 1.0);
+        const progress: f32 = if (std.math.isNan(self.value)) 0.0 else std.math.clamp(self.value, 0.0, 1.0);
 
         // Render ring cells
         for (0..inner.height) |row_offset| {

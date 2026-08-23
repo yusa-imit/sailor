@@ -250,8 +250,8 @@ pub const BulletChart = struct {
             const safe_max_value = if (self.max_value > 0.0) self.max_value else 1.0;
 
             // Normalize and clamp value, target, and ranges to [0, 1]
-            const normalized_value = std.math.clamp(bullet.value / safe_max_value, 0.0, 1.0);
-            const normalized_target = std.math.clamp(bullet.target / safe_max_value, 0.0, 1.0);
+            const normalized_value = if (std.math.isNan(bullet.value)) 0.0 else std.math.clamp(bullet.value / safe_max_value, 0.0, 1.0);
+            const normalized_target = if (std.math.isNan(bullet.target)) 0.0 else std.math.clamp(bullet.target / safe_max_value, 0.0, 1.0);
 
             // ========== Render range bands (qualitative background) ==========
             if (bullet.ranges.len > 0) {
