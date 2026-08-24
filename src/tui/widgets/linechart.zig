@@ -152,11 +152,14 @@ pub const LineChart = struct {
 
     /// Scale Y value to pixel row
     fn scaleY(value: f64, min: f64, max: f64, height: usize) usize {
-        if (max == min) return height / 2;
+        if (height == 0) return 0;
+        if (max == min or std.math.isNan(value)) return height / 2;
         const range = max - min;
         const normalized = (value - min) / range;
         const scaled = normalized * @as(f64, @floatFromInt(height - 1));
-        const row = @as(usize, @intFromFloat(scaled));
+        if (!std.math.isFinite(scaled)) return height / 2;
+        const clamped = std.math.clamp(scaled, 0, @as(f64, @floatFromInt(height - 1)));
+        const row = @as(usize, @intFromFloat(clamped));
         // Invert because Y=0 is top of screen
         return height - 1 - @min(row, height - 1);
     }
@@ -349,8 +352,8 @@ pub const LineChart = struct {
 
         // Calculate Y range
         const y_range = calcYRange(self.series);
-        const min_y = self.min_y orelse y_range.min;
-        const max_y = self.max_y orelse y_range.max;
+        const min_y = if (self.min_y) |v| (if (std.math.isNan(v)) y_range.min else v) else y_range.min;
+        const max_y = if (self.max_y) |v| (if (std.math.isNan(v)) y_range.max else v) else y_range.max;
 
         // Reserve space for Y-axis
         var plot_area = chart_area;
@@ -727,4 +730,85 @@ test "LineChart.render small area" {
 
     chart.render(&buf, .{ .x = 0, .y = 0, .width = 5, .height = 3 });
     // Should handle gracefully
+}
+
+test "LineChart.render with NaN data point falls back to safe value" {
+    const allocator = testing.allocator;
+
+    // Render with NaN in data
+    var buf_nan = try Buffer.init(allocator, 50, 20);
+    defer buf_nan.deinit(allocator);
+
+    const data_nan = [_]f64{ 10.0, std.math.nan(f64), 20.0 };
+    const series_nan = [_]LineChart.Series{
+        .{ .name = "Test", .data = &data_nan, .style = .{ .fg = .{ .indexed = 2 } } },
+    };
+    const chart_nan = LineChart.init(&series_nan);
+    chart_nan.render(&buf_nan, .{ .x = 0, .y = 0, .width = 50, .height = 20 });
+
+    // Render with midpoint fallback (which is what NaN should become)
+    // When scaleY(NaN, ..., height) returns height/2, it matches data value 15.0 (midpoint of 10-20 range)
+    var buf_mid = try Buffer.init(allocator, 50, 20);
+    defer buf_mid.deinit(allocator);
+
+    const data_mid = [_]f64{ 10.0, 15.0, 20.0 };
+    const series_mid = [_]LineChart.Series{
+        .{ .name = "Test", .data = &data_mid, .style = .{ .fg = .{ .indexed = 2 } } },
+    };
+    const chart_mid = LineChart.init(&series_mid);
+    chart_mid.render(&buf_mid, .{ .x = 0, .y = 0, .width = 50, .height = 20 });
+
+    // After fix, NaN data point should render identically to the midpoint value (height/2 fallback).
+    // Assert that the entire buffer renders identically.
+    try testing.expectEqualSlices(buffer_mod.Cell, buf_nan.cells, buf_mid.cells);
+}
+
+test "LineChart.render with NaN min_y uses calculated value" {
+    const allocator = testing.allocator;
+
+    // Render with NaN min_y (should fall back to calculated min)
+    var buf_nan_min = try Buffer.init(allocator, 50, 20);
+    defer buf_nan_min.deinit(allocator);
+
+    const data = [_]f64{ 10.0, 20.0, 15.0 };
+    const series = [_]LineChart.Series{
+        .{ .name = "Test", .data = &data },
+    };
+    const chart_nan_min = LineChart.init(&series).withMinY(std.math.nan(f64));
+    chart_nan_min.render(&buf_nan_min, .{ .x = 0, .y = 0, .width = 50, .height = 20 });
+
+    // Render without override (uses calculated range)
+    var buf_normal = try Buffer.init(allocator, 50, 20);
+    defer buf_normal.deinit(allocator);
+    const chart_normal = LineChart.init(&series);
+    chart_normal.render(&buf_normal, .{ .x = 0, .y = 0, .width = 50, .height = 20 });
+
+    // After fix, NaN min_y should be completely ignored and fall back to calculated min.
+    // The buffer with NaN min_y should render identically to buffer without override.
+    try testing.expectEqualSlices(buffer_mod.Cell, buf_nan_min.cells, buf_normal.cells);
+}
+
+test "LineChart.render with NaN max_y uses calculated value" {
+    const allocator = testing.allocator;
+
+    // Render with NaN max_y (should fall back to calculated max)
+    var buf_nan_max = try Buffer.init(allocator, 50, 20);
+    defer buf_nan_max.deinit(allocator);
+
+    const data = [_]f64{ 10.0, 20.0, 15.0 };
+    const series = [_]LineChart.Series{
+        .{ .name = "Test", .data = &data },
+    };
+    const chart_nan_max = LineChart.init(&series).withMaxY(std.math.nan(f64));
+    chart_nan_max.render(&buf_nan_max, .{ .x = 0, .y = 0, .width = 50, .height = 20 });
+
+    // Render without override (uses calculated range)
+    var buf_normal = try Buffer.init(allocator, 50, 20);
+    defer buf_normal.deinit(allocator);
+    const chart_normal = LineChart.init(&series);
+    chart_normal.render(&buf_normal, .{ .x = 0, .y = 0, .width = 50, .height = 20 });
+
+    // After fix, NaN max_y should be completely ignored and fall back to calculated max.
+    // The buffer with NaN max_y should render identically to buffer without override.
+    try testing.expectEqualSlices(buffer_mod.Cell, buf_nan_max.cells, buf_normal.cells);
 }
