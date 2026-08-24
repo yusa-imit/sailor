@@ -1142,3 +1142,313 @@ test "render consistency: same items same output" {
     try testing.expect(count1 > 0);
     try testing.expect(count2 > 0);
 }
+
+// ============================================================================
+// Regression Tests — NaN/Infinity Guard (Bug: NaN silently blanks widget)
+// ============================================================================
+
+test "single item with NaN value does not panic" {
+    var buf = try Buffer.init(testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    // Create runtime-computed NaN (not comptime constant to avoid compile error)
+    var nan_slice: [1]f32 = undefined;
+    nan_slice[0] = std.math.nan(f32);
+
+    var items = [_]TreemapItem{
+        .{ .label = "NaN", .value = nan_slice[0] },
+    };
+    const tm = Treemap.init().withItems(&items);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
+
+    // Render should complete without panic
+    tm.render(&buf, area);
+    // If we reach here, no panic occurred
+    try testing.expect(true);
+}
+
+test "multi-item with one NaN value does not panic (renderPartition path)" {
+    var buf = try Buffer.init(testing.allocator, 40, 20);
+    defer buf.deinit();
+
+    // Create runtime-computed NaN
+    var nan_slice: [1]f32 = undefined;
+    nan_slice[0] = std.math.nan(f32);
+
+    var items = [_]TreemapItem{
+        .{ .label = "A", .value = 5.0 },
+        .{ .label = "NaN", .value = nan_slice[0] },
+        .{ .label = "C", .value = 3.0 },
+    };
+    const tm = Treemap.init().withItems(&items);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
+
+    // Render should complete without panic
+    tm.render(&buf, area);
+    try testing.expect(true);
+}
+
+test "single item with positive infinity does not panic" {
+    var buf = try Buffer.init(testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    // Create runtime-computed Infinity
+    var inf_slice: [1]f32 = undefined;
+    inf_slice[0] = std.math.inf(f32);
+
+    var items = [_]TreemapItem{
+        .{ .label = "Inf", .value = inf_slice[0] },
+    };
+    const tm = Treemap.init().withItems(&items);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
+
+    tm.render(&buf, area);
+    try testing.expect(true);
+}
+
+test "multi-item with positive infinity does not panic (renderPartition path)" {
+    var buf = try Buffer.init(testing.allocator, 40, 20);
+    defer buf.deinit();
+
+    var inf_slice: [1]f32 = undefined;
+    inf_slice[0] = std.math.inf(f32);
+
+    var items = [_]TreemapItem{
+        .{ .label = "A", .value = 5.0 },
+        .{ .label = "+Inf", .value = inf_slice[0] },
+        .{ .label = "C", .value = 3.0 },
+    };
+    const tm = Treemap.init().withItems(&items);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
+
+    tm.render(&buf, area);
+    try testing.expect(true);
+}
+
+test "single item with negative infinity does not panic" {
+    var buf = try Buffer.init(testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    var neg_inf_slice: [1]f32 = undefined;
+    neg_inf_slice[0] = -std.math.inf(f32);
+
+    var items = [_]TreemapItem{
+        .{ .label = "-Inf", .value = neg_inf_slice[0] },
+    };
+    const tm = Treemap.init().withItems(&items);
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
+
+    tm.render(&buf, area);
+    try testing.expect(true);
+}
+
+test "multi-item with negative infinity does not panic (renderPartition path)" {
+    var buf = try Buffer.init(testing.allocator, 40, 20);
+    defer buf.deinit();
+
+    var neg_inf_slice: [1]f32 = undefined;
+    neg_inf_slice[0] = -std.math.inf(f32);
+
+    var items = [_]TreemapItem{
+        .{ .label = "A", .value = 5.0 },
+        .{ .label = "-Inf", .value = neg_inf_slice[0] },
+        .{ .label = "C", .value = 3.0 },
+    };
+    const tm = Treemap.init().withItems(&items);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
+
+    tm.render(&buf, area);
+    try testing.expect(true);
+}
+
+test "NaN-poisoned multi-item render produces only valid characters" {
+    var buf = try Buffer.init(testing.allocator, 40, 20);
+    defer buf.deinit();
+
+    // Create runtime-computed NaN
+    var nan_slice: [1]f32 = undefined;
+    nan_slice[0] = std.math.nan(f32);
+
+    var items = [_]TreemapItem{
+        .{ .label = "A", .value = 5.0 },
+        .{ .label = "NaN", .value = nan_slice[0] },
+        .{ .label = "C", .value = 3.0 },
+    };
+    const tm = Treemap.init().withItems(&items);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
+
+    tm.render(&buf, area);
+
+    // Verify only valid characters appear (no garbage from bad cast)
+    var y = area.y;
+    while (y < area.y + area.height and y < buf.height) : (y += 1) {
+        var x = area.x;
+        while (x < area.x + area.width and x < buf.width) : (x += 1) {
+            if (buf.getConst(x, y)) |cell| {
+                const ch = cell.char;
+                // Valid characters: space, box-drawing, printable ASCII
+                const is_valid_space = ch == ' ';
+                const is_box_char = ch == '┌' or ch == '┐' or ch == '└' or ch == '┘' or
+                    ch == '─' or ch == '│';
+                const is_ascii_printable = ch >= 32 and ch <= 126;
+                const is_valid = is_valid_space or is_box_char or is_ascii_printable;
+
+                try testing.expect(is_valid);
+            }
+        }
+    }
+}
+
+test "positive infinity multi-item render produces only valid characters" {
+    var buf = try Buffer.init(testing.allocator, 40, 20);
+    defer buf.deinit();
+
+    var inf_slice: [1]f32 = undefined;
+    inf_slice[0] = std.math.inf(f32);
+
+    var items = [_]TreemapItem{
+        .{ .label = "A", .value = 5.0 },
+        .{ .label = "+Inf", .value = inf_slice[0] },
+        .{ .label = "C", .value = 3.0 },
+    };
+    const tm = Treemap.init().withItems(&items);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
+
+    tm.render(&buf, area);
+
+    // Verify only valid characters appear
+    var y = area.y;
+    while (y < area.y + area.height and y < buf.height) : (y += 1) {
+        var x = area.x;
+        while (x < area.x + area.width and x < buf.width) : (x += 1) {
+            if (buf.getConst(x, y)) |cell| {
+                const ch = cell.char;
+                const is_valid_space = ch == ' ';
+                const is_box_char = ch == '┌' or ch == '┐' or ch == '└' or ch == '┘' or
+                    ch == '─' or ch == '│';
+                const is_ascii_printable = ch >= 32 and ch <= 126;
+                const is_valid = is_valid_space or is_box_char or is_ascii_printable;
+
+                try testing.expect(is_valid);
+            }
+        }
+    }
+}
+
+test "negative infinity multi-item render produces only valid characters" {
+    var buf = try Buffer.init(testing.allocator, 40, 20);
+    defer buf.deinit();
+
+    var neg_inf_slice: [1]f32 = undefined;
+    neg_inf_slice[0] = -std.math.inf(f32);
+
+    var items = [_]TreemapItem{
+        .{ .label = "A", .value = 5.0 },
+        .{ .label = "-Inf", .value = neg_inf_slice[0] },
+        .{ .label = "C", .value = 3.0 },
+    };
+    const tm = Treemap.init().withItems(&items);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
+
+    tm.render(&buf, area);
+
+    // Verify only valid characters appear
+    var y = area.y;
+    while (y < area.y + area.height and y < buf.height) : (y += 1) {
+        var x = area.x;
+        while (x < area.x + area.width and x < buf.width) : (x += 1) {
+            if (buf.getConst(x, y)) |cell| {
+                const ch = cell.char;
+                const is_valid_space = ch == ' ';
+                const is_box_char = ch == '┌' or ch == '┐' or ch == '└' or ch == '┘' or
+                    ch == '─' or ch == '│';
+                const is_ascii_printable = ch >= 32 and ch <= 126;
+                const is_valid = is_valid_space or is_box_char or is_ascii_printable;
+
+                try testing.expect(is_valid);
+            }
+        }
+    }
+}
+
+test "normal finite items still render with visible content (no regression)" {
+    var buf = try Buffer.init(testing.allocator, 40, 20);
+    defer buf.deinit();
+
+    var items = [_]TreemapItem{
+        .{ .label = "A", .value = 5.0 },
+        .{ .label = "B", .value = 8.0 },
+        .{ .label = "C", .value = 3.0 },
+    };
+    const tm = Treemap.init().withItems(&items);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
+
+    tm.render(&buf, area);
+
+    // Should have visible content (not all spaces) when all items are finite
+    const content_count = countNonEmptyCells(buf, area);
+    try testing.expect(content_count > 10);
+}
+
+test "items with sum-to-Infinity total do not cause asymmetric partition skewing" {
+    var buf = try Buffer.init(testing.allocator, 40, 20);
+    defer buf.deinit();
+
+    // Create a scenario where item values sum to Infinity, bypassing `total <= 0` guard
+    // Use two maximum finite f32 values which sum to Infinity when added
+    // (floatMax ≈ 3.4e38; floatMax + floatMax = Infinity due to overflow)
+    const max_val = std.math.floatMax(f32);
+    var items = [_]TreemapItem{
+        .{ .label = "BIG1", .value = max_val },
+        .{ .label = "BIG2", .value = max_val },
+    };
+    const tm = Treemap.init().withItems(&items);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
+
+    tm.render(&buf, area);
+
+    // Count non-empty cells in each half
+    const left_half = Rect{
+        .x = area.x,
+        .y = area.y,
+        .width = area.width / 2,
+        .height = area.height,
+    };
+    const right_half = Rect{
+        .x = area.x + area.width / 2,
+        .y = area.y,
+        .width = area.width / 2,
+        .height = area.height,
+    };
+
+    const left_count = countNonEmptyCells(buf, left_half);
+    const right_count = countNonEmptyCells(buf, right_half);
+    const total_count = left_count + right_count;
+
+    // BUG SCENARIO (before fix):
+    // total = floatMax + floatMax = Infinity
+    // Infinity > 0 is true, so render() guard (total <= 0) does NOT bail
+    // renderPartition() proceeds with Infinity total:
+    //   - Items sorted descending
+    //   - left_total = floatMax (one item), right_total = Infinity - floatMax = Infinity
+    //   - left_w_f = width * floatMax / Infinity = 40 * 0 ≈ 0
+    //   - left_w = 0 after @intFromFloat cast
+    //   - Left partition gets 0 width → one item invisible
+    //   - Right partition gets full 40 width → other item visible
+    //   - Result: SKEWED partition distribution (one item fully dropped)
+    //
+    // FIX (after):
+    // Add `!std.math.isFinite(total)` guard to render() and renderPartition()
+    // Infinity total causes early bail-out → blank render → both halves empty
+    //
+    // TEST ASSERTION:
+    // Render should be either BLANK (< 10% fill) OR BALANCED (both halves have content)
+    // NOT asymmetrically skewed (left empty, right full)
+    // Before fix: left_count≈0, right_count≈200 → is_blank=false, is_balanced=false → FAILS (RED)
+    // After fix: left_count≈0, right_count≈0 → is_blank=true → PASSES (GREEN)
+
+    const is_blank = total_count < area.width * area.height / 10;
+    const is_balanced = left_count > 0 and right_count > 0;
+
+    try testing.expect(is_blank or is_balanced);
+}
