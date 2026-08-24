@@ -1075,7 +1075,7 @@ point at v2.92.2 rather than filing duplicates).
 - No allocator — all data is borrowed slices from caller
 - Useful for: silica (schema browser), zoltraak (Redis key hierarchy), zr (dependency tree)
 
-### v2.41.0 — ColorSwatch Widget (In Progress: 2026-06-14)
+### v2.41.0 — ColorSwatch Widget (Released: 2026-06-14)
 
 **Theme**: A grid-based color swatch palette for selecting colors. Displays colors as filled rectangular cells arranged in a configurable column layout. Supports keyboard navigation (next/prev/up/down), optional hex labels, focused selection indicator, and block border. Ideal for theme editors, color pickers, and any TUI UI requiring color selection.
 
@@ -1101,7 +1101,7 @@ point at v2.92.2 rather than filing duplicates).
 - No allocator needed — colors/labels slices borrowed from caller
 - Useful for: theme_editor.zig companion, color_picker.zig alternative, zoltraak/silica theming
 
-### v2.40.0 — RangeSlider Widget (In Progress: 2026-06-14)
+### v2.40.0 — RangeSlider Widget (Released: 2026-06-14)
 
 **Theme**: Dual-handle horizontal slider for selecting a value range [low, high] within [min, max]. Positions handles proportionally on the track, shows selected range with a distinct fill character, supports focused handle highlighting, optional label, and value overlays. Ideal for TUI forms requiring bounded range selection (price filters, date ranges, etc.).
 
