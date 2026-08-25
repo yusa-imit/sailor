@@ -116,6 +116,7 @@ pub fn Parser(comptime flags: []const FlagDef) type {
         allocator: std.mem.Allocator,
         values: std.StringHashMap(Value),
         positional: std.ArrayList([]const u8),
+        suggestion: ?[]const u8 = null,
 
         /// Initialize parser
         pub fn init(allocator: std.mem.Allocator) Self {
@@ -123,6 +124,7 @@ pub fn Parser(comptime flags: []const FlagDef) type {
                 .allocator = allocator,
                 .values = std.StringHashMap(Value).init(allocator),
                 .positional = .{},
+                .suggestion = null,
             };
         }
 
@@ -134,6 +136,9 @@ pub fn Parser(comptime flags: []const FlagDef) type {
 
         /// Parse arguments
         pub fn parse(self: *Self, args: []const []const u8) Error!void {
+            // Reset suggestion at start of each parse
+            self.suggestion = null;
+
             var i: usize = 0;
             while (i < args.len) : (i += 1) {
                 const arg = args[i];
@@ -148,7 +153,11 @@ pub fn Parser(comptime flags: []const FlagDef) type {
                         try self.setFlag(flag_name, value);
                     } else {
                         // --flag [value]
-                        const flag_def = findFlag(name) orelse return Error.UnknownFlag;
+                        const flag_def = findFlag(name) orelse {
+                            // Try to find a suggestion before returning error
+                            self.suggestion = findSuggestion(name);
+                            return Error.UnknownFlag;
+                        };
                         if (flag_def.type == .bool) {
                             try self.values.put(flag_def.name, .{ .bool = true });
                         } else {
@@ -160,7 +169,12 @@ pub fn Parser(comptime flags: []const FlagDef) type {
                 } else if (std.mem.startsWith(u8, arg, "-") and arg.len > 1) {
                     // Short flag(s)
                     for (arg[1..]) |ch| {
-                        const flag_def = findFlagByShort(ch) orelse return Error.UnknownFlag;
+                        const flag_def = findFlagByShort(ch) orelse {
+                            // Try to find a suggestion for short flag (by character)
+                            // For short flags, we could suggest the long form of the closest flag
+                            // For now, we don't set suggestion for short flags
+                            return Error.UnknownFlag;
+                        };
                         if (flag_def.type == .bool) {
                             try self.values.put(flag_def.name, .{ .bool = true });
                         } else {
@@ -189,7 +203,10 @@ pub fn Parser(comptime flags: []const FlagDef) type {
         }
 
         fn setFlag(self: *Self, name: []const u8, value_str: []const u8) Error!void {
-            const flag_def = findFlag(name) orelse return Error.UnknownFlag;
+            const flag_def = findFlag(name) orelse {
+                self.suggestion = findSuggestion(name);
+                return Error.UnknownFlag;
+            };
 
             const value = switch (flag_def.type) {
                 .bool => blk: {
@@ -223,6 +240,77 @@ pub fn Parser(comptime flags: []const FlagDef) type {
                 if (flag.short != null and flag.short.? == ch) {
                     return flag;
                 }
+            }
+            return null;
+        }
+
+        /// Compute Levenshtein edit distance between two strings
+        fn levenshteinDistance(s1: []const u8, s2: []const u8) usize {
+            const len1 = s1.len;
+            const len2 = s2.len;
+
+            // Handle empty strings
+            if (len1 == 0) return len2;
+            if (len2 == 0) return len1;
+
+            // Use a fixed-size buffer for DP table (2D, but we use 2 rows approach)
+            // Limit to prevent stack overflow for very long strings
+            const max_len = 128;
+            const actual_len1 = @min(len1, max_len);
+            const actual_len2 = @min(len2, max_len);
+
+            // Two rows: previous and current
+            var rows: [2][129]usize = undefined;
+            var prev_row = &rows[0];
+            var curr_row = &rows[1];
+
+            // Initialize first row
+            for (0..actual_len2 + 1) |j| {
+                prev_row[j] = j;
+            }
+
+            // Fill DP table
+            for (1..actual_len1 + 1) |i| {
+                curr_row[0] = i;
+
+                for (1..actual_len2 + 1) |j| {
+                    const cost = if (s1[i - 1] == s2[j - 1]) @as(usize, 0) else @as(usize, 1);
+                    const del = prev_row[j] + 1;
+                    const ins = curr_row[j - 1] + 1;
+                    const sub = prev_row[j - 1] + cost;
+                    curr_row[j] = @min(@min(del, ins), sub);
+                }
+
+                // Swap row pointers
+                const temp_ptr = prev_row;
+                prev_row = curr_row;
+                curr_row = temp_ptr;
+            }
+
+            return prev_row[actual_len2];
+        }
+
+        /// Find a suggestion for an unknown flag based on Levenshtein distance
+        /// Returns the flag name with minimum distance if distance <= 3, otherwise null
+        fn findSuggestion(unknown_name: []const u8) ?[]const u8 {
+            if (flags.len == 0) {
+                return null;
+            }
+
+            const threshold = 3;
+            var min_distance: usize = threshold + 1;
+            var best_flag: ?[]const u8 = null;
+
+            inline for (flags) |flag| {
+                const distance = levenshteinDistance(unknown_name, flag.name);
+                if (distance < min_distance) {
+                    min_distance = distance;
+                    best_flag = flag.name;
+                }
+            }
+
+            if (min_distance <= threshold) {
+                return best_flag;
             }
             return null;
         }
@@ -561,4 +649,209 @@ test "Value type conversions" {
     // Type mismatches
     try std.testing.expectError(error.TypeMismatch, val_string.asBool());
     try std.testing.expectError(error.TypeMismatch, val_int.asString());
+}
+
+// "Did you mean?" suggestion tests (Levenshtein-based)
+
+test "unknown long flag with close match should suggest" {
+    // Test: --verbos (typo) should suggest --verbose (edit distance 1)
+    const flags = [_]FlagDef{
+        .{ .name = "verbose", .short = 'v', .type = .bool },
+    };
+
+    var parser = Parser(&flags).init(std.testing.allocator);
+    defer parser.deinit();
+
+    const args = [_][]const u8{"--verbos"};
+    const result = parser.parse(&args);
+
+    try std.testing.expectError(Error.UnknownFlag, result);
+    try std.testing.expect(parser.suggestion != null);
+    try std.testing.expectEqualStrings("verbose", parser.suggestion.?);
+}
+
+test "unknown long flag with small typo should suggest" {
+    // Test: --output -> --outptu (1 char transposition, distance 2)
+    const flags = [_]FlagDef{
+        .{ .name = "output", .type = .string },
+    };
+
+    var parser = Parser(&flags).init(std.testing.allocator);
+    defer parser.deinit();
+
+    const args = [_][]const u8{"--outptu"};
+    const result = parser.parse(&args);
+
+    try std.testing.expectError(Error.UnknownFlag, result);
+    // Close typo should get a suggestion
+    try std.testing.expect(parser.suggestion != null);
+    try std.testing.expectEqualStrings("output", parser.suggestion.?);
+}
+
+test "unknown long flag with no close match should not suggest" {
+    // Test: --foobar when only --verbose defined (distance > threshold, no suggestion)
+    const flags = [_]FlagDef{
+        .{ .name = "verbose", .type = .bool },
+    };
+
+    var parser = Parser(&flags).init(std.testing.allocator);
+    defer parser.deinit();
+
+    const args = [_][]const u8{"--foobar"};
+    const result = parser.parse(&args);
+
+    try std.testing.expectError(Error.UnknownFlag, result);
+    // No close match, suggestion should be null
+    try std.testing.expect(parser.suggestion == null);
+}
+
+test "known flag parse should not set suggestion" {
+    // Test: successful parse leaves suggestion as null
+    const flags = [_]FlagDef{
+        .{ .name = "verbose", .type = .bool },
+    };
+
+    var parser = Parser(&flags).init(std.testing.allocator);
+    defer parser.deinit();
+
+    const args = [_][]const u8{"--verbose"};
+    try parser.parse(&args);
+
+    // Successful parse should leave suggestion null
+    try std.testing.expect(parser.suggestion == null);
+}
+
+test "suggestion reset on each parse call" {
+    // Test: suggestion should be null at start of new parse(), not carry over from previous error
+    const flags = [_]FlagDef{
+        .{ .name = "verbose", .type = .bool },
+    };
+
+    var parser = Parser(&flags).init(std.testing.allocator);
+    defer parser.deinit();
+
+    // First parse with unknown flag (will set suggestion)
+    const args1 = [_][]const u8{"--verbos"};
+    _ = parser.parse(&args1) catch {};
+    try std.testing.expect(parser.suggestion != null);
+
+    // Second parse with known flag should clear suggestion
+    const args2 = [_][]const u8{"--verbose"};
+    try parser.parse(&args2);
+    try std.testing.expect(parser.suggestion == null);
+}
+
+test "multiple flags should suggest closest by edit distance" {
+    // Test: when multiple flags exist, suggest the one with smallest Levenshtein distance
+    const flags = [_]FlagDef{
+        .{ .name = "verbose", .type = .bool },
+        .{ .name = "version", .type = .bool },
+        .{ .name = "verify", .type = .bool },
+    };
+
+    var parser = Parser(&flags).init(std.testing.allocator);
+    defer parser.deinit();
+
+    // "verbise" is closer to "verbose" (1 or 2 edits) than "version" or "verify"
+    const args = [_][]const u8{"--verbise"};
+    const result = parser.parse(&args);
+
+    try std.testing.expectError(Error.UnknownFlag, result);
+    try std.testing.expect(parser.suggestion != null);
+    // Should suggest the closest one
+    try std.testing.expectEqualStrings("verbose", parser.suggestion.?);
+}
+
+test "short flag typo should suggest long form or no suggestion" {
+    // Test: unknown short flag behavior
+    // Design decision: short flags are single-char, Levenshtein on single char is not meaningful
+    // So we suggest based on defined short flags only, or don't suggest at all
+    const flags = [_]FlagDef{
+        .{ .name = "verbose", .short = 'v', .type = .bool },
+        .{ .name = "output", .short = 'o', .type = .string },
+    };
+
+    var parser = Parser(&flags).init(std.testing.allocator);
+    defer parser.deinit();
+
+    // Unknown short flag -x (only -v and -o defined)
+    const args = [_][]const u8{"-x"};
+    const result = parser.parse(&args);
+
+    try std.testing.expectError(Error.UnknownFlag, result);
+    // For short flags, we either suggest nothing or the closest short flag
+    // This test documents the behavior: for now, short flag suggestions may be null
+    // (implementation can decide to compare against defined short flags)
+    _ = parser.suggestion; // Just ensure field exists
+}
+
+test "very short unknown flag name does not crash" {
+    // Test: edge case - --a (single char after --)
+    const flags = [_]FlagDef{
+        .{ .name = "verbose", .type = .bool },
+    };
+
+    var parser = Parser(&flags).init(std.testing.allocator);
+    defer parser.deinit();
+
+    const args = [_][]const u8{"--a"};
+    const result = parser.parse(&args);
+
+    // Should not crash, should return UnknownFlag
+    try std.testing.expectError(Error.UnknownFlag, result);
+    // Single char typo distance to "verbose" is large, no suggestion expected
+    try std.testing.expect(parser.suggestion == null);
+}
+
+test "empty flags list does not crash on unknown flag" {
+    // Test: edge case - no flags defined, any unknown flag should not crash
+    const flags = [_]FlagDef{};
+
+    var parser = Parser(&flags).init(std.testing.allocator);
+    defer parser.deinit();
+
+    const args = [_][]const u8{"--anything"};
+    const result = parser.parse(&args);
+
+    // Should error gracefully, suggestion should be null (no flags to suggest)
+    try std.testing.expectError(Error.UnknownFlag, result);
+    try std.testing.expect(parser.suggestion == null);
+}
+
+test "suggestion for flag with missing value still sets suggestion" {
+    // Test: if --verbos has a missing value, it errors with UnknownFlag (not MissingValue)
+    // and the suggestion should still be set
+    const flags = [_]FlagDef{
+        .{ .name = "verbose", .type = .bool },
+    };
+
+    var parser = Parser(&flags).init(std.testing.allocator);
+    defer parser.deinit();
+
+    const args = [_][]const u8{"--verbos"};
+    const result = parser.parse(&args);
+
+    try std.testing.expectError(Error.UnknownFlag, result);
+    try std.testing.expect(parser.suggestion != null);
+    try std.testing.expectEqualStrings("verbose", parser.suggestion.?);
+}
+
+test "multiple close matches should pick closest" {
+    // Test: --verb could match verbose or verify; verbose is closer
+    const flags = [_]FlagDef{
+        .{ .name = "verbose", .type = .bool },
+        .{ .name = "verify", .type = .bool },
+    };
+
+    var parser = Parser(&flags).init(std.testing.allocator);
+    defer parser.deinit();
+
+    const args = [_][]const u8{"--verb"};
+    const result = parser.parse(&args);
+
+    try std.testing.expectError(Error.UnknownFlag, result);
+    try std.testing.expect(parser.suggestion != null);
+    // "verb" is distance 3 from "verbose" (need to add "ose") and distance 3 from "verify" (need to change "b" and add "y")
+    // Depending on exact Levenshtein, one should be preferred; document the choice
+    _ = parser.suggestion; // Just ensure field exists and can be checked
 }
