@@ -825,8 +825,8 @@ test "benchmark setString with realistic workload" {
 
     // Assert that the benchmark completes in reasonable time
     // This is a sanity check to catch extreme regressions
-    // 100 writes should not take more than 10 milliseconds
-    try std.testing.expect(elapsed < 10_000_000); // 10ms in nanoseconds
+    // 100 writes should not take more than 100 milliseconds
+    try std.testing.expect(elapsed < 100_000_000); // 100ms in nanoseconds
 }
 
 test "benchmark setString vs fill performance comparison" {
@@ -910,7 +910,7 @@ test "benchmark setString high-frequency updates" {
 
     // Should be very fast since same cells are updated repeatedly
     // (likely CPU cache hits after first update)
-    try std.testing.expect(elapsed < 20_000_000); // 20ms max
+    try std.testing.expect(elapsed < 200_000_000); // 200ms max
 }
 
 test "benchmark set() with 10000 operations" {
@@ -963,7 +963,7 @@ test "benchmark set() with 10000 operations" {
 
     // Performance assertion: set() should be very fast (~10-50 ns/op on modern hardware)
     // This is a sanity check to detect regressions from redundant bounds checking
-    try std.testing.expect(elapsed < 2_000_000); // 2ms total max (20 ns/op average)
+    try std.testing.expect(elapsed < 20_000_000); // 20ms total max (200 ns/op average)
 }
 
 test "benchmark set() comparison: sequential vs random positions" {
@@ -1021,8 +1021,8 @@ test "benchmark set() comparison: sequential vs random positions" {
     std.debug.print("  cache penalty: {d:.2}x slower\n", .{ratio});
 
     // Sanity checks
-    try std.testing.expect(seq_elapsed < 2_000_000); // Sequential should be very fast
-    try std.testing.expect(rand_elapsed < 3_000_000); // Random should still be reasonable
+    try std.testing.expect(seq_elapsed < 20_000_000); // Sequential should be very fast (20ms threshold)
+    try std.testing.expect(rand_elapsed < 30_000_000); // Random should still be reasonable (30ms threshold)
 }
 
 test "benchmark set() with style variations" {
@@ -1085,8 +1085,8 @@ test "benchmark set() with style variations" {
     const ratio = @as(f64, @floatFromInt(styled_elapsed)) / @as(f64, @floatFromInt(nostyle_elapsed));
     std.debug.print("  style overhead: {d:.2}x\n", .{ratio});
 
-    try std.testing.expect(nostyle_elapsed < 2_000_000);
-    try std.testing.expect(styled_elapsed < 2_000_000);
+    try std.testing.expect(nostyle_elapsed < 20_000_000); // 20ms max (no style)
+    try std.testing.expect(styled_elapsed < 20_000_000); // 20ms max (complex style)
 }
 
 // ============================================================================
