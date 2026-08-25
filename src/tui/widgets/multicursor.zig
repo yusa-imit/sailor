@@ -547,6 +547,80 @@ test "multicursor: getText preserves content" {
     try testing.expectEqualStrings(original, result);
 }
 
+test "multicursor: setLanguage sets base language and returns self for chaining" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("const x = 1;");
+
+    // setLanguage should return self for chaining
+    const result = mc.setLanguage(.zig);
+    try testing.expectEqual(@as(*MultiCursorEditor, &mc), result);
+
+    // Base language should be set to .zig
+    try testing.expectEqual(@as(editor.Language, .zig), mc.base.language);
+}
+
+test "multicursor: setLanguage enables syntax highlighting on render" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    // Text containing a Zig keyword
+    try mc.setText("const x = 1;");
+    try mc.addCursor(.{ .line = 0, .col = 6 });
+
+    // Set language to enable tokenization
+    _ = mc.setLanguage(.zig);
+
+    var buffer = try Buffer.init(allocator, 40, 10);
+    defer buffer.deinit(allocator);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+
+    // Render should not panic when language is set
+    mc.render(&buffer, area);
+
+    // Verify buffer has content
+    const cell = buffer.get(0, 0);
+    try testing.expectEqual(@as(u8, 'c'), cell.char);
+}
+
+test "multicursor: setLanguage + secondary cursor overlay preserves char, applies cursor style" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    // Text with Zig keyword "const" (5 chars)
+    try mc.setText("const x = 1;");
+
+    // Set language to enable tokenization (keyword will be styled differently)
+    _ = mc.setLanguage(.zig);
+
+    // Add secondary cursor at column 0 (on the 'c' of "const")
+    // This position will be tokenized as a keyword and get keyword styling (magenta, bold)
+    // But then MultiCursorEditor.render() should overlay the secondary_cursor_style on top
+    try mc.addCursor(.{ .line = 0, .col = 0 });
+
+    var buffer = try Buffer.init(allocator, 40, 10);
+    defer buffer.deinit(allocator);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+    mc.render(&buffer, area);
+
+    // Get the cell at the secondary cursor position (0, 0)
+    const cell = buffer.get(0, 0);
+
+    // The character must still be 'c' (not corrupted by styling)
+    try testing.expectEqual(@as(u8, 'c'), cell.char);
+
+    // The style should be secondary_cursor_style (proving overlay won over token style)
+    // secondary_cursor_style is: Style{ .bg = Color{ .indexed = 240 }, .fg = Color.black }
+    try testing.expectEqual(mc.secondary_cursor_style.bg.?, cell.style.bg.?);
+    try testing.expectEqual(mc.secondary_cursor_style.fg.?, cell.style.fg.?);
+}
+
 // ============================================================================
 // MultiCursor — Simple multi-cursor editing widget for v1.13.0
 // ============================================================================
