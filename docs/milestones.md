@@ -2,11 +2,31 @@
 
 ## Current Status
 
-- **Latest release**: v2.94.2 (2026-08-22) — patch: 5 bundled fixes (validation ring buffer, term.zig fd=42 guard, chart widget clamps, ParticleSystem panic guard, ToastManager u16 overflow guard, flaky async_loop test fix)
-- **Latest minor**: v2.94.0 (2026-07-18) — ErrorBarChart + DonutChart Widgets
+- **Latest release**: v2.95.0 (2026-08-25) — AreaChart Widget
+- **Latest minor**: v2.95.0 (2026-08-25) — AreaChart Widget
 - **Next release**: TBD — replenish from feature-request issues, PRD gaps, or consumer feedback
 - **Active milestones**: 0 established
 - **Blockers**: None
+
+### v2.95.0 — AreaChart Widget (Complete)
+
+**Theme**: Filled area chart — up to 8 series, up to 64 points/series, optional stacking (cumulative
+vertical stack vs. overlapping non-stacked areas), auto-scale that always includes the baseline
+(y=0), custom fill/line-boundary characters, min/max value overrides, focused-series highlighting,
+and NaN/Infinity-safe scaling. Found as a prior session's uncommitted-but-complete work (widget +
+1176-line test suite already wired into `build.zig`/`src/sailor.zig`/`src/tui/tui.zig`) — verified
+independently via `zig build test` (0 failures, exit 0) and confirmed the test registration existed
+in `build.zig` (per the session 380 lesson: green exit code alone doesn't prove a new suite ran)
+before trusting it.
+
+**Checklist**:
+- [x] **src/tui/widgets/area_chart.zig** — `AreaChart` + `AreaSeries`; stacked/non-stacked fill
+      rendering, baseline-inclusive auto-scale, block border support
+- [x] **tests/area_chart_test.zig** — test suite covering init/builder, stacking, scaling, min/max
+      overrides, focused-series styling, NaN/Infinity guards, no-panic regressions
+- [x] Export `AreaChart`, `AreaSeries`, `area_chart` via tui.zig widgets struct and top-level sailor.zig
+- [x] Add `area_chart_tests` to build.zig
+- [x] Release v2.95.0
 
 ### v2.94.0 — DonutChart Widget (Complete)
 
