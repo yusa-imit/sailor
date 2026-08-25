@@ -316,6 +316,11 @@ pub const ToggleSwitchGroup = tui.widgets.ToggleSwitchGroup;
 pub const CalendarHeatmap = tui.widgets.CalendarHeatmap;
 pub const calendar_heatmap = tui.widgets.calendar_heatmap;
 
+// v2.95.0 — AreaChart Widget
+pub const AreaChart = tui.widgets.AreaChart;
+pub const AreaSeries = tui.widgets.AreaSeries;
+pub const area_chart = tui.widgets.area_chart;
+
 pub const Viewport = tui.viewport.Viewport;
 pub const VirtualRenderer = tui.virtual.VirtualRenderer;
 pub const IncrementalLayout = tui.incremental_layout.IncrementalLayout;

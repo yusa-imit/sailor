@@ -624,6 +624,11 @@ pub const widgets = struct {
     pub const calendar = @import("widgets/calendar.zig");
     pub const calendar_heatmap = @import("widgets/calendar_heatmap.zig");
     pub const CalendarHeatmap = calendar_heatmap.CalendarHeatmap;
+
+    // v2.95.0 — AreaChart Widget
+    pub const area_chart = @import("widgets/area_chart.zig");
+    pub const AreaChart = area_chart.AreaChart;
+    pub const AreaSeries = area_chart.AreaSeries;
 };
 
 // Export commonly used types
