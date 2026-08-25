@@ -2,9 +2,9 @@
 
 ## Current Status
 
-- **Latest release**: v2.95.0 (2026-08-25) — AreaChart Widget
-- **Latest minor**: v2.95.0 (2026-08-25) — AreaChart Widget
-- **Unreleased on main**: `feat: arg.zig "Did you mean?" suggestions` (f1efdae, 2026-08-25) — not release-worthy alone per protocol (single `feat:` commit, not a milestone completion); accumulate until milestone-worthy or bundle with a future fix
+- **Latest release**: v2.95.0 (2026-08-25) — AreaChart Widget + arg.zig "Did you mean?" (tagged/GitHub-released this session; build.zig.zon had been bumped since df49b8e but no tag/release existed until now — see session 405 notes)
+- **Latest minor**: v2.95.0 (2026-08-25)
+- **Unreleased on main**: none
 - **Next release**: TBD — replenish from feature-request issues, PRD gaps, or consumer feedback
 - **Active milestones**: 0 established
 - **Blockers**: None
