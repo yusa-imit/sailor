@@ -26,10 +26,14 @@
   small in practice
 - `std.math.clamp(val, lo, hi)` does NOT sanitize `NaN` — `NaN < lo` and `NaN > hi` are both false,
   so `NaN` passes through unclamped and can later panic an `@intFromFloat` cast downstream. Flagged
-  (not yet fixed) in session 388 for widgets that clamp a public `ratio`/`value` field via
-  `std.math.clamp` before casting (`gauge.zig`, `reactive.zig`, `splitpane.zig`, likely others) —
-  only reachable if a caller constructs the struct literal directly with `NaN` rather than going
-  through the clamping builder method.
+  in session 388 for `gauge.zig`/`reactive.zig`/`splitpane.zig` — **verified fixed** as of session
+  410: all three now guard with `if (std.math.isNan(x)) 0.0 else std.math.clamp(...)` at the
+  render()-time cast site. Session 410 broadened the audit and found the SAME unguarded pattern
+  (`@intFromFloat` reachable from a NaN/Infinity public input, no `isNan`/`isInf` guard anywhere in
+  the file) in **34 other widgets** — see the `docs/milestones.md` NaN/Infinity Safety Audit
+  milestone for the full file list and per-widget reachability notes. Root cause pattern to watch
+  for in new widgets: any `@intFromFloat` fed by a chart-data value/ratio that came from a public
+  `[]const f64`-style input slice (user data), not just a single clamped `ratio` field.
 
 ## Test-Quality Anti-Patterns (recurring — audit for these every STABILIZATION session)
 

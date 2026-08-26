@@ -6,10 +6,49 @@
 - **Latest minor**: v2.96.0 (2026-08-27)
 - **Unreleased on main**: none
 - **Next release**: TBD — awaiting next feature/fix cycle or milestone establishment (0 active milestones)
-- **Active milestones**: 0 established
+- **Active milestones**: 1 established (v2.97.0 — NaN/Infinity Safety Audit)
 - **Blockers**: None
 
-### v2.96.0 — arg.zig Subcommand Dispatch (Complete, unreleased)
+### v2.97.0 — NaN/Infinity Safety Audit for Chart Widgets (Active)
+
+**Theme**: Session 410 stabilization re-verified the session 388 finding that `std.math.clamp`
+does not sanitize `NaN` (`NaN < lo` / `NaN > hi` are both `false`, so `NaN` passes through
+unclamped into a later `@intFromFloat` cast, which panics on `NaN`/`±Infinity` — violating the
+library's "no `@panic`" rule whenever the panic is reachable from public input). `gauge.zig`,
+`reactive.zig`, and `splitpane.zig` (the three widgets session 388 flagged) already carry an
+`isNan` guard at their render-time cast site — that part is **done**, not new scope. Grepping
+every widget for `@intFromFloat` with zero `isNan`/`isInf` guards anywhere in the file surfaced
+**34 additional widgets** with the same unguarded shape: `area_chart.zig`, `box_plot.zig`,
+`bubble_chart.zig`, `bump_chart.zig`, `calendar_heatmap.zig`, `candlestick_chart.zig`,
+`chord_diagram.zig`, `countdown_timer.zig`, `debugger.zig`, `donut_chart.zig`, `dot_plot.zig`,
+`error_bar_chart.zig`, `funnel_chart.zig`, `gantt_chart.zig`, `heatmap.zig`, `icicle_chart.zig`,
+`metricspanel.zig`, `mosaic_plot.zig`, `parallel_coordinates.zig`, `particles.zig`, `piechart.zig`,
+`profiler.zig`, `radar_chart.zig`, `radial_bar.zig`, `ring_menu.zig`, `sankey.zig`,
+`scatterplot.zig`, `scrollview.zig`, `slope_chart.zig`, `stream_graph.zig`, `sunburst_chart.zig`,
+`timeseries.zig`, `treemap.zig`, `violin_plot.zig`, `waterfall_chart.zig`, `wordcloud.zig`. Not
+all 34 are necessarily reachable with attacker/caller-controlled `NaN` (some derive their float
+math from trusted internal loop counters rather than public data slices) — the first task of this
+milestone is triage: confirm actual reachability per widget before patching, to avoid defensive
+guards on paths that can never see `NaN` in practice. Established per the `docs/milestones.md`
+"미완료 마일스톤 2개 이하 → 자율 수립" rule (0 active milestones after the v2.96.0 release) and
+input source #4 (기술 부채 / Known Limitations) per the establishment process below.
+
+**Checklist**:
+- [ ] Triage all 34 flagged widgets — for each, trace whether the `@intFromFloat` input can
+      actually receive `NaN`/`±Infinity` from a public API (constructor arg, builder method, or
+      a `[]const f64`-style data slice) vs. only from internal trusted computation
+- [ ] For each confirmed-reachable widget: add `if (std.math.isNan(x) or std.math.isInf(x)) <safe
+      default> else ...` at the cast site, following the `gauge.zig`/`reactive.zig`/`splitpane.zig`
+      pattern already in the codebase
+- [ ] `test-writer`: add a NaN/Infinity regression test per confirmed-reachable widget (construct
+      with `NaN`/`Infinity` in the relevant field, assert `render()` doesn't panic)
+- [ ] `zig build test` — 0 failures, no new panics under `-Doptimize=Debug` (safety checks on)
+- [ ] Update `.claude/memory/debugging.md` to mark the audit complete with the final reachable/safe
+      widget count
+- [ ] Release (patch or minor depending on whether any public API/behavior changes, vs. purely
+      internal guard additions)
+
+### v2.96.0 — arg.zig Subcommand Dispatch (Complete)
 
 **Theme**: `Commands(comptime commands: []const CommandDef)` — comptime-generic subcommand dispatch
 analogous to `Parser(flags)`, closing the #1 consumer-facing gap flagged by session 404's Explore
@@ -50,7 +89,7 @@ stdout/panic/global-state, Writer-based `writeHelp`). Independently re-ran `zig 
 - [x] Release v2.96.0 — bundled with Rating widget + Repl paste wiring (session 410 stabilization:
       6-target cross-compile check verified, tagged, GitHub release, consumer migration issues filed)
 
-### v2.96.0 — Rating Widget (Implemented, unreleased)
+### v2.96.0 — Rating Widget (Complete)
 
 **Theme**: A discrete star/symbol rating display (product-review style), distinct from `RangeSlider`
 (continuous drag value) and `Gauge` (percentage bar) — shows `max` discrete symbol cells (1-32,
@@ -74,7 +113,7 @@ against them without modifying the tests).
 - [x] Release v2.96.0 — session 410 stabilization: 6-target cross-compile check verified, tagged,
       GitHub release, consumer migration issues filed
 
-### v2.96.0 — Repl Bracketed Paste Wiring (Complete, unreleased)
+### v2.96.0 — Repl Bracketed Paste Wiring (Complete)
 
 **Theme**: `src/paste.zig` (`PasteHandler`/`PasteReader`) and `src/term.zig`'s `BracketedPaste`/
 `isPasteStart`/`isPasteEnd` have existed and been exported since prior sessions, but `src/repl.zig`
