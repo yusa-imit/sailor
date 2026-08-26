@@ -6,43 +6,57 @@
 - **Latest minor**: v2.96.0 (2026-08-27)
 - **Unreleased on main**: none
 - **Next release**: TBD — awaiting next feature/fix cycle or milestone establishment (0 active milestones)
-- **Active milestones**: 1 established (v2.97.0 — NaN/Infinity Safety Audit)
+- **Active milestones**: 1 established (v2.97.0 — Infinity Safety Audit)
 - **Blockers**: None
 
-### v2.97.0 — NaN/Infinity Safety Audit for Chart Widgets (Active)
+### v2.97.0 — Infinity Safety Audit for Chart Widgets (Active)
 
 **Theme**: Session 410 stabilization re-verified the session 388 finding that `std.math.clamp`
-does not sanitize `NaN` (`NaN < lo` / `NaN > hi` are both `false`, so `NaN` passes through
-unclamped into a later `@intFromFloat` cast, which panics on `NaN`/`±Infinity` — violating the
-library's "no `@panic`" rule whenever the panic is reachable from public input). `gauge.zig`,
-`reactive.zig`, and `splitpane.zig` (the three widgets session 388 flagged) already carry an
-`isNan` guard at their render-time cast site — that part is **done**, not new scope. Grepping
-every widget for `@intFromFloat` with zero `isNan`/`isInf` guards anywhere in the file surfaced
-**34 additional widgets** with the same unguarded shape: `area_chart.zig`, `box_plot.zig`,
-`bubble_chart.zig`, `bump_chart.zig`, `calendar_heatmap.zig`, `candlestick_chart.zig`,
-`chord_diagram.zig`, `countdown_timer.zig`, `debugger.zig`, `donut_chart.zig`, `dot_plot.zig`,
-`error_bar_chart.zig`, `funnel_chart.zig`, `gantt_chart.zig`, `heatmap.zig`, `icicle_chart.zig`,
-`metricspanel.zig`, `mosaic_plot.zig`, `parallel_coordinates.zig`, `particles.zig`, `piechart.zig`,
-`profiler.zig`, `radar_chart.zig`, `radial_bar.zig`, `ring_menu.zig`, `sankey.zig`,
-`scatterplot.zig`, `scrollview.zig`, `slope_chart.zig`, `stream_graph.zig`, `sunburst_chart.zig`,
-`timeseries.zig`, `treemap.zig`, `violin_plot.zig`, `waterfall_chart.zig`, `wordcloud.zig`. Not
-all 34 are necessarily reachable with attacker/caller-controlled `NaN` (some derive their float
-math from trusted internal loop counters rather than public data slices) — the first task of this
-milestone is triage: confirm actual reachability per widget before patching, to avoid defensive
-guards on paths that can never see `NaN` in practice. Established per the `docs/milestones.md`
+does not sanitize `NaN`/`Infinity` before a later `@intFromFloat` cast. `gauge.zig`, `reactive.zig`,
+and `splitpane.zig` (the three widgets session 388 flagged) already carry an `isNan` guard at their
+render-time cast site — that part is **done**, not new scope.
+
+**Correction made mid-session (important — read before resuming this milestone)**: the initial pass
+grepped for `@intFromFloat` with zero `isNan`/`isInf` guards and flagged 34 more widgets, then a
+test-writer sub-agent added "does not panic on NaN" regression tests to 3 of them (area_chart,
+box_plot, bubble_chart). Verification caught that these tests were **vacuous** and were discarded
+(not committed): on this project's pinned Zig 0.15.2, `@intFromFloat` on a *runtime* `NaN` does
+**not** panic — it silently returns `0` (confirmed via a standalone repro). Only `±Infinity`
+reliably panics ("integer part of floating point value out of bounds"). A "no panic on NaN" test
+passes identically whether or not a guard exists, so it proves nothing. See the corrected writeup
+in `.claude/memory/debugging.md` (search "IMPORTANT correction (session 410)") for the full
+reasoning, including that per-widget bounds checks (e.g. `bubble_chart.zig`'s
+`if (norm_x < 0.0 or norm_x > 1.0) continue;`) may already filter raw `Infinity` before it reaches
+a given cast site — so reachability must be traced per call site with `std.math.inf(T)`, not
+assumed from a grep hit on the surrounding file.
+
+**Remaining scope**: the 34-widget list below is an **unverified starting point**, not a confirmed
+bug list. Widgets flagged by the original grep (file has `@intFromFloat`, zero `isNan`/`isInf`
+guards anywhere): `area_chart.zig`, `box_plot.zig`, `bubble_chart.zig`, `bump_chart.zig`,
+`calendar_heatmap.zig`, `candlestick_chart.zig`, `chord_diagram.zig`, `countdown_timer.zig`,
+`debugger.zig`, `donut_chart.zig`, `dot_plot.zig`, `error_bar_chart.zig`, `funnel_chart.zig`,
+`gantt_chart.zig`, `heatmap.zig`, `icicle_chart.zig`, `metricspanel.zig`, `mosaic_plot.zig`,
+`parallel_coordinates.zig`, `particles.zig`, `piechart.zig`, `profiler.zig`, `radar_chart.zig`,
+`radial_bar.zig`, `ring_menu.zig`, `sankey.zig`, `scatterplot.zig`, `scrollview.zig`,
+`slope_chart.zig`, `stream_graph.zig`, `sunburst_chart.zig`, `timeseries.zig`, `treemap.zig`,
+`violin_plot.zig`, `waterfall_chart.zig`, `wordcloud.zig`. Established per the `docs/milestones.md`
 "미완료 마일스톤 2개 이하 → 자율 수립" rule (0 active milestones after the v2.96.0 release) and
 input source #4 (기술 부채 / Known Limitations) per the establishment process below.
 
 **Checklist**:
-- [ ] Triage all 34 flagged widgets — for each, trace whether the `@intFromFloat` input can
-      actually receive `NaN`/`±Infinity` from a public API (constructor arg, builder method, or
-      a `[]const f64`-style data slice) vs. only from internal trusted computation
-- [ ] For each confirmed-reachable widget: add `if (std.math.isNan(x) or std.math.isInf(x)) <safe
-      default> else ...` at the cast site, following the `gauge.zig`/`reactive.zig`/`splitpane.zig`
+- [ ] Triage all 34 flagged widgets **using `std.math.inf(T)`/`-std.math.inf(T)` as the probe
+      value, not `NaN`** — trace whether each `@intFromFloat` call site can actually receive a raw
+      `Infinity` from a public API (constructor arg, builder method, or a `[]const f64`-style data
+      slice) after passing through any existing bounds/range checks in that widget, vs. only from
+      internal trusted computation or a check that already filters it
+- [ ] For each confirmed-reachable widget: add `if (std.math.isInf(x) or std.math.isNan(x)) <safe
+      default> else ...` at the cast site (guard both — NaN is still UB/silently-wrong even though
+      it doesn't panic on this toolchain), following the `gauge.zig`/`reactive.zig`/`splitpane.zig`
       pattern already in the codebase
-- [ ] `test-writer`: add a NaN/Infinity regression test per confirmed-reachable widget (construct
-      with `NaN`/`Infinity` in the relevant field, assert `render()` doesn't panic)
-- [ ] `zig build test` — 0 failures, no new panics under `-Doptimize=Debug` (safety checks on)
+- [ ] `test-writer`: add an Infinity regression test per confirmed-reachable widget (construct with
+      `std.math.inf(T)`/`-std.math.inf(T)` in the relevant field, assert `render()` doesn't panic —
+      confirm the test actually panics BEFORE the guard is added, as the RED step)
+- [ ] `zig build test` — 0 failures, no new panics
 - [ ] Update `.claude/memory/debugging.md` to mark the audit complete with the final reachable/safe
       widget count
 - [ ] Release (patch or minor depending on whether any public API/behavior changes, vs. purely

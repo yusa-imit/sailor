@@ -316,3 +316,5 @@
 {"timestamp":"2026-08-26T01:45:00Z","action":"subagent","agent_type":"test-writer","task":"Fix comptime-branch flag access in different-flag-sets-per-command test","project":"sailor"}
 {"timestamp":"2026-08-26T02:00:00Z","action":"subagent","agent_type":"code-reviewer","task":"Review Commands subcommand dispatch API implementation in arg.zig","project":"sailor"}
 {"timestamp":"2026-08-26T02:15:00Z","action":"team_delete","team_name":"arg-subcommand-impl","project":"sailor"}
+{"timestamp":"2026-08-26T18:28:39Z","action":"subagent","agent_type":"test-writer","task":"Triage NaN/Infinity reachability across 34 flagged widgets, write failing regression tests for confirmed-reachable @intFromFloat panic paths","project":"sailor"}
+{"timestamp":"2026-08-26T18:42:13Z","action":"subagent","agent_type":"test-writer","task":"[correction] discarded vacuous NaN-based regression tests after verifying @intFromFloat(NaN) does not panic on Zig 0.15.2 (only Infinity does); corrected milestone/debugging docs to require Infinity-based probes","project":"sailor"}

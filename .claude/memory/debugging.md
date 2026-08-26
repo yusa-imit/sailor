@@ -25,15 +25,28 @@
   `u128` safely holds the product since the other operand — an on-screen glyph count — is always
   small in practice
 - `std.math.clamp(val, lo, hi)` does NOT sanitize `NaN` — `NaN < lo` and `NaN > hi` are both false,
-  so `NaN` passes through unclamped and can later panic an `@intFromFloat` cast downstream. Flagged
-  in session 388 for `gauge.zig`/`reactive.zig`/`splitpane.zig` — **verified fixed** as of session
-  410: all three now guard with `if (std.math.isNan(x)) 0.0 else std.math.clamp(...)` at the
-  render()-time cast site. Session 410 broadened the audit and found the SAME unguarded pattern
-  (`@intFromFloat` reachable from a NaN/Infinity public input, no `isNan`/`isInf` guard anywhere in
-  the file) in **34 other widgets** — see the `docs/milestones.md` NaN/Infinity Safety Audit
-  milestone for the full file list and per-widget reachability notes. Root cause pattern to watch
-  for in new widgets: any `@intFromFloat` fed by a chart-data value/ratio that came from a public
-  `[]const f64`-style input slice (user data), not just a single clamped `ratio` field.
+  so `NaN` passes through unclamped into a later `@intFromFloat` cast. Flagged in session 388 for
+  `gauge.zig`/`reactive.zig`/`splitpane.zig` — **verified fixed** as of session 410: all three guard
+  with `if (std.math.isNan(x)) 0.0 else std.math.clamp(...)` at the render()-time cast site.
+  **IMPORTANT correction (session 410)**: on this project's pinned Zig 0.15.2, a *runtime* (not
+  comptime-known) `NaN` fed into `@intFromFloat` does **NOT** panic — verified empirically
+  (`@intFromFloat` on a runtime NaN silently returns `0`, no safety-check trip). Only `±Infinity`
+  reliably panics ("integer part of floating point value out of bounds"). This means: (a) a test
+  that constructs a widget with `NaN` and asserts `render()` "does not panic" is **vacuous** — it
+  passes identically whether or not a guard exists, since NaN was never going to panic on this
+  build in the first place; the earlier attempt at this audit (same session) wrote exactly this
+  vacuous-test pattern for 3 widgets and the results were discarded once verified. (b) NaN is still
+  a real correctness bug (silently produces a garbage `0` — e.g. content rendered in the wrong
+  screen cell — and remains officially UB per the Zig language reference, so behavior isn't
+  guaranteed stable across Zig versions/targets/optimize modes), just not a *panic*-reproducing one
+  on this exact toolchain. **Any future fix/regression-test for this bug class must construct the
+  reachability test with `std.math.inf(T)`/`-std.math.inf(T)`, not `std.math.nan(T)`, to get an
+  actually-failing RED test** — and even then, per-widget bounds checks (e.g. `bubble_chart.zig`'s
+  `if (norm_x < 0.0 or norm_x > 1.0) continue;`) may already filter raw `Infinity` before it reaches
+  the cast, so reachability must be traced per call site, not assumed from a grep hit. The broader
+  34-widget grep-based list from session 410 (see `docs/milestones.md` NaN/Infinity Safety Audit
+  milestone) is an unverified starting point only — every entry needs individual Infinity-based
+  reachability tracing before writing a test or a fix.
 
 ## Test-Quality Anti-Patterns (recurring — audit for these every STABILIZATION session)
 
