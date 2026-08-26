@@ -4,10 +4,52 @@
 
 - **Latest release**: v2.95.0 (2026-08-25) — AreaChart Widget + arg.zig "Did you mean?" (tagged/GitHub-released this session; build.zig.zon had been bumped since df49b8e but no tag/release existed until now — see session 405 notes)
 - **Latest minor**: v2.95.0 (2026-08-25)
-- **Unreleased on main**: Rating widget (session 407) + Repl bracketed-paste wiring (session 408) — both committed, `build.zig.zon` NOT yet bumped and NO tag cut (per session 405 lesson: version bump + tag only happen together, gated on a stabilization session's cross-compile verification, per CLAUDE.md's local cron policy restricting 6-target cross-compile to CI/stabilization sessions)
-- **Next release**: v2.96.0 — Rating widget + Repl bracketed-paste fix, once a stabilization session verifies cross-compile + 0 open bugs
+- **Unreleased on main**: Rating widget (session 407) + Repl bracketed-paste wiring (session 408) + arg.zig subcommand dispatch (session 409) — all committed, `build.zig.zon` NOT yet bumped and NO tag cut (per session 405 lesson: version bump + tag only happen together, gated on a stabilization session's cross-compile verification, per CLAUDE.md's local cron policy restricting 6-target cross-compile to CI/stabilization sessions)
+- **Next release**: v2.96.0 — Rating widget + Repl bracketed-paste fix + arg.zig subcommand dispatch, once a stabilization session verifies cross-compile + 0 open bugs
 - **Active milestones**: 0 established
 - **Blockers**: None
+
+### v2.96.0 — arg.zig Subcommand Dispatch (Complete, unreleased)
+
+**Theme**: `Commands(comptime commands: []const CommandDef)` — comptime-generic subcommand dispatch
+analogous to `Parser(flags)`, closing the #1 consumer-facing gap flagged by session 404's Explore
+audit (`zr` needs `zr build`/`zr test` style dispatch; `arg.zig`'s own doc comment had claimed
+"Subcommand support" since inception but it was never implemented). Each subcommand owns its own
+independent `Parser(cmd.flags)` type, selected at runtime via a comptime-unrolled `inline for` +
+index-comparison (Zig can't hold heterogeneous `Parser(flags)` instantiations in one runtime value).
+Reuses the existing Levenshtein "did you mean?" logic — hoisted `levenshteinDistance` to file scope
+and factored a shared `findClosestMatch(candidates, unknown, threshold)` helper used by both
+`Parser.findSuggestion` and `Commands.match`'s unknown-command suggestions — a pure extraction with
+no behavior change to `Parser`'s existing public API/tests. Nesting (sub-subcommands) deliberately
+scoped OUT as YAGNI per the architect's recommendation — a caller can compose nested `Commands(...)`
+instances manually inside a `visitor.run()` handler if a two-level need ever appears.
+
+Full team cycle (architect → test-writer → zig-developer → code-reviewer), with **2 legitimate
+test-writer bugs caught and correctly NOT fixed by zig-developer** (TDD-agent-boundary rule held
+twice in one cycle): (1) 5 visitor `run()` methods referenced an undefined `this` identifier instead
+of a declared `self` receiver param — Zig has no implicit `this`; (2) the "different flag sets per
+command" test unconditionally called `parser.get("release")` and `parser.get("verbose")` in the same
+generic `run()` body, but since `run(comptime cmd, parser: anytype)` monomorphizes separately per
+distinct `cmd` (each with a different `Parser(cmd.flags)` type lacking the other command's flags),
+both branches needed a `comptime std.mem.eql(u8, cmd.name, ...)` guard so each instantiation only
+compiles the branch relevant to its own parser type. Both fixed by test-writer, zig-developer's
+implementation code was untouched. code-reviewer: 0 critical/warning findings, verified leak-free on
+the error path (`defer parser.deinit()` fires on early return), no dangling suggestion pointers
+(all `suggestion` strings are comptime-known static data), full library-rule compliance (no
+stdout/panic/global-state, Writer-based `writeHelp`). Independently re-ran `zig build test` myself
+(exit 0) before and after the review.
+
+**Checklist**:
+- [x] `CommandDef` — `name`, `flags: []const FlagDef = &.{}`, `help`
+- [x] `CommandError = error{ NoCommand, UnknownCommand } || Error`
+- [x] `Commands(comptime commands: []const CommandDef)` — `.init()`, `.match()`, `.dispatch()`,
+      `.writeHelp()`, comptime duplicate-name validation
+- [x] Hoist `levenshteinDistance` to file scope + shared `findClosestMatch` helper (Parser unaffected)
+- [x] 12 new tests in `src/arg.zig` (inline, matching the file's existing convention)
+- [x] `zig build test` — 0 failures
+- [ ] Release v2.96.0 — bundled with Rating widget + Repl paste wiring, deferred to a stabilization
+      session (bump `build.zig.zon`, 6-target cross-compile check, tag, GitHub release, consumer
+      migration issues)
 
 ### v2.96.0 — Rating Widget (Implemented, unreleased)
 
