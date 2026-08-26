@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- **Latest release**: v2.95.0 (2026-08-25) — AreaChart Widget + arg.zig "Did you mean?" (tagged/GitHub-released this session; build.zig.zon had been bumped since df49b8e but no tag/release existed until now — see session 405 notes)
-- **Latest minor**: v2.95.0 (2026-08-25)
-- **Unreleased on main**: Rating widget (session 407) + Repl bracketed-paste wiring (session 408) + arg.zig subcommand dispatch (session 409) — all committed, `build.zig.zon` NOT yet bumped and NO tag cut (per session 405 lesson: version bump + tag only happen together, gated on a stabilization session's cross-compile verification, per CLAUDE.md's local cron policy restricting 6-target cross-compile to CI/stabilization sessions)
-- **Next release**: v2.96.0 — Rating widget + Repl bracketed-paste fix + arg.zig subcommand dispatch, once a stabilization session verifies cross-compile + 0 open bugs
+- **Latest release**: v2.96.0 (2026-08-27) — Rating widget + Repl bracketed-paste wiring + arg.zig subcommand dispatch (session 410 stabilization: 0 open bugs, `zig build test` 0 failures, all 6 cross-compile targets verified sequentially)
+- **Latest minor**: v2.96.0 (2026-08-27)
+- **Unreleased on main**: none
+- **Next release**: TBD — awaiting next feature/fix cycle or milestone establishment (0 active milestones)
 - **Active milestones**: 0 established
 - **Blockers**: None
 
@@ -47,9 +47,8 @@ stdout/panic/global-state, Writer-based `writeHelp`). Independently re-ran `zig 
 - [x] Hoist `levenshteinDistance` to file scope + shared `findClosestMatch` helper (Parser unaffected)
 - [x] 12 new tests in `src/arg.zig` (inline, matching the file's existing convention)
 - [x] `zig build test` — 0 failures
-- [ ] Release v2.96.0 — bundled with Rating widget + Repl paste wiring, deferred to a stabilization
-      session (bump `build.zig.zon`, 6-target cross-compile check, tag, GitHub release, consumer
-      migration issues)
+- [x] Release v2.96.0 — bundled with Rating widget + Repl paste wiring (session 410 stabilization:
+      6-target cross-compile check verified, tagged, GitHub release, consumer migration issues filed)
 
 ### v2.96.0 — Rating Widget (Implemented, unreleased)
 
@@ -72,9 +71,8 @@ against them without modifying the tests).
       formatting, block inset, narrow-area truncation, zero-dimension no-panic), style precedence
 - [x] Export `Rating` via tui.zig widgets struct and top-level sailor.zig
 - [x] Add `rating_tests` to build.zig
-- [ ] Release v2.96.0 — deferred to a stabilization session (bump `build.zig.zon`, 6-target
-      cross-compile check, tag, GitHub release, consumer migration issues) per the session 405 lesson
-      that version bump + tag must happen together and cross-compile must actually be verified
+- [x] Release v2.96.0 — session 410 stabilization: 6-target cross-compile check verified, tagged,
+      GitHub release, consumer migration issues filed
 
 ### v2.96.0 — Repl Bracketed Paste Wiring (Complete, unreleased)
 
@@ -107,7 +105,7 @@ history-load/save convention; writer-only I/O confirmed, no stdout/panic/global-
       trailing-bytes-after-end-marker (Enter immediately after paste), cursor tracking, mid-buffer
       insert, empty paste, config on/off, consecutive pastes, deinit-safety with an unflushed paste
 - [x] `zig build test` — 0 failures
-- [ ] Release v2.96.0 — bundled with the Rating widget above, deferred to a stabilization session
+- [x] Release v2.96.0 — bundled with the Rating widget above, session 410 stabilization
 
 ### v2.95.0 — AreaChart Widget (Complete)
 
