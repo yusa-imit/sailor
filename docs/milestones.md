@@ -4,10 +4,35 @@
 
 - **Latest release**: v2.95.0 (2026-08-25) — AreaChart Widget + arg.zig "Did you mean?" (tagged/GitHub-released this session; build.zig.zon had been bumped since df49b8e but no tag/release existed until now — see session 405 notes)
 - **Latest minor**: v2.95.0 (2026-08-25)
-- **Unreleased on main**: none
-- **Next release**: TBD — replenish from feature-request issues, PRD gaps, or consumer feedback
+- **Unreleased on main**: Rating widget (session 407) — code committed, `build.zig.zon` NOT yet bumped and NO tag cut (per session 405 lesson: version bump + tag only happen together, gated on a stabilization session's cross-compile verification, per CLAUDE.md's local cron policy restricting 6-target cross-compile to CI/stabilization sessions)
+- **Next release**: v2.96.0 — Rating widget, once a stabilization session verifies cross-compile + 0 open bugs
 - **Active milestones**: 0 established
 - **Blockers**: None
+
+### v2.96.0 — Rating Widget (Implemented, unreleased)
+
+**Theme**: A discrete star/symbol rating display (product-review style), distinct from `RangeSlider`
+(continuous drag value) and `Gauge` (percentage bar) — shows `max` discrete symbol cells (1-32,
+default 5), each full/half/empty based on `value` rounded to the nearest 0.5 increment. Optional
+label prefix, optional trailing "value/max" numeric text (always one decimal place), customizable
+full/half/empty characters and styles (base/filled/focused precedence), block border support,
+NaN/Infinity-safe value clamping. No PRD/issue backing this session (0 open issues across
+sailor/zr/zoltraak/silica) — proposed organically per the "no active milestone" fallback, following
+TDD (test-writer wrote 72 failing tests in `tests/rating_test.zig` first, zig-developer implemented
+against them without modifying the tests).
+
+**Checklist**:
+- [x] **src/tui/widgets/rating.zig** — `Rating`; init() clamping/normalization, builder methods,
+      render() with nearest-0.5 star math, label/show_value text, block border
+- [x] **tests/rating_test.zig** — 72 tests: defaults, builder immutability, value clamping
+      (negative/overflow/NaN/±Infinity), max normalization (0→1) and capping (>32→32), star-math
+      rounding boundary cases (2.24→2.0 vs 2.26→2.5, etc.), render layout (label prefix, show_value
+      formatting, block inset, narrow-area truncation, zero-dimension no-panic), style precedence
+- [x] Export `Rating` via tui.zig widgets struct and top-level sailor.zig
+- [x] Add `rating_tests` to build.zig
+- [ ] Release v2.96.0 — deferred to a stabilization session (bump `build.zig.zon`, 6-target
+      cross-compile check, tag, GitHub release, consumer migration issues) per the session 405 lesson
+      that version bump + tag must happen together and cross-compile must actually be verified
 
 ### v2.95.0 — AreaChart Widget (Complete)
 

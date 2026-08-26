@@ -1816,6 +1816,17 @@ pub fn build(b: *std.Build) void {
     area_chart_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(area_chart_tests).step);
 
+    const rating_tests = b.addTest(.{
+        .name = "rating_tests",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/rating_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    rating_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    test_step.dependOn(&b.addRunArtifact(rating_tests).step);
+
     const core_coverage_audit_tests = b.addTest(.{
         .name = "core_coverage_audit_tests",
         .root_module = b.createModule(.{

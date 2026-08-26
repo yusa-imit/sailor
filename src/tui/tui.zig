@@ -629,6 +629,9 @@ pub const widgets = struct {
     pub const area_chart = @import("widgets/area_chart.zig");
     pub const AreaChart = area_chart.AreaChart;
     pub const AreaSeries = area_chart.AreaSeries;
+
+    // v2.96.0 — Rating Widget
+    pub const Rating = @import("widgets/rating.zig").Rating;
 };
 
 // Export commonly used types

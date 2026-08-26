@@ -321,6 +321,9 @@ pub const AreaChart = tui.widgets.AreaChart;
 pub const AreaSeries = tui.widgets.AreaSeries;
 pub const area_chart = tui.widgets.area_chart;
 
+// v2.96.0 — Rating Widget
+pub const Rating = tui.widgets.Rating;
+
 pub const Viewport = tui.viewport.Viewport;
 pub const VirtualRenderer = tui.virtual.VirtualRenderer;
 pub const IncrementalLayout = tui.incremental_layout.IncrementalLayout;
