@@ -4,8 +4,8 @@
 
 - **Latest release**: v2.95.0 (2026-08-25) — AreaChart Widget + arg.zig "Did you mean?" (tagged/GitHub-released this session; build.zig.zon had been bumped since df49b8e but no tag/release existed until now — see session 405 notes)
 - **Latest minor**: v2.95.0 (2026-08-25)
-- **Unreleased on main**: Rating widget (session 407) — code committed, `build.zig.zon` NOT yet bumped and NO tag cut (per session 405 lesson: version bump + tag only happen together, gated on a stabilization session's cross-compile verification, per CLAUDE.md's local cron policy restricting 6-target cross-compile to CI/stabilization sessions)
-- **Next release**: v2.96.0 — Rating widget, once a stabilization session verifies cross-compile + 0 open bugs
+- **Unreleased on main**: Rating widget (session 407) + Repl bracketed-paste wiring (session 408) — both committed, `build.zig.zon` NOT yet bumped and NO tag cut (per session 405 lesson: version bump + tag only happen together, gated on a stabilization session's cross-compile verification, per CLAUDE.md's local cron policy restricting 6-target cross-compile to CI/stabilization sessions)
+- **Next release**: v2.96.0 — Rating widget + Repl bracketed-paste fix, once a stabilization session verifies cross-compile + 0 open bugs
 - **Active milestones**: 0 established
 - **Blockers**: None
 
@@ -33,6 +33,39 @@ against them without modifying the tests).
 - [ ] Release v2.96.0 — deferred to a stabilization session (bump `build.zig.zon`, 6-target
       cross-compile check, tag, GitHub release, consumer migration issues) per the session 405 lesson
       that version bump + tag must happen together and cross-compile must actually be verified
+
+### v2.96.0 — Repl Bracketed Paste Wiring (Complete, unreleased)
+
+**Theme**: `src/paste.zig` (`PasteHandler`/`PasteReader`) and `src/term.zig`'s `BracketedPaste`/
+`isPasteStart`/`isPasteEnd` have existed and been exported since prior sessions, but `src/repl.zig`
+never enabled bracketed paste mode nor recognized paste markers in `handleKey()` — every `\r`/`\n`
+byte (including ones inside a pasted block) triggered "line complete", so a multi-line paste was
+delivered to REPL-based consumers (silica's SQL shell, zoltraak's redis-cli REPL) as N separate
+`readLine()` calls instead of one literal string. Flagged as a concrete lead in session 391's memory
+entry, picked up and closed this session. Full TDD cycle: test-writer wrote 16 tests first (RED —
+compile errors on the not-yet-existing `Config.enable_bracketed_paste`/`Repl.in_paste`/
+`Repl.paste_buffer` fields), zig-developer implemented against them and correctly stopped mid-cycle
+to flag one test's miscounted cursor expectation (`"hello world done"` is 16 bytes, test asserted 15)
+rather than silently fixing it — re-dispatched test-writer to correct its own arithmetic, matching
+the TDD-agent-boundary rule. code-reviewer pass: 0 critical/warning findings (recursion in the
+trailing-bytes-after-end-marker path is structurally bounded by strictly-shrinking slices; a stray
+end marker with no matching start falls through harmlessly to the existing no-op escape-sequence
+branch; `catch null` on `BracketedPaste.enable()` matches the file's existing non-fatal
+history-load/save convention; writer-only I/O confirmed, no stdout/panic/global-state violations).
+
+**Checklist**:
+- [x] `Config.enable_bracketed_paste: bool = true` — opt-out toggle
+- [x] `Repl.paste_mode: ?term.BracketedPaste` — enabled once on first raw-mode entry, disabled in
+      `deinit()`
+- [x] `Repl.in_paste` / `Repl.paste_buffer` — accumulate paste content across multiple `read()`
+      chunks (pastes can exceed the 16-byte `key_buf`), flush literally into `buffer` at cursor on
+      end marker, embedded `\r`/`\n` never triggers line-submit while accumulating
+- [x] 16 new tests in `src/repl.zig` (inline, matching the file's existing convention — no separate
+      `tests/repl_test.zig`): single-chunk paste with embedded newline, multi-chunk accumulation,
+      trailing-bytes-after-end-marker (Enter immediately after paste), cursor tracking, mid-buffer
+      insert, empty paste, config on/off, consecutive pastes, deinit-safety with an unflushed paste
+- [x] `zig build test` — 0 failures
+- [ ] Release v2.96.0 — bundled with the Rating widget above, deferred to a stabilization session
 
 ### v2.95.0 — AreaChart Widget (Complete)
 
