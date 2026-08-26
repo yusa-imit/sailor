@@ -66,6 +66,9 @@ pub const Config = struct {
 
     /// Enable color output (default: auto-detect)
     color: ?bool = null,
+
+    /// Enable bracketed paste mode (default: true)
+    enable_bracketed_paste: bool = true,
 };
 
 /// REPL state
@@ -88,6 +91,11 @@ pub const Repl = struct {
     // Color support
     use_color: bool,
 
+    // Bracketed paste mode
+    paste_mode: ?term.BracketedPaste = null,
+    in_paste: bool = false,
+    paste_buffer: std.array_list.Managed(u8),
+
     const Self = @This();
 
     /// Initialize REPL
@@ -102,6 +110,9 @@ pub const Repl = struct {
             .history = std.array_list.Managed([]const u8).init(allocator),
             .history_index = null,
             .use_color = false, // Will be set on first readLine
+            .paste_mode = null,
+            .in_paste = false,
+            .paste_buffer = std.array_list.Managed(u8).init(allocator),
         };
 
         // Load history if file specified
@@ -134,6 +145,11 @@ pub const Repl = struct {
             raw.deinit();
         }
 
+        // Disable bracketed paste mode if enabled
+        if (self.paste_mode) |paste| {
+            paste.deinit();
+        }
+
         // Free history entries
         for (self.history.items) |line| {
             self.allocator.free(line);
@@ -141,6 +157,7 @@ pub const Repl = struct {
         self.history.deinit();
 
         self.buffer.deinit();
+        self.paste_buffer.deinit();
     }
 
     /// Read a line of input
@@ -161,6 +178,11 @@ pub const Repl = struct {
         // Enter raw mode if not already
         if (self.raw_mode == null) {
             self.raw_mode = try term.RawMode.enter(std.posix.STDIN_FILENO);
+        }
+
+        // Enable bracketed paste mode if not already enabled
+        if (self.config.enable_bracketed_paste and self.paste_mode == null) {
+            self.paste_mode = term.BracketedPaste.enable(writer.any()) catch null;
         }
 
         // Reset state
@@ -213,6 +235,64 @@ pub const Repl = struct {
     /// Handle a key press
     /// Returns true if line is complete
     fn handleKey(self: *Self, key: []const u8, writer: anytype) !bool {
+        // Handle bracketed paste markers
+        if (self.in_paste) {
+            // Look for end marker
+            if (std.mem.indexOf(u8, key, "\x1b[201~")) |idx| {
+                // End marker found
+                // Append content before end marker to paste_buffer
+                try self.paste_buffer.appendSlice(key[0..idx]);
+
+                // Insert entire paste into buffer
+                try self.buffer.replaceRange(self.cursor, 0, self.paste_buffer.items);
+                self.cursor += self.paste_buffer.items.len;
+
+                // Clear paste state
+                self.paste_buffer.clearRetainingCapacity();
+                self.in_paste = false;
+
+                // Redraw
+                try self.redraw(writer);
+
+                // Handle any bytes after end marker
+                const after_marker = idx + 6; // len("\x1b[201~") = 6
+                if (after_marker < key.len) {
+                    return self.handleKey(key[after_marker..], writer);
+                }
+                return false;
+            } else {
+                // No end marker, accumulate content
+                try self.paste_buffer.appendSlice(key);
+                return false;
+            }
+        } else if (std.mem.startsWith(u8, key, "\x1b[200~")) {
+            // Start marker found
+            const remainder = key[6..]; // len("\x1b[200~") = 6
+
+            // Search remainder for end marker
+            if (std.mem.indexOf(u8, remainder, "\x1b[201~")) |j| {
+                // End marker found in same chunk
+                // Insert content between markers
+                try self.buffer.replaceRange(self.cursor, 0, remainder[0..j]);
+                self.cursor += j;
+
+                // Redraw
+                try self.redraw(writer);
+
+                // Handle any bytes after end marker
+                const after_marker = j + 6; // len("\x1b[201~") = 6
+                if (after_marker < remainder.len) {
+                    return self.handleKey(remainder[after_marker..], writer);
+                }
+                return false;
+            } else {
+                // No end marker yet, start accumulating
+                try self.paste_buffer.appendSlice(remainder);
+                self.in_paste = true;
+                return false;
+            }
+        }
+
         // Single byte keys
         if (key.len == 1) {
             switch (key[0]) {
@@ -670,4 +750,299 @@ test "Repl.buffer starts empty" {
 
     try std.testing.expectEqual(0, repl.buffer.items.len);
     try std.testing.expectEqual(0, repl.cursor);
+}
+
+// ============================================================================
+// Bracketed Paste Tests
+// ============================================================================
+
+test "Config default: enable_bracketed_paste is true" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    // New Config field: enable_bracketed_paste should default to true
+    try std.testing.expect(repl.config.enable_bracketed_paste);
+}
+
+test "single-chunk paste with embedded newline" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    // Use a null writer since we don't care about output
+    const writer = std.io.null_writer;
+
+    // Call handleKey with a complete single-chunk paste containing a newline
+    const complete = try repl.handleKey("\x1b[200~line1\nline2\x1b[201~", writer);
+
+    // Should return false (line not complete)
+    try std.testing.expect(!complete);
+
+    // Buffer should contain the pasted content with newline preserved as literal byte
+    try std.testing.expectEqualStrings("line1\nline2", repl.buffer.items);
+
+    // Cursor should be at end of inserted content
+    try std.testing.expectEqual(@as(usize, 11), repl.cursor);
+
+    // Should no longer be in paste mode
+    try std.testing.expect(!repl.in_paste);
+}
+
+test "multi-chunk paste simulating large paste split across read() calls" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // First chunk: start marker + partial content, no end marker
+    const complete1 = try repl.handleKey("\x1b[200~hello ", writer);
+    try std.testing.expect(!complete1);
+    try std.testing.expect(repl.in_paste); // Should be in paste mode
+    try std.testing.expectEqual(@as(usize, 0), repl.buffer.items.len); // Nothing inserted yet
+    try std.testing.expect(repl.paste_buffer.items.len > 0); // Content accumulated
+
+    // Second chunk: more content, no end marker
+    const complete2 = try repl.handleKey("world", writer);
+    try std.testing.expect(!complete2);
+    try std.testing.expect(repl.in_paste); // Still in paste mode
+    try std.testing.expectEqual(@as(usize, 0), repl.buffer.items.len); // Still nothing inserted
+
+    // Third chunk: final content + end marker
+    const complete3 = try repl.handleKey(" done\x1b[201~", writer);
+    try std.testing.expect(!complete3); // Still not "line complete" via Enter
+    try std.testing.expect(!repl.in_paste); // Should exit paste mode
+    try std.testing.expectEqualStrings("hello world done", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 16), repl.cursor);
+    try std.testing.expectEqual(@as(usize, 0), repl.paste_buffer.items.len); // Cleared after flush
+}
+
+test "paste with trailing bytes after end marker in same chunk" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Paste content followed by explicit Enter keypress in the same chunk
+    const complete = try repl.handleKey("\x1b[200~abc\x1b[201~\r", writer);
+
+    // Should return true because the trailing \r is processed as Enter (line complete)
+    try std.testing.expect(complete);
+
+    // Buffer should contain just the pasted content
+    try std.testing.expectEqualStrings("abc", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 3), repl.cursor);
+}
+
+test "cursor position after paste followed by normal character insert" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // First: paste some content
+    _ = try repl.handleKey("\x1b[200~hello\x1b[201~", writer);
+    try std.testing.expectEqualStrings("hello", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 5), repl.cursor);
+
+    // Then: insert a normal character
+    _ = try repl.handleKey("x", writer);
+
+    // Should be inserted at cursor position (end), buffer becomes "hellox"
+    try std.testing.expectEqualStrings("hellox", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 6), repl.cursor);
+}
+
+test "empty paste is handled safely" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Empty paste: start marker immediately followed by end marker
+    const complete = try repl.handleKey("\x1b[200~\x1b[201~", writer);
+
+    // Should not crash, return false (not line complete)
+    try std.testing.expect(!complete);
+
+    // Buffer should be empty
+    try std.testing.expectEqual(@as(usize, 0), repl.buffer.items.len);
+    try std.testing.expect(!repl.in_paste);
+}
+
+test "paste inserted at mid-buffer cursor position" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    // Setup: buffer = "ab", cursor = 1 (between 'a' and 'b')
+    try repl.buffer.appendSlice("ab");
+    repl.cursor = 1;
+
+    const writer = std.io.null_writer;
+
+    // Paste "XY" at cursor position 1
+    _ = try repl.handleKey("\x1b[200~XY\x1b[201~", writer);
+
+    // Result should be "aXYb" (pasted at cursor, not appended)
+    try std.testing.expectEqualStrings("aXYb", repl.buffer.items);
+
+    // Cursor should be at position 3 (after "XY")
+    try std.testing.expectEqual(@as(usize, 3), repl.cursor);
+}
+
+test "Repl.deinit() safely handles unflushed paste content" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Simulate interrupted paste: only start marker + content, no end marker
+    _ = try repl.handleKey("\x1b[200~partial paste data", writer);
+
+    // Should be in paste mode with leftover data in paste_buffer
+    try std.testing.expect(repl.in_paste);
+    try std.testing.expect(repl.paste_buffer.items.len > 0);
+
+    // Now deinit() is called (via defer in the outer test block)
+    // This should not crash or leak - paste_buffer.deinit() is called
+    // Test passes if no leak is detected by std.testing.allocator
+}
+
+test "paste mode flag is initialized to false" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    // in_paste should be false initially
+    try std.testing.expect(!repl.in_paste);
+}
+
+test "paste_buffer accumulates content across multiple chunks" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // First chunk: start + "chunk1"
+    _ = try repl.handleKey("\x1b[200~chunk1", writer);
+    try std.testing.expect(repl.in_paste);
+    const size_after_first = repl.paste_buffer.items.len;
+    try std.testing.expect(size_after_first > 0);
+
+    // Second chunk: "chunk2" (no markers)
+    _ = try repl.handleKey("chunk2", writer);
+    try std.testing.expect(repl.in_paste);
+    const size_after_second = repl.paste_buffer.items.len;
+
+    // Buffer should have grown
+    try std.testing.expect(size_after_second > size_after_first);
+
+    // Third chunk: "chunk3" + end marker
+    _ = try repl.handleKey("chunk3\x1b[201~", writer);
+    try std.testing.expect(!repl.in_paste);
+
+    // Final buffer should contain all chunks
+    try std.testing.expectEqualStrings("chunk1chunk2chunk3", repl.buffer.items);
+}
+
+test "paste_buffer is cleared after flushing to buffer" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Multi-chunk paste
+    _ = try repl.handleKey("\x1b[200~data", writer);
+    try std.testing.expect(repl.paste_buffer.items.len > 0);
+
+    // Flush by sending end marker
+    _ = try repl.handleKey(" more\x1b[201~", writer);
+
+    // After flush, paste_buffer should be cleared
+    try std.testing.expectEqual(@as(usize, 0), repl.paste_buffer.items.len);
+}
+
+test "non-paste input is handled normally when not in paste mode" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Normal character input (not a paste)
+    _ = try repl.handleKey("a", writer);
+
+    // Should be inserted normally
+    try std.testing.expectEqualStrings("a", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 1), repl.cursor);
+    try std.testing.expect(!repl.in_paste);
+}
+
+test "paste with special escape sequences in content" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Paste containing arrow key escape sequences as literal text
+    const paste_content = "\x1b[A\x1b[B\x1b[C";
+    const key_input = "\x1b[200~" ++ paste_content ++ "\x1b[201~";
+    _ = try repl.handleKey(key_input, writer);
+
+    // Escape sequences should be preserved as literal bytes, not interpreted as keys
+    try std.testing.expectEqualStrings(paste_content, repl.buffer.items);
+}
+
+test "paste can be enabled or disabled via config" {
+    const allocator = std.testing.allocator;
+
+    // Init with enable_bracketed_paste = false
+    var repl = try Repl.init(allocator, .{ .enable_bracketed_paste = false });
+    defer repl.deinit();
+
+    // Config should reflect the setting
+    try std.testing.expect(!repl.config.enable_bracketed_paste);
+}
+
+test "multiple consecutive pastes in sequence" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // First paste
+    _ = try repl.handleKey("\x1b[200~first\x1b[201~", writer);
+    try std.testing.expectEqualStrings("first", repl.buffer.items);
+
+    // Clear for second paste
+    repl.buffer.clearRetainingCapacity();
+    repl.cursor = 0;
+
+    // Second paste
+    _ = try repl.handleKey("\x1b[200~second\x1b[201~", writer);
+    try std.testing.expectEqualStrings("second", repl.buffer.items);
 }
