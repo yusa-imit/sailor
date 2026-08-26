@@ -80,6 +80,76 @@ pub const Error = error{
     OutOfMemory,
 };
 
+/// Compute Levenshtein edit distance between two strings
+fn levenshteinDistance(s1: []const u8, s2: []const u8) usize {
+    const len1 = s1.len;
+    const len2 = s2.len;
+
+    // Handle empty strings
+    if (len1 == 0) return len2;
+    if (len2 == 0) return len1;
+
+    // Use a fixed-size buffer for DP table (2D, but we use 2 rows approach)
+    // Limit to prevent stack overflow for very long strings
+    const max_len = 128;
+    const actual_len1 = @min(len1, max_len);
+    const actual_len2 = @min(len2, max_len);
+
+    // Two rows: previous and current
+    var rows: [2][129]usize = undefined;
+    var prev_row = &rows[0];
+    var curr_row = &rows[1];
+
+    // Initialize first row
+    for (0..actual_len2 + 1) |j| {
+        prev_row[j] = j;
+    }
+
+    // Fill DP table
+    for (1..actual_len1 + 1) |i| {
+        curr_row[0] = i;
+
+        for (1..actual_len2 + 1) |j| {
+            const cost = if (s1[i - 1] == s2[j - 1]) @as(usize, 0) else @as(usize, 1);
+            const del = prev_row[j] + 1;
+            const ins = curr_row[j - 1] + 1;
+            const sub = prev_row[j - 1] + cost;
+            curr_row[j] = @min(@min(del, ins), sub);
+        }
+
+        // Swap row pointers
+        const temp_ptr = prev_row;
+        prev_row = curr_row;
+        curr_row = temp_ptr;
+    }
+
+    return prev_row[actual_len2];
+}
+
+/// Find the closest match from a list of candidates using Levenshtein distance
+/// Returns the candidate name with minimum distance if distance <= threshold, otherwise null
+fn findClosestMatch(candidates: []const []const u8, unknown: []const u8, threshold: usize) ?[]const u8 {
+    if (candidates.len == 0) {
+        return null;
+    }
+
+    var min_distance: usize = threshold + 1;
+    var best_candidate: ?[]const u8 = null;
+
+    for (candidates) |candidate| {
+        const distance = levenshteinDistance(unknown, candidate);
+        if (distance < min_distance) {
+            min_distance = distance;
+            best_candidate = candidate;
+        }
+    }
+
+    if (min_distance <= threshold) {
+        return best_candidate;
+    }
+    return null;
+}
+
 /// Argument parser
 pub fn Parser(comptime flags: []const FlagDef) type {
     // Compile-time validation
@@ -244,52 +314,6 @@ pub fn Parser(comptime flags: []const FlagDef) type {
             return null;
         }
 
-        /// Compute Levenshtein edit distance between two strings
-        fn levenshteinDistance(s1: []const u8, s2: []const u8) usize {
-            const len1 = s1.len;
-            const len2 = s2.len;
-
-            // Handle empty strings
-            if (len1 == 0) return len2;
-            if (len2 == 0) return len1;
-
-            // Use a fixed-size buffer for DP table (2D, but we use 2 rows approach)
-            // Limit to prevent stack overflow for very long strings
-            const max_len = 128;
-            const actual_len1 = @min(len1, max_len);
-            const actual_len2 = @min(len2, max_len);
-
-            // Two rows: previous and current
-            var rows: [2][129]usize = undefined;
-            var prev_row = &rows[0];
-            var curr_row = &rows[1];
-
-            // Initialize first row
-            for (0..actual_len2 + 1) |j| {
-                prev_row[j] = j;
-            }
-
-            // Fill DP table
-            for (1..actual_len1 + 1) |i| {
-                curr_row[0] = i;
-
-                for (1..actual_len2 + 1) |j| {
-                    const cost = if (s1[i - 1] == s2[j - 1]) @as(usize, 0) else @as(usize, 1);
-                    const del = prev_row[j] + 1;
-                    const ins = curr_row[j - 1] + 1;
-                    const sub = prev_row[j - 1] + cost;
-                    curr_row[j] = @min(@min(del, ins), sub);
-                }
-
-                // Swap row pointers
-                const temp_ptr = prev_row;
-                prev_row = curr_row;
-                curr_row = temp_ptr;
-            }
-
-            return prev_row[actual_len2];
-        }
-
         /// Find a suggestion for an unknown flag based on Levenshtein distance
         /// Returns the flag name with minimum distance if distance <= 3, otherwise null
         fn findSuggestion(unknown_name: []const u8) ?[]const u8 {
@@ -297,22 +321,13 @@ pub fn Parser(comptime flags: []const FlagDef) type {
                 return null;
             }
 
-            const threshold = 3;
-            var min_distance: usize = threshold + 1;
-            var best_flag: ?[]const u8 = null;
-
-            inline for (flags) |flag| {
-                const distance = levenshteinDistance(unknown_name, flag.name);
-                if (distance < min_distance) {
-                    min_distance = distance;
-                    best_flag = flag.name;
-                }
+            // Build candidates array from flag names
+            var candidates: [flags.len][]const u8 = undefined;
+            inline for (flags, 0..) |flag, i| {
+                candidates[i] = flag.name;
             }
 
-            if (min_distance <= threshold) {
-                return best_flag;
-            }
-            return null;
+            return findClosestMatch(&candidates, unknown_name, 3);
         }
 
         /// Get flag value
@@ -445,6 +460,115 @@ pub fn Parser(comptime flags: []const FlagDef) type {
             }
 
             try writer.writeAll("\n");
+        }
+    };
+}
+
+/// Command definition
+pub const CommandDef = struct {
+    name: []const u8,
+    flags: []const FlagDef = &.{},
+    help: []const u8 = "",
+};
+
+/// Command/Subcommand error
+pub const CommandError = error{ NoCommand, UnknownCommand } || Error;
+
+/// Subcommand dispatcher with compile-time command definitions
+pub fn Commands(comptime commands: []const CommandDef) type {
+    // Compile-time validation for duplicate command names
+    comptime {
+        for (commands, 0..) |cmd, i| {
+            for (commands[i + 1 ..]) |other| {
+                if (std.mem.eql(u8, cmd.name, other.name)) {
+                    @compileError("Duplicate command name: " ++ cmd.name);
+                }
+            }
+        }
+    }
+
+    return struct {
+        suggestion: ?[]const u8 = null,
+
+        const Self = @This();
+
+        /// Initialize dispatcher (no allocator needed)
+        pub fn init() Self {
+            return .{
+                .suggestion = null,
+            };
+        }
+
+        /// Match a command by name, returning its index in the commands array
+        /// Sets suggestion on UnknownCommand if a close match is found
+        pub fn match(self: *Self, args: []const []const u8) CommandError!usize {
+            self.suggestion = null;
+
+            if (args.len == 0) {
+                return CommandError.NoCommand;
+            }
+
+            const command_name = args[0];
+
+            // Try to find exact match
+            inline for (commands, 0..) |cmd, i| {
+                if (std.mem.eql(u8, cmd.name, command_name)) {
+                    return i;
+                }
+            }
+
+            // No exact match found, try to find suggestion
+            var cmd_candidates: [commands.len][]const u8 = undefined;
+            inline for (commands, 0..) |cmd, i| {
+                cmd_candidates[i] = cmd.name;
+            }
+
+            self.suggestion = findClosestMatch(&cmd_candidates, command_name, 3);
+            return CommandError.UnknownCommand;
+        }
+
+        /// Dispatch to a specific command's handler
+        /// Calls match first, then creates the appropriate Parser for that command
+        /// and calls the visitor with the matched command and its parser
+        pub fn dispatch(self: *Self, allocator: std.mem.Allocator, args: []const []const u8, visitor: anytype) !void {
+            const cmd_idx = try self.match(args);
+
+            // Use inline for with index comparison to dispatch to the right command
+            inline for (commands, 0..) |cmd, i| {
+                if (i == cmd_idx) {
+                    // Create a Parser for this command's flags
+                    var parser = Parser(cmd.flags).init(allocator);
+                    defer parser.deinit();
+
+                    // Parse the remaining arguments (skip the command name at args[0])
+                    parser.parse(args[1..]) catch |err| {
+                        // Copy any suggestion from parser to self
+                        if (parser.suggestion) |suggestion| {
+                            self.suggestion = suggestion;
+                        }
+                        return err;
+                    };
+
+                    // Call the visitor with the command and parser
+                    try visitor.run(cmd, &parser);
+                    return;
+                }
+            }
+
+            // This should be unreachable if match() returned successfully
+            return CommandError.UnknownCommand;
+        }
+
+        /// Write help text listing all commands
+        pub fn writeHelp(writer: anytype) !void {
+            try writer.writeAll("Commands:\n");
+            inline for (commands) |cmd| {
+                try writer.print("  {s}", .{cmd.name});
+                if (cmd.help.len > 0) {
+                    try writer.print("\n      {s}", .{cmd.help});
+                }
+                try writer.writeAll("\n");
+            }
         }
     };
 }
@@ -855,3 +979,299 @@ test "multiple close matches should pick closest" {
     // Depending on exact Levenshtein, one should be preferred; document the choice
     _ = parser.suggestion; // Just ensure field exists and can be checked
 }
+
+// ============================================================================
+// Commands/Subcommand Tests
+// (Tests for CommandDef, CommandError, Commands types — implementations TBD by zig-developer)
+// ============================================================================
+
+test "Commands match returns correct index for valid command" {
+    const cmds = [_]CommandDef{
+        .{ .name = "build", .help = "Build project" },
+        .{ .name = "test", .help = "Run tests" },
+        .{ .name = "clean", .help = "Clean artifacts" },
+    };
+
+    var dispatcher = Commands(&cmds).init();
+
+    // Match "build" (index 0)
+    const idx0 = try dispatcher.match(&.{"build"});
+    try std.testing.expectEqual(@as(usize, 0), idx0);
+
+    // Match "test" (index 1)
+    const idx1 = try dispatcher.match(&.{"test"});
+    try std.testing.expectEqual(@as(usize, 1), idx1);
+
+    // Match "clean" (index 2)
+    const idx2 = try dispatcher.match(&.{"clean"});
+    try std.testing.expectEqual(@as(usize, 2), idx2);
+}
+
+test "Commands match returns error.NoCommand on empty args" {
+    const cmds = [_]CommandDef{
+        .{ .name = "build" },
+    };
+
+    var dispatcher = Commands(&cmds).init();
+
+    const result = dispatcher.match(&.{});
+    try std.testing.expectError(error.NoCommand, result);
+}
+
+test "Commands match returns error.UnknownCommand with suggestion on typo" {
+    const cmds = [_]CommandDef{
+        .{ .name = "build" },
+        .{ .name = "test" },
+    };
+
+    var dispatcher = Commands(&cmds).init();
+
+    // "buidl" is close to "build" (1 transposition)
+    const result = dispatcher.match(&.{"buidl"});
+    try std.testing.expectError(error.UnknownCommand, result);
+    try std.testing.expect(dispatcher.suggestion != null);
+    try std.testing.expectEqualStrings("build", dispatcher.suggestion.?);
+}
+
+test "Commands match returns error.UnknownCommand without suggestion when far away" {
+    const cmds = [_]CommandDef{
+        .{ .name = "build" },
+    };
+
+    var dispatcher = Commands(&cmds).init();
+
+    // "xyz" is too far from "build" (distance > 3)
+    const result = dispatcher.match(&.{"xyz"});
+    try std.testing.expectError(error.UnknownCommand, result);
+    try std.testing.expect(dispatcher.suggestion == null);
+}
+
+test "Commands suggestion resets on subsequent successful match" {
+    const cmds = [_]CommandDef{
+        .{ .name = "build" },
+        .{ .name = "test" },
+    };
+
+    var dispatcher = Commands(&cmds).init();
+
+    // First: failed match (sets suggestion)
+    _ = dispatcher.match(&.{"buidl"}) catch {};
+    try std.testing.expect(dispatcher.suggestion != null);
+
+    // Second: successful match (should clear suggestion)
+    _ = try dispatcher.match(&.{"test"});
+    try std.testing.expect(dispatcher.suggestion == null);
+}
+
+test "Commands dispatch calls visitor on valid command" {
+    const cmds = [_]CommandDef{
+        .{ .name = "greet", .flags = &.{} },
+    };
+
+    var dispatcher = Commands(&cmds).init();
+    var visitor_called = false;
+
+    const TestVisitor = struct {
+        called: *bool,
+
+        pub fn run(self: @This(), comptime cmd: CommandDef, parser: anytype) !void {
+            _ = parser;
+            try std.testing.expectEqualStrings("greet", cmd.name);
+            @as(*bool, @ptrFromInt(@intFromPtr(self.called))).* = true;
+        }
+    };
+
+    const v = TestVisitor{ .called = &visitor_called };
+
+    try dispatcher.dispatch(std.testing.allocator, &.{"greet"}, v);
+    try std.testing.expect(visitor_called);
+}
+
+test "Commands dispatch with different flag sets per command" {
+    const build_flags = [_]FlagDef{
+        .{ .name = "release", .type = .bool },
+    };
+
+    const test_flags = [_]FlagDef{
+        .{ .name = "verbose", .type = .bool },
+    };
+
+    const cmds = [_]CommandDef{
+        .{ .name = "build", .flags = &build_flags },
+        .{ .name = "test", .flags = &test_flags },
+    };
+
+    var dispatcher = Commands(&cmds).init();
+    var visitor_cmd_name: ?[]const u8 = null;
+    var visitor_has_release = false;
+    var visitor_has_verbose = false;
+
+    const TestVisitor = struct {
+        cmd_name: *?[]const u8,
+        has_release: *bool,
+        has_verbose: *bool,
+
+        pub fn run(self: @This(), comptime cmd: CommandDef, parser: anytype) !void {
+            @as(*?[]const u8, @ptrFromInt(@intFromPtr(self.cmd_name))).* = cmd.name;
+
+            // Guard flag access with comptime branches per command
+            // Each monomorphization only compiles the branch matching its Parser type
+            if (comptime std.mem.eql(u8, cmd.name, "build")) {
+                const release_val = parser.get("release");
+                @as(*bool, @ptrFromInt(@intFromPtr(self.has_release))).* = (release_val != null);
+            } else if (comptime std.mem.eql(u8, cmd.name, "test")) {
+                const verbose_val = parser.get("verbose");
+                @as(*bool, @ptrFromInt(@intFromPtr(self.has_verbose))).* = (verbose_val != null);
+            }
+        }
+    };
+
+    const v = TestVisitor{
+        .cmd_name = &visitor_cmd_name,
+        .has_release = &visitor_has_release,
+        .has_verbose = &visitor_has_verbose,
+    };
+
+    // Dispatch to "build" with --release
+    try dispatcher.dispatch(std.testing.allocator, &.{ "build", "--release" }, v);
+    try std.testing.expectEqualStrings("build", visitor_cmd_name.?);
+    try std.testing.expect(visitor_has_release);
+
+    // Reset for next dispatch
+    visitor_cmd_name = null;
+    visitor_has_release = false;
+    visitor_has_verbose = false;
+
+    // Dispatch to "test" with --verbose
+    try dispatcher.dispatch(std.testing.allocator, &.{ "test", "--verbose" }, v);
+    try std.testing.expectEqualStrings("test", visitor_cmd_name.?);
+    try std.testing.expect(visitor_has_verbose);
+}
+
+test "Commands dispatch propagates error.UnknownCommand without calling visitor" {
+    const cmds = [_]CommandDef{
+        .{ .name = "build" },
+    };
+
+    var dispatcher = Commands(&cmds).init();
+    var visitor_called = false;
+
+    const TestVisitor = struct {
+        called: *bool,
+
+        pub fn run(self: @This(), comptime cmd: CommandDef, parser: anytype) !void {
+            _ = cmd;
+            _ = parser;
+            @as(*bool, @ptrFromInt(@intFromPtr(self.called))).* = true;
+        }
+    };
+
+    const v = TestVisitor{ .called = &visitor_called };
+
+    // Try to dispatch to non-existent command
+    const result = dispatcher.dispatch(std.testing.allocator, &.{"nonexistent"}, v);
+    try std.testing.expectError(error.UnknownCommand, result);
+    try std.testing.expect(!visitor_called);
+}
+
+test "Commands dispatch propagates flag parse error and copies suggestion" {
+    const cmds = [_]CommandDef{
+        .{ .name = "build", .flags = &.{
+            .{ .name = "verbose", .type = .bool },
+        } },
+    };
+
+    var dispatcher = Commands(&cmds).init();
+    var visitor_called = false;
+
+    const TestVisitor = struct {
+        called: *bool,
+
+        pub fn run(self: @This(), comptime cmd: CommandDef, parser: anytype) !void {
+            _ = cmd;
+            _ = parser;
+            @as(*bool, @ptrFromInt(@intFromPtr(self.called))).* = true;
+        }
+    };
+
+    const v = TestVisitor{ .called = &visitor_called };
+
+    // Typo in flag name: "verbos" should suggest "verbose"
+    const result = dispatcher.dispatch(std.testing.allocator, &.{ "build", "--verbos" }, v);
+    try std.testing.expectError(error.UnknownFlag, result);
+    try std.testing.expect(!visitor_called);
+    try std.testing.expect(dispatcher.suggestion != null);
+    try std.testing.expectEqualStrings("verbose", dispatcher.suggestion.?);
+}
+
+test "Commands dispatch propagates error.MissingRequiredFlag" {
+    const cmds = [_]CommandDef{
+        .{ .name = "deploy", .flags = &.{
+            .{ .name = "target", .type = .string, .required = true },
+        } },
+    };
+
+    var dispatcher = Commands(&cmds).init();
+    var visitor_called = false;
+
+    const TestVisitor = struct {
+        called: *bool,
+
+        pub fn run(self: @This(), comptime cmd: CommandDef, parser: anytype) !void {
+            _ = cmd;
+            _ = parser;
+            @as(*bool, @ptrFromInt(@intFromPtr(self.called))).* = true;
+        }
+    };
+
+    const v = TestVisitor{ .called = &visitor_called };
+
+    // Missing required --target flag
+    const result = dispatcher.dispatch(std.testing.allocator, &.{"deploy"}, v);
+    try std.testing.expectError(error.MissingRequiredFlag, result);
+    try std.testing.expect(!visitor_called);
+}
+
+test "Commands writeHelp lists command names and help text" {
+    const cmds = [_]CommandDef{
+        .{ .name = "build", .help = "Compile the project" },
+        .{ .name = "test", .help = "Run test suite" },
+        .{ .name = "clean" },  // No help
+    };
+
+    var buf: [512]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    const C = Commands(&cmds);
+    try C.writeHelp(writer);
+
+    const help = fbs.getWritten();
+    try std.testing.expect(std.mem.indexOf(u8, help, "Commands:") != null);
+    try std.testing.expect(std.mem.indexOf(u8, help, "build") != null);
+    try std.testing.expect(std.mem.indexOf(u8, help, "Compile the project") != null);
+    try std.testing.expect(std.mem.indexOf(u8, help, "test") != null);
+    try std.testing.expect(std.mem.indexOf(u8, help, "Run test suite") != null);
+    try std.testing.expect(std.mem.indexOf(u8, help, "clean") != null);
+}
+
+test "Parser backward compat: existing Parser type still works unchanged" {
+    // Verify that existing Parser API is unaffected by Commands addition
+    const flags = [_]FlagDef{
+        .{ .name = "verbose", .type = .bool },
+    };
+
+    var parser = Parser(&flags).init(std.testing.allocator);
+    defer parser.deinit();
+
+    const args = [_][]const u8{"--verbose"};
+    try parser.parse(&args);
+
+    try std.testing.expect(parser.getBool("verbose", false));
+}
+
+// Note on comptime validation:
+// Duplicate command names are validated at compile-time via @compileError,
+// mirroring Parser's existing duplicate-flag validation.
+// This comptime check cannot be tested in a runtime test block;
+// it is enforced identically to Parser's duplicate-flag check.
