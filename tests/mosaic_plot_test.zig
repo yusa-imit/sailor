@@ -1353,3 +1353,30 @@ test "render with all toggles and styling options enabled" {
     plot.render(&buf, area);
     try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
+
+// ============================================================================
+// No-Panic Regression Tests — Infinity Self-Cancellation (v2.97.0 Audit)
+// ============================================================================
+
+test "MosaicPlot.render column-total Infinity does not panic and later columns still render" {
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
+    // Column 0's only segment has an Infinity value, so columnTotal(0) and
+    // therefore grandTotal() both become Infinity. Column 0 itself computes
+    // 0-width (Infinity/Infinity = NaN -> @intFromFloat(NaN) = 0 for both its
+    // x0 and x1) and is skipped. Column 1's cumulative-before-column is
+    // Infinity too, so its own x0 also resolves via Infinity/Infinity = NaN
+    // -> 0, but its x1 is force-set to the full plot width since it's the
+    // last column — so it still renders with a real, non-degenerate width.
+    var segs0 = [_]MosaicSegment{.{ .label = "Inf", .value = std.math.inf(f32) }};
+    var segs1 = [_]MosaicSegment{.{ .label = "Fin", .value = 50 }};
+    var cols = [_]MosaicColumn{
+        .{ .label = "C0", .segments = &segs0 },
+        .{ .label = "C1", .segments = &segs1 },
+    };
+    const plot = MosaicPlot.init().withColumns(&cols);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
+    plot.render(&buf, area);
+    // No panic is success; column 1's finite segment should still render.
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
+}

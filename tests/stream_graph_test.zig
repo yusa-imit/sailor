@@ -1111,3 +1111,31 @@ test "StreamGraph.render all features enabled" {
     const non_empty = countNonEmptyCells(buf, area);
     try testing.expect(non_empty > 0);
 }
+
+// ============================================================================
+// No-Panic Regression Tests — Infinity Self-Cancellation (v2.97.0 Audit)
+// ============================================================================
+
+test "StreamGraph.render layer value of Infinity does not panic" {
+    var buf = try Buffer.init(testing.allocator, 40, 20);
+    defer buf.deinit();
+    // Pass 1 computes max_total across all columns; an Infinity layer value
+    // makes max_total Infinity too, so scale_factor = (height-1)/max_total
+    // collapses to exactly 0 for every column (finite/Infinity = 0). This
+    // means every layer's band height becomes 0 rows (rather than producing
+    // a raw unguarded Infinity), so no cells are painted anywhere — a
+    // concrete, verifiable consequence of the self-cancelling Infinity math,
+    // not a placeholder "no panic" check.
+    var values_inf = [_]f32{std.math.inf(f32)};
+    var values_finite = [_]f32{5.0};
+    var layers = [_]StreamLayer{
+        .{ .label = "Inf", .values = &values_inf },
+        .{ .label = "Finite", .values = &values_finite },
+    };
+    const sg = StreamGraph.init().withLayers(&layers).withShowLabels(false);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
+    sg.render(&buf, area);
+    // No panic is success; the Infinity/scale_factor=0 interaction collapses
+    // all bands to zero height, so nothing should be painted.
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
+}

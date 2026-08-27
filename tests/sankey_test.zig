@@ -1168,3 +1168,29 @@ test "SanzeyDiagram.render column ordering independent of node order" {
     try testing.expect(countNonEmptyCells(buf1, area) > 0);
     try testing.expect(countNonEmptyCells(buf2, area) > 0);
 }
+
+// ============================================================================
+// No-Panic Regression Tests — Infinity Self-Cancellation (v2.97.0 Audit)
+// ============================================================================
+
+test "SankeyDiagram.render flow value of Infinity does not panic" {
+    var buf = try Buffer.init(testing.allocator, 40, 20);
+    defer buf.deinit();
+    // First pass computes max_flow across nodes touching this flow; an
+    // Infinity flow value makes max_flow Infinity too. Second pass then
+    // computes total_flow * height / max_flow = Infinity / Infinity = NaN
+    // (not a raw Infinity), and @intFromFloat(NaN) safely returns 0, which
+    // is then clamped to a minimum height of 1 via @max(1, ...) — no panic.
+    var nodes = [_]SankeyNode{
+        .{ .label = "A", .column = 0 },
+        .{ .label = "B", .column = 1 },
+    };
+    var flows = [_]SankeyFlow{
+        .{ .source = 0, .target = 1, .value = std.math.inf(f32) },
+    };
+    const sk = SankeyDiagram.init().withNodes(&nodes).withFlows(&flows);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
+    sk.render(&buf, area);
+    // No panic is success; nodes should still render (height clamped to >=1).
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
+}

@@ -318,3 +318,4 @@
 {"timestamp":"2026-08-26T02:15:00Z","action":"team_delete","team_name":"arg-subcommand-impl","project":"sailor"}
 {"timestamp":"2026-08-26T18:28:39Z","action":"subagent","agent_type":"test-writer","task":"Triage NaN/Infinity reachability across 34 flagged widgets, write failing regression tests for confirmed-reachable @intFromFloat panic paths","project":"sailor"}
 {"timestamp":"2026-08-26T18:42:13Z","action":"subagent","agent_type":"test-writer","task":"[correction] discarded vacuous NaN-based regression tests after verifying @intFromFloat(NaN) does not panic on Zig 0.15.2 (only Infinity does); corrected milestone/debugging docs to require Infinity-based probes","project":"sailor"}
+{"timestamp":"2026-08-27T18:29:37Z","action":"subagent","agent_type":"test-writer","task":"Add Infinity-safety regression tests for waterfall_chart, stream_graph, sankey, mosaic_plot, icicle_chart (v2.97.0 audit closeout)","project":"sailor"}

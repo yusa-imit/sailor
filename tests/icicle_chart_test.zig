@@ -1125,3 +1125,32 @@ test "render unbalanced tree with varying depths" {
     chart.render(&buf, area);
     try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
+
+// ============================================================================
+// No-Panic Regression Tests — Infinity Self-Cancellation (v2.97.0 Audit)
+// ============================================================================
+
+test "IcicleChart.render child value of Infinity does not panic" {
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
+    // childrenTotal() sums positive children's values; an Infinity child
+    // makes it Infinity too. The Infinity child's own cumulative/total
+    // division becomes Infinity/Infinity = NaN -> @intFromFloat(NaN) = 0,
+    // giving it a zero-width band that is skipped (no recursion, no panic).
+    // The next (finite) child's x0 is *also* computed from the
+    // already-poisoned Infinity cumulative (Infinity/Infinity = NaN -> 0),
+    // but since it is the last positive child its x1 is force-set to the
+    // full column width — so it still renders with a real width.
+    const children = [_]IcicleNode{
+        .{ .label = "Inf", .value = std.math.inf(f32) },
+        .{ .label = "Fin", .value = 10.0 },
+    };
+    const root = IcicleNode{ .label = "Root", .value = 100, .children = &children };
+    const chart = IcicleChart.init().withRoot(root);
+    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 10 };
+    chart.render(&buf, area);
+    // No panic is success; the finite last-positive child should still render
+    // at depth 1 with its band filling the remaining width.
+    const cell_fin = getCell(buf, area, 30, 1);
+    try testing.expect(cell_fin != null and cell_fin.?.char != ' ');
+}

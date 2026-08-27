@@ -1289,3 +1289,27 @@ test "WaterfallChart.render extremely large bar.value with show_values=true does
     // No panic is success; at least some content should render (bars and values)
     try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
+
+// ============================================================================
+// No-Panic Regression Tests — Infinity Self-Cancellation (v2.97.0 Audit)
+// ============================================================================
+
+test "WaterfallChart.render relative bar with Infinity value does not panic" {
+    var buf = try Buffer.init(testing.allocator, 40, 20);
+    defer buf.deinit();
+    // Pass 1 computes max_val/min_val across all bars, including this one, so
+    // max_val becomes Infinity too. value_range = max_val - min_val = Infinity.
+    // Pass 2 then divides (bar_top - min_val) / value_range = Infinity / Infinity
+    // = NaN (not a raw Infinity), and @intFromFloat(NaN) safely returns 0 on
+    // this toolchain rather than panicking. This locks in that self-cancelling
+    // safety property as a regression test.
+    var bars = [_]WaterfallBar{
+        .{ .label = "Inf", .value = std.math.inf(f32), .kind = .relative },
+        .{ .label = "B", .value = 5.0, .kind = .relative },
+    };
+    const wc = WaterfallChart.init().withBars(&bars);
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
+    wc.render(&buf, area);
+    // No panic is success; some content should still render.
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
+}
