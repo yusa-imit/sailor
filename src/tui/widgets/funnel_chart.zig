@@ -206,10 +206,12 @@ pub const FunnelChart = struct {
             };
 
             // Determine bar width based on value
-            const bar_width = if (max_val > 0.0)
-                @as(u16, @intFromFloat(stage.value / max_val * @as(f32, @floatFromInt(inner.width))))
-            else
-                inner.width;
+            const bar_width = if (max_val > 0.0) blk: {
+                const raw_width = stage.value / max_val * @as(f32, @floatFromInt(inner.width));
+                const max_width = @as(f32, @floatFromInt(inner.width));
+                const safe_width = if (std.math.isNan(raw_width)) 0.0 else std.math.clamp(raw_width, 0.0, max_width);
+                break :blk @as(u16, @intFromFloat(safe_width));
+            } else inner.width;
 
             const clamped_width = @min(bar_width, inner.width);
 

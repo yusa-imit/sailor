@@ -78,7 +78,8 @@ pub const Particle = struct {
         self.lifetime -= 1;
 
         // Fade out near end of life
-        const life_ratio = @as(f32, @floatFromInt(self.lifetime)) / @as(f32, @floatFromInt(self.max_lifetime));
+        const raw_ratio = @as(f32, @floatFromInt(self.lifetime)) / @as(f32, @floatFromInt(self.max_lifetime));
+        const life_ratio = if (std.math.isNan(raw_ratio)) 0.0 else std.math.clamp(raw_ratio, 0.0, 1.0);
         self.opacity = @intFromFloat(life_ratio * 255.0);
 
         // Keep alive even when lifetime reaches 0 (will be removed on next update)

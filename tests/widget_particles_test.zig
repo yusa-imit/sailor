@@ -350,3 +350,49 @@ test "ParticleSystem.render() does not panic with negative infinity particle y" 
     // This should NOT panic. -inf should be clamped to safe range.
     sys.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });
 }
+
+// ============================================================================
+// Regression Tests for Infinity Panic in update() (v2.97.0 milestone)
+// ============================================================================
+
+test "Particle.update() clamps opacity to 255 when max_lifetime=0 yields +Infinity ratio" {
+    // Direct struct literal (bypassing init()) to set max_lifetime=0, which after the
+    // lifetime -= 1 decrement makes life_ratio = lifetime/0 = +Infinity.
+    var particle = Particle{
+        .x = 10.0,
+        .y = 10.0,
+        .vx = 0.0,
+        .vy = 0.0,
+        .lifetime = 5,
+        .max_lifetime = 0,
+        .char = '*',
+        .color = .white,
+        .opacity = 255,
+    };
+
+    // Previously panicked: @intFromFloat(+inf * 255.0). Now clamped to a safe ratio.
+    _ = particle.update(0.0);
+
+    try testing.expectEqual(@as(u8, 255), particle.opacity);
+}
+
+test "Particle.update() clamps opacity to 0 when max_lifetime=0 yields NaN ratio (0/0)" {
+    // lifetime=1 decrements to 0 inside update(), so life_ratio = 0/0 = NaN.
+    var particle = Particle{
+        .x = 5.0,
+        .y = 5.0,
+        .vx = 0.0,
+        .vy = 0.0,
+        .lifetime = 1,
+        .max_lifetime = 0,
+        .char = 'X',
+        .color = .white,
+        .opacity = 255,
+    };
+
+    // Previously would have produced a garbage opacity from NaN (or panicked on other
+    // toolchains); the isNan guard defaults the ratio to 0.0.
+    _ = particle.update(0.0);
+
+    try testing.expectEqual(@as(u8, 0), particle.opacity);
+}

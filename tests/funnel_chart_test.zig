@@ -1357,3 +1357,64 @@ test "FunnelChart.render divergent stage magnitudes with show_percentages=true d
     // No panic is success; at least some content should render (bars and percentages)
     try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
+
+// ============================================================================
+// Regression Tests for Infinity Panic (v2.97.0 milestone)
+// ============================================================================
+
+test "FunnelChart render does not panic with negative infinity value" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
+
+    // Create stages where one has negative Infinity
+    // The positive values ensure maxValue() stays finite (comparison -inf > finite is false)
+    // Then bar_width calc: -inf / max_val * width = -inf, causing panic at @intFromFloat
+    const stages = [_]FunnelStage{
+        .{ .label = "Visitors", .value = 1000.0 },
+        .{ .label = "Signups", .value = -std.math.inf(f32) },
+    };
+
+    const chart = FunnelChart.init()
+        .withStages(&stages)
+        .withShowValues(true);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
+
+    // Previously panicked ("integer part of floating point value out of bounds") when the
+    // bar_width calc at funnel_chart.zig:210 cast -inf to u16. Now clamped and safe.
+    chart.render(&buf, area);
+
+    const non_empty = countNonEmptyCells(buf, area);
+    try testing.expect(non_empty > 0);
+}
+
+test "FunnelChart render does not panic with positive infinity value" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
+
+    // Create stages with positive Infinity
+    const stages = [_]FunnelStage{
+        .{ .label = "A", .value = 100.0 },
+        .{ .label = "B", .value = std.math.inf(f32) },
+    };
+
+    const chart = FunnelChart.init()
+        .withStages(&stages)
+        .withShowPercentages(true);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
+
+    // Previously panicked when computing bar_width with Infinity; now clamped.
+    chart.render(&buf, area);
+
+    const non_empty = countNonEmptyCells(buf, area);
+    try testing.expect(non_empty > 0);
+}

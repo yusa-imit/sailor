@@ -1458,3 +1458,64 @@ test "BoxPlot.render large area with MAX_SERIES and many samples" {
     const non_empty = countNonEmptyCells(buf, area);
     try testing.expect(non_empty > 0);
 }
+
+// ============================================================================
+// Regression Tests for Infinity Panic (v2.97.0 milestone)
+// ============================================================================
+
+test "BoxPlot render does not panic with positive infinity outlier" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
+
+    // Create a series with normal values plus one Infinity value
+    // The normal values ensure fiveNumberSummary computes correctly
+    // The Infinity value will be treated as an outlier (always outside whisker fence)
+    var values: [6]f32 = .{ 1.0, 2.0, 3.0, 4.0, 5.0, std.math.inf(f32) };
+    const series = [_]BoxPlotSeries{
+        .{ .label = "A", .values = &values },
+    };
+
+    const plot = BoxPlot.init()
+        .withSeries(&series)
+        .withShowOutliers(true);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
+
+    // Previously panicked ("integer part of floating point value out of bounds") when
+    // valueToRow.calc() cast Infinity to i32 at box_plot.zig:335. Now clamped and safe.
+    plot.render(&buf, area);
+
+    const non_empty = countNonEmptyCells(buf, area);
+    try testing.expect(non_empty > 0);
+}
+
+test "BoxPlot render does not panic with negative infinity outlier" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
+
+    // Create a series with normal values plus negative Infinity
+    var values: [6]f32 = .{ 1.0, 2.0, 3.0, 4.0, 5.0, -std.math.inf(f32) };
+    const series = [_]BoxPlotSeries{
+        .{ .label = "B", .values = &values },
+    };
+
+    const plot = BoxPlot.init()
+        .withSeries(&series)
+        .withShowOutliers(true);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
+
+    // Previously panicked when rendering the outlier with negative Infinity; now clamped.
+    plot.render(&buf, area);
+
+    const non_empty = countNonEmptyCells(buf, area);
+    try testing.expect(non_empty > 0);
+}

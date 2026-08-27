@@ -49,10 +49,17 @@ input source #4 (기술 부채 / Known Limitations) per the establishment proces
       `Infinity` from a public API (constructor arg, builder method, or a `[]const f64`-style data
       slice) after passing through any existing bounds/range checks in that widget, vs. only from
       internal trusted computation or a check that already filters it
-- [ ] For each confirmed-reachable widget: add `if (std.math.isInf(x) or std.math.isNan(x)) <safe
-      default> else ...` at the cast site (guard both — NaN is still UB/silently-wrong even though
-      it doesn't panic on this toolchain), following the `gauge.zig`/`reactive.zig`/`splitpane.zig`
-      pattern already in the codebase
+- [x] `box_plot.zig` (line 335, `valueToRow.calc` row offset), `funnel_chart.zig` (line 210,
+      `bar_width` calc), `particles.zig` (line 82, `Particle.update` opacity from `life_ratio`),
+      `metricspanel.zig` (line 341, `renderSparkline` bar index) — confirmed reachable via
+      `std.math.inf(T)`/`-std.math.inf(T)` RED tests (session 412), fixed with
+      `if (isNan) 0.0 else std.math.clamp(...)` guards at each cast site, RED tests converted to
+      concrete-assertion regression tests (no more bare `expect(true)`). 30 widgets remain
+      untriaged from the original 34.
+- [ ] For each remaining confirmed-reachable widget: add `if (std.math.isInf(x) or
+      std.math.isNan(x)) <safe default> else ...` at the cast site (guard both — NaN is still
+      UB/silently-wrong even though it doesn't panic on this toolchain), following the
+      `gauge.zig`/`reactive.zig`/`splitpane.zig` pattern already in the codebase
 - [ ] `test-writer`: add an Infinity regression test per confirmed-reachable widget (construct with
       `std.math.inf(T)`/`-std.math.inf(T)` in the relevant field, assert `render()` doesn't panic —
       confirm the test actually panics BEFORE the guard is added, as the RED step)

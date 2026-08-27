@@ -337,10 +337,12 @@ pub const MetricsPanel = struct {
             x += 1;
         }) {
             const val = history[i];
-            const bar_idx: usize = if (max_val > 0)
-                @min(@as(usize, @intFromFloat(val / max_val * @as(f64, @floatFromInt(bar_count - 1)))), bar_count - 1)
-            else
-                0;
+            const bar_idx: usize = if (max_val > 0) blk: {
+                const raw_idx = val / max_val * @as(f64, @floatFromInt(bar_count - 1));
+                const max_idx = @as(f64, @floatFromInt(bar_count - 1));
+                const safe_idx = if (std.math.isNan(raw_idx)) 0.0 else std.math.clamp(raw_idx, 0.0, max_idx);
+                break :blk @as(usize, @intFromFloat(safe_idx));
+            } else 0;
 
             buf.set(x, y, .{ .char = bar_chars[bar_idx], .style = style });
         }
@@ -892,4 +894,56 @@ test "MetricsPanel memory safety" {
     panel.render(buf, area);
 
     // Should not leak memory
+}
+
+test "MetricsPanel.renderSparkline clamps negative infinity in history to the lowest bar" {
+    var panel = MetricsPanel.init(std.testing.allocator);
+    defer panel.deinit();
+
+    // -inf / 100.0 * (8-1) = -inf, which previously panicked at @intFromFloat.
+    const history = [_]f64{ 100.0, -std.math.inf(f64) };
+    try panel.addMetric(.{
+        .name = "CPU",
+        .value = 100.0,
+        .max_value = 100.0,
+        .history = &history,
+    });
+
+    var buf = try Buffer.init(std.testing.allocator, 30, 10);
+    defer buf.deinit();
+
+    const updated = panel.withSparklines(true);
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
+
+    updated.render(buf, area);
+
+    const row = area.y + 2;
+    try std.testing.expectEqual(@as(u21, '█'), buf.get(area.x, row).?.char);
+    try std.testing.expectEqual(@as(u21, '▁'), buf.get(area.x + 1, row).?.char);
+}
+
+test "MetricsPanel.renderSparkline clamps positive infinity in history to the highest bar" {
+    var panel = MetricsPanel.init(std.testing.allocator);
+    defer panel.deinit();
+
+    // +inf / 100.0 * (8-1) = +inf, which previously panicked at @intFromFloat.
+    const history = [_]f64{ 100.0, std.math.inf(f64) };
+    try panel.addMetric(.{
+        .name = "Memory",
+        .value = 100.0,
+        .max_value = 100.0,
+        .history = &history,
+    });
+
+    var buf = try Buffer.init(std.testing.allocator, 30, 10);
+    defer buf.deinit();
+
+    const updated = panel.withSparklines(true);
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
+
+    updated.render(buf, area);
+
+    const row = area.y + 2;
+    try std.testing.expectEqual(@as(u21, '█'), buf.get(area.x, row).?.char);
+    try std.testing.expectEqual(@as(u21, '█'), buf.get(area.x + 1, row).?.char);
 }

@@ -331,7 +331,9 @@ pub const BoxPlot = struct {
                     return plot_y + height / 2;
                 }
                 const normalized = (value - min_val) / (max_val - min_val);
-                const row_offset = @as(f32, @floatFromInt(height - 1)) * normalized;
+                const raw_offset = @as(f32, @floatFromInt(height - 1)) * normalized;
+                const max_offset = @as(f32, @floatFromInt(height - 1));
+                const row_offset = if (std.math.isNan(raw_offset)) 0.0 else std.math.clamp(raw_offset, 0.0, max_offset);
                 const row_from_top = @as(i32, @intFromFloat(@round(row_offset)));
                 const row_from_bottom: i32 = @as(i32, @intCast(height - 1)) - row_from_top;
                 const final_row = @max(0, row_from_bottom);
