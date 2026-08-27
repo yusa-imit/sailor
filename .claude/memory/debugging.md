@@ -47,6 +47,28 @@
   34-widget grep-based list from session 410 (see `docs/milestones.md` NaN/Infinity Safety Audit
   milestone) is an unverified starting point only — every entry needs individual Infinity-based
   reachability tracing before writing a test or a fix.
+  **Audit complete (session 412 + 414)**: all 34 flagged widgets triaged. 4 were confirmed reachable
+  and fixed (session 412: `box_plot.zig`, `funnel_chart.zig`, `particles.zig`, `metricspanel.zig`,
+  each with a direct multiplication/scale of a user-supplied value with no intervening clamp — a
+  fundamentally different shape from the safe cases below). The remaining 30 (session 414) were all
+  confirmed **already safe**, via one of three patterns worth recognizing on future audits of this
+  bug class: (1) an explicit `@max(lo, @min(x, hi))`-style clamp already sits directly before the
+  cast (order matters — clamping AFTER an unbounded op works fine for Infinity since
+  `@min(Infinity, hi) = hi`); (2) the float is purely geometric — derived from integer
+  area/index/count values and bounded trig (`sin`/`cos` ∈ [-1,1]) — never from a raw user-supplied
+  float field, so Infinity has no path in at all; (3) a **non-obvious self-cancelling pattern**
+  found in 5 widgets (`waterfall_chart.zig`, `stream_graph.zig`, `sankey.zig`, `mosaic_plot.zig`,
+  `icicle_chart.zig`): each computes a running total/max/range in a first pass that includes the
+  same public field a caller could set to `Infinity`, so a later division's numerator AND
+  denominator both become `Infinity` in lockstep — `Infinity/Infinity = NaN`, not a raw unguarded
+  `Infinity`, and `@intFromFloat(NaN)` doesn't panic on this toolchain per the correction above.
+  Pattern (3) is fragile — a refactor that decouples the two passes, or reorders evaluation, could
+  reintroduce a real panic — so regression tests were added for all 5 (session 414) to catch that
+  regression early; see the corresponding `tests/*_test.zig` files for the exact reasoning per
+  widget. **When auditing a new widget for this bug class, check pattern (3) explicitly** (does an
+  earlier pass compute a max/total that includes the same field feeding a later division?) before
+  concluding a division site is unguarded — a `@intFromFloat` with no visible nearby clamp is NOT
+  automatically a bug, unlike patterns (1)/(2) which are visually obvious from the surrounding code.
 
 ## Test-Quality Anti-Patterns (recurring — audit for these every STABILIZATION session)
 
