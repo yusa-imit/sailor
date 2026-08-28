@@ -321,3 +321,4 @@
 {"timestamp":"2026-08-27T18:29:37Z","action":"subagent","agent_type":"test-writer","task":"Add Infinity-safety regression tests for waterfall_chart, stream_graph, sankey, mosaic_plot, icicle_chart (v2.97.0 audit closeout)","project":"sailor"}
 {"timestamp":"2026-08-28T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Add regression tests for Checkbox style precedence, StreamingTable style setters, Canvas.clearDot","project":"sailor"}
 {"timestamp":"2026-08-28T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Fix vacuous tautology assertion in StreamingTable withBlock test","project":"sailor"}
+{"timestamp":"2026-08-27T23:50:00Z","action":"subagent","agent_type":"general-purpose","task":"Find untested public functions in sailor widgets, avoiding exhausted coverage wells","project":"sailor"}
