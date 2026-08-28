@@ -2,11 +2,11 @@
 
 ## Current Status
 
-- **Latest release**: v2.96.0 (2026-08-27) — Rating widget + Repl bracketed-paste wiring + arg.zig subcommand dispatch (session 410 stabilization: 0 open bugs, `zig build test` 0 failures, all 6 cross-compile targets verified sequentially)
+- **Latest release**: v2.96.1 (2026-08-28) — patch release bundling the v2.97.0 Infinity Safety Audit's 4 source fixes (box_plot, funnel_chart, particles, metricspanel) + 5 regression tests (session 415 stabilization: 0 open bugs, `zig build test` 0 failures, all 6 cross-compile targets verified sequentially)
 - **Latest minor**: v2.96.0 (2026-08-27)
-- **Unreleased on main**: v2.97.0 Infinity Safety Audit — 4 source fixes (session 412: box_plot, funnel_chart, particles, metricspanel) + 5 test-only regression tests (session 414: waterfall_chart, stream_graph, sankey, mosaic_plot, icicle_chart)
-- **Next release**: patch (v2.96.1) once bundled with the next stabilization session's cross-compile verification — this milestone's fixes are the only unreleased work
-- **Active milestones**: 0 (v2.97.0 completed session 414) — next session should replenish per the milestone establishment process
+- **Unreleased on main**: none
+- **Next release**: TBD — no unreleased work as of session 415
+- **Active milestones**: 0 — next session should replenish per the milestone establishment process (≤2 threshold met for several sessions now)
 - **Blockers**: None
 
 ### v2.97.0 — Infinity Safety Audit for Chart Widgets (Complete)
@@ -84,9 +84,8 @@ input source #4 (기술 부채 / Known Limitations) per the establishment proces
 - [x] Update `.claude/memory/debugging.md` to mark the audit complete with the final reachable/safe
       widget count (4 fixed session 412, 30 confirmed already-safe session 414, 5 of those 30
       backed by new regression tests for a subtle self-cancelling property)
-- [ ] Release — no source/behavior changes this milestone (test-only), so no release is strictly
-      required by this milestone alone; will bundle into the next scheduled release alongside any
-      other accumulated unreleased work
+- [x] Release — bundled into **v2.96.1** (session 415 stabilization patch release), tagged and
+      published with 6/6 cross-compile targets verified and 0 open bug issues
 
 ### v2.96.0 — arg.zig Subcommand Dispatch (Complete)
 
