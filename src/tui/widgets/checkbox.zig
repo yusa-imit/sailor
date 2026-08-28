@@ -464,3 +464,29 @@ test "CheckboxGroup: render with block" {
     const top_left = buf.get(0, 0);
     try std.testing.expectEqual(symbols.border.plain.top_left, top_left.char);
 }
+
+test "Checkbox: focused_style takes precedence over checked_style" {
+    const checked_style = Style{ .fg = .green };
+    const focused_style = Style{ .fg = .red, .bold = true };
+
+    const cb = Checkbox.init("Test")
+        .withChecked(true)
+        .withFocus(true)
+        .withCheckedStyle(checked_style)
+        .withFocusedStyle(focused_style);
+
+    var buf = try Buffer.init(std.testing.allocator, 20, 1);
+    defer buf.deinit(std.testing.allocator);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
+    cb.render(&buf, area);
+
+    // When both is_focused=true and checked=true, focused_style should win
+    // Check the indicator character at position 1 (after '[')
+    const indicator_cell = buf.get(1, 0);
+
+    // Verify the style matches focused_style, not checked_style
+    try std.testing.expectEqual(focused_style.fg, indicator_cell.style.fg);
+    try std.testing.expectEqual(focused_style.bold, indicator_cell.style.bold);
+    try std.testing.expectEqual(checked_style.fg, .green); // Sanity: checked_style is different
+}

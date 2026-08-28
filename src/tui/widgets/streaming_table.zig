@@ -11,6 +11,7 @@ const table_mod = @import("table.zig");
 const Alignment = table_mod.Alignment;
 const ColumnWidth = table_mod.ColumnWidth;
 const Column = table_mod.Column;
+const symbols = @import("../symbols.zig");
 
 /// Streaming Table widget - efficient table rendering for massive row counts
 /// Only renders visible rows, uses callbacks for lazy row loading
@@ -554,4 +555,119 @@ test "StreamingTable.render respects column spacing" {
     // Should have spacing between columns
     try testing.expect(std.mem.indexOf(u8, row, "AAA") != null);
     try testing.expect(std.mem.indexOf(u8, row, "BBB") != null);
+}
+
+test "StreamingTable.withBlock renders border" {
+    const cols = [_]Column{
+        .{ .title = "Data", .width = .{ .percentage = 100 } },
+    };
+
+    const block = (Block{}).withTitle("Table");
+    var table = StreamingTable.init(&cols, 1).withBlock(block);
+    var buf = try Buffer.init(testing.allocator, 20, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
+
+    const Ctx = struct {
+        fn cb(_: usize, _: usize, writer: anytype) !void {
+            try writer.writeAll("cell");
+        }
+    };
+
+    try table.render(&buf, area, Ctx.cb, testing.allocator);
+
+    // Check top-left corner for block border
+    const top_left = buf.getCell(0, 0);
+    try testing.expectEqual(symbols.border.plain.top_left, top_left.char);
+
+    // Check that content area is inset (header should be inside the border)
+    const header_cell = buf.getCell(1, 1);
+    try testing.expectEqual('D', header_cell.char); // First character of "Data" header title
+}
+
+test "StreamingTable.withHeaderStyle applies to header row" {
+    const cols = [_]Column{
+        .{ .title = "Name", .width = .{ .fixed = 10 } },
+    };
+
+    const header_style = Style{ .fg = .cyan, .bold = true };
+    var table = StreamingTable.init(&cols, 1).withHeaderStyle(header_style);
+    var buf = try Buffer.init(testing.allocator, 20, 3);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 3 };
+
+    const Ctx = struct {
+        fn cb(_: usize, _: usize, writer: anytype) !void {
+            try writer.writeAll("row");
+        }
+    };
+
+    try table.render(&buf, area, Ctx.cb, testing.allocator);
+
+    // Check header cell style (row 0, column 0)
+    const header_cell = buf.getCell(0, 0);
+    try testing.expectEqual(header_style.fg, header_cell.style.fg);
+    try testing.expectEqual(header_style.bold, header_cell.style.bold);
+}
+
+test "StreamingTable.withRowStyle applies to unselected rows" {
+    const cols = [_]Column{
+        .{ .title = "Col", .width = .{ .fixed = 5 } },
+    };
+
+    const row_style = Style{ .fg = .yellow };
+    var table = StreamingTable.init(&cols, 1).withRowStyle(row_style);
+    var buf = try Buffer.init(testing.allocator, 10, 3);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 3 };
+
+    const Ctx = struct {
+        fn cb(_: usize, _: usize, writer: anytype) !void {
+            try writer.writeAll("X");
+        }
+    };
+
+    try table.render(&buf, area, Ctx.cb, testing.allocator);
+
+    // Check first data row (row 1, after header)
+    const row_cell = buf.getCell(0, 1);
+    try testing.expectEqual(row_style.fg, row_cell.style.fg);
+}
+
+test "StreamingTable.withSelectedStyle applies to selected row" {
+    const cols = [_]Column{
+        .{ .title = "Col", .width = .{ .fixed = 5 } },
+    };
+
+    const selected_style = Style{ .fg = .magenta, .bold = true };
+    const row_style = Style{ .fg = .gray };
+    var table = StreamingTable.init(&cols, 3)
+        .withSelected(1)
+        .withRowStyle(row_style)
+        .withSelectedStyle(selected_style);
+
+    var buf = try Buffer.init(testing.allocator, 10, 5);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
+
+    const Ctx = struct {
+        fn cb(_: usize, _: usize, writer: anytype) !void {
+            try writer.writeAll("X");
+        }
+    };
+
+    try table.render(&buf, area, Ctx.cb, testing.allocator);
+
+    // Row 1 (first data row after header) should be selected (row 1 in table = selected)
+    const selected_cell = buf.getCell(0, 1);
+    try testing.expectEqual(selected_style.fg, selected_cell.style.fg);
+    try testing.expectEqual(selected_style.bold, selected_cell.style.bold);
+
+    // Row 2 should use row_style (unselected)
+    const unselected_cell = buf.getCell(0, 2);
+    try testing.expectEqual(row_style.fg, unselected_cell.style.fg);
 }

@@ -465,3 +465,28 @@ test "Canvas.render complex pattern" {
     try std.testing.expect(cell_start.char != symbols.Braille.pattern(0));
     try std.testing.expect(cell_end.char != symbols.Braille.pattern(0));
 }
+
+test "Canvas.clearDot erases single dot, not full canvas" {
+    const allocator = std.testing.allocator;
+    const area = Rect{ .x = 0, .y = 0, .width = 5, .height = 5 };
+
+    var canvas = try Canvas.init(allocator, area);
+    defer canvas.deinit();
+
+    // Set two distinct dots
+    canvas.setDot(2, 3);
+    canvas.setDot(4, 4);
+
+    // Verify both are set
+    try std.testing.expectEqual(true, canvas.getDot(2, 3));
+    try std.testing.expectEqual(true, canvas.getDot(4, 4));
+
+    // Clear only the first dot
+    canvas.clearDot(2, 3);
+
+    // First dot should be cleared (single-dot erase, not full clear)
+    try std.testing.expectEqual(false, canvas.getDot(2, 3));
+
+    // Second dot should still be set (proves it's not a full clear)
+    try std.testing.expectEqual(true, canvas.getDot(4, 4));
+}
