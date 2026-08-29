@@ -297,8 +297,41 @@ pub const Repl = struct {
         if (key.len == 1) {
             switch (key[0]) {
                 '\r', '\n' => {
-                    try writer.writeAll("\r\n");
-                    return true; // Complete
+                    // Check validator if present
+                    if (self.config.validator) |validator| {
+                        const validation = validator(self.buffer.items);
+                        switch (validation) {
+                            .complete => {
+                                try writer.writeAll("\r\n");
+                                return true;
+                            },
+                            .incomplete => {
+                                // Write echo newline
+                                try writer.writeAll("\r\n");
+                                // Insert newline into buffer at cursor
+                                try self.buffer.insert(self.cursor, '\n');
+                                // Advance cursor
+                                self.cursor += 1;
+                                // Write continuation prompt
+                                try writer.writeAll(self.config.continuation_prompt);
+                                return false;
+                            },
+                            .invalid => {
+                                // Clear buffer and reset cursor
+                                self.buffer.clearRetainingCapacity();
+                                self.cursor = 0;
+                                // Write echo newline
+                                try writer.writeAll("\r\n");
+                                // Print primary prompt
+                                try self.printPrompt(writer);
+                                return false;
+                            },
+                        }
+                    } else {
+                        // No validator, behave as before
+                        try writer.writeAll("\r\n");
+                        return true;
+                    }
                 },
                 3 => { // Ctrl+C
                     self.buffer.clearRetainingCapacity();
@@ -1509,4 +1542,268 @@ test "Alt+F on empty buffer is a no-op" {
 
     // Expected: no crash, cursor unchanged
     try std.testing.expectEqual(@as(usize, 0), repl.cursor);
+}
+
+// ============================================================================
+// Multi-line Validator Tests
+// ============================================================================
+
+/// Test validator: always returns .complete
+fn validatorAlwaysComplete(buf: []const u8) Validation {
+    _ = buf;
+    return .complete;
+}
+
+/// Test validator: returns .incomplete until buffer ends with semicolon
+fn validatorIncompleteUntilSemicolon(buf: []const u8) Validation {
+    if (std.mem.endsWith(u8, buf, ";")) {
+        return .complete;
+    }
+    return .incomplete;
+}
+
+/// Test validator: returns .invalid if buffer is empty
+fn validatorInvalidIfEmpty(buf: []const u8) Validation {
+    if (buf.len == 0) {
+        return .invalid;
+    }
+    return .complete;
+}
+
+test "validator callback: null validator (default) — Enter returns true immediately" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{
+        .validator = null, // Explicitly null
+    });
+    defer repl.deinit();
+
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    // Setup: buffer = "hello", cursor = 5
+    try repl.buffer.appendSlice("hello");
+    repl.cursor = 5;
+
+    // Send Enter
+    const complete = try repl.handleKey("\r", stream.writer());
+
+    // Expected: returns true (line complete), buffer unchanged
+    try std.testing.expect(complete);
+    try std.testing.expectEqualStrings("hello", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 5), repl.cursor);
+}
+
+test "validator callback: .complete — Enter returns true, buffer unchanged" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{
+        .validator = &validatorAlwaysComplete,
+    });
+    defer repl.deinit();
+
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    // Setup: buffer = "hello", cursor = 5
+    try repl.buffer.appendSlice("hello");
+    repl.cursor = 5;
+
+    // Send Enter
+    const complete = try repl.handleKey("\r", stream.writer());
+
+    // Expected: returns true (submission), buffer unchanged
+    try std.testing.expect(complete);
+    try std.testing.expectEqualStrings("hello", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 5), repl.cursor);
+}
+
+test "validator callback: .incomplete — Enter returns false, newline inserted, cursor advanced, continuation prompt printed" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{
+        .validator = &validatorIncompleteUntilSemicolon,
+        .continuation_prompt = "  ",
+    });
+    defer repl.deinit();
+
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    // Setup: buffer = "if x", cursor = 4 (incomplete, no semicolon)
+    try repl.buffer.appendSlice("if x");
+    repl.cursor = 4;
+
+    // Send Enter
+    const complete = try repl.handleKey("\r", stream.writer());
+
+    // Expected: returns false (not complete), newline inserted at cursor, cursor advanced
+    try std.testing.expect(!complete);
+    try std.testing.expectEqualStrings("if x\n", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 5), repl.cursor);
+
+    // Expected: continuation prompt appears in output
+    const output = stream.getWritten();
+    try std.testing.expect(std.mem.indexOf(u8, output, "  ") != null);
+}
+
+test "validator callback: .incomplete at mid-buffer cursor position inserts newline correctly" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{
+        .validator = &validatorIncompleteUntilSemicolon,
+        .continuation_prompt = ".. ",
+    });
+    defer repl.deinit();
+
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    // Setup: buffer = "foo bar baz", cursor = 4 (after "foo ")
+    try repl.buffer.appendSlice("foo bar baz");
+    repl.cursor = 4;
+
+    // Send Enter
+    const complete = try repl.handleKey("\r", stream.writer());
+
+    // Expected: newline inserted at cursor position 4, content after cursor preserved
+    try std.testing.expect(!complete);
+    try std.testing.expectEqualStrings("foo \nbar baz", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 5), repl.cursor);
+
+    // Check continuation prompt in output
+    const output = stream.getWritten();
+    try std.testing.expect(std.mem.indexOf(u8, output, ".. ") != null);
+}
+
+test "validator callback: .invalid — Enter returns false, buffer cleared, cursor reset, primary prompt printed" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{
+        .validator = &validatorInvalidIfEmpty,
+        .prompt = ">>> ",
+    });
+    defer repl.deinit();
+
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    // Setup: buffer is empty (validator will return .invalid)
+    // cursor = 0
+
+    // Send Enter
+    const complete = try repl.handleKey("\r", stream.writer());
+
+    // Expected: returns false, buffer remains empty (already was), cursor unchanged (already 0)
+    try std.testing.expect(!complete);
+    try std.testing.expectEqualStrings("", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 0), repl.cursor);
+
+    // Expected: primary prompt appears in output
+    const output = stream.getWritten();
+    try std.testing.expect(std.mem.indexOf(u8, output, ">>> ") != null);
+}
+
+test "validator callback: .invalid with non-empty buffer clears it" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{
+        .validator = &validatorInvalidIfEmpty,
+        .prompt = "> ",
+    });
+    defer repl.deinit();
+
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    // First, add valid content
+    try repl.buffer.appendSlice("hello world");
+    repl.cursor = 11;
+
+    // Verify it's there
+    try std.testing.expectEqualStrings("hello world", repl.buffer.items);
+
+    // Send Enter (content exists, so validator returns .complete)
+    const complete1 = try repl.handleKey("\r", stream.writer());
+    try std.testing.expect(complete1);
+
+    // Reset for second test: clear buffer and cursor for invalid case
+    repl.buffer.clearRetainingCapacity();
+    repl.cursor = 0;
+
+    // Now send Enter with empty buffer (validator returns .invalid)
+    const complete2 = try repl.handleKey("\r", stream.writer());
+
+    // Expected: returns false, buffer cleared, cursor reset
+    try std.testing.expect(!complete2);
+    try std.testing.expectEqualStrings("", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 0), repl.cursor);
+}
+
+test "validator callback: multi-line accumulation over two Enter presses" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{
+        .validator = &validatorIncompleteUntilSemicolon,
+    });
+    defer repl.deinit();
+
+    var buf: [256]u8 = undefined;
+    var stream = std.io.fixedBufferStream(&buf);
+
+    // First line: "if x" (incomplete, no semicolon)
+    try repl.buffer.appendSlice("if x");
+    repl.cursor = 4;
+
+    // Send Enter (should return false, newline inserted)
+    const complete1 = try repl.handleKey("\r", stream.writer());
+    try std.testing.expect(!complete1);
+    try std.testing.expectEqualStrings("if x\n", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 5), repl.cursor);
+
+    // Second line: type "then y;" (appends to existing buffer + newline, ends with semicolon)
+    try repl.buffer.appendSlice("then y;");
+    repl.cursor = 12; // After "then y;"
+
+    // Send Enter (should return true, validation checks full buffer "if x\nthen y;" which ends with semicolon)
+    const complete2 = try repl.handleKey("\r", stream.writer());
+    try std.testing.expect(complete2);
+    try std.testing.expectEqualStrings("if x\nthen y;", repl.buffer.items);
+}
+
+test "validator callback: multi-line incomplete lines accumulate with preserved content" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{
+        .validator = &validatorIncompleteUntilSemicolon,
+    });
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Simulate three lines:
+    // 1. "line1" — Enter (incomplete)
+    // 2. "line2" — Enter (incomplete)
+    // 3. "line3;" — Enter (complete)
+
+    // Line 1
+    try repl.buffer.appendSlice("line1");
+    repl.cursor = 5;
+    _ = try repl.handleKey("\r", writer); // Returns false
+    try std.testing.expectEqualStrings("line1\n", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 6), repl.cursor);
+
+    // Line 2
+    try repl.buffer.appendSlice("line2");
+    repl.cursor = 11;
+    _ = try repl.handleKey("\r", writer); // Returns false
+    try std.testing.expectEqualStrings("line1\nline2\n", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 12), repl.cursor);
+
+    // Line 3 (now ends with semicolon)
+    try repl.buffer.appendSlice("line3;");
+    repl.cursor = 18;
+    const complete = try repl.handleKey("\r", writer); // Returns true
+    try std.testing.expect(complete);
+    try std.testing.expectEqualStrings("line1\nline2\nline3;", repl.buffer.items);
 }
