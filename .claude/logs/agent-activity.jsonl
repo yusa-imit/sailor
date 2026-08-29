@@ -325,3 +325,5 @@
 {"timestamp":"2026-08-28T06:27:05Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for repl.zig Ctrl+U/Ctrl+K/Ctrl+W kill-line/kill-word and Alt+B/Alt+F word-jump","project":"sailor"}
 {"timestamp":"2026-08-29T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Fix self-inconsistent Alt+B test expectations and remove reasoning-comment cruft in repl.zig kill-line/word-jump tests","project":"sailor"}
 {"timestamp":"2026-08-29T00:26:37Z","action":"subagent","agent_type":"zig-developer","task":"Implement Ctrl+U/Ctrl+K/Ctrl+W kill-line and Alt+B/Alt+F word-jump in repl.zig handleKey() to make RED tests pass","project":"sailor"}
+{"timestamp":"2026-08-29T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for repl.zig multi-line validator callback wiring","project":"sailor"}
+{"timestamp":"2026-08-29T00:30:00Z","action":"subagent","agent_type":"zig-developer","task":"Implement Config.validator wiring into handleKey Enter handler for multi-line REPL input to pass 6 RED tests","project":"sailor"}
