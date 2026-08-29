@@ -359,6 +359,27 @@ pub const Repl = struct {
                         }
                     }
                 },
+                0x15 => { // Ctrl+U - kill from line start to cursor (unix-line-discard)
+                    if (self.cursor > 0) {
+                        try self.buffer.replaceRange(0, self.cursor, "");
+                        self.cursor = 0;
+                        try self.redraw(writer);
+                    }
+                },
+                0x0B => { // Ctrl+K - kill from cursor to end (kill-line)
+                    if (self.cursor < self.buffer.items.len) {
+                        try self.buffer.replaceRange(self.cursor, self.buffer.items.len - self.cursor, "");
+                        try self.redraw(writer);
+                    }
+                },
+                0x17 => { // Ctrl+W - kill word backward (unix-word-rubout)
+                    if (self.cursor > 0) {
+                        const word_start = wordStartBefore(self.buffer.items, self.cursor);
+                        try self.buffer.replaceRange(word_start, self.cursor - word_start, "");
+                        self.cursor = word_start;
+                        try self.redraw(writer);
+                    }
+                },
                 else => |c| {
                     if (c >= 32 and c < 127) {
                         try self.buffer.insert(self.cursor, c);
@@ -366,6 +387,28 @@ pub const Repl = struct {
                         try self.redraw(writer);
                     }
                 },
+            }
+        }
+        // 2-byte Alt/Meta sequences (Alt+B, Alt+F)
+        else if (key.len == 2 and key[0] == 27) {
+            switch (key[1]) {
+                'b' => { // Alt+B - move cursor backward to start of previous word
+                    const new_cursor = wordStartBefore(self.buffer.items, self.cursor);
+                    if (new_cursor != self.cursor) {
+                        const diff = self.cursor - new_cursor;
+                        self.cursor = new_cursor;
+                        try writer.print("\x1b[{}D", .{diff});
+                    }
+                },
+                'f' => { // Alt+F - move cursor forward to end of next word
+                    const new_cursor = wordEndAfter(self.buffer.items, self.cursor);
+                    if (new_cursor != self.cursor) {
+                        const diff = new_cursor - self.cursor;
+                        self.cursor = new_cursor;
+                        try writer.print("\x1b[{}C", .{diff});
+                    }
+                },
+                else => {},
             }
         }
         // Multi-byte sequences (arrows, etc.)
@@ -470,6 +513,24 @@ pub const Repl = struct {
         if (after_cursor > 0) {
             try writer.print("\x1b[{}D", .{after_cursor});
         }
+    }
+
+    /// Find the start of the word before the given cursor position
+    /// Skip trailing whitespace backward, then skip non-whitespace backward
+    fn wordStartBefore(buf: []const u8, from: usize) usize {
+        var pos = from;
+        while (pos > 0 and std.ascii.isWhitespace(buf[pos - 1])) pos -= 1;
+        while (pos > 0 and !std.ascii.isWhitespace(buf[pos - 1])) pos -= 1;
+        return pos;
+    }
+
+    /// Find the end of the word after the given cursor position
+    /// Skip leading whitespace forward, then skip non-whitespace forward
+    fn wordEndAfter(buf: []const u8, from: usize) usize {
+        var pos = from;
+        while (pos < buf.len and std.ascii.isWhitespace(buf[pos])) pos += 1;
+        while (pos < buf.len and !std.ascii.isWhitespace(buf[pos])) pos += 1;
+        return pos;
     }
 
     /// Find common prefix among completion strings
@@ -1045,4 +1106,407 @@ test "multiple consecutive pastes in sequence" {
     // Second paste
     _ = try repl.handleKey("\x1b[200~second\x1b[201~", writer);
     try std.testing.expectEqualStrings("second", repl.buffer.items);
+}
+
+// ============================================================================
+// Ctrl+U, Ctrl+K, Ctrl+W Kill-Line Operations Tests
+// ============================================================================
+
+test "Ctrl+U kills from line start to cursor" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: buffer = "hello world", cursor = 8 (after "hello wo")
+    try repl.buffer.appendSlice("hello world");
+    repl.cursor = 8;
+
+    // Send Ctrl+U (byte 21 = 0x15)
+    _ = try repl.handleKey("\x15", writer);
+
+    // Expected: buffer = "rld" (chars from cursor to end), cursor = 0
+    try std.testing.expectEqualStrings("rld", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 0), repl.cursor);
+}
+
+test "Ctrl+U at cursor position 0 is a no-op" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: buffer = "hello", cursor = 0
+    try repl.buffer.appendSlice("hello");
+    repl.cursor = 0;
+
+    // Send Ctrl+U
+    _ = try repl.handleKey("\x15", writer);
+
+    // Expected: buffer unchanged, cursor unchanged (nothing to delete)
+    try std.testing.expectEqualStrings("hello", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 0), repl.cursor);
+}
+
+test "Ctrl+U at end of buffer kills entire line" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: buffer = "hello world", cursor = 11 (at end)
+    try repl.buffer.appendSlice("hello world");
+    repl.cursor = 11;
+
+    // Send Ctrl+U
+    _ = try repl.handleKey("\x15", writer);
+
+    // Expected: buffer = "" (all deleted), cursor = 0
+    try std.testing.expectEqualStrings("", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 0), repl.cursor);
+}
+
+test "Ctrl+K kills from cursor to end of line" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: buffer = "hello world", cursor = 6 (after "hello ")
+    try repl.buffer.appendSlice("hello world");
+    repl.cursor = 6;
+
+    // Send Ctrl+K (byte 11 = 0x0B)
+    _ = try repl.handleKey("\x0b", writer);
+
+    // Expected: buffer = "hello " (everything from cursor onward deleted), cursor unchanged
+    try std.testing.expectEqualStrings("hello ", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 6), repl.cursor);
+}
+
+test "Ctrl+K at cursor position 0 kills entire buffer" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: buffer = "hello world", cursor = 0
+    try repl.buffer.appendSlice("hello world");
+    repl.cursor = 0;
+
+    // Send Ctrl+K
+    _ = try repl.handleKey("\x0b", writer);
+
+    // Expected: buffer = "" (all deleted), cursor = 0
+    try std.testing.expectEqualStrings("", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 0), repl.cursor);
+}
+
+test "Ctrl+K at end of buffer is a no-op" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: buffer = "hello", cursor = 5 (at end)
+    try repl.buffer.appendSlice("hello");
+    repl.cursor = 5;
+
+    // Send Ctrl+K
+    _ = try repl.handleKey("\x0b", writer);
+
+    // Expected: buffer unchanged (nothing to delete), cursor unchanged
+    try std.testing.expectEqualStrings("hello", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 5), repl.cursor);
+}
+
+test "Ctrl+W kills word backward, skipping trailing whitespace" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: buffer = "foo bar  " (two spaces at end), cursor = 9 (at end)
+    try repl.buffer.appendSlice("foo bar  ");
+    repl.cursor = 9;
+
+    // Send Ctrl+W (byte 23 = 0x17)
+    _ = try repl.handleKey("\x17", writer);
+
+    // Expected: buffer = "foo " (word "bar" and trailing spaces deleted), cursor = 4
+    try std.testing.expectEqualStrings("foo ", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 4), repl.cursor);
+}
+
+test "Ctrl+W at start of buffer is a no-op" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: buffer = "hello", cursor = 0
+    try repl.buffer.appendSlice("hello");
+    repl.cursor = 0;
+
+    // Send Ctrl+W
+    _ = try repl.handleKey("\x17", writer);
+
+    // Expected: buffer unchanged, cursor unchanged
+    try std.testing.expectEqualStrings("hello", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 0), repl.cursor);
+}
+
+test "Ctrl+W with single word deletes entire word from cursor" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: buffer = "hello", cursor = 5 (at end)
+    try repl.buffer.appendSlice("hello");
+    repl.cursor = 5;
+
+    // Send Ctrl+W
+    _ = try repl.handleKey("\x17", writer);
+
+    // Expected: buffer = "" (entire word deleted), cursor = 0
+    try std.testing.expectEqualStrings("", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 0), repl.cursor);
+}
+
+test "Ctrl+W with cursor in middle of word deletes to word start" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: buffer = "foo bar baz", cursor = 9 (in middle of "baz", at 'a')
+    // Canonical algorithm: skip whitespace backward, then skip non-whitespace backward
+    // From cursor=9: no whitespace at position 8, skip 'b' backward to position 8
+    try repl.buffer.appendSlice("foo bar baz");
+    repl.cursor = 9;
+
+    // Send Ctrl+W
+    _ = try repl.handleKey("\x17", writer);
+
+    // Expected: buffer = "foo bar az" (delete 'b'), cursor = 8
+    try std.testing.expectEqualStrings("foo bar az", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 8), repl.cursor);
+}
+
+test "Ctrl+W on empty buffer is a no-op" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: empty buffer, cursor = 0
+    // (no need to appendSlice)
+
+    // Send Ctrl+W
+    _ = try repl.handleKey("\x17", writer);
+
+    // Expected: no crash, buffer and cursor unchanged
+    try std.testing.expectEqualStrings("", repl.buffer.items);
+    try std.testing.expectEqual(@as(usize, 0), repl.cursor);
+}
+
+// ============================================================================
+// Alt+B and Alt+F Word-Jump Operations Tests
+// ============================================================================
+
+test "Alt+B from a word boundary moves to start of previous word" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: buffer = "foo bar baz", cursor = 8 (at word boundary, start of "baz")
+    // From cursor=8: skip whitespace backward at position 7, then skip non-whitespace positions 6,5,4
+    try repl.buffer.appendSlice("foo bar baz");
+    repl.cursor = 8;
+
+    // Send Alt+B (2-byte sequence: ESC + 'b' = 0x1b followed by 'b')
+    _ = try repl.handleKey("\x1bb", writer);
+
+    // Expected: cursor moves back to start of "bar" at position 4
+    try std.testing.expectEqual(@as(usize, 4), repl.cursor);
+}
+
+test "Alt+B at start of buffer is a no-op" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: buffer = "foo bar", cursor = 0
+    try repl.buffer.appendSlice("foo bar");
+    repl.cursor = 0;
+
+    // Send Alt+B
+    _ = try repl.handleKey("\x1bb", writer);
+
+    // Expected: cursor unchanged (nowhere to go)
+    try std.testing.expectEqual(@as(usize, 0), repl.cursor);
+}
+
+test "Alt+B from middle of word moves to start of that word" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: buffer = "foo bar baz", cursor = 9 (in middle of "baz", at 'a')
+    // Canonical algorithm: skip whitespace backward, then skip non-whitespace backward
+    // From cursor=9: no whitespace at position 8, skip 'b' backward to position 8
+    try repl.buffer.appendSlice("foo bar baz");
+    repl.cursor = 9;
+
+    // Send Alt+B
+    _ = try repl.handleKey("\x1bb", writer);
+
+    // Expected: cursor moves to start of current word "baz" at position 8
+    try std.testing.expectEqual(@as(usize, 8), repl.cursor);
+}
+
+test "Alt+B on empty buffer is a no-op" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: empty buffer, cursor = 0
+
+    // Send Alt+B
+    _ = try repl.handleKey("\x1bb", writer);
+
+    // Expected: no crash, cursor unchanged
+    try std.testing.expectEqual(@as(usize, 0), repl.cursor);
+}
+
+test "Alt+F moves cursor forward to end of next word" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: buffer = "foo bar baz", cursor = 0 (before 'f')
+    try repl.buffer.appendSlice("foo bar baz");
+    repl.cursor = 0;
+
+    // Send Alt+F (2-byte sequence: ESC + 'f' = 0x1b followed by 'f')
+    _ = try repl.handleKey("\x1bf", writer);
+
+    // Expected: cursor moves to end of "foo" at position 3
+    try std.testing.expectEqual(@as(usize, 3), repl.cursor);
+}
+
+test "Alt+F at end of buffer is a no-op" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: buffer = "hello", cursor = 5 (at end)
+    try repl.buffer.appendSlice("hello");
+    repl.cursor = 5;
+
+    // Send Alt+F
+    _ = try repl.handleKey("\x1bf", writer);
+
+    // Expected: cursor unchanged (nowhere to go)
+    try std.testing.expectEqual(@as(usize, 5), repl.cursor);
+}
+
+test "Alt+F from middle of word moves to end of current word" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: buffer = "foo bar baz", cursor = 1 (in "foo", at 'o')
+    try repl.buffer.appendSlice("foo bar baz");
+    repl.cursor = 1;
+
+    // Send Alt+F
+    _ = try repl.handleKey("\x1bf", writer);
+
+    // Expected: cursor moves to end of "foo" at position 3
+    try std.testing.expectEqual(@as(usize, 3), repl.cursor);
+}
+
+test "Alt+F from whitespace skips to end of next word" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: buffer = "foo bar baz", cursor = 4 (after "foo ", at 'b' in "bar")
+    try repl.buffer.appendSlice("foo bar baz");
+    repl.cursor = 4;
+
+    // From position 4, skip whitespace forward: buffer[3]=' ', skip; buffer[4]='b', stop
+    // Then skip non-whitespace: buffer[4]='b', buffer[5]='a', buffer[6]='r', buffer[7]=' ', stop
+    // cursor = 7
+
+    // Send Alt+F
+    _ = try repl.handleKey("\x1bf", writer);
+
+    // Expected: cursor moves to end of "bar" at position 7
+    try std.testing.expectEqual(@as(usize, 7), repl.cursor);
+}
+
+test "Alt+F on empty buffer is a no-op" {
+    const allocator = std.testing.allocator;
+
+    var repl = try Repl.init(allocator, .{});
+    defer repl.deinit();
+
+    const writer = std.io.null_writer;
+
+    // Setup: empty buffer, cursor = 0
+
+    // Send Alt+F
+    _ = try repl.handleKey("\x1bf", writer);
+
+    // Expected: no crash, cursor unchanged
+    try std.testing.expectEqual(@as(usize, 0), repl.cursor);
 }
