@@ -113,3 +113,38 @@ surfaced when stabilization forced weak assertions into strict ones.
 - **"Test suite hangs" (session 90)**: was never root-caused but has not recurred in 280+ sessions
   since — `zig build test` completes reliably (debug prints from stack_trace.zig tests are expected
   stderr output, not a hang symptom). Considered stale; re-open only if the hang actually recurs.
+
+## Environment Blocker — Bash tool ENOSPC (session 416, 2026-08-28)
+
+Mid-cycle, the Bash tool became completely non-functional: every command (even `echo`/`true`)
+failed with `ENOSPC: no space left on device`, unable to open the harness's own temp-output
+capture file under `/private/tmp/claude-501/-Users-fn-codespace-sailor/<session-id>/tasks/
+*.output`. This is NOT a repo-filesystem issue — `Read`/`Write`/`Edit` (which write directly to
+named files in the actual repo, not through that temp-capture path) continued to work fine
+throughout. This blocked `zig build test`, all `git` operations, and even `df`/disk diagnostics
+themselves, since the diagnostic commands need that same broken path to report output back.
+**Not something fixable from within a session** — no tool available (Grep/Glob/rm equivalents)
+can inspect or clean up that specific `/private/tmp/claude-501/...` directory without Bash, and
+Bash itself is what's broken. Needs a human (or a session on a machine with free disk) to clear
+space in `/private/tmp/claude-501/` — likely accumulated debris across many concurrent
+Claude Code sessions/projects sharing this machine (sailor, zuda, zr, zoltraak, silica all run
+cron sessions here per CLAUDE.md's own consumer-project table). If this recurs, check whether
+old `/private/tmp/claude-501/<project>/<session-id>/` directories from completed/orphaned
+sessions are accumulating and never cleaned up.
+**Effect on this session**: session 416 (feature mode) got as far as writing 16 new tests to
+`src/repl.zig` for Ctrl+U/Ctrl+K/Ctrl+W kill-line/kill-word and Alt+B/Alt+F word-jump (a real
+gap — `repl.zig`'s own doc comment promises "word jump, kill line" line editing that
+`handleKey()` never implemented) via `test-writer`, found and documented a self-inconsistent
+Alt+B expectation bug in those tests during review, but could not run `zig build test` to
+confirm RED, and could not `git commit`/`push` the test file at all.
+
+**Resolved**: Bash access was restored by session 418 (2026-08-29) — no repo action needed, the
+blocker was purely environmental disk space on the host and cleared on its own (or was cleared
+by a human) between sessions. Session 417 fixed the self-inconsistent Alt+B test expectations
+(cursor setup/expected values corrected to match the canonical backward-word algorithm shared
+with Ctrl+W) and stripped ~300 lines of leftover reasoning-comments. Session 418 dispatched
+`zig-developer` to implement the Green phase: added `wordStartBefore`/`wordEndAfter` helpers and
+wired Ctrl+U (0x15)/Ctrl+K (0x0B)/Ctrl+W (0x17) into the single-byte key switch plus a new
+2-byte `ESC`+letter branch for Alt+B/Alt+F — all 12 previously-RED tests plus the full suite
+pass (commit `2ec0ef7`). If ENOSPC recurs on this host, treat it as transient rather than a code
+issue; retry Bash after a delay rather than assuming repo state is broken.

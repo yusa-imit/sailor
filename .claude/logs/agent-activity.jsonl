@@ -322,3 +322,6 @@
 {"timestamp":"2026-08-28T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Add regression tests for Checkbox style precedence, StreamingTable style setters, Canvas.clearDot","project":"sailor"}
 {"timestamp":"2026-08-28T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Fix vacuous tautology assertion in StreamingTable withBlock test","project":"sailor"}
 {"timestamp":"2026-08-27T23:50:00Z","action":"subagent","agent_type":"general-purpose","task":"Find untested public functions in sailor widgets, avoiding exhausted coverage wells","project":"sailor"}
+{"timestamp":"2026-08-28T06:27:05Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for repl.zig Ctrl+U/Ctrl+K/Ctrl+W kill-line/kill-word and Alt+B/Alt+F word-jump","project":"sailor"}
+{"timestamp":"2026-08-29T00:00:00Z","action":"subagent","agent_type":"test-writer","task":"Fix self-inconsistent Alt+B test expectations and remove reasoning-comment cruft in repl.zig kill-line/word-jump tests","project":"sailor"}
+{"timestamp":"2026-08-29T00:26:37Z","action":"subagent","agent_type":"zig-developer","task":"Implement Ctrl+U/Ctrl+K/Ctrl+W kill-line and Alt+B/Alt+F word-jump in repl.zig handleKey() to make RED tests pass","project":"sailor"}
