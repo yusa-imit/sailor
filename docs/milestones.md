@@ -2,14 +2,14 @@
 
 ## Current Status
 
-- **Latest release**: v2.96.1 (2026-08-28) — patch release bundling the v2.97.0 Infinity Safety Audit's 4 source fixes (box_plot, funnel_chart, particles, metricspanel) + 5 regression tests (session 415 stabilization: 0 open bugs, `zig build test` 0 failures, all 6 cross-compile targets verified sequentially)
-- **Latest minor**: v2.96.0 (2026-08-27)
-- **Unreleased on main**: 4 feat commits + 1 test commit since v2.96.1 — session 418 (repl.zig word-jump/kill-line), session 419 (repl.zig `Config.validator` wiring), session 420 (progress.zig Bar coverage, test-only), session 421 (async_loop.zig `decodeEventBytes`/`readTerminalEvent` real input wiring), session 422 (fmt.zig `Plain` key-value formatter). All the feat commits close the same doc-comment-promised-but-unimplemented gap pattern; none individually triggered a release per protocol (not bug fixes, not a completed milestone), but 4 consecutive is well past prior bundling precedent — next session should strongly consider a bundled release.
-- **Next release**: TBD — next session should bundle these into a patch/minor release, or continue accumulating with clear justification
+- **Latest release**: v2.97.0 (2026-08-31) — minor release bundling 4 feat commits + 1 test commit accumulated since v2.96.1: session 418 (repl.zig word-jump/kill-line), session 419 (repl.zig `Config.validator` wiring), session 420 (progress.zig Bar coverage, test-only), session 421 (async_loop.zig `decodeEventBytes`/`readTerminalEvent` real input wiring), session 422 (fmt.zig `Plain` key-value formatter). All feat commits close the same doc-comment-promised-but-unimplemented gap pattern found by the core-module audit. Released as MINOR (not patch) following session 410's precedent of bundling multiple accumulated feat commits into a minor version — session 423: `zig build test` 0 failures, CI green on last 3 runs (includes all 6 cross-compile targets), 0 open bug issues anywhere.
+- **Latest minor**: v2.97.0 (2026-08-31)
+- **Unreleased on main**: none
+- **Next release**: TBD
 - **Active milestones**: 0. The doc-comment-vs-implementation audit (used for 418, 419, 421, 422) has now covered all 10 core/non-widget files plus repl.zig (async_loop.zig fixed, fmt.zig fixed, progress/arg/term/color/tui-core confirmed clean) — believed exhausted for this pass. Next milestone-mining session should extend the same technique to `tui/widgets/*.zig` (145+ files, unswept) or pick a different source per the establishment process.
 - **Blockers**: None
 
-### v2.97.0 — Infinity Safety Audit for Chart Widgets (Complete)
+### Infinity Safety Audit for Chart Widgets (Complete — released as v2.96.1)
 
 **Theme**: Session 410 stabilization re-verified the session 388 finding that `std.math.clamp`
 does not sanitize `NaN`/`Infinity` before a later `@intFromFloat` cast. `gauge.zig`, `reactive.zig`,
