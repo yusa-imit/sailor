@@ -330,3 +330,6 @@
 {"timestamp":"2026-08-30T06:30:33Z","action":"subagent","agent_type":"Explore","task":"Audit doc-comment vs implementation gaps in progress/fmt/arg/term/tui core files","project":"sailor"}
 {"timestamp":"2026-08-30T06:30:33Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for decodeEventBytes in async_loop.zig (AsyncEventLoop readTerminalEvent stub fix)","project":"sailor"}
 {"timestamp":"2026-08-30T06:33:02Z","action":"subagent","agent_type":"zig-developer","task":"Implement decodeEventBytes and wire readTerminalEvent to real stdin in async_loop.zig","project":"sailor"}
+{"timestamp":"2026-08-30T12:34:47Z","action":"subagent","agent_type":"Explore","task":"Audit core modules (progress/fmt/arg/term/color/tui core) for doc-comment-promised-but-unimplemented gaps","project":"sailor"}
+{"timestamp":"2026-08-30T12:34:47Z","action":"subagent","agent_type":"test-writer","task":"Write failing tests for fmt.zig Plain key-value formatter","project":"sailor"}
+{"timestamp":"2026-08-30T12:34:47Z","action":"subagent","agent_type":"zig-developer","task":"Implement Plain formatter in fmt.zig to pass RED tests","project":"sailor"}
