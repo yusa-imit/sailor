@@ -4,9 +4,9 @@
 
 - **Latest release**: v2.96.1 (2026-08-28) — patch release bundling the v2.97.0 Infinity Safety Audit's 4 source fixes (box_plot, funnel_chart, particles, metricspanel) + 5 regression tests (session 415 stabilization: 0 open bugs, `zig build test` 0 failures, all 6 cross-compile targets verified sequentially)
 - **Latest minor**: v2.96.0 (2026-08-27)
-- **Unreleased on main**: 2 feat commits since v2.96.1 — session 418 (repl.zig word-jump/kill-line editing) and session 419 (repl.zig multi-line `Config.validator` wiring). Both close doc-comment-promised-but-unimplemented gaps in `src/repl.zig`; neither is a bug fix or a completed milestone on its own, so neither auto-triggered a release per protocol.
-- **Next release**: TBD — next session should judgment-call whether to bundle these 2 related repl.zig completions into a patch/minor release, or continue accumulating
-- **Active milestones**: 0 — next session should replenish per the milestone establishment process (≤2 threshold met for several sessions now). Doc-comment-vs-implementation grep (used for both 418 and 419) is a repeatable milestone-establishment input — untried yet on progress.zig, fmt.zig, arg.zig, term.zig, tui/*.zig.
+- **Unreleased on main**: 4 feat commits + 1 test commit since v2.96.1 — session 418 (repl.zig word-jump/kill-line), session 419 (repl.zig `Config.validator` wiring), session 420 (progress.zig Bar coverage, test-only), session 421 (async_loop.zig `decodeEventBytes`/`readTerminalEvent` real input wiring), session 422 (fmt.zig `Plain` key-value formatter). All the feat commits close the same doc-comment-promised-but-unimplemented gap pattern; none individually triggered a release per protocol (not bug fixes, not a completed milestone), but 4 consecutive is well past prior bundling precedent — next session should strongly consider a bundled release.
+- **Next release**: TBD — next session should bundle these into a patch/minor release, or continue accumulating with clear justification
+- **Active milestones**: 0. The doc-comment-vs-implementation audit (used for 418, 419, 421, 422) has now covered all 10 core/non-widget files plus repl.zig (async_loop.zig fixed, fmt.zig fixed, progress/arg/term/color/tui-core confirmed clean) — believed exhausted for this pass. Next milestone-mining session should extend the same technique to `tui/widgets/*.zig` (145+ files, unswept) or pick a different source per the establishment process.
 - **Blockers**: None
 
 ### v2.97.0 — Infinity Safety Audit for Chart Widgets (Complete)
