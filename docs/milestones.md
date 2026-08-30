@@ -4,8 +4,8 @@
 
 - **Latest release**: v2.97.0 (2026-08-31) — minor release bundling 4 feat commits + 1 test commit accumulated since v2.96.1: session 418 (repl.zig word-jump/kill-line), session 419 (repl.zig `Config.validator` wiring), session 420 (progress.zig Bar coverage, test-only), session 421 (async_loop.zig `decodeEventBytes`/`readTerminalEvent` real input wiring), session 422 (fmt.zig `Plain` key-value formatter). All feat commits close the same doc-comment-promised-but-unimplemented gap pattern found by the core-module audit. Released as MINOR (not patch) following session 410's precedent of bundling multiple accumulated feat commits into a minor version — session 423: `zig build test` 0 failures, CI green on last 3 runs (includes all 6 cross-compile targets), 0 open bug issues anywhere.
 - **Latest minor**: v2.97.0 (2026-08-31)
-- **Unreleased on main**: none
-- **Next release**: TBD
+- **Unreleased on main**: 1 feat commit since v2.97.0 — session 423 (tooltip.zig auto-dismiss-on-timeout)
+- **Next release**: TBD — accumulate further widget-audit fixes before bundling, per v2.97.0's precedent
 - **Active milestones**: 1 — v2.98.0 Widget Doc-Comment Audit (see below)
 - **Blockers**: None
 
@@ -19,14 +19,29 @@ sailor/zr/zoltraak/silica as of session 423; falling to source #4 (기술 부채
 concrete, already-identified lead each of the last 5 core-module sessions flagged as the next step.
 
 **Checklist**:
-- [ ] Dispatch an Explore agent (or do it directly, batched across several widget files per pass)
+- [x] Dispatch an Explore agent (or do it directly, batched across several widget files per pass)
       to grep each widget's top-of-file / struct doc comments for promised behavior (e.g. "supports
       X", "handles Y") and cross-check against the actual `render()`/handler implementation — same
       method that found repl.zig's missing validator wiring (session 419) and fmt.zig's missing
-      `Plain` formatter (session 422)
-- [ ] Fix confirmed gaps via the full TDD cycle (test-writer RED → zig-developer GREEN), one gap
+      `Plain` formatter (session 422). Session 423: found `tooltip.zig`'s doc comment promising
+      "configurable triggers (hover, focus, manual)", "automatic dismissal on timeout", "delay
+      before showing", and "fade-in animation" — all four unimplemented (only manual `show()`/
+      `hide()` existed). Also flagged `splitpane.zig`'s "drag handle" mouse-resize claim as a
+      secondary candidate (not yet triaged).
+- [x] Fix confirmed gaps via the full TDD cycle (test-writer RED → zig-developer GREEN), one gap
       per cycle, same as the core-module precedent — do not mass-fix across many widgets in one
-      session
+      session. Session 423: implemented `tooltip.zig` auto-dismiss-on-timeout (`timeout_ticks`/
+      `ticks_remaining`/`withTimeout()`/`tick()`, mirroring `toast_manager.zig`'s tick-based timer
+      precedent — no wall-clock, backward-compatible default of persistent/no-timeout). 14 new
+      tests, `zig build test` 0 failures.
+- [ ] Remaining `tooltip.zig` doc-comment promises NOT yet fixed (deliberately scoped out of
+      session 423's single-feature cycle): `Trigger` enum (hover/focus/manual) has zero wiring —
+      would need an external notify-hover/notify-focus API since the library owns no mouse/focus
+      event loop; "configurable delay before showing" (a second, distinct tick-based timer, show()
+      becomes pending before visible=true); "optional fade-in animation" (would need a frame/alpha
+      concept — no existing precedent widget for this in the codebase, needs its own design pass).
+      Next session should pick ONE of these three, or triage `splitpane.zig`'s drag-handle claim,
+      or run a fresh Explore pass over more widget files.
 - [ ] If the sweep comes back clean (no real gaps, only accurate doc comments), close the milestone
       as "audited, no gaps found" rather than force a fix
 - [ ] Release once a meaningful batch of fixes has accumulated, per the same
