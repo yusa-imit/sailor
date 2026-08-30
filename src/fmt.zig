@@ -549,6 +549,28 @@ pub fn Csv(comptime WriterType: type) type {
     };
 }
 
+/// Plain key-value writer (streaming) - simple key-value pairs with no escaping
+pub fn Plain(comptime WriterType: type) type {
+    return struct {
+        writer: WriterType,
+
+        const Self = @This();
+
+        /// Initialize Plain writer
+        pub fn init(writer: WriterType) Self {
+            return .{ .writer = writer };
+        }
+
+        /// Write a key-value field
+        pub fn writeField(self: *Self, key: []const u8, value: []const u8) !void {
+            try self.writer.writeAll(key);
+            try self.writer.writeAll(": ");
+            try self.writer.writeAll(value);
+            try self.writer.writeByte('\n');
+        }
+    };
+}
+
 /// Helper: write JSON-escaped string
 fn writeJsonString(writer: anytype, s: []const u8) !void {
     for (s) |c| {
@@ -1253,4 +1275,115 @@ test "Table alignment with padding" {
     // Padding should not interfere with alignment
     try std.testing.expect(output.len > 0);
     try std.testing.expect(std.mem.indexOf(u8, output, "A") != null);
+}
+
+// Plain formatter tests
+
+test "Plain basic two fields" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    var plain = Plain(@TypeOf(buf.writer())).init(buf.writer());
+    try plain.writeField("name", "Alice");
+    try plain.writeField("age", "30");
+
+    const output = buf.items;
+    const expected = "name: Alice\nage: 30\n";
+    try std.testing.expectEqualStrings(expected, output);
+}
+
+test "Plain multiple fields maintain order" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    var plain = Plain(@TypeOf(buf.writer())).init(buf.writer());
+    try plain.writeField("first", "1");
+    try plain.writeField("second", "2");
+    try plain.writeField("third", "3");
+
+    const output = buf.items;
+    // Verify order: "first:" must come before "second:" which must come before "third:"
+    const first_pos = std.mem.indexOf(u8, output, "first:") orelse 0;
+    const second_pos = std.mem.indexOf(u8, output, "second:") orelse 0;
+    const third_pos = std.mem.indexOf(u8, output, "third:") orelse 0;
+
+    try std.testing.expect(first_pos < second_pos);
+    try std.testing.expect(second_pos < third_pos);
+    try std.testing.expect(std.mem.indexOf(u8, output, "first: 1\n") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "second: 2\n") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "third: 3\n") != null);
+}
+
+test "Plain key with colon character is unescaped" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    var plain = Plain(@TypeOf(buf.writer())).init(buf.writer());
+    try plain.writeField("key:with:colons", "value");
+
+    const output = buf.items;
+    // Should write raw key:value format, no escaping for embedded colons
+    try std.testing.expectEqualStrings("key:with:colons: value\n", output);
+}
+
+test "Plain value with newline is unescaped" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    var plain = Plain(@TypeOf(buf.writer())).init(buf.writer());
+    try plain.writeField("description", "line1\nline2");
+
+    const output = buf.items;
+    // Newline in value should be written as-is (not escaped)
+    try std.testing.expectEqualStrings("description: line1\nline2\n", output);
+}
+
+test "Plain empty key produces colon separator" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    var plain = Plain(@TypeOf(buf.writer())).init(buf.writer());
+    try plain.writeField("", "value");
+
+    const output = buf.items;
+    // Empty key still produces ": value\n" format
+    try std.testing.expectEqualStrings(": value\n", output);
+}
+
+test "Plain empty value produces valid line" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    var plain = Plain(@TypeOf(buf.writer())).init(buf.writer());
+    try plain.writeField("key", "");
+
+    const output = buf.items;
+    // Empty value still produces "key: \n" format
+    try std.testing.expectEqualStrings("key: \n", output);
+}
+
+test "Plain both key and value empty" {
+    const allocator = std.testing.allocator;
+
+    var buf = std.array_list.Managed(u8).init(allocator);
+    defer buf.deinit();
+
+    var plain = Plain(@TypeOf(buf.writer())).init(buf.writer());
+    try plain.writeField("", "");
+
+    const output = buf.items;
+    // Both empty still produces ": \n" format
+    try std.testing.expectEqualStrings(": \n", output);
 }
