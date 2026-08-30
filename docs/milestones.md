@@ -6,8 +6,31 @@
 - **Latest minor**: v2.97.0 (2026-08-31)
 - **Unreleased on main**: none
 - **Next release**: TBD
-- **Active milestones**: 0. The doc-comment-vs-implementation audit (used for 418, 419, 421, 422) has now covered all 10 core/non-widget files plus repl.zig (async_loop.zig fixed, fmt.zig fixed, progress/arg/term/color/tui-core confirmed clean) — believed exhausted for this pass. Next milestone-mining session should extend the same technique to `tui/widgets/*.zig` (145+ files, unswept) or pick a different source per the establishment process.
+- **Active milestones**: 1 — v2.98.0 Widget Doc-Comment Audit (see below)
 - **Blockers**: None
+
+### v2.98.0 — Widget Doc-Comment Audit (Active)
+
+**Theme**: Extend the doc-comment-vs-implementation audit method (used successfully for repl.zig,
+async_loop.zig, and fmt.zig across sessions 418-422, now released as v2.97.0) to `tui/widgets/*.zig`
+— 145+ files never swept this way. Established per the Milestone Establishment Process: input
+sources #1 (feature-request issues) and #3 (consumer `from:*` issues) are empty across
+sailor/zr/zoltraak/silica as of session 423; falling to source #4 (기술 부채), reusing the same
+concrete, already-identified lead each of the last 5 core-module sessions flagged as the next step.
+
+**Checklist**:
+- [ ] Dispatch an Explore agent (or do it directly, batched across several widget files per pass)
+      to grep each widget's top-of-file / struct doc comments for promised behavior (e.g. "supports
+      X", "handles Y") and cross-check against the actual `render()`/handler implementation — same
+      method that found repl.zig's missing validator wiring (session 419) and fmt.zig's missing
+      `Plain` formatter (session 422)
+- [ ] Fix confirmed gaps via the full TDD cycle (test-writer RED → zig-developer GREEN), one gap
+      per cycle, same as the core-module precedent — do not mass-fix across many widgets in one
+      session
+- [ ] If the sweep comes back clean (no real gaps, only accurate doc comments), close the milestone
+      as "audited, no gaps found" rather than force a fix
+- [ ] Release once a meaningful batch of fixes has accumulated, per the same
+      accumulate-then-bundle judgment used for v2.97.0
 
 ### Infinity Safety Audit for Chart Widgets (Complete — released as v2.96.1)
 
