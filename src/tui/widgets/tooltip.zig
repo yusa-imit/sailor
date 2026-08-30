@@ -60,6 +60,10 @@ pub const Tooltip = struct {
     border_style: Style = .{ .fg = .bright_yellow },
     show_arrow: bool = true,
     block: ?Block = null,
+    /// Ticks until auto-dismiss (0 = persistent)
+    timeout_ticks: u32 = 0,
+    /// Internal countdown, decremented by tick()
+    ticks_remaining: u32 = 0,
 
     /// Create a new tooltip with content
     pub fn init(content: []const u8) Tooltip {
@@ -96,16 +100,34 @@ pub const Tooltip = struct {
         return result;
     }
 
+    /// Set auto-dismiss timeout (0 = persistent)
+    pub fn withTimeout(self: Tooltip, ticks: u32) Tooltip {
+        var result = self;
+        result.timeout_ticks = ticks;
+        return result;
+    }
+
     /// Show tooltip at target area
     pub fn show(self: *Tooltip, target_area: Rect) void {
         self.visible = true;
         self.target_area = target_area;
+        self.ticks_remaining = self.timeout_ticks;
     }
 
     /// Hide tooltip
     pub fn hide(self: *Tooltip) void {
         self.visible = false;
         self.target_area = null;
+    }
+
+    /// Process one tick of the timeout countdown
+    pub fn tick(self: *Tooltip) void {
+        if (!self.visible or self.timeout_ticks == 0) return;
+
+        self.ticks_remaining -= 1;
+        if (self.ticks_remaining == 0) {
+            self.hide();
+        }
     }
 
     /// Render tooltip to buffer
@@ -939,4 +961,151 @@ test "Tooltip.render no memory leaks" {
     tooltip.render(buf, area);
 
     // Should not leak memory (testing allocator will catch leaks)
+}
+
+// ============================================================================
+// TIMEOUT/TICK-BASED AUTO-DISMISS TESTS (Red Phase)
+// ============================================================================
+
+test "Tooltip.init defaults timeout_ticks to 0" {
+    const tooltip = Tooltip.init("Test");
+    try std.testing.expectEqual(@as(u32, 0), tooltip.timeout_ticks);
+}
+
+test "Tooltip.init defaults ticks_remaining to 0" {
+    const tooltip = Tooltip.init("Test");
+    try std.testing.expectEqual(@as(u32, 0), tooltip.ticks_remaining);
+}
+
+test "Tooltip.withTimeout sets timeout_ticks field" {
+    const tooltip = Tooltip.init("Test").withTimeout(5);
+    try std.testing.expectEqual(@as(u32, 5), tooltip.timeout_ticks);
+}
+
+test "Tooltip.withTimeout builder returns modified copy" {
+    const t1 = Tooltip.init("Test");
+    const t2 = t1.withTimeout(10);
+
+    try std.testing.expectEqual(@as(u32, 0), t1.timeout_ticks); // Original unchanged
+    try std.testing.expectEqual(@as(u32, 10), t2.timeout_ticks); // Copy modified
+}
+
+test "Tooltip.show on tooltip with withTimeout sets ticks_remaining to timeout_ticks" {
+    var tooltip = Tooltip.init("Test").withTimeout(7);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+
+    try std.testing.expectEqual(@as(u32, 7), tooltip.ticks_remaining);
+}
+
+test "Tooltip.tick decrements ticks_remaining by 1" {
+    var tooltip = Tooltip.init("Test").withTimeout(5);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    try std.testing.expectEqual(@as(u32, 5), tooltip.ticks_remaining);
+
+    tooltip.tick();
+    try std.testing.expectEqual(@as(u32, 4), tooltip.ticks_remaining);
+
+    tooltip.tick();
+    try std.testing.expectEqual(@as(u32, 3), tooltip.ticks_remaining);
+}
+
+test "Tooltip.tick after N calls with timeout N auto-dismisses" {
+    var tooltip = Tooltip.init("Test").withTimeout(3);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    try std.testing.expectEqual(true, tooltip.visible);
+
+    tooltip.tick(); // ticks_remaining = 2
+    tooltip.tick(); // ticks_remaining = 1
+    try std.testing.expectEqual(true, tooltip.visible);
+
+    tooltip.tick(); // ticks_remaining = 0, should auto-dismiss
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(@as(?Rect, null), tooltip.target_area);
+}
+
+test "Tooltip.tick fewer than N times leaves visible true" {
+    var tooltip = Tooltip.init("Test").withTimeout(5);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+
+    tooltip.tick();
+    tooltip.tick();
+    tooltip.tick();
+
+    try std.testing.expectEqual(true, tooltip.visible);
+    try std.testing.expect(tooltip.target_area != null);
+    try std.testing.expectEqual(@as(u32, 2), tooltip.ticks_remaining);
+}
+
+test "Tooltip.tick on persistent (timeout_ticks=0) many times does not hide" {
+    var tooltip = Tooltip.init("Test"); // No withTimeout, defaults to timeout_ticks=0 (persistent)
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+
+    // Call tick() 100 times
+    for (0..100) |_| {
+        tooltip.tick();
+    }
+
+    // Persistent tooltip should still be visible
+    try std.testing.expectEqual(true, tooltip.visible);
+    try std.testing.expect(tooltip.target_area != null);
+}
+
+test "Tooltip.tick on non-visible tooltip is safe no-op" {
+    var tooltip = Tooltip.init("Test").withTimeout(5);
+
+    // Never show it
+    tooltip.tick();
+    tooltip.tick();
+
+    // Should still be invisible and not crash
+    try std.testing.expectEqual(false, tooltip.visible);
+}
+
+test "Tooltip.tick on already-hidden tooltip is safe no-op" {
+    var tooltip = Tooltip.init("Test").withTimeout(5);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    tooltip.hide();
+
+    // Call tick on hidden tooltip
+    tooltip.tick();
+
+    // Should remain hidden
+    try std.testing.expectEqual(false, tooltip.visible);
+}
+
+test "Tooltip.show again on ticking-down tooltip resets ticks_remaining" {
+    var tooltip = Tooltip.init("Test").withTimeout(5);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    try std.testing.expectEqual(@as(u32, 5), tooltip.ticks_remaining);
+
+    tooltip.tick();
+    tooltip.tick();
+    try std.testing.expectEqual(@as(u32, 3), tooltip.ticks_remaining);
+
+    // Re-show should restart the timer
+    tooltip.show(target);
+    try std.testing.expectEqual(@as(u32, 5), tooltip.ticks_remaining);
+}
+
+test "Tooltip.withTimeout chaining works" {
+    const tooltip = Tooltip.init("Test")
+        .withTimeout(8)
+        .withPosition(.above);
+
+    try std.testing.expectEqual(@as(u32, 8), tooltip.timeout_ticks);
+    try std.testing.expectEqual(Position.above, tooltip.position);
 }
