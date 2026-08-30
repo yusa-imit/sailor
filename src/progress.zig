@@ -417,6 +417,132 @@ test "Bar clamps at total" {
     try std.testing.expectEqual(@as(u64, 10), bar.current);
 }
 
+test "Bar filled_width glyph count at 50% progress" {
+    // Default width is 40, so at 50% we should see exactly 20 filled glyphs
+    // filled_width = @intFromFloat(40.0 * 50.0 / 100.0) = @intFromFloat(20.0) = 20
+    var buf = std.array_list.Managed(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var bar = Bar.init(100, .{ .use_color = false });
+    bar.update(50);
+    try bar.render(buf.writer());
+
+    const output = buf.items;
+    const filled_glyph = "█";
+    const filled_count = std.mem.count(u8, output, filled_glyph);
+
+    // At 50% of 40-width bar: exactly 20 filled glyphs expected
+    try std.testing.expectEqual(@as(usize, 20), filled_count);
+}
+
+test "Bar filled_width glyph count at 25% progress" {
+    // At 25%, filled_width = @intFromFloat(40.0 * 25.0 / 100.0) = 10
+    var buf = std.array_list.Managed(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var bar = Bar.init(100, .{ .use_color = false });
+    bar.update(25);
+    try bar.render(buf.writer());
+
+    const output = buf.items;
+    const filled_glyph = "█";
+    const filled_count = std.mem.count(u8, output, filled_glyph);
+
+    try std.testing.expectEqual(@as(usize, 10), filled_count);
+}
+
+test "Bar ETA not shown when current equals zero" {
+    var buf = std.array_list.Managed(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var bar = Bar.init(100, .{ .show_eta = true, .use_color = false });
+    // current is 0 by default after init, so guard condition (current > 0) fails
+    try bar.render(buf.writer());
+
+    const output = buf.items;
+    // Should NOT contain ETA since current == 0
+    try std.testing.expect(std.mem.indexOf(u8, output, " ETA ") == null);
+}
+
+test "Bar ETA not shown when current equals total" {
+    var buf = std.array_list.Managed(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var bar = Bar.init(100, .{ .show_eta = true, .use_color = false });
+    bar.update(100);
+    // current equals total, so guard condition (current < total) fails
+    try bar.render(buf.writer());
+
+    const output = buf.items;
+    // Should NOT contain ETA since current == total
+    try std.testing.expect(std.mem.indexOf(u8, output, " ETA ") == null);
+}
+
+test "Bar ETA formatted with seconds when elapsed produces eta_sec < 60" {
+    var buf = std.array_list.Managed(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var bar = Bar.init(100, .{ .show_eta = true, .use_color = false });
+    bar.update(50);
+
+    // Manually set start_time to force specific elapsed time
+    // Want eta_sec = 45 seconds
+    // With current=50, total=100: remaining_items = 50
+    // remaining_ms = eta_sec * 1000 = 45000
+    // rate = remaining_ms / remaining_items = 45000 / 50 = 900 ms/item
+    // elapsed = rate * current = 900 * 50 = 45000 ms
+    // So start_time must be 45000ms in the past
+    bar.start_time -= 45000;
+
+    try bar.render(buf.writer());
+
+    const output = buf.items;
+    // Should contain the exact ETA string for 45 seconds
+    try std.testing.expect(std.mem.indexOf(u8, output, " ETA 45s") != null);
+}
+
+test "Bar ETA formatted with minutes when elapsed produces 60 <= eta_sec < 3600" {
+    var buf = std.array_list.Managed(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var bar = Bar.init(200, .{ .show_eta = true, .use_color = false });
+    bar.update(100);
+
+    // Want eta_sec = 150 seconds = 2m 30s
+    // With current=100, total=200: remaining_items = 100
+    // remaining_ms = 150 * 1000 = 150000
+    // rate = 150000 / 100 = 1500 ms/item
+    // elapsed = 1500 * 100 = 150000 ms
+    bar.start_time -= 150000;
+
+    try bar.render(buf.writer());
+
+    const output = buf.items;
+    // Should contain the exact ETA string for 2m30s (150 seconds = 2*60 + 30)
+    try std.testing.expect(std.mem.indexOf(u8, output, " ETA 2m30s") != null);
+}
+
+test "Bar ETA formatted with hours when eta_sec >= 3600" {
+    var buf = std.array_list.Managed(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var bar = Bar.init(3600, .{ .show_eta = true, .use_color = false });
+    bar.update(1800);
+
+    // Want eta_sec = 3600 seconds = 1h 0m
+    // With current=1800, total=3600: remaining_items = 1800
+    // remaining_ms = 3600 * 1000 = 3600000
+    // rate = 3600000 / 1800 = 2000 ms/item
+    // elapsed = 2000 * 1800 = 3600000 ms
+    bar.start_time -= 3600000;
+
+    try bar.render(buf.writer());
+
+    const output = buf.items;
+    // Should contain the exact ETA string for 1h0m (3600 seconds = 1*3600 + 0)
+    try std.testing.expect(std.mem.indexOf(u8, output, " ETA 1h0m") != null);
+}
+
 test "Spinner frames" {
     const frames_braille = SpinnerStyle.braille.frames();
     try std.testing.expectEqual(@as(usize, 10), frames_braille.len);
