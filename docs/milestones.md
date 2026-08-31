@@ -4,7 +4,7 @@
 
 - **Latest release**: v2.97.0 (2026-08-31) — minor release bundling 4 feat commits + 1 test commit accumulated since v2.96.1: session 418 (repl.zig word-jump/kill-line), session 419 (repl.zig `Config.validator` wiring), session 420 (progress.zig Bar coverage, test-only), session 421 (async_loop.zig `decodeEventBytes`/`readTerminalEvent` real input wiring), session 422 (fmt.zig `Plain` key-value formatter). All feat commits close the same doc-comment-promised-but-unimplemented gap pattern found by the core-module audit. Released as MINOR (not patch) following session 410's precedent of bundling multiple accumulated feat commits into a minor version — session 423: `zig build test` 0 failures, CI green on last 3 runs (includes all 6 cross-compile targets), 0 open bug issues anywhere.
 - **Latest minor**: v2.97.0 (2026-08-31)
-- **Unreleased on main**: 3 commits since v2.97.0 — session 423 (feat: tooltip.zig auto-dismiss-on-timeout), session 424 (feat: tooltip.zig configurable delay-before-showing), session 425 (test: carousel.zig coverage, stabilization audit)
+- **Unreleased on main**: 4 commits since v2.97.0 — session 423 (feat: tooltip.zig auto-dismiss-on-timeout), session 424 (feat: tooltip.zig configurable delay-before-showing), session 425 (test: carousel.zig coverage, stabilization audit), session 426 (feat: splitpane.zig drag-handle resize API)
 - **Next release**: TBD — accumulate further widget-audit fixes before bundling, per v2.97.0's precedent. Session 425 (stabilization) confirmed all 3 non-milestone release gates already pass (tests, 6-target cross-compile, 0 bug issues) — only the milestone-completion gate is blocking a minor release.
 - **Active milestones**: 1 — v2.98.0 Widget Doc-Comment Audit (see below)
 - **Blockers**: None
@@ -43,12 +43,20 @@ concrete, already-identified lead each of the last 5 core-module sessions flagge
       preserves the exact original immediate-show behavior for all existing callers/tests. 10 new
       RED tests (test-writer) → GREEN (zig-developer), 81 tests total in the file, `zig build test`
       0 failures (verified independently from a clean `.zig-cache`).
+- [x] `splitpane.zig` "drag handle for interactive mouse-based resizing" — session 426: added
+      `isOnDivider(area, x, y) bool` (pure hit-test for a mouse-down landing on the divider cell,
+      false when `show_divider` is off or position is outside `area`) and `resizeAt(area, x, y)
+      SplitPane` (returns a new value with `split_ratio` recomputed from the pointer position,
+      clamped to 0.0/1.0 at either edge — downstream min/max constraints still apply the next
+      time `calculatePanes` runs, same as any other `split_ratio` change). Same
+      event-loop-agnostic pattern as tooltip.zig's manual `show()`/`hide()`: sailor owns no mouse
+      loop, so the caller hit-tests on mouse-down and calls `resizeAt` on each mouse-move. 23 new
+      RED tests (test-writer) → GREEN (implemented directly), `zig build test` 0 failures.
 - [ ] Remaining `tooltip.zig` doc-comment promises NOT yet fixed: `Trigger` enum (hover/focus/
       manual) has zero wiring — would need an external notify-hover/notify-focus API since the
       library owns no mouse/focus event loop; "optional fade-in animation" (would need a frame/alpha
       concept — no existing precedent widget for this in the codebase, needs its own design pass).
-      Next session should pick ONE of these two, or triage `splitpane.zig`'s drag-handle claim, or
-      run a fresh Explore pass over more widget files.
+      Next session should pick ONE of these two, or run a fresh Explore pass over more widget files.
 - [ ] If the sweep comes back clean (no real gaps, only accurate doc comments), close the milestone
       as "audited, no gaps found" rather than force a fix
 - [ ] Release once a meaningful batch of fixes has accumulated, per the same
