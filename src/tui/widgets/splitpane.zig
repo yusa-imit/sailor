@@ -24,6 +24,12 @@
 //! const panes = split.calculatePanes(area);
 //! // Render widgets in panes[0] and panes[1]
 //! ```
+//!
+//! ## Drag-resize
+//! SplitPane owns no mouse event loop, so drag-to-resize is exposed as two pure methods a
+//! caller wires to their own mouse events: `isOnDivider(area, x, y)` hit-tests a mouse-down
+//! against the divider cell, and `resizeAt(area, x, y)` returns a new `SplitPane` with
+//! `split_ratio` recomputed for the pointer position on each subsequent mouse-move.
 
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
@@ -235,6 +241,61 @@ pub const SplitPane = struct {
                 }
             },
         }
+    }
+
+    /// Check whether (x, y) lands on the divider cell, for hit-testing a mouse-down
+    /// that should start a drag-resize gesture. Returns false when there is no divider
+    /// to hit (show_divider = false) or the position falls outside area.
+    pub fn isOnDivider(self: SplitPane, area: Rect, x: u16, y: u16) bool {
+        if (!self.show_divider) return false;
+        if (area.width == 0 or area.height == 0) return false;
+        if (x < area.x or x >= area.x + area.width) return false;
+        if (y < area.y or y >= area.y + area.height) return false;
+
+        const panes = self.calculatePanes(area);
+        const first_pane = panes[0];
+
+        return switch (self.direction) {
+            .horizontal => x == first_pane.x + first_pane.width,
+            .vertical => y == first_pane.y + first_pane.height,
+        };
+    }
+
+    /// Recompute split_ratio so the divider moves to (x, y), for use during a drag-resize
+    /// gesture (typically called on every mouse-move after a matching isOnDivider hit).
+    /// Positions at or beyond either edge of area clamp split_ratio to 0.0/1.0. Downstream
+    /// min/max size constraints are applied as usual the next time calculatePanes runs.
+    pub fn resizeAt(self: SplitPane, area: Rect, x: u16, y: u16) SplitPane {
+        var result = self;
+        if (area.width == 0 or area.height == 0) return result;
+
+        const available = switch (self.direction) {
+            .horizontal => area.width,
+            .vertical => area.height,
+        };
+        const divider_size: u16 = if (self.show_divider) 1 else 0;
+        const usable_space = if (available > divider_size) available - divider_size else 0;
+        if (usable_space == 0) {
+            result.split_ratio = 0.0;
+            return result;
+        }
+
+        const pos = switch (self.direction) {
+            .horizontal => x,
+            .vertical => y,
+        };
+        const start = switch (self.direction) {
+            .horizontal => area.x,
+            .vertical => area.y,
+        };
+
+        const first_size: u16 = if (pos <= start)
+            0
+        else
+            @min(pos - start, usable_space);
+
+        result.split_ratio = @as(f64, @floatFromInt(first_size)) / @as(f64, @floatFromInt(usable_space));
+        return result;
     }
 };
 
@@ -653,4 +714,215 @@ test "SplitPane.render horizontal divider for vertical split" {
         try std.testing.expect(cell != null);
         try std.testing.expectEqual('─', cell.?.char);
     }
+}
+
+// ============================================================================
+// isOnDivider and resizeAt tests (drag-handle API)
+// ============================================================================
+
+test "SplitPane.isOnDivider horizontal hit on divider x" {
+    const split = SplitPane.init();
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
+
+    // With 50/50 split and divider: divider at x=49 (after first pane width 49)
+    try std.testing.expect(split.isOnDivider(area, 49, 0));
+    try std.testing.expect(split.isOnDivider(area, 49, 10));
+    try std.testing.expect(split.isOnDivider(area, 49, 19));
+}
+
+test "SplitPane.isOnDivider horizontal miss left of divider" {
+    const split = SplitPane.init();
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
+
+    // x=48 is one column left of divider
+    try std.testing.expect(!split.isOnDivider(area, 48, 0));
+}
+
+test "SplitPane.isOnDivider horizontal miss right of divider" {
+    const split = SplitPane.init();
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
+
+    // x=50 is one column right of divider
+    try std.testing.expect(!split.isOnDivider(area, 50, 0));
+}
+
+test "SplitPane.isOnDivider vertical hit on divider y" {
+    const split = SplitPane.init().withDirection(.vertical);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
+
+    // With 50/50 split and divider: divider at y=19 (after first pane height 19)
+    try std.testing.expect(split.isOnDivider(area, 0, 19));
+    try std.testing.expect(split.isOnDivider(area, 40, 19));
+    try std.testing.expect(split.isOnDivider(area, 79, 19));
+}
+
+test "SplitPane.isOnDivider vertical miss above divider" {
+    const split = SplitPane.init().withDirection(.vertical);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
+
+    // y=18 is one row above divider
+    try std.testing.expect(!split.isOnDivider(area, 0, 18));
+}
+
+test "SplitPane.isOnDivider vertical miss below divider" {
+    const split = SplitPane.init().withDirection(.vertical);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
+
+    // y=20 is one row below divider
+    try std.testing.expect(!split.isOnDivider(area, 0, 20));
+}
+
+test "SplitPane.isOnDivider returns false when show_divider is false" {
+    const split = SplitPane.init().withDivider(false);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
+
+    // Even at the computed divider position, should return false
+    try std.testing.expect(!split.isOnDivider(area, 49, 0));
+}
+
+test "SplitPane.isOnDivider horizontal miss outside area bounds" {
+    const split = SplitPane.init();
+    const area = Rect{ .x = 10, .y = 5, .width = 100, .height = 20 };
+
+    // Position outside area
+    try std.testing.expect(!split.isOnDivider(area, 5, 5)); // x before area.x
+    try std.testing.expect(!split.isOnDivider(area, 200, 5)); // x after area.x + width
+}
+
+test "SplitPane.isOnDivider vertical miss outside area bounds" {
+    const split = SplitPane.init().withDirection(.vertical);
+    const area = Rect{ .x = 10, .y = 5, .width = 80, .height = 40 };
+
+    // Position outside area
+    try std.testing.expect(!split.isOnDivider(area, 10, 2)); // y before area.y
+    try std.testing.expect(!split.isOnDivider(area, 10, 100)); // y after area.y + height
+}
+
+test "SplitPane.resizeAt horizontal mid-drag repositioning" {
+    const split = SplitPane.init();
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
+
+    // Drag to x=30 (move divider from x=49 to x=30)
+    // With divider, usable_space=99, so new split_ratio should be ~30/99
+    const resized = split.resizeAt(area, 30, 0);
+    const panes = resized.calculatePanes(area);
+
+    // First pane should be around 30 cells wide
+    try std.testing.expectEqual(@as(u16, 30), panes[0].width);
+}
+
+test "SplitPane.resizeAt horizontal clamps to left edge" {
+    const split = SplitPane.init();
+    const area = Rect{ .x = 10, .y = 5, .width = 100, .height = 20 };
+
+    // Drag to pointer x < area.x (beyond left edge)
+    const resized = split.resizeAt(area, 5, 5);
+    const panes = resized.calculatePanes(area);
+
+    // First pane should collapse to 0
+    try std.testing.expectEqual(@as(u16, 0), panes[0].width);
+}
+
+test "SplitPane.resizeAt horizontal clamps to right edge" {
+    const split = SplitPane.init();
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
+
+    // Drag to pointer x > area.x + width (beyond right edge)
+    const resized = split.resizeAt(area, 200, 0);
+    const panes = resized.calculatePanes(area);
+
+    // Second pane should collapse to 0
+    try std.testing.expectEqual(@as(u16, 0), panes[1].width);
+}
+
+test "SplitPane.resizeAt vertical mid-drag repositioning" {
+    const split = SplitPane.init().withDirection(.vertical);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
+
+    // Drag to y=15 (move divider from y=19 to y=15)
+    // With divider, usable_space=39, so new split_ratio should be ~15/39
+    const resized = split.resizeAt(area, 0, 15);
+    const panes = resized.calculatePanes(area);
+
+    // First pane should be around 15 cells tall
+    try std.testing.expectEqual(@as(u16, 15), panes[0].height);
+}
+
+test "SplitPane.resizeAt vertical clamps to top edge" {
+    const split = SplitPane.init().withDirection(.vertical);
+    const area = Rect{ .x = 0, .y = 10, .width = 80, .height = 40 };
+
+    // Drag to pointer y < area.y (beyond top edge)
+    const resized = split.resizeAt(area, 0, 5);
+    const panes = resized.calculatePanes(area);
+
+    // First pane should collapse to 0
+    try std.testing.expectEqual(@as(u16, 0), panes[0].height);
+}
+
+test "SplitPane.resizeAt vertical clamps to bottom edge" {
+    const split = SplitPane.init().withDirection(.vertical);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
+
+    // Drag to pointer y > area.y + height (beyond bottom edge)
+    const resized = split.resizeAt(area, 0, 100);
+    const panes = resized.calculatePanes(area);
+
+    // Second pane should collapse to 0
+    try std.testing.expectEqual(@as(u16, 0), panes[1].height);
+}
+
+test "SplitPane.resizeAt respects min_first_size constraint" {
+    const split = SplitPane.init().withMinFirstSize(20);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
+
+    // Drag to x=10 (would make first pane 10 wide, but min is 20)
+    const resized = split.resizeAt(area, 10, 0);
+    const panes = resized.calculatePanes(area);
+
+    // First pane should be constrained to at least 20
+    try std.testing.expectEqual(@as(u16, 20), panes[0].width);
+}
+
+test "SplitPane.resizeAt respects max_first_size constraint" {
+    const split = SplitPane.init().withMaxFirstSize(40);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
+
+    // Drag to x=70 (would make first pane 70 wide, but max is 40)
+    const resized = split.resizeAt(area, 70, 0);
+    const panes = resized.calculatePanes(area);
+
+    // First pane should be capped at 40
+    try std.testing.expectEqual(@as(u16, 40), panes[0].width);
+}
+
+test "SplitPane.resizeAt respects min_second_size constraint" {
+    const split = SplitPane.init().withMinSecondSize(25);
+    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 20 };
+
+    // Drag to x=80 (would make second pane 19 wide, but min is 25)
+    const resized = split.resizeAt(area, 80, 0);
+    const panes = resized.calculatePanes(area);
+
+    // Second pane should be constrained to at least 25
+    try std.testing.expectEqual(@as(u16, 25), panes[1].width);
+}
+
+test "SplitPane.resizeAt preserves all other fields" {
+    const split = SplitPane.init()
+        .withDirection(.vertical)
+        .withMinFirstSize(10)
+        .withMaxSecondSize(30)
+        .withDividerChar('─')
+        .withDivider(true);
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
+
+    const resized = split.resizeAt(area, 0, 20);
+
+    // All fields except split_ratio should be unchanged
+    try std.testing.expectEqual(Direction.vertical, resized.direction);
+    try std.testing.expectEqual(@as(u16, 10), resized.min_first_size);
+    try std.testing.expectEqual(@as(u16, 30), resized.max_second_size);
+    try std.testing.expectEqual('─', resized.divider_char);
+    try std.testing.expectEqual(true, resized.show_divider);
 }
