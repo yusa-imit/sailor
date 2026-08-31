@@ -64,6 +64,12 @@ pub const Tooltip = struct {
     timeout_ticks: u32 = 0,
     /// Internal countdown, decremented by tick()
     ticks_remaining: u32 = 0,
+    /// Ticks to wait after show() before actually becoming visible (0 = show immediately)
+    show_delay_ticks: u32 = 0,
+    /// True while waiting out the show-delay (requested via show() but not yet visible)
+    pending: bool = false,
+    /// Internal countdown for delay, decremented by tick() during pending phase
+    delay_ticks_remaining: u32 = 0,
 
     /// Create a new tooltip with content
     pub fn init(content: []const u8) Tooltip {
@@ -107,26 +113,56 @@ pub const Tooltip = struct {
         return result;
     }
 
+    /// Set delay before showing (0 = show immediately)
+    pub fn withShowDelay(self: Tooltip, ticks: u32) Tooltip {
+        var result = self;
+        result.show_delay_ticks = ticks;
+        return result;
+    }
+
     /// Show tooltip at target area
     pub fn show(self: *Tooltip, target_area: Rect) void {
-        self.visible = true;
-        self.target_area = target_area;
-        self.ticks_remaining = self.timeout_ticks;
+        if (self.show_delay_ticks == 0) {
+            // No delay: show immediately
+            self.visible = true;
+            self.target_area = target_area;
+            self.ticks_remaining = self.timeout_ticks;
+        } else {
+            // Delay active: enter pending phase
+            self.pending = true;
+            self.target_area = target_area;
+            self.delay_ticks_remaining = self.show_delay_ticks;
+            // Don't set visible=true or ticks_remaining yet
+        }
     }
 
     /// Hide tooltip
     pub fn hide(self: *Tooltip) void {
         self.visible = false;
         self.target_area = null;
+        self.pending = false;
+        self.delay_ticks_remaining = 0;
     }
 
     /// Process one tick of the timeout countdown
     pub fn tick(self: *Tooltip) void {
-        if (!self.visible or self.timeout_ticks == 0) return;
+        if (self.pending) {
+            // Pending phase: countdown the show delay
+            self.delay_ticks_remaining -= 1;
+            if (self.delay_ticks_remaining == 0) {
+                // Delay elapsed: become visible and start timeout
+                self.pending = false;
+                self.visible = true;
+                self.ticks_remaining = self.timeout_ticks;
+            }
+        } else {
+            // Not pending: handle existing timeout logic
+            if (!self.visible or self.timeout_ticks == 0) return;
 
-        self.ticks_remaining -= 1;
-        if (self.ticks_remaining == 0) {
-            self.hide();
+            self.ticks_remaining -= 1;
+            if (self.ticks_remaining == 0) {
+                self.hide();
+            }
         }
     }
 
@@ -1108,4 +1144,186 @@ test "Tooltip.withTimeout chaining works" {
 
     try std.testing.expectEqual(@as(u32, 8), tooltip.timeout_ticks);
     try std.testing.expectEqual(Position.above, tooltip.position);
+}
+
+// ============================================================================
+// SHOW-DELAY PENDING-PHASE TESTS (Red Phase)
+// ============================================================================
+
+test "Tooltip.init defaults show_delay_ticks to 0" {
+    const tooltip = Tooltip.init("Test");
+    try std.testing.expectEqual(@as(u32, 0), tooltip.show_delay_ticks);
+}
+
+test "Tooltip.init defaults pending to false" {
+    const tooltip = Tooltip.init("Test");
+    try std.testing.expectEqual(false, tooltip.pending);
+}
+
+test "Tooltip.init defaults delay_ticks_remaining to 0" {
+    const tooltip = Tooltip.init("Test");
+    try std.testing.expectEqual(@as(u32, 0), tooltip.delay_ticks_remaining);
+}
+
+test "Tooltip.withShowDelay sets show_delay_ticks field" {
+    const tooltip = Tooltip.init("Test").withShowDelay(5);
+    try std.testing.expectEqual(@as(u32, 5), tooltip.show_delay_ticks);
+}
+
+test "Tooltip.withShowDelay builder returns modified copy" {
+    const t1 = Tooltip.init("Test");
+    const t2 = t1.withShowDelay(10);
+
+    try std.testing.expectEqual(@as(u32, 0), t1.show_delay_ticks); // Original unchanged
+    try std.testing.expectEqual(@as(u32, 10), t2.show_delay_ticks); // Copy modified
+}
+
+test "Tooltip.show with show_delay_ticks 0 makes visible immediately" {
+    var tooltip = Tooltip.init("Test").withShowDelay(0); // Explicitly 0 (same as default)
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+
+    try std.testing.expectEqual(true, tooltip.visible);
+    try std.testing.expectEqual(false, tooltip.pending);
+}
+
+test "Tooltip.show with show_delay_ticks > 0 keeps visible false and sets pending true" {
+    var tooltip = Tooltip.init("Test").withShowDelay(3);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(true, tooltip.pending);
+    try std.testing.expectEqual(@as(u32, 3), tooltip.delay_ticks_remaining);
+    try std.testing.expect(tooltip.target_area != null);
+}
+
+test "Tooltip.tick during pending phase decrements delay_ticks_remaining" {
+    var tooltip = Tooltip.init("Test").withShowDelay(5);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    try std.testing.expectEqual(@as(u32, 5), tooltip.delay_ticks_remaining);
+
+    tooltip.tick();
+    try std.testing.expectEqual(@as(u32, 4), tooltip.delay_ticks_remaining);
+
+    tooltip.tick();
+    try std.testing.expectEqual(@as(u32, 3), tooltip.delay_ticks_remaining);
+}
+
+test "Tooltip.tick during pending phase keeps visible false" {
+    var tooltip = Tooltip.init("Test").withShowDelay(3);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+
+    tooltip.tick();
+    tooltip.tick();
+
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(true, tooltip.pending);
+    try std.testing.expectEqual(@as(u32, 1), tooltip.delay_ticks_remaining);
+}
+
+test "Tooltip.tick show_delay_ticks times makes visible true and pending false" {
+    var tooltip = Tooltip.init("Test").withShowDelay(3);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+
+    tooltip.tick(); // delay_ticks_remaining = 2
+    tooltip.tick(); // delay_ticks_remaining = 1
+    tooltip.tick(); // delay_ticks_remaining = 0, should become visible
+
+    try std.testing.expectEqual(true, tooltip.visible);
+    try std.testing.expectEqual(false, tooltip.pending);
+}
+
+test "Tooltip show_delay and timeout interaction: timeout starts after pending phase" {
+    var tooltip = Tooltip.init("Test").withShowDelay(3).withTimeout(2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(true, tooltip.pending);
+    try std.testing.expectEqual(@as(u32, 0), tooltip.ticks_remaining); // Timeout not started yet
+
+    // Tick 3 times to complete delay
+    tooltip.tick();
+    tooltip.tick();
+    tooltip.tick();
+
+    try std.testing.expectEqual(true, tooltip.visible);
+    try std.testing.expectEqual(false, tooltip.pending);
+    try std.testing.expectEqual(@as(u32, 2), tooltip.ticks_remaining); // Timeout now running
+
+    // Tick 1 more time
+    tooltip.tick();
+    try std.testing.expectEqual(true, tooltip.visible);
+    try std.testing.expectEqual(@as(u32, 1), tooltip.ticks_remaining);
+
+    // Tick once more to auto-dismiss
+    tooltip.tick();
+    try std.testing.expectEqual(false, tooltip.visible);
+}
+
+test "Tooltip.hide while pending cancels the delay" {
+    var tooltip = Tooltip.init("Test").withShowDelay(5);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    try std.testing.expectEqual(true, tooltip.pending);
+
+    tooltip.hide();
+
+    try std.testing.expectEqual(false, tooltip.pending);
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(@as(u32, 0), tooltip.delay_ticks_remaining);
+    try std.testing.expectEqual(@as(?Rect, null), tooltip.target_area);
+}
+
+test "Tooltip.tick after hide on pending tooltip does nothing" {
+    var tooltip = Tooltip.init("Test").withShowDelay(3);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    tooltip.hide();
+
+    // Now tick - should be no-op
+    tooltip.tick();
+
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(false, tooltip.pending);
+}
+
+test "Tooltip.tick on pending tooltip that was never shown is safe no-op" {
+    var tooltip = Tooltip.init("Test").withShowDelay(3);
+
+    // Never call show(), just tick
+    tooltip.tick();
+    tooltip.tick();
+
+    // Should remain in default state
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(false, tooltip.pending);
+}
+
+test "Tooltip.show again while pending resets delay_ticks_remaining" {
+    var tooltip = Tooltip.init("Test").withShowDelay(5);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    try std.testing.expectEqual(@as(u32, 5), tooltip.delay_ticks_remaining);
+
+    tooltip.tick();
+    tooltip.tick();
+    try std.testing.expectEqual(@as(u32, 3), tooltip.delay_ticks_remaining);
+
+    // Re-show should restart the delay
+    tooltip.show(target);
+    try std.testing.expectEqual(@as(u32, 5), tooltip.delay_ticks_remaining);
+    try std.testing.expectEqual(true, tooltip.pending);
 }

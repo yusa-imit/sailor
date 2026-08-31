@@ -337,3 +337,5 @@
 {"timestamp":"2026-08-30T18:29:53Z","action":"subagent","agent_type":"test-writer","task":"Write RED tests for Tooltip auto-dismiss-on-timeout (tick-based, mirrors ToastManager)","project":"sailor"}
 {"timestamp":"2026-08-30T18:32:28Z","action":"subagent","agent_type":"zig-developer","task":"Implement Tooltip timeout_ticks/withTimeout/tick to pass RED tests","project":"sailor"}
 {"timestamp":"2026-08-30T18:36:42Z","action":"team_delete","team_name":"tooltip-timeout-fix","project":"sailor"}
+{"timestamp":"2026-08-31T00:25:50Z","action":"subagent","agent_type":"test-writer","task":"Write RED tests for Tooltip configurable delay-before-showing (show_delay_ticks/pending/delay_ticks_remaining/withShowDelay)","project":"sailor"}
+{"timestamp":"2026-08-31T00:27:51Z","action":"subagent","agent_type":"zig-developer","task":"Implement Tooltip configurable delay-before-showing (show_delay_ticks/pending/delay_ticks_remaining/withShowDelay) to pass test-writer RED tests","project":"sailor"}
