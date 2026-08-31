@@ -322,3 +322,254 @@ fn firstCodepoint(s: []const u8) u21 {
     if (seq_len > s.len) return '?';
     return std.unicode.utf8Decode(s[0..seq_len]) catch '?';
 }
+
+// ============================================================================
+// TESTS
+// ============================================================================
+
+const testing = std.testing;
+
+test "Carousel.init sets items_count correctly" {
+    const c = Carousel.init(5);
+    try testing.expectEqual(@as(usize, 5), c.items_count);
+}
+
+test "Carousel.init defaults: current=0, loop=true, show_indicators=true" {
+    const c = Carousel.init(3);
+    try testing.expectEqual(@as(usize, 0), c.current);
+    try testing.expectEqual(true, c.loop);
+    try testing.expectEqual(true, c.show_indicators);
+    try testing.expectEqual(true, c.show_arrows);
+}
+
+test "Carousel.next with loop=true wraps from last to first" {
+    var c = Carousel.init(5);
+    c.current = 4; // last item
+    c.loop = true;
+    c.next();
+    try testing.expectEqual(@as(usize, 0), c.current);
+}
+
+test "Carousel.next with loop=true advances normally" {
+    var c = Carousel.init(5);
+    c.current = 2;
+    c.loop = true;
+    c.next();
+    try testing.expectEqual(@as(usize, 3), c.current);
+}
+
+test "Carousel.next with loop=false clamps at last item" {
+    var c = Carousel.init(5);
+    c.current = 4; // last item
+    c.loop = false;
+    c.next();
+    try testing.expectEqual(@as(usize, 4), c.current); // stays at 4
+}
+
+test "Carousel.next with loop=false advances normally" {
+    var c = Carousel.init(5);
+    c.current = 2;
+    c.loop = false;
+    c.next();
+    try testing.expectEqual(@as(usize, 3), c.current);
+}
+
+test "Carousel.next with empty carousel (items_count=0) is no-op" {
+    var c = Carousel.init(0);
+    c.current = 0;
+    c.next();
+    try testing.expectEqual(@as(usize, 0), c.current);
+}
+
+test "Carousel.prev with loop=true wraps from first to last" {
+    var c = Carousel.init(5);
+    c.current = 0; // first item
+    c.loop = true;
+    c.prev();
+    try testing.expectEqual(@as(usize, 4), c.current);
+}
+
+test "Carousel.prev with loop=true decrements normally" {
+    var c = Carousel.init(5);
+    c.current = 3;
+    c.loop = true;
+    c.prev();
+    try testing.expectEqual(@as(usize, 2), c.current);
+}
+
+test "Carousel.prev with loop=false clamps at first item" {
+    var c = Carousel.init(5);
+    c.current = 0; // first item
+    c.loop = false;
+    c.prev();
+    try testing.expectEqual(@as(usize, 0), c.current); // stays at 0
+}
+
+test "Carousel.prev with loop=false decrements normally" {
+    var c = Carousel.init(5);
+    c.current = 2;
+    c.loop = false;
+    c.prev();
+    try testing.expectEqual(@as(usize, 1), c.current);
+}
+
+test "Carousel.prev with empty carousel (items_count=0) is no-op" {
+    var c = Carousel.init(0);
+    c.current = 0;
+    c.prev();
+    try testing.expectEqual(@as(usize, 0), c.current);
+}
+
+test "Carousel.goTo sets current to valid index" {
+    var c = Carousel.init(5);
+    c.goTo(3);
+    try testing.expectEqual(@as(usize, 3), c.current);
+}
+
+test "Carousel.goTo with out-of-bounds index is no-op" {
+    var c = Carousel.init(5);
+    c.current = 2;
+    c.goTo(10); // out of bounds
+    try testing.expectEqual(@as(usize, 2), c.current); // unchanged
+}
+
+test "Carousel.goTo with index equal to items_count is no-op" {
+    var c = Carousel.init(5);
+    c.current = 1;
+    c.goTo(5); // equal to items_count
+    try testing.expectEqual(@as(usize, 1), c.current); // unchanged
+}
+
+test "Carousel.isFirst returns true when current=0" {
+    var c = Carousel.init(5);
+    c.current = 0;
+    try testing.expectEqual(true, c.isFirst());
+}
+
+test "Carousel.isFirst returns false when current>0" {
+    var c = Carousel.init(5);
+    c.current = 2;
+    try testing.expectEqual(false, c.isFirst());
+}
+
+test "Carousel.isFirst returns true when items_count=0 (edge case)" {
+    const c = Carousel.init(0);
+    try testing.expectEqual(true, c.isFirst());
+}
+
+test "Carousel.isLast returns true when current=items_count-1" {
+    var c = Carousel.init(5);
+    c.current = 4;
+    try testing.expectEqual(true, c.isLast());
+}
+
+test "Carousel.isLast returns false when current<items_count-1" {
+    var c = Carousel.init(5);
+    c.current = 2;
+    try testing.expectEqual(false, c.isLast());
+}
+
+test "Carousel.isLast returns true when items_count=0 (edge case)" {
+    const c = Carousel.init(0);
+    try testing.expectEqual(true, c.isLast());
+}
+
+test "Carousel.count returns items_count" {
+    const c = Carousel.init(7);
+    try testing.expectEqual(@as(usize, 7), c.count());
+}
+
+test "Carousel.indicatorHeight returns 1 when show_indicators=true" {
+    var c = Carousel.init(3);
+    c.show_indicators = true;
+    try testing.expectEqual(@as(u16, 1), c.indicatorHeight());
+}
+
+test "Carousel.indicatorHeight returns 0 when show_indicators=false" {
+    var c = Carousel.init(3);
+    c.show_indicators = false;
+    try testing.expectEqual(@as(u16, 0), c.indicatorHeight());
+}
+
+test "Carousel.contentArea with indicators reduces height by 1" {
+    var c = Carousel.init(3);
+    c.show_indicators = true;
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    const content = c.contentArea(area);
+    try testing.expectEqual(@as(u16, 23), content.height);
+}
+
+test "Carousel.contentArea without indicators preserves height" {
+    var c = Carousel.init(3);
+    c.show_indicators = false;
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    const content = c.contentArea(area);
+    try testing.expectEqual(@as(u16, 24), content.height);
+}
+
+test "Carousel.contentArea with block applies insets" {
+    var c = Carousel.init(3);
+    c.show_indicators = false;
+    // Block defaults to all borders enabled (4 borders reduce by 2 each dimension)
+    // Plus padding_left=1, padding_right=1 reduces width by 2 more
+    c.block = Block{ .padding_top = 1, .padding_bottom = 1, .padding_left = 1, .padding_right = 1 };
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    const content = c.contentArea(area);
+    // Borders: left=1, right=1; Padding: left=1, right=1 → total -4 width, x offset = 2
+    // Borders: top=1, bottom=1; Padding: top=1, bottom=1 → total -4 height, y offset = 2
+    try testing.expectEqual(@as(u16, 76), content.width); // 80 - 4
+    try testing.expectEqual(@as(u16, 20), content.height); // 24 - 4
+    try testing.expectEqual(@as(u16, 2), content.x); // border + padding
+    try testing.expectEqual(@as(u16, 2), content.y); // border + padding
+}
+
+test "Carousel.contentArea with block and indicators reduces both" {
+    var c = Carousel.init(3);
+    c.show_indicators = true;
+    c.block = Block{ .padding_top = 1, .padding_bottom = 1, .padding_left = 1, .padding_right = 1 };
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    const content = c.contentArea(area);
+    // Block (borders + padding) reduces by 4 in each dimension, indicators reduce height by 1 more
+    try testing.expectEqual(@as(u16, 76), content.width); // 80 - 4
+    try testing.expectEqual(@as(u16, 19), content.height); // 24 - 4 - 1 for indicator
+}
+
+test "Carousel.withCurrent builder creates new instance with changed current" {
+    const c1 = Carousel.init(5);
+    const c2 = c1.withCurrent(3);
+    try testing.expectEqual(@as(usize, 0), c1.current); // original unchanged
+    try testing.expectEqual(@as(usize, 3), c2.current); // copy changed
+}
+
+test "Carousel.withLoop builder creates new instance with changed loop" {
+    var c1 = Carousel.init(5);
+    c1.loop = true;
+    const c2 = c1.withLoop(false);
+    try testing.expectEqual(true, c1.loop); // original unchanged
+    try testing.expectEqual(false, c2.loop); // copy changed
+}
+
+test "Carousel.withShowIndicators builder creates new instance with changed show_indicators" {
+    var c1 = Carousel.init(5);
+    c1.show_indicators = true;
+    const c2 = c1.withShowIndicators(false);
+    try testing.expectEqual(true, c1.show_indicators); // original unchanged
+    try testing.expectEqual(false, c2.show_indicators); // copy changed
+}
+
+test "Carousel.withIndicatorActiveChar builder changes active indicator character" {
+    var c1 = Carousel.init(3);
+    c1.indicator_active_char = '●';
+    const c2 = c1.withIndicatorActiveChar('#');
+    try testing.expectEqual('●', c1.indicator_active_char); // original unchanged
+    try testing.expectEqual('#', c2.indicator_active_char); // copy changed
+}
+
+test "Carousel builder chain: withCurrent then withLoop affects only copy" {
+    const c1 = Carousel.init(5);
+    const c2 = c1.withCurrent(2).withLoop(false);
+    try testing.expectEqual(@as(usize, 0), c1.current); // original untouched
+    try testing.expectEqual(true, c1.loop); // original untouched
+    try testing.expectEqual(@as(usize, 2), c2.current); // chained copy correct
+    try testing.expectEqual(false, c2.loop); // chained copy correct
+}
