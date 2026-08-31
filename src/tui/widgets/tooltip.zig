@@ -70,6 +70,8 @@ pub const Tooltip = struct {
     pending: bool = false,
     /// Internal countdown for delay, decremented by tick() during pending phase
     delay_ticks_remaining: u32 = 0,
+    /// Trigger mechanism gating notifyHover()/notifyFocus() (manual = caller drives show()/hide() directly)
+    trigger: Trigger = .manual,
 
     /// Create a new tooltip with content
     pub fn init(content: []const u8) Tooltip {
@@ -120,6 +122,13 @@ pub const Tooltip = struct {
         return result;
     }
 
+    /// Set trigger mechanism (hover/focus/manual)
+    pub fn withTrigger(self: Tooltip, new_trigger: Trigger) Tooltip {
+        var result = self;
+        result.trigger = new_trigger;
+        return result;
+    }
+
     /// Show tooltip at target area
     pub fn show(self: *Tooltip, target_area: Rect) void {
         if (self.show_delay_ticks == 0) {
@@ -142,6 +151,29 @@ pub const Tooltip = struct {
         self.target_area = null;
         self.pending = false;
         self.delay_ticks_remaining = 0;
+    }
+
+    /// Notify the tooltip of a hover state change. No-op unless `trigger == .hover` —
+    /// the caller wires their own mouse-hover detection to this method (sailor owns no
+    /// event loop). `hovering == true` shows (respecting show_delay_ticks); `false` hides.
+    pub fn notifyHover(self: *Tooltip, hovering: bool, target_area: Rect) void {
+        if (self.trigger != .hover) return;
+        if (hovering) {
+            self.show(target_area);
+        } else {
+            self.hide();
+        }
+    }
+
+    /// Notify the tooltip of a focus state change. No-op unless `trigger == .focus` —
+    /// mirrors notifyHover but gated on the focus trigger.
+    pub fn notifyFocus(self: *Tooltip, focused: bool, target_area: Rect) void {
+        if (self.trigger != .focus) return;
+        if (focused) {
+            self.show(target_area);
+        } else {
+            self.hide();
+        }
     }
 
     /// Process one tick of the timeout countdown
@@ -1326,4 +1358,288 @@ test "Tooltip.show again while pending resets delay_ticks_remaining" {
     tooltip.show(target);
     try std.testing.expectEqual(@as(u32, 5), tooltip.delay_ticks_remaining);
     try std.testing.expectEqual(true, tooltip.pending);
+}
+
+// ============================================================================
+// TRIGGER MECHANISM TESTS (Red Phase)
+// ============================================================================
+
+test "Tooltip.init defaults trigger to manual" {
+    const tooltip = Tooltip.init("Test");
+    try std.testing.expectEqual(Trigger.manual, tooltip.trigger);
+}
+
+test "Tooltip.withTrigger sets trigger to hover" {
+    const tooltip = Tooltip.init("Test").withTrigger(.hover);
+    try std.testing.expectEqual(Trigger.hover, tooltip.trigger);
+}
+
+test "Tooltip.withTrigger sets trigger to focus" {
+    const tooltip = Tooltip.init("Test").withTrigger(.focus);
+    try std.testing.expectEqual(Trigger.focus, tooltip.trigger);
+}
+
+test "Tooltip.withTrigger sets trigger to manual" {
+    const tooltip = Tooltip.init("Test").withTrigger(.manual);
+    try std.testing.expectEqual(Trigger.manual, tooltip.trigger);
+}
+
+test "Tooltip.withTrigger builder returns modified copy" {
+    const t1 = Tooltip.init("Test");
+    const t2 = t1.withTrigger(.hover);
+
+    try std.testing.expectEqual(Trigger.manual, t1.trigger); // Original unchanged
+    try std.testing.expectEqual(Trigger.hover, t2.trigger); // Copy modified
+}
+
+test "Tooltip.withTrigger chaining works" {
+    const tooltip = Tooltip.init("Test")
+        .withTrigger(.focus)
+        .withPosition(.above);
+
+    try std.testing.expectEqual(Trigger.focus, tooltip.trigger);
+    try std.testing.expectEqual(Position.above, tooltip.position);
+}
+
+test "Tooltip.notifyHover with trigger hover and delay 0 shows immediately" {
+    var tooltip = Tooltip.init("Test").withTrigger(.hover);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.notifyHover(true, target);
+
+    try std.testing.expectEqual(true, tooltip.visible);
+    try std.testing.expectEqual(false, tooltip.pending);
+    try std.testing.expect(tooltip.target_area != null);
+    try std.testing.expectEqual(@as(u16, 10), tooltip.target_area.?.x);
+    try std.testing.expectEqual(@as(u16, 10), tooltip.target_area.?.y);
+}
+
+test "Tooltip.notifyHover with trigger hover hides on false" {
+    var tooltip = Tooltip.init("Test").withTrigger(.hover);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.notifyHover(true, target);
+    try std.testing.expectEqual(true, tooltip.visible);
+
+    tooltip.notifyHover(false, target);
+
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(@as(?Rect, null), tooltip.target_area);
+}
+
+test "Tooltip.notifyHover with trigger hover and delay shows pending" {
+    var tooltip = Tooltip.init("Test")
+        .withTrigger(.hover)
+        .withShowDelay(5);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.notifyHover(true, target);
+
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(true, tooltip.pending);
+    try std.testing.expectEqual(@as(u32, 5), tooltip.delay_ticks_remaining);
+    try std.testing.expect(tooltip.target_area != null);
+}
+
+test "Tooltip.notifyHover with trigger manual is no-op on true" {
+    var tooltip = Tooltip.init("Test").withTrigger(.manual);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.notifyHover(true, target);
+
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(false, tooltip.pending);
+    try std.testing.expectEqual(@as(?Rect, null), tooltip.target_area);
+}
+
+test "Tooltip.notifyHover with trigger manual is no-op on false" {
+    var tooltip = Tooltip.init("Test").withTrigger(.manual);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.notifyHover(false, target);
+
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(false, tooltip.pending);
+    try std.testing.expectEqual(@as(?Rect, null), tooltip.target_area);
+}
+
+test "Tooltip.notifyHover with trigger focus is no-op" {
+    var tooltip = Tooltip.init("Test").withTrigger(.focus);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.notifyHover(true, target);
+
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(false, tooltip.pending);
+    try std.testing.expectEqual(@as(?Rect, null), tooltip.target_area);
+}
+
+test "Tooltip.notifyHover with trigger focus is no-op on false" {
+    var tooltip = Tooltip.init("Test").withTrigger(.focus);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.notifyHover(false, target);
+
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(false, tooltip.pending);
+    try std.testing.expectEqual(@as(?Rect, null), tooltip.target_area);
+}
+
+test "Tooltip.notifyFocus with trigger focus and delay 0 shows immediately" {
+    var tooltip = Tooltip.init("Test").withTrigger(.focus);
+    const target = Rect{ .x = 20, .y = 15, .width = 3, .height = 1 };
+
+    tooltip.notifyFocus(true, target);
+
+    try std.testing.expectEqual(true, tooltip.visible);
+    try std.testing.expectEqual(false, tooltip.pending);
+    try std.testing.expect(tooltip.target_area != null);
+    try std.testing.expectEqual(@as(u16, 20), tooltip.target_area.?.x);
+    try std.testing.expectEqual(@as(u16, 15), tooltip.target_area.?.y);
+}
+
+test "Tooltip.notifyFocus with trigger focus hides on false" {
+    var tooltip = Tooltip.init("Test").withTrigger(.focus);
+    const target = Rect{ .x = 20, .y = 15, .width = 3, .height = 1 };
+
+    tooltip.notifyFocus(true, target);
+    try std.testing.expectEqual(true, tooltip.visible);
+
+    tooltip.notifyFocus(false, target);
+
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(@as(?Rect, null), tooltip.target_area);
+}
+
+test "Tooltip.notifyFocus with trigger focus and delay shows pending" {
+    var tooltip = Tooltip.init("Test")
+        .withTrigger(.focus)
+        .withShowDelay(4);
+    const target = Rect{ .x = 20, .y = 15, .width = 3, .height = 1 };
+
+    tooltip.notifyFocus(true, target);
+
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(true, tooltip.pending);
+    try std.testing.expectEqual(@as(u32, 4), tooltip.delay_ticks_remaining);
+    try std.testing.expect(tooltip.target_area != null);
+}
+
+test "Tooltip.notifyFocus with trigger manual is no-op on true" {
+    var tooltip = Tooltip.init("Test").withTrigger(.manual);
+    const target = Rect{ .x = 20, .y = 15, .width = 3, .height = 1 };
+
+    tooltip.notifyFocus(true, target);
+
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(false, tooltip.pending);
+    try std.testing.expectEqual(@as(?Rect, null), tooltip.target_area);
+}
+
+test "Tooltip.notifyFocus with trigger manual is no-op on false" {
+    var tooltip = Tooltip.init("Test").withTrigger(.manual);
+    const target = Rect{ .x = 20, .y = 15, .width = 3, .height = 1 };
+
+    tooltip.notifyFocus(false, target);
+
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(false, tooltip.pending);
+    try std.testing.expectEqual(@as(?Rect, null), tooltip.target_area);
+}
+
+test "Tooltip.notifyFocus with trigger hover is no-op" {
+    var tooltip = Tooltip.init("Test").withTrigger(.hover);
+    const target = Rect{ .x = 20, .y = 15, .width = 3, .height = 1 };
+
+    tooltip.notifyFocus(true, target);
+
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(false, tooltip.pending);
+    try std.testing.expectEqual(@as(?Rect, null), tooltip.target_area);
+}
+
+test "Tooltip.notifyFocus with trigger hover is no-op on false" {
+    var tooltip = Tooltip.init("Test").withTrigger(.hover);
+    const target = Rect{ .x = 20, .y = 15, .width = 3, .height = 1 };
+
+    tooltip.notifyFocus(false, target);
+
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(false, tooltip.pending);
+    try std.testing.expectEqual(@as(?Rect, null), tooltip.target_area);
+}
+
+test "Tooltip.notifyHover respects existing show_delay pending logic" {
+    var tooltip = Tooltip.init("Test")
+        .withTrigger(.hover)
+        .withShowDelay(3);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.notifyHover(true, target);
+    try std.testing.expectEqual(true, tooltip.pending);
+    try std.testing.expectEqual(@as(u32, 3), tooltip.delay_ticks_remaining);
+
+    // After ticking through delay, should become visible
+    tooltip.tick();
+    tooltip.tick();
+    tooltip.tick();
+
+    try std.testing.expectEqual(true, tooltip.visible);
+    try std.testing.expectEqual(false, tooltip.pending);
+}
+
+test "Tooltip.notifyFocus respects existing show_delay pending logic" {
+    var tooltip = Tooltip.init("Test")
+        .withTrigger(.focus)
+        .withShowDelay(2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.notifyFocus(true, target);
+    try std.testing.expectEqual(true, tooltip.pending);
+    try std.testing.expectEqual(@as(u32, 2), tooltip.delay_ticks_remaining);
+
+    // After ticking through delay, should become visible
+    tooltip.tick();
+    tooltip.tick();
+
+    try std.testing.expectEqual(true, tooltip.visible);
+    try std.testing.expectEqual(false, tooltip.pending);
+}
+
+test "Tooltip.notifyHover does not affect state when trigger is manual" {
+    var tooltip = Tooltip.init("Test")
+        .withTrigger(.manual)
+        .withShowDelay(5);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    const initial_pending = tooltip.pending;
+    const initial_visible = tooltip.visible;
+    const initial_delay = tooltip.delay_ticks_remaining;
+    const initial_target = tooltip.target_area;
+
+    tooltip.notifyHover(true, target);
+
+    try std.testing.expectEqual(initial_pending, tooltip.pending);
+    try std.testing.expectEqual(initial_visible, tooltip.visible);
+    try std.testing.expectEqual(initial_delay, tooltip.delay_ticks_remaining);
+    try std.testing.expectEqual(initial_target, tooltip.target_area);
+}
+
+test "Tooltip.notifyFocus does not affect state when trigger is manual" {
+    var tooltip = Tooltip.init("Test")
+        .withTrigger(.manual)
+        .withShowDelay(5);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    const initial_pending = tooltip.pending;
+    const initial_visible = tooltip.visible;
+    const initial_delay = tooltip.delay_ticks_remaining;
+    const initial_target = tooltip.target_area;
+
+    tooltip.notifyFocus(true, target);
+
+    try std.testing.expectEqual(initial_pending, tooltip.pending);
+    try std.testing.expectEqual(initial_visible, tooltip.visible);
+    try std.testing.expectEqual(initial_delay, tooltip.delay_ticks_remaining);
+    try std.testing.expectEqual(initial_target, tooltip.target_area);
 }
