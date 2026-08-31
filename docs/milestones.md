@@ -4,8 +4,8 @@
 
 - **Latest release**: v2.97.0 (2026-08-31) — minor release bundling 4 feat commits + 1 test commit accumulated since v2.96.1: session 418 (repl.zig word-jump/kill-line), session 419 (repl.zig `Config.validator` wiring), session 420 (progress.zig Bar coverage, test-only), session 421 (async_loop.zig `decodeEventBytes`/`readTerminalEvent` real input wiring), session 422 (fmt.zig `Plain` key-value formatter). All feat commits close the same doc-comment-promised-but-unimplemented gap pattern found by the core-module audit. Released as MINOR (not patch) following session 410's precedent of bundling multiple accumulated feat commits into a minor version — session 423: `zig build test` 0 failures, CI green on last 3 runs (includes all 6 cross-compile targets), 0 open bug issues anywhere.
 - **Latest minor**: v2.97.0 (2026-08-31)
-- **Unreleased on main**: 2 feat commits since v2.97.0 — session 423 (tooltip.zig auto-dismiss-on-timeout), session 424 (tooltip.zig configurable delay-before-showing)
-- **Next release**: TBD — accumulate further widget-audit fixes before bundling, per v2.97.0's precedent
+- **Unreleased on main**: 3 commits since v2.97.0 — session 423 (feat: tooltip.zig auto-dismiss-on-timeout), session 424 (feat: tooltip.zig configurable delay-before-showing), session 425 (test: carousel.zig coverage, stabilization audit)
+- **Next release**: TBD — accumulate further widget-audit fixes before bundling, per v2.97.0's precedent. Session 425 (stabilization) confirmed all 3 non-milestone release gates already pass (tests, 6-target cross-compile, 0 bug issues) — only the milestone-completion gate is blocking a minor release.
 - **Active milestones**: 1 — v2.98.0 Widget Doc-Comment Audit (see below)
 - **Blockers**: None
 
