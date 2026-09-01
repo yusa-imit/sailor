@@ -1408,4 +1408,5 @@ test {
     _ = @import("widgets/list.zig");
     _ = @import("widgets/table.zig");
     _ = @import("widgets/tooltip.zig");
+    _ = @import("widgets/notification.zig");
 }

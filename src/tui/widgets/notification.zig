@@ -108,6 +108,13 @@ pub const Notification = struct {
     show_border: bool,
     /// Custom style (overrides level default if set)
     custom_style: ?Style,
+    /// Ticks until auto-dismiss (0 = persistent, never auto-dismissed)
+    timeout_ticks: u32 = 0,
+    /// Internal countdown, initialized to timeout_ticks; decremented by tick()
+    ticks_remaining: u32 = 0,
+    /// True once dismissed (manually via dismiss() or automatically via tick() timeout).
+    /// render() is a no-op once dismissed.
+    dismissed: bool = false,
 
     pub fn init(message: []const u8, level: Level) Notification {
         return Notification{
@@ -144,6 +151,31 @@ pub const Notification = struct {
     /// Set position
     pub fn setPosition(self: *Notification, pos: Position) void {
         self.position = pos;
+    }
+
+    /// Set auto-dismiss timeout in ticks (0 = persistent). Sets ticks_remaining to match,
+    /// since Notification has no separate show() call — it's live as soon as constructed.
+    pub fn withTimeout(self: Notification, ticks: u32) Notification {
+        var result = self;
+        result.timeout_ticks = ticks;
+        result.ticks_remaining = ticks;
+        return result;
+    }
+
+    /// Manually dismiss the notification. render() becomes a no-op after this.
+    pub fn dismiss(self: *Notification) void {
+        self.dismissed = true;
+    }
+
+    /// Advance the auto-dismiss countdown by one tick. No-op if already dismissed
+    /// or if timeout_ticks == 0 (persistent). Sets dismissed = true when ticks_remaining hits 0.
+    pub fn tick(self: *Notification) void {
+        if (self.dismissed) return;
+        if (self.timeout_ticks == 0) return;
+        self.ticks_remaining -= 1;
+        if (self.ticks_remaining == 0) {
+            self.dismissed = true;
+        }
     }
 
     /// Calculate notification area based on parent and settings
@@ -185,6 +217,7 @@ pub const Notification = struct {
 
     /// Render the notification
     pub fn render(self: Notification, buf: *Buffer, parent_area: Rect) !void {
+        if (self.dismissed) return;
         if (parent_area.width == 0 or parent_area.height == 0) return;
 
         const area = self.calculateArea(parent_area);
@@ -348,7 +381,7 @@ test "Notification.render simple" {
     var notif = Notification.info("Test notification");
 
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
-    var buf = try Buffer.init(allocator, area);
+    var buf = try Buffer.init(allocator, area.width, area.height);
     defer buf.deinit();
 
     try notif.render(&buf, area);
@@ -357,7 +390,7 @@ test "Notification.render simple" {
     var non_empty: usize = 0;
     for (0..area.height) |row| {
         for (0..area.width) |col| {
-            const cell = buf.getCell(@intCast(col), @intCast(row));
+            const cell = buf.getConst(@intCast(col), @intCast(row)).?;
             if (cell.char != ' ') non_empty += 1;
         }
     }
@@ -371,7 +404,7 @@ test "Notification.render with title" {
     notif.title = "Success";
 
     const area = Rect{ .x = 0, .y = 0, .width = 70, .height = 25 };
-    var buf = try Buffer.init(allocator, area);
+    var buf = try Buffer.init(allocator, area.width, area.height);
     defer buf.deinit();
 
     try notif.render(&buf, area);
@@ -380,7 +413,7 @@ test "Notification.render with title" {
     var found_text = false;
     for (0..area.height) |row| {
         for (0..area.width) |col| {
-            const cell = buf.getCell(@intCast(col), @intCast(row));
+            const cell = buf.getConst(@intCast(col), @intCast(row)).?;
             if (cell.char == 'O' or cell.char == 'p' or cell.char == 'e') {
                 found_text = true;
             }
@@ -396,7 +429,7 @@ test "Notification.render no border" {
     notif.show_border = false;
 
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 15 };
-    var buf = try Buffer.init(allocator, area);
+    var buf = try Buffer.init(allocator, area.width, area.height);
     defer buf.deinit();
 
     try notif.render(&buf, area);
@@ -405,7 +438,7 @@ test "Notification.render no border" {
     var found_message = false;
     for (0..area.height) |row| {
         for (0..area.width) |col| {
-            const cell = buf.getCell(@intCast(col), @intCast(row));
+            const cell = buf.getConst(@intCast(col), @intCast(row)).?;
             if (cell.char == 'W' or cell.char == 'a' or cell.char == 't') {
                 found_message = true;
             }
@@ -431,7 +464,7 @@ test "Notification.render all positions" {
         notif.setPosition(pos);
 
         const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
-        var buf = try Buffer.init(allocator, area);
+        var buf = try Buffer.init(allocator, area.width, area.height);
         defer buf.deinit();
 
         // Should render at all positions without error
@@ -444,9 +477,166 @@ test "Notification.render empty area" {
     const notif = Notification.err("Error");
 
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
-    var buf = try Buffer.init(allocator, Rect{ .x = 0, .y = 0, .width = 10, .height = 10 });
+    var buf = try Buffer.init(allocator, 10, 10);
     defer buf.deinit();
 
     // Should not crash
     try notif.render(&buf, area);
+}
+
+// Auto-dismiss and manual-close tests (RED phase — these tests will fail until implementation)
+
+test "Notification default timeout fields are zero and not dismissed" {
+    const notif = Notification.init("Test", .info);
+    try std.testing.expectEqual(@as(u32, 0), notif.timeout_ticks);
+    try std.testing.expectEqual(@as(u32, 0), notif.ticks_remaining);
+    try std.testing.expectEqual(false, notif.dismissed);
+}
+
+test "Notification.info default timeout fields are zero and not dismissed" {
+    const notif = Notification.info("Info message");
+    try std.testing.expectEqual(@as(u32, 0), notif.timeout_ticks);
+    try std.testing.expectEqual(@as(u32, 0), notif.ticks_remaining);
+    try std.testing.expectEqual(false, notif.dismissed);
+}
+
+test "Notification.withTimeout sets both timeout_ticks and ticks_remaining" {
+    const notif = Notification.success("Test");
+    const with_timeout = notif.withTimeout(5);
+
+    try std.testing.expectEqual(@as(u32, 5), with_timeout.timeout_ticks);
+    try std.testing.expectEqual(@as(u32, 5), with_timeout.ticks_remaining);
+    try std.testing.expectEqual(false, with_timeout.dismissed);
+
+    // Original should be unchanged (immutability check)
+    try std.testing.expectEqual(@as(u32, 0), notif.timeout_ticks);
+}
+
+test "Notification.dismiss sets dismissed to true" {
+    var notif = Notification.warning("Test");
+    try std.testing.expectEqual(false, notif.dismissed);
+
+    notif.dismiss();
+    try std.testing.expectEqual(true, notif.dismissed);
+}
+
+test "Notification.tick persistent (timeout_ticks=0) never dismisses" {
+    var notif = Notification.err("Test");
+    try std.testing.expectEqual(@as(u32, 0), notif.timeout_ticks);
+
+    // Call tick 5 times
+    for (0..5) |_| {
+        notif.tick();
+    }
+
+    try std.testing.expectEqual(false, notif.dismissed);
+    try std.testing.expectEqual(@as(u32, 0), notif.ticks_remaining);
+}
+
+test "Notification.tick countdown with timeout_ticks=3" {
+    var notif = Notification.info("Test").withTimeout(3);
+
+    // First tick: ticks_remaining becomes 2, still not dismissed
+    notif.tick();
+    try std.testing.expectEqual(@as(u32, 2), notif.ticks_remaining);
+    try std.testing.expectEqual(false, notif.dismissed);
+
+    // Second tick: ticks_remaining becomes 1, still not dismissed
+    notif.tick();
+    try std.testing.expectEqual(@as(u32, 1), notif.ticks_remaining);
+    try std.testing.expectEqual(false, notif.dismissed);
+
+    // Third tick: ticks_remaining becomes 0, now dismissed
+    notif.tick();
+    try std.testing.expectEqual(@as(u32, 0), notif.ticks_remaining);
+    try std.testing.expectEqual(true, notif.dismissed);
+}
+
+test "Notification.tick after already dismissed prevents underflow" {
+    var notif = Notification.success("Test").withTimeout(1);
+
+    notif.tick();
+    try std.testing.expectEqual(true, notif.dismissed);
+    try std.testing.expectEqual(@as(u32, 0), notif.ticks_remaining);
+
+    // Call tick again on already-dismissed notification
+    // Should not panic/underflow; should remain dismissed
+    notif.tick();
+    try std.testing.expectEqual(true, notif.dismissed);
+    try std.testing.expectEqual(@as(u32, 0), notif.ticks_remaining);
+}
+
+test "Notification.render after manual dismiss produces no output" {
+    const allocator = std.testing.allocator;
+    var notif = Notification.info("Test notification");
+    notif.dismiss();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
+    var buf = try Buffer.init(allocator, area.width, area.height);
+    defer buf.deinit();
+
+    try notif.render(&buf, area);
+
+    // Count non-space cells; dismissed render should produce zero
+    var non_empty: usize = 0;
+    for (0..area.height) |row| {
+        for (0..area.width) |col| {
+            const cell = buf.getConst(@intCast(col), @intCast(row)).?;
+            if (cell.char != ' ') non_empty += 1;
+        }
+    }
+
+    try std.testing.expectEqual(@as(usize, 0), non_empty);
+}
+
+test "Notification.render after auto-dismiss via tick produces no output" {
+    const allocator = std.testing.allocator;
+    var notif = Notification.success("Test notification").withTimeout(1);
+
+    // Tick once to trigger auto-dismiss
+    notif.tick();
+    try std.testing.expectEqual(true, notif.dismissed);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
+    var buf = try Buffer.init(allocator, area.width, area.height);
+    defer buf.deinit();
+
+    try notif.render(&buf, area);
+
+    // Count non-space cells; dismissed render should produce zero
+    var non_empty: usize = 0;
+    for (0..area.height) |row| {
+        for (0..area.width) |col| {
+            const cell = buf.getConst(@intCast(col), @intCast(row)).?;
+            if (cell.char != ' ') non_empty += 1;
+        }
+    }
+
+    try std.testing.expectEqual(@as(usize, 0), non_empty);
+}
+
+test "Notification.render with persistent timeout (default) still renders normally" {
+    const allocator = std.testing.allocator;
+    var notif = Notification.warning("Test notification");
+
+    // Verify defaults: timeout_ticks=0, dismissed=false
+    try std.testing.expectEqual(@as(u32, 0), notif.timeout_ticks);
+    try std.testing.expectEqual(false, notif.dismissed);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
+    var buf = try Buffer.init(allocator, area.width, area.height);
+    defer buf.deinit();
+
+    try notif.render(&buf, area);
+
+    // Should render normally (content visible)
+    var non_empty: usize = 0;
+    for (0..area.height) |row| {
+        for (0..area.width) |col| {
+            const cell = buf.getConst(@intCast(col), @intCast(row)).?;
+            if (cell.char != ' ') non_empty += 1;
+        }
+    }
+
+    try std.testing.expect(non_empty > 0);
 }
