@@ -2,14 +2,14 @@
 
 ## Current Status
 
-- **Latest release**: v2.97.0 (2026-08-31) — minor release bundling 4 feat commits + 1 test commit accumulated since v2.96.1: session 418 (repl.zig word-jump/kill-line), session 419 (repl.zig `Config.validator` wiring), session 420 (progress.zig Bar coverage, test-only), session 421 (async_loop.zig `decodeEventBytes`/`readTerminalEvent` real input wiring), session 422 (fmt.zig `Plain` key-value formatter). All feat commits close the same doc-comment-promised-but-unimplemented gap pattern found by the core-module audit. Released as MINOR (not patch) following session 410's precedent of bundling multiple accumulated feat commits into a minor version — session 423: `zig build test` 0 failures, CI green on last 3 runs (includes all 6 cross-compile targets), 0 open bug issues anywhere.
-- **Latest minor**: v2.97.0 (2026-08-31)
-- **Unreleased on main**: 5 commits since v2.97.0 — session 423 (feat: tooltip.zig auto-dismiss-on-timeout), session 424 (feat: tooltip.zig configurable delay-before-showing), session 425 (test: carousel.zig coverage, stabilization audit), session 426 (feat: splitpane.zig drag-handle resize API), session 427 (feat: tooltip.zig Trigger enum hover/focus wiring)
-- **Next release**: TBD — accumulate further widget-audit fixes before bundling, per v2.97.0's precedent. Session 425 (stabilization) confirmed all 3 non-milestone release gates already pass (tests, 6-target cross-compile, 0 bug issues) — only the milestone-completion gate is blocking a minor release.
-- **Active milestones**: 1 — v2.98.0 Widget Doc-Comment Audit (see below)
+- **Latest release**: v2.98.0 (2026-09-01) — minor release closing the Widget Doc-Comment Audit milestone. Bundles 6 commits accumulated since v2.97.0: session 423 (tooltip.zig auto-dismiss-on-timeout), 424 (tooltip.zig show-delay), 425 (carousel.zig test coverage, stabilization), 426 (splitpane.zig drag-handle resize), 427 (tooltip.zig Trigger enum wiring), 428 (tooltip.zig fade-in animation — the milestone's last item). `zig build test` 0 failures, CI green (6-target cross-compile matrix included), 0 open bug issues anywhere.
+- **Latest minor**: v2.98.0 (2026-09-01)
+- **Unreleased on main**: none
+- **Next release**: TBD — milestone establishment process should run next session (0 active milestones after this release; check `gh issue list --label feature-request` across sailor/zr/zoltraak/silica first per protocol, then fall back to a fresh Explore pass over more of the 145+ widget files for the same doc-comment-vs-implementation pattern, or another tech-debt source).
+- **Active milestones**: 0
 - **Blockers**: None
 
-### v2.98.0 — Widget Doc-Comment Audit (Active)
+### v2.98.0 — Widget Doc-Comment Audit (Complete)
 
 **Theme**: Extend the doc-comment-vs-implementation audit method (used successfully for repl.zig,
 async_loop.zig, and fmt.zig across sessions 418-422, now released as v2.97.0) to `tui/widgets/*.zig`
@@ -63,17 +63,35 @@ concrete, already-identified lead each of the last 5 core-module sessions flagge
       event-loop-agnostic pattern as splitpane.zig's `isOnDivider`/`resizeAt` (session 426). 24 new
       RED tests (test-writer) → GREEN (implemented directly, single-file change), `zig build test`
       0 failures.
-- [ ] Remaining `tooltip.zig` doc-comment promise NOT yet fixed: "optional fade-in animation" —
-      would need a frame/alpha concept, no existing precedent widget for this in the codebase, needs
-      its own design pass (e.g. an `alpha: f32` or `fade_ticks_remaining` field plus a documented
-      convention for how a renderer interprets partial-alpha style — no existing widget blends
-      styles by alpha today, so this needs an actual design decision, not just plumbing). Next
-      session should either tackle this design, or run a fresh Explore pass over more widget files
-      (only tooltip.zig and splitpane.zig have been triaged so far out of 145+ widget files).
-- [ ] If the sweep comes back clean (no real gaps, only accurate doc comments), close the milestone
-      as "audited, no gaps found" rather than force a fix
-- [ ] Release once a meaningful batch of fixes has accumulated, per the same
-      accumulate-then-bundle judgment used for v2.97.0
+- [x] `tooltip.zig` "optional fade-in animation" — session 428: added `fade_in_ticks: u32 = 0`
+      (0 = instant full opacity, same convention as `timeout_ticks`/`show_delay_ticks`),
+      `fade_ticks_elapsed: u32 = 0` (internal, progressed by `tick()` while visible, capped at
+      `fade_in_ticks`), `withFadeIn()` builder, and `currentAlpha() f32`. Design decision (no
+      existing blend/alpha precedent anywhere in the codebase, confirmed via grep before
+      designing): blending is scoped to `.rgb` colors only (lerped from black toward the target
+      as alpha ramps 0→1 via new module-private `blendColor`/`blendStyle` helpers) since named/
+      indexed ANSI colors have no interpolatable components — those render at full configured
+      color immediately regardless of alpha, a documented scope boundary rather than a gap.
+      Boolean style attributes (bold/underline/etc.) are never blended for the same reason.
+      Applied to content style, block border style (via `Block.withBorderStyle`), and arrow
+      style. At alpha ≥ 1.0 (fade disabled — the default — or complete) blending is a pure
+      identity/early-return, so all pre-existing render tests pass byte-for-byte unmodified. 21
+      new RED tests (test-writer) → GREEN (implemented directly, single-file change) — one
+      test-writer bug caught and correctly sent back rather than fixed directly (2 tests
+      asserted a default named-color `border_style` would blend to `.rgb`, contradicting the
+      rgb-only design; fixed to use an explicit rgb `border_style` with exact hand-computed
+      values), one off-by-one caught after GREEN verification (a pending-phase test ticked 3
+      times with `withShowDelay(3)`, which completes the delay exactly on tick 3 — re-dispatched
+      test-writer rather than patching directly). `zig build test` 0 failures (independently
+      verified twice), CI green including 6-target cross-compile.
+- [x] Sweep did not come back clean — 4 real gaps found and fixed (timeout, show-delay, Trigger
+      wiring, fade-in), all in `tooltip.zig`; plus 1 in `splitpane.zig` (drag-handle resize).
+      Milestone closes with fixes, not as "audited, no gaps found."
+- [x] Release — bundled into **v2.98.0** (session 428): 6 unreleased commits since v2.97.0
+      (session 423 tooltip timeout, 424 show-delay, 425 carousel test coverage, 426 splitpane
+      drag-handle, 427 Trigger wiring, 428 fade-in animation), following the same
+      accumulate-then-bundle precedent as v2.97.0. `zig build test` 0 failures, CI green
+      (6-target cross-compile matrix included), 0 open bug issues anywhere.
 
 ### Infinity Safety Audit for Chart Widgets (Complete — released as v2.96.1)
 
