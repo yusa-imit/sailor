@@ -19,13 +19,10 @@ panics, fully resolved as of v2.96.1). Found 2 strong candidates and 1 weaker on
 confirmed clean (doc comments match implementation, no further action needed on those).
 
 **Checklist**:
-- [ ] `notification.zig` (**strongest candidate**) — top doc comment (line 56) claims
-      "auto-dismiss or manual close" but the `Notification` struct has no duration/timeout
-      field and no dismiss/close method anywhere in the file (`grep -n
-      "dismiss\|timeout\|duration\|expire\|close"` matches only the doc-comment line itself).
-      `toast_manager.zig` (already audited, clean) implements exactly this lifecycle via
-      `ticks_remaining`/`tick()`/`dismiss()` — reuse that as the precedent, same as tooltip.zig
-      reused it for its own timeout fix (session 423).
+- [x] `notification.zig` — fixed (v2.99.0 in progress, session 428/430). Added
+      `withTimeout()`/`dismiss()`/`tick()` reusing the `toast_manager.zig` ticks_remaining
+      pattern; `render()` is now a no-op once dismissed. 10 new tests. Implemented session 428,
+      committed session 430 (leftover uncommitted work from a prior session).
 - [ ] `multicursor.zig` — doc comment (lines 18-20) claims "undo/redo" and "Ctrl+D for next
       occurrence" cursor addition; neither exists anywhere in the 1067-line file (grep for
       `undo|redo|occurrence` only matches the doc comment itself). This is a bigger design
