@@ -1403,6 +1403,7 @@ test "RenderHooks mixed null and non-null callbacks" {
 test {
     std.testing.refAllDecls(@This());
     // Pull in widget tests
+    _ = @import("widgets/accordion.zig");
     _ = @import("widgets/block.zig");
     _ = @import("widgets/paragraph.zig");
     _ = @import("widgets/list.zig");
