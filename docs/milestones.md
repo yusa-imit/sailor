@@ -5,9 +5,48 @@
 - **Latest release**: v2.98.0 (2026-09-01) — minor release closing the Widget Doc-Comment Audit milestone. Bundles 6 commits accumulated since v2.97.0: session 423 (tooltip.zig auto-dismiss-on-timeout), 424 (tooltip.zig show-delay), 425 (carousel.zig test coverage, stabilization), 426 (splitpane.zig drag-handle resize), 427 (tooltip.zig Trigger enum wiring), 428 (tooltip.zig fade-in animation — the milestone's last item). `zig build test` 0 failures, CI green (6-target cross-compile matrix included), 0 open bug issues anywhere.
 - **Latest minor**: v2.98.0 (2026-09-01)
 - **Unreleased on main**: none
-- **Next release**: TBD — milestone establishment process should run next session (0 active milestones after this release; check `gh issue list --label feature-request` across sailor/zr/zoltraak/silica first per protocol, then fall back to a fresh Explore pass over more of the 145+ widget files for the same doc-comment-vs-implementation pattern, or another tech-debt source).
-- **Active milestones**: 0
+- **Next release**: TBD — accumulate fixes from the v2.99.0 milestone below before bundling, per the v2.97.0/v2.98.0 precedent.
+- **Active milestones**: 1 — v2.99.0 Widget Doc-Comment Audit Round 2 (see below)
 - **Blockers**: None
+
+### v2.99.0 — Widget Doc-Comment Audit Round 2 (Active)
+
+**Theme**: Continuation of the same doc-comment-vs-implementation audit method (tooltip.zig,
+splitpane.zig — now released as v2.98.0) extended to a fresh batch of widget files. Session 428
+dispatched an Explore agent over 18 more interactive/stateful widgets (chosen over
+already-exhausted chart widgets, which were audited for a different bug class — Infinity/NaN
+panics, fully resolved as of v2.96.1). Found 2 strong candidates and 1 weaker one; 16 files
+confirmed clean (doc comments match implementation, no further action needed on those).
+
+**Checklist**:
+- [ ] `notification.zig` (**strongest candidate**) — top doc comment (line 56) claims
+      "auto-dismiss or manual close" but the `Notification` struct has no duration/timeout
+      field and no dismiss/close method anywhere in the file (`grep -n
+      "dismiss\|timeout\|duration\|expire\|close"` matches only the doc-comment line itself).
+      `toast_manager.zig` (already audited, clean) implements exactly this lifecycle via
+      `ticks_remaining`/`tick()`/`dismiss()` — reuse that as the precedent, same as tooltip.zig
+      reused it for its own timeout fix (session 423).
+- [ ] `multicursor.zig` — doc comment (lines 18-20) claims "undo/redo" and "Ctrl+D for next
+      occurrence" cursor addition; neither exists anywhere in the 1067-line file (grep for
+      `undo|redo|occurrence` only matches the doc comment itself). This is a bigger design
+      surface than notification.zig (an undo stack + "find next occurrence of selection" scan)
+      — may need an `architect` pass per CLAUDE.md's team-formation rule if scoped in full;
+      consider splitting into 2 cycles (undo/redo first, next-occurrence second) rather than
+      one large change.
+- [ ] `context_menu.zig` (**lower confidence, triage first**) — `Submenu.items` is stored and
+      rendered with a ">" indicator but no state tracks which submenu is open and no navigation
+      method traverses into it. May be intentional API design (caller can construct a fresh
+      `ContextMenu.init(submenu.items)` themselves on selection) rather than a real gap —
+      read the file fully before assuming this needs a fix, unlike the other two.
+- [ ] Files confirmed clean this pass (skip re-checking): `toast_manager.zig`,
+      `autocomplete.zig`, `command_palette.zig`, `reorderable_list.zig`, `color_picker.zig`,
+      `carousel.zig`, `wizard.zig`, `stepper.zig`, `marquee.zig`, `ring_menu.zig`,
+      `countdown_timer.zig`, `accordion.zig`, `kanban.zig`, `filter_bar.zig`, `dialog.zig`,
+      `theme_editor.zig`.
+- [ ] Fix confirmed gaps via the full TDD cycle (test-writer RED → implement GREEN), one gap
+      per cycle, same as v2.98.0's precedent — do not mass-fix across widgets in one session.
+- [ ] Release once a meaningful batch of fixes has accumulated, per the accumulate-then-bundle
+      judgment used for v2.97.0/v2.98.0.
 
 ### v2.98.0 — Widget Doc-Comment Audit (Complete)
 
