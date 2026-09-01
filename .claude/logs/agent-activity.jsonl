@@ -342,3 +342,4 @@
 {"timestamp":"2026-08-31T00:32:54Z","action":"team_delete","team_name":"tooltip-show-delay","project":"sailor"}
 {"timestamp":"2026-08-31T06:35:51Z","action":"subagent","agent_type":"test-writer","task":"Stabilization test-quality audit — find untested public functions or vacuous tests in tui/widgets, avoid exhausted bug-class wells","project":"sailor"}
 {"timestamp": "2026-08-31T18:25:37Z", "action": "subagent", "agent_type": "test-writer", "task": "RED tests for tooltip.zig Trigger enum wiring (notifyHover/notifyFocus/withTrigger)", "project": "sailor"}
+{"timestamp":"2026-09-01T00:28:06Z","action":"subagent","agent_type":"test-writer","task":"tooltip.zig fade-in animation RED tests (v2.98.0 milestone final item)","project":"sailor"}

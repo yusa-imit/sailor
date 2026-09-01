@@ -72,6 +72,10 @@ pub const Tooltip = struct {
     delay_ticks_remaining: u32 = 0,
     /// Trigger mechanism gating notifyHover()/notifyFocus() (manual = caller drives show()/hide() directly)
     trigger: Trigger = .manual,
+    /// Ticks to reach full opacity after becoming visible (0 = instant full opacity)
+    fade_in_ticks: u32 = 0,
+    /// Internal fade progress, incremented by tick() while visible, capped at fade_in_ticks
+    fade_ticks_elapsed: u32 = 0,
 
     /// Create a new tooltip with content
     pub fn init(content: []const u8) Tooltip {
@@ -129,8 +133,24 @@ pub const Tooltip = struct {
         return result;
     }
 
+    /// Set fade-in duration in ticks (0 = instant full opacity)
+    pub fn withFadeIn(self: Tooltip, ticks: u32) Tooltip {
+        var result = self;
+        result.fade_in_ticks = ticks;
+        return result;
+    }
+
+    /// Current fade-in opacity in [0.0, 1.0]. 1.0 if fade_in_ticks == 0 (disabled) or the
+    /// fade has completed; otherwise fade_ticks_elapsed / fade_in_ticks.
+    pub fn currentAlpha(self: Tooltip) f32 {
+        if (self.fade_in_ticks == 0) return 1.0;
+        if (self.fade_ticks_elapsed >= self.fade_in_ticks) return 1.0;
+        return @as(f32, @floatFromInt(self.fade_ticks_elapsed)) / @as(f32, @floatFromInt(self.fade_in_ticks));
+    }
+
     /// Show tooltip at target area
     pub fn show(self: *Tooltip, target_area: Rect) void {
+        self.fade_ticks_elapsed = 0;
         if (self.show_delay_ticks == 0) {
             // No delay: show immediately
             self.visible = true;
@@ -151,6 +171,7 @@ pub const Tooltip = struct {
         self.target_area = null;
         self.pending = false;
         self.delay_ticks_remaining = 0;
+        self.fade_ticks_elapsed = 0;
     }
 
     /// Notify the tooltip of a hover state change. No-op unless `trigger == .hover` —
@@ -186,15 +207,21 @@ pub const Tooltip = struct {
                 self.pending = false;
                 self.visible = true;
                 self.ticks_remaining = self.timeout_ticks;
+                self.fade_ticks_elapsed = 0; // fresh fade start the moment it becomes visible
             }
-        } else {
-            // Not pending: handle existing timeout logic
-            if (!self.visible or self.timeout_ticks == 0) return;
+            return;
+        }
 
-            self.ticks_remaining -= 1;
-            if (self.ticks_remaining == 0) {
-                self.hide();
-            }
+        if (!self.visible) return;
+
+        if (self.fade_ticks_elapsed < self.fade_in_ticks) {
+            self.fade_ticks_elapsed += 1;
+        }
+
+        if (self.timeout_ticks == 0) return;
+        self.ticks_remaining -= 1;
+        if (self.ticks_remaining == 0) {
+            self.hide();
         }
     }
 
@@ -205,6 +232,13 @@ pub const Tooltip = struct {
 
         var buf_mut = buf;
 
+        // Fade-in: blend styles toward their target color based on current alpha. At
+        // alpha >= 1.0 (fade disabled or complete) these are identical to self.style/
+        // self.border_style, preserving pre-fade-feature rendering exactly.
+        const alpha = self.currentAlpha();
+        const content_style = blendStyle(self.style, alpha);
+        const border_style = blendStyle(self.border_style, alpha);
+
         // Calculate tooltip size and position
         const tooltip_area = self.calculateArea(area);
         if (tooltip_area.width == 0 or tooltip_area.height == 0) return;
@@ -212,17 +246,18 @@ pub const Tooltip = struct {
         // Render block wrapper if present
         var inner_area = tooltip_area;
         if (self.block) |blk| {
-            blk.render(&buf_mut, tooltip_area);
-            inner_area = blk.inner(tooltip_area);
+            const faded_block = blk.withBorderStyle(border_style);
+            faded_block.render(&buf_mut, tooltip_area);
+            inner_area = faded_block.inner(tooltip_area);
             if (inner_area.width == 0 or inner_area.height == 0) return;
         }
 
         // Render content
-        buf_mut.setString(inner_area.x, inner_area.y, self.content, self.style);
+        buf_mut.setString(inner_area.x, inner_area.y, self.content, content_style);
 
         // Render arrow if enabled
         if (self.show_arrow) {
-            self.renderArrow(&buf_mut, tooltip_area);
+            self.renderArrow(&buf_mut, tooltip_area, border_style);
         }
     }
 
@@ -306,7 +341,7 @@ pub const Tooltip = struct {
     }
 
     /// Internal: Render arrow indicator
-    fn renderArrow(self: Tooltip, buf: *Buffer, tooltip_area: Rect) void {
+    fn renderArrow(self: Tooltip, buf: *Buffer, tooltip_area: Rect, arrow_style: Style) void {
         const target = self.target_area orelse return;
 
         const actual_position = if (self.position == .auto)
@@ -337,9 +372,41 @@ pub const Tooltip = struct {
             .auto => return,
         };
 
-        buf.set(arrow_x, arrow_y, .{ .char = arrow_char, .style = self.border_style });
+        buf.set(arrow_x, arrow_y, .{ .char = arrow_char, .style = arrow_style });
     }
 };
+
+/// Blend a color toward black by alpha in [0.0, 1.0]. Only `.rgb` colors are blendable —
+/// named/indexed ANSI colors have no interpolatable components, so they render at their full
+/// configured color regardless of alpha.
+fn blendColor(color: ?Color, alpha: f32) ?Color {
+    const c = color orelse return null;
+    if (alpha >= 1.0) return c;
+    const a = @max(0.0, alpha);
+    return switch (c) {
+        .rgb => |rgb| Color.fromRgb(
+            lerpChannel(rgb.r, a),
+            lerpChannel(rgb.g, a),
+            lerpChannel(rgb.b, a),
+        ),
+        else => c,
+    };
+}
+
+fn lerpChannel(target: u8, alpha: f32) u8 {
+    const t: f32 = @floatFromInt(target);
+    return @intFromFloat(@round(t * alpha));
+}
+
+/// Blend a style's fg/bg colors toward black by alpha. Boolean attributes (bold, underline,
+/// etc.) are never blended — they apply at full effect immediately.
+fn blendStyle(style: Style, alpha: f32) Style {
+    if (alpha >= 1.0) return style;
+    var result = style;
+    result.fg = blendColor(style.fg, alpha);
+    result.bg = blendColor(style.bg, alpha);
+    return result;
+}
 
 // ============================================================================
 // TESTS
@@ -1642,4 +1709,386 @@ test "Tooltip.notifyFocus does not affect state when trigger is manual" {
     try std.testing.expectEqual(initial_visible, tooltip.visible);
     try std.testing.expectEqual(initial_delay, tooltip.delay_ticks_remaining);
     try std.testing.expectEqual(initial_target, tooltip.target_area);
+}
+
+// ============================================================================
+// FADE-IN ANIMATION TESTS (Red Phase)
+// ============================================================================
+
+test "Tooltip.init defaults fade_in_ticks to 0" {
+    const tooltip = Tooltip.init("Test");
+    try std.testing.expectEqual(@as(u32, 0), tooltip.fade_in_ticks);
+}
+
+test "Tooltip.init defaults fade_ticks_elapsed to 0" {
+    const tooltip = Tooltip.init("Test");
+    try std.testing.expectEqual(@as(u32, 0), tooltip.fade_ticks_elapsed);
+}
+
+test "Tooltip.withFadeIn sets fade_in_ticks field" {
+    const tooltip = Tooltip.init("Test").withFadeIn(8);
+    try std.testing.expectEqual(@as(u32, 8), tooltip.fade_in_ticks);
+}
+
+test "Tooltip.withFadeIn builder returns modified copy and original unchanged" {
+    const t1 = Tooltip.init("Test");
+    const t2 = t1.withFadeIn(10);
+
+    try std.testing.expectEqual(@as(u32, 0), t1.fade_in_ticks); // Original unchanged
+    try std.testing.expectEqual(@as(u32, 10), t2.fade_in_ticks); // Copy modified
+}
+
+test "Tooltip.currentAlpha returns 1.0 when fade_in_ticks equals 0 (default, disabled)" {
+    var tooltip = Tooltip.init("Test");
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+
+    try std.testing.expectEqual(@as(f32, 1.0), tooltip.currentAlpha());
+}
+
+test "Tooltip.currentAlpha returns 0.0 immediately after show with fade_in_ticks > 0 (no tick yet)" {
+    var tooltip = Tooltip.init("Test").withFadeIn(4);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+
+    try std.testing.expectEqual(@as(f32, 0.0), tooltip.currentAlpha());
+}
+
+test "Tooltip.currentAlpha mid-fade progression at multiple tick stages" {
+    var tooltip = Tooltip.init("Test").withFadeIn(4);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+
+    // After 1 tick: fade_ticks_elapsed = 1, fade_in_ticks = 4 → alpha = 0.25
+    tooltip.tick();
+    try std.testing.expectEqual(@as(f32, 0.25), tooltip.currentAlpha());
+
+    // After 2 ticks: fade_ticks_elapsed = 2, fade_in_ticks = 4 → alpha = 0.5
+    tooltip.tick();
+    try std.testing.expectEqual(@as(f32, 0.5), tooltip.currentAlpha());
+
+    // After 3 ticks: fade_ticks_elapsed = 3, fade_in_ticks = 4 → alpha = 0.75
+    tooltip.tick();
+    try std.testing.expectEqual(@as(f32, 0.75), tooltip.currentAlpha());
+}
+
+test "Tooltip.currentAlpha caps at 1.0 and does not over-increment fade_ticks_elapsed" {
+    var tooltip = Tooltip.init("Test").withFadeIn(2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+
+    // Tick twice to reach fade_in_ticks = 2
+    tooltip.tick();
+    tooltip.tick();
+    try std.testing.expectEqual(@as(f32, 1.0), tooltip.currentAlpha());
+    try std.testing.expectEqual(@as(u32, 2), tooltip.fade_ticks_elapsed);
+
+    // Tick 5 more times — should stay at 1.0 and fade_ticks_elapsed should cap at 2
+    for (0..5) |_| {
+        tooltip.tick();
+    }
+    try std.testing.expectEqual(@as(f32, 1.0), tooltip.currentAlpha());
+    try std.testing.expectEqual(@as(u32, 2), tooltip.fade_ticks_elapsed); // Not 7, stays at 2
+}
+
+test "Tooltip.show resets fade_ticks_elapsed to 0 on re-show" {
+    var tooltip = Tooltip.init("Test").withFadeIn(3);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    // Show and tick partway through fade
+    tooltip.show(target);
+    tooltip.tick();
+    tooltip.tick();
+    try std.testing.expectEqual(@as(u32, 2), tooltip.fade_ticks_elapsed);
+    try std.testing.expectEqual(@as(f32, 2.0 / 3.0), tooltip.currentAlpha());
+
+    // Hide and show again
+    tooltip.hide();
+    tooltip.show(target);
+
+    // fade_ticks_elapsed should be reset to 0, alpha back to 0.0
+    try std.testing.expectEqual(@as(u32, 0), tooltip.fade_ticks_elapsed);
+    try std.testing.expectEqual(@as(f32, 0.0), tooltip.currentAlpha());
+}
+
+test "Tooltip.tick during pending phase does NOT progress fade_ticks_elapsed" {
+    var tooltip = Tooltip.init("Test")
+        .withFadeIn(4)
+        .withShowDelay(3);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    try std.testing.expectEqual(true, tooltip.pending);
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(@as(u32, 0), tooltip.fade_ticks_elapsed);
+
+    // Tick twice during pending phase (delay_ticks_remaining goes 3→2→1)
+    tooltip.tick();
+    tooltip.tick();
+
+    // Should still be pending, visible = false, and fade_ticks_elapsed should still be 0
+    try std.testing.expectEqual(true, tooltip.pending);
+    try std.testing.expectEqual(false, tooltip.visible);
+    try std.testing.expectEqual(@as(u32, 0), tooltip.fade_ticks_elapsed);
+}
+
+test "Tooltip.tick after pending delay elapses starts fade_ticks_elapsed from 0" {
+    var tooltip = Tooltip.init("Test")
+        .withFadeIn(4)
+        .withShowDelay(2);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    try std.testing.expectEqual(true, tooltip.pending);
+    try std.testing.expectEqual(@as(u32, 0), tooltip.fade_ticks_elapsed);
+
+    // Tick twice to complete delay
+    tooltip.tick();
+    tooltip.tick();
+
+    // Now should be visible and NOT pending
+    try std.testing.expectEqual(false, tooltip.pending);
+    try std.testing.expectEqual(true, tooltip.visible);
+    try std.testing.expectEqual(@as(u32, 0), tooltip.fade_ticks_elapsed);
+
+    // Tick once more — fade_ticks_elapsed should now be 1
+    tooltip.tick();
+    try std.testing.expectEqual(@as(u32, 1), tooltip.fade_ticks_elapsed);
+    try std.testing.expectEqual(@as(f32, 0.25), tooltip.currentAlpha());
+}
+
+test "Tooltip.hide resets fade_ticks_elapsed to 0" {
+    var tooltip = Tooltip.init("Test").withFadeIn(3);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    tooltip.tick();
+    tooltip.tick();
+    try std.testing.expectEqual(@as(u32, 2), tooltip.fade_ticks_elapsed);
+
+    tooltip.hide();
+
+    try std.testing.expectEqual(@as(u32, 0), tooltip.fade_ticks_elapsed);
+}
+
+test "Tooltip fade progression and timeout countdown advance independently" {
+    var tooltip = Tooltip.init("Test")
+        .withFadeIn(2)
+        .withTimeout(5);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+
+    // After 2 ticks, fade should be complete (alpha = 1.0)
+    // and timeout should have counted down by 2 (ticks_remaining = 3)
+    tooltip.tick();
+    tooltip.tick();
+    try std.testing.expectEqual(@as(f32, 1.0), tooltip.currentAlpha());
+    try std.testing.expectEqual(@as(u32, 3), tooltip.ticks_remaining);
+    try std.testing.expectEqual(true, tooltip.visible);
+
+    // Continue ticking until timeout elapses
+    tooltip.tick();
+    tooltip.tick();
+    tooltip.tick();
+    try std.testing.expectEqual(false, tooltip.visible);
+}
+
+test "Tooltip.render with fade_in_ticks 0 (disabled) preserves original style exactly" {
+    var tooltip = Tooltip.init("Test")
+        .withStyle(.{ .fg = Color.fromRgb(200, 100, 50), .bg = .black })
+        .withPosition(.below);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+
+    var buf = try Buffer.init(std.testing.allocator, 80, 24);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    tooltip.render(buf, area);
+
+    // Content is rendered at position (10, 12)
+    const style = buf.getStyle(10, 12);
+    try std.testing.expectEqual(Color.fromRgb(200, 100, 50), style.fg.?);
+}
+
+test "Tooltip.render mid-fade blends rgb foreground color correctly" {
+    var tooltip = Tooltip.init("Test")
+        .withStyle(.{ .fg = Color.fromRgb(200, 100, 50), .bg = .black })
+        .withFadeIn(4)
+        .withPosition(.below);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    tooltip.tick();
+    tooltip.tick(); // After 2 ticks, alpha = 0.5
+
+    var buf = try Buffer.init(std.testing.allocator, 80, 24);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    tooltip.render(buf, area);
+
+    // At alpha = 0.5: round(200*0.5)=100, round(100*0.5)=50, round(50*0.5)=25
+    const style = buf.getStyle(10, 12);
+    try std.testing.expectEqual(Color.fromRgb(100, 50, 25), style.fg.?);
+}
+
+test "Tooltip.render mid-fade with named color renders full color (unblendable)" {
+    var tooltip = Tooltip.init("Test")
+        .withStyle(.{ .fg = .bright_yellow, .bg = .black })
+        .withFadeIn(4)
+        .withPosition(.below);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    tooltip.tick(); // After 1 tick, alpha = 0.25
+
+    var buf = try Buffer.init(std.testing.allocator, 80, 24);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    tooltip.render(buf, area);
+
+    // Named colors don't blend — should remain .bright_yellow
+    const style = buf.getStyle(10, 12);
+    try std.testing.expectEqual(@as(?Color, .bright_yellow), style.fg);
+}
+
+test "Tooltip.render at alpha 0.0 (immediately after show) blends to black" {
+    var tooltip = Tooltip.init("Test")
+        .withStyle(.{ .fg = Color.fromRgb(200, 100, 50), .bg = .black })
+        .withFadeIn(3)
+        .withPosition(.below);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    // No tick() yet — alpha = 0.0
+
+    var buf = try Buffer.init(std.testing.allocator, 80, 24);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    tooltip.render(buf, area);
+
+    // At alpha = 0.0: all channels blend to 0 (black)
+    const style = buf.getStyle(10, 12);
+    try std.testing.expectEqual(Color.fromRgb(0, 0, 0), style.fg.?);
+}
+
+test "Tooltip.render once fully faded in returns exact original rgb color" {
+    const original_color = Color.fromRgb(200, 100, 50);
+    var tooltip = Tooltip.init("Test")
+        .withStyle(.{ .fg = original_color, .bg = .black })
+        .withFadeIn(2)
+        .withPosition(.below);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    tooltip.tick();
+    tooltip.tick(); // After 2 ticks, alpha = 1.0, fade complete
+
+    var buf = try Buffer.init(std.testing.allocator, 80, 24);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    tooltip.render(buf, area);
+
+    const style = buf.getStyle(10, 12);
+    try std.testing.expectEqual(original_color, style.fg.?);
+}
+
+test "Tooltip.render border style also fades during mid-fade" {
+    var tooltip = Tooltip{
+        .content = "Test",
+        .style = .{ .fg = .black, .bg = .bright_yellow },
+        .border_style = .{ .fg = Color.fromRgb(200, 100, 50) },
+        .block = Block{},
+        .fade_in_ticks = 2,
+        .position = .below,
+    };
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    tooltip.tick(); // After 1 tick, alpha = 0.5
+
+    var buf = try Buffer.init(std.testing.allocator, 80, 24);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    tooltip.render(buf, area);
+
+    // The border will be rendered by the Block at top-left of tooltip area (10, 12)
+    // Original RGB(200, 100, 50) blended at alpha = 0.5:
+    // r: round(200 * 0.5) = 100
+    // g: round(100 * 0.5) = 50
+    // b: round(50 * 0.5) = 25
+    const border_style = buf.getStyle(10, 12);
+    const expected_fg = Color.fromRgb(100, 50, 25);
+    try std.testing.expectEqual(expected_fg, border_style.fg.?);
+}
+
+test "Tooltip.render arrow style also fades" {
+    var tooltip = Tooltip{
+        .content = "Test",
+        .style = .{ .fg = .black, .bg = .bright_yellow },
+        .border_style = .{ .fg = Color.fromRgb(200, 100, 50) },
+        .show_arrow = true,
+        .fade_in_ticks = 2,
+        .position = .below,
+    };
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    tooltip.tick(); // After 1 tick, alpha = 0.5
+
+    var buf = try Buffer.init(std.testing.allocator, 80, 24);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    tooltip.render(buf, area);
+
+    // The arrow should be rendered with blended border_style
+    // For .position = .below:
+    //   arrow_x = target.x + target.width / 2 = 10 + 5/2 = 12
+    //   arrow_y = tooltip_area.y - 1 = (target.y + target.height) - 1 = (10 + 2) - 1 = 11
+    // Original RGB(200, 100, 50) blended at alpha = 0.5:
+    // r: round(200 * 0.5) = 100, g: round(100 * 0.5) = 50, b: round(50 * 0.5) = 25
+    const arrow_style = buf.getStyle(12, 11);
+    const expected_fg = Color.fromRgb(100, 50, 25);
+    try std.testing.expectEqual(expected_fg, arrow_style.fg.?);
+}
+
+test "Tooltip.render does not mutate fade_ticks_elapsed (const self method)" {
+    var tooltip = Tooltip.init("Test")
+        .withFadeIn(4)
+        .withPosition(.below);
+    const target = Rect{ .x = 10, .y = 10, .width = 5, .height = 2 };
+
+    tooltip.show(target);
+    tooltip.tick();
+    try std.testing.expectEqual(@as(u32, 1), tooltip.fade_ticks_elapsed);
+
+    var buf = try Buffer.init(std.testing.allocator, 80, 24);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+
+    // Call render multiple times without ticking
+    tooltip.render(buf, area);
+    try std.testing.expectEqual(@as(u32, 1), tooltip.fade_ticks_elapsed);
+
+    tooltip.render(buf, area);
+    try std.testing.expectEqual(@as(u32, 1), tooltip.fade_ticks_elapsed);
+
+    tooltip.render(buf, area);
+    try std.testing.expectEqual(@as(u32, 1), tooltip.fade_ticks_elapsed);
+
+    // Alpha should remain unchanged
+    try std.testing.expectEqual(@as(f32, 0.25), tooltip.currentAlpha());
 }
