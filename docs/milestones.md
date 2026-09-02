@@ -2,14 +2,41 @@
 
 ## Current Status
 
-- **Latest release**: v2.98.0 (2026-09-01) — minor release closing the Widget Doc-Comment Audit milestone. Bundles 6 commits accumulated since v2.97.0: session 423 (tooltip.zig auto-dismiss-on-timeout), 424 (tooltip.zig show-delay), 425 (carousel.zig test coverage, stabilization), 426 (splitpane.zig drag-handle resize), 427 (tooltip.zig Trigger enum wiring), 428 (tooltip.zig fade-in animation — the milestone's last item). `zig build test` 0 failures, CI green (6-target cross-compile matrix included), 0 open bug issues anywhere.
-- **Latest minor**: v2.98.0 (2026-09-01)
+- **Latest release**: v2.99.0 (2026-09-03) — minor release closing the Widget Doc-Comment Audit Round 2 milestone. Bundles fixes accumulated since v2.98.0: session 428/430 (notification.zig withTimeout/dismiss/tick), session 431/432 (multicursor.zig undoAll/redoAll batch undo-redo), session 434 (multicursor.zig addCursorAtNextOccurrence), session 431 (context_menu.zig triaged — no bug, doc comment confirmed accurate). `zig build test` 0 failures, all 6 cross-compile targets verified locally (stabilization session), 0 open bug issues anywhere.
+- **Latest minor**: v2.99.0 (2026-09-03)
 - **Unreleased on main**: none
-- **Next release**: TBD — accumulate fixes from the v2.99.0 milestone below before bundling, per the v2.97.0/v2.98.0 precedent.
-- **Active milestones**: 1 — v2.99.0 Widget Doc-Comment Audit Round 2 (see below)
+- **Next release**: TBD — accumulate fixes from the next milestone below before bundling, per the v2.97.0/v2.98.0/v2.99.0 precedent.
+- **Active milestones**: 1 — v2.100.0 Widget Doc-Comment Audit Round 3 (see below)
 - **Blockers**: None
 
-### v2.99.0 — Widget Doc-Comment Audit Round 2 (Active)
+### v2.100.0 — Widget Doc-Comment Audit Round 3 (Active)
+
+**Theme**: Continuation of the doc-comment-vs-implementation audit method (v2.97.0-v2.99.0) into a
+third batch of widgets. Established per the Milestone Establishment Process: input sources #1
+(feature-request issues) and #3 (consumer `from:*` issues) are empty across sailor/zr/zoltraak/
+silica as of session 435; falling to source #4 (기술 부채) — no TODO/FIXME markers exist in
+`src/`, but 83 of 140 files under `src/tui/widgets/` have never been swept for the doc-comment
+mismatch pattern (grep top-of-file/struct doc comments for promised behavior, cross-check against
+actual `render()`/handler implementation).
+
+**Checklist**:
+- [ ] Dispatch an Explore agent (or do it directly, batched across several widget files per pass)
+      over a fresh batch of unaudited widgets: `activity_feed`, `animated_border`, `animated_text`,
+      `barchart`, `block`, `bracket_viewer`, `breadcrumb`, `bullet_chart`, `calendar`, `canvas`,
+      `checkbox`, `chunkedbuffer`, `colorswatch`, `command_bar`, `completion_popup`,
+      `configeditor`, `dag`, `debug`, `diff_viewer`, `diffstat`, `editable_table`, `editor`,
+      `filebrowser`, `filterable_list`, `flow_text`, `flowchart`, `form`, `gantt`, `hex_editor`,
+      `hexviewer`, `histogram`, `httpclient`, `input`, `inspector`, `json_browser`, `keymap`,
+      `keyvalue_viewer`, `layout_template`, `linechart` (and remaining files — see
+      `/tmp/unaudited.txt` generated session 435, not committed; regenerate via
+      `comm -23 <(ls src/tui/widgets/*.zig | xargs -n1 basename | sed 's/_test\.zig$//;s/\.zig$//' | sort -u) <(grep -oE '`[a-z_]+\.zig`' docs/milestones.md | tr -d '\`' | sed 's/\.zig$//' | sort -u)`
+      if needed).
+- [ ] Fix confirmed gaps via the full TDD cycle (test-writer RED → implement GREEN), one gap per
+      cycle — do not mass-fix across widgets in one session, per v2.97.0-v2.99.0 precedent.
+- [ ] Release once a meaningful batch of fixes has accumulated, per the accumulate-then-bundle
+      judgment used for v2.97.0-v2.99.0.
+
+### v2.99.0 — Widget Doc-Comment Audit Round 2 (Complete)
 
 **Theme**: Continuation of the same doc-comment-vs-implementation audit method (tooltip.zig,
 splitpane.zig — now released as v2.98.0) extended to a fresh batch of widget files. Session 428
@@ -60,8 +87,8 @@ confirmed clean (doc comments match implementation, no further action needed on 
       per cycle, same as v2.98.0's precedent — do not mass-fix across widgets in one session.
       All 4 confirmed gaps (notification.zig, multicursor.zig undo/redo, multicursor.zig
       Ctrl+D-next-occurrence, context_menu.zig triage) done as of session 434.
-- [ ] Release once a meaningful batch of fixes has accumulated, per the accumulate-then-bundle
-      judgment used for v2.97.0/v2.98.0.
+- [x] Release once a meaningful batch of fixes has accumulated, per the accumulate-then-bundle
+      judgment used for v2.97.0/v2.98.0. Released as v2.99.0 (session 435, stabilization).
 
 ### v2.98.0 — Widget Doc-Comment Audit (Complete)
 
@@ -2141,6 +2168,8 @@ point at v2.92.2 rather than filing duplicates).
 
 | Version | Name | Date | Summary |
 |---------|------|------|---------|
+| v2.99.0 | Widget Doc-Comment Audit Round 2 | 2026-09-03 | notification.zig (withTimeout/dismiss/tick, reusing toast_manager.zig ticks_remaining pattern, 10 tests), multicursor.zig undoAll/redoAll batch undo-redo (EditBatch snapshot stacks, 8 tests), multicursor.zig addCursorAtNextOccurrence (Ctrl+D-style next-occurrence selection, wraps buffer, 8 tests), context_menu.zig triaged (no bug — doc comment confirmed accurate). 16 other widgets confirmed clean. 0 breaking changes. Consumer migrations: zr, zoltraak, silica |
+| v2.98.0 | Widget Doc-Comment Audit | 2026-09-01 | tooltip.zig (auto-dismiss-on-timeout, show-delay, Trigger enum wiring, fade-in animation), splitpane.zig (drag-handle resize), carousel.zig (test coverage). 0 breaking changes. Consumer migrations: zr, zoltraak, silica |
 | v2.14.0 | Fuzzy Search & Command Palette | 2026-05-31 | FuzzyMatcher (greedy subsequence, prefix/consecutive/word-boundary/camelCase bonuses, score 0.0-1.0, static 512-slot buffer, case-insensitive, 34 tests), CommandPalette widget (register/setQuery/getSelected/activate/render, category search, score-sorted results, 38 tests), FilterableList widget (setItems/setFilter/clearFilter/getSelected/render, match position tracking, fuzzy-sorted display, 52 tests). Total: +124 tests (~4828+ passing), 0 breaking changes. Consumer migrations: zr, zoltraak, silica |
 | v2.13.0 | Store Middleware & Async Actions | 2026-05-29 | MiddlewareStore pipeline (Logger middleware, subscriber notifications, 19 tests), ThunkStore async dispatch (dispatchThunk, context access, error propagation, 23 tests), UndoStore time-travel (undo/redo with configurable history depth 50, canUndo/canRedo, 23 tests), StatePersist serialization (save/load via pluggable encode/decode fns, round-trip, 22 tests), ReactiveList widget (auto-bound to Signal, render callback, 20 tests). Total: +107 tests (~4700+ passing), 0 breaking changes. Consumer migrations: zr, zoltraak, silica |
 | v2.12.0 | Reactive State Management | 2026-05-28 | Signal(T) mutable reactive values with subscriber callbacks (subscribe/unsubscribe/batch), Computed(T,S) read-only derived values via lazy evaluation, Effect(T) side effect callbacks, Scope.batch() deferred notifications, Store(State,Action) centralized state with reducer pattern (dispatch/subscribe), ReactiveGauge/ReactiveText/ReactiveCounter widgets auto-bound to signals. Total: +89 tests (signal_test:24, store_test:19, reactive_test:46), ~4600+ total passing, 0 breaking changes. Consumer migrations: zr, zoltraak, silica |
