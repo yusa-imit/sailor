@@ -293,14 +293,17 @@ pub const Editor = struct {
     pub fn undo(self: *Editor) !void {
         if (self.undo_stack.items.len == 0) return;
 
-        var edit = self.undo_stack.pop();
-        defer edit.deinit();
+        var edit = self.undo_stack.pop() orelse return;
+        errdefer edit.deinit();
 
         switch (edit.type) {
             .insert => {
                 // Remove inserted text
                 const line_idx = edit.pos.line;
-                if (line_idx >= self.lines.items.len) return;
+                if (line_idx >= self.lines.items.len) {
+                    edit.deinit();
+                    return;
+                }
 
                 const old_line = self.lines.items[line_idx];
                 const new_line = try self.allocator.alloc(u8, old_line.len - edit.text.len);
@@ -314,7 +317,10 @@ pub const Editor = struct {
             .delete => {
                 // Re-insert deleted text
                 const line_idx = edit.pos.line;
-                if (line_idx >= self.lines.items.len) return;
+                if (line_idx >= self.lines.items.len) {
+                    edit.deinit();
+                    return;
+                }
 
                 const old_line = self.lines.items[line_idx];
                 const new_line = try self.allocator.alloc(u8, old_line.len + edit.text.len);
@@ -328,7 +334,8 @@ pub const Editor = struct {
             },
         }
 
-        // Move to redo stack
+        // Ownership of `edit` (including its `.text` allocation) transfers to the redo stack —
+        // must not be deinit'd here.
         try self.redo_stack.append(self.allocator, edit);
     }
 
@@ -337,14 +344,17 @@ pub const Editor = struct {
     pub fn redo(self: *Editor) !void {
         if (self.redo_stack.items.len == 0) return;
 
-        var edit = self.redo_stack.pop();
-        defer edit.deinit();
+        var edit = self.redo_stack.pop() orelse return;
+        errdefer edit.deinit();
 
         switch (edit.type) {
             .insert => {
                 // Re-insert text
                 const line_idx = edit.pos.line;
-                if (line_idx >= self.lines.items.len) return;
+                if (line_idx >= self.lines.items.len) {
+                    edit.deinit();
+                    return;
+                }
 
                 const old_line = self.lines.items[line_idx];
                 const new_line = try self.allocator.alloc(u8, old_line.len + edit.text.len);
@@ -359,7 +369,10 @@ pub const Editor = struct {
             .delete => {
                 // Re-delete text
                 const line_idx = edit.pos.line;
-                if (line_idx >= self.lines.items.len) return;
+                if (line_idx >= self.lines.items.len) {
+                    edit.deinit();
+                    return;
+                }
 
                 const old_line = self.lines.items[line_idx];
                 const new_line = try self.allocator.alloc(u8, old_line.len - edit.text.len);
@@ -372,7 +385,8 @@ pub const Editor = struct {
             },
         }
 
-        // Move back to undo stack
+        // Ownership of `edit` (including its `.text` allocation) transfers to the undo stack —
+        // must not be deinit'd here.
         try self.undo_stack.append(self.allocator, edit);
     }
 

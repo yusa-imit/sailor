@@ -41,11 +41,50 @@ pub const MultiCursorEditor = struct {
     column_mode: bool,
     /// Cursor style for secondary cursors
     secondary_cursor_style: Style,
+    /// Batches of simultaneous edits (insertCharAll/deleteCharAll) available to undo
+    undo_batches: ArrayList(EditBatch),
+    /// Batches previously undone, available to redo
+    redo_batches: ArrayList(EditBatch),
 
     const Cursor = struct {
         pos: Position,
         selection: ?Selection,
     };
+
+    /// A full-buffer snapshot taken before and after a simultaneous multi-cursor
+    /// edit, so the whole batch can be undone/redone as a single step regardless
+    /// of how individual cursor edits interacted with each other.
+    const EditBatch = struct {
+        lines_before: []const []u8,
+        cursors_before: []const Position,
+        lines_after: []const []u8,
+        cursors_after: []const Position,
+
+        fn deinit(self: *EditBatch, allocator: Allocator) void {
+            freeLinesSnapshot(allocator, self.lines_before);
+            allocator.free(self.cursors_before);
+            freeLinesSnapshot(allocator, self.lines_after);
+            allocator.free(self.cursors_after);
+        }
+    };
+
+    fn dupeLinesSnapshot(allocator: Allocator, lines: []const []const u8) ![]const []u8 {
+        const copy = try allocator.alloc([]u8, lines.len);
+        var i: usize = 0;
+        errdefer {
+            for (copy[0..i]) |l| allocator.free(l);
+            allocator.free(copy);
+        }
+        while (i < lines.len) : (i += 1) {
+            copy[i] = try allocator.dupe(u8, lines[i]);
+        }
+        return copy;
+    }
+
+    fn freeLinesSnapshot(allocator: Allocator, lines: []const []u8) void {
+        for (lines) |line| allocator.free(line);
+        allocator.free(lines);
+    }
 
     /// Initializes a MultiCursorEditor with default values.
     /// The returned instance must be freed with `.deinit()`.
@@ -55,13 +94,48 @@ pub const MultiCursorEditor = struct {
             .cursors = ArrayList(Cursor).init(allocator),
             .column_mode = false,
             .secondary_cursor_style = Style{ .bg = Color{ .indexed = 240 }, .fg = Color.black },
+            .undo_batches = ArrayList(EditBatch).init(allocator),
+            .redo_batches = ArrayList(EditBatch).init(allocator),
         };
     }
 
     /// Frees resources associated with this editor instance.
     pub fn deinit(self: *MultiCursorEditor) void {
+        for (self.undo_batches.items) |*batch| batch.deinit(self.base.allocator);
+        self.undo_batches.deinit();
+        for (self.redo_batches.items) |*batch| batch.deinit(self.base.allocator);
+        self.redo_batches.deinit();
         self.base.deinit();
         self.cursors.deinit();
+    }
+
+    /// Captures the current primary + secondary cursor positions as an owned snapshot.
+    fn snapshotCursors(self: *const MultiCursorEditor) ![]const Position {
+        const copy = try self.base.allocator.alloc(Position, 1 + self.cursors.items.len);
+        copy[0] = self.base.cursor;
+        for (self.cursors.items, 0..) |cursor, idx| copy[idx + 1] = cursor.pos;
+        return copy;
+    }
+
+    /// Restores primary + secondary cursor positions from a snapshot taken by `snapshotCursors`.
+    /// If the current cursor count no longer matches the snapshot, only the overlapping
+    /// prefix is restored (defensive — cursors may have been added/removed since the snapshot).
+    fn restoreCursors(self: *MultiCursorEditor, cursors_snapshot: []const Position) void {
+        if (cursors_snapshot.len == 0) return;
+        self.base.cursor = cursors_snapshot[0];
+        const n = @min(self.cursors.items.len, cursors_snapshot.len - 1);
+        for (0..n) |i| {
+            self.cursors.items[i].pos = cursors_snapshot[i + 1];
+        }
+    }
+
+    /// Replaces the current text buffer with a duplicate of the given line snapshot.
+    fn restoreLines(self: *MultiCursorEditor, lines_snapshot: []const []u8) !void {
+        const restored = try dupeLinesSnapshot(self.base.allocator, lines_snapshot);
+        for (self.base.lines.items) |line| self.base.allocator.free(line);
+        self.base.lines.clearRetainingCapacity();
+        for (restored) |line| try self.base.lines.append(self.base.allocator, line);
+        self.base.allocator.free(restored);
     }
 
     /// Sets the editor text to the given content.
@@ -152,8 +226,14 @@ pub const MultiCursorEditor = struct {
         }
     }
 
-    /// Insert character at all cursor positions simultaneously
+    /// Insert character at all cursor positions simultaneously.
+    /// Records a single undo batch covering all cursors, restorable via `undoAll`.
     pub fn insertCharAll(self: *MultiCursorEditor, ch: u8) !void {
+        const lines_before = try dupeLinesSnapshot(self.base.allocator, self.base.lines.items);
+        errdefer freeLinesSnapshot(self.base.allocator, lines_before);
+        const cursors_before = try self.snapshotCursors();
+        errdefer self.base.allocator.free(cursors_before);
+
         // Sort cursors by position (bottom-to-top, right-to-left) to avoid index shifts
         var all_positions = try ArrayList(Position).initCapacity(self.base.allocator, self.getCursorCount());
         defer all_positions.deinit();
@@ -190,10 +270,18 @@ pub const MultiCursorEditor = struct {
                 }
             }
         }
+
+        try self.pushUndoBatch(lines_before, cursors_before);
     }
 
-    /// Delete character before cursor at all positions simultaneously
+    /// Delete character before cursor at all positions simultaneously.
+    /// Records a single undo batch covering all cursors, restorable via `undoAll`.
     pub fn deleteCharAll(self: *MultiCursorEditor) !void {
+        const lines_before = try dupeLinesSnapshot(self.base.allocator, self.base.lines.items);
+        errdefer freeLinesSnapshot(self.base.allocator, lines_before);
+        const cursors_before = try self.snapshotCursors();
+        errdefer self.base.allocator.free(cursors_before);
+
         var all_positions = try ArrayList(Position).initCapacity(self.base.allocator, self.getCursorCount());
         defer all_positions.deinit();
 
@@ -224,6 +312,56 @@ pub const MultiCursorEditor = struct {
         for (self.cursors.items) |*cursor| {
             cursor.pos.col = @max(0, cursor.pos.col -| 1);
         }
+
+        try self.pushUndoBatch(lines_before, cursors_before);
+    }
+
+    /// Finalizes a batch operation: captures the post-edit state, pushes the
+    /// before/after snapshot onto the undo stack, and clears the redo stack
+    /// (a fresh edit invalidates any previously undone batches).
+    fn pushUndoBatch(self: *MultiCursorEditor, lines_before: []const []u8, cursors_before: []const Position) !void {
+        const lines_after = try dupeLinesSnapshot(self.base.allocator, self.base.lines.items);
+        errdefer freeLinesSnapshot(self.base.allocator, lines_after);
+        const cursors_after = try self.snapshotCursors();
+        errdefer self.base.allocator.free(cursors_after);
+
+        try self.undo_batches.append(.{
+            .lines_before = lines_before,
+            .cursors_before = cursors_before,
+            .lines_after = lines_after,
+            .cursors_after = cursors_after,
+        });
+
+        for (self.redo_batches.items) |*batch| batch.deinit(self.base.allocator);
+        self.redo_batches.clearRetainingCapacity();
+    }
+
+    /// Undoes the last batch of simultaneous edits made by `insertCharAll`/`deleteCharAll`,
+    /// restoring the whole text buffer and every cursor position to their pre-edit state.
+    /// No-op if there is no batch to undo.
+    pub fn undoAll(self: *MultiCursorEditor) !void {
+        if (self.undo_batches.items.len == 0) return;
+        var batch = self.undo_batches.pop() orelse return;
+        errdefer batch.deinit(self.base.allocator);
+
+        try self.restoreLines(batch.lines_before);
+        self.restoreCursors(batch.cursors_before);
+
+        try self.redo_batches.append(batch);
+    }
+
+    /// Redoes the last batch undone by `undoAll`, re-applying the whole text buffer
+    /// and cursor positions to their post-edit state.
+    /// No-op if there is no batch to redo.
+    pub fn redoAll(self: *MultiCursorEditor) !void {
+        if (self.redo_batches.items.len == 0) return;
+        var batch = self.redo_batches.pop() orelse return;
+        errdefer batch.deinit(self.base.allocator);
+
+        try self.restoreLines(batch.lines_after);
+        self.restoreCursors(batch.cursors_after);
+
+        try self.undo_batches.append(batch);
     }
 
     /// Move all cursors by the given delta
@@ -619,6 +757,239 @@ test "multicursor: setLanguage + secondary cursor overlay preserves char, applie
     // secondary_cursor_style is: Style{ .bg = Color{ .indexed = 240 }, .fg = Color.black }
     try testing.expectEqual(mc.secondary_cursor_style.bg.?, cell.style.bg.?);
     try testing.expectEqual(mc.secondary_cursor_style.fg.?, cell.style.fg.?);
+}
+
+// ============================================================================
+// Undo/Redo Tests
+// ============================================================================
+
+test "multicursor: undoAll after insertCharAll restores all edited lines and cursor positions" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    // Set up initial text with two cursors
+    try mc.setText("aaa\nbbb\nccc");
+    mc.base.cursor = .{ .line = 0, .col = 0 };
+    try mc.addCursor(.{ .line = 1, .col = 0 });
+    try mc.addCursor(.{ .line = 2, .col = 0 });
+
+    // Record original cursor positions
+    const orig_primary = mc.base.cursor;
+    const orig_secondary_0 = mc.cursors.items[0].pos;
+    const orig_secondary_1 = mc.cursors.items[1].pos;
+
+    // Perform insertCharAll
+    try mc.insertCharAll('x');
+
+    // Verify insert worked
+    try testing.expectEqualStrings("xaaa", mc.base.lines.items[0]);
+    try testing.expectEqualStrings("xbbb", mc.base.lines.items[1]);
+    try testing.expectEqualStrings("xccc", mc.base.lines.items[2]);
+
+    // Primary cursor should have moved
+    try testing.expectEqual(@as(usize, 1), mc.base.cursor.col);
+    try testing.expectEqual(@as(usize, 1), mc.cursors.items[0].pos.col);
+    try testing.expectEqual(@as(usize, 1), mc.cursors.items[1].pos.col);
+
+    // Now undo all
+    try mc.undoAll();
+
+    // Should restore original text
+    try testing.expectEqualStrings("aaa", mc.base.lines.items[0]);
+    try testing.expectEqualStrings("bbb", mc.base.lines.items[1]);
+    try testing.expectEqualStrings("ccc", mc.base.lines.items[2]);
+
+    // Cursors should be back at original positions
+    try testing.expectEqual(orig_primary.col, mc.base.cursor.col);
+    try testing.expectEqual(orig_secondary_0.col, mc.cursors.items[0].pos.col);
+    try testing.expectEqual(orig_secondary_1.col, mc.cursors.items[1].pos.col);
+}
+
+test "multicursor: undoAll after deleteCharAll restores deleted characters" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    // Set up initial text with deletable chars
+    try mc.setText("xaaa\nxbbb\nxccc");
+    mc.base.cursor = .{ .line = 0, .col = 1 };
+    try mc.addCursor(.{ .line = 1, .col = 1 });
+    try mc.addCursor(.{ .line = 2, .col = 1 });
+
+    // Perform deleteCharAll
+    try mc.deleteCharAll();
+
+    // Verify delete worked
+    try testing.expectEqualStrings("aaa", mc.base.lines.items[0]);
+    try testing.expectEqualStrings("bbb", mc.base.lines.items[1]);
+    try testing.expectEqualStrings("ccc", mc.base.lines.items[2]);
+
+    // Now undo all
+    try mc.undoAll();
+
+    // Should restore original text with deleted characters
+    try testing.expectEqualStrings("xaaa", mc.base.lines.items[0]);
+    try testing.expectEqualStrings("xbbb", mc.base.lines.items[1]);
+    try testing.expectEqualStrings("xccc", mc.base.lines.items[2]);
+
+    // Cursors should be back after the 'x'
+    try testing.expectEqual(@as(usize, 1), mc.base.cursor.col);
+    try testing.expectEqual(@as(usize, 1), mc.cursors.items[0].pos.col);
+    try testing.expectEqual(@as(usize, 1), mc.cursors.items[1].pos.col);
+}
+
+test "multicursor: redoAll after undoAll re-applies the batch (round-trip)" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    // Set up initial text
+    try mc.setText("aaa\nbbb");
+    mc.base.cursor = .{ .line = 0, .col = 0 };
+    try mc.addCursor(.{ .line = 1, .col = 0 });
+
+    // Insert at both positions
+    try mc.insertCharAll('x');
+
+    // Verify insert
+    try testing.expectEqualStrings("xaaa", mc.base.lines.items[0]);
+    try testing.expectEqualStrings("xbbb", mc.base.lines.items[1]);
+
+    // Undo
+    try mc.undoAll();
+
+    // Verify undo
+    try testing.expectEqualStrings("aaa", mc.base.lines.items[0]);
+    try testing.expectEqualStrings("bbb", mc.base.lines.items[1]);
+
+    // Redo
+    try mc.redoAll();
+
+    // Should be back to inserted state
+    try testing.expectEqualStrings("xaaa", mc.base.lines.items[0]);
+    try testing.expectEqualStrings("xbbb", mc.base.lines.items[1]);
+
+    // Cursors should be at position 1 (after 'x')
+    try testing.expectEqual(@as(usize, 1), mc.base.cursor.col);
+    try testing.expectEqual(@as(usize, 1), mc.cursors.items[0].pos.col);
+}
+
+test "multicursor: undoAll is a no-op when there's no batch to undo (fresh editor)" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("hello");
+    mc.base.cursor = .{ .line = 0, .col = 0 };
+
+    // Calling undoAll on fresh editor should be safe (no-op)
+    try mc.undoAll();
+
+    // Text and cursors should be unchanged
+    try testing.expectEqualStrings("hello", mc.base.lines.items[0]);
+    try testing.expectEqual(@as(usize, 0), mc.base.cursor.col);
+}
+
+test "multicursor: undoAll is a no-op when all batches have been undone" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("hello");
+    mc.base.cursor = .{ .line = 0, .col = 0 };
+
+    // Insert and then undo
+    try mc.insertCharAll('x');
+    try mc.undoAll();
+
+    // Both undo and redo stacks should be emptied appropriately
+    // Calling undoAll again should be safe
+    try mc.undoAll();
+
+    // Text should still be original
+    try testing.expectEqualStrings("hello", mc.base.lines.items[0]);
+}
+
+test "multicursor: redoAll is a no-op when there's no batch to redo" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("hello");
+    mc.base.cursor = .{ .line = 0, .col = 0 };
+
+    // Call redoAll on fresh editor with nothing in redo stack
+    try mc.redoAll();
+
+    // Text should be unchanged
+    try testing.expectEqualStrings("hello", mc.base.lines.items[0]);
+}
+
+test "multicursor: new insertCharAll after undoAll clears redo history (mirrors Editor behavior)" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("hello");
+    mc.base.cursor = .{ .line = 0, .col = 0 };
+
+    // Insert, undo, then insert again
+    try mc.insertCharAll('x');
+    try mc.undoAll();
+
+    // At this point we could redoAll the first insert
+    // But now we insert again
+    try mc.insertCharAll('y');
+
+    // This new insert should clear the redo stack
+    // So redoAll should not re-apply the first 'x'
+    try mc.redoAll();
+
+    // After redo, should still only have 'y', not 'x' and 'y'
+    try testing.expectEqualStrings("yhello", mc.base.lines.items[0]);
+    // And cursor should be at position 1 (after 'y')
+    try testing.expectEqual(@as(usize, 1), mc.base.cursor.col);
+}
+
+test "multicursor: multiple sequential insertCharAll followed by multiple undoAll calls undo one batch at a time" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("abc");
+    mc.base.cursor = .{ .line = 0, .col = 0 };
+    try mc.addCursor(.{ .line = 0, .col = 1 });
+
+    // First batch: insert 'x'
+    try mc.insertCharAll('x');
+    try testing.expectEqualStrings("axbxc", mc.base.lines.items[0]);
+
+    // Second batch: insert 'y'
+    try mc.insertCharAll('y');
+    try testing.expectEqualStrings("ayxbyxc", mc.base.lines.items[0]);
+
+    // Third batch: insert 'z'
+    try mc.insertCharAll('z');
+    try testing.expectEqualStrings("azyxbzyxc", mc.base.lines.items[0]);
+
+    // Now undo batches one at a time, checking intermediate states
+
+    // First undoAll: should remove only the 'z' batch
+    try mc.undoAll();
+    try testing.expectEqualStrings("ayxbyxc", mc.base.lines.items[0]);
+
+    // Second undoAll: should remove only the 'y' batch
+    try mc.undoAll();
+    try testing.expectEqualStrings("axbxc", mc.base.lines.items[0]);
+
+    // Third undoAll: should remove the 'x' batch
+    try mc.undoAll();
+    try testing.expectEqualStrings("abc", mc.base.lines.items[0]);
+
+    // Fourth undoAll: nothing left to undo, should stay the same
+    try mc.undoAll();
+    try testing.expectEqualStrings("abc", mc.base.lines.items[0]);
 }
 
 // ============================================================================

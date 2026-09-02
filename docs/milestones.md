@@ -23,18 +23,26 @@ confirmed clean (doc comments match implementation, no further action needed on 
       `withTimeout()`/`dismiss()`/`tick()` reusing the `toast_manager.zig` ticks_remaining
       pattern; `render()` is now a no-op once dismissed. 10 new tests. Implemented session 428,
       committed session 430 (leftover uncommitted work from a prior session).
-- [ ] `multicursor.zig` — doc comment (lines 18-20) claims "undo/redo" and "Ctrl+D for next
-      occurrence" cursor addition; neither exists anywhere in the 1067-line file (grep for
-      `undo|redo|occurrence` only matches the doc comment itself). This is a bigger design
-      surface than notification.zig (an undo stack + "find next occurrence of selection" scan)
-      — may need an `architect` pass per CLAUDE.md's team-formation rule if scoped in full;
-      consider splitting into 2 cycles (undo/redo first, next-occurrence second) rather than
-      one large change.
-- [ ] `context_menu.zig` (**lower confidence, triage first**) — `Submenu.items` is stored and
-      rendered with a ">" indicator but no state tracks which submenu is open and no navigation
-      method traverses into it. May be intentional API design (caller can construct a fresh
-      `ContextMenu.init(submenu.items)` themselves on selection) rather than a real gap —
-      read the file fully before assuming this needs a fix, unlike the other two.
+- [x] `multicursor.zig` "undo/redo" half — session 431 dispatched test-writer for RED tests
+      (`undoAll`/`redoAll` on `MultiCursorEditor`, 8 new tests), session 432 implemented GREEN.
+      Design: each `insertCharAll`/`deleteCharAll` call now snapshots the whole line buffer +
+      all cursor positions before and after the batch edit (`EditBatch`, in `undo_batches`/
+      `redo_batches` stacks on `MultiCursorEditor` — separate from `base: Editor`'s own
+      per-character undo stack, since replaying individual per-cursor character edits can't
+      be reordered safely when two cursors land on the same line). `undoAll`/`redoAll` restore
+      the full snapshot in one step; a fresh `insertCharAll`/`deleteCharAll` clears the redo
+      stack, mirroring `Editor`'s existing single-cursor undo/redo semantics. `zig build test`
+      0 failures (verified independently after implementation).
+- [ ] `multicursor.zig` "Ctrl+D for next occurrence" cursor addition — doc comment (lines 18-20)
+      still claims this; not yet implemented (second half of the original 2-cycle split, not
+      started this session).
+- [x] `context_menu.zig` — triaged session 431, **not a bug, no fix needed**. Doc comment
+      (lines 1-4) only promises "displays... submenus" and "keyboard navigation with
+      wrapping" — it never claims submenu opening/traversal. `currentItem()` already exposes
+      `.submenu` and `isCurrentSelectable` returns true for it, so a caller can construct a
+      fresh `ContextMenu.init(submenu.items)` on selection — same "library owns no event
+      loop, exposes pure state" convention used by tooltip.zig's Trigger wiring and
+      splitpane.zig's drag-handle methods (v2.98.0). Confirmed intentional, no code change.
 - [ ] Files confirmed clean this pass (skip re-checking): `toast_manager.zig`,
       `autocomplete.zig`, `command_palette.zig`, `reorderable_list.zig`, `color_picker.zig`,
       `carousel.zig`, `wizard.zig`, `stepper.zig`, `marquee.zig`, `ring_menu.zig`,
