@@ -33,9 +33,17 @@ confirmed clean (doc comments match implementation, no further action needed on 
       the full snapshot in one step; a fresh `insertCharAll`/`deleteCharAll` clears the redo
       stack, mirroring `Editor`'s existing single-cursor undo/redo semantics. `zig build test`
       0 failures (verified independently after implementation).
-- [ ] `multicursor.zig` "Ctrl+D for next occurrence" cursor addition — doc comment (lines 18-20)
-      still claims this; not yet implemented (second half of the original 2-cycle split, not
-      started this session).
+- [x] `multicursor.zig` "Ctrl+D for next occurrence" cursor addition — session 434: implemented
+      `addCursorAtNextOccurrence()`. First call selects the word at/before the cursor (no
+      secondary cursor yet); subsequent calls push a secondary cursor holding the current
+      selection and promote the next unclaimed word-boundary-matched occurrence (searching the
+      whole buffer, wrapping around) to the primary selection/cursor. No-op on multi-line
+      selections, no word found, or when every other occurrence is already claimed by an
+      existing secondary cursor's selection. Found a pre-existing off-by-one in the RED-phase
+      test (`"cat dog cat mouse cat"` third-occurrence assertion expected cols 17/20; actual
+      byte offsets are 18/21, verified via Python `re.finditer`) — sent back to test-writer to
+      fix per the TDD-agent-boundary rule rather than adjusting it directly. 8 RED tests all
+      GREEN, `zig build test` 0 failures (independently verified).
 - [x] `context_menu.zig` — triaged session 431, **not a bug, no fix needed**. Doc comment
       (lines 1-4) only promises "displays... submenus" and "keyboard navigation with
       wrapping" — it never claims submenu opening/traversal. `currentItem()` already exposes
@@ -43,13 +51,15 @@ confirmed clean (doc comments match implementation, no further action needed on 
       fresh `ContextMenu.init(submenu.items)` on selection — same "library owns no event
       loop, exposes pure state" convention used by tooltip.zig's Trigger wiring and
       splitpane.zig's drag-handle methods (v2.98.0). Confirmed intentional, no code change.
-- [ ] Files confirmed clean this pass (skip re-checking): `toast_manager.zig`,
+- [x] Files confirmed clean this pass (skip re-checking): `toast_manager.zig`,
       `autocomplete.zig`, `command_palette.zig`, `reorderable_list.zig`, `color_picker.zig`,
       `carousel.zig`, `wizard.zig`, `stepper.zig`, `marquee.zig`, `ring_menu.zig`,
       `countdown_timer.zig`, `accordion.zig`, `kanban.zig`, `filter_bar.zig`, `dialog.zig`,
       `theme_editor.zig`.
-- [ ] Fix confirmed gaps via the full TDD cycle (test-writer RED → implement GREEN), one gap
+- [x] Fix confirmed gaps via the full TDD cycle (test-writer RED → implement GREEN), one gap
       per cycle, same as v2.98.0's precedent — do not mass-fix across widgets in one session.
+      All 4 confirmed gaps (notification.zig, multicursor.zig undo/redo, multicursor.zig
+      Ctrl+D-next-occurrence, context_menu.zig triage) done as of session 434.
 - [ ] Release once a meaningful batch of fixes has accumulated, per the accumulate-then-bundle
       judgment used for v2.97.0/v2.98.0.
 
