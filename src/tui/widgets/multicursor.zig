@@ -11,6 +11,11 @@ const Editor = editor.Editor;
 const Position = editor.Position;
 const Selection = editor.Selection;
 
+/// Returns true if the given character is a word character (alphanumeric or underscore)
+fn isWordChar(c: u8) bool {
+    return (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or (c >= '0' and c <= '9') or c == '_';
+}
+
 /// Multi-cursor editor widget for simultaneous editing at multiple positions
 ///
 /// Features:
@@ -200,6 +205,209 @@ pub const MultiCursorEditor = struct {
     /// Removes all secondary cursors, keeping only the primary cursor.
     pub fn clearCursors(self: *MultiCursorEditor) void {
         self.cursors.clearRetainingCapacity();
+    }
+
+    /// Finds and selects the next occurrence of the current selection, adding a secondary cursor
+    /// at the current selection and moving the primary cursor to the newly found occurrence.
+    /// If no selection exists, selects the word at or immediately before the current cursor position.
+    /// If the selection spans multiple lines, is a no-op.
+    /// If all occurrences are already claimed by existing cursors, is a no-op.
+    pub fn addCursorAtNextOccurrence(self: *MultiCursorEditor) !void {
+        if (self.base.selection == null) {
+            // First call: find and select the word at or before the cursor
+            try self.selectWordAtCursor();
+            return;
+        }
+
+        // Multi-line selection: no-op
+        if (self.base.selection.?.start.line != self.base.selection.?.end.line) {
+            return;
+        }
+
+        // Single-line selection: find next occurrence
+        try self.findAndAddNextOccurrence();
+    }
+
+    /// Selects the word at or immediately before the cursor position.
+    /// Sets self.base.selection if a word is found; otherwise leaves it null.
+    fn selectWordAtCursor(self: *MultiCursorEditor) !void {
+        const line_idx = self.base.cursor.line;
+        if (line_idx >= self.base.lines.items.len) return;
+
+        const line = self.base.lines.items[line_idx];
+        if (line.len == 0) return;
+
+        var search_col = self.base.cursor.col;
+
+        // If cursor is at or past the end of the line, try the last character
+        if (search_col >= line.len) {
+            search_col = line.len - 1;
+        }
+
+        // Check if char at cursor position is a word char
+        if (!isWordChar(line[search_col])) {
+            // If not, try the char immediately to the left
+            if (search_col == 0) return; // No word to the left
+            search_col -= 1;
+            if (!isWordChar(line[search_col])) return; // Char to left is also not a word char
+        }
+
+        // Found a word char; expand left and right to find word boundaries
+        var word_start = search_col;
+        while (word_start > 0 and isWordChar(line[word_start - 1])) {
+            word_start -= 1;
+        }
+
+        var word_end = search_col;
+        while (word_end + 1 < line.len and isWordChar(line[word_end + 1])) {
+            word_end += 1;
+        }
+
+        // Set selection to [word_start, word_end + 1)
+        self.base.selection = Selection{
+            .start = .{ .line = line_idx, .col = word_start },
+            .end = .{ .line = line_idx, .col = word_end + 1 },
+        };
+    }
+
+    /// Finds the next unclaimed occurrence of the currently selected text and promotes it to
+    /// the primary selection, saving the current selection as a secondary cursor.
+    fn findAndAddNextOccurrence(self: *MultiCursorEditor) !void {
+        const current_sel = self.base.selection.?;
+        const search_line_idx = current_sel.start.line;
+
+        if (search_line_idx >= self.base.lines.items.len) return;
+
+        const search_line = self.base.lines.items[search_line_idx];
+        const search_start = current_sel.start.col;
+        const search_end = current_sel.end.col;
+
+        // Extract the selected text (the search term)
+        if (search_start > search_end or search_end > search_line.len) return;
+        const search_text = search_line[search_start..search_end];
+
+        // Build a set of claimed occurrences
+        var claimed = try ArrayList(Selection).initCapacity(self.base.allocator, 1 + self.cursors.items.len);
+        defer claimed.deinit();
+
+        claimed.appendAssumeCapacity(current_sel);
+        for (self.cursors.items) |cursor| {
+            if (cursor.selection) |sel| {
+                claimed.appendAssumeCapacity(sel);
+            }
+        }
+
+        // Find the next unclaimed occurrence
+        const next_occ = try self.findNextOccurrence(search_text, search_line_idx, search_end, &claimed);
+
+        if (next_occ) |occ| {
+            // Add secondary cursor with current selection
+            try self.cursors.append(.{
+                .pos = self.base.cursor,
+                .selection = current_sel,
+            });
+
+            // Update base selection and cursor
+            self.base.selection = occ;
+            self.base.cursor = occ.end;
+        }
+        // If no occurrence found, it's a no-op (don't modify anything)
+    }
+
+    /// Finds the next occurrence of the given search text in the buffer, starting from the
+    /// given position and wrapping around if needed. Skips any occurrences in the claimed list.
+    /// Returns null if no unclaimed occurrence is found.
+    fn findNextOccurrence(
+        self: *MultiCursorEditor,
+        search_text: []const u8,
+        start_line_idx: usize,
+        start_col: usize,
+        claimed: *const ArrayList(Selection),
+    ) !?Selection {
+        if (search_text.len == 0) return null;
+
+        const lines = self.base.lines.items;
+        var search_attempts: usize = 0;
+        const max_attempts = lines.len * 100; // Prevent infinite loops
+
+        var current_line = start_line_idx;
+        var current_col = start_col;
+
+        while (search_attempts < max_attempts) {
+            search_attempts += 1;
+
+            if (current_line >= lines.len) {
+                // Wrap around to the beginning
+                current_line = 0;
+                current_col = 0;
+            }
+
+            const line = lines[current_line];
+
+            // Find the next occurrence of search_text in this line, starting at current_col
+            var search_pos = current_col;
+            while (search_pos + search_text.len <= line.len) {
+                if (std.mem.eql(u8, line[search_pos .. search_pos + search_text.len], search_text)) {
+                    // Check word boundaries
+                    if (self.isWordBoundary(line, search_pos, search_pos + search_text.len)) {
+                        const candidate = Selection{
+                            .start = .{ .line = current_line, .col = search_pos },
+                            .end = .{ .line = current_line, .col = search_pos + search_text.len },
+                        };
+
+                        // Check if this occurrence is already claimed
+                        var is_claimed = false;
+                        for (claimed.items) |claimed_sel| {
+                            if (self.selectionsEqual(candidate, claimed_sel)) {
+                                is_claimed = true;
+                                break;
+                            }
+                        }
+
+                        if (!is_claimed) {
+                            return candidate;
+                        }
+                    }
+                }
+                search_pos += 1;
+            }
+
+            // Move to next line
+            current_line += 1;
+            current_col = 0;
+
+            // Stop if we've wrapped all the way back to the start without finding anything
+            if (current_line > start_line_idx + lines.len) {
+                break;
+            }
+        }
+
+        return null;
+    }
+
+    /// Checks if the given range in a line has proper word boundaries
+    /// (character before start must not be a word char, character after end must not be a word char)
+    fn isWordBoundary(self: *const MultiCursorEditor, line: []const u8, start: usize, end: usize) bool {
+        _ = self; // self not used but kept for consistency
+
+        // Check character before start
+        if (start > 0 and isWordChar(line[start - 1])) {
+            return false;
+        }
+
+        // Check character after end
+        if (end < line.len and isWordChar(line[end])) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// Checks if two selections are equal (same line and column range)
+    fn selectionsEqual(self: *const MultiCursorEditor, a: Selection, b: Selection) bool {
+        _ = self; // self not used but kept for consistency
+        return a.start.line == b.start.line and a.start.col == b.start.col and
+            a.end.line == b.end.line and a.end.col == b.end.col;
     }
 
     /// Returns the total number of cursors (primary + secondary).
@@ -993,6 +1201,204 @@ test "multicursor: multiple sequential insertCharAll followed by multiple undoAl
 }
 
 // ============================================================================
+// addCursorAtNextOccurrence Tests (RED phase)
+// ============================================================================
+
+test "addCursorAtNextOccurrence: first call mid-word selects the word, cursor count unchanged" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("hello world");
+    mc.base.cursor = .{ .line = 0, .col = 1 }; // cursor on 'e' in "hello"
+
+    try mc.addCursorAtNextOccurrence();
+
+    // Cursor count should still be 1 (no secondary cursor added yet)
+    try testing.expectEqual(@as(usize, 1), mc.getCursorCount());
+
+    // selection should be set to the whole word "hello"
+    try testing.expect(mc.base.selection != null);
+    try testing.expectEqual(@as(usize, 0), mc.base.selection.?.start.col);
+    try testing.expectEqual(@as(usize, 5), mc.base.selection.?.end.col);
+    try testing.expectEqual(@as(usize, 0), mc.base.selection.?.start.line);
+    try testing.expectEqual(@as(usize, 0), mc.base.selection.?.end.line);
+}
+
+test "addCursorAtNextOccurrence: cursor on non-word char with no word to left is no-op" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("  hello");
+    mc.base.cursor = .{ .line = 0, .col = 1 }; // cursor on space, no word char at col 0
+
+    try mc.addCursorAtNextOccurrence();
+
+    // selection should remain null
+    try testing.expect(mc.base.selection == null);
+    // cursor count unchanged
+    try testing.expectEqual(@as(usize, 1), mc.getCursorCount());
+}
+
+test "addCursorAtNextOccurrence: second call adds cursor at second occurrence" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("hello world hello");
+    mc.base.cursor = .{ .line = 0, .col = 1 }; // cursor on 'e' in first "hello"
+
+    // First call: selects "hello"
+    try mc.addCursorAtNextOccurrence();
+    try testing.expectEqual(@as(usize, 1), mc.getCursorCount());
+    try testing.expect(mc.base.selection != null);
+
+    // Second call: adds cursor at second occurrence
+    try mc.addCursorAtNextOccurrence();
+
+    // Now we should have 2 cursors total
+    try testing.expectEqual(@as(usize, 2), mc.getCursorCount());
+
+    // The secondary cursor (first secondary, at index 0) should have the original selection
+    try testing.expect(mc.cursors.items[0].selection != null);
+    try testing.expectEqual(@as(usize, 0), mc.cursors.items[0].selection.?.start.col);
+    try testing.expectEqual(@as(usize, 5), mc.cursors.items[0].selection.?.end.col);
+
+    // The base cursor/selection should now point at the second "hello" (starting at col 12)
+    try testing.expectEqual(@as(usize, 12), mc.base.selection.?.start.col);
+    try testing.expectEqual(@as(usize, 17), mc.base.selection.?.end.col);
+    try testing.expectEqual(@as(usize, 17), mc.base.cursor.col); // cursor at end of selection
+}
+
+test "addCursorAtNextOccurrence: third call on word with 3 occurrences" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("cat dog cat mouse cat");
+    mc.base.cursor = .{ .line = 0, .col = 0 }; // cursor at 'c' of first "cat"
+
+    // First call
+    try mc.addCursorAtNextOccurrence();
+    try testing.expectEqual(@as(usize, 1), mc.getCursorCount());
+
+    // Second call
+    try mc.addCursorAtNextOccurrence();
+    try testing.expectEqual(@as(usize, 2), mc.getCursorCount());
+
+    // Third call
+    try mc.addCursorAtNextOccurrence();
+    try testing.expectEqual(@as(usize, 3), mc.getCursorCount());
+
+    // Base selection should now be at the third "cat" (starting at col 18)
+    try testing.expectEqual(@as(usize, 18), mc.base.selection.?.start.col);
+    try testing.expectEqual(@as(usize, 21), mc.base.selection.?.end.col);
+}
+
+test "addCursorAtNextOccurrence: unique word with no second occurrence is no-op" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("unique word here");
+    mc.base.cursor = .{ .line = 0, .col = 0 }; // cursor at 'u' of "unique"
+
+    // First call: selects "unique"
+    try mc.addCursorAtNextOccurrence();
+    try testing.expectEqual(@as(usize, 1), mc.getCursorCount());
+    try testing.expect(mc.base.selection != null);
+    const first_sel = mc.base.selection.?;
+
+    // Second call: no second occurrence, should be no-op
+    try mc.addCursorAtNextOccurrence();
+
+    // cursor count should still be 1
+    try testing.expectEqual(@as(usize, 1), mc.getCursorCount());
+    // selection should be unchanged
+    try testing.expectEqual(first_sel.start.col, mc.base.selection.?.start.col);
+    try testing.expectEqual(first_sel.end.col, mc.base.selection.?.end.col);
+}
+
+test "addCursorAtNextOccurrence: wraparound finds occurrence before anchor" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("foo bar foo");
+    mc.base.cursor = .{ .line = 0, .col = 8 }; // cursor on second "foo", col 8
+
+    // First call: selects second "foo"
+    try mc.addCursorAtNextOccurrence();
+    try testing.expectEqual(@as(usize, 1), mc.getCursorCount());
+    try testing.expect(mc.base.selection != null);
+
+    // Second call: should wrap around and find the first "foo"
+    try mc.addCursorAtNextOccurrence();
+
+    // Should have added a cursor
+    try testing.expectEqual(@as(usize, 2), mc.getCursorCount());
+
+    // The new base selection should be at the first "foo" (col 0-3)
+    try testing.expectEqual(@as(usize, 0), mc.base.selection.?.start.col);
+    try testing.expectEqual(@as(usize, 3), mc.base.selection.?.end.col);
+}
+
+test "addCursorAtNextOccurrence: multi-line selection is no-op" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("hello\nworld");
+    mc.base.cursor = .{ .line = 0, .col = 5 };
+    mc.base.selection = .{
+        .start = .{ .line = 0, .col = 0 },
+        .end = .{ .line = 1, .col = 5 },
+    }; // multi-line selection
+
+    try mc.addCursorAtNextOccurrence();
+
+    // Should be a no-op: cursor count unchanged
+    try testing.expectEqual(@as(usize, 1), mc.getCursorCount());
+    // selection should be unchanged
+    try testing.expectEqual(@as(usize, 0), mc.base.selection.?.start.line);
+    try testing.expectEqual(@as(usize, 1), mc.base.selection.?.end.line);
+}
+
+test "addCursorAtNextOccurrence: skips already-claimed occurrences" {
+    const allocator = testing.allocator;
+    var mc = MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("cat dog cat");
+    mc.base.cursor = .{ .line = 0, .col = 0 }; // cursor at first "cat"
+
+    // First call: selects "cat" at [0, 3)
+    try mc.addCursorAtNextOccurrence();
+    try testing.expectEqual(@as(usize, 1), mc.getCursorCount());
+    try testing.expectEqual(@as(usize, 0), mc.base.selection.?.start.col);
+    try testing.expectEqual(@as(usize, 3), mc.base.selection.?.end.col);
+
+    // Second call: should add secondary cursor with [0, 3), move base to [8, 11)
+    try mc.addCursorAtNextOccurrence();
+    try testing.expectEqual(@as(usize, 2), mc.getCursorCount());
+    try testing.expectEqual(@as(usize, 0), mc.cursors.items[0].selection.?.start.col);
+    try testing.expectEqual(@as(usize, 3), mc.cursors.items[0].selection.?.end.col);
+    try testing.expectEqual(@as(usize, 8), mc.base.selection.?.start.col);
+    try testing.expectEqual(@as(usize, 11), mc.base.selection.?.end.col);
+
+    // Third call: wrap around, but both [0,3) and [8,11) are already claimed
+    // Only 2 occurrences total, so no-op
+    try mc.addCursorAtNextOccurrence();
+
+    // cursor count should still be 2
+    try testing.expectEqual(@as(usize, 2), mc.getCursorCount());
+    // base.selection should be unchanged
+    try testing.expectEqual(@as(usize, 8), mc.base.selection.?.start.col);
+    try testing.expectEqual(@as(usize, 11), mc.base.selection.?.end.col);
+}
+
+// ============================================================================
 // MultiCursor — Simple multi-cursor editing widget for v1.13.0
 // ============================================================================
 
@@ -1436,3 +1842,9 @@ pub const MultiCursor = struct {
         }
     }
 };
+
+test "CONTROL: deliberate compile error probe" {
+    var mc = MultiCursorEditor.init(std.testing.allocator);
+    defer mc.deinit();
+    mc.thisMethodDoesNotExistAtAll();
+}
