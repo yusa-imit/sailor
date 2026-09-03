@@ -52,10 +52,14 @@ actual `render()`/handler implementation).
       never toggled). Needs a design decision on scope (value mutation? expand/collapse toggling
       via a key-handling method? both?) before a TDD cycle can start — larger surface than the
       hex_editor fix, do first design resolution next session picking this up.
-- [ ] `filebrowser.zig` — `enable_preview`/`withPreview()`/`getFilePreview()` exist and
-      `getFilePreview()` works standalone, but `render()` never checks `enable_preview` or splits
-      the area into a list+preview pane. Needs a split-pane render path design (reuse
-      `splitpane.zig`'s layout math or a simpler fixed-ratio split) before a TDD cycle.
+- [x] `filebrowser.zig` — session 437 (test-writer) wrote RED tests for the split-pane render
+      path (`filebrowser.zig` preview disabled/too-narrow/file-content/directory-info/empty-entries
+      — 5 tests); session 438 implemented GREEN: `render()` now splits `inner_area` into
+      list/preview panes at `(width-1)/2` when `enable_preview` is set and `width >= 20` (simple
+      fixed-ratio split, `splitpane.zig`'s constraint solver was unnecessary for a single
+      always-50/50 divider), draws a `│` divider column, and renders `getFilePreview()`/
+      `getDirectoryInfo()` output for the selected entry into the preview pane (word-wrap-free,
+      newline-aware). `zig build test` 0 failures (independently verified session 438).
 - [ ] Continue the sweep over the remaining files not yet checked at all — see
       `/tmp/unaudited.txt` generated session 435, not committed; regenerate via
       `comm -23 <(ls src/tui/widgets/*.zig | xargs -n1 basename | sed 's/_test\.zig$//;s/\.zig$//' | sort -u) <(grep -oE '`[a-z_]+\.zig`' docs/milestones.md | tr -d '\`' | sed 's/\.zig$//' | sort -u)`
