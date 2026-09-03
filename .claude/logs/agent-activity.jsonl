@@ -350,3 +350,6 @@
 {"timestamp":"2026-09-02T06:26:35Z","action":"subagent","agent_type":"test-writer","task":"RED tests for MultiCursorEditor.addCursorAtNextOccurrence (Ctrl+D next-occurrence, v2.99.0 milestone)","project":"sailor"}
 {"timestamp":"2026-09-02T12:26:55Z","action":"subagent","agent_type":"test-writer","task":"Fix off-by-one assertion in addCursorAtNextOccurrence third-occurrence test","project":"sailor"}
 {"timestamp":"2026-09-02T12:27:33Z","action":"subagent","agent_type":"zig-developer","task":"Implement MultiCursorEditor.addCursorAtNextOccurrence to pass RED-phase tests","project":"sailor"}
+{"timestamp":"2026-09-03T00:29:43Z","action":"subagent","agent_type":"Explore","task":"Audit widget doc comments for gaps (v2.100.0 batch 1, configeditor/filebrowser/hex_editor found gaps)","project":"sailor"}
+{"timestamp":"2026-09-03T00:43:44Z","action":"subagent","agent_type":"test-writer","task":"RED tests for hex_editor.zig modified-byte style wiring","project":"sailor"}
+{"timestamp":"2026-09-03T00:43:44Z","action":"subagent","agent_type":"test-writer","task":"Fix column-math bug in hex_editor modified-style tests (group_size=1 double-space)","project":"sailor"}

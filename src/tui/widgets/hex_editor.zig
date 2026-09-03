@@ -60,6 +60,9 @@ pub const HexEditor = struct {
     cursor_style: Style = .{},
     /// Style for modified bytes
     modified_style: Style = .{},
+    /// Optional parallel slice marking which bytes are modified (same indexing as `data`).
+    /// Shorter than `data`, or omitted (default empty), means no bytes are modified.
+    modified: []const bool = &.{},
     /// Optional block border
     block: ?Block = null,
 
@@ -150,6 +153,13 @@ pub const HexEditor = struct {
         return result;
     }
 
+    /// Create a copy with a different modified-bytes slice
+    pub fn withModified(self: HexEditor, modified: []const bool) HexEditor {
+        var result = self;
+        result.modified = modified;
+        return result;
+    }
+
     /// Create a copy with a block border
     pub fn withBlock(self: HexEditor, block: ?Block) HexEditor {
         var result = self;
@@ -208,7 +218,13 @@ pub const HexEditor = struct {
                 if (col + 2 > inner_area.x + inner_area.width) break;
 
                 const byte_val = self.data[data_idx];
-                const byte_style = if (data_idx == self.cursor) self.cursor_style else self.style;
+                const is_modified = data_idx < self.modified.len and self.modified[data_idx];
+                const byte_style = if (data_idx == self.cursor)
+                    self.cursor_style
+                else if (is_modified)
+                    self.modified_style
+                else
+                    self.style;
 
                 // High nibble
                 const hi = (byte_val >> 4) & 0xF;
@@ -265,4 +281,235 @@ test "HexEditor imports" {
     const testing = std.testing;
     const he = HexEditor.init();
     try testing.expectEqual(@as(usize, 0), he.cursor);
+}
+
+test "HexEditor.withModified() builder creates copy without modifying original" {
+    const testing = std.testing;
+    const data = "Hello";
+    const modified_flags = &[_]bool{ true, false, true, false, true };
+
+    var original = HexEditor.init().withData(data);
+    const copy = original.withModified(modified_flags);
+
+    // Original should not be modified
+    try testing.expectEqual(@as(usize, 0), original.modified.len);
+
+    // Copy should have the modified slice
+    try testing.expectEqual(@as(usize, 5), copy.modified.len);
+    try testing.expectEqual(true, copy.modified[0]);
+    try testing.expectEqual(false, copy.modified[1]);
+    try testing.expectEqual(true, copy.modified[2]);
+}
+
+test "HexEditor render applies modified_style to marked bytes" {
+    const testing = std.testing;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var buf = try Buffer.init(allocator, 40, 10);
+    defer buf.deinit();
+
+    // Set up distinct styles for testing
+    const base_style = Style{ .fg = .white };
+    const modified_style = Style{ .fg = .red };
+    const data = "ABC";
+    const modified_flags = &[_]bool{ false, true, false };
+
+    var editor = HexEditor.init()
+        .withData(data)
+        .withStyle(base_style)
+        .withModifiedStyle(modified_style)
+        .withModified(modified_flags)
+        .withBytesPerRow(16)
+        .withShowOffset(false);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+    editor.render(&buf, area);
+
+    // Byte 0 (A=0x41): not modified, should use base_style
+    // Hex column: positions 0-1 for the two nibbles
+    if (buf.getConst(0, 0)) |cell| {
+        try testing.expect(!std.meta.eql(cell.style.fg, modified_style.fg));
+    }
+
+    // Byte 1 (B=0x42): modified, should use modified_style
+    // After byte 0 (2 chars + 1 space + 1 group-boundary space) = position 4-5
+    if (buf.getConst(4, 0)) |cell| {
+        try testing.expect(std.meta.eql(cell.style.fg, modified_style.fg));
+    }
+    if (buf.getConst(5, 0)) |cell| {
+        try testing.expect(std.meta.eql(cell.style.fg, modified_style.fg));
+    }
+
+    // Byte 2 (C=0x43): not modified, should use base_style
+    // After byte 1 (2 chars + 1 space + 1 group-boundary space) = position 8-9
+    if (buf.getConst(8, 0)) |cell| {
+        try testing.expect(!std.meta.eql(cell.style.fg, modified_style.fg));
+    }
+}
+
+test "HexEditor render: cursor_style wins over modified_style (precedence)" {
+    const testing = std.testing;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var buf = try Buffer.init(allocator, 40, 10);
+    defer buf.deinit();
+
+    const base_style = Style{ .fg = .white };
+    const modified_style = Style{ .fg = .red };
+    const cursor_style = Style{ .fg = .yellow, .bold = true };
+    const data = "ABC";
+    const modified_flags = &[_]bool{ true, true, true }; // All marked modified
+
+    var editor = HexEditor.init()
+        .withData(data)
+        .withCursor(1) // Cursor on byte 1 (B)
+        .withStyle(base_style)
+        .withModifiedStyle(modified_style)
+        .withCursorStyle(cursor_style)
+        .withModified(modified_flags)
+        .withBytesPerRow(16)
+        .withShowOffset(false);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+    editor.render(&buf, area);
+
+    // Byte 1 is both modified AND at cursor; cursor_style should apply
+    // Position 4-5 (after byte 0 with 2 spaces)
+    if (buf.getConst(4, 0)) |cell| {
+        try testing.expect(std.meta.eql(cell.style.fg, cursor_style.fg));
+        try testing.expectEqual(true, cell.style.bold);
+    }
+    if (buf.getConst(5, 0)) |cell| {
+        try testing.expect(std.meta.eql(cell.style.fg, cursor_style.fg));
+        try testing.expectEqual(true, cell.style.bold);
+    }
+
+    // Byte 0 is modified but not at cursor; should use modified_style
+    if (buf.getConst(0, 0)) |cell| {
+        try testing.expect(std.meta.eql(cell.style.fg, modified_style.fg));
+        try testing.expectEqual(false, cell.style.bold);
+    }
+}
+
+test "HexEditor render: unmodified non-cursor bytes use base style" {
+    const testing = std.testing;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var buf = try Buffer.init(allocator, 40, 10);
+    defer buf.deinit();
+
+    const base_style = Style{ .fg = .blue };
+    const modified_style = Style{ .fg = .red };
+    const data = "ABC";
+    const modified_flags = &[_]bool{ false, false, false }; // None marked modified
+
+    var editor = HexEditor.init()
+        .withData(data)
+        .withCursor(999) // Cursor way out of range
+        .withStyle(base_style)
+        .withModifiedStyle(modified_style)
+        .withModified(modified_flags)
+        .withBytesPerRow(16)
+        .withShowOffset(false);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+    editor.render(&buf, area);
+
+    // All bytes should use base_style
+    if (buf.getConst(0, 0)) |cell| {
+        try testing.expect(std.meta.eql(cell.style.fg, base_style.fg));
+    }
+    if (buf.getConst(1, 0)) |cell| {
+        try testing.expect(std.meta.eql(cell.style.fg, base_style.fg));
+    }
+    if (buf.getConst(3, 0)) |cell| {
+        try testing.expect(std.meta.eql(cell.style.fg, base_style.fg));
+    }
+}
+
+test "HexEditor render: modified slice shorter than data, bytes past slice are unmodified" {
+    const testing = std.testing;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var buf = try Buffer.init(allocator, 40, 10);
+    defer buf.deinit();
+
+    const base_style = Style{ .fg = .white };
+    const modified_style = Style{ .fg = .red };
+    const data = "ABCDE"; // 5 bytes
+    const modified_flags = &[_]bool{ true, true }; // Only 2 flags for 5 bytes
+
+    var editor = HexEditor.init()
+        .withData(data)
+        .withCursor(999) // Place cursor outside data range to avoid cursor precedence interfering with modified checks
+        .withStyle(base_style)
+        .withModifiedStyle(modified_style)
+        .withModified(modified_flags)
+        .withBytesPerRow(16)
+        .withShowOffset(false);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+    editor.render(&buf, area);
+
+    // Bytes 0-1 should be modified (red)
+    if (buf.getConst(0, 0)) |cell| {
+        try testing.expect(std.meta.eql(cell.style.fg, modified_style.fg));
+    }
+    if (buf.getConst(4, 0)) |cell| {
+        try testing.expect(std.meta.eql(cell.style.fg, modified_style.fg));
+    }
+
+    // Bytes 2-4 are past the modified slice, should use base_style
+    if (buf.getConst(8, 0)) |cell| {
+        try testing.expect(!std.meta.eql(cell.style.fg, modified_style.fg));
+    }
+    if (buf.getConst(12, 0)) |cell| {
+        try testing.expect(!std.meta.eql(cell.style.fg, modified_style.fg));
+    }
+}
+
+test "HexEditor render: empty default modified behaves like pre-fix" {
+    const testing = std.testing;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    var buf = try Buffer.init(allocator, 40, 10);
+    defer buf.deinit();
+
+    const base_style = Style{ .fg = .green };
+    const modified_style = Style{ .fg = .red };
+    const data = "ABC";
+
+    // Create editor WITHOUT calling withModified() - should have zero-value modified
+    var editor = HexEditor.init()
+        .withData(data)
+        .withCursor(999) // Place cursor outside data range to isolate base_style testing
+        .withStyle(base_style)
+        .withModifiedStyle(modified_style)
+        .withBytesPerRow(16)
+        .withShowOffset(false);
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+    editor.render(&buf, area);
+
+    // All bytes should use base_style (modified_style should have NO effect)
+    if (buf.getConst(0, 0)) |cell| {
+        try testing.expect(std.meta.eql(cell.style.fg, base_style.fg));
+        try testing.expect(!std.meta.eql(cell.style.fg, modified_style.fg));
+    }
+    if (buf.getConst(1, 0)) |cell| {
+        try testing.expect(std.meta.eql(cell.style.fg, base_style.fg));
+    }
+    if (buf.getConst(4, 0)) |cell| {
+        try testing.expect(std.meta.eql(cell.style.fg, base_style.fg));
+    }
 }
