@@ -402,19 +402,26 @@ pub const FileBrowser = struct {
 
         if (inner_area.width == 0 or inner_area.height == 0) return;
 
+        // Split into list/preview panes when preview is enabled and there's room
+        const preview_min_width = 20;
+        const show_preview = self.enable_preview and inner_area.width >= preview_min_width;
+        const divider_x = if (show_preview) inner_area.x + (inner_area.width - 1) / 2 else 0;
+        const list_width = if (show_preview) divider_x - inner_area.x else inner_area.width;
+        const list_area = Rect{ .x = inner_area.x, .y = inner_area.y, .width = list_width, .height = inner_area.height };
+
         // Draw path at top
-        var y = inner_area.y;
-        if (y < inner_area.y + inner_area.height) {
-            var x = inner_area.x;
+        var y = list_area.y;
+        if (y < list_area.y + list_area.height) {
+            var x = list_area.x;
             const label = "Path: ";
             for (label) |c| {
-                if (x < inner_area.x + inner_area.width) {
+                if (x < list_area.x + list_area.width) {
                     buf.set(x, y, .{ .char = c, .style = .{} });
                     x += 1;
                 }
             }
             for (self.current_path) |c| {
-                if (x >= inner_area.x + inner_area.width) break;
+                if (x >= list_area.x + list_area.width) break;
                 buf.set(x, y, .{ .char = c, .style = .{} });
                 x += 1;
             }
@@ -423,19 +430,19 @@ pub const FileBrowser = struct {
 
         // Render entries
         for (0..self.entries.len) |i| {
-            if (y >= inner_area.y + inner_area.height) break;
+            if (y >= list_area.y + list_area.height) break;
 
             const entry = self.entries[i];
             const is_selected = i == self.selected_index;
             const style = if (is_selected) Style{ .bold = true, .reverse = true } else Style{};
 
-            var x = inner_area.x;
+            var x = list_area.x;
 
             // Render highlight/icon
             if (is_selected) {
                 const mark = if (entry.selected) "✓ " else "> ";
                 for (mark) |c| {
-                    if (x < inner_area.x + inner_area.width) {
+                    if (x < list_area.x + list_area.width) {
                         buf.set(x, y, .{ .char = c, .style = style });
                         x += 1;
                     }
@@ -446,7 +453,7 @@ pub const FileBrowser = struct {
             if (self.show_icons) {
                 const icon = if (entry.is_dir) "📁 " else "📄 ";
                 for (icon) |c| {
-                    if (x < inner_area.x + inner_area.width) {
+                    if (x < list_area.x + list_area.width) {
                         buf.set(x, y, .{ .char = c, .style = style });
                         x += 1;
                     }
@@ -455,19 +462,61 @@ pub const FileBrowser = struct {
 
             // Render filename
             for (entry.name) |c| {
-                if (x >= inner_area.x + inner_area.width) break;
+                if (x >= list_area.x + list_area.width) break;
                 buf.set(x, y, .{ .char = c, .style = style });
                 x += 1;
             }
 
             // Fill rest of line if selected
             if (is_selected) {
-                while (x < inner_area.x + inner_area.width) : (x += 1) {
+                while (x < list_area.x + list_area.width) : (x += 1) {
                     buf.set(x, y, .{ .char = ' ', .style = style });
                 }
             }
 
             y += 1;
+        }
+
+        if (show_preview) {
+            // Divider between list and preview panes
+            var dy = inner_area.y;
+            while (dy < inner_area.y + inner_area.height) : (dy += 1) {
+                buf.set(divider_x, dy, .{ .char = '│', .style = .{} });
+            }
+
+            const preview_area = Rect{
+                .x = divider_x + 1,
+                .y = inner_area.y + 1,
+                .width = inner_area.x + inner_area.width - (divider_x + 1),
+                .height = if (inner_area.height > 1) inner_area.height - 1 else 0,
+            };
+
+            if (self.entries.len > 0 and preview_area.width > 0 and preview_area.height > 0) {
+                const selected = &self.entries[self.selected_index];
+                var arena = std.heap.ArenaAllocator.init(self.allocator);
+                defer arena.deinit();
+
+                const text = if (selected.is_dir)
+                    self.getDirectoryInfo(arena.allocator(), selected) catch null
+                else
+                    self.getFilePreview(arena.allocator(), selected) catch null;
+
+                if (text) |content| {
+                    var px = preview_area.x;
+                    var py = preview_area.y;
+                    for (content) |c| {
+                        if (c == '\n') {
+                            px = preview_area.x;
+                            py += 1;
+                            if (py >= preview_area.y + preview_area.height) break;
+                            continue;
+                        }
+                        if (px >= preview_area.x + preview_area.width) continue;
+                        buf.set(px, py, .{ .char = c, .style = .{} });
+                        px += 1;
+                    }
+                }
+            }
         }
     }
 };
@@ -841,4 +890,300 @@ test "FileBrowser SelectionResult deinit" {
     defer result.deinit();
 
     try testing.expectEqual(@as(usize, 1), result.items.len);
+}
+
+test "FileBrowser render preview disabled (regression guard)" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const test_dir = "test_filebrowser_preview_disabled_tmp";
+    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    defer std.fs.cwd().deleteTree(test_dir) catch {};
+
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/ztest.txt", .data = "content" });
+
+    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+
+    var browser = try FileBrowser.init(allocator, abs_path);
+    defer browser.deinit();
+
+    // Verify preview is disabled by default
+    try testing.expect(!browser.enable_preview);
+
+    var buffer = try Buffer.init(allocator, 40, 10);
+    defer buffer.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+    try browser.render(&buffer, area);
+
+    // Find filename "ztest.txt" in buffer - should appear starting after selection marker
+    // and at the full width (not split into preview)
+    var found_filename = false;
+    var filename_x: u16 = 0;
+    for (0..buffer.height) |y| {
+        for (0..buffer.width) |x| {
+            const c = buffer.get(@intCast(x), @intCast(y));
+            if (c.char == 'z') {
+                // Found 'z' from "ztest.txt", verify rest of filename follows
+                var match = true;
+                const target = "ztest.txt";
+                for (target, 0..) |expected_char, offset| {
+                    if (x + offset < buffer.width) {
+                        const check_cell = buffer.get(@intCast(x + offset), @intCast(y));
+                        if (check_cell.char != expected_char) {
+                            match = false;
+                            break;
+                        }
+                    }
+                }
+                if (match) {
+                    found_filename = true;
+                    filename_x = @intCast(x);
+                }
+            }
+        }
+    }
+    try testing.expect(found_filename);
+    // Regression: filename should not be split, so it should appear relatively early in the line
+    // (within full width, not in a narrow list pane)
+    try testing.expect(filename_x < 20);
+}
+
+test "FileBrowser render preview enabled but too narrow (width < 20)" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const test_dir = "test_filebrowser_preview_narrow_tmp";
+    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    defer std.fs.cwd().deleteTree(test_dir) catch {};
+
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file.txt", .data = "test" });
+
+    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+
+    var browser = try FileBrowser.init(allocator, abs_path);
+    defer browser.deinit();
+    browser = browser.withPreview(true);
+
+    var buffer = try Buffer.init(allocator, 15, 10);
+    defer buffer.deinit();
+
+    // Render to narrow area (width=15, threshold is 20)
+    const area = Rect{ .x = 0, .y = 0, .width = 15, .height = 10 };
+    try browser.render(&buffer, area);
+
+    // Verify NO divider char '│' appears anywhere in buffer
+    // since width < 20 should skip preview
+    var found_divider = false;
+    for (0..buffer.height) |y| {
+        for (0..buffer.width) |x| {
+            const c = buffer.get(@intCast(x), @intCast(y));
+            if (c.char == '│') {
+                found_divider = true;
+            }
+        }
+    }
+    try testing.expect(!found_divider);
+}
+
+test "FileBrowser render preview enabled and wide enough (divider appears)" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const test_dir = "test_filebrowser_preview_divider_tmp";
+    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    defer std.fs.cwd().deleteTree(test_dir) catch {};
+
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file.txt", .data = "test" });
+
+    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+
+    var browser = try FileBrowser.init(allocator, abs_path);
+    defer browser.deinit();
+    browser = browser.withPreview(true);
+
+    var buffer = try Buffer.init(allocator, 40, 10);
+    defer buffer.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+    try browser.render(&buffer, area);
+
+    // Calculate expected divider position
+    // divider_x = inner_area.x + (inner_area.width - 1) / 2
+    // With x=0, width=40: divider_x = 0 + (40-1)/2 = 19
+    const inner_area = area;
+    const divider_x = inner_area.x + (inner_area.width - 1) / 2;
+
+    // Verify divider char '│' appears at expected x position
+    var found_divider = false;
+    for (0..buffer.height) |y| {
+        const c = buffer.get(divider_x, @intCast(y));
+        if (c.char == '│') {
+            found_divider = true;
+        }
+    }
+    try testing.expect(found_divider);
+}
+
+test "FileBrowser render file preview content appears in preview pane" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const test_dir = "test_filebrowser_preview_file_tmp";
+    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    defer std.fs.cwd().deleteTree(test_dir) catch {};
+
+    // Create file with known content "hello"
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/hello.txt", .data = "hello" });
+
+    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+
+    var browser = try FileBrowser.init(allocator, abs_path);
+    defer browser.deinit();
+    browser = browser.withPreview(true);
+
+    var buffer = try Buffer.init(allocator, 40, 10);
+    defer buffer.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+    try browser.render(&buffer, area);
+
+    // Calculate preview_area position
+    // divider_x = 0 + (40-1)/2 = 19
+    // preview_area.x = divider_x + 1 = 20
+    // preview_area.y = 1 (entry starts below path line)
+    const divider_x = (area.width - 1) / 2;
+    const preview_area_x = divider_x + 1;
+    const preview_area_y: u16 = 1; // First entry row (path is at y=0)
+
+    // Verify preview content "hello" appears starting at preview_area_x
+    var found_preview_content = false;
+    const target = "hello";
+
+    // Check all chars of "hello" match at preview_area_x, preview_area_y
+    var all_match = true;
+    for (target, 0..) |expected_char, offset| {
+        if (preview_area_x + offset < area.width) {
+            const c = buffer.get(@intCast(preview_area_x + offset), preview_area_y);
+            if (c.char != expected_char) {
+                all_match = false;
+                break;
+            }
+        } else {
+            all_match = false;
+            break;
+        }
+    }
+    if (all_match) {
+        found_preview_content = true;
+    }
+
+    try testing.expect(found_preview_content);
+}
+
+test "FileBrowser render directory preview shows items count" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const test_dir = "test_filebrowser_preview_dir_tmp";
+    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    defer std.fs.cwd().deleteTree(test_dir) catch {};
+
+    // Create a directory with some files
+    try std.fs.cwd().makeDir(test_dir ++ "/adir");
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/adir/file1.txt", .data = "a" });
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/adir/file2.txt", .data = "b" });
+    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/adir/file3.txt", .data = "c" });
+
+    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+
+    var browser = try FileBrowser.init(allocator, abs_path);
+    defer browser.deinit();
+    browser = browser.withPreview(true);
+
+    // Ensure directory is selected (should be first entry due to sorting)
+    try testing.expect(browser.entries.len > 0);
+    try testing.expect(browser.entries[0].is_dir);
+
+    var buffer = try Buffer.init(allocator, 40, 10);
+    defer buffer.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+    try browser.render(&buffer, area);
+
+    // Verify preview contains "items" text from getDirectoryInfo
+    // Search entire buffer for "items"
+    var found_items_text = false;
+    for (0..buffer.height) |y| {
+        for (0..buffer.width) |x| {
+            const c = buffer.get(@intCast(x), @intCast(y));
+            if (c.char == 'i') {
+                // Check if "items" appears here
+                const target = "items";
+                var match = true;
+                for (target, 0..) |expected_char, offset| {
+                    if (x + offset < buffer.width) {
+                        if (buffer.get(@intCast(x + offset), @intCast(y)).char != expected_char) {
+                            match = false;
+                            break;
+                        }
+                    } else {
+                        match = false;
+                        break;
+                    }
+                }
+                if (match) {
+                    found_items_text = true;
+                }
+            }
+        }
+    }
+    try testing.expect(found_items_text);
+}
+
+test "FileBrowser render with empty entries does not crash" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const test_dir = "test_filebrowser_preview_empty_tmp";
+    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    defer std.fs.cwd().deleteTree(test_dir) catch {};
+
+    var browser = try FileBrowser.init(allocator, test_dir);
+    defer browser.deinit();
+    browser = browser.withPreview(true);
+
+    // Ensure entries are empty
+    try testing.expectEqual(@as(usize, 0), browser.entries.len);
+
+    var buffer = try Buffer.init(allocator, 40, 10);
+    defer buffer.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
+
+    // Should not crash or return error
+    try browser.render(&buffer, area);
 }
