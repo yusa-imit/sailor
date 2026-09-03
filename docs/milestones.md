@@ -4,8 +4,8 @@
 
 - **Latest release**: v2.99.0 (2026-09-03) — minor release closing the Widget Doc-Comment Audit Round 2 milestone. Bundles fixes accumulated since v2.98.0: session 428/430 (notification.zig withTimeout/dismiss/tick), session 431/432 (multicursor.zig undoAll/redoAll batch undo-redo), session 434 (multicursor.zig addCursorAtNextOccurrence), session 431 (context_menu.zig triaged — no bug, doc comment confirmed accurate). `zig build test` 0 failures, all 6 cross-compile targets verified locally (stabilization session), 0 open bug issues anywhere.
 - **Latest minor**: v2.99.0 (2026-09-03)
-- **Unreleased on main**: none
-- **Next release**: TBD — accumulate fixes from the next milestone below before bundling, per the v2.97.0/v2.98.0/v2.99.0 precedent.
+- **Unreleased on main**: 1 commit (d239daa — hex_editor.zig modified_style wiring, session 436)
+- **Next release**: TBD — accumulate fixes from the v2.100.0 milestone below before bundling, per the v2.97.0/v2.98.0/v2.99.0 precedent.
 - **Active milestones**: 1 — v2.100.0 Widget Doc-Comment Audit Round 3 (see below)
 - **Blockers**: None
 
@@ -20,17 +20,46 @@ mismatch pattern (grep top-of-file/struct doc comments for promised behavior, cr
 actual `render()`/handler implementation).
 
 **Checklist**:
-- [ ] Dispatch an Explore agent (or do it directly, batched across several widget files per pass)
-      over a fresh batch of unaudited widgets: `activity_feed`, `animated_border`, `animated_text`,
-      `barchart`, `block`, `bracket_viewer`, `breadcrumb`, `bullet_chart`, `calendar`, `canvas`,
-      `checkbox`, `chunkedbuffer`, `colorswatch`, `command_bar`, `completion_popup`,
-      `configeditor`, `dag`, `debug`, `diff_viewer`, `diffstat`, `editable_table`, `editor`,
-      `filebrowser`, `filterable_list`, `flow_text`, `flowchart`, `form`, `gantt`, `hex_editor`,
+- [x] Session 436: dispatched an Explore agent over the first batch of 39 unaudited widgets listed
+      below. Found 3 genuine gaps — `configeditor.zig` (doc comment claims "editing" but the widget
+      is 100% read-only, no mutation/key-handling method exists — largest scope, deferred),
+      `filebrowser.zig` (`enable_preview`/`withPreview()`/`getFilePreview()` fully implemented but
+      never wired into `render()` — no preview pane ever drawn, deferred), `hex_editor.zig`
+      (`modified_style` field + `withModifiedStyle()` builder existed but nothing ever tracked or
+      applied "modified" bytes — fixed this session, see below). All other files in the batch
+      (`activity_feed`, `animated_border`, `animated_text`, `barchart`, `block`, `bracket_viewer`,
+      `breadcrumb`, `bullet_chart`, `calendar`, `canvas`, `checkbox`, `chunkedbuffer`,
+      `colorswatch`, `command_bar`, `completion_popup`, `dag`, `debug`, `diff_viewer`, `diffstat`,
+      `editable_table`, `editor`, `filterable_list`, `flow_text`, `flowchart`, `form`, `gantt`,
       `hexviewer`, `histogram`, `httpclient`, `input`, `inspector`, `json_browser`, `keymap`,
-      `keyvalue_viewer`, `layout_template`, `linechart` (and remaining files — see
+      `keyvalue_viewer`, `layout_template`, `linechart`) confirmed clean — doc comments match
+      implementation.
+- [x] `hex_editor.zig` "modified" style attribute — session 436: added `modified: []const bool`
+      field (borrowed parallel slice, same convention as `data`) + `withModified()` builder;
+      `render()`'s hex-byte loop now applies `modified_style` with `cursor > modified > base`
+      precedence (cursor is the strongest visual signal, matches existing widget conventions).
+      Deliberately scoped `modified_style` to the hex column only, matching the ASCII column's
+      existing behavior of not applying `cursor_style` either — not extended as part of this fix.
+      6 new tests (test-writer RED phase caught its own column-math bug on the first GREEN run —
+      default `group_size=1` inserts a group-boundary space after every byte in addition to the
+      regular byte-separator space, so byte N's nibbles land at columns `4*N`/`4*N+1`, not
+      `3*N`/`3*N+1` as first assumed; sent back to test-writer to fix per the TDD-agent-boundary
+      rule rather than patching directly). `zig build test` 0 failures (one unrelated flaky
+      `validation.test.async validator - non-blocking` timing failure seen once, gone on rerun —
+      not touched by this change).
+- [ ] `configeditor.zig` — doc comment/name promise "editing" but the widget is entirely read-only
+      (no value-mutation or key-handling method; `expanded` field only ever read in `render()`,
+      never toggled). Needs a design decision on scope (value mutation? expand/collapse toggling
+      via a key-handling method? both?) before a TDD cycle can start — larger surface than the
+      hex_editor fix, do first design resolution next session picking this up.
+- [ ] `filebrowser.zig` — `enable_preview`/`withPreview()`/`getFilePreview()` exist and
+      `getFilePreview()` works standalone, but `render()` never checks `enable_preview` or splits
+      the area into a list+preview pane. Needs a split-pane render path design (reuse
+      `splitpane.zig`'s layout math or a simpler fixed-ratio split) before a TDD cycle.
+- [ ] Continue the sweep over the remaining files not yet checked at all — see
       `/tmp/unaudited.txt` generated session 435, not committed; regenerate via
       `comm -23 <(ls src/tui/widgets/*.zig | xargs -n1 basename | sed 's/_test\.zig$//;s/\.zig$//' | sort -u) <(grep -oE '`[a-z_]+\.zig`' docs/milestones.md | tr -d '\`' | sed 's/\.zig$//' | sort -u)`
-      if needed).
+      (this session's 39-file batch should now be excluded from the next run's candidate list).
 - [ ] Fix confirmed gaps via the full TDD cycle (test-writer RED → implement GREEN), one gap per
       cycle — do not mass-fix across widgets in one session, per v2.97.0-v2.99.0 precedent.
 - [ ] Release once a meaningful batch of fixes has accumulated, per the accumulate-then-bundle
