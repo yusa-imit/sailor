@@ -4,7 +4,7 @@
 
 - **Latest release**: v2.99.0 (2026-09-03) — minor release closing the Widget Doc-Comment Audit Round 2 milestone. Bundles fixes accumulated since v2.98.0: session 428/430 (notification.zig withTimeout/dismiss/tick), session 431/432 (multicursor.zig undoAll/redoAll batch undo-redo), session 434 (multicursor.zig addCursorAtNextOccurrence), session 431 (context_menu.zig triaged — no bug, doc comment confirmed accurate). `zig build test` 0 failures, all 6 cross-compile targets verified locally (stabilization session), 0 open bug issues anywhere.
 - **Latest minor**: v2.99.0 (2026-09-03)
-- **Unreleased on main**: 1 commit (d239daa — hex_editor.zig modified_style wiring, session 436)
+- **Unreleased on main**: 5 commits since v2.99.0 (d239daa hex_editor.zig modified_style wiring session 436; 372a439/feff3a9 filebrowser.zig preview-pane sessions 437-438; cf48ce4 configeditor.zig scalar-value editing + test-reachability fix session 439-441; toggle_switch.zig on_label/off_label wiring session 442)
 - **Next release**: TBD — accumulate fixes from the v2.100.0 milestone below before bundling, per the v2.97.0/v2.98.0/v2.99.0 precedent.
 - **Active milestones**: 1 — v2.100.0 Widget Doc-Comment Audit Round 3 (see below)
 - **Blockers**: None
@@ -47,11 +47,16 @@ actual `render()`/handler implementation).
       rule rather than patching directly). `zig build test` 0 failures (one unrelated flaky
       `validation.test.async validator - non-blocking` timing failure seen once, gone on rerun —
       not touched by this change).
-- [ ] `configeditor.zig` — doc comment/name promise "editing" but the widget is entirely read-only
-      (no value-mutation or key-handling method; `expanded` field only ever read in `render()`,
-      never toggled). Needs a design decision on scope (value mutation? expand/collapse toggling
-      via a key-handling method? both?) before a TDD cycle can start — larger surface than the
-      hex_editor fix, do first design resolution next session picking this up.
+- [x] `configeditor.zig` — sessions 439-441: scope resolved as scalar-value editing (not
+      expand/collapse, which was already implemented). Added `edit_buffer`/`edit_len`/
+      `is_editing` fields plus `startEdit`/`editText`/`insertChar`/`deleteChar`/`confirmEdit`/
+      `cancelEdit`/`selectedNode` methods (session 441 GREEN, on top of session 439's RED
+      tests). Separately found and fixed: the widget's `pub const` re-export in `tui.zig` was
+      never referenced by any `zig build test` root, so its ~1400 lines of inline tests
+      (including the new RED/GREEN pair) never actually compiled or ran — confirmed via a
+      throwaway `@compileError` probe. Fixed by creating `tests/configeditor_test.zig` and
+      registering it in `build.zig`, forcing real analysis. `zig build test` 0 failures
+      (independently verified session 441).
 - [x] `filebrowser.zig` — session 437 (test-writer) wrote RED tests for the split-pane render
       path (`filebrowser.zig` preview disabled/too-narrow/file-content/directory-info/empty-entries
       — 5 tests); session 438 implemented GREEN: `render()` now splits `inner_area` into
@@ -60,10 +65,47 @@ actual `render()`/handler implementation).
       always-50/50 divider), draws a `│` divider column, and renders `getFilePreview()`/
       `getDirectoryInfo()` output for the selected entry into the preview pane (word-wrap-free,
       newline-aware). `zig build test` 0 failures (independently verified session 438).
-- [ ] Continue the sweep over the remaining files not yet checked at all — see
-      `/tmp/unaudited.txt` generated session 435, not committed; regenerate via
-      `comm -23 <(ls src/tui/widgets/*.zig | xargs -n1 basename | sed 's/_test\.zig$//;s/\.zig$//' | sort -u) <(grep -oE '`[a-z_]+\.zig`' docs/milestones.md | tr -d '\`' | sed 's/\.zig$//' | sort -u)`
-      (this session's 39-file batch should now be excluded from the next run's candidate list).
+- [x] Session 442: dispatched an Explore agent over the next batch of 44 unaudited widgets
+      (regenerated the candidate list — the prior `comm` recipe under-matched because session
+      436's "confirmed clean" list used bare names in backticks, e.g. `` `activity_feed` ``, not
+      `` `activity_feed.zig` ``; fixed regex to `` `[a-z_]+(\.zig)?` `` to catch both forms).
+      Found 8 genuine gaps: `paragraph.zig` (RTL/bidi never wired; word/char wrap modes behave
+      identically to none — every line just truncated), `pager.zig` (`wrap`/`withWrap()` never
+      consulted in render, doc's own field comment admits it), `metrics_dashboard.zig`
+      (`show_graphs` explicitly discarded with a `// Future:` comment), `terminal.zig`
+      (`AnsiParseState` fully implemented but never invoked from `addLine()`/`render()`),
+      `richtext.zig` (doc claims emoji search, only category nav exists), `toggle_switch.zig`
+      (`on_label`/`off_label`/`withLabels()` stored but never rendered — fixed this session, see
+      below), `timeline.zig` (`TimelineEvent.description` never read in either render mode),
+      `pipeline.zig` (`PipelineStage.progress` never read, doc says "used when status ==
+      .running"). All other 36 files in the batch (list, logviewer, markdown, matrix_view, menu,
+      mindmap, minimap, multi_select_list, numberinput, pagination, pareto_chart, popup,
+      progress_ring, radio, rangeslider, rating, record_editor, ridgeline_plot, scrollbar,
+      select, sparkline, spinner, split_text, status_grid, statusbar, stopwatch,
+      streaming_table, table, tabs, taskrunner, textarea, tree, treetable, virtuallist,
+      virtualtable, websocket) confirmed clean.
+- [x] `toggle_switch.zig` "on_label/off_label" — session 442: picked as the smallest/cleanest of
+      the 8 new gaps (same "pick smallest first" precedent as hex_editor.zig in session 436).
+      `render()` now writes a separator space + the current state's label (`on_label` if
+      `checked`, else `off_label`) immediately after the switch's own `label` text, truncating
+      at the same `label_space` bound the label text already uses. Deliberately left the fixed
+      6-cell track glyph rendering (`[◯    ]`/`[    ◉]`) untouched — that format is explicitly
+      documented and out of scope. 5 new tests (4 RED→GREEN + 1 regression guard that passed
+      immediately). `zig build test` 0 failures (independently verified).
+- [ ] 7 gaps remain from session 442's batch, one TDD cycle each, smallest/clearest-scope first:
+      `pipeline.zig` (progress field → render a mini progress indicator in the stage box),
+      `timeline.zig` (description field → render as a second line/suffix under each event),
+      `terminal.zig` (wire existing `AnsiParseState` into `addLine()`), `pager.zig` (implement
+      actual soft-wrap in render using `wrap`), `metrics_dashboard.zig` (implement sparkline
+      graphs or remove the claim — needs a scope decision), `richtext.zig` (add emoji search or
+      narrow the doc claim — needs a scope decision), `paragraph.zig` (largest surface — real
+      word/char wrapping across multiple buffer rows + RTL/bidi — needs an `architect` pass,
+      do last).
+- [ ] Continue the sweep over any files not yet checked at all (0 known-unswept files remain in
+      `src/tui/widgets/` as of session 442 — the 44-file batch was the last one from the
+      regenerated list; a fresh regen next session should confirm this before assuming the
+      sweep itself is complete, since the list-generation method is approximate per session
+      435's process note).
 - [ ] Fix confirmed gaps via the full TDD cycle (test-writer RED → implement GREEN), one gap per
       cycle — do not mass-fix across widgets in one session, per v2.97.0-v2.99.0 precedent.
 - [ ] Release once a meaningful batch of fixes has accumulated, per the accumulate-then-bundle

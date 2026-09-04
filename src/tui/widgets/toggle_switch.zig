@@ -197,6 +197,26 @@ pub const ToggleSwitch = struct {
                 });
                 x += 1;
             }
+
+            // Render the current state's label (on_label/off_label) after a
+            // separator space, truncating at the same label_space bound.
+            if (x < label_space) {
+                buf.set(@intCast(area.x + 8 + x), area.y, .{
+                    .char = ' ',
+                    .style = display_style,
+                });
+                x += 1;
+
+                const state_label = if (self.checked) self.on_label else self.off_label;
+                for (state_label) |ch| {
+                    if (x >= label_space) break;
+                    buf.set(@intCast(area.x + 8 + x), area.y, .{
+                        .char = @intCast(ch),
+                        .style = display_style,
+                    });
+                    x += 1;
+                }
+            }
         }
     }
 };
@@ -598,4 +618,107 @@ test "ToggleSwitchGroup.withHelp does not modify original" {
     const group2 = group1.withHelp(false);
     try std.testing.expect(group1.show_help);
     try std.testing.expect(!group2.show_help);
+}
+
+// RED tests for on_label/off_label rendering (issue: stored but never rendered)
+
+test "render off state with default off_label OFF at x=18-20" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 30, 1);
+    defer buf.deinit();
+
+    const ts = ToggleSwitch.init("Toggle me");
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
+    ts.render(&buf, area);
+
+    // x=18,19,20 should spell "OFF"
+    try std.testing.expectEqual(@as(u21, 'O'), buf.getConst(18, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'F'), buf.getConst(19, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'F'), buf.getConst(20, 0).?.char);
+}
+
+test "render on state with default on_label ON at x=18-19" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 30, 1);
+    defer buf.deinit();
+
+    const ts = ToggleSwitch.init("Toggle me").withChecked(true);
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
+    ts.render(&buf, area);
+
+    // x=18,19 should spell "ON" (x=20 not asserted, it's Buffer's default)
+    try std.testing.expectEqual(@as(u21, 'O'), buf.getConst(18, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'N'), buf.getConst(19, 0).?.char);
+}
+
+test "render off state with custom labels renders NO at x=18-19" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 30, 1);
+    defer buf.deinit();
+
+    const ts = ToggleSwitch.init("Toggle me").withLabels("YES", "NO");
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
+    ts.render(&buf, area);
+
+    // x=18,19 should spell "NO" when off
+    try std.testing.expectEqual(@as(u21, 'N'), buf.getConst(18, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'O'), buf.getConst(19, 0).?.char);
+}
+
+test "render on state with custom labels renders YES at x=18-20" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 30, 1);
+    defer buf.deinit();
+
+    const ts = ToggleSwitch.init("Toggle me").withLabels("YES", "NO").withChecked(true);
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
+    ts.render(&buf, area);
+
+    // x=18,19,20 should spell "YES" when on
+    try std.testing.expectEqual(@as(u21, 'Y'), buf.getConst(18, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'E'), buf.getConst(19, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'S'), buf.getConst(20, 0).?.char);
+}
+
+test "render does not write state label when width too narrow (area.width=17)" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 30, 1);
+    defer buf.deinit();
+
+    // Pre-fill the entire buffer with 'X' as a sentinel
+    const fill_area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
+    buf.fill(fill_area, 'X', Style{});
+
+    // Render with area.width=17 (label_space=9, enough for label but not for separator+state)
+    const ts = ToggleSwitch.init("Toggle me");
+    const area = Rect{ .x = 0, .y = 0, .width = 17, .height = 1 };
+    ts.render(&buf, area);
+
+    // x=17 would be the separator space, x=18 would be the start of state label
+    // Both should NOT have been written by render() since label_space=9 and we'd need
+    // x offset >= 9 to start writing separator (label=9 chars, then space, then state)
+    // So x=17 and x=18 should still be 'X' (never overwritten by render)
+    try std.testing.expectEqual(@as(u21, 'X'), buf.getConst(17, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'X'), buf.getConst(18, 0).?.char);
+}
+
+test "render label text unchanged at x=8-16 after state label rendering" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 30, 1);
+    defer buf.deinit();
+
+    const ts = ToggleSwitch.init("Toggle me");
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
+    ts.render(&buf, area);
+
+    // Verify label text "Toggle me" is at x=8-16 (9 characters, occupies cells x=8..16 inclusive)
+    try std.testing.expectEqual(@as(u21, 'T'), buf.getConst(8, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'o'), buf.getConst(9, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'g'), buf.getConst(10, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'g'), buf.getConst(11, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'l'), buf.getConst(12, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'e'), buf.getConst(13, 0).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.getConst(14, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'm'), buf.getConst(15, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'e'), buf.getConst(16, 0).?.char);
 }
