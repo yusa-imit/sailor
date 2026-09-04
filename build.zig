@@ -206,6 +206,14 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    const configeditor_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/configeditor_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
     const terminal_widget_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("tests/terminal_widget_test.zig"),
@@ -513,6 +521,7 @@ pub fn build(b: *std.Build) void {
     menu_tests.root_module.addImport("sailor", sailor_module_for_tests);
     calendar_tests.root_module.addImport("sailor", sailor_module_for_tests);
     filebrowser_tests.root_module.addImport("sailor", sailor_module_for_tests);
+    configeditor_tests.root_module.addImport("sailor", sailor_module_for_tests);
     terminal_widget_tests.root_module.addImport("sailor", sailor_module_for_tests);
     markdown_tests.root_module.addImport("sailor", sailor_module_for_tests);
     // inspector_tests.root_module.addImport("sailor", sailor_module_for_tests); // disabled
@@ -732,6 +741,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(menu_tests).step);
     test_step.dependOn(&b.addRunArtifact(calendar_tests).step);
     test_step.dependOn(&b.addRunArtifact(filebrowser_tests).step);
+    test_step.dependOn(&b.addRunArtifact(configeditor_tests).step);
     test_step.dependOn(&b.addRunArtifact(terminal_widget_tests).step);
     test_step.dependOn(&b.addRunArtifact(markdown_tests).step);
     // test_step.dependOn(&b.addRunArtifact(inspector_tests).step); // disabled

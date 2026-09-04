@@ -52,6 +52,12 @@ pub const ConfigEditor = struct {
     leaf_symbol: []const u8 = "  ",
     /// Indentation
     indent: u16 = 2,
+    /// Caller-provided scratch buffer for in-place scalar-value editing
+    edit_buffer: []u8 = @constCast(&[_]u8{}),
+    /// Number of valid bytes currently held in edit_buffer
+    edit_len: usize = 0,
+    /// Whether a scalar-value edit is in progress
+    is_editing: bool = false,
 
     /// Create config editor with nodes
     pub fn init(nodes: []const ConfigNode) ConfigEditor {
@@ -235,6 +241,72 @@ pub const ConfigEditor = struct {
                 buf.setString(x, y, text[0..len], style);
             },
         }
+    }
+
+    /// Return the currently selected node (accounting for tree flattening), or null
+    pub fn selectedNode(self: *const ConfigEditor) ?*const ConfigNode {
+        const sel = self.selected orelse return null;
+        var flat_list = FlatList.init();
+        flattenNodesStack(self.nodes, 0, &flat_list) catch return null;
+        const flat_nodes = flat_list.slice();
+        if (sel >= flat_nodes.len) return null;
+        return flat_nodes[sel].node;
+    }
+
+    /// Format a scalar node's value as raw editable text into scratch
+    fn formatScalarText(node: *const ConfigNode, scratch: []u8) []const u8 {
+        return switch (node.value_type) {
+            .string => node.value.string,
+            .number => std.fmt.bufPrint(scratch, "{d}", .{node.value.number}) catch "",
+            .boolean => if (node.value.boolean) "true" else "false",
+            .null_value => "",
+            .object, .array => "",
+        };
+    }
+
+    /// Begin editing the selected scalar node's value into edit_buffer
+    pub fn startEdit(self: *ConfigEditor) void {
+        if (self.edit_buffer.len == 0) return;
+        const node = self.selectedNode() orelse return;
+        if (node.value_type == .object or node.value_type == .array) return;
+
+        var scratch: [64]u8 = undefined;
+        const text = formatScalarText(node, &scratch);
+        const copy_len = @min(text.len, self.edit_buffer.len);
+        @memcpy(self.edit_buffer[0..copy_len], text[0..copy_len]);
+        self.edit_len = copy_len;
+        self.is_editing = true;
+    }
+
+    /// Current in-progress edit text, empty when not editing
+    pub fn editText(self: *const ConfigEditor) []const u8 {
+        if (!self.is_editing) return "";
+        return self.edit_buffer[0..self.edit_len];
+    }
+
+    /// Append a character to the in-progress edit, no-op if buffer is full
+    pub fn insertChar(self: *ConfigEditor, c: u8) void {
+        if (!self.is_editing) return;
+        if (self.edit_len >= self.edit_buffer.len) return;
+        self.edit_buffer[self.edit_len] = c;
+        self.edit_len += 1;
+    }
+
+    /// Remove the last character of the in-progress edit, no-op if empty
+    pub fn deleteChar(self: *ConfigEditor) void {
+        if (!self.is_editing) return;
+        if (self.edit_len == 0) return;
+        self.edit_len -= 1;
+    }
+
+    /// Confirm the in-progress edit and stop editing
+    pub fn confirmEdit(self: *ConfigEditor) void {
+        self.is_editing = false;
+    }
+
+    /// Discard the in-progress edit and stop editing
+    pub fn cancelEdit(self: *ConfigEditor) void {
+        self.is_editing = false;
     }
 
     /// Flatten tree into visible nodes with depth
@@ -1022,4 +1094,444 @@ test "ConfigEditor: very long string value" {
     };
     const editor = ConfigEditor.init(&nodes);
     try std.testing.expectEqualStrings(long_value, editor.nodes[0].value.string);
+}
+
+// Scalar-value editing tests
+
+test "ConfigEditor: startEdit on string node copies raw unquoted text" {
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "name",
+            .value_type = .string,
+            .value = .{ .string = "hello world" },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(0);
+
+    var edit_buf = [_]u8{0} ** 256;
+    editor.edit_buffer = &edit_buf;
+
+    editor.startEdit();
+
+    try std.testing.expect(editor.is_editing);
+    try std.testing.expectEqualStrings("hello world", editor.editText());
+}
+
+test "ConfigEditor: startEdit on number node formats via {d}" {
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "count",
+            .value_type = .number,
+            .value = .{ .number = 42.5 },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(0);
+
+    var edit_buf = [_]u8{0} ** 256;
+    editor.edit_buffer = &edit_buf;
+
+    editor.startEdit();
+
+    try std.testing.expect(editor.is_editing);
+    try std.testing.expectEqualStrings("42.5", editor.editText());
+}
+
+test "ConfigEditor: startEdit on boolean true" {
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "enabled",
+            .value_type = .boolean,
+            .value = .{ .boolean = true },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(0);
+
+    var edit_buf = [_]u8{0} ** 256;
+    editor.edit_buffer = &edit_buf;
+
+    editor.startEdit();
+
+    try std.testing.expect(editor.is_editing);
+    try std.testing.expectEqualStrings("true", editor.editText());
+}
+
+test "ConfigEditor: startEdit on boolean false" {
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "disabled",
+            .value_type = .boolean,
+            .value = .{ .boolean = false },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(0);
+
+    var edit_buf = [_]u8{0} ** 256;
+    editor.edit_buffer = &edit_buf;
+
+    editor.startEdit();
+
+    try std.testing.expect(editor.is_editing);
+    try std.testing.expectEqualStrings("false", editor.editText());
+}
+
+test "ConfigEditor: startEdit on null_value returns empty" {
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "nothing",
+            .value_type = .null_value,
+            .value = .{ .null_value = {} },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(0);
+
+    var edit_buf = [_]u8{0} ** 256;
+    editor.edit_buffer = &edit_buf;
+
+    editor.startEdit();
+
+    try std.testing.expect(editor.is_editing);
+    try std.testing.expectEqualStrings("", editor.editText());
+}
+
+test "ConfigEditor: startEdit no-op when edit_buffer.len == 0" {
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "test",
+            .value_type = .string,
+            .value = .{ .string = "value" },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(0);
+
+    editor.edit_buffer = &.{};
+
+    editor.startEdit();
+
+    try std.testing.expect(!editor.is_editing);
+}
+
+test "ConfigEditor: startEdit no-op when selected == null" {
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "test",
+            .value_type = .string,
+            .value = .{ .string = "value" },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes);
+
+    var edit_buf = [_]u8{0} ** 256;
+    editor.edit_buffer = &edit_buf;
+
+    editor.startEdit();
+
+    try std.testing.expect(!editor.is_editing);
+}
+
+test "ConfigEditor: startEdit no-op when selected index out of range" {
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "test",
+            .value_type = .string,
+            .value = .{ .string = "value" },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(999);
+
+    var edit_buf = [_]u8{0} ** 256;
+    editor.edit_buffer = &edit_buf;
+
+    editor.startEdit();
+
+    try std.testing.expect(!editor.is_editing);
+}
+
+test "ConfigEditor: startEdit no-op on .object node" {
+    const children = [_]ConfigNode{
+        .{
+            .key = "child",
+            .value_type = .string,
+            .value = .{ .string = "value" },
+        },
+    };
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "parent",
+            .value_type = .object,
+            .value = .{ .object = &children },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(0);
+
+    var edit_buf = [_]u8{0} ** 256;
+    editor.edit_buffer = &edit_buf;
+
+    editor.startEdit();
+
+    try std.testing.expect(!editor.is_editing);
+}
+
+test "ConfigEditor: startEdit no-op on .array node" {
+    const items = [_]ConfigNode{
+        .{
+            .key = "0",
+            .value_type = .string,
+            .value = .{ .string = "item" },
+        },
+    };
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "list",
+            .value_type = .array,
+            .value = .{ .array = &items },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(0);
+
+    var edit_buf = [_]u8{0} ** 256;
+    editor.edit_buffer = &edit_buf;
+
+    editor.startEdit();
+
+    try std.testing.expect(!editor.is_editing);
+}
+
+test "ConfigEditor: insertChar appends within buffer capacity" {
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "test",
+            .value_type = .string,
+            .value = .{ .string = "" },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(0);
+
+    var edit_buf = [_]u8{0} ** 256;
+    editor.edit_buffer = &edit_buf;
+
+    editor.startEdit();
+    editor.insertChar('A');
+    editor.insertChar('B');
+    editor.insertChar('C');
+
+    try std.testing.expectEqualStrings("ABC", editor.editText());
+}
+
+test "ConfigEditor: insertChar no-op when buffer full" {
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "test",
+            .value_type = .string,
+            .value = .{ .string = "" },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(0);
+
+    var edit_buf = [_]u8{0} ** 2;
+    editor.edit_buffer = &edit_buf;
+
+    editor.startEdit();
+    editor.insertChar('A');
+    editor.insertChar('B');
+    editor.insertChar('C'); // Should be no-op
+
+    try std.testing.expectEqualStrings("AB", editor.editText());
+}
+
+test "ConfigEditor: deleteChar removes last character" {
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "test",
+            .value_type = .string,
+            .value = .{ .string = "hello" },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(0);
+
+    var edit_buf = [_]u8{0} ** 256;
+    editor.edit_buffer = &edit_buf;
+
+    editor.startEdit();
+    editor.deleteChar();
+
+    try std.testing.expectEqualStrings("hell", editor.editText());
+}
+
+test "ConfigEditor: deleteChar no-op when buffer empty" {
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "test",
+            .value_type = .string,
+            .value = .{ .string = "" },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(0);
+
+    var edit_buf = [_]u8{0} ** 256;
+    editor.edit_buffer = &edit_buf;
+
+    editor.startEdit();
+    editor.deleteChar(); // Should be no-op
+
+    try std.testing.expectEqualStrings("", editor.editText());
+}
+
+test "ConfigEditor: confirmEdit sets is_editing false and preserves buffer" {
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "test",
+            .value_type = .string,
+            .value = .{ .string = "value" },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(0);
+
+    var edit_buf = [_]u8{0} ** 256;
+    editor.edit_buffer = &edit_buf;
+
+    editor.startEdit();
+    const text_before = editor.editText();
+    try std.testing.expectEqualStrings("value", text_before);
+
+    editor.confirmEdit();
+
+    try std.testing.expect(!editor.is_editing);
+}
+
+test "ConfigEditor: cancelEdit sets is_editing false and source unchanged" {
+    var nodes = [_]ConfigNode{
+        .{
+            .key = "test",
+            .value_type = .string,
+            .value = .{ .string = "original" },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(0);
+
+    var edit_buf = [_]u8{0} ** 256;
+    editor.edit_buffer = &edit_buf;
+
+    const original_value = editor.nodes[0].value.string;
+
+    editor.startEdit();
+    editor.insertChar('X');
+    editor.cancelEdit();
+
+    try std.testing.expect(!editor.is_editing);
+    try std.testing.expectEqualStrings("original", editor.nodes[0].value.string);
+    try std.testing.expectEqualStrings(original_value, editor.nodes[0].value.string);
+}
+
+test "ConfigEditor: editText returns empty when is_editing == false" {
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "test",
+            .value_type = .string,
+            .value = .{ .string = "value" },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(0);
+
+    var edit_buf = [_]u8{0} ** 256;
+    editor.edit_buffer = &edit_buf;
+
+    try std.testing.expect(!editor.is_editing);
+    try std.testing.expectEqualStrings("", editor.editText());
+}
+
+test "ConfigEditor: selectedNode returns correct node for nested structure" {
+    const children = [_]ConfigNode{
+        .{
+            .key = "child",
+            .value_type = .string,
+            .value = .{ .string = "child_value" },
+        },
+    };
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "parent",
+            .value_type = .object,
+            .value = .{ .object = &children },
+        },
+        .{
+            .key = "sibling",
+            .value_type = .string,
+            .value = .{ .string = "sibling_value" },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(1);
+
+    const sel_node = editor.selectedNode();
+    try std.testing.expect(sel_node != null);
+    try std.testing.expectEqualStrings("child", sel_node.?.key);
+    try std.testing.expectEqualStrings("child_value", sel_node.?.value.string);
+}
+
+test "ConfigEditor: selectedNode returns null for null selection" {
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "test",
+            .value_type = .string,
+            .value = .{ .string = "value" },
+        },
+    };
+    const editor = ConfigEditor.init(&nodes);
+
+    try std.testing.expect(editor.selected == null);
+    const sel_node = editor.selectedNode();
+    try std.testing.expect(sel_node == null);
+}
+
+test "ConfigEditor: selectedNode returns null for out of range selection" {
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "test",
+            .value_type = .string,
+            .value = .{ .string = "value" },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(999);
+
+    const sel_node = editor.selectedNode();
+    try std.testing.expect(sel_node == null);
+}
+
+test "ConfigEditor: edit_buffer sized exactly to value length" {
+    const value = "hello";
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "test",
+            .value_type = .string,
+            .value = .{ .string = value },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(0);
+
+    var edit_buf = [_]u8{0} ** 5; // Exactly 5 bytes for "hello"
+    editor.edit_buffer = &edit_buf;
+
+    editor.startEdit();
+
+    try std.testing.expectEqualStrings("hello", editor.editText());
+    try std.testing.expectEqual(@as(usize, 5), editor.edit_len);
+}
+
+test "ConfigEditor: edit_buffer smaller than value length truncates cleanly" {
+    const value = "hello";
+    const nodes = [_]ConfigNode{
+        .{
+            .key = "test",
+            .value_type = .string,
+            .value = .{ .string = value },
+        },
+    };
+    var editor = ConfigEditor.init(&nodes).withSelected(0);
+
+    var edit_buf = [_]u8{0} ** 3; // Only 3 bytes, but value is 5
+    editor.edit_buffer = &edit_buf;
+
+    editor.startEdit();
+
+    try std.testing.expectEqualStrings("hel", editor.editText());
+    try std.testing.expectEqual(@as(usize, 3), editor.edit_len);
 }
