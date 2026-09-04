@@ -944,3 +944,186 @@ test "20 stages render in reasonable time" {
     // First stage should render even with large number of stages
     try testing.expectEqual(@as(u21, '['), buffer.getConst(0, 25).?.char);
 }
+
+// ============================================================================
+// Progress Indicator Tests (v2.100.0 feature)
+// ============================================================================
+
+test "running stage with progress 45 extends width from 8 to 12" {
+    const allocator = testing.allocator;
+    var buffer = try Buffer.init(allocator, 80, 24);
+    defer buffer.deinit();
+
+    // Test "Test" label: non-running width = 4 + 4 = 8
+    const stages_success = [_]PipelineStage{
+        PipelineStage{ .label = "Test", .status = .success },
+    };
+    const pipeline_success = Pipeline{ .stages = &stages_success };
+
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    pipeline_success.render(&buffer, area);
+
+    // For success stage with label "Test": [✓ Test] = 8 chars
+    // Closing ] should be at position 7 (x=0..7)
+    try testing.expectEqual(@as(u21, ']'), buffer.getConst(7, 12).?.char);
+
+    // Now test running stage with progress 45: 4 + 4 + 1 + 2 + 1 = 12 chars
+    var buffer2 = try Buffer.init(allocator, 80, 24);
+    defer buffer2.deinit();
+
+    const stages_running = [_]PipelineStage{
+        PipelineStage{ .label = "Test", .status = .running, .progress = 45 },
+    };
+    const pipeline_running = Pipeline{ .stages = &stages_running };
+
+    pipeline_running.render(&buffer2, area);
+
+    // For running stage: [⊙ Test 45%] = 12 chars
+    // Closing ] should be at position 11
+    try testing.expectEqual(@as(u21, ']'), buffer2.getConst(11, 12).?.char);
+}
+
+test "running stage with progress 0 extends width by 3 (space + digit + percent)" {
+    const allocator = testing.allocator;
+    var buffer = try Buffer.init(allocator, 80, 24);
+    defer buffer.deinit();
+
+    // Label "Run" = 3 chars: width = 3 + 4 + 1 + 1 + 1 = 10
+    // [⊙ Run 0%]
+    const stages = [_]PipelineStage{
+        PipelineStage{ .label = "Run", .status = .running, .progress = 0 },
+    };
+    const pipeline = Pipeline{ .stages = &stages };
+
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    pipeline.render(&buffer, area);
+
+    // Verify opening bracket
+    try testing.expectEqual(@as(u21, '['), buffer.getConst(0, 12).?.char);
+    // Verify running icon
+    try testing.expectEqual(@as(u21, '⊙'), buffer.getConst(1, 12).?.char);
+    // Verify closing bracket at position 9 (0-indexed)
+    try testing.expectEqual(@as(u21, ']'), buffer.getConst(9, 12).?.char);
+    // Verify '0' appears before closing bracket
+    try testing.expectEqual(@as(u21, '0'), buffer.getConst(7, 12).?.char);
+    // Verify '%' appears before closing bracket
+    try testing.expectEqual(@as(u21, '%'), buffer.getConst(8, 12).?.char);
+}
+
+test "running stage with progress 100 extends width by 5 (space + 3 digits + percent)" {
+    const allocator = testing.allocator;
+    var buffer = try Buffer.init(allocator, 80, 24);
+    defer buffer.deinit();
+
+    // Label "Task" = 4 chars: width = 4 + 4 + 1 + 3 + 1 = 13
+    // [⊙ Task 100%]
+    const stages = [_]PipelineStage{
+        PipelineStage{ .label = "Task", .status = .running, .progress = 100 },
+    };
+    const pipeline = Pipeline{ .stages = &stages };
+
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    pipeline.render(&buffer, area);
+
+    // Verify opening bracket
+    try testing.expectEqual(@as(u21, '['), buffer.getConst(0, 12).?.char);
+    // Verify running icon
+    try testing.expectEqual(@as(u21, '⊙'), buffer.getConst(1, 12).?.char);
+    // Closing bracket at position 12 (0-indexed)
+    try testing.expectEqual(@as(u21, ']'), buffer.getConst(12, 12).?.char);
+    // Verify '100' and '%' are present
+    try testing.expectEqual(@as(u21, '1'), buffer.getConst(8, 12).?.char);
+    try testing.expectEqual(@as(u21, '0'), buffer.getConst(9, 12).?.char);
+    try testing.expectEqual(@as(u21, '0'), buffer.getConst(10, 12).?.char);
+    try testing.expectEqual(@as(u21, '%'), buffer.getConst(11, 12).?.char);
+}
+
+test "running stage with progress 45 renders [⊙ Build 45%]" {
+    const allocator = testing.allocator;
+    var buffer = try Buffer.init(allocator, 80, 24);
+    defer buffer.deinit();
+
+    const stages = [_]PipelineStage{
+        PipelineStage{ .label = "Build", .status = .running, .progress = 45 },
+    };
+    const pipeline = Pipeline{ .stages = &stages };
+
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    pipeline.render(&buffer, area);
+
+    // Read each position and verify the full string "[⊙ Build 45%]"
+    try testing.expectEqual(@as(u21, '['), buffer.getConst(0, 12).?.char); // [
+    try testing.expectEqual(@as(u21, '⊙'), buffer.getConst(1, 12).?.char); // ⊙
+    try testing.expectEqual(@as(u21, ' '), buffer.getConst(2, 12).?.char); // space
+    try testing.expectEqual(@as(u21, 'B'), buffer.getConst(3, 12).?.char); // B
+    try testing.expectEqual(@as(u21, 'u'), buffer.getConst(4, 12).?.char); // u
+    try testing.expectEqual(@as(u21, 'i'), buffer.getConst(5, 12).?.char); // i
+    try testing.expectEqual(@as(u21, 'l'), buffer.getConst(6, 12).?.char); // l
+    try testing.expectEqual(@as(u21, 'd'), buffer.getConst(7, 12).?.char); // d
+    try testing.expectEqual(@as(u21, ' '), buffer.getConst(8, 12).?.char); // space before progress
+    try testing.expectEqual(@as(u21, '4'), buffer.getConst(9, 12).?.char); // 4
+    try testing.expectEqual(@as(u21, '5'), buffer.getConst(10, 12).?.char); // 5
+    try testing.expectEqual(@as(u21, '%'), buffer.getConst(11, 12).?.char); // %
+    try testing.expectEqual(@as(u21, ']'), buffer.getConst(12, 12).?.char); // ]
+}
+
+test "success stage does not render progress percentage" {
+    const allocator = testing.allocator;
+    var buffer = try Buffer.init(allocator, 80, 24);
+    defer buffer.deinit();
+
+    const stages = [_]PipelineStage{
+        PipelineStage{ .label = "Build", .status = .success },
+    };
+    const pipeline = Pipeline{ .stages = &stages };
+
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
+    pipeline.render(&buffer, area);
+
+    // Success stage should be "[✓ Build]" = 9 chars
+    // No '%' should appear in the stage
+    try testing.expectEqual(@as(u21, '['), buffer.getConst(0, 12).?.char);
+    try testing.expectEqual(@as(u21, '✓'), buffer.getConst(1, 12).?.char);
+    try testing.expectEqual(@as(u21, ']'), buffer.getConst(8, 12).?.char);
+
+    // Scan ahead to confirm no '%' in the stage's span
+    var found_percent = false;
+    var x: u16 = 0;
+    while (x < 15) : (x += 1) {
+        if (buffer.getConst(x, 12)) |cell| {
+            if (cell.char == '%') {
+                found_percent = true;
+            }
+        }
+    }
+    try testing.expect(!found_percent);
+}
+
+test "running stage in narrow area clips progress suffix gracefully" {
+    const allocator = testing.allocator;
+    var buffer = try Buffer.init(allocator, 80, 24);
+    defer buffer.deinit();
+
+    // Create stage that would need 13 chars: [⊙ Build 45%]
+    // But area is only 11 wide (x=0 to x=10)
+    const stages = [_]PipelineStage{
+        PipelineStage{ .label = "Build", .status = .running, .progress = 45 },
+    };
+    const pipeline = Pipeline{ .stages = &stages };
+
+    // Narrow area: only 11 columns for rendering
+    const area = Rect{ .x = 0, .y = 0, .width = 11, .height = 24 };
+    pipeline.render(&buffer, area);
+
+    // Should render without panic/crash
+    // At least the opening bracket should be present
+    try testing.expectEqual(@as(u21, '['), buffer.getConst(0, 12).?.char);
+    // Icon should follow
+    try testing.expectEqual(@as(u21, '⊙'), buffer.getConst(1, 12).?.char);
+    // Label should be partially visible
+    try testing.expectEqual(@as(u21, 'B'), buffer.getConst(3, 12).?.char);
+
+    // Verify no crash by checking buffer still exists and is accessible
+    const check_cell = buffer.getConst(5, 12);
+    try testing.expect(check_cell != null);
+}

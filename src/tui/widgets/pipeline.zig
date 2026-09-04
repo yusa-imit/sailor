@@ -127,7 +127,13 @@ pub const Pipeline = struct {
 
     fn stageWidth(stage: PipelineStage) u16 {
         // "[icon label]" = 1([) + 1(icon) + 1(space) + label.len + 1(]) = label.len + 4
-        return @intCast(@min(65535, stage.label.len + 4));
+        var w: usize = stage.label.len + 4;
+        if (stage.status == .running) {
+            var digit_buf: [3]u8 = undefined;
+            const digits = std.fmt.bufPrint(&digit_buf, "{d}", .{stage.progress}) catch unreachable;
+            w += 1 + digits.len + 1; // space + digits + '%'
+        }
+        return @intCast(@min(65535, w));
     }
 
     fn stageStyle(stage: PipelineStage) Style {
@@ -168,6 +174,18 @@ pub const Pipeline = struct {
             if (cx + 1 >= max_x) break;
             setCell(buf, area, cx, y, ch, s);
             cx += 1;
+        }
+
+        if (stage.status == .running) {
+            if (cx < max_x) { setCell(buf, area, cx, y, ' ', s); cx += 1; }
+            var digit_buf: [3]u8 = undefined;
+            const digits = std.fmt.bufPrint(&digit_buf, "{d}", .{stage.progress}) catch unreachable;
+            for (digits) |ch| {
+                if (cx >= max_x) break;
+                setCell(buf, area, cx, y, ch, s);
+                cx += 1;
+            }
+            if (cx < max_x) { setCell(buf, area, cx, y, '%', s); cx += 1; }
         }
 
         if (cx < max_x) { setCell(buf, area, cx, y, ']', s); }
