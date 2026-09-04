@@ -4,7 +4,7 @@
 
 - **Latest release**: v2.99.0 (2026-09-03) — minor release closing the Widget Doc-Comment Audit Round 2 milestone. Bundles fixes accumulated since v2.98.0: session 428/430 (notification.zig withTimeout/dismiss/tick), session 431/432 (multicursor.zig undoAll/redoAll batch undo-redo), session 434 (multicursor.zig addCursorAtNextOccurrence), session 431 (context_menu.zig triaged — no bug, doc comment confirmed accurate). `zig build test` 0 failures, all 6 cross-compile targets verified locally (stabilization session), 0 open bug issues anywhere.
 - **Latest minor**: v2.99.0 (2026-09-03)
-- **Unreleased on main**: 5 commits since v2.99.0 (d239daa hex_editor.zig modified_style wiring session 436; 372a439/feff3a9 filebrowser.zig preview-pane sessions 437-438; cf48ce4 configeditor.zig scalar-value editing + test-reachability fix session 439-441; toggle_switch.zig on_label/off_label wiring session 442)
+- **Unreleased on main**: 6 commits since v2.99.0 (d239daa hex_editor.zig modified_style wiring session 436; 372a439/feff3a9 filebrowser.zig preview-pane sessions 437-438; cf48ce4 configeditor.zig scalar-value editing + test-reachability fix session 439-441; toggle_switch.zig on_label/off_label wiring session 442; 50224e6 pipeline.zig progress-percentage wiring session 443)
 - **Next release**: TBD — accumulate fixes from the v2.100.0 milestone below before bundling, per the v2.97.0/v2.98.0/v2.99.0 precedent.
 - **Active milestones**: 1 — v2.100.0 Widget Doc-Comment Audit Round 3 (see below)
 - **Blockers**: None
@@ -92,8 +92,18 @@ actual `render()`/handler implementation).
       6-cell track glyph rendering (`[◯    ]`/`[    ◉]`) untouched — that format is explicitly
       documented and out of scope. 5 new tests (4 RED→GREEN + 1 regression guard that passed
       immediately). `zig build test` 0 failures (independently verified).
-- [ ] 7 gaps remain from session 442's batch, one TDD cycle each, smallest/clearest-scope first:
-      `pipeline.zig` (progress field → render a mini progress indicator in the stage box),
+- [x] `pipeline.zig` "progress" field — session 443: `PipelineStage.progress` (doc: "used when
+      status == .running") is now read. `render()` appends an " NNN%" suffix (space + decimal
+      digits of `progress` + '%') after the label, before the closing ']', only for `.running`
+      stages — e.g. `[⊙ Build 45%]`. `stageWidth()` grows to match so horizontal/vertical layout
+      spacing stays correct. Non-running stages (pending/success/failed/skipped) are completely
+      unaffected — no new style concept, reuses the existing `stageStyle(stage)` for the suffix
+      chars. 6 new tests (test-writer RED phase — width-calc assertions for progress=0/45/100,
+      full-render cell-by-cell check, non-running regression guard confirming no stray '%',
+      narrow-area clipping no-panic case). `zig build test` 0 failures (independently verified,
+      two separate runs — one grepped for fail/error strings, one checked the exit code
+      directly).
+- [ ] 6 gaps remain from session 442's batch, one TDD cycle each, smallest/clearest-scope first:
       `timeline.zig` (description field → render as a second line/suffix under each event),
       `terminal.zig` (wire existing `AnsiParseState` into `addLine()`), `pager.zig` (implement
       actual soft-wrap in render using `wrap`), `metrics_dashboard.zig` (implement sparkline
