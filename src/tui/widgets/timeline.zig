@@ -24,22 +24,22 @@ const Block = @import("block.zig").Block;
 
 /// Status of a timeline event
 pub const TimelineStatus = enum {
-    pending,   // ○ marker, default style
-    active,    // ● marker, active_style
+    pending, // ○ marker, default style
+    active, // ● marker, active_style
     completed, // ✓ marker, completed_style
-    failed,    // ✗ marker, failed_style
-    skipped,   // ⊘ marker, default style dim
+    failed, // ✗ marker, failed_style
+    skipped, // ⊘ marker, default style dim
 };
 
 /// Direction of timeline layout
 pub const TimelineDirection = enum {
-    vertical,   // events stacked top-to-bottom
+    vertical, // events stacked top-to-bottom
     horizontal, // events left-to-right
 };
 
 /// A single event in the timeline
 pub const TimelineEvent = struct {
-    timestamp: []const u8,  // e.g. "2024-01-15 10:30"
+    timestamp: []const u8, // e.g. "2024-01-15 10:30"
     title: []const u8,
     description: []const u8 = "",
     status: TimelineStatus = .pending,
@@ -51,7 +51,7 @@ pub const Timeline = struct {
     scroll_offset: usize = 0,
     direction: TimelineDirection = .vertical,
     show_timestamps: bool = false,
-    connector_char: u21 = '│',  // vertical: '│', horizontal: '─'
+    connector_char: u21 = '│', // vertical: '│', horizontal: '─'
     block: ?Block = null,
     style: Style = .{},
     active_style: Style = .{ .bold = true },
@@ -108,11 +108,11 @@ pub const Timeline = struct {
     /// Get marker character for a status
     pub fn marker(status: TimelineStatus) u21 {
         return switch (status) {
-            .pending => '○',   // U+25CB
-            .active => '●',    // U+25CF
+            .pending => '○', // U+25CB
+            .active => '●', // U+25CF
             .completed => '✓', // U+2713
-            .failed => '✗',    // U+2717
-            .skipped => '⊘',   // U+2298
+            .failed => '✗', // U+2717
+            .skipped => '⊘', // U+2298
         };
     }
 
@@ -238,6 +238,14 @@ pub const Timeline = struct {
 
             row += 1;
 
+            // Draw description on the row below the title, if present
+            if (event.description.len > 0 and row < max_row) {
+                if (title_col < area.x + area.width) {
+                    buf.setString(title_col, row, event.description, self.style);
+                }
+                row += 1;
+            }
+
             // Draw connector between events (not after the last one)
             if (idx + 1 < self.events.len and row < max_row) {
                 buf.set(marker_col, row, .{ .char = self.connector_char, .style = self.style });
@@ -265,6 +273,11 @@ pub const Timeline = struct {
             const title_row: u16 = if (center_y + 1 < area.y + area.height) center_y + 1 else center_y;
             if (title_row < area.y + area.height) {
                 buf.setString(col, title_row, event.title, s);
+            }
+
+            // Draw description on the row below the title, if there's room
+            if (event.description.len > 0 and title_row + 1 < area.y + area.height) {
+                buf.setString(col, title_row + 1, event.description, self.style);
             }
 
             col += 1;
