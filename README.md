@@ -249,9 +249,8 @@ sailor draws inspiration from:
 ## Contributing
 
 Contributions welcome! Please:
-1. Read [CLAUDE.md](CLAUDE.md) for project structure
-2. Run `zig build test` before submitting
-3. Follow existing code style (see [docs/GUIDE.md](docs/GUIDE.md#best-practices))
+1. Run `zig build test` before submitting
+2. Follow existing code style (see [docs/GUIDE.md](docs/GUIDE.md#best-practices))
 
 ## License
 

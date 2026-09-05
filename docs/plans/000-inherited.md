@@ -1,3 +1,6 @@
+> Inherited roadmap, frozen at the kingdom restructure (2026-09-05). New work is planned in
+> docs/plans/NNN-*.md via plan PRs (citadel/protocol/GITHUB.md).
+
 # sailor — Milestones
 
 ## Current Status
