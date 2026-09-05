@@ -502,7 +502,6 @@ SAILOR_PROFILE=1 ./my_app
 
 - [Profile Demo Example](../examples/profile_demo.zig) — Hands-on profiling examples
 - [Benchmark Suite](../examples/benchmark.zig) — Widget performance benchmarks
-- [Memory Profiling](./memory-profiling.md) — Advanced memory optimization techniques
 
 ---
 

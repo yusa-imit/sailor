@@ -610,7 +610,7 @@ try sailor.tui.graphics.kitty.display(image, term.writer());
 
 ## Resources
 
-- [sailor benchmarks](../examples/benchmark_runner.zig) — Run performance tests
+- [sailor benchmarks](../examples/benchmark.zig) — Run performance tests
 - [profiler module](../src/profiler.zig) — Built-in profiling API
 - [pool module](../src/pool.zig) — Object pooling for allocation optimization
 
