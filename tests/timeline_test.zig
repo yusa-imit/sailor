@@ -612,3 +612,145 @@ test "styles initialized with correct defaults" {
     try testing.expect(tl.completed_style.fg != null);
     try testing.expect(tl.failed_style.fg != null);
 }
+
+// ============================================================================
+// description-field rendering (v2.100.0 milestone gap)
+// ============================================================================
+
+test "vertical: event with description renders it on the row below the title" {
+    var events = [_]TimelineEvent{
+        .{ .timestamp = "10:00", .title = "Event 1", .description = "Desc 1" },
+    };
+    var tl = Timeline.init(&events);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
+
+    tl.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });
+
+    // marker_col = 0 (no timestamps), title_col = 2
+    // title at row 0, description at row 1
+    const desc_cell = buf.getConst(2, 1);
+    try testing.expect(desc_cell != null);
+    try testing.expectEqual(@as(u21, 'D'), desc_cell.?.char);
+    try testing.expectEqual(tl.style, desc_cell.?.style);
+}
+
+test "vertical: event without description leaves the row below title untouched" {
+    var events = [_]TimelineEvent{
+        .{ .timestamp = "10:00", .title = "Event 1" },
+    };
+    var tl = Timeline.init(&events);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
+
+    tl.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });
+
+    const cell = buf.getConst(2, 1);
+    try testing.expect(cell == null or cell.?.char == ' ');
+}
+
+test "vertical: description shifts the connector down by one row" {
+    var events = [_]TimelineEvent{
+        .{ .timestamp = "10:00", .title = "Event 1", .description = "Desc 1" },
+        .{ .timestamp = "11:00", .title = "Event 2" },
+    };
+    var tl = Timeline.init(&events);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
+
+    tl.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });
+
+    // Event 0: title row 0, description row 1, connector row 2
+    // Event 1: marker/title row 3 (not row 2, since description pushed it down)
+    const connector_cell = buf.getConst(0, 2);
+    try testing.expect(connector_cell != null);
+    try testing.expectEqual(@as(u21, '│'), connector_cell.?.char);
+
+    const event2_marker = buf.getConst(0, 3);
+    try testing.expect(event2_marker != null);
+    try testing.expectEqual(@as(u21, '○'), event2_marker.?.char);
+}
+
+test "vertical: description clipped silently when area is too short" {
+    var events = [_]TimelineEvent{
+        .{ .timestamp = "10:00", .title = "Event 1", .description = "Desc 1" },
+    };
+    var tl = Timeline.init(&events);
+    var buf = try Buffer.init(testing.allocator, 80, 1);
+    defer buf.deinit();
+
+    tl.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 1 });
+
+    // area only has room for the title row (row 0); description (row 1) must
+    // not be written — and buf itself has no row 1 to write into, so this
+    // must not panic.
+    try testing.expect(buf.getConst(2, 1) == null);
+}
+
+test "vertical: descriptions are rendered per-event, not globally" {
+    var events = [_]TimelineEvent{
+        .{ .timestamp = "10:00", .title = "Event 1", .description = "Has desc" },
+        .{ .timestamp = "11:00", .title = "Event 2" },
+    };
+    var tl = Timeline.init(&events);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
+
+    tl.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });
+
+    // Event 0 has a description row (row 1); event 1 doesn't, so its
+    // marker/title land right after event 0's connector, at row 3.
+    const desc_cell = buf.getConst(2, 1);
+    try testing.expect(desc_cell != null);
+    try testing.expectEqual(@as(u21, 'H'), desc_cell.?.char);
+
+    const event2_marker = buf.getConst(0, 3);
+    try testing.expect(event2_marker != null);
+    try testing.expectEqual(@as(u21, '○'), event2_marker.?.char);
+}
+
+test "horizontal: event with description renders it on the row below the title" {
+    var events = [_]TimelineEvent{
+        .{ .timestamp = "10:00", .title = "E1", .description = "Desc 1" },
+    };
+    var tl = Timeline.init(&events).withDirection(.horizontal);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
+
+    tl.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });
+
+    // center_y = 24/2 = 12, title_row = 13, description_row = 14
+    const desc_cell = buf.getConst(0, 14);
+    try testing.expect(desc_cell != null);
+    try testing.expectEqual(@as(u21, 'D'), desc_cell.?.char);
+    try testing.expectEqual(tl.style, desc_cell.?.style);
+}
+
+test "horizontal: event without description leaves the row below title untouched" {
+    var events = [_]TimelineEvent{
+        .{ .timestamp = "10:00", .title = "E1" },
+    };
+    var tl = Timeline.init(&events).withDirection(.horizontal);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
+
+    tl.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });
+
+    const cell = buf.getConst(0, 14);
+    try testing.expect(cell == null or cell.?.char == ' ');
+}
+
+test "horizontal: description skipped silently when area is too short" {
+    var events = [_]TimelineEvent{
+        .{ .timestamp = "10:00", .title = "E1", .description = "Desc 1" },
+    };
+    var tl = Timeline.init(&events).withDirection(.horizontal);
+    var buf = try Buffer.init(testing.allocator, 80, 2);
+    defer buf.deinit();
+
+    tl.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 2 });
+
+    // center_y = 2/2 = 1; title_row+1 (2) is not < height (2), so title_row
+    // falls back to center_y (1) and there is no room for a description row.
+    try testing.expect(buf.getConst(0, 2) == null);
+}

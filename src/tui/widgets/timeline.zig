@@ -238,6 +238,14 @@ pub const Timeline = struct {
 
             row += 1;
 
+            // Draw description on the row below the title, if present
+            if (event.description.len > 0 and row < max_row) {
+                if (title_col < area.x + area.width) {
+                    buf.setString(title_col, row, event.description, self.style);
+                }
+                row += 1;
+            }
+
             // Draw connector between events (not after the last one)
             if (idx + 1 < self.events.len and row < max_row) {
                 buf.set(marker_col, row, .{ .char = self.connector_char, .style = self.style });
@@ -265,6 +273,11 @@ pub const Timeline = struct {
             const title_row: u16 = if (center_y + 1 < area.y + area.height) center_y + 1 else center_y;
             if (title_row < area.y + area.height) {
                 buf.setString(col, title_row, event.title, s);
+            }
+
+            // Draw description on the row below the title, if there's room
+            if (event.description.len > 0 and title_row + 1 < area.y + area.height) {
+                buf.setString(col, title_row + 1, event.description, self.style);
             }
 
             col += 1;
