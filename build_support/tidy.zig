@@ -20,9 +20,10 @@ pub fn countLongLines(text: []const u8, max: usize) u32 {
     var violations: u32 = 0;
     var lines = std.mem.splitScalar(u8, text, '\n');
     var lines_seen_max: u32 = 0;
-    while (lines.next()) |line| {
+    while (lines.next()) |raw_line| {
         assert(lines_seen_max < std.math.maxInt(u32));
         lines_seen_max += 1;
+        const line = std.mem.trimRight(u8, raw_line, "\r");
         if (line.len > max) violations += 1;
     }
     assert(violations <= lines_seen_max);
@@ -261,6 +262,13 @@ test "countLongLines: single 101-char line over max=100 is one violation" {
 test "countLongLines: a line of exactly 100 chars is not a violation (boundary)" {
     const exact_line = "a" ** 100;
     const text = try std.fmt.allocPrint(testing.allocator, "{s}\n", .{exact_line});
+    defer testing.allocator.free(text);
+    try testing.expectEqual(@as(u32, 0), countLongLines(text, 100));
+}
+
+test "countLongLines: a CRLF-terminated line of exactly 100 chars is not a violation" {
+    const exact_line = "a" ** 100;
+    const text = try std.fmt.allocPrint(testing.allocator, "{s}\r\n", .{exact_line});
     defer testing.allocator.free(text);
     try testing.expectEqual(@as(u32, 0), countLongLines(text, 100));
 }
