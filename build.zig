@@ -719,7 +719,43 @@ pub fn build(b: *std.Build) void {
     });
     pager_tests.root_module.addImport("sailor", sailor_module_for_tests);
 
+    // Tiger Style tidy checker: line/function length, banned patterns, baseline ratchet.
+    const tidy_unit_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("build_support/tidy.zig"),
+            .target = b.graph.host,
+            .optimize = .Debug,
+        }),
+    });
+
+    const tidy_exe = b.addExecutable(.{
+        .name = "tidy",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("build_support/tidy_main.zig"),
+            .target = b.graph.host,
+            .optimize = .Debug,
+        }),
+    });
+
+    // Plain string args (not addDirectoryArg/addFileArg): tidy prints and records paths
+    // relative to the repo root (e.g. "src/repl.zig") in `tidy_baseline.txt`, so it must see
+    // literal relative paths, not LazyPath-resolved absolute ones. Relies on `zig build` being
+    // invoked from the repo root, matching every other Run step's implicit inherited cwd here.
+    const tidy_run = b.addRunArtifact(tidy_exe);
+    tidy_run.addArg("check");
+    tidy_run.addArg("src");
+    tidy_run.addArg("build.zig");
+    tidy_run.addArg("tidy_baseline.txt");
+
+    const tidy_step = b.step(
+        "tidy",
+        "Run Tiger Style tidy checks (line/function length, bans, baseline ratchet)",
+    );
+    tidy_step.dependOn(&tidy_run.step);
+
     const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&b.addRunArtifact(tidy_unit_tests).step);
+    test_step.dependOn(&tidy_run.step);
     test_step.dependOn(&b.addRunArtifact(lib_tests).step);
     test_step.dependOn(&b.addRunArtifact(smoke_tests).step);
     test_step.dependOn(&b.addRunArtifact(cross_platform_tests).step);
