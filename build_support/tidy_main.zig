@@ -113,6 +113,7 @@ fn appendFileCounts(
         tidy.countLiveOccurrences(text, "std.debug.print"),
     );
     try appendCount(arena, counts, path, "time_usage", "-", tidy.countLiveOccurrences(text, "std.time."));
+    try appendCount(arena, counts, path, "panic", "-", tidy.countUnprovenPanic(text));
 
     if (isWireFormatFile(path)) {
         try appendCount(arena, counts, path, "usize_in_wire_format", "-", tidy.countUsizeFields(text));

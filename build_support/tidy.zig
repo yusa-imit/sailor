@@ -1,6 +1,7 @@
 //! Tiger Style tidy checker: line length, function length (with a shrinking baseline ratchet),
-//! module header presence, and banned patterns (catch unreachable without proof, debug prints,
-//! std.time usage, usize in serialization-format structs) over sailor's src/ and build.zig.
+//! module header presence, and banned patterns (catch unreachable without proof, unproven
+//! @panic, debug prints, std.time usage, usize in serialization-format structs) over sailor's
+//! src/ and build.zig.
 
 const std = @import("std");
 const assert = std.debug.assert;
@@ -8,7 +9,7 @@ const assert = std.debug.assert;
 pub const Violation = struct {
     file: []const u8,
     check: []const u8, // e.g. "line_length", "function_length", "missing_header",
-    // "catch_unreachable", "debug_print", "time_usage", "usize_in_wire_format"
+    // "catch_unreachable", "panic", "debug_print", "time_usage", "usize_in_wire_format"
     name: []const u8, // function name for function_length; "-" for file-level checks
     actual: u32,
     baseline: u32,
@@ -53,6 +54,27 @@ pub fn hasModuleHeader(text: []const u8) bool {
 /// on the same line (a bare, unproven catch-unreachable).
 pub fn countUnprovenCatchUnreachable(text: []const u8) u32 {
     const needle = "catch unreachable";
+    var violations: u32 = 0;
+    var lines = std.mem.splitScalar(u8, text, '\n');
+    var lines_seen_max: u32 = 0;
+    while (lines.next()) |line| {
+        assert(lines_seen_max < std.math.maxInt(u32));
+        lines_seen_max += 1;
+        if (std.mem.indexOf(u8, line, needle) == null) continue;
+        if (std.mem.indexOf(u8, line, "//") != null) continue;
+        violations += 1;
+    }
+    assert(violations <= lines_seen_max);
+    return violations;
+}
+
+/// Counts lines containing "@panic(" that do NOT also contain a `//` comment on the same
+/// line (a bare, unproven panic). Mirrors `countUnprovenCatchUnreachable`: panicking on
+/// programmer error (an assertion helper, a test-only leak guard) is legitimate and only
+/// needs a proof comment; panicking on user data is not, and this check has no exemption
+/// for that case beyond requiring the comment to exist.
+pub fn countUnprovenPanic(text: []const u8) u32 {
+    const needle = "@panic(";
     var violations: u32 = 0;
     var lines = std.mem.splitScalar(u8, text, '\n');
     var lines_seen_max: u32 = 0;
@@ -315,6 +337,30 @@ test "countUnprovenCatchUnreachable: two bare occurrences on separate lines coun
         \\
     ;
     try testing.expectEqual(@as(u32, 2), countUnprovenCatchUnreachable(text));
+}
+
+test "countUnprovenPanic: bare @panic with no comment is one violation" {
+    const text = "@panic(\"boom\");\n";
+    try testing.expectEqual(@as(u32, 1), countUnprovenPanic(text));
+}
+
+test "countUnprovenPanic: @panic with proof comment is not flagged" {
+    const text = "@panic(\"boom\"); // programmer error, not user data\n";
+    try testing.expectEqual(@as(u32, 0), countUnprovenPanic(text));
+}
+
+test "countUnprovenPanic: text with no occurrences is zero" {
+    const text = "const x = try foo();\n";
+    try testing.expectEqual(@as(u32, 0), countUnprovenPanic(text));
+}
+
+test "countUnprovenPanic: two bare occurrences on separate lines count both" {
+    const text =
+        \\if (a) @panic("a");
+        \\if (b) @panic("b");
+        \\
+    ;
+    try testing.expectEqual(@as(u32, 2), countUnprovenPanic(text));
 }
 
 test "countLiveOccurrences: real std.debug.print call is one live occurrence" {
