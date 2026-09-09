@@ -50,6 +50,7 @@ src/keybindings.zig|line_length|-|8
 src/keybindings.zig|missing_header|-|1
 src/layout_intelligence.zig|function_length|analyzeNode|141
 src/layout_intelligence.zig|line_length|-|37
+src/llm_client.zig|crypto_random|-|1
 src/llm_client.zig|line_length|-|5
 src/llm_client.zig|time_usage|-|5
 src/memory_metrics.zig|line_length|-|8
