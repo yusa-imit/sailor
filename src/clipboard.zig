@@ -24,9 +24,9 @@ const builtin = @import("builtin");
 
 /// Clipboard selection type
 pub const Selection = enum {
-    clipboard,  // c - standard clipboard
-    primary,    // p - X11 primary selection
-    system,     // s - system clipboard (Windows/macOS)
+    clipboard, // c - standard clipboard
+    primary, // p - X11 primary selection
+    system, // s - system clipboard (Windows/macOS)
 
     /// Get OSC 52 selection parameter character
     fn toParam(self: Selection) u8 {
@@ -868,7 +868,7 @@ test "no memory leaks in write operation" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
-        testing.expect(leaked == .ok) catch @panic("memory leak detected");
+        testing.expect(leaked == .ok) catch @panic("memory leak detected"); // Test-only leak guard.
     }
     const allocator = gpa.allocator();
 
@@ -885,7 +885,7 @@ test "no memory leaks in requestRead operation" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
-        testing.expect(leaked == .ok) catch @panic("memory leak detected");
+        testing.expect(leaked == .ok) catch @panic("memory leak detected"); // Test-only leak guard.
     }
 
     var buf: [4096]u8 = undefined;
@@ -1152,7 +1152,7 @@ test "ClipboardHistory no memory leaks with multiple pushes" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
-        testing.expect(leaked == .ok) catch @panic("memory leak detected");
+        testing.expect(leaked == .ok) catch @panic("memory leak detected"); // Test-only leak guard.
     }
     const allocator = gpa.allocator();
 
@@ -1174,7 +1174,7 @@ test "ClipboardHistory no memory leaks after clear" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
-        testing.expect(leaked == .ok) catch @panic("memory leak detected");
+        testing.expect(leaked == .ok) catch @panic("memory leak detected"); // Test-only leak guard.
     }
     const allocator = gpa.allocator();
 
@@ -1464,7 +1464,7 @@ test "SystemClipboard no memory leaks on write" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
-        testing.expect(leaked == .ok) catch @panic("memory leak detected");
+        testing.expect(leaked == .ok) catch @panic("memory leak detected"); // Test-only leak guard.
     }
     const allocator = gpa.allocator();
 
@@ -1483,7 +1483,7 @@ test "SystemClipboard no memory leaks on read" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
-        testing.expect(leaked == .ok) catch @panic("memory leak detected");
+        testing.expect(leaked == .ok) catch @panic("memory leak detected"); // Test-only leak guard.
     }
     const allocator = gpa.allocator();
 
@@ -1532,7 +1532,7 @@ test "SystemClipboard.isAvailable does not allocate memory" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
-        testing.expect(leaked == .ok) catch @panic("memory leak detected");
+        testing.expect(leaked == .ok) catch @panic("memory leak detected"); // Test-only leak guard.
     }
 
     // isAvailable should only check command existence, not allocate

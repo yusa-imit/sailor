@@ -27,7 +27,7 @@ pub fn panicWithContext(comptime fmt: []const u8, args: anytype) noreturn {
         args,
     ) catch "panic (failed to format message)";
 
-    @panic(msg);
+    @panic(msg); // Programmer-error assertion helper (assert/require/ensure); not user data.
 }
 
 /// Assert with formatted context message
