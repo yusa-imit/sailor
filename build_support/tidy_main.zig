@@ -113,6 +113,14 @@ fn appendFileCounts(
         tidy.countLiveOccurrences(text, "std.debug.print"),
     );
     try appendCount(arena, counts, path, "time_usage", "-", tidy.countLiveOccurrences(text, "std.time."));
+    try appendCount(
+        arena,
+        counts,
+        path,
+        "crypto_random",
+        "-",
+        tidy.countLiveOccurrences(text, "std.crypto.random"),
+    );
     try appendCount(arena, counts, path, "panic", "-", tidy.countUnprovenPanic(text));
 
     if (isWireFormatFile(path)) {
@@ -165,7 +173,7 @@ fn collectCounts(
     }
 
     try appendFileCounts(arena, &counts, build_zig_path, true);
-    assert(counts.items.len <= files_seen * 8 + 8); // Bounded: ~8 checks per file at most.
+    assert(counts.items.len <= files_seen * 9 + 9); // Bounded: ~9 checks per file at most.
     return counts.toOwnedSlice(arena);
 }
 

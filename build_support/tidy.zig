@@ -1,7 +1,7 @@
 //! Tiger Style tidy checker: line length, function length (with a shrinking baseline ratchet),
 //! module header presence, and banned patterns (catch unreachable without proof, unproven
-//! @panic, debug prints, std.time usage, usize in serialization-format structs) over sailor's
-//! src/ and build.zig.
+//! @panic, debug prints, std.time usage, std.crypto.random usage, usize in serialization-format
+//! structs) over sailor's src/ and build.zig.
 
 const std = @import("std");
 const assert = std.debug.assert;
@@ -9,7 +9,8 @@ const assert = std.debug.assert;
 pub const Violation = struct {
     file: []const u8,
     check: []const u8, // e.g. "line_length", "function_length", "missing_header",
-    // "catch_unreachable", "panic", "debug_print", "time_usage", "usize_in_wire_format"
+    // "catch_unreachable", "panic", "debug_print", "time_usage", "crypto_random",
+    // "usize_in_wire_format"
     name: []const u8, // function name for function_length; "-" for file-level checks
     actual: u32,
     baseline: u32,
@@ -389,6 +390,15 @@ test "countLiveOccurrences: std.time.* usage detection follows the same live/com
         \\
     ;
     try testing.expectEqual(@as(u32, 1), countLiveOccurrences(text, "std.time."));
+}
+
+test "countLiveOccurrences: std.crypto.random usage detection follows the same live/comment rule" {
+    const text =
+        \\const jitter = std.crypto.random.uintAtMost(u64, 100);
+        \\// const jitter = std.crypto.random.uintAtMost(u64, 100);
+        \\
+    ;
+    try testing.expectEqual(@as(u32, 1), countLiveOccurrences(text, "std.crypto.random"));
 }
 
 test "countUsizeFields: trailing-comma usize field is one violation" {
