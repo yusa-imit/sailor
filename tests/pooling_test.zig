@@ -25,7 +25,7 @@ const Pool = sailor.pool.Pool;
 // ============================================================================
 
 test "pool init creates empty pool with capacity" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -45,7 +45,7 @@ test "pool init creates empty pool with capacity" {
 }
 
 test "pool init with minimum capacity" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -63,7 +63,7 @@ test "pool init with minimum capacity" {
 }
 
 test "pool deinit releases all resources" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -92,7 +92,7 @@ test "pool deinit releases all resources" {
 // ============================================================================
 
 test "pool acquire returns object from pool" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -112,7 +112,7 @@ test "pool acquire returns object from pool" {
 }
 
 test "pool release returns object to pool" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -134,7 +134,7 @@ test "pool release returns object to pool" {
 }
 
 test "pool acquire decrements free count and increments in_use" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -161,7 +161,7 @@ test "pool acquire decrements free count and increments in_use" {
 }
 
 test "pool release increments free count and decrements in_use" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -187,7 +187,7 @@ test "pool release increments free count and decrements in_use" {
 }
 
 test "pool acquire returns reused object on release" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -219,7 +219,7 @@ test "pool acquire returns reused object on release" {
 // ============================================================================
 
 test "pool grows when capacity exceeded with double policy" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -255,7 +255,7 @@ test "pool grows when capacity exceeded with double policy" {
 }
 
 test "pool grows with linear policy incrementing by capacity_step" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -286,7 +286,7 @@ test "pool grows with linear policy incrementing by capacity_step" {
 }
 
 test "pool grows multiple times when many objects acquired" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -311,7 +311,7 @@ test "pool grows multiple times when many objects acquired" {
 }
 
 test "pool acquire fails gracefully if allocation fails" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -338,7 +338,7 @@ test "pool acquire fails gracefully if allocation fails" {
 // ============================================================================
 
 test "pool reset clears all allocated objects" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -368,7 +368,7 @@ test "pool reset clears all allocated objects" {
 }
 
 test "pool reset preserves capacity" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -397,7 +397,7 @@ test "pool reset preserves capacity" {
 }
 
 test "pool reset returns all objects to free queue" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -439,7 +439,7 @@ test "pool reset returns all objects to free queue" {
 }
 
 test "pool acquire after reset uses old objects" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -488,7 +488,7 @@ test "pool acquire after reset uses old objects" {
 // ============================================================================
 
 test "pool statistics reflect allocated and in_use counts" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -518,7 +518,7 @@ test "pool statistics reflect allocated and in_use counts" {
 }
 
 test "pool peak_usage tracks maximum concurrent usage" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -561,7 +561,7 @@ test "pool peak_usage tracks maximum concurrent usage" {
 }
 
 test "pool statistics track allocated even after releases" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -591,7 +591,7 @@ test "pool statistics track allocated even after releases" {
 }
 
 test "pool allocated count resets to zero after reset()" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -623,7 +623,7 @@ test "pool allocated count resets to zero after reset()" {
 // ============================================================================
 
 test "pool handles many acquire/release cycles" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -646,7 +646,7 @@ test "pool handles many acquire/release cycles" {
 }
 
 test "pool handles interleaved acquire/release" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -684,7 +684,7 @@ test "pool handles interleaved acquire/release" {
 }
 
 test "pool maintains consistency through many cycles" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -726,7 +726,7 @@ test "pool maintains consistency through many cycles" {
 // ============================================================================
 
 test "pool double release is prevented or handled" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -752,7 +752,7 @@ test "pool double release is prevented or handled" {
 }
 
 test "pool empty acquire returns valid object" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -772,7 +772,7 @@ test "pool empty acquire returns valid object" {
 }
 
 test "pool with single capacity works" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -797,7 +797,7 @@ test "pool with single capacity works" {
 }
 
 test "pool object addresses are unique per acquire" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -825,7 +825,7 @@ test "pool object addresses are unique per acquire" {
 }
 
 test "pool object reuse after release" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -868,7 +868,7 @@ test "pool object reuse after release" {
 // ============================================================================
 
 test "pool acquire/release under concurrent load" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -906,7 +906,7 @@ test "pool acquire/release under concurrent load" {
 }
 
 test "pool stats are thread-safe during updates" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -938,7 +938,7 @@ test "pool stats are thread-safe during updates" {
 // ============================================================================
 
 test "pool works with Cell type" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -961,7 +961,7 @@ test "pool works with Cell type" {
 }
 
 test "pool works with Rect type" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -987,7 +987,7 @@ test "pool works with Rect type" {
 }
 
 test "pool works with Style type" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -1015,7 +1015,7 @@ test "pool works with Style type" {
 // ============================================================================
 
 test "pool deinit with in_use objects does not leak" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -1040,7 +1040,7 @@ test "pool deinit with in_use objects does not leak" {
 }
 
 test "pool reset and reuse does not leak" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -1073,7 +1073,7 @@ test "pool reset and reuse does not leak" {
 test "pool grown beyond initial capacity does not leak" {
     return error.SkipZigTest; // TODO: GPA false positive with ArrayList growth, investigate later
 
-    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // var gpa = std.heap.DebugAllocator(.{}){};
     // defer {
     //     const leaked = gpa.deinit();
     //     testing.expect(leaked == .ok) catch @panic("memory leak detected");

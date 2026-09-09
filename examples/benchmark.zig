@@ -259,7 +259,7 @@ fn benchStatusBarRender(allocator: std.mem.Allocator) !void {
 // Skipped: BarChart, LineChart, Calendar, Menu, Dialog (setCell error or API mismatches)
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

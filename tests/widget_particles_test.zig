@@ -13,7 +13,7 @@ const Color = tui.Color;
 const testing = std.testing;
 
 test "ParticleSystem renders with normal gravity and positions" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -34,7 +34,7 @@ test "ParticleSystem renders with normal gravity and positions" {
 }
 
 test "ParticleSystem.render() does not panic with direct Particle.init() using extreme positive x" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -55,7 +55,7 @@ test "ParticleSystem.render() does not panic with direct Particle.init() using e
 }
 
 test "ParticleSystem.render() does not panic with direct Particle.init() using extreme negative x" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -75,7 +75,7 @@ test "ParticleSystem.render() does not panic with direct Particle.init() using e
 }
 
 test "ParticleSystem.render() does not panic with direct Particle.init() using extreme positive y" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -95,7 +95,7 @@ test "ParticleSystem.render() does not panic with direct Particle.init() using e
 }
 
 test "ParticleSystem.render() does not panic with direct Particle.init() using extreme negative y" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -115,7 +115,7 @@ test "ParticleSystem.render() does not panic with direct Particle.init() using e
 }
 
 test "ParticleSystem.render() does not panic with extreme gravity accumulation (positive)" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -140,7 +140,7 @@ test "ParticleSystem.render() does not panic with extreme gravity accumulation (
 }
 
 test "ParticleSystem.render() does not panic with extreme gravity accumulation (negative)" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -165,7 +165,7 @@ test "ParticleSystem.render() does not panic with extreme gravity accumulation (
 }
 
 test "ParticleSystem renders correctly with normal spawn and multiple updates" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -201,7 +201,7 @@ test "Particle.init() with extreme values stores them without truncation" {
 }
 
 test "ParticleSystem.render() bounds check prevents out-of-bounds casts" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -234,7 +234,7 @@ test "ParticleSystem.render() bounds check prevents out-of-bounds casts" {
 }
 
 test "ParticleSystem.render() does not panic with NaN particle x" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -255,7 +255,7 @@ test "ParticleSystem.render() does not panic with NaN particle x" {
 }
 
 test "ParticleSystem.render() does not panic with NaN particle y" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -274,7 +274,7 @@ test "ParticleSystem.render() does not panic with NaN particle y" {
 }
 
 test "ParticleSystem.render() does not panic with positive infinity particle x" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -294,7 +294,7 @@ test "ParticleSystem.render() does not panic with positive infinity particle x" 
 }
 
 test "ParticleSystem.render() does not panic with positive infinity particle y" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -313,7 +313,7 @@ test "ParticleSystem.render() does not panic with positive infinity particle y" 
 }
 
 test "ParticleSystem.render() does not panic with negative infinity particle x" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -333,7 +333,7 @@ test "ParticleSystem.render() does not panic with negative infinity particle x" 
 }
 
 test "ParticleSystem.render() does not panic with negative infinity particle y" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

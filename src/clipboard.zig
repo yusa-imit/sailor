@@ -865,7 +865,7 @@ test "multiple writes to same writer" {
 // ============================================================================
 
 test "no memory leaks in write operation" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected"); // Test-only leak guard.
@@ -882,7 +882,7 @@ test "no memory leaks in write operation" {
 }
 
 test "no memory leaks in requestRead operation" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected"); // Test-only leak guard.
@@ -1149,7 +1149,7 @@ test "ClipboardHistory push after clear works" {
 }
 
 test "ClipboardHistory no memory leaks with multiple pushes" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected"); // Test-only leak guard.
@@ -1171,7 +1171,7 @@ test "ClipboardHistory no memory leaks with multiple pushes" {
 }
 
 test "ClipboardHistory no memory leaks after clear" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected"); // Test-only leak guard.
@@ -1461,7 +1461,7 @@ test "SystemClipboard.read returns error when command fails" {
 }
 
 test "SystemClipboard no memory leaks on write" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected"); // Test-only leak guard.
@@ -1480,7 +1480,7 @@ test "SystemClipboard no memory leaks on write" {
 }
 
 test "SystemClipboard no memory leaks on read" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected"); // Test-only leak guard.
@@ -1529,7 +1529,7 @@ test "SystemClipboard returns error on unsupported platform" {
 }
 
 test "SystemClipboard.isAvailable does not allocate memory" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected"); // Test-only leak guard.

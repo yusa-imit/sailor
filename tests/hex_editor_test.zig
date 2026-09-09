@@ -326,7 +326,7 @@ test "HexEditor.withBlock returns new struct without modifying original" {
 // ============================================================================
 
 test "HexEditor.render handles 0x0 area without crashing" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -341,7 +341,7 @@ test "HexEditor.render handles 0x0 area without crashing" {
 }
 
 test "HexEditor.render handles 1x1 area without crashing" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -356,7 +356,7 @@ test "HexEditor.render handles 1x1 area without crashing" {
 }
 
 test "HexEditor.render handles 1x0 area without crashing" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -371,7 +371,7 @@ test "HexEditor.render handles 1x0 area without crashing" {
 }
 
 test "HexEditor.render handles 0x1 area without crashing" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -390,7 +390,7 @@ test "HexEditor.render handles 0x1 area without crashing" {
 // ============================================================================
 
 test "HexEditor.render with empty data draws nothing in inner area" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -407,7 +407,7 @@ test "HexEditor.render with empty data draws nothing in inner area" {
 }
 
 test "HexEditor.render with empty data respects block border" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -426,7 +426,7 @@ test "HexEditor.render with empty data respects block border" {
 // ============================================================================
 
 test "HexEditor.render shows 00000000 as first offset" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -443,7 +443,7 @@ test "HexEditor.render shows 00000000 as first offset" {
 }
 
 test "HexEditor.render shows 00000010 as second offset (16 bytes/row)" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -461,7 +461,7 @@ test "HexEditor.render shows 00000010 as second offset (16 bytes/row)" {
 }
 
 test "HexEditor.render omits offset column when show_offset=false" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -478,7 +478,7 @@ test "HexEditor.render omits offset column when show_offset=false" {
 }
 
 test "HexEditor.render with offset=16 shows 00000010 as first offset" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -496,7 +496,7 @@ test "HexEditor.render with offset=16 shows 00000010 as first offset" {
 }
 
 test "HexEditor.render offset increments by bytes_per_row" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -518,7 +518,7 @@ test "HexEditor.render offset increments by bytes_per_row" {
 // ============================================================================
 
 test "HexEditor.render shows byte 0x41 as '41'" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -535,7 +535,7 @@ test "HexEditor.render shows byte 0x41 as '41'" {
 }
 
 test "HexEditor.render shows byte 0xFF as 'FF' or 'ff'" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -552,7 +552,7 @@ test "HexEditor.render shows byte 0xFF as 'FF' or 'ff'" {
 }
 
 test "HexEditor.render has space between bytes" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -569,7 +569,7 @@ test "HexEditor.render has space between bytes" {
 }
 
 test "HexEditor.render with group_size=4 adds extra space between groups" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -585,7 +585,7 @@ test "HexEditor.render with group_size=4 adds extra space between groups" {
 }
 
 test "HexEditor.render with group_size=8 groups by 8" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -601,7 +601,7 @@ test "HexEditor.render with group_size=8 groups by 8" {
 }
 
 test "HexEditor.render shows multiple bytes in sequence" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -618,7 +618,7 @@ test "HexEditor.render shows multiple bytes in sequence" {
 }
 
 test "HexEditor.render shows 16 bytes in one row (default bytes_per_row)" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -640,7 +640,7 @@ test "HexEditor.render shows 16 bytes in one row (default bytes_per_row)" {
 // ============================================================================
 
 test "HexEditor.render shows printable ASCII as character (0x41 -> 'A')" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -657,7 +657,7 @@ test "HexEditor.render shows printable ASCII as character (0x41 -> 'A')" {
 }
 
 test "HexEditor.render shows non-printable as '.' (0x01)" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -674,7 +674,7 @@ test "HexEditor.render shows non-printable as '.' (0x01)" {
 }
 
 test "HexEditor.render shows 0x7F (DEL) as '.'" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -691,7 +691,7 @@ test "HexEditor.render shows 0x7F (DEL) as '.'" {
 }
 
 test "HexEditor.render omits ASCII column when show_ascii=false" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -708,7 +708,7 @@ test "HexEditor.render omits ASCII column when show_ascii=false" {
 }
 
 test "HexEditor.render shows multiple printable chars in ASCII column" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -725,7 +725,7 @@ test "HexEditor.render shows multiple printable chars in ASCII column" {
 }
 
 test "HexEditor.render shows mixed printable and non-printable in ASCII" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -746,7 +746,7 @@ test "HexEditor.render shows mixed printable and non-printable in ASCII" {
 // ============================================================================
 
 test "HexEditor.render applies cursor_style to cursor byte position" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -766,7 +766,7 @@ test "HexEditor.render applies cursor_style to cursor byte position" {
 }
 
 test "HexEditor.render with cursor=0 highlights first byte" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -785,7 +785,7 @@ test "HexEditor.render with cursor=0 highlights first byte" {
 }
 
 test "HexEditor.render with cursor at last byte" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -800,7 +800,7 @@ test "HexEditor.render with cursor at last byte" {
 }
 
 test "HexEditor.render with cursor on second row" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -816,7 +816,7 @@ test "HexEditor.render with cursor on second row" {
 }
 
 test "HexEditor.render cursor beyond visible area (offset scrolling)" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -836,7 +836,7 @@ test "HexEditor.render cursor beyond visible area (offset scrolling)" {
 // ============================================================================
 
 test "HexEditor.render 16 bytes in one row" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -854,7 +854,7 @@ test "HexEditor.render 16 bytes in one row" {
 }
 
 test "HexEditor.render 17 bytes creates second row" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -872,7 +872,7 @@ test "HexEditor.render 17 bytes creates second row" {
 }
 
 test "HexEditor.render respects rowCount for multi-row display" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -891,7 +891,7 @@ test "HexEditor.render respects rowCount for multi-row display" {
 }
 
 test "HexEditor.render shows correct offset for each row" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -909,7 +909,7 @@ test "HexEditor.render shows correct offset for each row" {
 }
 
 test "HexEditor.render with 32 bytes and bytes_per_row=8 shows 4 rows" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -935,7 +935,7 @@ test "HexEditor.byteCount caps at MAX_BYTES even with larger data" {
 }
 
 test "HexEditor.render handles MAX_BYTES limit correctly" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -953,7 +953,7 @@ test "HexEditor.render handles MAX_BYTES limit correctly" {
 }
 
 test "HexEditor.render respects MAX_BYTES limit correctly" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -977,7 +977,7 @@ test "HexEditor.render respects MAX_BYTES limit correctly" {
 // ============================================================================
 
 test "HexEditor.render draws block border when block is set" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -995,7 +995,7 @@ test "HexEditor.render draws block border when block is set" {
 }
 
 test "HexEditor.render with block uses inner area for content" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -1015,7 +1015,7 @@ test "HexEditor.render with block uses inner area for content" {
 }
 
 test "HexEditor.render with block reduces drawable area" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -1032,7 +1032,7 @@ test "HexEditor.render with block reduces drawable area" {
 }
 
 test "HexEditor.render block with custom style" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -1050,7 +1050,7 @@ test "HexEditor.render block with custom style" {
 }
 
 test "HexEditor.render block with title" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -1070,7 +1070,7 @@ test "HexEditor.render block with title" {
 // ============================================================================
 
 test "HexEditor.render with bytes_per_row=8 shows 8 bytes per row" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -1088,7 +1088,7 @@ test "HexEditor.render with bytes_per_row=8 shows 8 bytes per row" {
 }
 
 test "HexEditor.render with bytes_per_row=4 shows 4 bytes per row" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -1106,7 +1106,7 @@ test "HexEditor.render with bytes_per_row=4 shows 4 bytes per row" {
 }
 
 test "HexEditor.render with bytes_per_row=32 shows 32 bytes per row" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -1128,7 +1128,7 @@ test "HexEditor.render with bytes_per_row=32 shows 32 bytes per row" {
 // ============================================================================
 
 test "HexEditor.render with show_offset=false and show_ascii=false" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -1145,7 +1145,7 @@ test "HexEditor.render with show_offset=false and show_ascii=false" {
 }
 
 test "HexEditor.render with all style variants applied" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -1171,7 +1171,7 @@ test "HexEditor MAX_BYTES constant is 4096" {
 }
 
 test "HexEditor.render with bytes_per_row=1 shows 1 byte per row" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -1189,7 +1189,7 @@ test "HexEditor.render with bytes_per_row=1 shows 1 byte per row" {
 }
 
 test "HexEditor.render with cursor beyond data length" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -1204,7 +1204,7 @@ test "HexEditor.render with cursor beyond data length" {
 }
 
 test "HexEditor.render with space characters in offset view" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

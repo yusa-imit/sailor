@@ -11,7 +11,7 @@ const Line = sailor.tui.Line;
 const Span = sailor.tui.Span;
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

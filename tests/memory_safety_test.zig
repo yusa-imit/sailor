@@ -7,7 +7,7 @@ const std = @import("std");
 const testing = std.testing;
 
 test "no use-after-free with defer" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -28,7 +28,7 @@ test "no use-after-free with defer" {
 }
 
 test "arena allocator prevents leaks" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -49,7 +49,7 @@ test "arena allocator prevents leaks" {
 
 test "double free detection" {
     // This test verifies that we don't accidentally double-free
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");

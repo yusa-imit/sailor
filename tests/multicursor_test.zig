@@ -613,7 +613,7 @@ test "multicursor delete at line boundaries" {
 // ============================================================================
 
 test "multicursor no memory leaks with GPA" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");

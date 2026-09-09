@@ -623,7 +623,7 @@ test "termcap: works on all platforms" {
 // --- Memory Safety Tests ---
 
 test "termcap: no memory leaks on parse" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");
@@ -640,7 +640,7 @@ test "termcap: no memory leaks on parse" {
 }
 
 test "termcap: no memory leaks on load failure" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer {
         const leaked = gpa.deinit();
         testing.expect(leaked == .ok) catch @panic("memory leak detected");

@@ -269,9 +269,9 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("tests/env_config_test.zig"),
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
         }),
     });
-    env_config_tests.linkLibC();
 
     const windows_unicode_tests = b.addTest(.{
         .root_module = b.createModule(.{
