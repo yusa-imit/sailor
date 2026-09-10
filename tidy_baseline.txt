@@ -34,7 +34,6 @@ src/error_context.zig|line_length|-|2
 src/event_metrics.zig|catch_unreachable|-|2
 src/event_metrics.zig|line_length|-|8
 src/event_metrics.zig|missing_header|-|1
-src/eventbus.zig|catch_unreachable|-|3
 src/eventbus.zig|line_length|-|3
 src/eventbus.zig|missing_header|-|1
 src/fmt.zig|function_length|renderRow|84
