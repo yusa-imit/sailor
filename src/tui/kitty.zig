@@ -208,7 +208,7 @@ pub fn detectKittySupport() bool {
     const term_mod = @import("../term.zig");
 
     // Try XTGETTCAP query first (most reliable)
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

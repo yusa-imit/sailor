@@ -303,7 +303,7 @@ test "HexEditor.withModified() builder creates copy without modifying original" 
 
 test "HexEditor render applies modified_style to marked bytes" {
     const testing = std.testing;
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -351,7 +351,7 @@ test "HexEditor render applies modified_style to marked bytes" {
 
 test "HexEditor render: cursor_style wins over modified_style (precedence)" {
     const testing = std.testing;
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -397,7 +397,7 @@ test "HexEditor render: cursor_style wins over modified_style (precedence)" {
 
 test "HexEditor render: unmodified non-cursor bytes use base style" {
     const testing = std.testing;
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -435,7 +435,7 @@ test "HexEditor render: unmodified non-cursor bytes use base style" {
 
 test "HexEditor render: modified slice shorter than data, bytes past slice are unmodified" {
     const testing = std.testing;
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -478,7 +478,7 @@ test "HexEditor render: modified slice shorter than data, bytes past slice are u
 
 test "HexEditor render: empty default modified behaves like pre-fix" {
     const testing = std.testing;
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

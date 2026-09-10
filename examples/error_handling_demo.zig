@@ -156,7 +156,7 @@ fn processWithFallback(allocator: std.mem.Allocator, primary_path: []const u8, f
 // ============================================================================
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

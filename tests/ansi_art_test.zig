@@ -830,7 +830,7 @@ test "ansi art: render with mismatched pixel buffer size returns error or handle
 test "ansi art: render with no memory leaks" {
     var buf: [4096]u8 = undefined;
     var stream = std.io.fixedBufferStream(&buf);
-    var gpa = std.heap.GeneralPurposeAllocator(.{
+    var gpa = std.heap.DebugAllocator(.{
         .safety = true,
         .verbose_log = false,
     }){};
@@ -1502,7 +1502,7 @@ test "ansi art player: multiple addFrame/update cycle advances through all frame
 }
 
 test "ansi art player: deinit frees all frame pixel data" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{
+    var gpa = std.heap.DebugAllocator(.{
         .safety = true,
         .verbose_log = false,
     }){};

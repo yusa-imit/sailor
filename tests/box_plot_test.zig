@@ -1464,7 +1464,7 @@ test "BoxPlot.render large area with MAX_SERIES and many samples" {
 // ============================================================================
 
 test "BoxPlot render does not panic with positive infinity outlier" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -1494,7 +1494,7 @@ test "BoxPlot render does not panic with positive infinity outlier" {
 }
 
 test "BoxPlot render does not panic with negative infinity outlier" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

@@ -13,7 +13,7 @@ const validators = sailor.tui.validators;
 const symbols = sailor.tui.symbols;
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

@@ -20,7 +20,7 @@ const Color = sailor.tui.Color;
 const layout = sailor.tui.layout;
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

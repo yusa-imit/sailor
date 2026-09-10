@@ -1363,7 +1363,7 @@ test "FunnelChart.render divergent stage magnitudes with show_percentages=true d
 // ============================================================================
 
 test "FunnelChart render does not panic with negative infinity value" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -1393,7 +1393,7 @@ test "FunnelChart render does not panic with negative infinity value" {
 }
 
 test "FunnelChart render does not panic with positive infinity value" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.DebugAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
