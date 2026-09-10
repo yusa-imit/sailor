@@ -398,21 +398,21 @@ test "EventBus: priority ordering" {
     const callback1 = struct {
         fn call(ctx: ?*anyopaque, _: EventBus.Event) void {
             const list = @as(*std.ArrayList(usize), @ptrCast(@alignCast(ctx.?)));
-            list.append(std.testing.allocator, 1) catch unreachable;
+            list.append(std.testing.allocator, 1) catch unreachable; // test: 1 append, no OOM.
         }
     }.call;
 
     const callback2 = struct {
         fn call(ctx: ?*anyopaque, _: EventBus.Event) void {
             const list = @as(*std.ArrayList(usize), @ptrCast(@alignCast(ctx.?)));
-            list.append(std.testing.allocator, 2) catch unreachable;
+            list.append(std.testing.allocator, 2) catch unreachable; // test: 1 append, no OOM.
         }
     }.call;
 
     const callback3 = struct {
         fn call(ctx: ?*anyopaque, _: EventBus.Event) void {
             const list = @as(*std.ArrayList(usize), @ptrCast(@alignCast(ctx.?)));
-            list.append(std.testing.allocator, 3) catch unreachable;
+            list.append(std.testing.allocator, 3) catch unreachable; // test: 1 append, no OOM.
         }
     }.call;
 
