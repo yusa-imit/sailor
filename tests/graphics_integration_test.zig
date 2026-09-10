@@ -32,7 +32,7 @@ test "Sixel image encoding in buffer cell" {
     };
 
     // Encode to string
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{};
@@ -62,7 +62,7 @@ test "Sixel rendering with buffer writeAll" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{};
@@ -87,7 +87,7 @@ test "Sixel transparency with TUI color system" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{ .use_transparency = true };
@@ -114,7 +114,7 @@ test "Sixel large image chunking" {
         .pixels = pixels,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{};
@@ -144,7 +144,7 @@ test "Sixel palette quantization integration" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{ .max_colors = 64 };
@@ -176,7 +176,7 @@ test "Kitty image encoding in buffer" {
         .format = .rgba32,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     var encoder = KittyEncoder.init(allocator);
@@ -206,7 +206,7 @@ test "Kitty RGB24 vs RGBA32 formats" {
         .format = .rgb24,
     };
 
-    var rgb_output: std.ArrayList(u8) = .{};
+    var rgb_output: std.ArrayList(u8) = .empty;
     defer rgb_output.deinit(allocator);
 
     var encoder = KittyEncoder.init(allocator);
@@ -227,7 +227,7 @@ test "Kitty RGB24 vs RGBA32 formats" {
         .format = .rgba32,
     };
 
-    var rgba_output: std.ArrayList(u8) = .{};
+    var rgba_output: std.ArrayList(u8) = .empty;
     defer rgba_output.deinit(allocator);
 
     try encoder.encode(rgba_image, rgba_output.writer(allocator), .direct);
@@ -244,7 +244,7 @@ test "Kitty image placement positioning" {
     var encoder = KittyEncoder.init(allocator);
     defer encoder.deinit();
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     try encoder.placeImage(123, 10, 5, 20, 10, output.writer(allocator));
@@ -263,7 +263,7 @@ test "Kitty image deletion" {
     var encoder = KittyEncoder.init(allocator);
     defer encoder.deinit();
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     try encoder.deleteImage(456, output.writer(allocator));
@@ -282,7 +282,7 @@ test "Kitty delete all images" {
     var encoder = KittyEncoder.init(allocator);
     defer encoder.deinit();
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     try encoder.deleteAllImages(output.writer(allocator));
@@ -311,7 +311,7 @@ test "Kitty large image chunking" {
         .format = .rgba32,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     var encoder = KittyEncoder.init(allocator);
@@ -343,19 +343,19 @@ test "Kitty transmission medium selection" {
     defer encoder.deinit();
 
     // Test direct transmission
-    var direct_output: std.ArrayList(u8) = .{};
+    var direct_output: std.ArrayList(u8) = .empty;
     defer direct_output.deinit(allocator);
     try encoder.encode(image, direct_output.writer(allocator), .direct);
     try testing.expect(std.mem.indexOf(u8, direct_output.items, "t=d") != null);
 
     // Test file transmission
-    var file_output: std.ArrayList(u8) = .{};
+    var file_output: std.ArrayList(u8) = .empty;
     defer file_output.deinit(allocator);
     try encoder.encode(image, file_output.writer(allocator), .file);
     try testing.expect(std.mem.indexOf(u8, file_output.items, "t=f") != null);
 
     // Test shared memory transmission
-    var shmem_output: std.ArrayList(u8) = .{};
+    var shmem_output: std.ArrayList(u8) = .empty;
     defer shmem_output.deinit(allocator);
     try encoder.encode(image, shmem_output.writer(allocator), .shared_mem);
     try testing.expect(std.mem.indexOf(u8, shmem_output.items, "t=s") != null);
@@ -389,7 +389,7 @@ test "Sixel vs Kitty output size comparison" {
         .pixels = &pixels_sixel,
     };
 
-    var sixel_output: std.ArrayList(u8) = .{};
+    var sixel_output: std.ArrayList(u8) = .empty;
     defer sixel_output.deinit(allocator);
 
     const sixel_encoder = SixelEncoder{};
@@ -403,7 +403,7 @@ test "Sixel vs Kitty output size comparison" {
         .format = .rgba32,
     };
 
-    var kitty_output: std.ArrayList(u8) = .{};
+    var kitty_output: std.ArrayList(u8) = .empty;
     defer kitty_output.deinit(allocator);
 
     var kitty_encoder = KittyEncoder.init(allocator);

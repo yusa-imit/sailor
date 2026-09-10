@@ -101,7 +101,7 @@ test "EventBatcher coalesces resize events" {
     } });
 
     // Flush events
-    var out_events: std.ArrayList(Event) = .{};
+    var out_events: std.ArrayList(Event) = .empty;
     defer out_events.deinit(allocator);
     try batcher.flush(&out_events);
 
@@ -207,7 +207,7 @@ test "EventBatcher preserves key events" {
     } });
 
     // Flush
-    var out_events: std.ArrayList(Event) = .{};
+    var out_events: std.ArrayList(Event) = .empty;
     defer out_events.deinit(allocator);
     try batcher.flush(&out_events);
 
@@ -298,7 +298,7 @@ test "performance features integration" {
     } });
 
     // Flush events
-    var out_events: std.ArrayList(Event) = .{};
+    var out_events: std.ArrayList(Event) = .empty;
     defer out_events.deinit(allocator);
     try batcher.flush(&out_events);
 

@@ -109,7 +109,7 @@ test "ErrorContext - basic usage" {
     var ctx = ErrorContext.init(allocator, "test.zig", 42, "testing error context");
     defer ctx.deinit();
 
-    var buf: std.ArrayList(u8) = .{};
+    var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(allocator);
 
     try ctx.format(buf.writer(allocator), error.SomeError);
@@ -128,7 +128,7 @@ test "ErrorContext - with metadata" {
     try ctx.set("path", "/tmp/test.txt");
     try ctx.set("size", "4096");
 
-    var buf: std.ArrayList(u8) = .{};
+    var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(allocator);
 
     try ctx.format(buf.writer(allocator), error.FileNotFound);
@@ -154,7 +154,7 @@ test "SimpleErrorMsg - no allocation" {
 
 test "SimpleErrorMsg - format to writer" {
     const allocator = std.testing.allocator;
-    var buf: std.ArrayList(u8) = .{};
+    var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(allocator);
 
     const msg = SimpleErrorMsg.init("bar.zig", 20, "validating input");
@@ -181,7 +181,7 @@ test "ErrorContext - empty metadata" {
     var ctx = ErrorContext.init(allocator, "empty.zig", 1, "no metadata");
     defer ctx.deinit();
 
-    var buf: std.ArrayList(u8) = .{};
+    var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(allocator);
 
     try ctx.format(buf.writer(allocator), error.NoMetadata);
@@ -201,7 +201,7 @@ test "ErrorContext - multiple metadata entries" {
     try ctx.set("input", "test.json");
     try ctx.set("offset", "1024");
 
-    var buf: std.ArrayList(u8) = .{};
+    var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(allocator);
 
     try ctx.format(buf.writer(allocator), error.ParseError);

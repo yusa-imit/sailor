@@ -25,7 +25,7 @@ pub fn UndoStore(State: type, Action: type) type {
             reducer: *const fn (State, Action, std.mem.Allocator) anyerror!State,
             history_limit: usize,
         ) !Self {
-            var history: std.ArrayList(State) = .{};
+            var history: std.ArrayList(State) = .empty;
             try history.append(allocator, initial_state);
 
             return Self{

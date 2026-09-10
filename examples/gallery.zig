@@ -112,7 +112,7 @@ pub fn main() !void {
     var previous = try Buffer.init(allocator, width, height);
     defer previous.deinit();
 
-    var output_buf: std.ArrayList(u8) = .{};
+    var output_buf: std.ArrayList(u8) = .empty;
     defer output_buf.deinit(allocator);
     const writer = output_buf.writer(allocator);
 

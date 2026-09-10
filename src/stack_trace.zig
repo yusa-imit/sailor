@@ -128,7 +128,7 @@ test "ensure - success" {
 test "StackTrace.capture" {
     const trace = StackTrace.capture();
 
-    var buf: std.ArrayList(u8) = .{};
+    var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(std.testing.allocator);
 
     try trace.format(buf.writer(std.testing.allocator));

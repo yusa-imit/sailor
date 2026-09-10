@@ -144,7 +144,7 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
     const stdout = output.writer(allocator);
 

@@ -219,7 +219,7 @@ test "TaskRunner: priority order - high before normal" {
     var runner = TaskRunner.init(testing.allocator);
     defer runner.deinit();
 
-    var execution_order: std.ArrayList(u8) = .{};
+    var execution_order: std.ArrayList(u8) = .empty;
     defer execution_order.deinit(testing.allocator);
 
     const taskFn = struct {
@@ -252,7 +252,7 @@ test "TaskRunner: priority order - high > normal > low" {
     var runner = TaskRunner.init(testing.allocator);
     defer runner.deinit();
 
-    var execution_order: std.ArrayList(u8) = .{};
+    var execution_order: std.ArrayList(u8) = .empty;
     defer execution_order.deinit(testing.allocator);
 
     const lowTask = struct {
@@ -549,7 +549,7 @@ test "TaskRunner: priority sorting stability" {
     var runner = TaskRunner.init(testing.allocator);
     defer runner.deinit();
 
-    var ids: std.ArrayList(usize) = .{};
+    var ids: std.ArrayList(usize) = .empty;
     defer ids.deinit(testing.allocator);
 
     const taskFn = struct {
@@ -579,7 +579,7 @@ test "TaskRunner: mixed priority execution order" {
     var runner = TaskRunner.init(testing.allocator);
     defer runner.deinit();
 
-    var execution_order: std.ArrayList(usize) = .{};
+    var execution_order: std.ArrayList(usize) = .empty;
     defer execution_order.deinit(testing.allocator);
 
     const task1 = struct {

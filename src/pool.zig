@@ -57,11 +57,11 @@ pub fn Pool(comptime T: type) type {
 
         /// Initialize a new pool with the given configuration
         pub fn init(alloc: std.mem.Allocator, config: PoolConfig) !Self {
-            var storage: std.ArrayList(T) = .{};
+            var storage: std.ArrayList(T) = .empty;
             errdefer storage.deinit(alloc);
             try storage.ensureTotalCapacity(alloc, config.capacity);
 
-            var free_stack: std.ArrayList(*T) = .{};
+            var free_stack: std.ArrayList(*T) = .empty;
             errdefer free_stack.deinit(alloc);
             try free_stack.ensureTotalCapacity(alloc, config.capacity);
 

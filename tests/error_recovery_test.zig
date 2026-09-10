@@ -724,7 +724,7 @@ test "ErrorReporter - hook priority ordering" {
     var reporter = try ErrorReporter.init(allocator);
     defer reporter.deinit();
 
-    var order: std.ArrayList(u8) = .{};
+    var order: std.ArrayList(u8) = .empty;
     defer order.deinit(allocator);
 
     const hook1 = struct {

@@ -747,7 +747,7 @@ pub const SixelEncoder = struct {
     fn buildPalette(self: SixelEncoder, allocator: Allocator, image: SixelImage) ![]SixelImage.Color {
         if (self.quantization == .none) {
             // No quantization, collect unique colors (up to max_colors)
-            var unique_colors: std.ArrayList(SixelImage.Color) = .{};
+            var unique_colors: std.ArrayList(SixelImage.Color) = .empty;
             defer unique_colors.deinit(allocator);
 
             for (image.pixels) |pixel| {
@@ -776,7 +776,7 @@ pub const SixelEncoder = struct {
 
     fn medianCutQuantize(self: SixelEncoder, allocator: Allocator, image: SixelImage) ![]SixelImage.Color {
         // Simplified median cut: collect all opaque pixels, sort by dominant channel, split
-        var pixels: std.ArrayList(SixelImage.Color) = .{};
+        var pixels: std.ArrayList(SixelImage.Color) = .empty;
         defer pixels.deinit(allocator);
 
         for (image.pixels) |pixel| {
@@ -792,7 +792,7 @@ pub const SixelEncoder = struct {
         }
 
         // For simplicity, just take first max_colors unique pixels
-        var palette: std.ArrayList(SixelImage.Color) = .{};
+        var palette: std.ArrayList(SixelImage.Color) = .empty;
         defer palette.deinit(allocator);
 
         for (pixels.items) |pixel| {
@@ -1112,7 +1112,7 @@ test "SixelEncoder basic encode 2x2 solid image" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{};
@@ -1143,7 +1143,7 @@ test "SixelEncoder transparency handling" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{ .use_transparency = true };
@@ -1217,7 +1217,7 @@ test "SixelEncoder all transparent image" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{ .use_transparency = true };
@@ -1249,7 +1249,7 @@ test "SixelEncoder 1x6 vertical stripe" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{};
@@ -1276,7 +1276,7 @@ test "SixelEncoder 1x7 vertical stripe (partial sixel)" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{};
@@ -1310,7 +1310,7 @@ test "SixelEncoder color RGB scaling" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{};
@@ -1340,7 +1340,7 @@ test "SixelEncoder multiple colors with run-length" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{};
@@ -1362,7 +1362,7 @@ test "SixelEncoder empty image (0x0)" {
         .pixels = &[_]SixelImage.Color{},
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{};
@@ -1388,7 +1388,7 @@ test "SixelEncoder single pixel" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{};
@@ -1414,7 +1414,7 @@ test "SixelEncoder no transparency mode" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{ .use_transparency = false }; // Ignore alpha
@@ -1444,7 +1444,7 @@ test "SixelEncoder wide image (triggers multiple columns)" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{};
@@ -1472,7 +1472,7 @@ test "SixelEncoder tall image (multiple sixel rows)" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{};

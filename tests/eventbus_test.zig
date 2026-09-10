@@ -620,7 +620,7 @@ test "EventBus - scoped subscription with priority honors priority" {
     var bus = EventBus.init(testing.allocator);
     defer bus.deinit();
 
-    var order: std.ArrayList(usize) = .{};
+    var order: std.ArrayList(usize) = .empty;
     defer order.deinit(testing.allocator);
 
     const callback1 = struct {

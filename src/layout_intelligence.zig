@@ -410,7 +410,7 @@ pub const ResponsivenessChecker = struct {
 
     /// Detect widgets with fixed sizes that may not be responsive
     pub fn detectFixedSizes(self: *const ResponsivenessChecker, allocator: Allocator, root: *WidgetNode) !ArrayList([]const u8) {
-        var result: ArrayList([]const u8) = .{};
+        var result: ArrayList([]const u8) = .empty;
 
         try self.detectFixedSizesRecursive(allocator, root, "root", &result);
 
@@ -448,7 +448,7 @@ pub const AccessibilityChecker = struct {
     pub fn checkTree(self: *AccessibilityChecker, allocator: Allocator, root: *WidgetNode) ![]const LayoutIssue {
         _ = self;
 
-        var issues: ArrayList(LayoutIssue) = .{};
+        var issues: ArrayList(LayoutIssue) = .empty;
 
         try checkNodeAccessibility(allocator, root, "root", &issues);
 
@@ -550,7 +550,7 @@ pub const PerformanceAnalyzer = struct {
     pub fn analyze(self: *PerformanceAnalyzer, allocator: Allocator, root: *WidgetNode) ![]const LayoutIssue {
         _ = self;
 
-        var issues: ArrayList(LayoutIssue) = .{};
+        var issues: ArrayList(LayoutIssue) = .empty;
 
         try analyzeNodePerformance(allocator, root, "root", &issues);
 

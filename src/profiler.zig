@@ -170,7 +170,7 @@ pub const Profiler = struct {
 
     /// Detect bottlenecks (widgets exceeding threshold)
     pub fn detectBottlenecks(self: *Self, allocator: Allocator) ![]RenderProfile {
-        var bottlenecks: std.ArrayList(RenderProfile) = .{};
+        var bottlenecks: std.ArrayList(RenderProfile) = .empty;
         errdefer bottlenecks.deinit(allocator);
 
         for (self.profiles.items) |profile| {
@@ -307,7 +307,7 @@ pub const Profiler = struct {
 
     /// Export flame graph data
     pub fn flameGraphData(self: *Self, allocator: Allocator) ![]ProfilerFrame {
-        var frames: std.ArrayList(ProfilerFrame) = .{};
+        var frames: std.ArrayList(ProfilerFrame) = .empty;
         errdefer {
             for (frames.items) |*frame| {
                 frame.deinitRecursive(allocator);
@@ -323,7 +323,7 @@ pub const Profiler = struct {
     }
 
     fn scopeToFrame(allocator: Allocator, scope: *const ScopeEntry) !ProfilerFrame {
-        var children: std.ArrayList(ProfilerFrame) = .{};
+        var children: std.ArrayList(ProfilerFrame) = .empty;
         errdefer {
             for (children.items) |*child| {
                 child.deinitRecursive(allocator);
@@ -1012,7 +1012,7 @@ pub const MemoryTracker = struct {
         }
 
         // Check each location for leaks
-        var leaks: std.ArrayList(AllocStats) = .{};
+        var leaks: std.ArrayList(AllocStats) = .empty;
         errdefer leaks.deinit(allocator);
 
         var iter = location_map.keyIterator();
@@ -1312,7 +1312,7 @@ pub const EventLoopProfiler = struct {
 
     /// Get statistics for a specific event type
     pub fn getStats(self: *Self, event_type: []const u8) !EventLoopStats {
-        var latencies: std.ArrayList(u64) = .{};
+        var latencies: std.ArrayList(u64) = .empty;
         defer latencies.deinit(self.allocator);
 
         var total_queue_depth: usize = 0;
@@ -1367,7 +1367,7 @@ pub const EventLoopProfiler = struct {
 
     /// Get all event types that exceed latency threshold
     pub fn detectSlowEvents(self: *Self, allocator: Allocator) ![]EventProcessingRecord {
-        var slow_events: std.ArrayList(EventProcessingRecord) = .{};
+        var slow_events: std.ArrayList(EventProcessingRecord) = .empty;
         errdefer slow_events.deinit(allocator);
 
         const threshold_ns: u64 = @intFromFloat(self.latency_threshold_ms * 1_000_000.0);

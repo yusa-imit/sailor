@@ -160,7 +160,7 @@ test "fixed buffer stream prevents overrun" {
 }
 
 test "arraylist automatic resizing" {
-    var list: std.ArrayList(u32) = .{};
+    var list: std.ArrayList(u32) = .empty;
     defer list.deinit(testing.allocator);
 
     // Grow dynamically without overflow
@@ -175,7 +175,7 @@ test "arraylist automatic resizing" {
 }
 
 test "string builder memory management" {
-    var list: std.ArrayList(u8) = .{};
+    var list: std.ArrayList(u8) = .empty;
     defer list.deinit(testing.allocator);
 
     const writer = list.writer(testing.allocator);

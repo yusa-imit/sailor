@@ -251,7 +251,7 @@ pub const Region = struct {
     /// Returns owned slice that caller must free.
     /// Used for screen reader navigation between UI regions.
     pub fn announce(self: Region, allocator: Allocator) ![]const u8 {
-        var buf: std.ArrayList(u8) = .{};
+        var buf: std.ArrayList(u8) = .empty;
         defer buf.deinit(allocator);
         const writer = buf.writer(allocator);
 
@@ -311,7 +311,7 @@ test "ScreenReaderOutput: announce ARIA text" {
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .{};
+    var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(allocator);
     const writer = buf.writer(allocator);
 
@@ -328,7 +328,7 @@ test "ScreenReaderOutput: announce JSON" {
     sr.setEnabled(true);
     sr.setOutputMode(.json);
 
-    var buf: std.ArrayList(u8) = .{};
+    var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(allocator);
     const writer = buf.writer(allocator);
 
@@ -346,7 +346,7 @@ test "ScreenReaderOutput: announce widget" {
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .{};
+    var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(allocator);
     const writer = buf.writer(allocator);
 
@@ -369,7 +369,7 @@ test "ScreenReaderOutput: announce navigation" {
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .{};
+    var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(allocator);
     const writer = buf.writer(allocator);
 
@@ -385,7 +385,7 @@ test "ScreenReaderOutput: announce error" {
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .{};
+    var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(allocator);
     const writer = buf.writer(allocator);
 
@@ -402,7 +402,7 @@ test "ScreenReaderOutput: announce success" {
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .{};
+    var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(allocator);
     const writer = buf.writer(allocator);
 
@@ -419,7 +419,7 @@ test "ScreenReaderOutput: announce shortcut" {
     sr.setOutputMode(.aria_text);
     sr.setVerbosity(.normal);
 
-    var buf: std.ArrayList(u8) = .{};
+    var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(allocator);
     const writer = buf.writer(allocator);
 
@@ -436,7 +436,7 @@ test "ScreenReaderOutput: quiet mode skips shortcuts" {
     sr.setOutputMode(.aria_text);
     sr.setVerbosity(.quiet);
 
-    var buf: std.ArrayList(u8) = .{};
+    var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(allocator);
     const writer = buf.writer(allocator);
 
@@ -453,7 +453,7 @@ test "ScreenReaderOutput: announce help" {
     sr.setOutputMode(.aria_text);
     sr.setVerbosity(.verbose);
 
-    var buf: std.ArrayList(u8) = .{};
+    var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(allocator);
     const writer = buf.writer(allocator);
 
@@ -469,7 +469,7 @@ test "ScreenReaderOutput: disabled skips announcements" {
     sr.setEnabled(false);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .{};
+    var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(allocator);
     const writer = buf.writer(allocator);
 

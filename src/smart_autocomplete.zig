@@ -57,7 +57,7 @@ pub const LocalSource = struct {
 
     /// Get suggestions matching prefix
     pub fn suggest(self: LocalSource, allocator: std.mem.Allocator, _: CompletionContext, prefix: []const u8) ![]Suggestion {
-        var suggestions: std.ArrayList(Suggestion) = .{};
+        var suggestions: std.ArrayList(Suggestion) = .empty;
 
         for (self.items) |item| {
             if (std.mem.startsWith(u8, item, prefix)) {
@@ -91,7 +91,7 @@ pub const LlmSource = struct {
 
     /// Get suggestions from LLM (mocked for tests)
     pub fn suggest(self: LlmSource, allocator: std.mem.Allocator, context: CompletionContext, prefix: []const u8) ![]Suggestion {
-        var suggestions: std.ArrayList(Suggestion) = .{};
+        var suggestions: std.ArrayList(Suggestion) = .empty;
 
         // If mock is set, use it
         if (self.mock_fn) |mock| {
@@ -144,7 +144,7 @@ pub const PatternSource = struct {
 
     /// Get suggestions based on learned patterns
     pub fn suggest(self: PatternSource, allocator: std.mem.Allocator, _: CompletionContext, prefix: []const u8) ![]Suggestion {
-        var suggestions: std.ArrayList(Suggestion) = .{};
+        var suggestions: std.ArrayList(Suggestion) = .empty;
 
         var iter = self.patterns.iterator();
         while (iter.next()) |entry| {
@@ -208,7 +208,7 @@ pub const SmartAutocomplete = struct {
 
     /// Get suggestions from all sources and rank them
     pub fn getSuggestions(self: SmartAutocomplete, allocator: std.mem.Allocator, context: CompletionContext, prefix: []const u8) ![]Suggestion {
-        var all_suggestions: std.ArrayList(Suggestion) = .{};
+        var all_suggestions: std.ArrayList(Suggestion) = .empty;
 
         // Collect suggestions from all sources
         for (self.sources.items) |source| {
