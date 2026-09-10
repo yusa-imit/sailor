@@ -38,7 +38,7 @@ fn processFileWithContext(allocator: std.mem.Allocator, path: []const u8) !void 
     const file = std.fs.cwd().openFile(path, .{}) catch |err| {
         try ctx.set("error", @errorName(err));
 
-        var buf: std.ArrayList(u8) = .{};
+        var buf: std.ArrayList(u8) = .empty;
         defer buf.deinit(allocator);
         try ctx.format(buf.writer(allocator), err);
 

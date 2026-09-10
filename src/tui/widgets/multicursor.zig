@@ -1566,7 +1566,7 @@ pub const MultiCursor = struct {
         if (self.cursors.items.len == 0) return;
 
         // Sort cursors by position (reverse order: bottom-right to top-left)
-        var indices: std.ArrayList(usize) = .{};
+        var indices: std.ArrayList(usize) = .empty;
         defer indices.deinit(self.allocator);
         try indices.ensureTotalCapacity(self.allocator, self.cursors.items.len);
 
@@ -1621,7 +1621,7 @@ pub const MultiCursor = struct {
         if (self.cursors.items.len == 0) return;
 
         // Sort cursors by position (reverse order)
-        var indices: std.ArrayList(usize) = .{};
+        var indices: std.ArrayList(usize) = .empty;
         defer indices.deinit(self.allocator);
         try indices.ensureTotalCapacity(self.allocator, self.cursors.items.len);
 
@@ -1677,7 +1677,7 @@ pub const MultiCursor = struct {
         if (self.cursors.items.len == 0) return;
 
         // Sort cursors by position (reverse order)
-        var indices: std.ArrayList(usize) = .{};
+        var indices: std.ArrayList(usize) = .empty;
         defer indices.deinit(self.allocator);
         try indices.ensureTotalCapacity(self.allocator, self.cursors.items.len);
 

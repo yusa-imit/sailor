@@ -142,7 +142,7 @@ pub const FileBrowser = struct {
         var dir = try std.fs.openDirAbsolute(self.current_path, .{ .iterate = true });
         defer dir.close();
 
-        var entries_list: std.ArrayList(Entry) = .{};
+        var entries_list: std.ArrayList(Entry) = .empty;
         defer entries_list.deinit(self.allocator);
 
         var iter = dir.iterate();
@@ -293,7 +293,7 @@ pub const FileBrowser = struct {
 
     /// Get all selected entries
     pub fn getSelectedEntries(self: *FileBrowser, allocator: std.mem.Allocator) !SelectionResult {
-        var selected: std.ArrayList(Entry) = .{};
+        var selected: std.ArrayList(Entry) = .empty;
         for (self.entries) |entry| {
             if (entry.selected) {
                 try selected.append(allocator, entry);

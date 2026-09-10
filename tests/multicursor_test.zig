@@ -557,7 +557,7 @@ test "multicursor many cursors performance" {
     var mc = try MultiCursor.init(allocator);
     defer mc.deinit();
 
-    var text: std.ArrayList(u8) = .{};
+    var text: std.ArrayList(u8) = .empty;
     defer text.deinit(allocator);
 
     // Create 100 lines

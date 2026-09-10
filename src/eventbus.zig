@@ -319,7 +319,7 @@ pub const EventBus = struct {
 
     /// Get all registered event types.
     pub fn eventTypes(self: *EventBus, allocator: Allocator) ![][]const u8 {
-        var types: std.ArrayList([]const u8) = .{};
+        var types: std.ArrayList([]const u8) = .empty;
         var it = self.subscribers.keyIterator();
         while (it.next()) |key| {
             try types.append(allocator, key.*);
@@ -392,7 +392,7 @@ test "EventBus: priority ordering" {
     var bus = EventBus.init(std.testing.allocator);
     defer bus.deinit();
 
-    var order: std.ArrayList(usize) = .{};
+    var order: std.ArrayList(usize) = .empty;
     defer order.deinit(std.testing.allocator);
 
     const callback1 = struct {

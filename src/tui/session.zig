@@ -73,7 +73,7 @@ pub const SessionRecorder = struct {
         const file = try std.fs.cwd().createFile(path, .{});
         defer file.close();
 
-        var buf: std.ArrayList(u8) = .{};
+        var buf: std.ArrayList(u8) = .empty;
         defer buf.deinit(self.allocator);
         const writer = buf.writer(self.allocator);
 

@@ -107,7 +107,7 @@ pub fn main() !void {
     defer previous.deinit();
 
     // Compute diff and render to stdout
-    var output_buf: std.ArrayList(u8) = .{};
+    var output_buf: std.ArrayList(u8) = .empty;
     defer output_buf.deinit(allocator);
     const writer = output_buf.writer(allocator);
 

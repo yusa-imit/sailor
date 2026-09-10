@@ -616,7 +616,7 @@ test "ThunkStore executes thunks sequentially" {
     );
     defer thunk_store.deinit(allocator);
 
-    var execution_order: std.ArrayList(u8) = .{};
+    var execution_order: std.ArrayList(u8) = .empty;
     defer execution_order.deinit(allocator);
 
     // Multiple thunks should execute in order, not in parallel

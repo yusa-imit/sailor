@@ -71,7 +71,7 @@ pub const Declaration = struct {
 /// Documentation generator
 pub const DocGenerator = struct {
     allocator: Allocator,
-    declarations: std.ArrayListUnmanaged(Declaration) = .{},
+    declarations: std.ArrayListUnmanaged(Declaration) = .empty,
     module_comment: ?Comment = null,
 
     const Self = @This();
@@ -131,7 +131,7 @@ pub const DocGenerator = struct {
         var lines = std.mem.splitScalar(u8, source, '\n');
         var line_idx: usize = 0;
         var pending_comment: ?[]const u8 = null;
-        var module_lines: std.ArrayListUnmanaged([]const u8) = .{};
+        var module_lines: std.ArrayListUnmanaged([]const u8) = .empty;
         defer module_lines.deinit(self.allocator);
 
         while (lines.next()) |line| : (line_idx += 1) {

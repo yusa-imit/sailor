@@ -75,7 +75,7 @@ fn renderTaskItem(item: Task, buf: *Buffer, area: Rect) void {
 
 test "ReactiveList init with signal and render function" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(StringItem) = .{};
+    var items: std.ArrayList(StringItem) = .empty;
     defer items.deinit(allocator);
 
     try items.append(allocator, "Item 1");
@@ -91,7 +91,7 @@ test "ReactiveList init with signal and render function" {
 
 test "ReactiveList deinit cleans up" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(StringItem) = .{};
+    var items: std.ArrayList(StringItem) = .empty;
     defer items.deinit(allocator);
 
     try items.append(allocator, "Item 1");
@@ -110,7 +110,7 @@ test "ReactiveList deinit cleans up" {
 
 test "ReactiveList render empty list" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(StringItem) = .{};
+    var items: std.ArrayList(StringItem) = .empty;
     defer items.deinit(allocator);
 
     var signal = try signal_mod.Signal([]const StringItem).init(allocator, items.items);
@@ -133,7 +133,7 @@ test "ReactiveList render empty list" {
 
 test "ReactiveList render single item" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(StringItem) = .{};
+    var items: std.ArrayList(StringItem) = .empty;
     defer items.deinit(allocator);
 
     try items.append(allocator, "Hello");
@@ -160,7 +160,7 @@ test "ReactiveList render single item" {
 
 test "ReactiveList render multiple items" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(StringItem) = .{};
+    var items: std.ArrayList(StringItem) = .empty;
     defer items.deinit(allocator);
 
     try items.append(allocator, "Item 1");
@@ -184,7 +184,7 @@ test "ReactiveList render multiple items" {
 
 test "ReactiveList items render in order" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(StringItem) = .{};
+    var items: std.ArrayList(StringItem) = .empty;
     defer items.deinit(allocator);
 
     try items.append(allocator, "A");
@@ -214,7 +214,7 @@ test "ReactiveList items render in order" {
 
 test "ReactiveList updates when signal changes" {
     const allocator = testing.allocator;
-    var items1: std.ArrayList(StringItem) = .{};
+    var items1: std.ArrayList(StringItem) = .empty;
     defer items1.deinit(allocator);
     try items1.append(allocator, "Old");
 
@@ -233,7 +233,7 @@ test "ReactiveList updates when signal changes" {
     try testing.expectEqual(@as(u21, 'O'), buf.getConst(0, 0).?.char);
 
     // Update signal with new items
-    var items2: std.ArrayList(StringItem) = .{};
+    var items2: std.ArrayList(StringItem) = .empty;
     defer items2.deinit(allocator);
     try items2.append(allocator, "New");
 
@@ -249,7 +249,7 @@ test "ReactiveList updates when signal changes" {
 
 test "ReactiveList reacts to signal changes" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(StringItem) = .{};
+    var items: std.ArrayList(StringItem) = .empty;
     defer items.deinit(allocator);
 
     try items.append(allocator, "First");
@@ -269,7 +269,7 @@ test "ReactiveList reacts to signal changes" {
     try testing.expectEqual(@as(u21, 'F'), buf.getConst(0, 0).?.char);
 
     // Change signal
-    var new_items: std.ArrayList(StringItem) = .{};
+    var new_items: std.ArrayList(StringItem) = .empty;
     defer new_items.deinit(allocator);
     try new_items.append(allocator, "Second");
 
@@ -287,7 +287,7 @@ test "ReactiveList reacts to signal changes" {
 
 test "ReactiveList with custom render function for struct items" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(Task) = .{};
+    var items: std.ArrayList(Task) = .empty;
     defer items.deinit(allocator);
 
     try items.append(allocator, .{ .id = 1, .title = "Buy milk", .completed = false });
@@ -310,7 +310,7 @@ test "ReactiveList with custom render function for struct items" {
 
 test "ReactiveList render function receives correct area" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(StringItem) = .{};
+    var items: std.ArrayList(StringItem) = .empty;
     defer items.deinit(allocator);
 
     try items.append(allocator, "Test");
@@ -337,7 +337,7 @@ test "ReactiveList render function receives correct area" {
 
 test "ReactiveList respects width constraint" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(StringItem) = .{};
+    var items: std.ArrayList(StringItem) = .empty;
     defer items.deinit(allocator);
 
     try items.append(allocator, "This is a very long text that exceeds width");
@@ -358,7 +358,7 @@ test "ReactiveList respects width constraint" {
 
 test "ReactiveList respects height constraint" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(StringItem) = .{};
+    var items: std.ArrayList(StringItem) = .empty;
     defer items.deinit(allocator);
 
     // Create many items
@@ -387,7 +387,7 @@ test "ReactiveList respects height constraint" {
 
 test "ReactiveList supports item selection" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(StringItem) = .{};
+    var items: std.ArrayList(StringItem) = .empty;
     defer items.deinit(allocator);
 
     try items.append(allocator, "Item 1");
@@ -414,7 +414,7 @@ test "ReactiveList supports item selection" {
 
 test "ReactiveList supports scrolling" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(StringItem) = .{};
+    var items: std.ArrayList(StringItem) = .empty;
     defer items.deinit(allocator);
 
     var i: usize = 0;
@@ -442,7 +442,7 @@ test "ReactiveList supports scrolling" {
 
 test "ReactiveList handles buffer cell updates correctly" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(StringItem) = .{};
+    var items: std.ArrayList(StringItem) = .empty;
     defer items.deinit(allocator);
 
     try items.append(allocator, "X");
@@ -465,7 +465,7 @@ test "ReactiveList handles buffer cell updates correctly" {
 
 test "ReactiveList no crash with empty area" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(StringItem) = .{};
+    var items: std.ArrayList(StringItem) = .empty;
     defer items.deinit(allocator);
 
     try items.append(allocator, "Item");
@@ -490,7 +490,7 @@ test "ReactiveList no crash with empty area" {
 
 test "ReactiveList with string items" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(StringItem) = .{};
+    var items: std.ArrayList(StringItem) = .empty;
     defer items.deinit(allocator);
 
     try items.append(allocator, "hello");
@@ -510,7 +510,7 @@ test "ReactiveList with string items" {
 
 test "ReactiveList with struct items" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(Task) = .{};
+    var items: std.ArrayList(Task) = .empty;
     defer items.deinit(allocator);
 
     try items.append(allocator, .{ .id = 1, .title = "Task 1", .completed = false });
@@ -534,7 +534,7 @@ test "ReactiveList with struct items" {
 
 test "ReactiveList renders large list efficiently" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(StringItem) = .{};
+    var items: std.ArrayList(StringItem) = .empty;
     defer items.deinit(allocator);
 
     var i: usize = 0;
@@ -562,7 +562,7 @@ test "ReactiveList renders large list efficiently" {
 
 test "ReactiveList with single character items" {
     const allocator = testing.allocator;
-    var items: std.ArrayList(StringItem) = .{};
+    var items: std.ArrayList(StringItem) = .empty;
     defer items.deinit(allocator);
 
     try items.append(allocator, "A");

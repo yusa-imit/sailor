@@ -430,7 +430,7 @@ test "sixel decoder: round-trip 2x2 red image (encode then decode)" {
     };
 
     // Encode to Sixel
-    var encoded: std.ArrayList(u8) = .{};
+    var encoded: std.ArrayList(u8) = .empty;
     defer encoded.deinit(allocator);
 
     const encoder = SixelEncoder{};
@@ -473,7 +473,7 @@ test "sixel decoder: round-trip single pixel various colors" {
             .pixels = &[_]SixelImage.Color{color},
         };
 
-        var encoded: std.ArrayList(u8) = .{};
+        var encoded: std.ArrayList(u8) = .empty;
         defer encoded.deinit(allocator);
 
         const encoder = SixelEncoder{};
@@ -1711,7 +1711,7 @@ test "sixel palette: round-trip: quantize → encode → decode (verify color co
     };
 
     // Encode with quantization to 8 colors
-    var encoded: std.ArrayList(u8) = .{};
+    var encoded: std.ArrayList(u8) = .empty;
     defer encoded.deinit(allocator);
 
     const encoder = SixelEncoder{ .max_colors = 8, .quantization = .median_cut };
@@ -3475,7 +3475,7 @@ test "sixel compressor: SixelEncoder.encodeCompressed produces valid sixel" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     defer output.deinit(allocator);
 
     const encoder = SixelEncoder{};
@@ -3502,7 +3502,7 @@ test "sixel compressor: compressed output can be decompressed and decoded" {
         .pixels = &pixels,
     };
 
-    var encoded: std.ArrayList(u8) = .{};
+    var encoded: std.ArrayList(u8) = .empty;
     defer encoded.deinit(allocator);
 
     const encoder = SixelEncoder{};
@@ -3537,7 +3537,7 @@ test "sixel compressor: compression achieves significant reduction for typical i
         .pixels = &pixels,
     };
 
-    var encoded: std.ArrayList(u8) = .{};
+    var encoded: std.ArrayList(u8) = .empty;
     defer encoded.deinit(allocator);
 
     const encoder = SixelEncoder{};

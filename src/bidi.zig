@@ -149,7 +149,7 @@ pub const Bidi = struct {
     /// Reorder RTL text (private implementation)
     fn reorderRtl(allocator: Allocator, str: []const u8) ![]u8 {
         // Parse string into codepoints
-        var codepoints: std.ArrayList(u21) = .{};
+        var codepoints: std.ArrayList(u21) = .empty;
         defer codepoints.deinit(allocator);
 
         var i: usize = 0;
@@ -172,7 +172,7 @@ pub const Bidi = struct {
         std.mem.reverse(u21, codepoints.items);
 
         // Encode back to UTF-8
-        var result: std.ArrayList(u8) = .{};
+        var result: std.ArrayList(u8) = .empty;
         defer result.deinit(allocator);
 
         for (codepoints.items) |cp| {

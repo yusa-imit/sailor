@@ -395,7 +395,7 @@ fn todoReducer(state: TodoState, action: TodoAction, allocator: std.mem.Allocato
 test "Store with complex state type" {
     const allocator = testing.allocator;
 
-    var items: std.ArrayList(TodoItem) = .{};
+    var items: std.ArrayList(TodoItem) = .empty;
     defer items.deinit(allocator);
 
     const initial_state: TodoState = .{

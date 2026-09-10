@@ -190,7 +190,7 @@ pub const WidgetInspector = struct {
             // Find the deepest focused node
             if (findFocusedNode(root)) |focused| {
                 // Build path from focused to root
-                var path_reversed: ArrayList(*WidgetNode) = .{};
+                var path_reversed: ArrayList(*WidgetNode) = .empty;
                 defer path_reversed.deinit(self.allocator);
 
                 var current: ?*WidgetNode = focused;
@@ -930,7 +930,7 @@ test "WidgetInspector traverse visits all nodes in depth-first order" {
     inspector.endWidget();
     inspector.endWidget();
 
-    var visited: std.ArrayList([]const u8) = .{};
+    var visited: std.ArrayList([]const u8) = .empty;
     defer visited.deinit(std.testing.allocator);
 
     const Visitor = struct {
@@ -955,7 +955,7 @@ test "WidgetInspector traverse on empty tree does nothing" {
     var inspector = WidgetInspector.init(std.testing.allocator);
     defer inspector.deinit();
 
-    var visited: std.ArrayList([]const u8) = .{};
+    var visited: std.ArrayList([]const u8) = .empty;
     defer visited.deinit(std.testing.allocator);
 
     const Visitor = struct {

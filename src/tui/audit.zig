@@ -206,7 +206,7 @@ pub const AuditLogger = struct {
         // Seek to end for append
         try file.seekFromEnd(0);
 
-        var buf: std.ArrayList(u8) = .{};
+        var buf: std.ArrayList(u8) = .empty;
         defer buf.deinit(self.allocator);
         const writer = buf.writer(self.allocator);
 
@@ -272,7 +272,7 @@ pub const AuditLogger = struct {
 
     /// Get entries filtered by criteria.
     pub fn getEntries(self: *AuditLogger, allocator: Allocator, event_type: ?AuditEntry.EventType, user_id: ?[]const u8) ![]const AuditEntry {
-        var filtered: ArrayList(AuditEntry) = .{};
+        var filtered: ArrayList(AuditEntry) = .empty;
         errdefer filtered.deinit(allocator);
 
         for (self.entries.items) |entry| {
@@ -589,7 +589,7 @@ test "AuditLogger: export JSON" {
 
     try logger.logEvent(.data_access, "test.txt", .info, "alice");
 
-    var buf: std.ArrayList(u8) = .{};
+    var buf: std.ArrayList(u8) = .empty;
     defer buf.deinit(allocator);
     const writer = buf.writer(allocator);
 

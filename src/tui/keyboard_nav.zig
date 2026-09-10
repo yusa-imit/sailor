@@ -209,7 +209,7 @@ pub const NavigationHints = struct {
     /// Get all hints for a specific category (navigation, focus, action, etc.)
     /// Returns owned slice that caller must free
     pub fn getHintsByCategory(self: *const NavigationHints, allocator: Allocator, category: Hint.Category) ![]const Hint {
-        var filtered: ArrayList(Hint) = .{};
+        var filtered: ArrayList(Hint) = .empty;
         errdefer filtered.deinit(allocator);
 
         for (self.hints.items) |hint| {
@@ -253,7 +253,7 @@ pub const NavigationHints = struct {
     /// Format all hints as human-readable text grouped by category
     /// Returns owned string that caller must free
     pub fn formatHints(self: *const NavigationHints, allocator: Allocator) ![]const u8 {
-        var buf: ArrayList(u8) = .{};
+        var buf: ArrayList(u8) = .empty;
         defer buf.deinit(allocator);
         const writer = buf.writer(allocator);
 
