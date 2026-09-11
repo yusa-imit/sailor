@@ -254,8 +254,7 @@ src/tui/widgets/configeditor.zig|line_length|-|4
 src/tui/widgets/configeditor.zig|missing_header|-|1
 src/tui/widgets/context_menu.zig|function_length|render|144
 src/tui/widgets/context_menu.zig|line_length|-|9
-src/tui/widgets/countdown_timer.zig|catch_unreachable|-|3
-src/tui/widgets/countdown_timer.zig|line_length|-|4
+src/tui/widgets/countdown_timer.zig|line_length|-|3
 src/tui/widgets/debug.zig|line_length|-|13
 src/tui/widgets/debug.zig|missing_header|-|1
 src/tui/widgets/debug.zig|time_usage|-|1

@@ -33,8 +33,8 @@ const Block = block_mod.Block;
 pub const CountdownTimer = struct {
     /// Time format for display
     pub const TimeFormat = enum {
-        seconds,  // Just seconds (e.g., "90")
-        mm_ss,    // Minutes:Seconds (e.g., "01:30")
+        seconds, // Just seconds (e.g., "90")
+        mm_ss, // Minutes:Seconds (e.g., "01:30")
         hh_mm_ss, // Hours:Minutes:Seconds (e.g., "01:30:45")
     };
     total_seconds: u64,
@@ -110,7 +110,11 @@ pub const CountdownTimer = struct {
         const clamped = @min(seconds, 59_999_999);
         const mins = clamped / 60;
         const secs = clamped % 60;
-        const len = std.fmt.bufPrint(buf, "{d:0>2}:{d:0>2}", .{ mins, secs }) catch unreachable;
+        const len = std.fmt.bufPrint(
+            buf,
+            "{d:0>2}:{d:0>2}",
+            .{ mins, secs },
+        ) catch unreachable; // 9-byte buf; mins<=999999 (6d)+':'+secs (2d) = 9, fits exactly.
         return len;
     }
 
@@ -121,14 +125,22 @@ pub const CountdownTimer = struct {
         const remaining = clamped % 3600;
         const mins = remaining / 60;
         const secs = remaining % 60;
-        const len = std.fmt.bufPrint(buf, "{d:0>2}:{d:0>2}:{d:0>2}", .{ hours, mins, secs }) catch unreachable;
+        const len = std.fmt.bufPrint(
+            buf,
+            "{d:0>2}:{d:0>2}:{d:0>2}",
+            .{ hours, mins, secs },
+        ) catch unreachable; // 9-byte buf; hours<=999 (3d) + 2*':' + mm + ss (2d each) = 9.
         return len;
     }
 
     /// Format as plain seconds
     fn formatSeconds(seconds: u64, buf: *[9]u8) []u8 {
         const clamped = @min(seconds, 999_999_999);
-        const len = std.fmt.bufPrint(buf, "{d}", .{clamped}) catch unreachable;
+        const len = std.fmt.bufPrint(
+            buf,
+            "{d}",
+            .{clamped},
+        ) catch unreachable; // 9-byte buf; clamped<=999_999_999 is 9 digits, fits exactly.
         return len;
     }
 
