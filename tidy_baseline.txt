@@ -343,7 +343,6 @@ src/tui/widgets/particles.zig|line_length|-|2
 src/tui/widgets/particles.zig|missing_header|-|1
 src/tui/widgets/particles.zig|time_usage|-|1
 src/tui/widgets/piechart.zig|line_length|-|8
-src/tui/widgets/pipeline.zig|catch_unreachable|-|2
 src/tui/widgets/pipeline.zig|line_length|-|1
 src/tui/widgets/popup.zig|line_length|-|1
 src/tui/widgets/popup.zig|missing_header|-|1

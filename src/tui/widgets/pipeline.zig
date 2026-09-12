@@ -130,7 +130,11 @@ pub const Pipeline = struct {
         var w: usize = stage.label.len + 4;
         if (stage.status == .running) {
             var digit_buf: [3]u8 = undefined;
-            const digits = std.fmt.bufPrint(&digit_buf, "{d}", .{stage.progress}) catch unreachable;
+            const digits = std.fmt.bufPrint(
+                &digit_buf,
+                "{d}",
+                .{stage.progress},
+            ) catch unreachable; // 3-byte buf; progress is u8, max 255 = 3 digits, fits exactly.
             w += 1 + digits.len + 1; // space + digits + '%'
         }
         return @intCast(@min(65535, w));
@@ -166,9 +170,18 @@ pub const Pipeline = struct {
         var cx = x;
         const max_x = area.x + area.width;
 
-        if (cx < max_x) { setCell(buf, area, cx, y, '[', s); cx += 1; }
-        if (cx < max_x) { setCell(buf, area, cx, y, icon, s); cx += 1; }
-        if (cx < max_x) { setCell(buf, area, cx, y, ' ', s); cx += 1; }
+        if (cx < max_x) {
+            setCell(buf, area, cx, y, '[', s);
+            cx += 1;
+        }
+        if (cx < max_x) {
+            setCell(buf, area, cx, y, icon, s);
+            cx += 1;
+        }
+        if (cx < max_x) {
+            setCell(buf, area, cx, y, ' ', s);
+            cx += 1;
+        }
 
         for (stage.label) |ch| {
             if (cx + 1 >= max_x) break;
@@ -177,18 +190,30 @@ pub const Pipeline = struct {
         }
 
         if (stage.status == .running) {
-            if (cx < max_x) { setCell(buf, area, cx, y, ' ', s); cx += 1; }
+            if (cx < max_x) {
+                setCell(buf, area, cx, y, ' ', s);
+                cx += 1;
+            }
             var digit_buf: [3]u8 = undefined;
-            const digits = std.fmt.bufPrint(&digit_buf, "{d}", .{stage.progress}) catch unreachable;
+            const digits = std.fmt.bufPrint(
+                &digit_buf,
+                "{d}",
+                .{stage.progress},
+            ) catch unreachable; // 3-byte buf; progress is u8, max 255 = 3 digits, fits exactly.
             for (digits) |ch| {
                 if (cx >= max_x) break;
                 setCell(buf, area, cx, y, ch, s);
                 cx += 1;
             }
-            if (cx < max_x) { setCell(buf, area, cx, y, '%', s); cx += 1; }
+            if (cx < max_x) {
+                setCell(buf, area, cx, y, '%', s);
+                cx += 1;
+            }
         }
 
-        if (cx < max_x) { setCell(buf, area, cx, y, ']', s); }
+        if (cx < max_x) {
+            setCell(buf, area, cx, y, ']', s);
+        }
 
         _ = width;
     }
@@ -199,4 +224,3 @@ pub const Pipeline = struct {
         buf.set(abs_x, abs_y, .{ .char = char, .style = s });
     }
 };
-
