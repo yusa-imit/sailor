@@ -1,3 +1,5 @@
+//! Per-widget-type memory allocation statistics (peak, active, total allocs/frees).
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 

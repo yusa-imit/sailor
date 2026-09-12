@@ -1,3 +1,5 @@
+//! ARIA-like accessibility attributes (role, label, description, value) for widgets.
+
 const std = @import("std");
 
 /// ARIA-like accessibility attributes for widgets
