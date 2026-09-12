@@ -1,3 +1,5 @@
+//! Per-widget-type render-performance statistics (timing percentiles) aggregation.
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 

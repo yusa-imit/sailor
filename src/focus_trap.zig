@@ -1,3 +1,5 @@
+//! Focus trap for modal dialogs — keeps keyboard focus within a widget subset.
+
 const std = @import("std");
 const focus_mod = @import("focus.zig");
 const FocusManager = focus_mod.FocusManager;
