@@ -1,3 +1,4 @@
+//! Rich text input widget with inline formatting, emoji picker, and markdown preview.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;

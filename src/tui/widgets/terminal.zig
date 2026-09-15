@@ -1,3 +1,4 @@
+//! Terminal widget for embedding shell sessions with scrollback and ANSI support.
 const std = @import("std");
 const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;

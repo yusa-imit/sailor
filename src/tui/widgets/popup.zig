@@ -1,3 +1,4 @@
+//! Popup widget for overlay content such as help text, detail views, and tooltips.
 const std = @import("std");
 const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;

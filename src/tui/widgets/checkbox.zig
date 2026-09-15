@@ -1,3 +1,4 @@
+//! Single and grouped checkbox widgets with focus, checked, and disabled styling.
 const std = @import("std");
 const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;

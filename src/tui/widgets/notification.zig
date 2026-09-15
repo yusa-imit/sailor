@@ -1,3 +1,4 @@
+//! Notification widget: renders leveled (info/success/warning/error) alert messages.
 const std = @import("std");
 const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;

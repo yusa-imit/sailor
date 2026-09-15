@@ -1,3 +1,4 @@
+//! Heatmap widget: 2D data grid visualization with color gradients.
 const std = @import("std");
 const tui = @import("../tui.zig");
 const Buffer = @import("../buffer.zig").Buffer;

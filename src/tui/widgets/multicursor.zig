@@ -1,3 +1,4 @@
+//! Multi-cursor editing support layered on top of the Editor widget.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;

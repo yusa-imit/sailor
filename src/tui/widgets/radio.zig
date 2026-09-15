@@ -1,3 +1,4 @@
+//! Radio button group widget for mutually exclusive selection.
 const std = @import("std");
 const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;

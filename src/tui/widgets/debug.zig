@@ -1,3 +1,4 @@
+//! Debug overlay widget: layout rectangles, render stats, and event log for TUI debugging.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const buffer_mod = @import("../buffer.zig");

@@ -1,3 +1,4 @@
+//! Autocomplete widget: suggestion list with fuzzy matching and keyboard navigation.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;

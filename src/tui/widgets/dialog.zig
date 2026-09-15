@@ -1,3 +1,4 @@
+//! Dialog widget: a centered modal for confirmation prompts and button-based interaction.
 const std = @import("std");
 const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;

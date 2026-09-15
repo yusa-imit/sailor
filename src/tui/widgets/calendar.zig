@@ -1,3 +1,4 @@
+//! Calendar widget: a date picker with range selection and month/year navigation.
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;

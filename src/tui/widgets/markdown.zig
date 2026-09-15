@@ -1,3 +1,4 @@
+//! Markdown widget: parses markdown text into an AST and renders it.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const buffer_mod = @import("../buffer.zig");

@@ -1,3 +1,4 @@
+//! VirtualList widget: efficient rendering for massive item counts via visible-window-only draws.
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;

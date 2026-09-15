@@ -1,3 +1,4 @@
+//! Completion popup widget: a filtered, keyboard-navigable suggestion list anchored to an input.
 const std = @import("std");
 const tui = @import("../tui.zig");
 const Buffer = @import("../buffer.zig").Buffer;

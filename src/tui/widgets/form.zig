@@ -1,3 +1,4 @@
+//! Form widget: composes labeled input fields with per-field validation.
 const std = @import("std");
 const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;
