@@ -1,3 +1,4 @@
+//! Z-index based overlay stacking manager for rendering layered widgets in order.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Buffer = @import("buffer.zig").Buffer;

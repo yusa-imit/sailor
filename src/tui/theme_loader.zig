@@ -1,3 +1,4 @@
+//! Loads and parses `Theme` values from JSON files, including hex and named colors.
 const std = @import("std");
 const theme = @import("theme.zig");
 const Theme = theme.Theme;

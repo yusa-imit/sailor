@@ -1,3 +1,4 @@
+//! Terminal screen reader integration for TUI applications.
 const std = @import("std");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;

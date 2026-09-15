@@ -1,3 +1,4 @@
+//! Easing functions and color/value interpolation helpers for widget animations.
 const std = @import("std");
 const style = @import("style.zig");
 const Color = style.Color;

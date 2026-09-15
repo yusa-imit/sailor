@@ -1,3 +1,4 @@
+//! ANSI art image rendering: converts raster pixels to colored terminal characters.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 

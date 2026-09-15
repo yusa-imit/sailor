@@ -1,3 +1,4 @@
+//! Lazy rendering system that tracks dirty regions to minimize computation.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const buffer_mod = @import("buffer.zig");

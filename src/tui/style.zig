@@ -1,3 +1,4 @@
+//! Terminal text styling: `Color`, `Style`, and rich-text `Span`/`Line` builders.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 

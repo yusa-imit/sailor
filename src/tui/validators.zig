@@ -1,3 +1,4 @@
+//! Field validation helpers (not-empty, length, and more) for form-style input widgets.
 const std = @import("std");
 
 /// Validation result

@@ -1,3 +1,4 @@
+//! Audit logging of user interactions for compliance and security monitoring.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;

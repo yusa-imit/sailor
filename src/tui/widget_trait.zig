@@ -1,3 +1,4 @@
+//! Widget trait provides an extensible protocol for custom widgets.
 const std = @import("std");
 const Buffer = @import("buffer.zig").Buffer;
 const Rect = @import("layout.zig").Rect;

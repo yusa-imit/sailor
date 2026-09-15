@@ -1,3 +1,4 @@
+//! Render budget tracking: measures frame times and signals skip/throttle when overdue.
 const std = @import("std");
 
 /// Render budget tracker for maintaining target frame rate.

@@ -1,3 +1,5 @@
+//! Cooperative async event loop: background task scheduling and terminal event decoding
+//! without threads.
 const std = @import("std");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;

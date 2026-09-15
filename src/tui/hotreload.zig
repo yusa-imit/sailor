@@ -1,3 +1,4 @@
+//! Hot-reload system that watches a theme JSON file and reloads it on change.
 const std = @import("std");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;

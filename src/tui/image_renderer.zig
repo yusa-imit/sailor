@@ -1,5 +1,5 @@
-/// Unified image renderer that auto-selects the best available terminal graphics protocol.
-/// Priority: Kitty > Sixel > ANSI Art fallback.
+//! Unified image renderer that auto-selects the best available terminal graphics protocol.
+//! Priority: Kitty > Sixel > ANSI Art fallback.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const sixel = @import("sixel.zig");

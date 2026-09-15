@@ -1,3 +1,4 @@
+//! Remaps mouse, gamepad, and touch input events onto keyboard key events.
 const std = @import("std");
 const tui_mod = @import("tui.zig");
 const Event = tui_mod.Event;
