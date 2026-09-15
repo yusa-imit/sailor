@@ -1,3 +1,4 @@
+//! Gamepad input types and events: buttons, analog sticks, and gamepad event decoding.
 const std = @import("std");
 const builtin = @import("builtin");
 

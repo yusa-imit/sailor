@@ -1,3 +1,4 @@
+//! Widget transition animations (fade, slide, and more) with a concurrent transition manager.
 const std = @import("std");
 const layout = @import("layout.zig");
 const buffer = @import("buffer.zig");

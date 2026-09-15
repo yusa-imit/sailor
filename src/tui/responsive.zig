@@ -1,3 +1,4 @@
+//! Breakpoint-driven responsive layout: adapts values and layout by screen size category.
 const std = @import("std");
 const Rect = @import("layout.zig").Rect;
 

@@ -1,3 +1,4 @@
+//! Constraint-based flexbox layout solver: `Rect`, `Constraint`, and `split()`.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 

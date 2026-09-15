@@ -1,3 +1,4 @@
+//! Visual effects over a Buffer: drop shadows, 3D border bevels, blur, and transparency.
 const std = @import("std");
 const buffer_mod = @import("buffer.zig");
 const Buffer = buffer_mod.Buffer;

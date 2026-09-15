@@ -1,3 +1,4 @@
+//! Event batching that coalesces rapid resize/mouse events to reduce redraw overhead.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const tui_mod = @import("tui.zig");

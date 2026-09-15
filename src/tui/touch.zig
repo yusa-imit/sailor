@@ -1,3 +1,4 @@
+//! Touch input types and gesture recognition: taps, long-press, swipe, and pinch.
 const std = @import("std");
 
 /// Touch point with position and unique identifier

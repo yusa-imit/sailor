@@ -1,8 +1,8 @@
-/// Adaptive image rendering: Sixel graphics with automatic ANSI art fallback
-///
-/// Bridges Sixel graphics protocol (for rich terminal graphics) with ANSI art rendering
-/// (for terminals without Sixel support). Automatically detects terminal capabilities
-/// or allows explicit mode selection.
+//! Adaptive image rendering: Sixel graphics with automatic ANSI art fallback.
+//!
+//! Bridges Sixel graphics protocol (for rich terminal graphics) with ANSI art rendering
+//! (for terminals without Sixel support). Automatically detects terminal capabilities
+//! or allows explicit mode selection.
 const std = @import("std");
 const sixel = @import("sixel.zig");
 const ansi_art = @import("ansi_art.zig");

@@ -1,3 +1,4 @@
+//! Terminal-character blur effects (box-drawing, half-blocks, shade, Braille) over a buffer.
 const std = @import("std");
 const tui = @import("tui.zig");
 const Buffer = tui.Buffer;

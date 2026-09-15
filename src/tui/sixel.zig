@@ -1,5 +1,5 @@
-/// Sixel graphics protocol support for inline images in compatible terminals
-/// Implements DEC Sixel graphics specification for rendering raster images
+//! Sixel graphics protocol support for inline images in compatible terminals.
+//! Implements DEC Sixel graphics specification for rendering raster images.
 const std = @import("std");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;

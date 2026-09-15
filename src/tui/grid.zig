@@ -1,3 +1,4 @@
+//! CSS-grid-like layout: fixed/fractional/auto tracks, item placement, and alignment.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const layout = @import("layout.zig");

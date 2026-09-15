@@ -1,3 +1,4 @@
+//! Text measurement: computes rendered width/height of styled `Line`/`Span` text.
 const std = @import("std");
 const style_mod = @import("style.zig");
 const UnicodeWidth = @import("../unicode.zig").UnicodeWidth;

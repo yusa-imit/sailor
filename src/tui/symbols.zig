@@ -1,3 +1,4 @@
+//! Unicode symbol tables: box-drawing, Braille, block elements, and spinner frames.
 const std = @import("std");
 
 /// Box-drawing character sets for borders and frames

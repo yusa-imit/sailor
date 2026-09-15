@@ -1,3 +1,4 @@
+//! Keyboard-only navigation improvements for accessibility.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;

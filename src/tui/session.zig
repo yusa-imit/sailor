@@ -1,3 +1,4 @@
+//! Session recording and playback for debugging TUI applications.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;

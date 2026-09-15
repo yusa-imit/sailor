@@ -1,3 +1,4 @@
+//! Color themes for common UI elements, with built-in dark/light/Nord presets.
 const std = @import("std");
 const style = @import("style.zig");
 const Color = style.Color;

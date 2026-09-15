@@ -1,3 +1,4 @@
+//! The double-buffered terminal cell grid (`Buffer`) and its diff/render-to-writer logic.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const style_mod = @import("style.zig");

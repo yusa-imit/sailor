@@ -1,3 +1,4 @@
+//! Syntax highlighting: tokenizer interface, token types, and language identifiers.
 const std = @import("std");
 const style = @import("style.zig");
 const Style = style.Style;

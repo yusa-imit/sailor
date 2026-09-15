@@ -1,3 +1,4 @@
+//! DataSource abstraction - unified interface for sync/async data providers.
 const std = @import("std");
 
 /// DataSource abstraction - unified interface for sync/async data providers
