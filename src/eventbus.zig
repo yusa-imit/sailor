@@ -1,7 +1,7 @@
-// eventbus.zig — Event bus for pub/sub cross-widget communication
-//
-// Provides a type-safe publish-subscribe system for decoupled widget communication.
-// Supports priority-based dispatch, multiple subscribers per event type, and custom data payloads.
+//! Event bus for pub/sub cross-widget communication.
+//!
+//! Provides a type-safe publish-subscribe system for decoupled widget communication.
+//! Supports priority-based dispatch, multiple subscribers per event type, and custom data payloads.
 //
 // Example usage:
 //   var bus = EventBus.init(allocator);

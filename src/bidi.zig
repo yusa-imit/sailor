@@ -1,3 +1,5 @@
+//! Bidirectional text support (UAX #9, simplified) for RTL/LTR terminal rendering.
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 

@@ -1,3 +1,5 @@
+//! Key binding actions, key-to-action mapping, and dispatch for widgets.
+
 const std = @import("std");
 const tui = @import("tui/tui.zig");
 const KeyCode = tui.KeyCode;

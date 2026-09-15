@@ -1,8 +1,8 @@
-// taskrunner.zig — Cooperative async task runner for background operations
-//
-// Provides priority-based task scheduling without threads. Tasks can yield execution
-// to allow other tasks to run, making this suitable for responsive TUI applications
-// where blocking operations need to be broken into cooperative steps.
+//! Cooperative async task runner for background operations.
+//!
+//! Provides priority-based task scheduling without threads. Tasks can yield execution
+//! to allow other tasks to run, making this suitable for responsive TUI applications
+//! where blocking operations need to be broken into cooperative steps.
 //
 // Example usage:
 //   var runner = TaskRunner.init(allocator);

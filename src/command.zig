@@ -1,7 +1,7 @@
-// command.zig — Command pattern for undo/redo support
-//
-// Provides a generic command execution and history system for implementing
-// undo/redo functionality in stateful widgets.
+//! Command pattern for undo/redo support.
+//!
+//! Provides a generic command execution and history system for implementing
+//! undo/redo functionality in stateful widgets.
 //
 // Example usage:
 //   // Define your state type

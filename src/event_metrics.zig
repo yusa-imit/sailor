@@ -1,3 +1,5 @@
+//! Per-event-type timing statistics (min/max/avg/percentiles) for the event system.
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 

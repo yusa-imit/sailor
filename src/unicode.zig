@@ -1,3 +1,5 @@
+//! Unicode display-width calculation (UAX #11 East Asian Width, emoji) for terminal cells.
+
 const std = @import("std");
 
 /// Unicode character width calculation for terminal rendering.

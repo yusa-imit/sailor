@@ -1,3 +1,5 @@
+//! Focus ring visualization styles and focus state management for widgets.
+
 const std = @import("std");
 const style_mod = @import("tui/style.zig");
 const Style = style_mod.Style;

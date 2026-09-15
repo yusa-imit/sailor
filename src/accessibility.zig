@@ -1,3 +1,5 @@
+//! ARIA-like accessibility roles and metadata for widgets.
+
 const std = @import("std");
 
 /// ARIA-like roles for widgets
