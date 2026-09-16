@@ -103,7 +103,7 @@ pub const WidgetList = struct {
     /// Initializes a new widget list with the given allocator.
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
-            .items = .{},
+            .items = .empty,
             .arena = std.heap.ArenaAllocator.init(allocator),
             .gpa = allocator,
         };

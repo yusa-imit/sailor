@@ -35,7 +35,7 @@ pub const MockTerminal = struct {
             .current = current,
             .previous = previous,
             .allocator = allocator,
-            .events = .{},
+            .events = .empty,
             .draw_calls = 0,
         };
     }

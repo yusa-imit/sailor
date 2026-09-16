@@ -59,7 +59,7 @@ pub const TaskRunner = struct {
     pub fn init(allocator: Allocator) TaskRunner {
         return .{
             .allocator = allocator,
-            .tasks = .{},
+            .tasks = .empty,
             .next_id = 1,
         };
     }

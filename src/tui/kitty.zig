@@ -377,7 +377,7 @@ test "KittyEncoder: chunked encoding for large image" {
         .format = .rgba32,
     };
 
-    var buf = std.ArrayList(u8){};
+    var buf = std.ArrayList(u8).empty;
     defer buf.deinit(allocator);
     var encoder = KittyEncoder.init(allocator);
     defer encoder.deinit();
@@ -544,7 +544,7 @@ test "KittyEncoder: wide image (1000x1 RGB24)" {
         .format = .rgb24,
     };
 
-    var buf = std.ArrayList(u8){};
+    var buf = std.ArrayList(u8).empty;
     defer buf.deinit(allocator);
     var encoder = KittyEncoder.init(allocator);
     defer encoder.deinit();
@@ -569,7 +569,7 @@ test "KittyEncoder: tall image (1x500 RGBA32)" {
         .format = .rgba32,
     };
 
-    var buf = std.ArrayList(u8){};
+    var buf = std.ArrayList(u8).empty;
     defer buf.deinit(allocator);
     var encoder = KittyEncoder.init(allocator);
     defer encoder.deinit();

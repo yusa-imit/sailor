@@ -27,7 +27,7 @@ pub const EventBatcher = struct {
     /// Initialize event batcher with batch window (default: 16ms)
     pub fn init(allocator: Allocator, batch_window_ms: u32) EventBatcher {
         return .{
-            .events = .{},
+            .events = .empty,
             .batch_window_ns = @as(u64, batch_window_ms) * 1_000_000,
             .last_flush_ns = 0,
             .allocator = allocator,
@@ -159,7 +159,7 @@ test "EventBatcher flush" {
     var batcher = EventBatcher.init(allocator, 16);
     defer batcher.deinit();
 
-    var output = std.ArrayList(Event){};
+    var output = std.ArrayList(Event).empty;
     defer output.deinit(allocator);
 
     // Push events
@@ -207,7 +207,7 @@ test "EventBatcher shouldFlush timing" {
     // First flush should always return true
     try std.testing.expect(batcher.shouldFlush());
 
-    var output = std.ArrayList(Event){};
+    var output = std.ArrayList(Event).empty;
     defer output.deinit(allocator);
 
     try batcher.flush(&output);
@@ -223,7 +223,7 @@ test "EventBatcher multiple flush cycles" {
     var batcher = EventBatcher.init(allocator, 16);
     defer batcher.deinit();
 
-    var output = std.ArrayList(Event){};
+    var output = std.ArrayList(Event).empty;
     defer output.deinit(allocator);
 
     // First cycle

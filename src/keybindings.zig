@@ -77,7 +77,7 @@ pub const KeyBindings = struct {
     pub fn init(allocator: std.mem.Allocator) KeyBindings {
         return .{
             .allocator = allocator,
-            .bindings = std.ArrayList(Binding){},
+            .bindings = std.ArrayList(Binding).empty,
         };
     }
 

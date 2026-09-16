@@ -101,7 +101,7 @@ pub const MetricsCollector = struct {
             const owned_type = try self.allocator.dupe(u8, widget_type);
             gop.value_ptr.* = .{
                 .widget_type = owned_type,
-                .durations = std.ArrayList(u64){},
+                .durations = std.ArrayList(u64).empty,
                 .min_ns = duration_ns,
                 .max_ns = duration_ns,
                 .sum_ns = duration_ns,
@@ -125,7 +125,7 @@ pub const MetricsCollector = struct {
             const owned_type = try self.allocator.dupe(u8, widget_type);
             gop.key_ptr.* = owned_type;
             gop.value_ptr.* = .{
-                .durations = std.ArrayList(u64){},
+                .durations = std.ArrayList(u64).empty,
                 .min_ns = duration_ns,
                 .max_ns = duration_ns,
                 .sum_ns = duration_ns,
@@ -181,7 +181,7 @@ pub const MetricsCollector = struct {
         const avg_ns = sum_ns / count;
 
         // Calculate percentiles - need to sort a copy
-        var sorted = std.ArrayList(u64){};
+        var sorted = std.ArrayList(u64).empty;
         defer sorted.deinit(self.allocator);
         sorted.appendSlice(self.allocator, durations) catch unreachable;
         std.mem.sort(u64, sorted.items, {}, std.sort.asc(u64));

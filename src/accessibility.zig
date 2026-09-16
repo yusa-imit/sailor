@@ -108,8 +108,8 @@ pub const HintBuilder = struct {
     pub fn init(allocator: std.mem.Allocator) HintBuilder {
         return .{
             .allocator = allocator,
-            .parts = std.ArrayList([]const u8){},
-            .allocated_parts = std.ArrayList([]const u8){},
+            .parts = std.ArrayList([]const u8).empty,
+            .allocated_parts = std.ArrayList([]const u8).empty,
         };
     }
 

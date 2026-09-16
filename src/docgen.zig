@@ -229,7 +229,7 @@ pub const DocGenerator = struct {
 
         // Extract parameters
         const params_str = fn_part[paren_idx + 1 .. close_paren_idx - 1];
-        var parameters = std.ArrayListUnmanaged(Parameter){};
+        var parameters: std.ArrayListUnmanaged(Parameter) = .empty;
         defer parameters.deinit(self.allocator);
 
         if (params_str.len > 0) {

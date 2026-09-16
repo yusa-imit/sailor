@@ -25,7 +25,7 @@ pub const FocusTrap = struct {
     pub fn init(allocator: std.mem.Allocator) FocusTrap {
         return .{
             .allocator = allocator,
-            .widgets = std.ArrayList(FocusId){},
+            .widgets = std.ArrayList(FocusId).empty,
         };
     }
 
@@ -142,7 +142,7 @@ pub const FocusTrapStack = struct {
     /// Initialize a new trap stack
     pub fn init(allocator: std.mem.Allocator) FocusTrapStack {
         return .{
-            .traps = std.ArrayList(*FocusTrap){},
+            .traps = std.ArrayList(*FocusTrap).empty,
             .allocator = allocator,
         };
     }

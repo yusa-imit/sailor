@@ -36,7 +36,7 @@ pub const LineBreaker = struct {
     /// Break a Line into multiple lines with max_width constraint
     /// Returns owned slice of Lines — caller must free both lines array and spans within each line
     pub fn breakLine(self: *LineBreaker, line: Line, max_width: usize, options: BreakOptions) ![]Line {
-        var result_lines = ArrayList(Line){};
+        var result_lines = ArrayList(Line).empty;
         defer result_lines.deinit(self.allocator);
 
         // Handle zero width edge case

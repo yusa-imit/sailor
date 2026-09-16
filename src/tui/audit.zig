@@ -84,7 +84,7 @@ pub const AuditLogger = struct {
     pub fn init(allocator: Allocator, session_id: []const u8) !AuditLogger {
         return AuditLogger{
             .allocator = allocator,
-            .entries = .{},
+            .entries = .empty,
             .enabled = true,
             .max_entries = 10000, // Default retention
             .filter = LogFilter.default(),

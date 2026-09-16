@@ -183,7 +183,7 @@ pub const SmartAutocomplete = struct {
     pub fn init(allocator: std.mem.Allocator) SmartAutocomplete {
         return .{
             .allocator = allocator,
-            .sources = .{},
+            .sources = .empty,
         };
     }
 

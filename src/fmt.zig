@@ -95,7 +95,7 @@ pub const Table = struct {
             .allocator = allocator,
             .config = config,
             .headers = headers,
-            .rows = .{},
+            .rows = .empty,
             .widths = widths,
         };
     }

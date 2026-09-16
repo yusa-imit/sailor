@@ -185,7 +185,7 @@ pub const TransitionManager = struct {
     /// Initialize transition manager
     pub fn init(allocator: std.mem.Allocator) TransitionManager {
         return .{
-            .transitions = .{},
+            .transitions = .empty,
             .allocator = allocator,
         };
     }

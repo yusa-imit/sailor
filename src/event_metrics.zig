@@ -98,7 +98,7 @@ pub const EventMetricsCollector = struct {
             const owned_type = try self.allocator.dupe(u8, event_type);
             gop.key_ptr.* = owned_type;
             gop.value_ptr.* = .{
-                .latencies = std.ArrayList(u64){},
+                .latencies = std.ArrayList(u64).empty,
                 .min_ns = latency_ns,
                 .max_ns = latency_ns,
                 .sum_ns = latency_ns,
@@ -176,7 +176,7 @@ pub const EventMetricsCollector = struct {
         const avg_ns = sum_ns / count;
 
         // Calculate percentiles - need to sort a copy
-        var sorted = std.ArrayList(u64){};
+        var sorted = std.ArrayList(u64).empty;
         defer sorted.deinit(self.allocator);
         sorted.appendSlice(self.allocator, latencies) catch unreachable;
         std.mem.sort(u64, sorted.items, {}, std.sort.asc(u64));
@@ -235,7 +235,7 @@ pub const EventMetricsCollector = struct {
 
         // Rebuild from scratch
         self.type_data = .{
-            .latencies = std.ArrayList(u64){},
+            .latencies = std.ArrayList(u64).empty,
             .min_ns = std.math.maxInt(u64),
             .max_ns = 0,
             .sum_ns = 0,

@@ -30,7 +30,7 @@ pub const OverlayManager = struct {
     /// Initialize overlay manager with empty overlay list.
     pub fn init(allocator: Allocator) OverlayManager {
         return .{
-            .overlays = std.ArrayList(Overlay){},
+            .overlays = std.ArrayList(Overlay).empty,
             .allocator = allocator,
         };
     }
