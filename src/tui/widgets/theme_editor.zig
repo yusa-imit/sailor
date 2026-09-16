@@ -1,3 +1,4 @@
+//! ThemeEditor widget: live, interactive customization of a theme's colors with preview.
 const std = @import("std");
 const tui = @import("../tui.zig");
 const Buffer = tui.Buffer;

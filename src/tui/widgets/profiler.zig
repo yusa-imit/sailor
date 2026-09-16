@@ -1,3 +1,4 @@
+//! Profiler widget: displays frame timing statistics (frame/render/event time).
 const std = @import("std");
 const tui = @import("../tui.zig");
 const Buffer = @import("../buffer.zig").Buffer;

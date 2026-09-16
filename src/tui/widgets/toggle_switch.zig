@@ -1,3 +1,4 @@
+//! Toggle switch widget: a boolean on/off slider-style control.
 const std = @import("std");
 const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;

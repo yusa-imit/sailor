@@ -1,3 +1,4 @@
+//! ChunkedBuffer widget: renders large text via lazily fetched, callback-loaded line chunks.
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;

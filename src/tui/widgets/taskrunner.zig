@@ -1,3 +1,4 @@
+//! TaskRunner widget: displays async task status and progress.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Rect = @import("../layout.zig").Rect;

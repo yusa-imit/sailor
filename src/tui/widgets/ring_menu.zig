@@ -1,3 +1,4 @@
+//! RingMenu widget: arranges selectable text items in a circular ring.
 const std = @import("std");
 const style_mod = @import("../style.zig");
 const Style = style_mod.Style;

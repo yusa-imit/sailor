@@ -1,3 +1,4 @@
+//! SplitText widget: renders delimiter-separated text sections with optional headers and dividers.
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;

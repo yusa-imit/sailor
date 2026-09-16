@@ -1,3 +1,4 @@
+//! Scrollable viewport widget for content larger than its visible area.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Buffer = @import("../buffer.zig").Buffer;

@@ -1,3 +1,4 @@
+//! Widget-tree debugger: inspects rendered widget nodes, their areas, and metadata.
 const std = @import("std");
 const tui = @import("../tui.zig");
 const Buffer = @import("../buffer.zig").Buffer;

@@ -1,3 +1,4 @@
+//! Particle effects widget (confetti, sparkles, stars, hearts, snowflakes) for celebrations.
 const std = @import("std");
 const tui = @import("../tui.zig");
 const Buffer = tui.Buffer;

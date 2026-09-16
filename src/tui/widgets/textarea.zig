@@ -1,3 +1,4 @@
+//! Multi-line text area widget with configurable line wrapping.
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;

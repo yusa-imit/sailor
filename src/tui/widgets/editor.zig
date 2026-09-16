@@ -1,3 +1,4 @@
+//! Multi-line text editor widget with cursor, selection, and syntax-highlighted rendering.
 const std = @import("std");
 const tui = @import("../tui.zig");
 const Buffer = @import("../buffer.zig").Buffer;

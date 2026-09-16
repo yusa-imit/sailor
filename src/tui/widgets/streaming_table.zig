@@ -1,3 +1,4 @@
+//! StreamingTable widget: efficient table rendering for massive row counts via lazy row loading.
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;

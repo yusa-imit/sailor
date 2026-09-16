@@ -1,3 +1,4 @@
+//! Config editor widget for browsing and editing a typed JSON-like value tree.
 const std = @import("std");
 const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;

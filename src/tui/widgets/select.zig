@@ -1,3 +1,4 @@
+//! Select/Dropdown widget for single- or multi-select from a list of items.
 const std = @import("std");
 const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;

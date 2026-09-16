@@ -1,3 +1,4 @@
+//! FileBrowser widget: interactive file system navigator with selection and preview.
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;

@@ -1,3 +1,4 @@
+//! Toast manager widget: queues and renders transient, leveled toast notifications.
 const std = @import("std");
 const Buffer = @import("../buffer.zig").Buffer;
 const Cell = @import("../buffer.zig").Cell;

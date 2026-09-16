@@ -1,3 +1,4 @@
+//! Canvas widget for freeform drawing at sub-cell resolution using Braille dots (2x4 per cell).
 const std = @import("std");
 const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;
