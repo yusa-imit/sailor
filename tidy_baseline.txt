@@ -3,7 +3,6 @@
 build.zig|function_length|build|1954
 build.zig|line_length|-|17
 src/accessibility.zig|line_length|-|1
-src/arg.zig|catch_unreachable|-|1
 src/arg.zig|function_length|Commands|97
 src/arg.zig|function_length|Parser|312
 src/arg.zig|line_length|-|9
