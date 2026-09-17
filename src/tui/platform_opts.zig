@@ -147,7 +147,7 @@ pub const WindowsConsoleBuffer = struct {
     pub fn init(allocator: std.mem.Allocator, max_calls: usize) !WindowsConsoleBuffer {
         return WindowsConsoleBuffer{
             .allocator = allocator,
-            .calls = .{},
+            .calls = .empty,
             .max_calls = max_calls,
         };
     }

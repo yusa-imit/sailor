@@ -107,11 +107,11 @@ pub const Profiler = struct {
     pub fn init(allocator: Allocator, threshold_ms: f64) !Self {
         return Self{
             .allocator = allocator,
-            .profiles = .{},
-            .all_profiles = .{},
+            .profiles = .empty,
+            .all_profiles = .empty,
             .current_frame = 0,
             .threshold_ms = threshold_ms,
-            .scope_stack = .{},
+            .scope_stack = .empty,
             .root_scopes = .{},
         };
     }
@@ -814,7 +814,7 @@ pub const MemoryTracker = struct {
     pub fn init(allocator: Allocator) !Self {
         return Self{
             .allocator = allocator,
-            .events = .{},
+            .events = .empty,
             .current_allocated = std.StringHashMap(usize).init(allocator),
             .peak_allocated = std.StringHashMap(usize).init(allocator),
             .location_strings = std.StringHashMap(void).init(allocator),
@@ -1277,7 +1277,7 @@ pub const EventLoopProfiler = struct {
     pub fn init(allocator: Allocator, latency_threshold_ms: f64) !Self {
         return Self{
             .allocator = allocator,
-            .records = .{},
+            .records = .empty,
             .enabled = true,
             .latency_threshold_ms = latency_threshold_ms,
         };

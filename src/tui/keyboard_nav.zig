@@ -32,7 +32,7 @@ pub const KeyboardNavigator = struct {
     pub fn init(allocator: Allocator) KeyboardNavigator {
         return .{
             .allocator = allocator,
-            .skip_links = ArrayList(SkipLink){},
+            .skip_links = ArrayList(SkipLink).empty,
             .focus_indicator_style = .outline,
             .visible_focus = true,
         };
@@ -183,7 +183,7 @@ pub const NavigationHints = struct {
     pub fn init(allocator: Allocator) NavigationHints {
         return .{
             .allocator = allocator,
-            .hints = ArrayList(Hint){},
+            .hints = ArrayList(Hint).empty,
         };
     }
 

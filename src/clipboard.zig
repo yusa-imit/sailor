@@ -123,7 +123,7 @@ pub const ClipboardHistory = struct {
     pub fn init(allocator: std.mem.Allocator) !ClipboardHistory {
         return ClipboardHistory{
             .allocator = allocator,
-            .entries = .{},
+            .entries = .empty,
         };
     }
 

@@ -228,10 +228,10 @@ pub const AriaAttributes = struct {
 
     /// Generate accessibility announcement text for screen readers
     pub fn generateAnnouncement(self: AriaAttributes, allocator: std.mem.Allocator) ![]const u8 {
-        var parts = std.ArrayList([]const u8){};
+        var parts = std.ArrayList([]const u8).empty;
         defer parts.deinit(allocator);
 
-        var allocated_indices = std.ArrayList(usize){};
+        var allocated_indices = std.ArrayList(usize).empty;
         defer allocated_indices.deinit(allocator);
 
         // Role

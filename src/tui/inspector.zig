@@ -82,8 +82,8 @@ pub const WidgetInspector = struct {
             .allocator = allocator,
             .root = null,
             .root_internal = null,
-            .current_stack = .{},
-            .focus_path_cache = .{},
+            .current_stack = .empty,
+            .focus_path_cache = .empty,
         };
     }
 
@@ -124,7 +124,7 @@ pub const WidgetInspector = struct {
                 .children = &[_]*WidgetNode{},
                 .parent = null,
             },
-            .children_list = .{},
+            .children_list = .empty,
             .owned_name = owned_name,
         };
 

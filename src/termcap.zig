@@ -199,7 +199,7 @@ pub const TermInfo = struct {
         }
 
         // Build fallback terminfo binary
-        var buf = std.ArrayList(u8){};
+        var buf = std.ArrayList(u8).empty;
         errdefer buf.deinit(allocator);
 
         // Header
@@ -445,7 +445,7 @@ test "parse valid terminfo binary with magic 0o432" {
     const allocator = std.testing.allocator;
 
     // Build minimal valid terminfo with legacy magic
-    var buf = std.ArrayList(u8){};
+    var buf = std.ArrayList(u8).empty;
     defer buf.deinit(allocator);
 
     try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o432))); // magic
@@ -468,7 +468,7 @@ test "parse valid terminfo binary with magic 0o432" {
 test "parse valid terminfo binary with extended magic 0o542" {
     const allocator = std.testing.allocator;
 
-    var buf = std.ArrayList(u8){};
+    var buf = std.ArrayList(u8).empty;
     defer buf.deinit(allocator);
 
     try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o542))); // extended magic
@@ -489,7 +489,7 @@ test "parse valid terminfo binary with extended magic 0o542" {
 test "parse rejects invalid magic number" {
     const allocator = std.testing.allocator;
 
-    var buf = std.ArrayList(u8){};
+    var buf = std.ArrayList(u8).empty;
     defer buf.deinit(allocator);
 
     try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0x1234))); // invalid magic
@@ -515,7 +515,7 @@ test "parse rejects truncated file (too short)" {
 test "parse rejects truncated names section" {
     const allocator = std.testing.allocator;
 
-    var buf = std.ArrayList(u8){};
+    var buf = std.ArrayList(u8).empty;
     defer buf.deinit(allocator);
 
     try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o432))); // magic
@@ -599,7 +599,7 @@ test "getNum by name returns error for missing capability" {
 test "getNum by name returns error for absent numeric value (-1)" {
     const allocator = std.testing.allocator;
 
-    var buf = std.ArrayList(u8){};
+    var buf = std.ArrayList(u8).empty;
     defer buf.deinit(allocator);
 
     try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o432))); // magic
@@ -634,7 +634,7 @@ test "getNumByIndex returns correct value" {
 test "getNumByIndex returns null for absent value (-1)" {
     const allocator = std.testing.allocator;
 
-    var buf = std.ArrayList(u8){};
+    var buf = std.ArrayList(u8).empty;
     defer buf.deinit(allocator);
 
     try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o432))); // magic
@@ -689,7 +689,7 @@ test "getString by name returns error for missing capability" {
 test "getString by name returns error for absent string (-1 offset)" {
     const allocator = std.testing.allocator;
 
-    var buf = std.ArrayList(u8){};
+    var buf = std.ArrayList(u8).empty;
     defer buf.deinit(allocator);
 
     try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o432))); // magic
@@ -723,7 +723,7 @@ test "getStrByIndex returns correct value" {
 test "getStrByIndex returns null for absent value (-1 offset)" {
     const allocator = std.testing.allocator;
 
-    var buf = std.ArrayList(u8){};
+    var buf = std.ArrayList(u8).empty;
     defer buf.deinit(allocator);
 
     try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o432))); // magic
@@ -875,7 +875,7 @@ test "getColorCount returns 0 for dumb" {
 test "alignment handling for boolean section padding" {
     const allocator = std.testing.allocator;
 
-    var buf = std.ArrayList(u8){};
+    var buf = std.ArrayList(u8).empty;
     defer buf.deinit(allocator);
 
     try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o432))); // magic (2 bytes)
@@ -930,7 +930,7 @@ test "load with empty terminal name returns error" {
 test "parse with complex multi-capability terminfo" {
     const allocator = std.testing.allocator;
 
-    var buf = std.ArrayList(u8){};
+    var buf = std.ArrayList(u8).empty;
     defer buf.deinit(allocator);
 
     try buf.appendSlice(allocator, &std.mem.toBytes(@as(u16, 0o432))); // magic (2 bytes, offset=0)

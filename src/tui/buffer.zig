@@ -200,7 +200,7 @@ pub const Buffer = struct {
         const max_x = @min(end_x, self.width);
         if (start_x >= max_x) return self.allocator.dupe(u8, "") catch &[_]u8{};
 
-        var result = std.ArrayList(u8){};
+        var result = std.ArrayList(u8).empty;
 
         var x = start_x;
         while (x < max_x) : (x += 1) {

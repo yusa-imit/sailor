@@ -343,7 +343,7 @@ pub const Mask = struct {
 
     /// Apply mask to raw input, returns formatted string
     pub fn apply(self: Mask, allocator: std.mem.Allocator, input: []const u8) ![]const u8 {
-        var result = std.ArrayList(u8){};
+        var result = std.ArrayList(u8).empty;
         errdefer result.deinit(allocator);
 
         var input_idx: usize = 0;
@@ -368,7 +368,7 @@ pub const Mask = struct {
 
     /// Remove mask from formatted input, returns raw digits
     pub fn remove(self: Mask, allocator: std.mem.Allocator, formatted: []const u8) ![]const u8 {
-        var result = std.ArrayList(u8){};
+        var result = std.ArrayList(u8).empty;
         errdefer result.deinit(allocator);
 
         for (formatted, 0..) |ch, i| {

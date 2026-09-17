@@ -30,7 +30,7 @@ pub const SessionRecorder = struct {
     pub fn init(allocator: Allocator) !SessionRecorder {
         return SessionRecorder{
             .allocator = allocator,
-            .events = .{},
+            .events = .empty,
             .start_time = std.time.milliTimestamp(),
             .is_recording = false,
         };

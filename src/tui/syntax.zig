@@ -107,7 +107,7 @@ pub const Lexer = struct {
     /// Tokenizes the entire source into a list of tokens.
     /// Caller owns the returned slice.
     pub fn tokenize(self: *Lexer, allocator: std.mem.Allocator) ![]Token {
-        var tokens = std.ArrayList(Token){};
+        var tokens = std.ArrayList(Token).empty;
         defer tokens.deinit(allocator);
 
         self.pos = 0;

@@ -42,7 +42,7 @@ pub const RichTextParser = struct {
     /// Parse markdown text to Line array (multi-line, headings supported)
     /// Returns owned slice - caller must free both lines array and spans within each line
     pub fn parse(self: *RichTextParser, text: []const u8) ![]Line {
-        var lines_list = ArrayList(Line){};
+        var lines_list = ArrayList(Line).empty;
         defer lines_list.deinit(self.allocator);
 
         // Handle empty input

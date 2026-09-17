@@ -193,7 +193,7 @@ pub fn Parser(comptime flags: []const FlagDef) type {
             return .{
                 .allocator = allocator,
                 .values = std.StringHashMap(Value).init(allocator),
-                .positional = .{},
+                .positional = .empty,
                 .suggestion = null,
             };
         }

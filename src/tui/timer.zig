@@ -153,7 +153,7 @@ pub const TimerManager = struct {
     /// Initializes a new timer manager with the specified allocator
     pub fn init(allocator: Allocator) TimerManager {
         return .{
-            .timers = .{},
+            .timers = .empty,
             .allocator = allocator,
         };
     }

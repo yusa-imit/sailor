@@ -198,8 +198,8 @@ pub const FocusManager = struct {
     pub fn init(allocator: std.mem.Allocator) FocusManager {
         return .{
             .allocator = allocator,
-            .order = std.ArrayList(usize){},
-            .disabled = std.ArrayList(usize){},
+            .order = std.ArrayList(usize).empty,
+            .disabled = std.ArrayList(usize).empty,
         };
     }
 

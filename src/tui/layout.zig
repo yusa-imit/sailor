@@ -588,7 +588,7 @@ pub const LayoutDebugger = struct {
     pub fn init(allocator: Allocator) LayoutDebugger {
         return .{
             .allocator = allocator,
-            .nodes = std.ArrayList(DebugNode){},
+            .nodes = std.ArrayList(DebugNode).empty,
         };
     }
 
