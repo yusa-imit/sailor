@@ -587,7 +587,7 @@ test "Parser basic bool flag" {
     try parser.parse(&args);
 
     const val = parser.get("verbose").?;
-    try std.testing.expect(val.asBool() catch unreachable);
+    try std.testing.expect(val.asBool() catch unreachable); // "verbose" is .type = .bool above.
 }
 
 test "Parser short flag" {
@@ -1236,7 +1236,7 @@ test "Commands writeHelp lists command names and help text" {
     const cmds = [_]CommandDef{
         .{ .name = "build", .help = "Compile the project" },
         .{ .name = "test", .help = "Run test suite" },
-        .{ .name = "clean" },  // No help
+        .{ .name = "clean" }, // No help
     };
 
     var buf: [512]u8 = undefined;
