@@ -25,14 +25,14 @@ pub const Style = style_mod.Style;
 
 /// Widget node in the hierarchical tree
 pub const WidgetNode = struct {
-    name: []const u8,           // Widget type name (e.g. "Block", "List")
-    bounds: Rect,               // Current widget bounds
-    style: Style,               // Current widget style
-    focused: bool,              // Is this widget focused?
-    memory_bytes: usize,        // Memory allocated by widget
-    render_ns: u64,             // Last render time in nanoseconds
+    name: []const u8, // Widget type name (e.g. "Block", "List")
+    bounds: Rect, // Current widget bounds
+    style: Style, // Current widget style
+    focused: bool, // Is this widget focused?
+    memory_bytes: usize, // Memory allocated by widget
+    render_ns: u64, // Last render time in nanoseconds
     children: []const *WidgetNode, // Child widgets
-    parent: ?*WidgetNode,       // Parent widget (null for root)
+    parent: ?*WidgetNode, // Parent widget (null for root)
 
     /// Calculate depth in the tree (root = 0)
     pub fn depth(self: *const WidgetNode) usize {
@@ -489,7 +489,7 @@ test "WidgetNode findChild returns child when name matches" {
         .focused = false,
         .memory_bytes = 0,
         .render_ns = 0,
-        .children = &[_]*WidgetNode{child1_ptr, child2_ptr},
+        .children = &[_]*WidgetNode{ child1_ptr, child2_ptr },
         .parent = null,
     };
 
@@ -574,7 +574,7 @@ test "WidgetNode findChild returns first match when multiple children have same 
         .focused = false,
         .memory_bytes = 0,
         .render_ns = 0,
-        .children = &[_]*WidgetNode{child1_ptr, child2_ptr},
+        .children = &[_]*WidgetNode{ child1_ptr, child2_ptr },
         .parent = null,
     };
 
@@ -749,16 +749,16 @@ test "WidgetInspector complex tree with multiple branches" {
     defer inspector.deinit();
 
     _ = try inspector.beginWidget("Root", .{ .x = 0, .y = 0, .width = 80, .height = 24 }, Style{});
-        _ = try inspector.beginWidget("Left", .{ .x = 0, .y = 0, .width = 40, .height = 24 }, Style{});
-            _ = try inspector.beginWidget("LeftChild1", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
-            inspector.endWidget();
-            _ = try inspector.beginWidget("LeftChild2", .{ .x = 0, .y = 12, .width = 40, .height = 12 }, Style{});
-            inspector.endWidget();
-        inspector.endWidget();
-        _ = try inspector.beginWidget("Right", .{ .x = 40, .y = 0, .width = 40, .height = 24 }, Style{});
-            _ = try inspector.beginWidget("RightChild1", .{ .x = 40, .y = 0, .width = 40, .height = 24 }, Style{});
-            inspector.endWidget();
-        inspector.endWidget();
+    _ = try inspector.beginWidget("Left", .{ .x = 0, .y = 0, .width = 40, .height = 24 }, Style{});
+    _ = try inspector.beginWidget("LeftChild1", .{ .x = 0, .y = 0, .width = 40, .height = 12 }, Style{});
+    inspector.endWidget();
+    _ = try inspector.beginWidget("LeftChild2", .{ .x = 0, .y = 12, .width = 40, .height = 12 }, Style{});
+    inspector.endWidget();
+    inspector.endWidget();
+    _ = try inspector.beginWidget("Right", .{ .x = 40, .y = 0, .width = 40, .height = 24 }, Style{});
+    _ = try inspector.beginWidget("RightChild1", .{ .x = 40, .y = 0, .width = 40, .height = 24 }, Style{});
+    inspector.endWidget();
+    inspector.endWidget();
     inspector.endWidget();
 
     try std.testing.expectEqual(@as(usize, 2), inspector.root.?.children.len);
@@ -938,7 +938,7 @@ test "WidgetInspector traverse visits all nodes in depth-first order" {
         allocator: std.mem.Allocator,
 
         pub fn visit(self: *@This(), node: *const WidgetNode) void {
-            self.list.append(self.allocator, node.name) catch unreachable;
+            self.list.append(self.allocator, node.name) catch unreachable; // Test alloc, no OOM.
         }
     };
 
@@ -963,7 +963,7 @@ test "WidgetInspector traverse on empty tree does nothing" {
         allocator: std.mem.Allocator,
 
         pub fn visit(self: *@This(), node: *const WidgetNode) void {
-            self.list.append(self.allocator, node.name) catch unreachable;
+            self.list.append(self.allocator, node.name) catch unreachable; // Test alloc, no OOM.
         }
     };
 
