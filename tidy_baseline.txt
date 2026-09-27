@@ -105,8 +105,7 @@ src/tui/gamepad.zig|time_usage|-|6
 src/tui/grid.zig|line_length|-|3
 src/tui/hotreload.zig|line_length|-|1
 src/tui/hotreload.zig|time_usage|-|1
-src/tui/inspector.zig|catch_unreachable|-|2
-src/tui/inspector.zig|line_length|-|62
+src/tui/inspector.zig|line_length|-|61
 src/tui/iterm2.zig|time_usage|-|2
 src/tui/iterm2.zig|usize_in_wire_format|-|3
 src/tui/keyboard_nav.zig|line_length|-|4
