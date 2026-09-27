@@ -17,6 +17,7 @@ const builtin = @import("builtin");
 const posix = std.posix;
 const os = std.os;
 const io = std.io;
+const assert = std.debug.assert;
 
 // Windows console mode flags (missing from std.os.windows)
 const ENABLE_ECHO_INPUT: std.os.windows.DWORD = 0x0004;
@@ -62,10 +63,15 @@ pub const Size = struct {
 /// Returns true if the FD is connected to a terminal, false otherwise.
 /// Cross-platform: uses isatty() on Unix, GetConsoleMode() on Windows.
 pub fn isatty(fd: anytype) bool {
+    const FdType = @TypeOf(fd);
+    // Precondition: fd must be a POSIX fd (integer) or a Windows-style handle
+    // (pointer-like) — anything else is a caller misuse of this API.
+    assert(@typeInfo(FdType) == .int or @typeInfo(FdType) == .comptime_int or
+        @typeInfo(FdType) == .pointer);
+
     return switch (builtin.os.tag) {
         .linux, .macos => posix.isatty(fd),
         .windows => blk: {
-            const FdType = @TypeOf(fd);
             const handle: std.os.windows.HANDLE = if (FdType == comptime_int or FdType == i32) blk2: {
                 // Integer fd (0, 1, 2) - convert to standard handle
                 const std_handle: std.os.windows.DWORD = switch (fd) {
@@ -74,6 +80,9 @@ pub fn isatty(fd: anytype) bool {
                     2 => std.os.windows.STD_ERROR_HANDLE,
                     else => return false,
                 };
+                // Invariant: the switch above only falls through to here for
+                // one of the three known standard stdio slots.
+                assert(fd == 0 or fd == 1 or fd == 2);
                 break :blk2 std.os.windows.GetStdHandle(std_handle) catch return false;
             } else blk2: {
                 // Already a HANDLE (*anyopaque)
@@ -91,11 +100,19 @@ pub fn isatty(fd: anytype) bool {
 /// Returns Error.TerminalSizeUnavailable if not a TTY or dimensions are invalid.
 /// Validates dimensions are non-zero and < 10000.
 pub fn getSize() Error!Size {
-    if (builtin.os.tag == .windows) {
-        return getSizeWindows();
-    } else {
-        return getSizeUnix();
-    }
+    const size = if (builtin.os.tag == .windows)
+        try getSizeWindows()
+    else
+        try getSizeUnix();
+
+    // Postcondition, re-derived independently of the platform helper's own
+    // check: a successfully returned size is always within documented bounds.
+    assert(size.cols > 0);
+    assert(size.cols < 10000);
+    assert(size.rows > 0);
+    assert(size.rows < 10000);
+
+    return size;
 }
 
 fn getSizeUnix() Error!Size {
@@ -115,6 +132,13 @@ fn getSizeUnix() Error!Size {
     if (ws.col == 0 or ws.row == 0 or ws.col >= 10000 or ws.row >= 10000) {
         return Error.TerminalSizeUnavailable;
     }
+
+    // Postcondition: the check above guarantees both dimensions are in
+    // (0, 10000) on this, the success path.
+    assert(ws.col > 0);
+    assert(ws.col < 10000);
+    assert(ws.row > 0);
+    assert(ws.row < 10000);
 
     return Size{
         .cols = ws.col,
@@ -139,6 +163,22 @@ fn getSizeWindows() Error!Size {
 
     const cols = @as(u16, @intCast(csbi.srWindow.Right - csbi.srWindow.Left + 1));
     const rows = @as(u16, @intCast(csbi.srWindow.Bottom - csbi.srWindow.Top + 1));
+
+    // Validate dimensions are non-zero and reasonable (< 10000), matching the
+    // Unix helper and the documented contract on getSize(). Without this
+    // typed-error gate, the postcondition asserts below would be asserting
+    // on data straight from the console (external world), which Tiger Style
+    // forbids — the gate keeps the assert on the success path only.
+    if (cols == 0 or rows == 0 or cols >= 10000 or rows >= 10000) {
+        return Error.TerminalSizeUnavailable;
+    }
+
+    // Postcondition: the check above guarantees both dimensions are in
+    // (0, 10000) on this, the success path.
+    assert(cols > 0);
+    assert(cols < 10000);
+    assert(rows > 0);
+    assert(rows < 10000);
 
     return Size{ .cols = cols, .rows = rows };
 }
@@ -367,28 +407,44 @@ pub const FocusTracking = struct {
 /// Use with FocusTracking.enable() to detect terminal gaining focus.
 /// Returns true if the escape sequence is found anywhere in buffer.
 pub fn isFocusIn(buf: []const u8) bool {
-    return std.mem.indexOf(u8, buf, "\x1b[I") != null;
+    const marker = "\x1b[I";
+    comptime assert(marker.len > 0);
+    const result = std.mem.indexOf(u8, buf, marker) != null;
+    if (result) assert(buf.len >= marker.len);
+    return result;
 }
 
 /// Check if buffer contains focus out event (ESC [ O).
 /// Use with FocusTracking.enable() to detect terminal losing focus.
 /// Returns true if the escape sequence is found anywhere in buffer.
 pub fn isFocusOut(buf: []const u8) bool {
-    return std.mem.indexOf(u8, buf, "\x1b[O") != null;
+    const marker = "\x1b[O";
+    comptime assert(marker.len > 0);
+    const result = std.mem.indexOf(u8, buf, marker) != null;
+    if (result) assert(buf.len >= marker.len);
+    return result;
 }
 
 /// Check if buffer contains paste start marker (ESC [ 200 ~).
 /// Use with BracketedPaste.enable() to detect start of pasted content.
 /// Returns true if the escape sequence is found anywhere in buffer.
 pub fn isPasteStart(buf: []const u8) bool {
-    return std.mem.indexOf(u8, buf, "\x1b[200~") != null;
+    const marker = "\x1b[200~";
+    comptime assert(marker.len > 0);
+    const result = std.mem.indexOf(u8, buf, marker) != null;
+    if (result) assert(buf.len >= marker.len);
+    return result;
 }
 
 /// Check if buffer contains paste end marker (ESC [ 201 ~).
 /// Use with BracketedPaste.enable() to detect end of pasted content.
 /// Returns true if the escape sequence is found anywhere in buffer.
 pub fn isPasteEnd(buf: []const u8) bool {
-    return std.mem.indexOf(u8, buf, "\x1b[201~") != null;
+    const marker = "\x1b[201~";
+    comptime assert(marker.len > 0);
+    const result = std.mem.indexOf(u8, buf, marker) != null;
+    if (result) assert(buf.len >= marker.len);
+    return result;
 }
 
 /// Read a single byte from stdin with timeout (in milliseconds).
@@ -488,7 +544,9 @@ pub const XtgettcapResult = struct {
 /// Used for XTGETTCAP terminal capability queries.
 pub fn hexEncode(allocator: std.mem.Allocator, string: []const u8) ![]u8 {
     if (string.len == 0) {
-        return try allocator.alloc(u8, 0);
+        const result = try allocator.alloc(u8, 0);
+        assert(result.len == string.len * 2);
+        return result;
     }
 
     const hex_chars = "0123456789abcdef";
@@ -496,10 +554,14 @@ pub fn hexEncode(allocator: std.mem.Allocator, string: []const u8) ![]u8 {
     errdefer allocator.free(result);
 
     for (string, 0..) |byte, i| {
+        // Invariant: every written index stays inside the buffer sized above.
+        assert(i * 2 + 1 < result.len);
         result[i * 2] = hex_chars[byte >> 4];
         result[i * 2 + 1] = hex_chars[byte & 0x0F];
     }
 
+    // Postcondition: output is exactly twice the input length.
+    assert(result.len == string.len * 2);
     return result;
 }
 
@@ -514,18 +576,27 @@ pub fn hexDecode(allocator: std.mem.Allocator, hex_string: []const u8) ![]u8 {
     }
 
     if (hex_string.len == 0) {
-        return try allocator.alloc(u8, 0);
+        const result = try allocator.alloc(u8, 0);
+        assert(result.len == hex_string.len / 2);
+        return result;
     }
 
-    const result = try allocator.alloc(u8, hex_string.len / 2);
+    // hex_string.len is even here (checked above), so the halving is exact.
+    const result = try allocator.alloc(u8, @divExact(hex_string.len, 2));
     errdefer allocator.free(result);
 
     for (0..result.len) |i| {
+        // Invariant: every pair of hex digits read stays inside hex_string.
+        assert(i * 2 + 1 < hex_string.len);
         const high = try hexCharToNibble(hex_string[i * 2]);
         const low = try hexCharToNibble(hex_string[i * 2 + 1]);
         result[i] = (@as(u8, high) << 4) | @as(u8, low);
     }
 
+    // Postcondition: output is exactly half the input length, on the success
+    // path only — hex_string.len itself is untrusted terminal/caller input,
+    // so the odd-length case above stays a typed error, never an assert.
+    assert(result.len == hex_string.len / 2);
     return result;
 }
 
@@ -546,6 +617,11 @@ pub fn buildXtgettcapQuery(writer: anytype, allocator: std.mem.Allocator, capabi
     const hex_name = try hexEncode(allocator, capability_name);
     defer allocator.free(hex_name);
 
+    // Postcondition of hexEncode, re-derived here on an independent code
+    // path: hex encoding always doubles the length and stays even.
+    assert(hex_name.len == capability_name.len * 2);
+    assert(hex_name.len % 2 == 0);
+
     // DCS + q <hex> ST
     try writer.writeAll("\x1bP+q");
     try writer.writeAll(hex_name);
@@ -561,10 +637,16 @@ pub fn parseXtgettcapResponse(allocator: std.mem.Allocator, response: []const u8
     // Find DCS prefix: ESC P
     const dcs_start = std.mem.indexOf(u8, response, "\x1bP") orelse return error.InvalidResponse;
     const after_dcs = dcs_start + 2;
+    // Invariant: indexOf only returns an index where the full 2-byte needle
+    // fit, so slicing response[after_dcs..] below cannot go out of bounds.
+    assert(after_dcs <= response.len);
 
     // Find ST suffix: ESC \
     const st_start = std.mem.indexOf(u8, response[after_dcs..], "\x1b\\") orelse return error.InvalidResponse;
-    const payload = response[after_dcs..after_dcs + st_start];
+    // Invariant: st_start is an index within response[after_dcs..], so the
+    // slice below stays within response's own bounds.
+    assert(after_dcs + st_start <= response.len);
+    const payload = response[after_dcs .. after_dcs + st_start];
 
     // Parse status code (0 or 1)
     if (payload.len < 3 or payload[1] != '+' or payload[2] != 'r') {
@@ -585,9 +667,12 @@ pub fn parseXtgettcapResponse(allocator: std.mem.Allocator, response: []const u8
 
     // Parse hex-encoded name and optional value
     if (std.mem.indexOf(u8, body, "=")) |eq_pos| {
+        // Invariant: eq_pos was found inside body, so both slices below
+        // (0..eq_pos and eq_pos+1..) stay within body's bounds.
+        assert(eq_pos < body.len);
         // Supported with value
         const hex_name = body[0..eq_pos];
-        const hex_value = body[eq_pos + 1..];
+        const hex_value = body[eq_pos + 1 ..];
 
         const decoded_value = try hexDecode(allocator, hex_value);
 
@@ -731,7 +816,7 @@ fn queryTerminalCapabilityMock(allocator: std.mem.Allocator, capability_name: []
             // Simulate reading chunks
             while (mock.chunk_index < mock.chunked_responses.len) {
                 const chunk = mock.chunked_responses[mock.chunk_index];
-                @memcpy(response_buf[response_len..response_len + chunk.len], chunk);
+                @memcpy(response_buf[response_len .. response_len + chunk.len], chunk);
                 response_len += chunk.len;
                 mock.chunk_index += 1;
 
@@ -792,13 +877,19 @@ pub const MockTerminal = struct {
 
     /// Initializes a new MockTerminal with no response configured.
     pub fn init() MockTerminal {
-        return MockTerminal{
+        const result = MockTerminal{
             .response_mode = .none,
             .single_response = "",
             .chunked_responses = &.{},
             .chunk_index = 0,
             .read_offset = 0,
         };
+        // Postcondition: a freshly initialized mock has no response queued
+        // and both cursor fields start at zero.
+        assert(result.response_mode == .none);
+        assert(result.chunk_index == 0);
+        assert(result.read_offset == 0);
+        return result;
     }
 
     /// Configures the mock to return a single response string.
@@ -806,19 +897,32 @@ pub const MockTerminal = struct {
         self.response_mode = .single;
         self.single_response = response;
         self.read_offset = 0;
+        // Postcondition: mode is switched and the read cursor is reset, even
+        // if a previous chunked/single run left it non-zero.
+        assert(self.response_mode == .single);
+        assert(self.read_offset == 0);
     }
 
     /// Configures the mock to return no response (empty reads).
     pub fn setNoResponse(self: *MockTerminal) void {
         self.response_mode = .none;
+        // Postcondition: mode is cleared regardless of what it was before.
+        assert(self.response_mode == .none);
     }
 
     /// Configures the mock to return responses in chunks (for testing partial reads).
     pub fn setChunkedResponse(self: *MockTerminal, chunks: []const []const u8) void {
+        // Precondition: a chunked run with zero chunks would never produce a
+        // response, which is what setNoResponse is for — misuse to catch here.
+        assert(chunks.len > 0);
         self.response_mode = .chunked;
         self.chunked_responses = chunks;
         self.chunk_index = 0;
         self.read_offset = 0;
+        // Postcondition: both cursors reset even if a previous run left them
+        // dirty.
+        assert(self.chunk_index == 0);
+        assert(self.read_offset == 0);
     }
 
     /// Returns a mock file descriptor for testing.
@@ -827,7 +931,12 @@ pub const MockTerminal = struct {
         // We'll intercept the read/write calls in queryTerminalCapability
         if (builtin.os.tag == .windows) {
             // On Windows, fd_t is *anyopaque - use the mock object's address as a unique handle
-            return @ptrCast(self);
+            const handle: posix.fd_t = @ptrCast(self);
+            // Invariant: queryTerminalCapability identifies a mock by
+            // address equality against this return value, so the cast must
+            // round-trip losslessly back to self's own address.
+            assert(@intFromPtr(handle) == @intFromPtr(self));
+            return handle;
         } else {
             // On Unix, fd_t is i32 - use a sentinel value
             return 42;
@@ -870,8 +979,8 @@ test "readByte with zero timeout" {
     const byte = readByte(0) catch |err| {
         // Allow various errors in CI
         try std.testing.expect(err == error.NotATty or
-                               err == error.AccessDenied or
-                               err == error.Unexpected);
+            err == error.AccessDenied or
+            err == error.Unexpected);
         return;
     };
 
@@ -1196,8 +1305,8 @@ test "XTGETTCAP common capabilities" {
 
     // Test common capability names can be encoded correctly
     const capabilities = [_][]const u8{
-        "Sixel", "TN", "RGB", "Co", "colors",
-        "Ms", "setrgbf", "setrgbb",
+        "Sixel", "TN",      "RGB",     "Co", "colors",
+        "Ms",    "setrgbf", "setrgbb",
     };
 
     for (capabilities) |cap| {
@@ -1292,12 +1401,12 @@ test "isPasteStart and isPasteEnd with partial sequences" {
 test "isPasteStart and isPasteEnd are exact matches" {
     // Similar but different sequences should not match
     try std.testing.expect(!isPasteStart("\x1b[2000~")); // wrong number
-    try std.testing.expect(!isPasteStart("\x1b[20~"));   // truncated
-    try std.testing.expect(!isPasteStart("\x1b]200~"));  // wrong CSI (OSC instead)
+    try std.testing.expect(!isPasteStart("\x1b[20~")); // truncated
+    try std.testing.expect(!isPasteStart("\x1b]200~")); // wrong CSI (OSC instead)
 
-    try std.testing.expect(!isPasteEnd("\x1b[2010~"));   // wrong number
-    try std.testing.expect(!isPasteEnd("\x1b[21~"));     // truncated
-    try std.testing.expect(!isPasteEnd("\x1b]201~"));    // wrong CSI
+    try std.testing.expect(!isPasteEnd("\x1b[2010~")); // wrong number
+    try std.testing.expect(!isPasteEnd("\x1b[21~")); // truncated
+    try std.testing.expect(!isPasteEnd("\x1b]201~")); // wrong CSI
 }
 
 test "BracketedPaste multiple enable/disable cycles" {
@@ -1748,6 +1857,273 @@ test "parseXtgettcapResponse with capability not supported (0) returns supported
     defer if (result.value) |v| allocator.free(v);
     try std.testing.expectEqual(false, result.supported);
     try std.testing.expectEqual(@as(?[]u8, null), result.value);
+}
+
+// ============================================================================
+// Assertion baseline coverage (Tiger Style plan 001 item 11)
+//
+// These tests pin down documented contracts (boundary values, output-length
+// invariants) so that once precondition/postcondition asserts are added to
+// the corresponding functions, a broken reimplementation still fails these
+// tests even though `assert` itself cannot be exercised as a passing test.
+// ============================================================================
+
+test "isatty with negative fd returns false" {
+    // Boundary: a negative fd is never a valid descriptor on any platform.
+    try std.testing.expect(!isatty(@as(i32, -1)));
+}
+
+test "isatty is idempotent for the same fd" {
+    // Postcondition: isatty is a pure query — repeated calls on the same fd
+    // must agree (no hidden mutation of process-global state).
+    const fd: i32 = 9999;
+    const first = isatty(fd);
+    const second = isatty(fd);
+    try std.testing.expectEqual(first, second);
+}
+
+test "getSize is idempotent across consecutive calls" {
+    // Postcondition: two back-to-back queries of an unchanged terminal must
+    // report the same Size (or both fail the same documented way).
+    const first = getSize() catch |err| {
+        if (err == Error.TerminalSizeUnavailable) return;
+        return err;
+    };
+    const second = getSize() catch |err| {
+        if (err == Error.TerminalSizeUnavailable) return;
+        return err;
+    };
+    try std.testing.expectEqual(first.cols, second.cols);
+    try std.testing.expectEqual(first.rows, second.rows);
+}
+
+test "getSizeUnix returns dimensions within documented bounds when available" {
+    if (builtin.os.tag != .linux and builtin.os.tag != .macos) return error.SkipZigTest;
+    // Postcondition pinned directly on the platform-specific helper (not just
+    // through the getSize() dispatcher): 0 < cols/rows < 10000.
+    const size = getSizeUnix() catch |err| {
+        if (err == Error.TerminalSizeUnavailable) return;
+        return err;
+    };
+    try std.testing.expect(size.cols > 0);
+    try std.testing.expect(size.cols < 10000);
+    try std.testing.expect(size.rows > 0);
+    try std.testing.expect(size.rows < 10000);
+}
+
+test "getSizeWindows returns dimensions within documented bounds when available" {
+    if (builtin.os.tag != .windows) return error.SkipZigTest;
+    const size = getSizeWindows() catch |err| {
+        if (err == Error.TerminalSizeUnavailable) return;
+        return err;
+    };
+    try std.testing.expect(size.cols > 0);
+    try std.testing.expect(size.cols < 10000);
+    try std.testing.expect(size.rows > 0);
+    try std.testing.expect(size.rows < 10000);
+}
+
+test "writeHyperlink output length is exactly escape bytes plus input lengths" {
+    // Postcondition: total bytes written is fully determined by the input
+    // lengths — "\x1b]8;;" (5) + url + ST "\x1b\\" (2) + text +
+    // closing "\x1b]8;;\x1b\\" (7). Covers empty/empty, empty/one, one/empty,
+    // and a long boundary.
+    const Case = struct { url: []const u8, text: []const u8 };
+    const cases = [_]Case{
+        .{ .url = "", .text = "" },
+        .{ .url = "", .text = "x" },
+        .{ .url = "u", .text = "" },
+        .{ .url = "https://example.com/a/b/c?q=1", .text = "a rather long link label here" },
+    };
+    var buf: [256]u8 = undefined;
+    for (cases) |case| {
+        var stream = std.io.fixedBufferStream(&buf);
+        try writeHyperlink(stream.writer().any(), case.url, case.text);
+        const written = stream.getWritten();
+        const expected_len = 5 + case.url.len + 2 + case.text.len + 7;
+        try std.testing.expectEqual(expected_len, written.len);
+        try std.testing.expect(std.mem.startsWith(u8, written, "\x1b]8;;"));
+        try std.testing.expect(std.mem.endsWith(u8, written, "\x1b]8;;\x1b\\"));
+    }
+}
+
+test "writeHyperlinkWithParams output length is exactly escape bytes plus input lengths" {
+    // Postcondition: "\x1b]8;" (4) + params + ";" (1) + url + ST "\x1b\\" (2)
+    // + text + closing "\x1b]8;;\x1b\\" (7).
+    const Case = struct { params: []const u8, url: []const u8, text: []const u8 };
+    const cases = [_]Case{
+        .{ .params = "", .url = "", .text = "" },
+        .{ .params = "id=1", .url = "u", .text = "t" },
+        .{ .params = "id=abc:type=external", .url = "https://example.com", .text = "some label" },
+    };
+    var buf: [256]u8 = undefined;
+    for (cases) |case| {
+        var stream = std.io.fixedBufferStream(&buf);
+        try writeHyperlinkWithParams(stream.writer().any(), case.params, case.url, case.text);
+        const written = stream.getWritten();
+        const expected_len = 4 + case.params.len + 1 + case.url.len + 2 + case.text.len + 7;
+        try std.testing.expectEqual(expected_len, written.len);
+        try std.testing.expect(std.mem.startsWith(u8, written, "\x1b]8;"));
+        try std.testing.expect(std.mem.endsWith(u8, written, "\x1b]8;;\x1b\\"));
+    }
+}
+
+test "focus/paste predicates: a true result implies buffer >= marker length" {
+    // Postcondition: none of these predicates can return true for a buffer
+    // shorter than their marker — every strict prefix must be rejected, and
+    // the exact marker must be accepted.
+    const Predicate = *const fn ([]const u8) bool;
+    const Case = struct { marker: []const u8, predicate: Predicate };
+    const cases = [_]Case{
+        .{ .marker = "\x1b[I", .predicate = isFocusIn },
+        .{ .marker = "\x1b[O", .predicate = isFocusOut },
+        .{ .marker = "\x1b[200~", .predicate = isPasteStart },
+        .{ .marker = "\x1b[201~", .predicate = isPasteEnd },
+    };
+    for (cases) |case| {
+        var len: usize = 0;
+        while (len < case.marker.len) : (len += 1) {
+            try std.testing.expect(!case.predicate(case.marker[0..len]));
+        }
+        try std.testing.expect(case.predicate(case.marker));
+    }
+}
+
+test "hexEncode: output length is exactly twice the input length, over every byte value" {
+    // Postcondition: output.len == input.len * 2, and the round trip through
+    // hexDecode recovers every byte value 0..255 (fills the nibble table).
+    const allocator = std.testing.allocator;
+    var input: [256]u8 = undefined;
+    for (&input, 0..) |*b, i| b.* = @intCast(i);
+
+    const encoded = try hexEncode(allocator, &input);
+    defer allocator.free(encoded);
+    try std.testing.expectEqual(input.len * 2, encoded.len);
+
+    const decoded = try hexDecode(allocator, encoded);
+    defer allocator.free(decoded);
+    try std.testing.expectEqualSlices(u8, &input, decoded);
+}
+
+test "hexDecode: output length is exactly half the input length" {
+    // Postcondition: output.len == hex_string.len / 2, across empty, small,
+    // and a long boundary input.
+    const allocator = std.testing.allocator;
+    const cases = [_][]const u8{
+        "",
+        "ab",
+        "deadbeef",
+        "00" ** 100, // 200 hex chars -> 100 bytes
+    };
+    for (cases) |hex| {
+        const decoded = try hexDecode(allocator, hex);
+        defer allocator.free(decoded);
+        try std.testing.expectEqual(hex.len / 2, decoded.len);
+    }
+}
+
+test "buildXtgettcapQuery: written length equals DCS+ST literal bytes plus twice the name length" {
+    // Postcondition: "\x1bP+q" (4) + hex(name) (2*name.len) + "\x1b\\" (2),
+    // holding even at the empty-name boundary.
+    const allocator = std.testing.allocator;
+    const names = [_][]const u8{ "", "a", "Sixel", "setrgbb" };
+    var buf: [256]u8 = undefined;
+    for (names) |name| {
+        var stream = std.io.fixedBufferStream(&buf);
+        try buildXtgettcapQuery(stream.writer(), allocator, name);
+        const written = stream.getWritten();
+        try std.testing.expectEqual(@as(usize, 6) + name.len * 2, written.len);
+        try std.testing.expect(std.mem.startsWith(u8, written, "\x1bP+q"));
+        try std.testing.expect(std.mem.endsWith(u8, written, "\x1b\\"));
+    }
+}
+
+test "parseXtgettcapResponse with empty response returns InvalidResponse" {
+    // Boundary: the empty string can never contain a DCS prefix.
+    const allocator = std.testing.allocator;
+    const result = parseXtgettcapResponse(allocator, "");
+    try std.testing.expectError(error.InvalidResponse, result);
+}
+
+test "hasCapability result depends only on the mock response, not on the capability_name argument" {
+    // Pins the current documented contract: queryTerminalCapabilityMock
+    // ignores capability_name entirely, so a caller asking about a name that
+    // does not match the mock's encoded response still gets the mock's
+    // answer. If an assert ever ties these together, this test documents the
+    // pre-assert behavior it must not silently change.
+    var mock_terminal = MockTerminal.init();
+    mock_terminal.setResponse("\x1bP1+r5369786c=31\x1b\\"); // encodes name "Sixel"
+    global_mock_terminal = &mock_terminal;
+    defer global_mock_terminal = null;
+
+    const supported = try hasCapability(
+        std.testing.allocator,
+        mock_terminal.fd(),
+        "TotallyDifferentName",
+        100,
+    );
+    try std.testing.expect(supported);
+}
+
+test "MockTerminal.init starts with no response configured" {
+    const mock = MockTerminal.init();
+    try std.testing.expect(mock.response_mode == .none);
+    try std.testing.expectEqual(@as(usize, 0), mock.single_response.len);
+    try std.testing.expectEqual(@as(usize, 0), mock.chunked_responses.len);
+    try std.testing.expectEqual(@as(usize, 0), mock.chunk_index);
+    try std.testing.expectEqual(@as(usize, 0), mock.read_offset);
+}
+
+test "MockTerminal.setResponse stores the exact response and resets read_offset" {
+    var mock = MockTerminal.init();
+    mock.read_offset = 3; // dirty state from a previous read
+    mock.setResponse("hello");
+    try std.testing.expect(mock.response_mode == .single);
+    try std.testing.expectEqualStrings("hello", mock.single_response);
+    try std.testing.expectEqual(@as(usize, 0), mock.read_offset);
+}
+
+test "MockTerminal.setNoResponse clears a previously configured response mode" {
+    var mock = MockTerminal.init();
+    mock.setResponse("data");
+    mock.setNoResponse();
+    try std.testing.expect(mock.response_mode == .none);
+}
+
+test "MockTerminal.setChunkedResponse stores chunks and resets chunk/read state" {
+    var mock = MockTerminal.init();
+    mock.chunk_index = 5; // dirty state from a previous chunked run
+    mock.read_offset = 9;
+    const chunks = [_][]const u8{ "ab", "cd", "ef" };
+    mock.setChunkedResponse(&chunks);
+    try std.testing.expect(mock.response_mode == .chunked);
+    try std.testing.expectEqual(@as(usize, 3), mock.chunked_responses.len);
+    try std.testing.expectEqual(@as(usize, 0), mock.chunk_index);
+    try std.testing.expectEqual(@as(usize, 0), mock.read_offset);
+    try std.testing.expectEqualStrings("ab", mock.chunked_responses[0]);
+    try std.testing.expectEqualStrings("ef", mock.chunked_responses[2]);
+}
+
+test "MockTerminal.fd is a stable identity for the same instance" {
+    var mock = MockTerminal.init();
+    const fd1 = mock.fd();
+    const fd2 = mock.fd();
+    try std.testing.expectEqual(fd1, fd2);
+}
+
+test "MockTerminal.fd sentinel is identical across different Unix instances" {
+    if (builtin.os.tag == .windows) return error.SkipZigTest;
+    var mock1 = MockTerminal.init();
+    var mock2 = MockTerminal.init();
+    try std.testing.expectEqual(mock1.fd(), mock2.fd());
+    try std.testing.expectEqual(@as(posix.fd_t, 42), mock1.fd());
+}
+
+test "MockTerminal.fd differs across different instances on Windows" {
+    if (builtin.os.tag != .windows) return error.SkipZigTest;
+    var mock1 = MockTerminal.init();
+    var mock2 = MockTerminal.init();
+    try std.testing.expect(@intFromPtr(mock1.fd()) != @intFromPtr(mock2.fd()));
 }
 
 // ============================================================================
