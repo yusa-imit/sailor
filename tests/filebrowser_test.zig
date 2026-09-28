@@ -15,7 +15,7 @@ const FileBrowser = sailor.tui.widgets.FileBrowser;
 
 /// Create a temporary test directory structure
 fn createTestDir(_: std.mem.Allocator) !std.fs.Dir {
-    var tmp_dir = try std.fs.cwd().makeOpenPath("test_filebrowser_tmp", .{
+    var tmp_dir = try std.Io.Dir.cwd().createDirPathOpen(std.testing.io, "test_filebrowser_tmp", .{
         .iterate = true,
     });
     errdefer tmp_dir.close();
@@ -43,7 +43,7 @@ fn createTestDir(_: std.mem.Allocator) !std.fs.Dir {
 
 /// Clean up test directory
 fn cleanupTestDir() void {
-    std.fs.cwd().deleteTree("test_filebrowser_tmp") catch {};
+    std.Io.Dir.cwd().deleteTree(std.testing.io, "test_filebrowser_tmp") catch {};
 }
 
 // ============================================================================
@@ -57,7 +57,7 @@ test "FileBrowser.init creates browser with root path" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     const browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -79,7 +79,7 @@ test "FileBrowser.deinit releases allocated memory" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     const browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -93,7 +93,7 @@ test "FileBrowser.init sets reasonable defaults" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     const browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -116,7 +116,7 @@ test "FileBrowser.withHiddenFiles enables hidden file display" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -133,7 +133,7 @@ test "FileBrowser.withIcons enables icon display" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -150,7 +150,7 @@ test "FileBrowser.withPreview enables preview pane" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -167,7 +167,7 @@ test "FileBrowser.withMultiselect enables multiple selection" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -184,7 +184,7 @@ test "FileBrowser.withBlock sets border block" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -202,7 +202,7 @@ test "FileBrowser builder methods chain" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -231,7 +231,7 @@ test "FileBrowser lists directory entries" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -248,7 +248,7 @@ test "FileBrowser separates directories and files" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -278,7 +278,7 @@ test "FileBrowser sorts entries alphabetically" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -304,7 +304,7 @@ test "FileBrowser hides hidden files by default" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -325,7 +325,7 @@ test "FileBrowser shows hidden files when enabled" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -348,10 +348,10 @@ test "FileBrowser handles empty directory" {
     cleanupTestDir();
     defer cleanupTestDir();
 
-    std.fs.cwd().makePath("test_filebrowser_tmp/empty") catch {};
-    defer std.fs.cwd().deleteTree("test_filebrowser_tmp") catch {};
+    std.Io.Dir.cwd().createDirPath(std.testing.io, "test_filebrowser_tmp/empty") catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, "test_filebrowser_tmp") catch {};
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp/empty");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp/empty", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -368,7 +368,7 @@ test "FileBrowser includes file extension in entry name" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -401,7 +401,7 @@ test "FileBrowser.navigateDown moves selection down" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -423,7 +423,7 @@ test "FileBrowser.navigateDown wraps at end" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -445,7 +445,7 @@ test "FileBrowser.navigateUp moves selection up" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -466,7 +466,7 @@ test "FileBrowser.navigateUp wraps at beginning" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -488,7 +488,7 @@ test "FileBrowser.enterDirectory changes current path" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -514,7 +514,7 @@ test "FileBrowser.parentDirectory navigates to parent" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -565,7 +565,7 @@ test "FileBrowser.selectCurrent marks entry as selected" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -585,7 +585,7 @@ test "FileBrowser single selection deselects others" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -611,7 +611,7 @@ test "FileBrowser multiselect allows multiple selections" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -639,7 +639,7 @@ test "FileBrowser.clearSelection removes all selections" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -665,7 +665,7 @@ test "FileBrowser.getSelectedEntries returns selected items" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -693,7 +693,7 @@ test "FileBrowser.toggleExpand toggles directory expansion state" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -720,7 +720,7 @@ test "FileBrowser expanded directory shows children in tree view" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -746,7 +746,7 @@ test "FileBrowser collapsed directory hides children in tree view" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -773,7 +773,7 @@ test "FileBrowser.expandAll expands all directories" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -796,7 +796,7 @@ test "FileBrowser.collapseAll collapses all directories" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -824,7 +824,7 @@ test "FileBrowser preview disabled by default" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -840,7 +840,7 @@ test "FileBrowser.getFilePreview returns file info for files" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -866,7 +866,7 @@ test "FileBrowser.getDirectoryInfo returns directory info" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -896,7 +896,7 @@ test "FileBrowser.render empty area does nothing" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -916,7 +916,7 @@ test "FileBrowser.render displays file entries" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -953,7 +953,7 @@ test "FileBrowser.render shows selected item highlighted" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -988,7 +988,7 @@ test "FileBrowser.render with block draws border" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -1015,7 +1015,7 @@ test "FileBrowser.render clips at area boundaries" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -1040,7 +1040,7 @@ test "FileBrowser.render shows current path" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -1064,7 +1064,7 @@ test "FileBrowser.render shows file icons when enabled" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -1093,11 +1093,11 @@ test "FileBrowser handles special characters in filenames" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     // Create file with spaces and special chars
-    var special_file = try std.fs.cwd().createFile("test_filebrowser_tmp/file with spaces.txt", .{});
+    var special_file = try std.Io.Dir.cwd().createFile(std.testing.io, "test_filebrowser_tmp/file with spaces.txt", .{});
     defer special_file.close();
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -1122,7 +1122,7 @@ test "FileBrowser.refresh updates entry list" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -1132,7 +1132,7 @@ test "FileBrowser.refresh updates entry list" {
     const count1 = browser.entries.len;
 
     // Create a new file
-    var new_file = try std.fs.cwd().createFile("test_filebrowser_tmp/new_file.txt", .{});
+    var new_file = try std.Io.Dir.cwd().createFile(std.testing.io, "test_filebrowser_tmp/new_file.txt", .{});
     defer new_file.close();
 
     try browser.refresh();
@@ -1148,7 +1148,7 @@ test "FileBrowser handles deleted files gracefully" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -1158,7 +1158,7 @@ test "FileBrowser handles deleted files gracefully" {
     const count1 = browser.entries.len;
 
     // Delete a file
-    std.fs.cwd().deleteFile("test_filebrowser_tmp/file1.txt") catch {};
+    std.Io.Dir.cwd().deleteFile(std.testing.io, "test_filebrowser_tmp/file1.txt") catch {};
 
     try browser.refresh();
     const count2 = browser.entries.len;
@@ -1173,7 +1173,7 @@ test "FileBrowser selected_index bounds checked" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -1197,10 +1197,10 @@ test "FileBrowser handles very long paths" {
     defer cleanupTestDir();
 
     // Create nested directories
-    std.fs.cwd().makePath("test_filebrowser_tmp/a/b/c/d/e/f") catch {};
-    defer std.fs.cwd().deleteTree("test_filebrowser_tmp") catch {};
+    std.Io.Dir.cwd().createDirPath(std.testing.io, "test_filebrowser_tmp/a/b/c/d/e/f") catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, "test_filebrowser_tmp") catch {};
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp/a/b/c/d/e/f");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp/a/b/c/d/e/f", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     const browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -1218,13 +1218,13 @@ test "FileBrowser handles unicode filenames" {
 
     // Create file with unicode name if possible
     const unicode_name = "file_🎉.txt";
-    var unicode_file = std.fs.cwd().createFile("test_filebrowser_tmp/" ++ unicode_name, .{}) catch {
+    var unicode_file = std.Io.Dir.cwd().createFile(std.testing.io, "test_filebrowser_tmp/" ++ unicode_name, .{}) catch {
         // Skip if unicode filenames not supported
         return;
     };
     defer unicode_file.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -1251,7 +1251,7 @@ test "FileBrowser.setFilter filters entries by pattern" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -1274,7 +1274,7 @@ test "FileBrowser.clearFilter removes filter" {
     var tmp_dir = try createTestDir(std.testing.allocator);
     defer tmp_dir.close();
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -1297,19 +1297,19 @@ test "FileBrowser handles large directory listing efficiently" {
     cleanupTestDir();
     defer cleanupTestDir();
 
-    std.fs.cwd().makePath("test_filebrowser_tmp/large_dir") catch {};
-    defer std.fs.cwd().deleteTree("test_filebrowser_tmp") catch {};
+    std.Io.Dir.cwd().createDirPath(std.testing.io, "test_filebrowser_tmp/large_dir") catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, "test_filebrowser_tmp") catch {};
 
     // Create many files
     var i: usize = 0;
     while (i < 50) : (i += 1) {
         var buf: [64]u8 = undefined;
         const name = try std.fmt.bufPrint(&buf, "test_filebrowser_tmp/large_dir/file_{d:0>3}.txt", .{i});
-        var file = try std.fs.cwd().createFile(name, .{});
+        var file = try std.Io.Dir.cwd().createFile(std.testing.io, name, .{});
         file.close();
     }
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp/large_dir");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp/large_dir", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -1323,19 +1323,19 @@ test "FileBrowser navigation smooth with many entries" {
     cleanupTestDir();
     defer cleanupTestDir();
 
-    std.fs.cwd().makePath("test_filebrowser_tmp/many_files") catch {};
-    defer std.fs.cwd().deleteTree("test_filebrowser_tmp") catch {};
+    std.Io.Dir.cwd().createDirPath(std.testing.io, "test_filebrowser_tmp/many_files") catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, "test_filebrowser_tmp") catch {};
 
     // Create files
     var i: usize = 0;
     while (i < 100) : (i += 1) {
         var buf: [64]u8 = undefined;
         const name = try std.fmt.bufPrint(&buf, "test_filebrowser_tmp/many_files/f_{d:0>3}.txt", .{i});
-        var file = try std.fs.cwd().createFile(name, .{});
+        var file = try std.Io.Dir.cwd().createFile(std.testing.io, name, .{});
         file.close();
     }
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp/many_files");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp/many_files", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);
@@ -1357,19 +1357,19 @@ test "FileBrowser renders large directory without lag" {
     cleanupTestDir();
     defer cleanupTestDir();
 
-    std.fs.cwd().makePath("test_filebrowser_tmp/render_test") catch {};
-    defer std.fs.cwd().deleteTree("test_filebrowser_tmp") catch {};
+    std.Io.Dir.cwd().createDirPath(std.testing.io, "test_filebrowser_tmp/render_test") catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, "test_filebrowser_tmp") catch {};
 
     // Create many files
     var i: usize = 0;
     while (i < 200) : (i += 1) {
         var buf: [64]u8 = undefined;
         const name = try std.fmt.bufPrint(&buf, "test_filebrowser_tmp/render_test/file_{d:0>4}.txt", .{i});
-        var file = try std.fs.cwd().createFile(name, .{});
+        var file = try std.Io.Dir.cwd().createFile(std.testing.io, name, .{});
         file.close();
     }
 
-    const cwd_path = try std.fs.cwd().realpathAlloc(std.testing.allocator, "test_filebrowser_tmp/render_test");
+    const cwd_path = try std.Io.Dir.cwd().realPathFileAlloc(std.testing.io, "test_filebrowser_tmp/render_test", std.testing.allocator);
     defer std.testing.allocator.free(cwd_path);
 
     var browser = try FileBrowser.init(std.testing.allocator, cwd_path);

@@ -538,14 +538,14 @@ test "FileBrowser init and deinit" {
 
     // Create a temporary test directory
     const test_dir = "test_filebrowser_init_tmp";
-    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(std.testing.io, test_dir, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    defer std.fs.cwd().deleteTree(test_dir) catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
 
     var browser = try FileBrowser.init(allocator, abs_path);
     defer browser.deinit();
@@ -561,19 +561,19 @@ test "FileBrowser refresh loads entries" {
 
     // Create test directory structure
     const test_dir = "test_filebrowser_refresh_tmp";
-    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(std.testing.io, test_dir, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    defer std.fs.cwd().deleteTree(test_dir) catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
     // Create test files
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file1.txt", .data = "test" });
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file2.zig", .data = "test" });
-    try std.fs.cwd().makeDir(test_dir ++ "/subdir");
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file1.txt", .data = "test" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file2.zig", .data = "test" });
+    try std.Io.Dir.cwd().createDir(std.testing.io, test_dir ++ "/subdir", .default_dir);
 
-    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
 
     var browser = try FileBrowser.init(allocator, abs_path);
     defer browser.deinit();
@@ -591,18 +591,18 @@ test "FileBrowser navigation" {
     const allocator = testing.allocator;
 
     const test_dir = "test_filebrowser_nav_tmp";
-    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(std.testing.io, test_dir, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    defer std.fs.cwd().deleteTree(test_dir) catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file2.txt", .data = "b" });
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file3.txt", .data = "c" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file2.txt", .data = "b" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file3.txt", .data = "c" });
 
-    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
 
     var browser = try FileBrowser.init(allocator, abs_path);
     defer browser.deinit();
@@ -629,17 +629,17 @@ test "FileBrowser hidden files" {
     const allocator = testing.allocator;
 
     const test_dir = "test_filebrowser_hidden_tmp";
-    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(std.testing.io, test_dir, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    defer std.fs.cwd().deleteTree(test_dir) catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/visible.txt", .data = "a" });
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/.hidden", .data = "b" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/visible.txt", .data = "a" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/.hidden", .data = "b" });
 
-    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
 
     // Without hidden files (default)
     var browser = try FileBrowser.init(allocator, abs_path);
@@ -659,17 +659,17 @@ test "FileBrowser selection" {
     const allocator = testing.allocator;
 
     const test_dir = "test_filebrowser_select_tmp";
-    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(std.testing.io, test_dir, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    defer std.fs.cwd().deleteTree(test_dir) catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file2.txt", .data = "b" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file2.txt", .data = "b" });
 
-    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
 
     var browser = try FileBrowser.init(allocator, abs_path);
     defer browser.deinit();
@@ -690,18 +690,18 @@ test "FileBrowser multiselect" {
     const allocator = testing.allocator;
 
     const test_dir = "test_filebrowser_multisel_tmp";
-    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(std.testing.io, test_dir, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    defer std.fs.cwd().deleteTree(test_dir) catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file2.txt", .data = "b" });
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file3.txt", .data = "c" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file2.txt", .data = "b" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file3.txt", .data = "c" });
 
-    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
 
     var browser = try FileBrowser.init(allocator, abs_path);
     defer browser.deinit();
@@ -733,18 +733,18 @@ test "FileBrowser filter" {
     const allocator = testing.allocator;
 
     const test_dir = "test_filebrowser_filter_tmp";
-    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(std.testing.io, test_dir, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    defer std.fs.cwd().deleteTree(test_dir) catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file2.zig", .data = "b" });
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file3.txt", .data = "c" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file2.zig", .data = "b" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file3.txt", .data = "c" });
 
-    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
 
     var browser = try FileBrowser.init(allocator, abs_path);
     defer browser.deinit();
@@ -768,16 +768,16 @@ test "FileBrowser render basic" {
     const allocator = testing.allocator;
 
     const test_dir = "test_filebrowser_render_tmp";
-    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(std.testing.io, test_dir, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    defer std.fs.cwd().deleteTree(test_dir) catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file.txt", .data = "test" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file.txt", .data = "test" });
 
-    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
 
     var browser = try FileBrowser.init(allocator, abs_path);
     defer browser.deinit();
@@ -798,14 +798,14 @@ test "FileBrowser render with block" {
     const allocator = testing.allocator;
 
     const test_dir = "test_filebrowser_block_tmp";
-    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(std.testing.io, test_dir, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    defer std.fs.cwd().deleteTree(test_dir) catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
 
     var browser = try FileBrowser.init(allocator, abs_path);
     defer browser.deinit();
@@ -839,17 +839,17 @@ test "FileBrowser enter and parent directory" {
     const allocator = testing.allocator;
 
     const test_dir = "test_filebrowser_enter_tmp";
-    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(std.testing.io, test_dir, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    defer std.fs.cwd().deleteTree(test_dir) catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.fs.cwd().makeDir(test_dir ++ "/subdir");
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/subdir/file.txt", .data = "test" });
+    try std.Io.Dir.cwd().createDir(std.testing.io, test_dir ++ "/subdir", .default_dir);
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/subdir/file.txt", .data = "test" });
 
-    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
 
     var browser = try FileBrowser.init(allocator, abs_path);
     defer browser.deinit();
@@ -871,16 +871,16 @@ test "FileBrowser SelectionResult deinit" {
     const allocator = testing.allocator;
 
     const test_dir = "test_filebrowser_result_tmp";
-    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(std.testing.io, test_dir, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    defer std.fs.cwd().deleteTree(test_dir) catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
 
-    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
 
     var browser = try FileBrowser.init(allocator, abs_path);
     defer browser.deinit();
@@ -898,16 +898,16 @@ test "FileBrowser render preview disabled (regression guard)" {
     const allocator = testing.allocator;
 
     const test_dir = "test_filebrowser_preview_disabled_tmp";
-    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(std.testing.io, test_dir, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    defer std.fs.cwd().deleteTree(test_dir) catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/ztest.txt", .data = "content" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/ztest.txt", .data = "content" });
 
-    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
 
     var browser = try FileBrowser.init(allocator, abs_path);
     defer browser.deinit();
@@ -959,16 +959,16 @@ test "FileBrowser render preview enabled but too narrow (width < 20)" {
     const allocator = testing.allocator;
 
     const test_dir = "test_filebrowser_preview_narrow_tmp";
-    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(std.testing.io, test_dir, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    defer std.fs.cwd().deleteTree(test_dir) catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file.txt", .data = "test" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file.txt", .data = "test" });
 
-    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
 
     var browser = try FileBrowser.init(allocator, abs_path);
     defer browser.deinit();
@@ -1000,16 +1000,16 @@ test "FileBrowser render preview enabled and wide enough (divider appears)" {
     const allocator = testing.allocator;
 
     const test_dir = "test_filebrowser_preview_divider_tmp";
-    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(std.testing.io, test_dir, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    defer std.fs.cwd().deleteTree(test_dir) catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/file.txt", .data = "test" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file.txt", .data = "test" });
 
-    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
 
     var browser = try FileBrowser.init(allocator, abs_path);
     defer browser.deinit();
@@ -1043,17 +1043,17 @@ test "FileBrowser render file preview content appears in preview pane" {
     const allocator = testing.allocator;
 
     const test_dir = "test_filebrowser_preview_file_tmp";
-    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(std.testing.io, test_dir, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    defer std.fs.cwd().deleteTree(test_dir) catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
     // Create file with known content "hello"
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/hello.txt", .data = "hello" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/hello.txt", .data = "hello" });
 
-    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
 
     var browser = try FileBrowser.init(allocator, abs_path);
     defer browser.deinit();
@@ -1103,20 +1103,20 @@ test "FileBrowser render directory preview shows items count" {
     const allocator = testing.allocator;
 
     const test_dir = "test_filebrowser_preview_dir_tmp";
-    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(std.testing.io, test_dir, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    defer std.fs.cwd().deleteTree(test_dir) catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
     // Create a directory with some files
-    try std.fs.cwd().makeDir(test_dir ++ "/adir");
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/adir/file1.txt", .data = "a" });
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/adir/file2.txt", .data = "b" });
-    try std.fs.cwd().writeFile(.{ .sub_path = test_dir ++ "/adir/file3.txt", .data = "c" });
+    try std.Io.Dir.cwd().createDir(std.testing.io, test_dir ++ "/adir", .default_dir);
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/adir/file1.txt", .data = "a" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/adir/file2.txt", .data = "b" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/adir/file3.txt", .data = "c" });
 
-    var path_buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const abs_path = try std.fs.cwd().realpath(test_dir, &path_buf);
+    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
 
     var browser = try FileBrowser.init(allocator, abs_path);
     defer browser.deinit();
@@ -1167,11 +1167,11 @@ test "FileBrowser render with empty entries does not crash" {
     const allocator = testing.allocator;
 
     const test_dir = "test_filebrowser_preview_empty_tmp";
-    std.fs.cwd().makeDir(test_dir) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(std.testing.io, test_dir, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
-    defer std.fs.cwd().deleteTree(test_dir) catch {};
+    defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
     var browser = try FileBrowser.init(allocator, test_dir);
     defer browser.deinit();
