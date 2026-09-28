@@ -159,7 +159,7 @@ test "detectProtocol returns a valid protocol" {
 
 test "renderImage with ansi_art protocol produces output" {
     var buf: [8192]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const width: u32 = 4;
     const height: u32 = 4;
@@ -172,54 +172,54 @@ test "renderImage with ansi_art protocol produces output" {
 
     try renderImage(std.testing.allocator, &pixels, width, height, .{
         .protocol = .ansi_art,
-    }, stream.writer());
+    }, &stream);
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     try std.testing.expect(written.len > 0);
 }
 
 test "renderAnsiArt produces non-empty output" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const pixels = [_]u8{255} ** (2 * 2 * 3);
-    try renderAnsiArt(std.testing.allocator, &pixels, 2, 2, .{}, stream.writer());
+    try renderAnsiArt(std.testing.allocator, &pixels, 2, 2, .{}, &stream);
 
-    try std.testing.expect(stream.getWritten().len > 0);
+    try std.testing.expect(stream.buffered().len > 0);
 }
 
 test "renderImage with zero width returns error" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const pixels = [_]u8{0} ** 12;
     const result = renderImage(std.testing.allocator, &pixels, 0, 2, .{
         .protocol = .ansi_art,
-    }, stream.writer());
+    }, &stream);
 
     try std.testing.expectError(error.InvalidDimensions, result);
 }
 
 test "renderImage with zero height returns error" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const pixels = [_]u8{0} ** 12;
     const result = renderImage(std.testing.allocator, &pixels, 2, 0, .{
         .protocol = .ansi_art,
-    }, stream.writer());
+    }, &stream);
 
     try std.testing.expectError(error.InvalidDimensions, result);
 }
 
 test "renderImage with too-small pixel buffer returns error" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const pixels = [_]u8{0} ** 3; // only 1 pixel, but we claim 4x4
     const result = renderImage(std.testing.allocator, &pixels, 4, 4, .{
         .protocol = .ansi_art,
-    }, stream.writer());
+    }, &stream);
 
     try std.testing.expectError(error.BufferTooSmall, result);
 }
@@ -228,12 +228,12 @@ test "renderSixel falls back gracefully on output error via ansi_art" {
     // Use a limited-size buffer that forces the sixel encoder to fail mid-write
     // or use a 2x2 image with ansi_art fallback — just test it doesn't crash
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const pixels = [_]u8{ 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 0 }; // 2x2 RGB
     // Force ansi_art so we test the fallback path
-    try renderAnsiArt(std.testing.allocator, &pixels, 2, 2, .{}, stream.writer());
-    try std.testing.expect(stream.getWritten().len > 0);
+    try renderAnsiArt(std.testing.allocator, &pixels, 2, 2, .{}, &stream);
+    try std.testing.expect(stream.buffered().len > 0);
 }
 
 test "RenderOptions default values are sensible" {

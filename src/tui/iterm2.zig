@@ -35,7 +35,7 @@
 //! // Encode and write to terminal
 //! var encoder = iterm2.ITerm2Encoder.init(allocator);
 //! defer encoder.deinit();
-//! try encoder.encode(img, writer);
+//! try encoder.encode(img, &fbs);
 //! ```
 
 const std = @import("std");
@@ -390,40 +390,39 @@ test "ITerm2Image validate - valid image" {
 
 test "SizeSpec write - auto" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
+    var fbs: std.Io.Writer = .fixed(&buf);
     const spec: SizeSpec = .auto;
-    try spec.write(fbs.writer());
-    try testing.expectEqualStrings("", fbs.getWritten());
+    try spec.write(&fbs);
+    try testing.expectEqualStrings("", fbs.buffered());
 }
 
 test "SizeSpec write - pixels" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
+    var fbs: std.Io.Writer = .fixed(&buf);
     const spec: SizeSpec = .{ .pixels = 800 };
-    try spec.write(fbs.writer());
-    try testing.expectEqualStrings("800px", fbs.getWritten());
+    try spec.write(&fbs);
+    try testing.expectEqualStrings("800px", fbs.buffered());
 }
 
 test "SizeSpec write - cells" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
+    var fbs: std.Io.Writer = .fixed(&buf);
     const spec: SizeSpec = .{ .cells = 40 };
-    try spec.write(fbs.writer());
-    try testing.expectEqualStrings("40", fbs.getWritten());
+    try spec.write(&fbs);
+    try testing.expectEqualStrings("40", fbs.buffered());
 }
 
 test "SizeSpec write - percent" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
+    var fbs: std.Io.Writer = .fixed(&buf);
     const spec: SizeSpec = .{ .percent = 75 };
-    try spec.write(fbs.writer());
-    try testing.expectEqualStrings("75%", fbs.getWritten());
+    try spec.write(&fbs);
+    try testing.expectEqualStrings("75%", fbs.buffered());
 }
 
 test "ITerm2Encoder encode - minimal image" {
     var buf: [1024]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const png_header = [_]u8{ 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a };
     const img = ITerm2Image{
@@ -434,9 +433,9 @@ test "ITerm2Encoder encode - minimal image" {
     defer encoder.deinit();
     // Force capability to supported for testing
     encoder.capability.supports_inline_images = true;
-    try encoder.encode(img, writer);
+    try encoder.encode(img, &fbs);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
 
     // Check OSC 1337 prefix
     try testing.expect(std.mem.startsWith(u8, output, "\x1b]1337;File="));
@@ -453,8 +452,7 @@ test "ITerm2Encoder encode - minimal image" {
 
 test "ITerm2Encoder encode - with all parameters" {
     var buf: [2048]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const png_header = [_]u8{ 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a };
     const img = ITerm2Image{
@@ -469,9 +467,9 @@ test "ITerm2Encoder encode - with all parameters" {
     var encoder = ITerm2Encoder.init(testing.allocator, null);
     defer encoder.deinit();
     encoder.capability.supports_inline_images = true;
-    try encoder.encode(img, writer);
+    try encoder.encode(img, &fbs);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
 
     // Check all parameters are present
     try testing.expect(std.mem.find(u8, output, "inline=0") != null);
@@ -483,8 +481,7 @@ test "ITerm2Encoder encode - with all parameters" {
 
 test "ITerm2Encoder encode - width pixels" {
     var buf: [1024]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const png_header = [_]u8{ 0x89, 0x50, 0x4e, 0x47 };
     const img = ITerm2Image{
@@ -495,16 +492,15 @@ test "ITerm2Encoder encode - width pixels" {
     var encoder = ITerm2Encoder.init(testing.allocator, null);
     defer encoder.deinit();
     encoder.capability.supports_inline_images = true;
-    try encoder.encode(img, writer);
+    try encoder.encode(img, &fbs);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     try testing.expect(std.mem.find(u8, output, "width=800px") != null);
 }
 
 test "ITerm2Encoder encode - auto dimensions" {
     var buf: [1024]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const png_header = [_]u8{ 0x89, 0x50, 0x4e, 0x47 };
     const img = ITerm2Image{
@@ -516,9 +512,9 @@ test "ITerm2Encoder encode - auto dimensions" {
     var encoder = ITerm2Encoder.init(testing.allocator, null);
     defer encoder.deinit();
     encoder.capability.supports_inline_images = true;
-    try encoder.encode(img, writer);
+    try encoder.encode(img, &fbs);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
 
     // Auto dimensions should not output width/height parameters
     try testing.expect(std.mem.find(u8, output, "width=") == null);
@@ -532,8 +528,7 @@ test "ITerm2Encoder init and deinit" {
 
 test "ITerm2Encoder unsupported terminal" {
     var buf: [1024]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const png_header = [_]u8{ 0x89, 0x50, 0x4e, 0x47 };
     const img = ITerm2Image{
@@ -545,7 +540,7 @@ test "ITerm2Encoder unsupported terminal" {
     // Force unsupported
     encoder.capability.supports_inline_images = false;
 
-    try testing.expectError(error.UnsupportedTerminal, encoder.encode(img, writer));
+    try testing.expectError(error.UnsupportedTerminal, encoder.encode(img, &fbs));
 }
 
 test "ITerm2Cache init and deinit" {
@@ -605,8 +600,7 @@ test "ITerm2Encoder with cache" {
     defer cache.deinit();
 
     var buf: [1024]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const png_header = [_]u8{ 0x89, 0x50, 0x4e, 0x47 };
     const img = ITerm2Image{
@@ -616,7 +610,7 @@ test "ITerm2Encoder with cache" {
     var encoder = ITerm2Encoder.init(testing.allocator, &cache);
     defer encoder.deinit();
     encoder.capability.supports_inline_images = true;
-    try encoder.encode(img, writer);
+    try encoder.encode(img, &fbs);
 
     // Verify cache was used
     try testing.expect(cache.entries.count() == 1);

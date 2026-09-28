@@ -79,8 +79,8 @@ test "flamegraph tracks self time correctly" {
     const parent = frames[0];
     // Total should be >= some time, self should be < total
     // On Windows, timer resolution may be lower, so just verify ordering
-    try testing.expect(parent.total_time_ns > 0);  // Work was done, time should be recorded
-    try testing.expect(parent.self_time_ns <= parent.total_time_ns);  // Self time <= total time invariant
+    try testing.expect(parent.total_time_ns > 0); // Work was done, time should be recorded
+    try testing.expect(parent.self_time_ns <= parent.total_time_ns); // Self time <= total time invariant
 }
 
 test "flamegraph deep nesting 5 levels" {
@@ -241,7 +241,7 @@ test "flamegraph timing accumulates correctly" {
         allocator.free(frames);
     }
 
-    try testing.expect(frames[0].total_time_ns > 0);  // Work was done, time should be recorded
+    try testing.expect(frames[0].total_time_ns > 0); // Work was done, time should be recorded
     if (frames[0].children.len > 0) {
         try testing.expect(frames[0].children[0].total_time_ns <= frames[0].total_time_ns);
     }
@@ -719,16 +719,15 @@ test "chrome devtools export json serialization flamegraph" {
 
     // Simulate Chrome DevTools JSON export format
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
-    const writer = stream.writer();
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // Write minimal Chrome DevTools trace format
-    try writer.writeAll("[{");
-    try std.fmt.format(writer, "\"name\":\"{s}\",", .{frames[0].name});
-    try std.fmt.format(writer, "\"dur\":{d},", .{frames[0].total_time_ns / 1000}); // Convert to microseconds
-    try writer.writeAll("}]");
+    try stream.writeAll("[{");
+    try std.fmt.format(&stream, "\"name\":\"{s}\",", .{frames[0].name});
+    try std.fmt.format(&stream, "\"dur\":{d},", .{frames[0].total_time_ns / 1000}); // Convert to microseconds
+    try stream.writeAll("}]");
 
-    const json_output = stream.getWritten();
+    const json_output = stream.buffered();
     try testing.expect(json_output.len > 0);
     try testing.expect(std.mem.find(u8, json_output, "\"name\"") != null);
     try testing.expect(std.mem.find(u8, json_output, "\"dur\"") != null);
@@ -748,21 +747,20 @@ test "chrome devtools export memory allocations" {
 
     // Simulate Chrome DevTools memory format export
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
-    const writer = stream.writer();
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writer.writeAll("[");
+    try stream.writeAll("[");
     for (hot_spots, 0..) |spot, idx| {
-        if (idx > 0) try writer.writeAll(",");
-        try writer.writeAll("{");
-        try std.fmt.format(writer, "\"location\":\"{s}\",", .{spot.location});
-        try std.fmt.format(writer, "\"bytes\":{d},", .{spot.total_allocated});
-        try std.fmt.format(writer, "\"peak\":{d}", .{spot.peak_allocated});
-        try writer.writeAll("}");
+        if (idx > 0) try stream.writeAll(",");
+        try stream.writeAll("{");
+        try std.fmt.format(&stream, "\"location\":\"{s}\",", .{spot.location});
+        try std.fmt.format(&stream, "\"bytes\":{d},", .{spot.total_allocated});
+        try std.fmt.format(&stream, "\"peak\":{d}", .{spot.peak_allocated});
+        try stream.writeAll("}");
     }
-    try writer.writeAll("]");
+    try stream.writeAll("]");
 
-    const json_output = stream.getWritten();
+    const json_output = stream.buffered();
     try testing.expect(json_output.len > 0);
     try testing.expect(std.mem.find(u8, json_output, "\"location\"") != null);
     try testing.expect(std.mem.find(u8, json_output, "\"bytes\"") != null);
@@ -782,18 +780,17 @@ test "chrome devtools export event latency distribution" {
 
     // Simulate Chrome DevTools event latency export
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
-    const writer = stream.writer();
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writer.writeAll("{");
-    try std.fmt.format(writer, "\"event\":\"{s}\",", .{stats.event_type});
-    try std.fmt.format(writer, "\"count\":{d},", .{stats.total_events});
-    try std.fmt.format(writer, "\"avg_us\":{d},", .{stats.avg_latency_ns / 1000});
-    try std.fmt.format(writer, "\"p95_us\":{d},", .{stats.p95_latency_ns / 1000});
-    try std.fmt.format(writer, "\"p99_us\":{d}", .{stats.p99_latency_ns / 1000});
-    try writer.writeAll("}");
+    try stream.writeAll("{");
+    try std.fmt.format(&stream, "\"event\":\"{s}\",", .{stats.event_type});
+    try std.fmt.format(&stream, "\"count\":{d},", .{stats.total_events});
+    try std.fmt.format(&stream, "\"avg_us\":{d},", .{stats.avg_latency_ns / 1000});
+    try std.fmt.format(&stream, "\"p95_us\":{d},", .{stats.p95_latency_ns / 1000});
+    try std.fmt.format(&stream, "\"p99_us\":{d}", .{stats.p99_latency_ns / 1000});
+    try stream.writeAll("}");
 
-    const json_output = stream.getWritten();
+    const json_output = stream.buffered();
     try testing.expect(json_output.len > 0);
     try testing.expect(std.mem.find(u8, json_output, "\"event\"") != null);
     try testing.expect(std.mem.find(u8, json_output, "\"avg_us\"") != null);
@@ -836,37 +833,36 @@ test "chrome devtools export combined profile snapshot" {
 
     // Export combined snapshot
     var buf: [8192]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
-    const writer = stream.writer();
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writer.writeAll("{\"profile\":{");
-    try writer.writeAll("\"flamegraph\":[");
+    try stream.writeAll("{\"profile\":{");
+    try stream.writeAll("\"flamegraph\":[");
     if (frames.len > 0) {
-        try std.fmt.format(writer, "{{\"name\":\"{s}\",\"dur\":{d}}}", .{
+        try std.fmt.format(&stream, "{{\"name\":\"{s}\",\"dur\":{d}}}", .{
             frames[0].name,
             frames[0].total_time_ns / 1000,
         });
     }
-    try writer.writeAll("],");
+    try stream.writeAll("],");
 
-    try writer.writeAll("\"memory\":[");
+    try stream.writeAll("\"memory\":[");
     if (hot_spots.len > 0) {
-        try std.fmt.format(writer, "{{\"location\":\"{s}\",\"bytes\":{d}}}", .{
+        try std.fmt.format(&stream, "{{\"location\":\"{s}\",\"bytes\":{d}}}", .{
             hot_spots[0].location,
             hot_spots[0].total_allocated,
         });
     }
-    try writer.writeAll("],");
+    try stream.writeAll("],");
 
-    try writer.writeAll("\"events\":[");
-    try std.fmt.format(writer, "{{\"type\":\"{s}\",\"latency_us\":{d}}}", .{
+    try stream.writeAll("\"events\":[");
+    try std.fmt.format(&stream, "{{\"type\":\"{s}\",\"latency_us\":{d}}}", .{
         event_stats.event_type,
         event_stats.avg_latency_ns / 1000,
     });
-    try writer.writeAll("]");
-    try writer.writeAll("}}");
+    try stream.writeAll("]");
+    try stream.writeAll("}}");
 
-    const json_output = stream.getWritten();
+    const json_output = stream.buffered();
     try testing.expect(json_output.len > 0);
     try testing.expect(std.mem.find(u8, json_output, "\"profile\"") != null);
     try testing.expect(std.mem.find(u8, json_output, "\"flamegraph\"") != null);

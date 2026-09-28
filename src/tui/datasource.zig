@@ -4,7 +4,6 @@ const std = @import("std");
 /// DataSource abstraction - unified interface for sync/async data providers
 /// Used by streaming widgets (VirtualList, StreamingTable, ChunkedBuffer)
 /// Provides a consistent API for lazy loading, pagination, and data access
-
 /// Generic DataSource interface for items (1D data)
 /// Used by VirtualList and similar widgets
 pub fn ItemDataSource(comptime T: type) type {
@@ -335,8 +334,8 @@ test "LineDataSource - slice backed" {
     const lines = [_][]const u8{ "Line 0", "Line 1", "Line 2" };
 
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const WriterType = @TypeOf(fbs.writer());
+    var fbs: std.Io.Writer = .fixed(&buf);
+    const WriterType = @TypeOf(&fbs);
 
     var slice_ds = SliceLineDataSource(WriterType).init(&lines);
     const ds = slice_ds.dataSource();
@@ -345,16 +344,16 @@ test "LineDataSource - slice backed" {
     try std.testing.expectEqual(@as(?usize, 3), ds.lineCount());
 
     // Test fetch line
-    try ds.fetchLine(0, fbs.writer());
-    try std.testing.expectEqualStrings("Line 0", fbs.getWritten());
+    try ds.fetchLine(0, &fbs);
+    try std.testing.expectEqualStrings("Line 0", fbs.buffered());
 
-    fbs.reset();
-    try ds.fetchLine(2, fbs.writer());
-    try std.testing.expectEqualStrings("Line 2", fbs.getWritten());
+    fbs.end = 0;
+    try ds.fetchLine(2, &fbs);
+    try std.testing.expectEqualStrings("Line 2", fbs.buffered());
 
     // Test out of bounds
-    fbs.reset();
-    try std.testing.expectError(error.IndexOutOfBounds, ds.fetchLine(3, fbs.writer()));
+    fbs.end = 0;
+    try std.testing.expectError(error.IndexOutOfBounds, ds.fetchLine(3, &fbs));
 }
 
 test "ItemDataSource - prefetch no-op" {
@@ -388,8 +387,8 @@ test "LineDataSource - prefetch no-op" {
     const lines = [_][]const u8{ "Line 0", "Line 1" };
 
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const WriterType = @TypeOf(fbs.writer());
+    var fbs: std.Io.Writer = .fixed(&buf);
+    const WriterType = @TypeOf(&fbs);
 
     var slice_ds = SliceLineDataSource(WriterType).init(&lines);
     const ds = slice_ds.dataSource();

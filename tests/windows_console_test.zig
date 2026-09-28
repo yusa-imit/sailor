@@ -704,14 +704,13 @@ test "integration: ConPTY with ANSI output" {
 
     // Write ANSI sequences to ConPTY
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try writer.writeAll("\x1b[31mRED\x1b[0m");
-    try writer.writeAll(" ");
-    try writer.writeAll("\x1b[32mGREEN\x1b[0m");
+    try fbs.writeAll("\x1b[31mRED\x1b[0m");
+    try fbs.writeAll(" ");
+    try fbs.writeAll("\x1b[32mGREEN\x1b[0m");
 
-    const written = fbs.getWritten();
+    const written = fbs.buffered();
     try testing.expect(written.len > 0);
 }
 

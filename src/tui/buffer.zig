@@ -578,17 +578,16 @@ test "diff - size mismatch" {
 
 test "renderDiff - simple" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const ops = [_]DiffOp{
         .{ .x = 0, .y = 0, .cell = Cell.init('A', .{}) },
         .{ .x = 1, .y = 0, .cell = Cell.init('B', .{ .fg = .red }) },
     };
 
-    try renderDiff(&ops, writer);
+    try renderDiff(&ops, &fbs);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     // Should contain cursor positioning and characters
     try std.testing.expect(std.mem.find(u8, output, "\x1b[1;1H") != null); // cursor to 1,1
     try std.testing.expect(std.mem.find(u8, output, "A") != null);
@@ -710,12 +709,11 @@ test "diff - stress test with many changes" {
 
     // Verify diff output generates valid ANSI codes
     var buf: [4096]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
-    try renderDiff(ops, writer);
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try renderDiff(ops, &fbs);
 
     // Output should contain cursor movements and color codes
-    try std.testing.expect(fbs.pos > 0);
+    try std.testing.expect(fbs.end > 0);
 }
 
 test "diff - identical buffers produce no operations" {
@@ -751,11 +749,10 @@ test "diff - single cell change" {
 
     // Verify diff output
     var buf: [1024]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
-    try renderDiff(ops, writer);
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try renderDiff(ops, &fbs);
 
-    try std.testing.expect(fbs.pos > 0);
+    try std.testing.expect(fbs.end > 0);
 }
 
 test "Buffer.clone - creates independent copy" {
@@ -876,7 +873,7 @@ test "benchmark setString vs fill performance comparison" {
     std.debug.print("\nbenchmark comparison:\n", .{});
     std.debug.print("  setString: {d} ns ({d} ns/op)\n", .{ setstring_elapsed, setstring_elapsed / num_writes });
     std.debug.print("  fill:      {d} ns ({d} ns/op)\n", .{ fill_elapsed, fill_elapsed / num_writes });
-    std.debug.print("  ratio:     {d:.2}x\n", .{ @as(f64, @floatFromInt(setstring_elapsed)) / @as(f64, @floatFromInt(fill_elapsed)) });
+    std.debug.print("  ratio:     {d:.2}x\n", .{@as(f64, @floatFromInt(setstring_elapsed)) / @as(f64, @floatFromInt(fill_elapsed))});
 }
 
 test "benchmark setString high-frequency updates" {

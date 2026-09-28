@@ -264,10 +264,10 @@ test "bench result format includes all fields" {
     };
 
     var output: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&output);
+    var stream: std.Io.Writer = .fixed(&output);
 
-    try result.format("", .{}, stream.writer());
-    const formatted = stream.getWritten();
+    try result.format("", .{}, &stream);
+    const formatted = stream.buffered();
 
     try expectStringContains(formatted, "Test Bench");
     try expectStringContains(formatted, "5000");
@@ -285,10 +285,10 @@ test "bench result format has proper column spacing" {
     };
 
     var output: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&output);
+    var stream: std.Io.Writer = .fixed(&output);
 
-    try result.format("", .{}, stream.writer());
-    const formatted = stream.getWritten();
+    try result.format("", .{}, &stream);
+    const formatted = stream.buffered();
 
     // Verify columns are present: name | iters | ns/op | ops/sec
     try std.testing.expect(std.mem.find(u8, formatted, "iters") != null);
@@ -299,10 +299,10 @@ test "bench result format has proper column spacing" {
 test "benchBuffer output contains all benchmark names" {
     const allocator = std.testing.allocator;
     var buffer: [16384]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
+    var stream: std.Io.Writer = .fixed(&buffer);
 
-    try benchBuffer(allocator, stream.writer());
-    const output = stream.getWritten();
+    try benchBuffer(allocator, &stream);
+    const output = stream.buffered();
 
     try expectStringContains(output, "Buffer init+deinit (80x24 cells)");
     try expectStringContains(output, "Buffer setChar (single character)");
@@ -314,10 +314,10 @@ test "benchBuffer output contains all benchmark names" {
 test "benchBuffer output contains numeric values and columns" {
     const allocator = std.testing.allocator;
     var buffer: [16384]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
+    var stream: std.Io.Writer = .fixed(&buffer);
 
-    try benchBuffer(allocator, stream.writer());
-    const output = stream.getWritten();
+    try benchBuffer(allocator, &stream);
+    const output = stream.buffered();
 
     // Verify output has iteration counts
     try std.testing.expect(std.mem.find(u8, output, "iters") != null);
@@ -335,23 +335,23 @@ test "benchBuffer output contains numeric values and columns" {
 test "benchBuffer completes without error" {
     const allocator = std.testing.allocator;
     var buffer: [16384]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
+    var stream: std.Io.Writer = .fixed(&buffer);
 
     // Should not raise error
-    try benchBuffer(allocator, stream.writer());
+    try benchBuffer(allocator, &stream);
 
     // Verify output is not empty
-    const output = stream.getWritten();
+    const output = stream.buffered();
     try std.testing.expect(output.len > 0);
 }
 
 test "runAll output contains header" {
     const allocator = std.testing.allocator;
     var buffer: [16384]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
+    var stream: std.Io.Writer = .fixed(&buffer);
 
-    try runAll(allocator, stream.writer());
-    const output = stream.getWritten();
+    try runAll(allocator, &stream);
+    const output = stream.buffered();
 
     try expectStringContains(output, "SAILOR PERFORMANCE BENCHMARKS");
 }
@@ -359,10 +359,10 @@ test "runAll output contains header" {
 test "runAll output contains footer" {
     const allocator = std.testing.allocator;
     var buffer: [16384]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
+    var stream: std.Io.Writer = .fixed(&buffer);
 
-    try runAll(allocator, stream.writer());
-    const output = stream.getWritten();
+    try runAll(allocator, &stream);
+    const output = stream.buffered();
 
     try expectStringContains(output, "BENCHMARKS COMPLETE");
 }
@@ -370,10 +370,10 @@ test "runAll output contains footer" {
 test "runAll output contains buffer operations section" {
     const allocator = std.testing.allocator;
     var buffer: [16384]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
+    var stream: std.Io.Writer = .fixed(&buffer);
 
-    try runAll(allocator, stream.writer());
-    const output = stream.getWritten();
+    try runAll(allocator, &stream);
+    const output = stream.buffered();
 
     try expectStringContains(output, "=== Buffer Operations ===");
 }
@@ -381,10 +381,10 @@ test "runAll output contains buffer operations section" {
 test "runAll output contains all benchmark results" {
     const allocator = std.testing.allocator;
     var buffer: [16384]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
+    var stream: std.Io.Writer = .fixed(&buffer);
 
-    try runAll(allocator, stream.writer());
-    const output = stream.getWritten();
+    try runAll(allocator, &stream);
+    const output = stream.buffered();
 
     // Verify output contains benchmark names from benchBuffer
     try expectStringContains(output, "Buffer init+deinit (80x24 cells)");
@@ -397,13 +397,13 @@ test "runAll output contains all benchmark results" {
 test "runAll completes without error" {
     const allocator = std.testing.allocator;
     var buffer: [16384]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
+    var stream: std.Io.Writer = .fixed(&buffer);
 
     // Should not raise error
-    try runAll(allocator, stream.writer());
+    try runAll(allocator, &stream);
 
     // Verify output is not empty
-    const output = stream.getWritten();
+    const output = stream.buffered();
     try std.testing.expect(output.len > 0);
 }
 
@@ -417,10 +417,10 @@ test "bench result with large numbers formats correctly" {
     };
 
     var output: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&output);
+    var stream: std.Io.Writer = .fixed(&output);
 
-    try result.format("", .{}, stream.writer());
-    const formatted = stream.getWritten();
+    try result.format("", .{}, &stream);
+    const formatted = stream.buffered();
 
     // Verify large numbers are included
     try expectStringContains(formatted, "1000000");
@@ -438,10 +438,10 @@ test "bench result with small numbers formats correctly" {
     };
 
     var output: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&output);
+    var stream: std.Io.Writer = .fixed(&output);
 
-    try result.format("", .{}, stream.writer());
-    const formatted = stream.getWritten();
+    try result.format("", .{}, &stream);
+    const formatted = stream.buffered();
 
     try expectStringContains(formatted, "Small");
     try expectStringContains(formatted, "1");

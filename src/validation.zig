@@ -280,7 +280,7 @@ pub const Validator = struct {
         // Simple validation for common regex syntax errors
         if (std.mem.find(u8, pattern, "[unclosed") != null or
             std.mem.findScalar(u8, pattern, '[') != null and
-            std.mem.findScalar(u8, pattern, ']') == null)
+                std.mem.findScalar(u8, pattern, ']') == null)
         {
             return error.InvalidRegex;
         }
@@ -1012,42 +1012,41 @@ test "ValidatorResult format" {
     const testing = std.testing;
 
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     // Valid result
     {
-        fbs.reset();
+        fbs.end = 0;
         const result = ValidatorResult.valid;
         switch (result) {
-            .valid => try writer.writeAll("valid"),
-            .invalid => |msg| try writer.print("invalid: {s}", .{msg}),
-            .pending => try writer.writeAll("pending"),
+            .valid => try fbs.writeAll("valid"),
+            .invalid => |msg| try fbs.print("invalid: {s}", .{msg}),
+            .pending => try fbs.writeAll("pending"),
         }
-        try testing.expectEqualStrings("valid", fbs.getWritten());
+        try testing.expectEqualStrings("valid", fbs.buffered());
     }
 
     // Invalid result with message
     {
-        fbs.reset();
+        fbs.end = 0;
         const result = ValidatorResult{ .invalid = "Email must contain @ sign" };
         switch (result) {
-            .valid => try writer.writeAll("valid"),
-            .invalid => |msg| try writer.print("invalid: {s}", .{msg}),
-            .pending => try writer.writeAll("pending"),
+            .valid => try fbs.writeAll("valid"),
+            .invalid => |msg| try fbs.print("invalid: {s}", .{msg}),
+            .pending => try fbs.writeAll("pending"),
         }
-        try testing.expectEqualStrings("invalid: Email must contain @ sign", fbs.getWritten());
+        try testing.expectEqualStrings("invalid: Email must contain @ sign", fbs.buffered());
     }
 
     // Pending result
     {
-        fbs.reset();
+        fbs.end = 0;
         const result = ValidatorResult.pending;
         switch (result) {
-            .valid => try writer.writeAll("valid"),
-            .invalid => |msg| try writer.print("invalid: {s}", .{msg}),
-            .pending => try writer.writeAll("pending"),
+            .valid => try fbs.writeAll("valid"),
+            .invalid => |msg| try fbs.print("invalid: {s}", .{msg}),
+            .pending => try fbs.writeAll("pending"),
         }
-        try testing.expectEqualStrings("pending", fbs.getWritten());
+        try testing.expectEqualStrings("pending", fbs.buffered());
     }
 }

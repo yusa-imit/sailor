@@ -112,7 +112,7 @@ pub const Profiler = struct {
             .current_frame = 0,
             .threshold_ms = threshold_ms,
             .scope_stack = .empty,
-            .root_scopes = .{},
+            .root_scopes = .empty,
         };
     }
 

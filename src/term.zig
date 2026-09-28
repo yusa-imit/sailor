@@ -727,10 +727,10 @@ pub fn queryTerminalCapability(
 
     // Build and send query
     var query_buf: [256]u8 = undefined;
-    var query_stream = io.fixedBufferStream(&query_buf);
-    try buildXtgettcapQuery(query_stream.writer(), allocator, capability_name);
+    var query_stream: std.Io.Writer = .fixed(&query_buf);
+    try buildXtgettcapQuery(&query_stream, allocator, capability_name);
 
-    const query = query_stream.getWritten();
+    const query = query_stream.buffered();
     _ = try posix.write(fd, query);
 
     // Read response with timeout
@@ -1083,21 +1083,21 @@ test "hex decode XTGETTCAP response value" {
 test "build XTGETTCAP query sequence" {
     const allocator = std.testing.allocator;
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // Query for "Sixel"
-    try buildXtgettcapQuery(stream.writer(), allocator, "Sixel");
-    try std.testing.expectEqualStrings("\x1bP+q536978656c\x1b\\", stream.getWritten());
+    try buildXtgettcapQuery(&stream, allocator, "Sixel");
+    try std.testing.expectEqualStrings("\x1bP+q536978656c\x1b\\", stream.buffered());
 
     // Reset and query for "TN"
-    stream.reset();
-    try buildXtgettcapQuery(stream.writer(), allocator, "TN");
-    try std.testing.expectEqualStrings("\x1bP+q544e\x1b\\", stream.getWritten());
+    stream.end = 0;
+    try buildXtgettcapQuery(&stream, allocator, "TN");
+    try std.testing.expectEqualStrings("\x1bP+q544e\x1b\\", stream.buffered());
 
     // Reset and query for "RGB"
-    stream.reset();
-    try buildXtgettcapQuery(stream.writer(), allocator, "RGB");
-    try std.testing.expectEqualStrings("\x1bP+q524742\x1b\\", stream.getWritten());
+    stream.end = 0;
+    try buildXtgettcapQuery(&stream, allocator, "RGB");
+    try std.testing.expectEqualStrings("\x1bP+q524742\x1b\\", stream.buffered());
 }
 
 test "parse XTGETTCAP response - capability supported with value" {
@@ -1325,39 +1325,39 @@ test "XTGETTCAP common capabilities" {
 
 test "BracketedPaste.enable writes correct escape sequence" {
     var buf: [64]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    const bp = try BracketedPaste.enable(stream.writer().any());
+    const bp = try BracketedPaste.enable(&stream);
     defer bp.deinit();
 
     // Should write CSI ? 2004 h
-    try std.testing.expectEqualStrings("\x1b[?2004h", stream.getWritten());
+    try std.testing.expectEqualStrings("\x1b[?2004h", stream.buffered());
 }
 
 test "BracketedPaste.deinit writes disable sequence" {
     var buf: [64]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    var bp = try BracketedPaste.enable(stream.writer().any());
+    var bp = try BracketedPaste.enable(&stream);
 
     // Reset buffer to capture only deinit output
-    stream.reset();
+    stream.end = 0;
     bp.deinit();
 
     // Should write CSI ? 2004 l
-    try std.testing.expectEqualStrings("\x1b[?2004l", stream.getWritten());
+    try std.testing.expectEqualStrings("\x1b[?2004l", stream.buffered());
 }
 
 test "BracketedPaste RAII disables on scope exit" {
     var buf: [128]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     {
-        var bp = try BracketedPaste.enable(stream.writer().any());
+        var bp = try BracketedPaste.enable(&stream);
         defer bp.deinit();
     }
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should contain both enable and disable sequences
     try std.testing.expect(std.mem.find(u8, written, "\x1b[?2004h") != null);
     try std.testing.expect(std.mem.find(u8, written, "\x1b[?2004l") != null);
@@ -1411,25 +1411,25 @@ test "isPasteStart and isPasteEnd are exact matches" {
 
 test "BracketedPaste multiple enable/disable cycles" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // First cycle
     {
-        var bp = try BracketedPaste.enable(stream.writer().any());
+        var bp = try BracketedPaste.enable(&stream);
         defer bp.deinit();
     }
 
-    const first_written = stream.getWritten();
+    const first_written = stream.buffered();
     try std.testing.expectEqualStrings("\x1b[?2004h\x1b[?2004l", first_written);
 
     // Second cycle
-    stream.reset();
+    stream.end = 0;
     {
-        var bp = try BracketedPaste.enable(stream.writer().any());
+        var bp = try BracketedPaste.enable(&stream);
         defer bp.deinit();
     }
 
-    const second_written = stream.getWritten();
+    const second_written = stream.buffered();
     try std.testing.expectEqualStrings("\x1b[?2004h\x1b[?2004l", second_written);
 }
 
@@ -1437,39 +1437,39 @@ test "BracketedPaste multiple enable/disable cycles" {
 
 test "SynchronizedOutput.begin writes correct escape sequence" {
     var buf: [64]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    const sync = try SynchronizedOutput.begin(stream.writer().any());
+    const sync = try SynchronizedOutput.begin(&stream);
     defer sync.end();
 
     // Should write CSI ? 2026 h
-    try std.testing.expectEqualStrings("\x1b[?2026h", stream.getWritten());
+    try std.testing.expectEqualStrings("\x1b[?2026h", stream.buffered());
 }
 
 test "SynchronizedOutput.end writes flush sequence" {
     var buf: [64]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    var sync = try SynchronizedOutput.begin(stream.writer().any());
+    var sync = try SynchronizedOutput.begin(&stream);
 
     // Reset buffer to capture only end output
-    stream.reset();
+    stream.end = 0;
     sync.end();
 
     // Should write CSI ? 2026 l
-    try std.testing.expectEqualStrings("\x1b[?2026l", stream.getWritten());
+    try std.testing.expectEqualStrings("\x1b[?2026l", stream.buffered());
 }
 
 test "SynchronizedOutput RAII flushes on scope exit" {
     var buf: [128]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     {
-        var sync = try SynchronizedOutput.begin(stream.writer().any());
+        var sync = try SynchronizedOutput.begin(&stream);
         defer sync.end();
     }
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should contain both begin and end sequences
     try std.testing.expect(std.mem.find(u8, written, "\x1b[?2026h") != null);
     try std.testing.expect(std.mem.find(u8, written, "\x1b[?2026l") != null);
@@ -1477,20 +1477,19 @@ test "SynchronizedOutput RAII flushes on scope exit" {
 
 test "SynchronizedOutput prevents tearing during rapid updates" {
     var buf: [512]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     {
-        var sync = try SynchronizedOutput.begin(stream.writer().any());
+        var sync = try SynchronizedOutput.begin(&stream);
         defer sync.end();
 
         // Simulate multiple rapid writes that would normally tear
-        const writer = stream.writer().any();
-        try writer.writeAll("Line 1\n");
-        try writer.writeAll("Line 2\n");
-        try writer.writeAll("Line 3\n");
+        try stream.writeAll("Line 1\n");
+        try stream.writeAll("Line 2\n");
+        try stream.writeAll("Line 3\n");
     }
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should have begin sequence, content, then end sequence
     try std.testing.expect(std.mem.startsWith(u8, written, "\x1b[?2026h"));
     try std.testing.expect(std.mem.endsWith(u8, written, "\x1b[?2026l"));
@@ -1499,49 +1498,49 @@ test "SynchronizedOutput prevents tearing during rapid updates" {
 
 test "SynchronizedOutput multiple begin/end cycles" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // First cycle
     {
-        var sync = try SynchronizedOutput.begin(stream.writer().any());
+        var sync = try SynchronizedOutput.begin(&stream);
         defer sync.end();
     }
 
-    const first_written = stream.getWritten();
+    const first_written = stream.buffered();
     try std.testing.expectEqualStrings("\x1b[?2026h\x1b[?2026l", first_written);
 
     // Second cycle
-    stream.reset();
+    stream.end = 0;
     {
-        var sync = try SynchronizedOutput.begin(stream.writer().any());
+        var sync = try SynchronizedOutput.begin(&stream);
         defer sync.end();
     }
 
-    const second_written = stream.getWritten();
+    const second_written = stream.buffered();
     try std.testing.expectEqualStrings("\x1b[?2026h\x1b[?2026l", second_written);
 }
 
 test "SynchronizedOutput nested begin/end is safe" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     {
-        var outer = try SynchronizedOutput.begin(stream.writer().any());
+        var outer = try SynchronizedOutput.begin(&stream);
         defer outer.end();
 
-        try stream.writer().any().writeAll("outer\n");
+        try stream.writeAll("outer\n");
 
         {
-            var inner = try SynchronizedOutput.begin(stream.writer().any());
+            var inner = try SynchronizedOutput.begin(&stream);
             defer inner.end();
 
-            try stream.writer().any().writeAll("inner\n");
+            try stream.writeAll("inner\n");
         }
 
-        try stream.writer().any().writeAll("outer again\n");
+        try stream.writeAll("outer again\n");
     }
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should have multiple begin/end pairs
     const begin_count = std.mem.count(u8, written, "\x1b[?2026h");
     const end_count = std.mem.count(u8, written, "\x1b[?2026l");
@@ -1553,11 +1552,11 @@ test "SynchronizedOutput nested begin/end is safe" {
 
 test "writeHyperlink basic usage" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writeHyperlink(stream.writer().any(), "https://example.com", "Example Link");
+    try writeHyperlink(&stream, "https://example.com", "Example Link");
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should be: OSC 8 ; ; url ST text OSC 8 ; ; ST
     const expected = "\x1b]8;;https://example.com\x1b\\Example Link\x1b]8;;\x1b\\";
     try std.testing.expectEqualStrings(expected, written);
@@ -1565,11 +1564,11 @@ test "writeHyperlink basic usage" {
 
 test "writeHyperlink empty url" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writeHyperlink(stream.writer().any(), "", "Plain text");
+    try writeHyperlink(&stream, "", "Plain text");
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should still wrap with OSC 8 sequences
     const expected = "\x1b]8;;\x1b\\Plain text\x1b]8;;\x1b\\";
     try std.testing.expectEqualStrings(expected, written);
@@ -1577,23 +1576,23 @@ test "writeHyperlink empty url" {
 
 test "writeHyperlink special characters in url" {
     var buf: [512]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const url = "https://example.com/path?query=value&foo=bar#anchor";
-    try writeHyperlink(stream.writer().any(), url, "Complex URL");
+    try writeHyperlink(&stream, url, "Complex URL");
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     try std.testing.expect(std.mem.find(u8, written, url) != null);
     try std.testing.expect(std.mem.find(u8, written, "Complex URL") != null);
 }
 
 test "writeHyperlinkWithParams adds parameters" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writeHyperlinkWithParams(stream.writer().any(), "id=abc123", "https://example.com", "Link with ID");
+    try writeHyperlinkWithParams(&stream, "id=abc123", "https://example.com", "Link with ID");
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should include params: OSC 8 ; id=abc123 ; url ST text OSC 8 ; ; ST
     const expected = "\x1b]8;id=abc123;https://example.com\x1b\\Link with ID\x1b]8;;\x1b\\";
     try std.testing.expectEqualStrings(expected, written);
@@ -1601,11 +1600,11 @@ test "writeHyperlinkWithParams adds parameters" {
 
 test "writeHyperlinkWithParams empty params" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writeHyperlinkWithParams(stream.writer().any(), "", "https://example.com", "No params");
+    try writeHyperlinkWithParams(&stream, "", "https://example.com", "No params");
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should be same as writeHyperlink: OSC 8 ; ; url ST text OSC 8 ; ; ST
     const expected = "\x1b]8;;https://example.com\x1b\\No params\x1b]8;;\x1b\\";
     try std.testing.expectEqualStrings(expected, written);
@@ -1613,13 +1612,13 @@ test "writeHyperlinkWithParams empty params" {
 
 test "writeHyperlink multiple links in sequence" {
     var buf: [512]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writeHyperlink(stream.writer().any(), "https://first.com", "First");
-    try stream.writer().any().writeAll(" - ");
-    try writeHyperlink(stream.writer().any(), "https://second.com", "Second");
+    try writeHyperlink(&stream, "https://first.com", "First");
+    try stream.writeAll(" - ");
+    try writeHyperlink(&stream, "https://second.com", "Second");
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     try std.testing.expect(std.mem.find(u8, written, "https://first.com") != null);
     try std.testing.expect(std.mem.find(u8, written, "First") != null);
     try std.testing.expect(std.mem.find(u8, written, "https://second.com") != null);
@@ -1629,22 +1628,22 @@ test "writeHyperlink multiple links in sequence" {
 
 test "writeHyperlink unicode text" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writeHyperlink(stream.writer().any(), "https://example.com", "링크 🔗 Link");
+    try writeHyperlink(&stream, "https://example.com", "링크 🔗 Link");
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     try std.testing.expect(std.mem.find(u8, written, "링크 🔗 Link") != null);
     try std.testing.expect(std.mem.find(u8, written, "https://example.com") != null);
 }
 
 test "writeHyperlinkWithParams multiple params" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writeHyperlinkWithParams(stream.writer().any(), "id=x:type=external", "https://example.com", "Multi-param");
+    try writeHyperlinkWithParams(&stream, "id=x:type=external", "https://example.com", "Multi-param");
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     try std.testing.expect(std.mem.find(u8, written, "id=x:type=external") != null);
     try std.testing.expect(std.mem.find(u8, written, "https://example.com") != null);
 }
@@ -1653,39 +1652,39 @@ test "writeHyperlinkWithParams multiple params" {
 
 test "FocusTracking.enable writes correct escape sequence" {
     var buf: [64]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    const focus = try FocusTracking.enable(stream.writer().any());
+    const focus = try FocusTracking.enable(&stream);
     defer focus.deinit();
 
     // Should write CSI ? 1004 h
-    try std.testing.expectEqualStrings("\x1b[?1004h", stream.getWritten());
+    try std.testing.expectEqualStrings("\x1b[?1004h", stream.buffered());
 }
 
 test "FocusTracking.deinit writes disable sequence" {
     var buf: [64]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    var focus = try FocusTracking.enable(stream.writer().any());
+    var focus = try FocusTracking.enable(&stream);
 
     // Reset buffer to capture only deinit output
-    stream.reset();
+    stream.end = 0;
     focus.deinit();
 
     // Should write CSI ? 1004 l
-    try std.testing.expectEqualStrings("\x1b[?1004l", stream.getWritten());
+    try std.testing.expectEqualStrings("\x1b[?1004l", stream.buffered());
 }
 
 test "FocusTracking RAII disables on scope exit" {
     var buf: [128]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     {
-        var focus = try FocusTracking.enable(stream.writer().any());
+        var focus = try FocusTracking.enable(&stream);
         defer focus.deinit();
     }
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should contain both enable and disable sequences
     try std.testing.expect(std.mem.find(u8, written, "\x1b[?1004h") != null);
     try std.testing.expect(std.mem.find(u8, written, "\x1b[?1004l") != null);
@@ -1741,33 +1740,33 @@ test "isFocusIn and isFocusOut detect sequences in buffers" {
 
 test "FocusTracking multiple enable/disable cycles" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // First cycle
     {
-        var focus = try FocusTracking.enable(stream.writer().any());
+        var focus = try FocusTracking.enable(&stream);
         defer focus.deinit();
     }
 
-    const first_written = stream.getWritten();
+    const first_written = stream.buffered();
     try std.testing.expectEqualStrings("\x1b[?1004h\x1b[?1004l", first_written);
 
     // Second cycle
-    stream.reset();
+    stream.end = 0;
     {
-        var focus = try FocusTracking.enable(stream.writer().any());
+        var focus = try FocusTracking.enable(&stream);
         defer focus.deinit();
     }
 
-    const second_written = stream.getWritten();
+    const second_written = stream.buffered();
     try std.testing.expectEqualStrings("\x1b[?1004h\x1b[?1004l", second_written);
 }
 
 test "FocusTracking with simulated focus events" {
     var enable_buf: [64]u8 = undefined;
-    var enable_stream = std.io.fixedBufferStream(&enable_buf);
+    var enable_stream: std.Io.Writer = .fixed(&enable_buf);
 
-    var focus = try FocusTracking.enable(enable_stream.writer().any());
+    var focus = try FocusTracking.enable(&enable_stream);
     defer focus.deinit();
 
     // Simulate receiving focus events (in real usage, these come from terminal input)
@@ -1937,9 +1936,9 @@ test "writeHyperlink output length is exactly escape bytes plus input lengths" {
     };
     var buf: [256]u8 = undefined;
     for (cases) |case| {
-        var stream = std.io.fixedBufferStream(&buf);
-        try writeHyperlink(stream.writer().any(), case.url, case.text);
-        const written = stream.getWritten();
+        var stream: std.Io.Writer = .fixed(&buf);
+        try writeHyperlink(&stream, case.url, case.text);
+        const written = stream.buffered();
         const expected_len = 5 + case.url.len + 2 + case.text.len + 7;
         try std.testing.expectEqual(expected_len, written.len);
         try std.testing.expect(std.mem.startsWith(u8, written, "\x1b]8;;"));
@@ -1958,9 +1957,9 @@ test "writeHyperlinkWithParams output length is exactly escape bytes plus input 
     };
     var buf: [256]u8 = undefined;
     for (cases) |case| {
-        var stream = std.io.fixedBufferStream(&buf);
-        try writeHyperlinkWithParams(stream.writer().any(), case.params, case.url, case.text);
-        const written = stream.getWritten();
+        var stream: std.Io.Writer = .fixed(&buf);
+        try writeHyperlinkWithParams(&stream, case.params, case.url, case.text);
+        const written = stream.buffered();
         const expected_len = 4 + case.params.len + 1 + case.url.len + 2 + case.text.len + 7;
         try std.testing.expectEqual(expected_len, written.len);
         try std.testing.expect(std.mem.startsWith(u8, written, "\x1b]8;"));
@@ -2029,9 +2028,9 @@ test "buildXtgettcapQuery: written length equals DCS+ST literal bytes plus twice
     const names = [_][]const u8{ "", "a", "Sixel", "setrgbb" };
     var buf: [256]u8 = undefined;
     for (names) |name| {
-        var stream = std.io.fixedBufferStream(&buf);
-        try buildXtgettcapQuery(stream.writer(), allocator, name);
-        const written = stream.getWritten();
+        var stream: std.Io.Writer = .fixed(&buf);
+        try buildXtgettcapQuery(&stream, allocator, name);
+        const written = stream.buffered();
         try std.testing.expectEqual(@as(usize, 6) + name.len * 2, written.len);
         try std.testing.expect(std.mem.startsWith(u8, written, "\x1bP+q"));
         try std.testing.expect(std.mem.endsWith(u8, written, "\x1b\\"));

@@ -78,12 +78,12 @@ test "Rect.withAspectRatio handles height-constrained case" {
 
 test "Rect.debugFormat writes rectangle info" {
     var buf: [64]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const r = Rect{ .x = 10, .y = 20, .width = 30, .height = 40 };
 
-    try r.debugFormat(stream.writer());
+    try r.debugFormat(&stream);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     try std.testing.expect(std.mem.find(u8, output, "x=10") != null);
     try std.testing.expect(std.mem.find(u8, output, "y=20") != null);
     try std.testing.expect(std.mem.find(u8, output, "width=30") != null);

@@ -2113,12 +2113,12 @@ test "Rect.debugFormat formats simple rect" {
     const allocator = std.testing.allocator;
     _ = allocator;
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const r = Rect{ .x = 10, .y = 5, .width = 80, .height = 24 };
-    try r.debugFormat(stream.writer());
+    try r.debugFormat(&stream);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     // Should contain: "Rect{x=10, y=5, width=80, height=24}"
     try std.testing.expect(std.mem.find(u8, output, "x=10") != null);
     try std.testing.expect(std.mem.find(u8, output, "y=5") != null);
@@ -2130,12 +2130,12 @@ test "Rect.debugFormat handles zero dimensions" {
     const allocator = std.testing.allocator;
     _ = allocator;
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const r = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
-    try r.debugFormat(stream.writer());
+    try r.debugFormat(&stream);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     try std.testing.expect(std.mem.find(u8, output, "x=0") != null);
     try std.testing.expect(std.mem.find(u8, output, "y=0") != null);
     try std.testing.expect(std.mem.find(u8, output, "width=0") != null);
@@ -2364,11 +2364,11 @@ test "LayoutDebugger.print outputs constraint info" {
     defer allocator.free(nodes);
 
     var buf: [1024]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try debugger.print(stream.writer());
+    try debugger.print(&stream);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     // Should contain constraint types
     try std.testing.expect(std.mem.find(u8, output, "length") != null);
     try std.testing.expect(std.mem.find(u8, output, "percentage") != null);
@@ -2392,11 +2392,11 @@ test "LayoutDebugger.print shows tree indentation" {
     defer allocator.free(nodes);
 
     var buf: [2048]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try debugger.print(stream.writer());
+    try debugger.print(&stream);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     // Should show constraint info and rect info
     try std.testing.expect(output.len > 0);
     try std.testing.expect(std.mem.find(u8, output, "Constraint:") != null);
@@ -2419,11 +2419,11 @@ test "LayoutDebugger.print nested layout shows hierarchy" {
     defer allocator.free(nodes);
 
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try debugger.print(stream.writer());
+    try debugger.print(&stream);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     // Nested structures should show different indentation levels
     try std.testing.expect(output.len > 0);
 }
@@ -2469,11 +2469,11 @@ test "LayoutDebugger deeply nested layout (5 levels)" {
     defer allocator.free(nodes5);
 
     var buf: [8192]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try debugger.print(stream.writer());
+    try debugger.print(&stream);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     // Deep nesting should be visible in output
     try std.testing.expect(output.len > 100);
 }
@@ -2493,11 +2493,11 @@ test "LayoutDebugger.print with rect coordinates" {
     defer allocator.free(nodes);
 
     var buf: [2048]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try debugger.print(stream.writer());
+    try debugger.print(&stream);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     // Should show x, y coordinates
     try std.testing.expect(std.mem.find(u8, output, "x=") != null);
     try std.testing.expect(std.mem.find(u8, output, "y=") != null);
@@ -2521,11 +2521,11 @@ test "LayoutDebugger handles zero-size rects" {
     try std.testing.expectEqual(0, nodes[0].rect.width);
 
     var buf: [1024]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try debugger.print(stream.writer());
+    try debugger.print(&stream);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     try std.testing.expect(output.len > 0);
 }
 
@@ -2955,10 +2955,10 @@ test "Rect.debugFormat - output" {
     const rect = Rect{ .x = 10, .y = 20, .width = 80, .height = 24 };
 
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    try rect.debugFormat(fbs.writer());
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try rect.debugFormat(&fbs);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     try std.testing.expect(std.mem.find(u8, output, "Rect{") != null);
     try std.testing.expect(std.mem.find(u8, output, "x=10") != null);
     try std.testing.expect(std.mem.find(u8, output, "y=20") != null);

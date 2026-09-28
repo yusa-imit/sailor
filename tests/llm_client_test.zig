@@ -66,10 +66,10 @@ test "LlmClient - stream handles connection error gracefully" {
     defer client.deinit();
 
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     // Should return error.ConnectionFailed
-    const result = client.stream("test prompt", fbs.writer());
+    const result = client.stream("test prompt", &fbs);
     try testing.expectError(error.ConnectionFailed, result);
 }
 
@@ -327,16 +327,16 @@ test "LlmClient - circuit breaker opens after consecutive failures" {
     // Fail 3 times to open circuit breaker
     var i: u32 = 0;
     while (i < 3) : (i += 1) {
-        var fbs = std.io.fixedBufferStream(&buf);
-        _ = client.streamWithRetry("test", fbs.writer()) catch {};
+        var fbs: std.Io.Writer = .fixed(&buf);
+        _ = client.streamWithRetry("test", &fbs) catch {};
     }
 
     // Circuit breaker should now be open
     try testing.expect(client.circuit_breaker_open);
 
     // Next request should fail immediately with CircuitBreakerOpen
-    var fbs = std.io.fixedBufferStream(&buf);
-    const result = client.streamWithRetry("test", fbs.writer());
+    var fbs: std.Io.Writer = .fixed(&buf);
+    const result = client.streamWithRetry("test", &fbs);
     try testing.expectError(error.CircuitBreakerOpen, result);
 }
 

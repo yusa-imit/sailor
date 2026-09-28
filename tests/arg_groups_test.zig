@@ -14,13 +14,12 @@ test "Parser with argument groups" {
     };
 
     var buf: [1024]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const P = arg.Parser(&flags);
-    try P.writeHelp(writer);
+    try P.writeHelp(&fbs);
 
-    const help = fbs.getWritten();
+    const help = fbs.buffered();
 
     // Should have group headers
     try testing.expect(std.mem.find(u8, help, "Input Options:") != null);
@@ -46,13 +45,12 @@ test "Parser with mixed grouped and ungrouped flags" {
     };
 
     var buf: [1024]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const P = arg.Parser(&flags);
-    try P.writeHelp(writer);
+    try P.writeHelp(&fbs);
 
-    const help = fbs.getWritten();
+    const help = fbs.buffered();
 
     // Should have "Options:" for ungrouped flags
     try testing.expect(std.mem.find(u8, help, "Options:") != null);

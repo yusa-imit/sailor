@@ -215,7 +215,6 @@ pub const Heatmap = struct {
 
 // Tests
 const testing = std.testing;
-const fixedBufferStream = std.io.fixedBufferStream;
 
 test "heatmap: basic render" {
     const data = [_][]const f64{
@@ -305,7 +304,7 @@ test "heatmap: empty data" {
 
 test "heatmap: zero area" {
     const data = [_][]const f64{
-        &[_]f64{ 1.0 },
+        &[_]f64{1.0},
     };
     const heatmap = Heatmap{ .data = &data };
     var buffer = try Buffer.init(testing.allocator, 10, 5);

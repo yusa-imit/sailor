@@ -56,7 +56,7 @@ pub const ErrorBoundary = struct {
     pub fn init(allocator: Allocator) !ErrorBoundary {
         return .{
             .allocator = allocator,
-            .errors = .{},
+            .errors = .empty,
             .fallback_message = "",
             .max_errors = 1000, // Default max
             .error_callback = null,
@@ -206,7 +206,7 @@ pub const StateRecovery = struct {
         return .{
             .allocator = allocator,
             .snapshot = null,
-            .snapshot_stack = .{},
+            .snapshot_stack = .empty,
             .validator = null,
             .rollback_counter = 0,
             .compression_threshold = std.math.maxInt(usize), // Disabled by default
@@ -1025,7 +1025,7 @@ pub const ErrorInjector = struct {
         const result = try self.injections.getOrPut(widget_name);
         if (!result.found_existing) {
             result.key_ptr.* = try self.allocator.dupe(u8, widget_name);
-            result.value_ptr.* = .{};
+            result.value_ptr.* = .empty;
         }
         try result.value_ptr.append(self.allocator, entry);
     }

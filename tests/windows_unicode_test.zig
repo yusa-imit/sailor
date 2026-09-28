@@ -127,18 +127,17 @@ test "Windows console control character handling" {
 
     // Control characters (U+0000 to U+001F) should be handled carefully
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer().any();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     // Test common control characters
-    try writer.writeByte(0x07); // Bell (BEL)
-    try writer.writeByte(0x08); // Backspace (BS)
-    try writer.writeByte(0x09); // Tab (HT)
-    try writer.writeByte(0x0A); // Line feed (LF)
-    try writer.writeByte(0x0D); // Carriage return (CR)
-    try writer.writeByte(0x1B); // Escape (ESC)
+    try fbs.writeByte(0x07); // Bell (BEL)
+    try fbs.writeByte(0x08); // Backspace (BS)
+    try fbs.writeByte(0x09); // Tab (HT)
+    try fbs.writeByte(0x0A); // Line feed (LF)
+    try fbs.writeByte(0x0D); // Carriage return (CR)
+    try fbs.writeByte(0x1B); // Escape (ESC)
 
-    const written = fbs.getWritten();
+    const written = fbs.buffered();
     try testing.expectEqual(@as(usize, 6), written.len);
 }
 
@@ -147,19 +146,18 @@ test "Windows console ANSI escape sequence handling" {
 
     // Windows 10+ supports ANSI escape sequences
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer().any();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     // Test basic color codes
-    try writer.writeAll("\x1b[31m"); // Red foreground
-    try writer.writeAll("RED");
-    try writer.writeAll("\x1b[0m"); // Reset
+    try fbs.writeAll("\x1b[31m"); // Red foreground
+    try fbs.writeAll("RED");
+    try fbs.writeAll("\x1b[0m"); // Reset
 
-    try writer.writeAll("\x1b[42m"); // Green background
-    try writer.writeAll("GREEN");
-    try writer.writeAll("\x1b[0m"); // Reset
+    try fbs.writeAll("\x1b[42m"); // Green background
+    try fbs.writeAll("GREEN");
+    try fbs.writeAll("\x1b[0m"); // Reset
 
-    const written = fbs.getWritten();
+    const written = fbs.buffered();
     try testing.expect(written.len > 0);
     try testing.expect(std.mem.find(u8, written, "\x1b[31m") != null);
     try testing.expect(std.mem.find(u8, written, "\x1b[42m") != null);
@@ -170,24 +168,23 @@ test "Windows console CSI sequence parsing" {
 
     // Test Control Sequence Introducer (CSI) sequences
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer().any();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     // Cursor movement
-    try writer.writeAll("\x1b[1A"); // Cursor up 1
-    try writer.writeAll("\x1b[2B"); // Cursor down 2
-    try writer.writeAll("\x1b[3C"); // Cursor forward 3
-    try writer.writeAll("\x1b[4D"); // Cursor back 4
+    try fbs.writeAll("\x1b[1A"); // Cursor up 1
+    try fbs.writeAll("\x1b[2B"); // Cursor down 2
+    try fbs.writeAll("\x1b[3C"); // Cursor forward 3
+    try fbs.writeAll("\x1b[4D"); // Cursor back 4
 
     // Cursor positioning
-    try writer.writeAll("\x1b[10;20H"); // Move to row 10, col 20
+    try fbs.writeAll("\x1b[10;20H"); // Move to row 10, col 20
 
     // Erase sequences
-    try writer.writeAll("\x1b[J"); // Clear from cursor to end of screen
-    try writer.writeAll("\x1b[2J"); // Clear entire screen
-    try writer.writeAll("\x1b[K"); // Clear from cursor to end of line
+    try fbs.writeAll("\x1b[J"); // Clear from cursor to end of screen
+    try fbs.writeAll("\x1b[2J"); // Clear entire screen
+    try fbs.writeAll("\x1b[K"); // Clear from cursor to end of line
 
-    const written = fbs.getWritten();
+    const written = fbs.buffered();
     try testing.expect(written.len > 0);
 }
 
@@ -195,23 +192,22 @@ test "Windows console SGR (Select Graphic Rendition) parameters" {
     if (builtin.os.tag != .windows) return error.SkipZigTest;
 
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer().any();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     // SGR parameters (CSI Pm m)
-    try writer.writeAll("\x1b[0m"); // Reset
-    try writer.writeAll("\x1b[1m"); // Bold
-    try writer.writeAll("\x1b[2m"); // Dim
-    try writer.writeAll("\x1b[3m"); // Italic
-    try writer.writeAll("\x1b[4m"); // Underline
-    try writer.writeAll("\x1b[7m"); // Reverse video
-    try writer.writeAll("\x1b[8m"); // Concealed
-    try writer.writeAll("\x1b[9m"); // Strikethrough
+    try fbs.writeAll("\x1b[0m"); // Reset
+    try fbs.writeAll("\x1b[1m"); // Bold
+    try fbs.writeAll("\x1b[2m"); // Dim
+    try fbs.writeAll("\x1b[3m"); // Italic
+    try fbs.writeAll("\x1b[4m"); // Underline
+    try fbs.writeAll("\x1b[7m"); // Reverse video
+    try fbs.writeAll("\x1b[8m"); // Concealed
+    try fbs.writeAll("\x1b[9m"); // Strikethrough
 
     // Multiple parameters
-    try writer.writeAll("\x1b[1;31;42m"); // Bold, red fg, green bg
+    try fbs.writeAll("\x1b[1;31;42m"); // Bold, red fg, green bg
 
-    const written = fbs.getWritten();
+    const written = fbs.buffered();
     try testing.expect(written.len > 0);
 }
 
@@ -219,20 +215,19 @@ test "Windows console 256-color mode" {
     if (builtin.os.tag != .windows) return error.SkipZigTest;
 
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer().any();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     // 256-color foreground: CSI 38 ; 5 ; N m
-    try writer.writeAll("\x1b[38;5;196m"); // Bright red (196)
-    try writer.writeAll("256-color");
-    try writer.writeAll("\x1b[0m");
+    try fbs.writeAll("\x1b[38;5;196m"); // Bright red (196)
+    try fbs.writeAll("256-color");
+    try fbs.writeAll("\x1b[0m");
 
     // 256-color background: CSI 48 ; 5 ; N m
-    try writer.writeAll("\x1b[48;5;21m"); // Blue background (21)
-    try writer.writeAll("BG");
-    try writer.writeAll("\x1b[0m");
+    try fbs.writeAll("\x1b[48;5;21m"); // Blue background (21)
+    try fbs.writeAll("BG");
+    try fbs.writeAll("\x1b[0m");
 
-    const written = fbs.getWritten();
+    const written = fbs.buffered();
     try testing.expect(std.mem.find(u8, written, "\x1b[38;5;196m") != null);
     try testing.expect(std.mem.find(u8, written, "\x1b[48;5;21m") != null);
 }
@@ -241,20 +236,19 @@ test "Windows console 24-bit truecolor mode" {
     if (builtin.os.tag != .windows) return error.SkipZigTest;
 
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer().any();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     // 24-bit foreground: CSI 38 ; 2 ; R ; G ; B m
-    try writer.writeAll("\x1b[38;2;255;128;64m"); // RGB(255, 128, 64)
-    try writer.writeAll("truecolor");
-    try writer.writeAll("\x1b[0m");
+    try fbs.writeAll("\x1b[38;2;255;128;64m"); // RGB(255, 128, 64)
+    try fbs.writeAll("truecolor");
+    try fbs.writeAll("\x1b[0m");
 
     // 24-bit background: CSI 48 ; 2 ; R ; G ; B m
-    try writer.writeAll("\x1b[48;2;32;64;128m"); // RGB(32, 64, 128)
-    try writer.writeAll("BG");
-    try writer.writeAll("\x1b[0m");
+    try fbs.writeAll("\x1b[48;2;32;64;128m"); // RGB(32, 64, 128)
+    try fbs.writeAll("BG");
+    try fbs.writeAll("\x1b[0m");
 
-    const written = fbs.getWritten();
+    const written = fbs.buffered();
     try testing.expect(std.mem.find(u8, written, "\x1b[38;2;255;128;64m") != null);
     try testing.expect(std.mem.find(u8, written, "\x1b[48;2;32;64;128m") != null);
 }
@@ -269,15 +263,14 @@ test "Windows console legacy console mode vs VT mode" {
     // We test that our library handles both gracefully
     // by using escape sequences that work in both modes
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer().any();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     // In legacy mode, escape sequences are printed literally
     // In VT mode, they're interpreted
     // Our library should not crash in either case
-    try writer.writeAll("\x1b[31mRED\x1b[0m");
+    try fbs.writeAll("\x1b[31mRED\x1b[0m");
 
-    const written = fbs.getWritten();
+    const written = fbs.buffered();
     try testing.expect(written.len > 0);
 }
 
@@ -301,16 +294,15 @@ test "Windows console path separator in escape sequences" {
 
     // Test that backslashes in file paths don't interfere with escape sequences
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer().any();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     // Windows path with backslashes
     const path = "C:\\Users\\test\\file.txt";
-    try writer.writeAll("\x1b[32m"); // Green
-    try writer.writeAll(path);
-    try writer.writeAll("\x1b[0m"); // Reset
+    try fbs.writeAll("\x1b[32m"); // Green
+    try fbs.writeAll(path);
+    try fbs.writeAll("\x1b[0m"); // Reset
 
-    const written = fbs.getWritten();
+    const written = fbs.buffered();
     try testing.expect(std.mem.find(u8, written, path) != null);
 }
 
@@ -398,15 +390,14 @@ test "Windows console newline handling CRLF vs LF" {
     if (builtin.os.tag != .windows) return error.SkipZigTest;
 
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer().any();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     // Windows traditionally uses CRLF (\\r\\n)
-    try writer.writeAll("Line 1\r\n");
-    try writer.writeAll("Line 2\n"); // LF only
-    try writer.writeAll("Line 3\r\n");
+    try fbs.writeAll("Line 1\r\n");
+    try fbs.writeAll("Line 2\n"); // LF only
+    try fbs.writeAll("Line 3\r\n");
 
-    const written = fbs.getWritten();
+    const written = fbs.buffered();
     try testing.expect(std.mem.find(u8, written, "\r\n") != null);
     try testing.expect(std.mem.find(u8, written, "Line 2\n") != null);
 }
@@ -446,13 +437,12 @@ test "Windows console WriteConsoleW vs WriteFile" {
 
     // Our library should work with both by using std.io.Writer
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer().any();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     // Write Unicode text
-    try writer.writeAll("Hello, 世界! 🚢");
+    try fbs.writeAll("Hello, 世界! 🚢");
 
-    const written = fbs.getWritten();
+    const written = fbs.buffered();
     try testing.expect(written.len > 0);
     try testing.expect(std.unicode.utf8ValidateSlice(written));
 }

@@ -466,9 +466,9 @@ const testing = std.testing;
 // Test helper: capture output to buffer
 fn captureOutput(comptime func: anytype, args: anytype) ![]const u8 {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
-    try @call(.auto, func, .{stream.writer()} ++ args);
-    return stream.getWritten();
+    var stream: std.Io.Writer = .fixed(&buf);
+    try @call(.auto, func, .{&stream} ++ args);
+    return stream.buffered();
 }
 
 // ============================================================================
@@ -477,11 +477,11 @@ fn captureOutput(comptime func: anytype, args: anytype) ![]const u8 {
 
 test "write simple ASCII text to clipboard" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.write(stream.writer(), "hello", .clipboard);
+    try Clipboard.write(&stream, "hello", .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     const expected = "\x1b]52;c;aGVsbG8=\x07"; // "hello" in base64
 
     try testing.expectEqualStrings(expected, output);
@@ -489,12 +489,12 @@ test "write simple ASCII text to clipboard" {
 
 test "write Unicode and emoji text" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const text = "Hello 世界 🚀";
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     // Base64 of "Hello 世界 🚀"
     const expected = "\x1b]52;c;SGVsbG8g5LiW55WMIPCfmoA=\x07";
 
@@ -503,11 +503,11 @@ test "write Unicode and emoji text" {
 
 test "write empty string to clipboard" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.write(stream.writer(), "", .clipboard);
+    try Clipboard.write(&stream, "", .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     const expected = "\x1b]52;c;\x07"; // Empty base64 section
 
     try testing.expectEqualStrings(expected, output);
@@ -515,19 +515,19 @@ test "write empty string to clipboard" {
 
 test "write to different selections" {
     var buf1: [4096]u8 = undefined;
-    var stream1 = std.io.fixedBufferStream(&buf1);
-    try Clipboard.write(stream1.writer(), "text", .clipboard);
-    try testing.expect(std.mem.find(u8, stream1.getWritten(), ";c;") != null);
+    var stream1: std.Io.Writer = .fixed(&buf1);
+    try Clipboard.write(&stream1, "text", .clipboard);
+    try testing.expect(std.mem.find(u8, stream1.buffered(), ";c;") != null);
 
     var buf2: [4096]u8 = undefined;
-    var stream2 = std.io.fixedBufferStream(&buf2);
-    try Clipboard.write(stream2.writer(), "text", .primary);
-    try testing.expect(std.mem.find(u8, stream2.getWritten(), ";p;") != null);
+    var stream2: std.Io.Writer = .fixed(&buf2);
+    try Clipboard.write(&stream2, "text", .primary);
+    try testing.expect(std.mem.find(u8, stream2.buffered(), ";p;") != null);
 
     var buf3: [4096]u8 = undefined;
-    var stream3 = std.io.fixedBufferStream(&buf3);
-    try Clipboard.write(stream3.writer(), "text", .system);
-    try testing.expect(std.mem.find(u8, stream3.getWritten(), ";s;") != null);
+    var stream3: std.Io.Writer = .fixed(&buf3);
+    try Clipboard.write(&stream3, "text", .system);
+    try testing.expect(std.mem.find(u8, stream3.buffered(), ";s;") != null);
 }
 
 // ============================================================================
@@ -536,11 +536,11 @@ test "write to different selections" {
 
 test "OSC 52 sequence format is correct" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.write(stream.writer(), "test", .clipboard);
+    try Clipboard.write(&stream, "test", .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Must start with ESC ]
     try testing.expectEqual(@as(u8, 0x1b), output[0]);
@@ -555,11 +555,11 @@ test "OSC 52 sequence format is correct" {
 
 test "base64 encoding is correct" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.write(stream.writer(), "hello", .clipboard);
+    try Clipboard.write(&stream, "hello", .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Extract base64 part (between second semicolon and BEL)
     const b64_start = std.mem.find(u8, output, ";c;").? + 3;
@@ -590,11 +590,11 @@ test "selection parameter encoding" {
 
 test "request clipboard read generates correct query" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.requestRead(stream.writer(), .clipboard);
+    try Clipboard.requestRead(&stream, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     const expected = "\x1b]52;c;?\x07";
 
     try testing.expectEqualStrings(expected, output);
@@ -602,14 +602,14 @@ test "request clipboard read generates correct query" {
 
 test "request read from different selections" {
     var buf1: [4096]u8 = undefined;
-    var stream1 = std.io.fixedBufferStream(&buf1);
-    try Clipboard.requestRead(stream1.writer(), .primary);
-    try testing.expectEqualStrings("\x1b]52;p;?\x07", stream1.getWritten());
+    var stream1: std.Io.Writer = .fixed(&buf1);
+    try Clipboard.requestRead(&stream1, .primary);
+    try testing.expectEqualStrings("\x1b]52;p;?\x07", stream1.buffered());
 
     var buf2: [4096]u8 = undefined;
-    var stream2 = std.io.fixedBufferStream(&buf2);
-    try Clipboard.requestRead(stream2.writer(), .system);
-    try testing.expectEqualStrings("\x1b]52;s;?\x07", stream2.getWritten());
+    var stream2: std.Io.Writer = .fixed(&buf2);
+    try Clipboard.requestRead(&stream2, .system);
+    try testing.expectEqualStrings("\x1b]52;s;?\x07", stream2.buffered());
 }
 
 // ============================================================================
@@ -625,11 +625,11 @@ test "write large text (1KB)" {
     @memset(large_text, 'A');
 
     var buf: [8192]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.write(stream.writer(), large_text, .clipboard);
+    try Clipboard.write(&stream, large_text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Must start and end correctly
     try testing.expect(std.mem.startsWith(u8, output, "\x1b]52;c;"));
@@ -647,11 +647,11 @@ test "write very large text (10KB)" {
     @memset(large_text, 'B');
 
     var buf: [20000]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.write(stream.writer(), large_text, .clipboard);
+    try Clipboard.write(&stream, large_text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     try testing.expect(std.mem.startsWith(u8, output, "\x1b]52;c;"));
     try testing.expectEqual(@as(u8, 0x07), output[output.len - 1]);
@@ -659,12 +659,12 @@ test "write very large text (10KB)" {
 
 test "write text with newlines" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const text = "line1\nline2\nline3";
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Base64 of "line1\nline2\nline3"
     const expected = "\x1b]52;c;bGluZTEKbGluZTIKbGluZTM=\x07";
@@ -673,12 +673,12 @@ test "write text with newlines" {
 
 test "write text with carriage returns" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const text = "line1\r\nline2\r\n";
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Must encode correctly
     try testing.expect(std.mem.startsWith(u8, output, "\x1b]52;c;"));
@@ -687,12 +687,12 @@ test "write text with carriage returns" {
 
 test "write text with tabs" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const text = "col1\tcol2\tcol3";
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Base64 of "col1\tcol2\tcol3"
     const expected = "\x1b]52;c;Y29sMQljb2wyCWNvbDM=\x07";
@@ -701,12 +701,12 @@ test "write text with tabs" {
 
 test "write text with null bytes" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const text = "hello\x00world";
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Base64 should encode null byte correctly
     try testing.expect(std.mem.startsWith(u8, output, "\x1b]52;c;"));
@@ -715,13 +715,13 @@ test "write text with null bytes" {
 
 test "write text with all ASCII control characters" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // Include various control chars: NUL, SOH, STX, BEL, BS, TAB, LF, CR, ESC
     const text = "\x00\x01\x02\x07\x08\x09\x0a\x0d\x1b";
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     try testing.expect(std.mem.startsWith(u8, output, "\x1b]52;c;"));
     try testing.expectEqual(@as(u8, 0x07), output[output.len - 1]);
@@ -733,13 +733,13 @@ test "write text with all ASCII control characters" {
 
 test "write invalid UTF-8 sequence" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // Invalid UTF-8: continuation byte without start byte
     const text = "hello\x80world";
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Should encode as-is (base64 doesn't care about UTF-8 validity)
     try testing.expect(std.mem.startsWith(u8, output, "\x1b]52;c;"));
@@ -753,9 +753,9 @@ test "write invalid UTF-8 sequence" {
 test "write handles buffer overflow" {
     // Test that write propagates errors from the underlying writer
     var buf: [10]u8 = undefined; // Too small for OSC sequence
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    const result = Clipboard.write(stream.writer(), "test", .clipboard);
+    const result = Clipboard.write(&stream, "test", .clipboard);
 
     // Should fail because buffer is too small
     try testing.expectError(error.NoSpaceLeft, result);
@@ -807,11 +807,11 @@ test "base64 padding is correct for various input lengths" {
 
     for (test_cases) |tc| {
         var buf: [4096]u8 = undefined;
-        var stream = std.io.fixedBufferStream(&buf);
+        var stream: std.Io.Writer = .fixed(&buf);
 
-        try Clipboard.write(stream.writer(), tc.input, .clipboard);
+        try Clipboard.write(&stream, tc.input, .clipboard);
 
-        const output = stream.getWritten();
+        const output = stream.buffered();
         const b64_start = std.mem.find(u8, output, ";c;").? + 3;
         const b64_end = output.len - 1;
         const b64 = output[b64_start..b64_end];
@@ -822,12 +822,12 @@ test "base64 padding is correct for various input lengths" {
 
 test "base64 encoding handles binary data" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const binary_data = [_]u8{ 0x00, 0x01, 0x02, 0x03, 0xFF, 0xFE, 0xFD };
-    try Clipboard.write(stream.writer(), &binary_data, .clipboard);
+    try Clipboard.write(&stream, &binary_data, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     try testing.expect(std.mem.startsWith(u8, output, "\x1b]52;c;"));
     try testing.expectEqual(@as(u8, 0x07), output[output.len - 1]);
@@ -842,18 +842,18 @@ test "base64 encoding handles binary data" {
 
 test "multiple writes to same writer" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.write(stream.writer(), "first", .clipboard);
-    const pos1 = stream.pos;
+    try Clipboard.write(&stream, "first", .clipboard);
+    const pos1 = stream.end;
 
-    try Clipboard.write(stream.writer(), "second", .clipboard);
-    const pos2 = stream.pos;
+    try Clipboard.write(&stream, "second", .clipboard);
+    const pos2 = stream.end;
 
     // Both writes should succeed
     try testing.expect(pos2 > pos1);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Should contain two complete sequences
     const count = std.mem.count(u8, output, "\x1b]52;");
@@ -873,12 +873,12 @@ test "no memory leaks in write operation" {
     const allocator = gpa.allocator();
 
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const text = try allocator.dupe(u8, "test");
     defer allocator.free(text);
 
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 }
 
 test "no memory leaks in requestRead operation" {
@@ -889,9 +889,9 @@ test "no memory leaks in requestRead operation" {
     }
 
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.requestRead(stream.writer(), .clipboard);
+    try Clipboard.requestRead(&stream, .clipboard);
 }
 
 // ============================================================================
@@ -901,7 +901,7 @@ test "no memory leaks in requestRead operation" {
 test "write exactly fills buffer" {
     // Test that we can write up to buffer limit
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // Calculate text size that will fill buffer (account for OSC overhead)
     // OSC overhead: \x1b]52;c; (7 bytes) + \x07 (1 byte) = 8 bytes
@@ -909,20 +909,20 @@ test "write exactly fills buffer" {
     // Safe size: 150 bytes should encode to ~200 bytes + overhead
     const text = "A" ** 150;
 
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     try testing.expect(output.len > 0);
 }
 
 test "write exceeds buffer capacity" {
     var buf: [64]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // This should fail because encoded output exceeds 64 bytes
     const text = "A" ** 100;
 
-    const result = Clipboard.write(stream.writer(), text, .clipboard);
+    const result = Clipboard.write(&stream, text, .clipboard);
     try testing.expectError(error.NoSpaceLeft, result);
 }
 

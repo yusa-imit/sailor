@@ -1457,9 +1457,9 @@ pub const MultiCursor = struct {
     pub fn init(allocator: Allocator) !MultiCursor {
         return .{
             .allocator = allocator,
-            .cursors = .{},
+            .cursors = .empty,
             .primary_cursor = null,
-            .lines = .{},
+            .lines = .empty,
         };
     }
 

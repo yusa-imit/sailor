@@ -229,7 +229,7 @@ pub const CommandParser = struct {
         }
 
         // Skip "for" if present
-        var query_slice = std.mem.trimLeft(u8, input[query_start..], " ");
+        var query_slice = std.mem.trimStart(u8, input[query_start..], " ");
         if (std.mem.startsWith(u8, query_slice, "for ")) {
             query_slice = query_slice[4..];
         }

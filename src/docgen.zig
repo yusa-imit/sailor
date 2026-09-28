@@ -285,7 +285,7 @@ pub const DocGenerator = struct {
         _ = std.mem.trim(u8, struct_part[0..eq_idx], " \t");
 
         // For now, create struct declaration without field details (full parsing requires multi-line)
-        var fields = std.ArrayListUnmanaged(StructField){};
+        var fields = std.ArrayListUnmanaged(StructField).empty;
 
         // Try to extract basic field info from same line
         if (std.mem.find(u8, line, "struct")) |struct_idx| {
@@ -334,7 +334,7 @@ pub const DocGenerator = struct {
         const eq_idx = std.mem.find(u8, enum_part, "=") orelse return;
         _ = std.mem.trim(u8, enum_part[0..eq_idx], " \t");
 
-        var values = std.ArrayListUnmanaged(EnumValue){};
+        var values = std.ArrayListUnmanaged(EnumValue).empty;
         defer values.deinit(self.allocator);
 
         // Try to extract values from same line
@@ -371,7 +371,7 @@ pub const DocGenerator = struct {
         const eq_idx = std.mem.find(u8, union_part, "=") orelse return;
         _ = std.mem.trim(u8, union_part[0..eq_idx], " \t");
 
-        var fields = std.ArrayListUnmanaged(StructField){};
+        var fields = std.ArrayListUnmanaged(StructField).empty;
         defer fields.deinit(self.allocator);
 
         // Try to extract fields from same line
@@ -794,10 +794,10 @@ test "DocGenerator: generateMarkdown with function" {
     try gen.parseSource(source);
 
     var buf: [4096]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    try gen.generateMarkdown(fbs.writer());
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try gen.generateMarkdown(&fbs);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     try testing.expect(std.mem.find(u8, output, "# Overview") != null);
     try testing.expect(std.mem.find(u8, output, "Test module") != null);
     try testing.expect(std.mem.find(u8, output, "fn mul(") != null);
@@ -819,10 +819,10 @@ test "DocGenerator: generateMarkdown with struct" {
     try gen.parseSource(source);
 
     var buf: [4096]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    try gen.generateMarkdown(fbs.writer());
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try gen.generateMarkdown(&fbs);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     try testing.expect(std.mem.find(u8, output, "## Struct") != null);
     try testing.expect(std.mem.find(u8, output, "A rectangle") != null);
     try testing.expect(std.mem.find(u8, output, "### Fields") != null);
@@ -843,10 +843,10 @@ test "DocGenerator: generateMarkdown with enum" {
     try gen.parseSource(source);
 
     var buf: [4096]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    try gen.generateMarkdown(fbs.writer());
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try gen.generateMarkdown(&fbs);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     try testing.expect(std.mem.find(u8, output, "## Enum") != null);
     try testing.expect(std.mem.find(u8, output, "Status enumeration") != null);
     try testing.expect(std.mem.find(u8, output, "### Values") != null);
@@ -868,10 +868,10 @@ test "DocGenerator: skip private declarations in markdown" {
     try gen.parseSource(source);
 
     var buf: [4096]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    try gen.generateMarkdown(fbs.writer());
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try gen.generateMarkdown(&fbs);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     try testing.expect(std.mem.find(u8, output, "publicFunc") != null);
     try testing.expect(std.mem.find(u8, output, "privateFunc") == null);
 }

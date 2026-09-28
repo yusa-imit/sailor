@@ -621,14 +621,13 @@ test "ThemeLoader - loaded theme can render styled spans" {
     const theme = try sailor.tui.ThemeLoader.fromString(allocator, json_theme);
 
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     // Render using theme styles
     const span = sailor.tui.Span.styled("Error!", theme.error_style());
-    try span.render(writer);
+    try span.render(&fbs);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     // Should contain ANSI escape codes for red + bold
     try std.testing.expect(output.len > "Error!".len);
     try std.testing.expect(std.mem.find(u8, output, "Error!") != null);

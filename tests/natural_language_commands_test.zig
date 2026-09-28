@@ -542,10 +542,10 @@ test "NaturalLanguageCommands - CommandHistory export to string" {
     try history.add("command2");
 
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
-    try history.exportToString(stream.writer());
+    var stream: std.Io.Writer = .fixed(&buf);
+    try history.exportToString(&stream);
 
-    const exported = stream.getWritten();
+    const exported = stream.buffered();
     try testing.expect(std.mem.containsAtLeast(u8, exported, 1, "command1"));
     try testing.expect(std.mem.containsAtLeast(u8, exported, 1, "command2"));
 }

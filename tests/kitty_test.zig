@@ -19,7 +19,7 @@ fn encodeBase64(allocator: std.mem.Allocator, data: []const u8) ![]u8 {
 
 // Helper function to create an ArrayList writer for capturing output
 fn createTestWriter(_: std.mem.Allocator) std.ArrayList(u8) {
-    return .{};
+    return .empty;
 }
 
 // ============================================================================

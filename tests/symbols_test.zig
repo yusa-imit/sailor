@@ -38,9 +38,9 @@ test "BoxSet.dotted - junction characters are dot characters" {
 
 test "BoxSet.dotted - drawBox produces expected 5x3 output" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    try BoxSet.dotted.drawBox(fbs.writer(), 5, 3);
-    const output = fbs.getWritten();
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try BoxSet.dotted.drawBox(&fbs, 5, 3);
+    const output = fbs.buffered();
 
     // All visible characters in the box should be dots
     try testing.expect(output.len > 0);
@@ -51,15 +51,15 @@ test "BoxSet.dotted - drawBox produces expected 5x3 output" {
 
 test "BoxSet.dotted - drawBox too small returns error" {
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    try testing.expectError(error.BoxTooSmall, BoxSet.dotted.drawBox(fbs.writer(), 1, 1));
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try testing.expectError(error.BoxTooSmall, BoxSet.dotted.drawBox(&fbs, 1, 1));
 }
 
 test "BoxSet.dotted - drawHorizontal fills with dots" {
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    try BoxSet.dotted.drawHorizontal(fbs.writer(), 3);
-    try testing.expectEqualStrings("···", fbs.getWritten());
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try BoxSet.dotted.drawHorizontal(&fbs, 3);
+    try testing.expectEqualStrings("···", fbs.buffered());
 }
 
 // ============================================================================
@@ -91,21 +91,21 @@ test "BoxSet.wavy - horizontal junctions use tilde, cross uses plus" {
 
 test "BoxSet.wavy - drawBox produces expected 5x3 output" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    try BoxSet.wavy.drawBox(fbs.writer(), 5, 3);
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try BoxSet.wavy.drawBox(&fbs, 5, 3);
     const expected =
         \\~~~~~
         \\¦   ¦
         \\~~~~~
     ;
-    try testing.expectEqualStrings(expected, fbs.getWritten());
+    try testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 test "BoxSet.wavy - drawHorizontal produces tildes" {
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    try BoxSet.wavy.drawHorizontal(fbs.writer(), 4);
-    try testing.expectEqualStrings("~~~~", fbs.getWritten());
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try BoxSet.wavy.drawHorizontal(&fbs, 4);
+    try testing.expectEqualStrings("~~~~", fbs.buffered());
 }
 
 // ============================================================================
@@ -137,9 +137,9 @@ test "BoxSet.outer_3d - horizontal junctions: down=light, up=dark; cross=medium"
 
 test "BoxSet.outer_3d - drawBox renders block shading characters" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    try BoxSet.outer_3d.drawBox(fbs.writer(), 5, 3);
-    const output = fbs.getWritten();
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try BoxSet.outer_3d.drawBox(&fbs, 5, 3);
+    const output = fbs.buffered();
     try testing.expect(output.len > 0);
     // Must contain block shade characters
     try testing.expect(std.mem.containsAtLeast(u8, output, 1, "░"));
@@ -148,9 +148,9 @@ test "BoxSet.outer_3d - drawBox renders block shading characters" {
 
 test "BoxSet.outer_3d - drawHorizontal produces light shade" {
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    try BoxSet.outer_3d.drawHorizontal(fbs.writer(), 3);
-    try testing.expectEqualStrings("░░░", fbs.getWritten());
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try BoxSet.outer_3d.drawHorizontal(&fbs, 3);
+    try testing.expectEqualStrings("░░░", fbs.buffered());
 }
 
 // ============================================================================
@@ -160,35 +160,35 @@ test "BoxSet.outer_3d - drawHorizontal produces light shade" {
 test "Custom borders - dotted and single produce different box output" {
     var buf_dotted: [256]u8 = undefined;
     var buf_single: [256]u8 = undefined;
-    var fbs_d = std.io.fixedBufferStream(&buf_dotted);
-    var fbs_s = std.io.fixedBufferStream(&buf_single);
+    var fbs_d: std.Io.Writer = .fixed(&buf_dotted);
+    var fbs_s: std.Io.Writer = .fixed(&buf_single);
 
-    try BoxSet.dotted.drawBox(fbs_d.writer(), 5, 3);
-    try BoxSet.single.drawBox(fbs_s.writer(), 5, 3);
+    try BoxSet.dotted.drawBox(&fbs_d, 5, 3);
+    try BoxSet.single.drawBox(&fbs_s, 5, 3);
 
-    try testing.expect(!std.mem.eql(u8, fbs_d.getWritten(), fbs_s.getWritten()));
+    try testing.expect(!std.mem.eql(u8, fbs_d.buffered(), fbs_s.buffered()));
 }
 
 test "Custom borders - wavy and single produce different box output" {
     var buf_wavy: [256]u8 = undefined;
     var buf_single: [256]u8 = undefined;
-    var fbs_w = std.io.fixedBufferStream(&buf_wavy);
-    var fbs_s = std.io.fixedBufferStream(&buf_single);
+    var fbs_w: std.Io.Writer = .fixed(&buf_wavy);
+    var fbs_s: std.Io.Writer = .fixed(&buf_single);
 
-    try BoxSet.wavy.drawBox(fbs_w.writer(), 5, 3);
-    try BoxSet.single.drawBox(fbs_s.writer(), 5, 3);
+    try BoxSet.wavy.drawBox(&fbs_w, 5, 3);
+    try BoxSet.single.drawBox(&fbs_s, 5, 3);
 
-    try testing.expect(!std.mem.eql(u8, fbs_w.getWritten(), fbs_s.getWritten()));
+    try testing.expect(!std.mem.eql(u8, fbs_w.buffered(), fbs_s.buffered()));
 }
 
 test "Custom borders - outer_3d and dotted produce different box output" {
     var buf_3d: [256]u8 = undefined;
     var buf_dotted: [256]u8 = undefined;
-    var fbs_3d = std.io.fixedBufferStream(&buf_3d);
-    var fbs_d = std.io.fixedBufferStream(&buf_dotted);
+    var fbs_3d: std.Io.Writer = .fixed(&buf_3d);
+    var fbs_d: std.Io.Writer = .fixed(&buf_dotted);
 
-    try BoxSet.outer_3d.drawBox(fbs_3d.writer(), 5, 3);
-    try BoxSet.dotted.drawBox(fbs_d.writer(), 5, 3);
+    try BoxSet.outer_3d.drawBox(&fbs_3d, 5, 3);
+    try BoxSet.dotted.drawBox(&fbs_d, 5, 3);
 
-    try testing.expect(!std.mem.eql(u8, fbs_3d.getWritten(), fbs_d.getWritten()));
+    try testing.expect(!std.mem.eql(u8, fbs_3d.buffered(), fbs_d.buffered()));
 }

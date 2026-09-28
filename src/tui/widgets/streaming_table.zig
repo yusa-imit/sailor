@@ -524,7 +524,7 @@ test "StreamingTable.render with alignment left" {
     const row = buf.getLine(1, 0, 20);
     defer testing.allocator.free(row);
     // "Hi" should be left-aligned with padding on the right
-    try testing.expect(std.mem.startsWith(u8, std.mem.trimRight(u8, row, " "), "Hi"));
+    try testing.expect(std.mem.startsWith(u8, std.mem.trimEnd(u8, row, " "), "Hi"));
 }
 
 test "StreamingTable.render respects column spacing" {

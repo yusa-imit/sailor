@@ -350,7 +350,7 @@ test "ThunkStore thunk can perform I/O (logging)" {
     defer thunk_store.deinit(allocator);
 
     var buf: [256]u8 = undefined;
-    const stream = std.io.fixedBufferStream(&buf);
+    const stream: std.Io.Writer = .fixed(&buf);
     _ = stream;
 
     // Thunk could write to the provided stream

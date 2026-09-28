@@ -191,7 +191,7 @@ pub const Table = struct {
 
     /// Wrap a cell string into lines based on max_width
     fn wrapCell(self: Self, cell: []const u8) !std.ArrayListUnmanaged([]const u8) {
-        var lines = std.ArrayListUnmanaged([]const u8){};
+        var lines = std.ArrayListUnmanaged([]const u8).empty;
 
         // First split on explicit newlines
         var line_iter = std.mem.splitScalar(u8, cell, '\n');
@@ -214,7 +214,7 @@ pub const Table = struct {
 
     /// Wrap a single line by word boundaries
     fn wrapLine(self: Self, line: []const u8, max_width: usize) !std.ArrayListUnmanaged([]const u8) {
-        var wrapped = std.ArrayListUnmanaged([]const u8){};
+        var wrapped = std.ArrayListUnmanaged([]const u8).empty;
 
         if (line.len <= max_width) {
             try wrapped.append(self.allocator, line);

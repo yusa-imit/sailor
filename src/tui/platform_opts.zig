@@ -236,12 +236,12 @@ test "isWindows returns correct value" {
 
 test "emitAnsi writes sequence unchanged" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const ansi = "\x1b[31m";
-    try emitAnsi(stream.writer(), ansi);
+    try emitAnsi(&stream, ansi);
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     try testing.expectEqualStrings(ansi, written);
 }
 

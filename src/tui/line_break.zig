@@ -85,7 +85,7 @@ pub const LineBreaker = struct {
                 if (found_space and last_space != null) {
                     // Break at last whitespace
                     break_point = last_space.? + 1; // Include the space in current line
-                    const text_to_add = std.mem.trimRight(u8, remaining[0..break_point], " \t\n");
+                    const text_to_add = std.mem.trimEnd(u8, remaining[0..break_point], " \t\n");
                     if (text_to_add.len > 0) {
                         _ = try builder.text(text_to_add, span_style);
                         current_width += text_to_add.len;
@@ -98,7 +98,7 @@ pub const LineBreaker = struct {
                     current_width = 0;
 
                     // Skip leading whitespace on next line
-                    remaining = std.mem.trimLeft(u8, remaining[break_point..], " \t");
+                    remaining = std.mem.trimStart(u8, remaining[break_point..], " \t");
                 } else if (available > 0 and remaining.len > available) {
                     // No space found, word is too long
                     if (options.hyphenate) {

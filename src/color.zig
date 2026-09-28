@@ -13,13 +13,12 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const term = @import("term.zig");
-const io = std.io;
 
 /// Color support level
 pub const ColorLevel = enum {
-    none,      // No color support or NO_COLOR set
-    basic,     // 16 colors (ANSI basic)
-    extended,  // 256 colors
+    none, // No color support or NO_COLOR set
+    basic, // 16 colors (ANSI basic)
+    extended, // 256 colors
     truecolor, // 24-bit RGB
 
     /// Cross-platform environment variable getter (internal helper)
@@ -91,9 +90,9 @@ pub const BasicColor = enum(u8) {
 
 /// Color representation
 pub const Color = union(enum) {
-    default,               // Terminal default color
-    basic: BasicColor,     // 16 basic colors
-    indexed: u8,           // 256-color palette (0-255)
+    default, // Terminal default color
+    basic: BasicColor, // 16 basic colors
+    indexed: u8, // 256-color palette (0-255)
     rgb: struct { r: u8, g: u8, b: u8 }, // 24-bit truecolor
 
     /// Convenience constructor for RGB
@@ -250,81 +249,74 @@ pub fn printStyled(writer: anytype, style: Style, comptime fmt: []const u8, args
 
 test "Color.writeFg basic" {
     var buf: [64]u8 = undefined;
-    var fbs = io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try (Color{ .basic = .red }).writeFg(writer);
+    try (Color{ .basic = .red }).writeFg(&fbs);
     const expected = "\x1b[31m";
-    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+    try std.testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 test "Color.writeFg bright" {
     var buf: [64]u8 = undefined;
-    var fbs = io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try (Color{ .basic = .bright_red }).writeFg(writer);
+    try (Color{ .basic = .bright_red }).writeFg(&fbs);
     const expected = "\x1b[91m";
-    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+    try std.testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 test "Color.writeFg indexed" {
     var buf: [64]u8 = undefined;
-    var fbs = io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try Color.fromIndex(123).writeFg(writer);
+    try Color.fromIndex(123).writeFg(&fbs);
     const expected = "\x1b[38;5;123m";
-    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+    try std.testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 test "Color.writeFg rgb" {
     var buf: [64]u8 = undefined;
-    var fbs = io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try Color.fromRgb(255, 128, 64).writeFg(writer);
+    try Color.fromRgb(255, 128, 64).writeFg(&fbs);
     const expected = "\x1b[38;2;255;128;64m";
-    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+    try std.testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 test "Color.writeBg basic" {
     var buf: [64]u8 = undefined;
-    var fbs = io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try (Color{ .basic = .blue }).writeBg(writer);
+    try (Color{ .basic = .blue }).writeBg(&fbs);
     const expected = "\x1b[44m";
-    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+    try std.testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 test "Attributes.write" {
     var buf: [64]u8 = undefined;
-    var fbs = io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const attrs = Attributes{
         .bold = true,
         .underline = true,
     };
-    try attrs.write(writer);
+    try attrs.write(&fbs);
     const expected = "\x1b[1m\x1b[4m";
-    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+    try std.testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 test "Style.write complete" {
     var buf: [128]u8 = undefined;
-    var fbs = io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const style = Style{
         .fg = .{ .basic = .red },
         .bg = .{ .basic = .white },
         .attrs = .{ .bold = true },
     };
-    try style.write(writer);
+    try style.write(&fbs);
 
-    const result = fbs.getWritten();
+    const result = fbs.buffered();
     try std.testing.expect(std.mem.find(u8, result, "\x1b[31m") != null); // fg red
     try std.testing.expect(std.mem.find(u8, result, "\x1b[47m") != null); // bg white
     try std.testing.expect(std.mem.find(u8, result, "\x1b[1m") != null); // bold
@@ -332,23 +324,21 @@ test "Style.write complete" {
 
 test "Style.reset" {
     var buf: [64]u8 = undefined;
-    var fbs = io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try Style.reset(writer);
+    try Style.reset(&fbs);
     const expected = "\x1b[0m";
-    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+    try std.testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 test "writeStyled" {
     var buf: [128]u8 = undefined;
-    var fbs = io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const style = Style{ .fg = .{ .basic = .green } };
-    try writeStyled(writer, style, "success");
+    try writeStyled(&fbs, style, "success");
 
-    const result = fbs.getWritten();
+    const result = fbs.buffered();
     try std.testing.expect(std.mem.find(u8, result, "\x1b[32m") != null); // green
     try std.testing.expect(std.mem.find(u8, result, "success") != null);
     try std.testing.expect(std.mem.find(u8, result, "\x1b[0m") != null); // reset
@@ -356,13 +346,12 @@ test "writeStyled" {
 
 test "printStyled" {
     var buf: [128]u8 = undefined;
-    var fbs = io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const style = Style{ .fg = .{ .basic = .red }, .attrs = .{ .bold = true } };
-    try printStyled(writer, style, "error: {s}", .{"failed"});
+    try printStyled(&fbs, style, "error: {s}", .{"failed"});
 
-    const result = fbs.getWritten();
+    const result = fbs.buffered();
     try std.testing.expect(std.mem.find(u8, result, "\x1b[31m") != null); // red
     try std.testing.expect(std.mem.find(u8, result, "\x1b[1m") != null); // bold
     try std.testing.expect(std.mem.find(u8, result, "error: failed") != null);
@@ -371,22 +360,20 @@ test "printStyled" {
 
 test "semantic.err style" {
     var buf: [128]u8 = undefined;
-    var fbs = io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try semantic.err.write(writer);
-    const result = fbs.getWritten();
+    try semantic.err.write(&fbs);
+    const result = fbs.buffered();
     try std.testing.expect(std.mem.find(u8, result, "\x1b[91m") != null); // bright red
     try std.testing.expect(std.mem.find(u8, result, "\x1b[1m") != null); // bold
 }
 
 test "semantic.ok style" {
     var buf: [128]u8 = undefined;
-    var fbs = io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try semantic.ok.write(writer);
-    const result = fbs.getWritten();
+    try semantic.ok.write(&fbs);
+    const result = fbs.buffered();
     try std.testing.expect(std.mem.find(u8, result, "\x1b[32m") != null); // green
 }
 
@@ -605,7 +592,7 @@ fn parseOSC11Response(response: []const u8) !Color {
 
     // Find "rgb:" prefix
     const rgb_start = std.mem.find(u8, response, "rgb:") orelse return error.InvalidFormat;
-    const rgb_data = response[rgb_start + 4..];
+    const rgb_data = response[rgb_start + 4 ..];
 
     // Parse hex components separated by '/'
     var parts = std.mem.splitScalar(u8, rgb_data, '/');
@@ -777,26 +764,24 @@ test "ColorTheme.detectFromTerminalWithQuery - allocation failure" {
 
 test "ColorTheme.apply - writes foreground color" {
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const theme = ColorTheme.dark();
-    try theme.apply(writer, .error_fg);
+    try theme.apply(&fbs, .error_fg);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     // Should contain ANSI escape for bright red foreground
     try std.testing.expect(std.mem.find(u8, output, "\x1b[") != null);
 }
 
 test "ColorTheme.applyBg - writes background color" {
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const theme = ColorTheme.dark();
-    try theme.applyBg(writer, .background);
+    try theme.applyBg(&fbs, .background);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     // Should contain ANSI escape for RGB background
     try std.testing.expect(std.mem.find(u8, output, "\x1b[") != null);
 }

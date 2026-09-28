@@ -473,7 +473,7 @@ pub const AnsiArtPlayer = struct {
     pub fn init(allocator: Allocator, options: AnsiArtRenderer.RenderOptions) AnsiArtPlayer {
         return AnsiArtPlayer{
             .allocator = allocator,
-            .frames = .{},
+            .frames = .empty,
             .current_frame = 0,
             .elapsed_ms = 0,
             .is_playing = false,

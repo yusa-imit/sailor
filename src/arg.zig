@@ -727,13 +727,12 @@ test "Parser help generation" {
     };
 
     var buf: [512]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const P = Parser(&flags);
-    try P.writeHelp(writer);
+    try P.writeHelp(&fbs);
 
-    const help = fbs.getWritten();
+    const help = fbs.buffered();
     try std.testing.expect(std.mem.find(u8, help, "Options:") != null);
     try std.testing.expect(std.mem.find(u8, help, "-v, --verbose") != null);
     try std.testing.expect(std.mem.find(u8, help, "Enable verbose output") != null);
@@ -1240,13 +1239,12 @@ test "Commands writeHelp lists command names and help text" {
     };
 
     var buf: [512]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const C = Commands(&cmds);
-    try C.writeHelp(writer);
+    try C.writeHelp(&fbs);
 
-    const help = fbs.getWritten();
+    const help = fbs.buffered();
     try std.testing.expect(std.mem.find(u8, help, "Commands:") != null);
     try std.testing.expect(std.mem.find(u8, help, "build") != null);
     try std.testing.expect(std.mem.find(u8, help, "Compile the project") != null);

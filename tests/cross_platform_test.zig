@@ -53,12 +53,11 @@ test "newline convention detection" {
     const expected_newline = if (builtin.os.tag == .windows) "\r\n" else "\n";
 
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try writer.print("line1{s}line2", .{expected_newline});
+    try fbs.print("line1{s}line2", .{expected_newline});
 
-    const written = fbs.getWritten();
+    const written = fbs.buffered();
     try testing.expect(std.mem.find(u8, written, expected_newline) != null);
 }
 

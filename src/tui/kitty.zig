@@ -217,8 +217,7 @@ pub fn detectKittySupport() bool {
     const stdout_fd: std.posix.fd_t = if (builtin.os.tag == .windows) blk: {
         const handle = std.os.windows.GetStdHandle(std.os.windows.STD_OUTPUT_HANDLE) catch return false;
         break :blk @ptrCast(handle);
-    } else
-        std.posix.STDOUT_FILENO;
+    } else std.posix.STDOUT_FILENO;
 
     if (term_mod.queryTerminalCapability(allocator, stdout_fd, "TN", 100)) |value| {
         defer allocator.free(value);
@@ -256,7 +255,6 @@ pub fn detectKittySupport() bool {
 // ============================================================================
 
 const testing = std.testing;
-const fixedBufferStream = std.io.fixedBufferStream;
 
 test "KittyImage: bytes per pixel" {
     const img_rgb = KittyImage{
@@ -319,13 +317,13 @@ test "KittyEncoder: encode small RGBA image (direct)" {
     };
 
     var buf: [1024]u8 = undefined;
-    var fbs = fixedBufferStream(&buf);
+    var fbs: std.Io.Writer = .fixed(&buf);
     var encoder = KittyEncoder.init(testing.allocator);
     defer encoder.deinit();
 
-    try encoder.encode(img, fbs.writer(), .direct);
+    try encoder.encode(img, &fbs, .direct);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     // Should contain Kitty control sequence
     try testing.expect(std.mem.find(u8, output, "\x1b_G") != null);
     try testing.expect(std.mem.find(u8, output, "a=T") != null);
@@ -350,13 +348,13 @@ test "KittyEncoder: encode RGB24 image" {
     };
 
     var buf: [1024]u8 = undefined;
-    var fbs = fixedBufferStream(&buf);
+    var fbs: std.Io.Writer = .fixed(&buf);
     var encoder = KittyEncoder.init(testing.allocator);
     defer encoder.deinit();
 
-    try encoder.encode(img, fbs.writer(), .direct);
+    try encoder.encode(img, &fbs, .direct);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     try testing.expect(std.mem.find(u8, output, "f=24") != null); // RGB24
     try testing.expect(std.mem.find(u8, output, "s=3") != null); // width
     try testing.expect(std.mem.find(u8, output, "v=1") != null); // height
@@ -395,13 +393,13 @@ test "KittyEncoder: chunked encoding for large image" {
 
 test "KittyEncoder: placeImage" {
     var buf: [256]u8 = undefined;
-    var fbs = fixedBufferStream(&buf);
+    var fbs: std.Io.Writer = .fixed(&buf);
     var encoder = KittyEncoder.init(testing.allocator);
     defer encoder.deinit();
 
-    try encoder.placeImage(fbs.writer(), 42, 10, 5, 20, 15);
+    try encoder.placeImage(&fbs, 42, 10, 5, 20, 15);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     try testing.expect(std.mem.find(u8, output, "\x1b_Ga=p") != null);
     try testing.expect(std.mem.find(u8, output, "i=42") != null);
     try testing.expect(std.mem.find(u8, output, "X=10") != null);
@@ -412,13 +410,13 @@ test "KittyEncoder: placeImage" {
 
 test "KittyEncoder: placeImage without cols/rows" {
     var buf: [256]u8 = undefined;
-    var fbs = fixedBufferStream(&buf);
+    var fbs: std.Io.Writer = .fixed(&buf);
     var encoder = KittyEncoder.init(testing.allocator);
     defer encoder.deinit();
 
-    try encoder.placeImage(fbs.writer(), 42, 10, 5, null, null);
+    try encoder.placeImage(&fbs, 42, 10, 5, null, null);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     try testing.expect(std.mem.find(u8, output, "i=42") != null);
     try testing.expect(std.mem.find(u8, output, "X=10") != null);
     try testing.expect(std.mem.find(u8, output, "Y=5") != null);
@@ -429,25 +427,25 @@ test "KittyEncoder: placeImage without cols/rows" {
 
 test "KittyEncoder: deleteImage" {
     var buf: [128]u8 = undefined;
-    var fbs = fixedBufferStream(&buf);
+    var fbs: std.Io.Writer = .fixed(&buf);
     var encoder = KittyEncoder.init(testing.allocator);
     defer encoder.deinit();
 
-    try encoder.deleteImage(fbs.writer(), 99);
+    try encoder.deleteImage(&fbs, 99);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     try testing.expectEqualStrings("\x1b_Ga=d,i=99\x1b\\", output);
 }
 
 test "KittyEncoder: deleteAllImages" {
     var buf: [128]u8 = undefined;
-    var fbs = fixedBufferStream(&buf);
+    var fbs: std.Io.Writer = .fixed(&buf);
     var encoder = KittyEncoder.init(testing.allocator);
     defer encoder.deinit();
 
-    try encoder.deleteAllImages(fbs.writer());
+    try encoder.deleteAllImages(&fbs);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     try testing.expectEqualStrings("\x1b_Ga=d,d=a\x1b\\", output);
 }
 
@@ -461,13 +459,13 @@ test "KittyEncoder: file transmission medium" {
     };
 
     var buf: [1024]u8 = undefined;
-    var fbs = fixedBufferStream(&buf);
+    var fbs: std.Io.Writer = .fixed(&buf);
     var encoder = KittyEncoder.init(testing.allocator);
     defer encoder.deinit();
 
-    try encoder.encode(img, fbs.writer(), .file);
+    try encoder.encode(img, &fbs, .file);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     try testing.expect(std.mem.find(u8, output, "t=f") != null); // file transmission
 }
 
@@ -481,13 +479,13 @@ test "KittyEncoder: shared memory transmission medium" {
     };
 
     var buf: [1024]u8 = undefined;
-    var fbs = fixedBufferStream(&buf);
+    var fbs: std.Io.Writer = .fixed(&buf);
     var encoder = KittyEncoder.init(testing.allocator);
     defer encoder.deinit();
 
-    try encoder.encode(img, fbs.writer(), .shared_mem);
+    try encoder.encode(img, &fbs, .shared_mem);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     try testing.expect(std.mem.find(u8, output, "t=s") != null); // shared mem transmission
 }
 
@@ -520,13 +518,13 @@ test "KittyEncoder: single pixel image" {
     };
 
     var buf: [512]u8 = undefined;
-    var fbs = fixedBufferStream(&buf);
+    var fbs: std.Io.Writer = .fixed(&buf);
     var encoder = KittyEncoder.init(testing.allocator);
     defer encoder.deinit();
 
-    try encoder.encode(img, fbs.writer(), .direct);
+    try encoder.encode(img, &fbs, .direct);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     try testing.expect(std.mem.find(u8, output, "s=1") != null);
     try testing.expect(std.mem.find(u8, output, "v=1") != null);
 }
@@ -591,14 +589,14 @@ test "KittyEncoder: custom chunk size" {
     };
 
     var buf: [2048]u8 = undefined;
-    var fbs = fixedBufferStream(&buf);
+    var fbs: std.Io.Writer = .fixed(&buf);
     var encoder = KittyEncoder.init(testing.allocator);
     defer encoder.deinit();
     encoder.chunk_size = 128; // Small chunk size to force multiple chunks
 
-    try encoder.encode(img, fbs.writer(), .direct);
+    try encoder.encode(img, &fbs, .direct);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     // With small chunk size, should have chunking markers
     try testing.expect(output.len > 0);
 }
@@ -710,48 +708,46 @@ pub const KittyGraphics = struct {
         if (options.image_id == 0) return error.InvalidImageId;
 
         var params_buf: [256]u8 = undefined;
-        var fbs = std.io.fixedBufferStream(&params_buf);
-        const pw = fbs.writer();
+        var fbs: std.Io.Writer = .fixed(&params_buf);
 
-        try pw.writeAll("a=p");
-        try pw.print(",i={}", .{options.image_id});
-        if (options.placement_id) |pid| try pw.print(",p={}", .{pid});
-        if (options.x) |x| try pw.print(",x={}", .{x});
-        if (options.y) |y| try pw.print(",y={}", .{y});
-        if (options.w) |w| try pw.print(",w={}", .{w});
-        if (options.h) |h| try pw.print(",h={}", .{h});
-        if (options.z_index != 0) try pw.print(",z={}", .{options.z_index});
-        if (options.unicode_placeholder) try pw.writeAll(",U=1");
+        try fbs.writeAll("a=p");
+        try fbs.print(",i={}", .{options.image_id});
+        if (options.placement_id) |pid| try fbs.print(",p={}", .{pid});
+        if (options.x) |x| try fbs.print(",x={}", .{x});
+        if (options.y) |y| try fbs.print(",y={}", .{y});
+        if (options.w) |w| try fbs.print(",w={}", .{w});
+        if (options.h) |h| try fbs.print(",h={}", .{h});
+        if (options.z_index != 0) try fbs.print(",z={}", .{options.z_index});
+        if (options.unicode_placeholder) try fbs.writeAll(",U=1");
 
-        try writeApc(fbs.getWritten(), null, writer);
+        try writeApc(fbs.buffered(), null, writer);
     }
 
     /// Delete image(s) from terminal memory.
     /// Returns error.MissingImageId if scope is .image and no image_id given.
     pub fn delete(options: DeleteOptions, writer: anytype) !void {
         var params_buf: [128]u8 = undefined;
-        var fbs = std.io.fixedBufferStream(&params_buf);
-        const pw = fbs.writer();
+        var fbs: std.Io.Writer = .fixed(&params_buf);
 
-        try pw.writeAll("a=d");
+        try fbs.writeAll("a=d");
         switch (options.scope) {
             .image => {
                 const img_id = options.image_id orelse return error.MissingImageId;
-                try pw.writeAll(",d=I");
-                try pw.print(",i={}", .{img_id});
-                if (options.placement_id) |pid| try pw.print(",p={}", .{pid});
+                try fbs.writeAll(",d=I");
+                try fbs.print(",i={}", .{img_id});
+                if (options.placement_id) |pid| try fbs.print(",p={}", .{pid});
             },
             .placement => {
-                try pw.writeAll(",d=p");
-                if (options.placement_id) |pid| try pw.print(",p={}", .{pid});
-                if (options.image_id) |iid| try pw.print(",i={}", .{iid});
+                try fbs.writeAll(",d=p");
+                if (options.placement_id) |pid| try fbs.print(",p={}", .{pid});
+                if (options.image_id) |iid| try fbs.print(",i={}", .{iid});
             },
             .all => {
-                try pw.writeAll(",d=A");
+                try fbs.writeAll(",d=A");
             },
         }
 
-        try writeApc(fbs.getWritten(), null, writer);
+        try writeApc(fbs.buffered(), null, writer);
     }
 
     /// Allocation-free base64 encoder writing directly to the writer.

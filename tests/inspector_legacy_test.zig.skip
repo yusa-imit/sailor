@@ -449,11 +449,11 @@ test "inspector outputs widget tree to writer" {
     _ = inspector.recordWidgetWithParent("Child2", .{ .x = 50, .y = 0, .width = 50, .height = 25 }, root);
 
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try inspector.writeWidgetTree(stream.writer());
+    try inspector.writeWidgetTree(&stream);
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
 
     // Should contain widget names
     try testing.expect(std.mem.find(u8, written, "Root") != null);
@@ -476,11 +476,11 @@ test "inspector outputs layout info to writer" {
     inspector.recordLayoutCalculation(widget_id, .{ .x = 10, .y = 5, .width = 30, .height = 15 });
 
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try inspector.writeLayoutInfo(stream.writer());
+    try inspector.writeLayoutInfo(&stream);
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
 
     // Should contain widget name and dimensions
     try testing.expect(std.mem.find(u8, written, "Widget") != null);
@@ -500,11 +500,11 @@ test "inspector outputs event log to writer" {
     inspector.recordEvent(.{ .resize = .{ .cols = 80, .rows = 24 } });
 
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try inspector.writeEventLog(stream.writer());
+    try inspector.writeEventLog(&stream);
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
 
     // Should contain event types
     try testing.expect(std.mem.find(u8, written, "keyboard") != null or std.mem.find(u8, written, "key") != null);
@@ -526,11 +526,11 @@ test "inspector outputs to writer in JSON format" {
     inspector.recordEvent(.{ .keyboard = 'a' });
 
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try inspector.writeJSON(stream.writer());
+    try inspector.writeJSON(&stream);
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
 
     // Should be valid JSON
     try testing.expect(std.mem.find(u8, written, "{") != null);
@@ -552,12 +552,12 @@ test "inspector never writes to stdout directly" {
     // All output must go through Writer - no stdout calls
     // This test ensures the API design forces writer-based output
     var buf: [1024]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
-    try inspector.writeWidgetTree(stream.writer());
+    var stream: std.Io.Writer = .fixed(&buf);
+    try inspector.writeWidgetTree(&stream);
 
     // If implementation uses stdout, this test will fail because
     // we can't capture stdout in Zig tests
-    try testing.expect(stream.getWritten().len > 0);
+    try testing.expect(stream.buffered().len > 0);
 }
 
 // ============================================================================
@@ -575,10 +575,10 @@ test "inspector handles empty widget tree" {
     try testing.expectEqual(@as(usize, 0), inspector.getWidgetCount());
 
     var buf: [1024]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // Should not crash
-    try inspector.writeWidgetTree(stream.writer());
+    try inspector.writeWidgetTree(&stream);
 }
 
 test "inspector handles zero-size widgets" {

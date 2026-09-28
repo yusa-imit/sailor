@@ -563,9 +563,9 @@ test "DocGenerator generates markdown module overview" {
     try gen.parseSource(source);
 
     var buffer: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
-    try gen.generateMarkdown(stream.writer());
-    const output = stream.getWritten();
+    var stream: std.Io.Writer = .fixed(&buffer);
+    try gen.generateMarkdown(&stream);
+    const output = stream.buffered();
 
     try expectStringContains(output, "data processing");
 }
@@ -585,9 +585,9 @@ test "DocGenerator generates markdown function documentation" {
     try gen.parseSource(source);
 
     var buffer: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
-    try gen.generateMarkdown(stream.writer());
-    const output = stream.getWritten();
+    var stream: std.Io.Writer = .fixed(&buffer);
+    try gen.generateMarkdown(&stream);
+    const output = stream.buffered();
 
     try expectStringContains(output, "add");
     try expectStringContains(output, "i32");
@@ -606,9 +606,9 @@ test "DocGenerator generates markdown struct documentation" {
     try gen.parseSource(source);
 
     var buffer: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
-    try gen.generateMarkdown(stream.writer());
-    const output = stream.getWritten();
+    var stream: std.Io.Writer = .fixed(&buffer);
+    try gen.generateMarkdown(&stream);
+    const output = stream.buffered();
 
     try expectStringContains(output, "Struct");
     // Config name extraction and field details require enhanced parsing
@@ -630,9 +630,9 @@ test "DocGenerator generates table of contents" {
     try gen.parseSource(source);
 
     var buffer: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
-    try gen.generateMarkdown(stream.writer());
-    const output = stream.getWritten();
+    var stream: std.Io.Writer = .fixed(&buffer);
+    try gen.generateMarkdown(&stream);
+    const output = stream.buffered();
 
     // Should have some form of TOC or links
     try expectStringContains(output, "func1");
@@ -652,9 +652,9 @@ test "DocGenerator markdown includes parameter documentation" {
     try gen.parseSource(source);
 
     var buffer: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
-    try gen.generateMarkdown(stream.writer());
-    const output = stream.getWritten();
+    var stream: std.Io.Writer = .fixed(&buffer);
+    try gen.generateMarkdown(&stream);
+    const output = stream.buffered();
 
     try expectStringContains(output, "input");
     try expectStringContains(output, "count");
@@ -673,9 +673,9 @@ test "DocGenerator markdown includes return type" {
     try gen.parseSource(source);
 
     var buffer: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
-    try gen.generateMarkdown(stream.writer());
-    const output = stream.getWritten();
+    var stream: std.Io.Writer = .fixed(&buffer);
+    try gen.generateMarkdown(&stream);
+    const output = stream.buffered();
 
     try expectStringContains(output, "i32");
 }
@@ -834,9 +834,9 @@ test "DocGenerator generates markdown for undocumented functions" {
     try gen.parseSource(source);
 
     var buffer: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
-    try gen.generateMarkdown(stream.writer());
-    const output = stream.getWritten();
+    var stream: std.Io.Writer = .fixed(&buffer);
+    try gen.generateMarkdown(&stream);
+    const output = stream.buffered();
 
     // Should still generate markdown without comment
     try expectStringContains(output, "undoc");
@@ -1377,9 +1377,9 @@ test "DocGenerator markdown is valid Markdown" {
     try gen.parseSource(source);
 
     var buffer: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
-    try gen.generateMarkdown(stream.writer());
-    const output = stream.getWritten();
+    var stream: std.Io.Writer = .fixed(&buffer);
+    try gen.generateMarkdown(&stream);
+    const output = stream.buffered();
 
     // Should start with valid markdown
     try testing.expect(output.len > 0);
@@ -1397,9 +1397,9 @@ test "DocGenerator markdown includes inline code for functions" {
     try gen.parseSource(source);
 
     var buffer: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
-    try gen.generateMarkdown(stream.writer());
-    const output = stream.getWritten();
+    var stream: std.Io.Writer = .fixed(&buffer);
+    try gen.generateMarkdown(&stream);
+    const output = stream.buffered();
 
     // Should have inline code markers for function signature
     try testing.expect(std.mem.find(u8, output, "`fn ") != null);
@@ -1419,9 +1419,9 @@ test "DocGenerator markdown escapes special characters" {
     try gen.parseSource(source);
 
     var buffer: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
-    try gen.generateMarkdown(stream.writer());
-    const output = stream.getWritten();
+    var stream: std.Io.Writer = .fixed(&buffer);
+    try gen.generateMarkdown(&stream);
+    const output = stream.buffered();
 
     // Markdown should be properly escaped or handled
     try testing.expect(output.len > 0);

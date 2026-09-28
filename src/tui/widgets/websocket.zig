@@ -294,29 +294,28 @@ pub const WebSocket = struct {
 
             // Build message line
             var line_buf: [512]u8 = undefined;
-            var stream = std.io.fixedBufferStream(&line_buf);
-            const writer = stream.writer();
+            var stream: std.Io.Writer = .fixed(&line_buf);
 
             // Direction indicator
             if (self.show_direction) {
                 const indicator = if (msg.is_incoming) "<-" else "->";
-                writer.writeAll(indicator) catch {};
-                writer.writeAll(" ") catch {};
+                stream.writeAll(indicator) catch {};
+                stream.writeAll(" ") catch {};
             }
 
             // Timestamp
             if (self.show_timestamps) {
                 var ts_buf: [32]u8 = undefined;
                 const ts = formatTimestamp(msg.timestamp_ms, self.timestamp_format, &ts_buf);
-                writer.writeAll("[") catch {};
-                writer.writeAll(ts) catch {};
-                writer.writeAll("] ") catch {};
+                stream.writeAll("[") catch {};
+                stream.writeAll(ts) catch {};
+                stream.writeAll("] ") catch {};
             }
 
             // Message content
-            writer.writeAll(msg.content) catch {};
+            stream.writeAll(msg.content) catch {};
 
-            const line = stream.getWritten();
+            const line = stream.buffered();
             const msg_style = if (msg.is_incoming)
                 Style{ .fg = .cyan }
             else

@@ -1579,14 +1579,14 @@ test "validator callback: null validator (default) — Enter returns true immedi
     defer repl.deinit();
 
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // Setup: buffer = "hello", cursor = 5
     try repl.buffer.appendSlice("hello");
     repl.cursor = 5;
 
     // Send Enter
-    const complete = try repl.handleKey("\r", stream.writer());
+    const complete = try repl.handleKey("\r", &stream);
 
     // Expected: returns true (line complete), buffer unchanged
     try std.testing.expect(complete);
@@ -1603,14 +1603,14 @@ test "validator callback: .complete — Enter returns true, buffer unchanged" {
     defer repl.deinit();
 
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // Setup: buffer = "hello", cursor = 5
     try repl.buffer.appendSlice("hello");
     repl.cursor = 5;
 
     // Send Enter
-    const complete = try repl.handleKey("\r", stream.writer());
+    const complete = try repl.handleKey("\r", &stream);
 
     // Expected: returns true (submission), buffer unchanged
     try std.testing.expect(complete);
@@ -1628,14 +1628,14 @@ test "validator callback: .incomplete — Enter returns false, newline inserted,
     defer repl.deinit();
 
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // Setup: buffer = "if x", cursor = 4 (incomplete, no semicolon)
     try repl.buffer.appendSlice("if x");
     repl.cursor = 4;
 
     // Send Enter
-    const complete = try repl.handleKey("\r", stream.writer());
+    const complete = try repl.handleKey("\r", &stream);
 
     // Expected: returns false (not complete), newline inserted at cursor, cursor advanced
     try std.testing.expect(!complete);
@@ -1643,7 +1643,7 @@ test "validator callback: .incomplete — Enter returns false, newline inserted,
     try std.testing.expectEqual(@as(usize, 5), repl.cursor);
 
     // Expected: continuation prompt appears in output
-    const output = stream.getWritten();
+    const output = stream.buffered();
     try std.testing.expect(std.mem.find(u8, output, "  ") != null);
 }
 
@@ -1657,14 +1657,14 @@ test "validator callback: .incomplete at mid-buffer cursor position inserts newl
     defer repl.deinit();
 
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // Setup: buffer = "foo bar baz", cursor = 4 (after "foo ")
     try repl.buffer.appendSlice("foo bar baz");
     repl.cursor = 4;
 
     // Send Enter
-    const complete = try repl.handleKey("\r", stream.writer());
+    const complete = try repl.handleKey("\r", &stream);
 
     // Expected: newline inserted at cursor position 4, content after cursor preserved
     try std.testing.expect(!complete);
@@ -1672,7 +1672,7 @@ test "validator callback: .incomplete at mid-buffer cursor position inserts newl
     try std.testing.expectEqual(@as(usize, 5), repl.cursor);
 
     // Check continuation prompt in output
-    const output = stream.getWritten();
+    const output = stream.buffered();
     try std.testing.expect(std.mem.find(u8, output, ".. ") != null);
 }
 
@@ -1686,13 +1686,13 @@ test "validator callback: .invalid — Enter returns false, buffer cleared, curs
     defer repl.deinit();
 
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // Setup: buffer is empty (validator will return .invalid)
     // cursor = 0
 
     // Send Enter
-    const complete = try repl.handleKey("\r", stream.writer());
+    const complete = try repl.handleKey("\r", &stream);
 
     // Expected: returns false, buffer remains empty (already was), cursor unchanged (already 0)
     try std.testing.expect(!complete);
@@ -1700,7 +1700,7 @@ test "validator callback: .invalid — Enter returns false, buffer cleared, curs
     try std.testing.expectEqual(@as(usize, 0), repl.cursor);
 
     // Expected: primary prompt appears in output
-    const output = stream.getWritten();
+    const output = stream.buffered();
     try std.testing.expect(std.mem.find(u8, output, ">>> ") != null);
 }
 
@@ -1714,7 +1714,7 @@ test "validator callback: .invalid with non-empty buffer clears it" {
     defer repl.deinit();
 
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // First, add valid content
     try repl.buffer.appendSlice("hello world");
@@ -1724,7 +1724,7 @@ test "validator callback: .invalid with non-empty buffer clears it" {
     try std.testing.expectEqualStrings("hello world", repl.buffer.items);
 
     // Send Enter (content exists, so validator returns .complete)
-    const complete1 = try repl.handleKey("\r", stream.writer());
+    const complete1 = try repl.handleKey("\r", &stream);
     try std.testing.expect(complete1);
 
     // Reset for second test: clear buffer and cursor for invalid case
@@ -1732,7 +1732,7 @@ test "validator callback: .invalid with non-empty buffer clears it" {
     repl.cursor = 0;
 
     // Now send Enter with empty buffer (validator returns .invalid)
-    const complete2 = try repl.handleKey("\r", stream.writer());
+    const complete2 = try repl.handleKey("\r", &stream);
 
     // Expected: returns false, buffer cleared, cursor reset
     try std.testing.expect(!complete2);
@@ -1749,14 +1749,14 @@ test "validator callback: multi-line accumulation over two Enter presses" {
     defer repl.deinit();
 
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // First line: "if x" (incomplete, no semicolon)
     try repl.buffer.appendSlice("if x");
     repl.cursor = 4;
 
     // Send Enter (should return false, newline inserted)
-    const complete1 = try repl.handleKey("\r", stream.writer());
+    const complete1 = try repl.handleKey("\r", &stream);
     try std.testing.expect(!complete1);
     try std.testing.expectEqualStrings("if x\n", repl.buffer.items);
     try std.testing.expectEqual(@as(usize, 5), repl.cursor);
@@ -1766,7 +1766,7 @@ test "validator callback: multi-line accumulation over two Enter presses" {
     repl.cursor = 12; // After "then y;"
 
     // Send Enter (should return true, validation checks full buffer "if x\nthen y;" which ends with semicolon)
-    const complete2 = try repl.handleKey("\r", stream.writer());
+    const complete2 = try repl.handleKey("\r", &stream);
     try std.testing.expect(complete2);
     try std.testing.expectEqualStrings("if x\nthen y;", repl.buffer.items);
 }

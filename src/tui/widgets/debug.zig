@@ -72,9 +72,9 @@ pub const DebugOverlay = struct {
     /// Initialize debug overlay
     pub fn init(allocator: Allocator, mode: DebugMode, position: Position) DebugOverlay {
         return .{
-            .rects = .{},
+            .rects = .empty,
             .stats = .{},
-            .events = .{},
+            .events = .empty,
             .max_events = 10, // Show last 10 events
             .mode = mode,
             .position = position,

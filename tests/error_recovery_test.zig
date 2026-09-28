@@ -862,16 +862,16 @@ test "ErrorReporter - structured logging to writer" {
     defer reporter.deinit();
 
     var buffer: [1024]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
+    var stream: std.Io.Writer = .fixed(&buffer);
 
-    try reporter.setLogWriter(stream.writer());
+    try reporter.setLogWriter(&stream);
 
     // Configure JSON format
     try reporter.setFormat(.json);
 
     reporter.report(error.TestError, "Test message");
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
 
     // Verify JSON structure
     try testing.expect(std.mem.find(u8, written, "\"error\"") != null);
