@@ -730,11 +730,11 @@ pub const SixelEncoder = struct {
     ///   Propagates errors from encode() and compression
     pub fn encodeCompressed(self: SixelEncoder, allocator: Allocator, image: SixelImage, writer: anytype) !void {
         // First, encode normally to a buffer
-        var encoded_buf = std.ArrayList(u8).empty;
-        defer encoded_buf.deinit(allocator);
+        var encoded_buf: std.Io.Writer.Allocating = .init(allocator);
+        defer encoded_buf.deinit();
 
-        try self.encode(allocator, image, encoded_buf.writer(allocator));
-        const encoded_data = encoded_buf.items;
+        try self.encode(allocator, image, &encoded_buf.writer);
+        const encoded_data = encoded_buf.written();
 
         // Compress the encoded data
         const compressed = try SixelCompressor.compress(allocator, encoded_data);
@@ -1002,7 +1002,7 @@ pub const SixelDecoder = struct {
                     y += 1;
                     x = 0;
                 },
-                '?' ... '~' => {
+                '?'...'~' => {
                     // Sixel data: '?' (0x3f) represents 0, '~' (0x7e) represents 63
                     const sixel_value = c - 0x3f;
 
@@ -1047,8 +1047,7 @@ pub fn detectSixelSupport() bool {
     const stdout_fd: std.posix.fd_t = if (builtin.os.tag == .windows) blk: {
         const handle = std.os.windows.GetStdHandle(std.os.windows.STD_OUTPUT_HANDLE) catch return false;
         break :blk @ptrCast(handle);
-    } else
-        std.posix.STDOUT_FILENO;
+    } else std.posix.STDOUT_FILENO;
 
     if (term_mod.hasCapability(allocator, stdout_fd, "Sixel", 100)) |has_sixel| {
         if (has_sixel) return true;
@@ -1112,13 +1111,13 @@ test "SixelEncoder basic encode 2x2 solid image" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .empty;
-    defer output.deinit(allocator);
+    var output: std.Io.Writer.Allocating = .init(allocator);
+    defer output.deinit();
 
     const encoder = SixelEncoder{};
-    try encoder.encode(allocator, image, output.writer(allocator));
+    try encoder.encode(allocator, image, &output.writer);
 
-    const result = output.items;
+    const result = output.written();
 
     // Verify Sixel sequence markers
     try std.testing.expect(std.mem.startsWith(u8, result, "\x1bPq")); // Start
@@ -1143,13 +1142,13 @@ test "SixelEncoder transparency handling" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .empty;
-    defer output.deinit(allocator);
+    var output: std.Io.Writer.Allocating = .init(allocator);
+    defer output.deinit();
 
     const encoder = SixelEncoder{ .use_transparency = true };
-    try encoder.encode(allocator, image, output.writer(allocator));
+    try encoder.encode(allocator, image, &output.writer);
 
-    const result = output.items;
+    const result = output.written();
 
     // Should only encode opaque pixels
     try std.testing.expect(result.len > 0);
@@ -1217,13 +1216,13 @@ test "SixelEncoder all transparent image" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .empty;
-    defer output.deinit(allocator);
+    var output: std.Io.Writer.Allocating = .init(allocator);
+    defer output.deinit();
 
     const encoder = SixelEncoder{ .use_transparency = true };
-    try encoder.encode(allocator, image, output.writer(allocator));
+    try encoder.encode(allocator, image, &output.writer);
 
-    const result = output.items;
+    const result = output.written();
 
     // Should produce valid Sixel sequence with black palette
     try std.testing.expect(std.mem.startsWith(u8, result, "\x1bPq"));
@@ -1249,13 +1248,13 @@ test "SixelEncoder 1x6 vertical stripe" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .empty;
-    defer output.deinit(allocator);
+    var output: std.Io.Writer.Allocating = .init(allocator);
+    defer output.deinit();
 
     const encoder = SixelEncoder{};
-    try encoder.encode(allocator, image, output.writer(allocator));
+    try encoder.encode(allocator, image, &output.writer);
 
-    const result = output.items;
+    const result = output.written();
 
     // Should encode full sixel (6 bits set = 63 + 0x3f = 0x7e = '~')
     try std.testing.expect(std.mem.find(u8, result, "~") != null);
@@ -1276,13 +1275,13 @@ test "SixelEncoder 1x7 vertical stripe (partial sixel)" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .empty;
-    defer output.deinit(allocator);
+    var output: std.Io.Writer.Allocating = .init(allocator);
+    defer output.deinit();
 
     const encoder = SixelEncoder{};
-    try encoder.encode(allocator, image, output.writer(allocator));
+    try encoder.encode(allocator, image, &output.writer);
 
-    const result = output.items;
+    const result = output.written();
 
     // Should have row separator '-'
     try std.testing.expect(std.mem.find(u8, result, "-") != null);
@@ -1310,13 +1309,13 @@ test "SixelEncoder color RGB scaling" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .empty;
-    defer output.deinit(allocator);
+    var output: std.Io.Writer.Allocating = .init(allocator);
+    defer output.deinit();
 
     const encoder = SixelEncoder{};
-    try encoder.encode(allocator, image, output.writer(allocator));
+    try encoder.encode(allocator, image, &output.writer);
 
-    const result = output.items;
+    const result = output.written();
 
     // Color definition should scale RGB to 0-100 range
     // r=255 → 100, g=128 → 50, b=64 → 25
@@ -1340,13 +1339,13 @@ test "SixelEncoder multiple colors with run-length" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .empty;
-    defer output.deinit(allocator);
+    var output: std.Io.Writer.Allocating = .init(allocator);
+    defer output.deinit();
 
     const encoder = SixelEncoder{};
-    try encoder.encode(allocator, image, output.writer(allocator));
+    try encoder.encode(allocator, image, &output.writer);
 
-    const result = output.items;
+    const result = output.written();
 
     // Should define at least 2 colors
     try std.testing.expect(std.mem.find(u8, result, "#0;2;") != null);
@@ -1362,13 +1361,13 @@ test "SixelEncoder empty image (0x0)" {
         .pixels = &[_]SixelImage.Color{},
     };
 
-    var output: std.ArrayList(u8) = .empty;
-    defer output.deinit(allocator);
+    var output: std.Io.Writer.Allocating = .init(allocator);
+    defer output.deinit();
 
     const encoder = SixelEncoder{};
-    try encoder.encode(allocator, image, output.writer(allocator));
+    try encoder.encode(allocator, image, &output.writer);
 
-    const result = output.items;
+    const result = output.written();
 
     // Should produce valid (but empty) Sixel sequence
     try std.testing.expect(std.mem.startsWith(u8, result, "\x1bPq"));
@@ -1388,13 +1387,13 @@ test "SixelEncoder single pixel" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .empty;
-    defer output.deinit(allocator);
+    var output: std.Io.Writer.Allocating = .init(allocator);
+    defer output.deinit();
 
     const encoder = SixelEncoder{};
-    try encoder.encode(allocator, image, output.writer(allocator));
+    try encoder.encode(allocator, image, &output.writer);
 
-    const result = output.items;
+    const result = output.written();
 
     try std.testing.expect(std.mem.startsWith(u8, result, "\x1bPq"));
     try std.testing.expect(std.mem.find(u8, result, "\"1;1;1;1") != null); // 1x1 raster
@@ -1414,13 +1413,13 @@ test "SixelEncoder no transparency mode" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .empty;
-    defer output.deinit(allocator);
+    var output: std.Io.Writer.Allocating = .init(allocator);
+    defer output.deinit();
 
     const encoder = SixelEncoder{ .use_transparency = false }; // Ignore alpha
-    try encoder.encode(allocator, image, output.writer(allocator));
+    try encoder.encode(allocator, image, &output.writer);
 
-    const result = output.items;
+    const result = output.written();
 
     // Should encode all pixels regardless of alpha
     try std.testing.expect(result.len > 0);
@@ -1444,13 +1443,13 @@ test "SixelEncoder wide image (triggers multiple columns)" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .empty;
-    defer output.deinit(allocator);
+    var output: std.Io.Writer.Allocating = .init(allocator);
+    defer output.deinit();
 
     const encoder = SixelEncoder{};
-    try encoder.encode(allocator, image, output.writer(allocator));
+    try encoder.encode(allocator, image, &output.writer);
 
-    const result = output.items;
+    const result = output.written();
 
     // Should produce valid Sixel with multiple pixel runs
     try std.testing.expect(std.mem.startsWith(u8, result, "\x1bPq"));
@@ -1472,13 +1471,13 @@ test "SixelEncoder tall image (multiple sixel rows)" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .empty;
-    defer output.deinit(allocator);
+    var output: std.Io.Writer.Allocating = .init(allocator);
+    defer output.deinit();
 
     const encoder = SixelEncoder{};
-    try encoder.encode(allocator, image, output.writer(allocator));
+    try encoder.encode(allocator, image, &output.writer);
 
-    const result = output.items;
+    const result = output.written();
 
     // Should have row separator '-'
     try std.testing.expect(std.mem.find(u8, result, "-") != null);
@@ -1736,8 +1735,9 @@ pub const SixelCompressor = struct {
 
                 // Count consecutive identical sixel data characters
                 while (i + run_length < data.len and
-                       data[i + run_length] == current_char and
-                       data[i + run_length] >= 0x3f and data[i + run_length] <= 0x7e) {
+                    data[i + run_length] == current_char and
+                    data[i + run_length] >= 0x3f and data[i + run_length] <= 0x7e)
+                {
                     run_length += 1;
                 }
 

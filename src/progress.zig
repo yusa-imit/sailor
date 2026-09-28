@@ -19,18 +19,18 @@ pub const Error = error{} || Allocator.Error;
 
 /// Spinner style
 pub const SpinnerStyle = enum {
-    braille,  // ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏
-    dots,     // ⠋⠙⠚⠞⠖⠦⠴⠲⠳⠓
-    line,     // -\|/
-    arc,      // ◜◠◝◞◡◟
+    braille, // ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏
+    dots, // ⠋⠙⠚⠞⠖⠦⠴⠲⠳⠓
+    line, // -\|/
+    arc, // ◜◠◝◞◡◟
 
     /// Returns the animation frames for this spinner style.
     pub fn frames(self: SpinnerStyle) []const []const u8 {
         return switch (self) {
-            .braille => &.{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
-            .dots => &.{"⠋", "⠙", "⠚", "⠞", "⠖", "⠦", "⠴", "⠲", "⠳", "⠓"},
-            .line => &.{"-", "\\", "|", "/"},
-            .arc => &.{"◜", "◠", "◝", "◞", "◡", "◟"},
+            .braille => &.{ "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
+            .dots => &.{ "⠋", "⠙", "⠚", "⠞", "⠖", "⠦", "⠴", "⠲", "⠳", "⠓" },
+            .line => &.{ "-", "\\", "|", "/" },
+            .arc => &.{ "◜", "◠", "◝", "◞", "◡", "◟" },
         };
     }
 };
@@ -179,8 +179,8 @@ pub const Bar = struct {
         // Calculate filled width
         const filled_width = if (self.total > 0)
             @as(usize, @intFromFloat(@as(f64, @floatFromInt(self.config.width)) *
-                                      @as(f64, @floatFromInt(self.current)) /
-                                      @as(f64, @floatFromInt(self.total))))
+                @as(f64, @floatFromInt(self.current)) /
+                @as(f64, @floatFromInt(self.total))))
         else
             0;
 
@@ -214,7 +214,7 @@ pub const Bar = struct {
 
         // Count
         if (self.config.show_count) {
-            try writer.print(" ({d}/{d})", .{self.current, self.total});
+            try writer.print(" ({d}/{d})", .{ self.current, self.total });
         }
 
         // ETA
@@ -227,9 +227,9 @@ pub const Bar = struct {
             if (eta_sec < 60) {
                 try writer.print(" ETA {d}s", .{eta_sec});
             } else if (eta_sec < 3600) {
-                try writer.print(" ETA {d}m{d}s", .{@divFloor(eta_sec, 60), @mod(eta_sec, 60)});
+                try writer.print(" ETA {d}m{d}s", .{ @divFloor(eta_sec, 60), @mod(eta_sec, 60) });
             } else {
-                try writer.print(" ETA {d}h{d}m", .{@divFloor(eta_sec, 3600), @divFloor(@mod(eta_sec, 3600), 60)});
+                try writer.print(" ETA {d}h{d}m", .{ @divFloor(eta_sec, 3600), @divFloor(@mod(eta_sec, 3600), 60) });
             }
         }
     }
@@ -387,15 +387,15 @@ pub const Multi = struct {
 // Tests
 
 test "Bar basic" {
-    var buf = std.array_list.Managed(u8).init(std.testing.allocator);
+    var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
     var bar = Bar.init(100, .{ .use_color = false });
     bar.update(50);
 
-    try bar.render(buf.writer());
+    try bar.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     try std.testing.expect(std.mem.find(u8, output, "50.0%") != null);
     try std.testing.expect(std.mem.find(u8, output, "(50/100)") != null);
 }
@@ -420,14 +420,14 @@ test "Bar clamps at total" {
 test "Bar filled_width glyph count at 50% progress" {
     // Default width is 40, so at 50% we should see exactly 20 filled glyphs
     // filled_width = @intFromFloat(40.0 * 50.0 / 100.0) = @intFromFloat(20.0) = 20
-    var buf = std.array_list.Managed(u8).init(std.testing.allocator);
+    var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
     var bar = Bar.init(100, .{ .use_color = false });
     bar.update(50);
-    try bar.render(buf.writer());
+    try bar.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     const filled_glyph = "█";
     const filled_count = std.mem.count(u8, output, filled_glyph);
 
@@ -437,14 +437,14 @@ test "Bar filled_width glyph count at 50% progress" {
 
 test "Bar filled_width glyph count at 25% progress" {
     // At 25%, filled_width = @intFromFloat(40.0 * 25.0 / 100.0) = 10
-    var buf = std.array_list.Managed(u8).init(std.testing.allocator);
+    var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
     var bar = Bar.init(100, .{ .use_color = false });
     bar.update(25);
-    try bar.render(buf.writer());
+    try bar.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     const filled_glyph = "█";
     const filled_count = std.mem.count(u8, output, filled_glyph);
 
@@ -452,34 +452,34 @@ test "Bar filled_width glyph count at 25% progress" {
 }
 
 test "Bar ETA not shown when current equals zero" {
-    var buf = std.array_list.Managed(u8).init(std.testing.allocator);
+    var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
     var bar = Bar.init(100, .{ .show_eta = true, .use_color = false });
     // current is 0 by default after init, so guard condition (current > 0) fails
-    try bar.render(buf.writer());
+    try bar.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Should NOT contain ETA since current == 0
     try std.testing.expect(std.mem.find(u8, output, " ETA ") == null);
 }
 
 test "Bar ETA not shown when current equals total" {
-    var buf = std.array_list.Managed(u8).init(std.testing.allocator);
+    var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
     var bar = Bar.init(100, .{ .show_eta = true, .use_color = false });
     bar.update(100);
     // current equals total, so guard condition (current < total) fails
-    try bar.render(buf.writer());
+    try bar.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Should NOT contain ETA since current == total
     try std.testing.expect(std.mem.find(u8, output, " ETA ") == null);
 }
 
 test "Bar ETA formatted with seconds when elapsed produces eta_sec < 60" {
-    var buf = std.array_list.Managed(u8).init(std.testing.allocator);
+    var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
     var bar = Bar.init(100, .{ .show_eta = true, .use_color = false });
@@ -494,15 +494,15 @@ test "Bar ETA formatted with seconds when elapsed produces eta_sec < 60" {
     // So start_time must be 45000ms in the past
     bar.start_time -= 45000;
 
-    try bar.render(buf.writer());
+    try bar.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Should contain the exact ETA string for 45 seconds
     try std.testing.expect(std.mem.find(u8, output, " ETA 45s") != null);
 }
 
 test "Bar ETA formatted with minutes when elapsed produces 60 <= eta_sec < 3600" {
-    var buf = std.array_list.Managed(u8).init(std.testing.allocator);
+    var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
     var bar = Bar.init(200, .{ .show_eta = true, .use_color = false });
@@ -515,15 +515,15 @@ test "Bar ETA formatted with minutes when elapsed produces 60 <= eta_sec < 3600"
     // elapsed = 1500 * 100 = 150000 ms
     bar.start_time -= 150000;
 
-    try bar.render(buf.writer());
+    try bar.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Should contain the exact ETA string for 2m30s (150 seconds = 2*60 + 30)
     try std.testing.expect(std.mem.find(u8, output, " ETA 2m30s") != null);
 }
 
 test "Bar ETA formatted with hours when eta_sec >= 3600" {
-    var buf = std.array_list.Managed(u8).init(std.testing.allocator);
+    var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
     var bar = Bar.init(3600, .{ .show_eta = true, .use_color = false });
@@ -536,9 +536,9 @@ test "Bar ETA formatted with hours when eta_sec >= 3600" {
     // elapsed = 2000 * 1800 = 3600000 ms
     bar.start_time -= 3600000;
 
-    try bar.render(buf.writer());
+    try bar.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Should contain the exact ETA string for 1h0m (3600 seconds = 1*3600 + 0)
     try std.testing.expect(std.mem.find(u8, output, " ETA 1h0m") != null);
 }
@@ -565,13 +565,13 @@ test "Spinner tick" {
 }
 
 test "Spinner render" {
-    var buf = std.array_list.Managed(u8).init(std.testing.allocator);
+    var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
     const spinner = Spinner.init("Loading", .line, false);
-    try spinner.render(buf.writer());
+    try spinner.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     try std.testing.expect(std.mem.find(u8, output, "Loading") != null);
 }
 

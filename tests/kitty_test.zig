@@ -17,9 +17,9 @@ fn encodeBase64(allocator: std.mem.Allocator, data: []const u8) ![]u8 {
     return encoded;
 }
 
-// Helper function to create an ArrayList writer for capturing output
-fn createTestWriter(_: std.mem.Allocator) std.ArrayList(u8) {
-    return .empty;
+// Helper function to create a Writer.Allocating for capturing output
+fn createTestWriter(allocator: std.mem.Allocator) std.Io.Writer.Allocating {
+    return .init(allocator);
 }
 
 // ============================================================================
@@ -29,12 +29,12 @@ fn createTestWriter(_: std.mem.Allocator) std.ArrayList(u8) {
 test "kitty: writeApc with no payload emits no semicolon" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
-    try KittyGraphics.writeApc("a=T,f=100", null, output.writer(allocator));
+    try KittyGraphics.writeApc("a=T,f=100", null, &output.writer);
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(written.len > 0);
     try testing.expect(std.mem.startsWith(u8, written, "\x1b_G"));
     try testing.expect(std.mem.endsWith(u8, written, "\x1b\\"));
@@ -44,12 +44,12 @@ test "kitty: writeApc with no payload emits no semicolon" {
 test "kitty: writeApc with empty payload emits semicolon" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
-    try KittyGraphics.writeApc("a=T,f=100", "", output.writer(allocator));
+    try KittyGraphics.writeApc("a=T,f=100", "", &output.writer);
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(written.len > 0);
     try testing.expect(std.mem.startsWith(u8, written, "\x1b_G"));
     try testing.expect(std.mem.endsWith(u8, written, "\x1b\\"));
@@ -60,13 +60,13 @@ test "kitty: writeApc with empty payload emits semicolon" {
 test "kitty: writeApc encodes payload to base64" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const test_data = "hello";
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
-    try KittyGraphics.writeApc("a=T", test_data, output.writer(allocator));
+    try KittyGraphics.writeApc("a=T", test_data, &output.writer);
 
-    const written = output.items;
+    const written = output.written();
     // Base64 of "hello" is "aGVsbG8="
     try testing.expect(std.mem.find(u8, written, "aGVsbG8=") != null);
 }
@@ -74,12 +74,12 @@ test "kitty: writeApc encodes payload to base64" {
 test "kitty: writeApc output starts with escape and ends with terminator" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
-    try KittyGraphics.writeApc("f=100", "data", output.writer(allocator));
+    try KittyGraphics.writeApc("f=100", "data", &output.writer);
 
-    const written = output.items;
+    const written = output.written();
     try testing.expectEqual(@as(u8, 0x1b), written[0]);
     try testing.expectEqual(@as(u8, '_'), written[1]);
     try testing.expectEqual(@as(u8, 'G'), written[2]);
@@ -90,12 +90,12 @@ test "kitty: writeApc output starts with escape and ends with terminator" {
 test "kitty: writeApc with multiple params comma-separates them" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
-    try KittyGraphics.writeApc("a=T,f=100,i=1", null, output.writer(allocator));
+    try KittyGraphics.writeApc("a=T,f=100,i=1", null, &output.writer);
 
-    const written = output.items;
+    const written = output.written();
     const content = written[3 .. written.len - 2]; // Strip escape codes
     try testing.expect(std.mem.find(u8, content, "a=T") != null);
     try testing.expect(std.mem.find(u8, content, "f=100") != null);
@@ -110,7 +110,7 @@ test "kitty: writeApc with multiple params comma-separates them" {
 test "kitty: transmit small data in single APC with m=0" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const small_data = "tiny";
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
@@ -118,11 +118,11 @@ test "kitty: transmit small data in single APC with m=0" {
         allocator,
         small_data,
         .{ .format = .png },
-        output.writer(allocator),
+        &output.writer,
     );
 
     try testing.expect(image_id > 0);
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "m=0") != null);
     try testing.expect(std.mem.find(u8, written, "a=T") != null);
     try testing.expect(std.mem.find(u8, written, "f=100") != null);
@@ -133,7 +133,7 @@ test "kitty: transmit small data in single APC with m=0" {
 test "kitty: transmit large data in multiple APCs with m=1 then m=0" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     // Create data larger than chunk_size
     const large_data = try allocator.alloc(u8, 10000);
@@ -145,11 +145,11 @@ test "kitty: transmit large data in multiple APCs with m=1 then m=0" {
         allocator,
         large_data,
         .{ .chunk_size = 4096 },
-        output.writer(allocator),
+        &output.writer,
     );
 
     try testing.expect(image_id > 0);
-    const written = output.items;
+    const written = output.written();
     // Should have multiple APC sequences
     try testing.expect(std.mem.count(u8, written, "\x1b_G") > 1);
     // Should have m=1 for intermediate chunks
@@ -161,14 +161,14 @@ test "kitty: transmit large data in multiple APCs with m=1 then m=0" {
 test "kitty: transmit returns valid image_id > 0" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     const image_id = try KittyGraphics.transmit(
         allocator,
         "test",
         .{},
-        output.writer(allocator),
+        &output.writer,
     );
 
     try testing.expect(image_id > 0);
@@ -177,7 +177,7 @@ test "kitty: transmit returns valid image_id > 0" {
 test "kitty: transmit with explicit image_id uses it" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const explicit_id: u32 = 42;
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
@@ -185,79 +185,79 @@ test "kitty: transmit with explicit image_id uses it" {
         allocator,
         "data",
         .{ .image_id = explicit_id },
-        output.writer(allocator),
+        &output.writer,
     );
 
     try testing.expectEqual(explicit_id, image_id);
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "i=42") != null);
 }
 
 test "kitty: transmit PNG format emits f=100" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     _ = try KittyGraphics.transmit(
         allocator,
         "png_data",
         .{ .format = .png },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "f=100") != null);
 }
 
 test "kitty: transmit RGBA format emits f=32" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     _ = try KittyGraphics.transmit(
         allocator,
         "rgba_data",
         .{ .format = .rgba },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "f=32") != null);
 }
 
 test "kitty: transmit RGB format emits f=24" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     _ = try KittyGraphics.transmit(
         allocator,
         "rgb_data",
         .{ .format = .rgb },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "f=24") != null);
 }
 
 test "kitty: transmit quiet mode emits q=2" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     _ = try KittyGraphics.transmit(
         allocator,
         "data",
         .{ .quiet = true },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "q=2") != null);
 }
 
@@ -268,60 +268,60 @@ test "kitty: transmit quiet mode emits q=2" {
 test "kitty: display basic produces APC with a=p" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     try KittyGraphics.display(
         .{ .image_id = 1 },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "a=p") != null);
 }
 
 test "kitty: display with image_id emits i=<id>" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     try KittyGraphics.display(
         .{ .image_id = 123 },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "i=123") != null);
 }
 
 test "kitty: display with placement_id emits p=<id>" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     try KittyGraphics.display(
         .{ .image_id = 1, .placement_id = 99 },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "p=99") != null);
 }
 
 test "kitty: display with x,y position emits x=<col>,y=<row>" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     try KittyGraphics.display(
         .{ .image_id = 1, .x = 10, .y = 20 },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "x=10") != null);
     try testing.expect(std.mem.find(u8, written, "y=20") != null);
 }
@@ -329,15 +329,15 @@ test "kitty: display with x,y position emits x=<col>,y=<row>" {
 test "kitty: display with w,h size emits w=<w>,h=<h>" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     try KittyGraphics.display(
         .{ .image_id = 1, .w = 30, .h = 40 },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "w=30") != null);
     try testing.expect(std.mem.find(u8, written, "h=40") != null);
 }
@@ -345,45 +345,45 @@ test "kitty: display with w,h size emits w=<w>,h=<h>" {
 test "kitty: display with z_index emits z=<n>" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     try KittyGraphics.display(
         .{ .image_id = 1, .z_index = 5 },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "z=5") != null);
 }
 
 test "kitty: display with negative z_index encoded correctly" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     try KittyGraphics.display(
         .{ .image_id = 1, .z_index = -3 },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "z=-3") != null);
 }
 
 test "kitty: display with unicode_placeholder emits U=1" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     try KittyGraphics.display(
         .{ .image_id = 1, .unicode_placeholder = true },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "U=1") != null);
 }
 
@@ -394,15 +394,15 @@ test "kitty: display with unicode_placeholder emits U=1" {
 test "kitty: delete by image_id produces a=d,d=I,i=<id>" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     try KittyGraphics.delete(
         .{ .scope = .image, .image_id = 5 },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "a=d") != null);
     try testing.expect(std.mem.find(u8, written, "d=I") != null);
     try testing.expect(std.mem.find(u8, written, "i=5") != null);
@@ -411,15 +411,15 @@ test "kitty: delete by image_id produces a=d,d=I,i=<id>" {
 test "kitty: delete by placement_id produces a=d,d=p,p=<pid>" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     try KittyGraphics.delete(
         .{ .scope = .placement, .placement_id = 7 },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "a=d") != null);
     try testing.expect(std.mem.find(u8, written, "d=p") != null);
     try testing.expect(std.mem.find(u8, written, "p=7") != null);
@@ -428,15 +428,15 @@ test "kitty: delete by placement_id produces a=d,d=p,p=<pid>" {
 test "kitty: delete all produces a=d,d=A" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     try KittyGraphics.delete(
         .{ .scope = .all },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "a=d") != null);
     try testing.expect(std.mem.find(u8, written, "d=A") != null);
 }
@@ -444,30 +444,30 @@ test "kitty: delete all produces a=d,d=A" {
 test "kitty: delete output ends with escape terminator" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     try KittyGraphics.delete(
         .{ .scope = .image, .image_id = 1 },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.endsWith(u8, written, "\x1b\\"));
 }
 
 test "kitty: delete with both image_id and placement includes both" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     try KittyGraphics.delete(
         .{ .scope = .image, .image_id = 10, .placement_id = 20 },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "i=10") != null);
     try testing.expect(std.mem.find(u8, written, "p=20") != null);
 }
@@ -475,15 +475,15 @@ test "kitty: delete with both image_id and placement includes both" {
 test "kitty: delete with scope all ignores ids" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     try KittyGraphics.delete(
         .{ .scope = .all, .image_id = 99, .placement_id = 88 },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "d=A") != null);
     // ids should not be in output for scope=all
     try testing.expect(std.mem.find(u8, written, "i=99") == null);
@@ -497,7 +497,7 @@ test "kitty: delete with scope all ignores ids" {
 test "kitty: chunk_size=10 forces multiple chunks for >10 byte payload" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const data = "0123456789ABCDEFGHIJ"; // 20 bytes
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
@@ -505,10 +505,10 @@ test "kitty: chunk_size=10 forces multiple chunks for >10 byte payload" {
         allocator,
         data,
         .{ .chunk_size = 10 },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     const apc_count = std.mem.count(u8, written, "\x1b_G");
     try testing.expect(apc_count >= 2);
 }
@@ -516,7 +516,7 @@ test "kitty: chunk_size=10 forces multiple chunks for >10 byte payload" {
 test "kitty: intermediate chunks have m=1" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const data = try allocator.alloc(u8, 100);
     defer allocator.free(data);
@@ -527,17 +527,17 @@ test "kitty: intermediate chunks have m=1" {
         allocator,
         data,
         .{ .chunk_size = 30 },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "m=1") != null);
 }
 
 test "kitty: final chunk has m=0" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const data = try allocator.alloc(u8, 100);
     defer allocator.free(data);
@@ -548,17 +548,17 @@ test "kitty: final chunk has m=0" {
         allocator,
         data,
         .{ .chunk_size = 30 },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
     try testing.expect(std.mem.find(u8, written, "m=0") != null);
 }
 
 test "kitty: all chunks decode to original data when concatenated" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const original_data = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
@@ -566,10 +566,10 @@ test "kitty: all chunks decode to original data when concatenated" {
         allocator,
         original_data,
         .{ .chunk_size = 10 },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
 
     // Extract base64 chunks from output (simplified: look for valid base64 segments)
     // This test verifies that concatenating base64 chunks from all APCs
@@ -605,7 +605,7 @@ test "kitty: all chunks decode to original data when concatenated" {
 test "kitty: first chunk has full params, subsequent chunks have only m=<n>" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const data = try allocator.alloc(u8, 150);
     defer allocator.free(data);
@@ -616,10 +616,10 @@ test "kitty: first chunk has full params, subsequent chunks have only m=<n>" {
         allocator,
         data,
         .{ .chunk_size = 40, .format = .png },
-        output.writer(allocator),
+        &output.writer,
     );
 
-    const written = output.items;
+    const written = output.written();
 
     // First APC should have a=T,f=100
     const first_apc_end = std.mem.find(u8, written, "\x1b\\").?;
@@ -642,12 +642,12 @@ test "kitty: first chunk has full params, subsequent chunks have only m=<n>" {
 test "kitty: display with image_id=0 returns error" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     const result = KittyGraphics.display(
         .{ .image_id = 0 },
-        output.writer(allocator),
+        &output.writer,
     );
 
     try testing.expectError(error.InvalidImageId, result);
@@ -656,12 +656,12 @@ test "kitty: display with image_id=0 returns error" {
 test "kitty: delete with scope=image and no image_id returns error" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
     const result = KittyGraphics.delete(
         .{ .scope = .image, .image_id = null },
-        output.writer(allocator),
+        &output.writer,
     );
 
     try testing.expectError(error.MissingImageId, result);
@@ -670,22 +670,22 @@ test "kitty: delete with scope=image and no image_id returns error" {
 test "kitty: writeApc with very long params still works" {
     const allocator = testing.allocator;
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
     // Create a very long params string
-    var long_params = try std.ArrayList(u8).initCapacity(allocator, 1000);
-    defer long_params.deinit(allocator);
+    var long_params: std.Io.Writer.Allocating = try .initCapacity(allocator, 1000);
+    defer long_params.deinit();
 
-    try long_params.appendSlice(allocator, "a=T,f=100");
+    try long_params.writer.writeAll("a=T,f=100");
     for (0..100) |i| {
-        try long_params.writer(allocator).print(",x{}={}", .{ i, i });
+        try long_params.writer.print(",x{}={}", .{ i, i });
     }
 
     const KittyGraphics = sailor.tui.kitty.KittyGraphics;
-    const result = KittyGraphics.writeApc(long_params.items, "data", output.writer(allocator));
+    const result = KittyGraphics.writeApc(long_params.written(), "data", &output.writer);
 
     try testing.expect(result != error.ParamsTooBig);
-    const written = output.items;
+    const written = output.written();
     try testing.expect(written.len > 0);
     try testing.expect(std.mem.startsWith(u8, written, "\x1b_G"));
     try testing.expect(std.mem.endsWith(u8, written, "\x1b\\"));
@@ -710,9 +710,9 @@ test "KittyImageManager: store returns a valid non-zero image ID" {
     defer mgr.deinit();
 
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
-    const id = try mgr.store("PNG\x00data", .png, output.writer(allocator));
+    const id = try mgr.store("PNG\x00data", .png, &output.writer);
     try testing.expect(id > 0);
 }
 
@@ -722,11 +722,11 @@ test "KittyImageManager: store increments count" {
     defer mgr.deinit();
 
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
-    _ = try mgr.store("img1", .png, output.writer(allocator));
+    _ = try mgr.store("img1", .png, &output.writer);
     try testing.expectEqual(@as(usize, 1), mgr.count());
-    _ = try mgr.store("img2", .rgb, output.writer(allocator));
+    _ = try mgr.store("img2", .rgb, &output.writer);
     try testing.expectEqual(@as(usize, 2), mgr.count());
 }
 
@@ -736,10 +736,10 @@ test "KittyImageManager: store produces APC output with image ID" {
     defer mgr.deinit();
 
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
-    _ = try mgr.store("data", .png, output.writer(allocator));
-    const written = output.items;
+    _ = try mgr.store("data", .png, &output.writer);
+    const written = output.written();
     try testing.expect(written.len > 0);
     try testing.expect(std.mem.containsAtLeast(u8, written, 1, "\x1b_G"));
 }
@@ -750,9 +750,9 @@ test "KittyImageManager: contains returns true after store" {
     defer mgr.deinit();
 
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
-    const id = try mgr.store("pxl", .rgba, output.writer(allocator));
+    const id = try mgr.store("pxl", .rgba, &output.writer);
     try testing.expect(mgr.contains(id));
 }
 
@@ -769,15 +769,15 @@ test "KittyImageManager: place emits display APC sequence" {
     defer mgr.deinit();
 
     var store_out = createTestWriter(allocator);
-    defer store_out.deinit(allocator);
+    defer store_out.deinit();
 
-    const id = try mgr.store("px", .png, store_out.writer(allocator));
+    const id = try mgr.store("px", .png, &store_out.writer);
 
     var display_out = createTestWriter(allocator);
-    defer display_out.deinit(allocator);
+    defer display_out.deinit();
 
-    try mgr.place(id, .{ .image_id = id, .x = 5, .y = 10 }, display_out.writer(allocator));
-    const written = display_out.items;
+    try mgr.place(id, .{ .image_id = id, .x = 5, .y = 10 }, &display_out.writer);
+    const written = display_out.written();
     try testing.expect(written.len > 0);
     try testing.expect(std.mem.containsAtLeast(u8, written, 1, "\x1b_G"));
 }
@@ -788,9 +788,9 @@ test "KittyImageManager: place returns error for unknown image ID" {
     defer mgr.deinit();
 
     var output = createTestWriter(allocator);
-    defer output.deinit(allocator);
+    defer output.deinit();
 
-    try testing.expectError(error.UnknownImageId, mgr.place(42, .{ .image_id = 42 }, output.writer(allocator)));
+    try testing.expectError(error.UnknownImageId, mgr.place(42, .{ .image_id = 42 }, &output.writer));
 }
 
 test "KittyImageManager: evict removes ID from tracking and emits delete" {
@@ -799,12 +799,12 @@ test "KittyImageManager: evict removes ID from tracking and emits delete" {
     defer mgr.deinit();
 
     var out = createTestWriter(allocator);
-    defer out.deinit(allocator);
+    defer out.deinit();
 
-    const id = try mgr.store("p", .png, out.writer(allocator));
+    const id = try mgr.store("p", .png, &out.writer);
     try testing.expect(mgr.contains(id));
 
-    try mgr.evict(id, out.writer(allocator));
+    try mgr.evict(id, &out.writer);
     try testing.expect(!mgr.contains(id));
     try testing.expectEqual(@as(usize, 0), mgr.count());
 }
@@ -815,16 +815,16 @@ test "KittyImageManager: evictAll clears all tracked images" {
     defer mgr.deinit();
 
     var out = createTestWriter(allocator);
-    defer out.deinit(allocator);
+    defer out.deinit();
 
-    _ = try mgr.store("a", .png, out.writer(allocator));
-    _ = try mgr.store("b", .rgb, out.writer(allocator));
-    _ = try mgr.store("c", .rgba, out.writer(allocator));
+    _ = try mgr.store("a", .png, &out.writer);
+    _ = try mgr.store("b", .rgb, &out.writer);
+    _ = try mgr.store("c", .rgba, &out.writer);
     try testing.expectEqual(@as(usize, 3), mgr.count());
 
-    try mgr.evictAll(out.writer(allocator));
+    try mgr.evictAll(&out.writer);
     try testing.expectEqual(@as(usize, 0), mgr.count());
     // Should emit a=d,d=A (delete all) APC
-    const written = out.items;
+    const written = out.written();
     try testing.expect(std.mem.containsAtLeast(u8, written, 1, "d=A"));
 }

@@ -394,18 +394,18 @@ pub const ErrorReporter = struct {
     filter: ?ErrorFilter,
     buffer: ArrayList(BufferedReport),
     buffer_size: usize,
-    log_writer: ?std.io.AnyWriter,
+    log_writer: ?*std.Io.Writer,
     log_format: LogFormat,
 
     /// Initialize error reporter
     pub fn init(allocator: Allocator) !ErrorReporter {
         return .{
             .allocator = allocator,
-            .hooks = .{},
+            .hooks = .empty,
             .next_id = 1,
             .context_map = StringHashMap([]const u8).init(allocator),
             .filter = null,
-            .buffer = .{},
+            .buffer = .empty,
             .buffer_size = 0, // Buffering disabled by default
             .log_writer = null,
             .log_format = .text,
@@ -557,8 +557,8 @@ pub const ErrorReporter = struct {
     }
 
     /// Set log writer
-    pub fn setLogWriter(self: *ErrorReporter, writer: anytype) !void {
-        self.log_writer = writer.any();
+    pub fn setLogWriter(self: *ErrorReporter, writer: *std.Io.Writer) !void {
+        self.log_writer = writer;
     }
 
     /// Set log format
@@ -567,7 +567,7 @@ pub const ErrorReporter = struct {
     }
 
     /// Write log entry
-    fn writeLog(self: *ErrorReporter, writer: std.io.AnyWriter, err: anyerror, message: []const u8) !void {
+    fn writeLog(self: *ErrorReporter, writer: *std.Io.Writer, err: anyerror, message: []const u8) !void {
         switch (self.log_format) {
             .text => {
                 try writer.print("[ERROR] {s}: {s}\n", .{ @errorName(err), message });

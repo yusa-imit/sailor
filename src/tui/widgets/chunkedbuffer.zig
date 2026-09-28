@@ -99,17 +99,17 @@ pub const ChunkedBuffer = struct {
             if (y >= render_area.height) break;
 
             // Fetch line content via callback
-            var line_buf = std.ArrayList(u8).empty;
-            defer line_buf.deinit(allocator);
+            var line_buf: std.Io.Writer.Allocating = .init(allocator);
+            defer line_buf.deinit();
 
-            try callback(line_index, line_buf.writer(allocator));
+            try callback(line_index, &line_buf.writer);
 
             if (self.wrap) {
                 // Wrap mode: render line with wrapping
-                y = try self.renderLineWrapped(buf, render_area, line_buf.items, y, allocator);
+                y = try self.renderLineWrapped(buf, render_area, line_buf.written(), y, allocator);
             } else {
                 // Truncate mode: render single line with horizontal offset
-                try self.renderLineTruncated(buf, render_area, line_buf.items, y);
+                try self.renderLineTruncated(buf, render_area, line_buf.written(), y);
                 y += 1;
             }
         }

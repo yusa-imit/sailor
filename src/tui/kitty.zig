@@ -375,15 +375,15 @@ test "KittyEncoder: chunked encoding for large image" {
         .format = .rgba32,
     };
 
-    var buf = std.ArrayList(u8).empty;
-    defer buf.deinit(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
     var encoder = KittyEncoder.init(allocator);
     defer encoder.deinit();
     encoder.chunk_size = 4096;
 
-    try encoder.encode(img, buf.writer(allocator), .direct);
+    try encoder.encode(img, &buf.writer, .direct);
 
-    const output = buf.items;
+    const output = buf.written();
     // Should have multiple chunks (m=0 for continuation, m=1 for last)
     const first_chunk = std.mem.find(u8, output, "m=0");
     const last_chunk = std.mem.find(u8, output, "m=1");
@@ -542,14 +542,14 @@ test "KittyEncoder: wide image (1000x1 RGB24)" {
         .format = .rgb24,
     };
 
-    var buf = std.ArrayList(u8).empty;
-    defer buf.deinit(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
     var encoder = KittyEncoder.init(allocator);
     defer encoder.deinit();
 
-    try encoder.encode(img, buf.writer(allocator), .direct);
+    try encoder.encode(img, &buf.writer, .direct);
 
-    const output = buf.items;
+    const output = buf.written();
     try testing.expect(std.mem.find(u8, output, "s=1000") != null);
     try testing.expect(std.mem.find(u8, output, "v=1") != null);
 }
@@ -567,14 +567,14 @@ test "KittyEncoder: tall image (1x500 RGBA32)" {
         .format = .rgba32,
     };
 
-    var buf = std.ArrayList(u8).empty;
-    defer buf.deinit(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
     var encoder = KittyEncoder.init(allocator);
     defer encoder.deinit();
 
-    try encoder.encode(img, buf.writer(allocator), .direct);
+    try encoder.encode(img, &buf.writer, .direct);
 
-    const output = buf.items;
+    const output = buf.written();
     try testing.expect(std.mem.find(u8, output, "s=1") != null);
     try testing.expect(std.mem.find(u8, output, "v=500") != null);
 }

@@ -10,13 +10,13 @@ pub fn StatePersist(State: type) type {
     return struct {
         const Self = @This();
 
-        encode_fn: *const fn (State, std.io.AnyWriter) anyerror!void,
-        decode_fn: *const fn (std.io.AnyReader, std.mem.Allocator) anyerror!State,
+        encode_fn: *const fn (State, *std.Io.Writer) anyerror!void,
+        decode_fn: *const fn (*std.Io.Reader, std.mem.Allocator) anyerror!State,
 
         /// Initialize StatePersist with encode and decode functions
         pub fn init(
-            encode_fn: *const fn (State, std.io.AnyWriter) anyerror!void,
-            decode_fn: *const fn (std.io.AnyReader, std.mem.Allocator) anyerror!State,
+            encode_fn: *const fn (State, *std.Io.Writer) anyerror!void,
+            decode_fn: *const fn (*std.Io.Reader, std.mem.Allocator) anyerror!State,
         ) Self {
             return Self{
                 .encode_fn = encode_fn,
@@ -25,13 +25,13 @@ pub fn StatePersist(State: type) type {
         }
 
         /// Save state to a writer
-        pub fn save(self: Self, state: State, writer: anytype) !void {
-            try self.encode_fn(state, writer.any());
+        pub fn save(self: Self, state: State, writer: *std.Io.Writer) !void {
+            try self.encode_fn(state, writer);
         }
 
         /// Load state from a reader
-        pub fn load(self: Self, reader: anytype, allocator: std.mem.Allocator) !State {
-            return try self.decode_fn(reader.any(), allocator);
+        pub fn load(self: Self, reader: *std.Io.Reader, allocator: std.mem.Allocator) !State {
+            return try self.decode_fn(reader, allocator);
         }
     };
 }

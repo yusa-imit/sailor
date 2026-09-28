@@ -109,11 +109,11 @@ test "ErrorContext - basic usage" {
     var ctx = ErrorContext.init(allocator, "test.zig", 42, "testing error context");
     defer ctx.deinit();
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
 
-    try ctx.format(buf.writer(allocator), error.SomeError);
-    const result = buf.items;
+    try ctx.format(&buf.writer, error.SomeError);
+    const result = buf.written();
 
     try std.testing.expect(std.mem.find(u8, result, "test.zig:42") != null);
     try std.testing.expect(std.mem.find(u8, result, "testing error context") != null);
@@ -128,11 +128,11 @@ test "ErrorContext - with metadata" {
     try ctx.set("path", "/tmp/test.txt");
     try ctx.set("size", "4096");
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
 
-    try ctx.format(buf.writer(allocator), error.FileNotFound);
-    const result = buf.items;
+    try ctx.format(&buf.writer, error.FileNotFound);
+    const result = buf.written();
 
     try std.testing.expect(std.mem.find(u8, result, "module.zig:100") != null);
     try std.testing.expect(std.mem.find(u8, result, "processing file") != null);
@@ -154,13 +154,13 @@ test "SimpleErrorMsg - no allocation" {
 
 test "SimpleErrorMsg - format to writer" {
     const allocator = std.testing.allocator;
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
 
     const msg = SimpleErrorMsg.init("bar.zig", 20, "validating input");
-    try msg.format(buf.writer(allocator), error.InvalidInput);
+    try msg.format(&buf.writer, error.InvalidInput);
 
-    const result = buf.items;
+    const result = buf.written();
     try std.testing.expect(std.mem.find(u8, result, "bar.zig:20") != null);
     try std.testing.expect(std.mem.find(u8, result, "validating input") != null);
     try std.testing.expect(std.mem.find(u8, result, "InvalidInput") != null);
@@ -181,11 +181,11 @@ test "ErrorContext - empty metadata" {
     var ctx = ErrorContext.init(allocator, "empty.zig", 1, "no metadata");
     defer ctx.deinit();
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
 
-    try ctx.format(buf.writer(allocator), error.NoMetadata);
-    const result = buf.items;
+    try ctx.format(&buf.writer, error.NoMetadata);
+    const result = buf.written();
 
     // Should not have "Details:" section when no metadata
     try std.testing.expect(std.mem.find(u8, result, "empty.zig:1") != null);
@@ -201,11 +201,11 @@ test "ErrorContext - multiple metadata entries" {
     try ctx.set("input", "test.json");
     try ctx.set("offset", "1024");
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
 
-    try ctx.format(buf.writer(allocator), error.ParseError);
-    const result = buf.items;
+    try ctx.format(&buf.writer, error.ParseError);
+    const result = buf.written();
 
     try std.testing.expect(std.mem.find(u8, result, "step: parsing") != null);
     try std.testing.expect(std.mem.find(u8, result, "input: test.json") != null);

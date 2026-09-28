@@ -252,9 +252,9 @@ pub const Region = struct {
     /// Returns owned slice that caller must free.
     /// Used for screen reader navigation between UI regions.
     pub fn announce(self: Region, allocator: Allocator) ![]const u8 {
-        var buf: std.ArrayList(u8) = .empty;
-        defer buf.deinit(allocator);
-        const writer = buf.writer(allocator);
+        var buf: std.Io.Writer.Allocating = .init(allocator);
+        defer buf.deinit();
+        const writer = &buf.writer;
 
         try writer.print("Region: {s}, ", .{self.name});
         try writer.print("{s}", .{@tagName(self.role)});
@@ -270,7 +270,7 @@ pub const Region = struct {
             }
         }
 
-        return buf.toOwnedSlice(allocator);
+        return buf.toOwnedSlice();
     }
 };
 
@@ -312,13 +312,13 @@ test "ScreenReaderOutput: announce ARIA text" {
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announce(writer, "Test message", .polite);
 
-    const output = buf.items;
+    const output = buf.written();
     try std.testing.expect(std.mem.find(u8, output, "[polite]") != null);
     try std.testing.expect(std.mem.find(u8, output, "Test message") != null);
 }
@@ -329,13 +329,13 @@ test "ScreenReaderOutput: announce JSON" {
     sr.setEnabled(true);
     sr.setOutputMode(.json);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announce(writer, "Test", .assertive);
 
-    const output = buf.items;
+    const output = buf.written();
     try std.testing.expect(std.mem.find(u8, output, "\"type\":\"announce\"") != null);
     try std.testing.expect(std.mem.find(u8, output, "\"priority\":\"assertive\"") != null);
     try std.testing.expect(std.mem.find(u8, output, "\"message\":\"Test\"") != null);
@@ -347,9 +347,9 @@ test "ScreenReaderOutput: announce widget" {
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     const metadata = Metadata{
         .role = .button,
@@ -359,7 +359,7 @@ test "ScreenReaderOutput: announce widget" {
 
     try sr.announceWidget(writer, metadata);
 
-    const output = buf.items;
+    const output = buf.written();
     try std.testing.expect(std.mem.find(u8, output, "button") != null);
     try std.testing.expect(std.mem.find(u8, output, "Submit") != null);
 }
@@ -370,13 +370,13 @@ test "ScreenReaderOutput: announce navigation" {
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announceNavigation(writer, "Home", "Settings");
 
-    const output = buf.items;
+    const output = buf.written();
     try std.testing.expect(std.mem.find(u8, output, "Navigated from Home to Settings") != null);
 }
 
@@ -386,13 +386,13 @@ test "ScreenReaderOutput: announce error" {
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announceError(writer, "File not found");
 
-    const output = buf.items;
+    const output = buf.written();
     try std.testing.expect(std.mem.find(u8, output, "Error: File not found") != null);
     try std.testing.expect(std.mem.find(u8, output, "[assertive]") != null);
 }
@@ -403,13 +403,13 @@ test "ScreenReaderOutput: announce success" {
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announceSuccess(writer, "File saved");
 
-    const output = buf.items;
+    const output = buf.written();
     try std.testing.expect(std.mem.find(u8, output, "Success: File saved") != null);
 }
 
@@ -420,13 +420,13 @@ test "ScreenReaderOutput: announce shortcut" {
     sr.setOutputMode(.aria_text);
     sr.setVerbosity(.normal);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announceShortcut(writer, "Ctrl+S", "save");
 
-    const output = buf.items;
+    const output = buf.written();
     try std.testing.expect(std.mem.find(u8, output, "Press Ctrl+S to save") != null);
 }
 
@@ -437,13 +437,13 @@ test "ScreenReaderOutput: quiet mode skips shortcuts" {
     sr.setOutputMode(.aria_text);
     sr.setVerbosity(.quiet);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announceShortcut(writer, "Ctrl+S", "save");
 
-    const output = buf.items;
+    const output = buf.written();
     try std.testing.expectEqual(@as(usize, 0), output.len); // Should be empty
 }
 
@@ -454,13 +454,13 @@ test "ScreenReaderOutput: announce help" {
     sr.setOutputMode(.aria_text);
     sr.setVerbosity(.verbose);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announceHelp(writer, "Use arrow keys to navigate");
 
-    const output = buf.items;
+    const output = buf.written();
     try std.testing.expect(std.mem.find(u8, output, "Use arrow keys") != null);
 }
 
@@ -470,13 +470,13 @@ test "ScreenReaderOutput: disabled skips announcements" {
     sr.setEnabled(false);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announce(writer, "Test", .polite);
 
-    const output = buf.items;
+    const output = buf.written();
     try std.testing.expectEqual(@as(usize, 0), output.len); // Should be empty
 }
 

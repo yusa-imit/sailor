@@ -29,14 +29,14 @@ const SimpleState = struct {
     count: i32,
 };
 
-fn encodeSimple(state: SimpleState, writer: std.io.AnyWriter) !void {
-    try std.fmt.format(writer, "{}", .{state.count});
+fn encodeSimple(state: SimpleState, writer: *std.Io.Writer) !void {
+    try writer.print("{}", .{state.count});
 }
 
-fn decodeSimple(reader: std.io.AnyReader, allocator: std.mem.Allocator) !SimpleState {
+fn decodeSimple(reader: *std.Io.Reader, allocator: std.mem.Allocator) !SimpleState {
     _ = allocator;
     var buf: [32]u8 = undefined;
-    const bytes_read = try reader.readAll(&buf);
+    const bytes_read = try reader.readSliceShort(&buf);
     const count = try std.fmt.parseInt(i32, buf[0..bytes_read], 10);
     return .{ .count = count };
 }
@@ -47,17 +47,17 @@ const ComplexState = struct {
     active: bool,
 };
 
-fn encodeComplex(state: ComplexState, writer: std.io.AnyWriter) !void {
-    try std.fmt.format(writer, "{s}|{}|{s}", .{
+fn encodeComplex(state: ComplexState, writer: *std.Io.Writer) !void {
+    try writer.print("{s}|{}|{s}", .{
         state.name,
         state.age,
         if (state.active) "1" else "0",
     });
 }
 
-fn decodeComplex(reader: std.io.AnyReader, allocator: std.mem.Allocator) !ComplexState {
+fn decodeComplex(reader: *std.Io.Reader, allocator: std.mem.Allocator) !ComplexState {
     var buf: [256]u8 = undefined;
-    const bytes_read = try reader.readAll(&buf);
+    const bytes_read = try reader.readSliceShort(&buf);
     const content = buf[0..bytes_read];
 
     var iter = std.mem.splitSequence(u8, content, "|");
@@ -165,60 +165,56 @@ test "StatePersist save large value" {
 test "StatePersist load reads from reader" {
     const allocator = testing.allocator;
     const data = "42";
-    // MIGRATION-TODO: fixedBufferStream read-mode, needs std.Io.Reader conversion
-    var stream = std.io.fixedBufferStream(data);
+    var stream: std.Io.Reader = .fixed(data);
 
     const persist = sailor.state_persist.StatePersist(SimpleState).init(
         encodeSimple,
         decodeSimple,
     );
 
-    const state = try persist.load(stream.reader(), allocator);
+    const state = try persist.load(&stream, allocator);
     try testing.expectEqual(@as(i32, 42), state.count);
 }
 
 test "StatePersist load with zero value" {
     const allocator = testing.allocator;
     const data = "0";
-    // MIGRATION-TODO: fixedBufferStream read-mode, needs std.Io.Reader conversion
-    var stream = std.io.fixedBufferStream(data);
+    var stream: std.Io.Reader = .fixed(data);
 
     const persist = sailor.state_persist.StatePersist(SimpleState).init(
         encodeSimple,
         decodeSimple,
     );
 
-    const state = try persist.load(stream.reader(), allocator);
+    const state = try persist.load(&stream, allocator);
     try testing.expectEqual(@as(i32, 0), state.count);
 }
 
 test "StatePersist load with negative value" {
     const allocator = testing.allocator;
     const data = "-100";
-    // MIGRATION-TODO: fixedBufferStream read-mode, needs std.Io.Reader conversion
-    var stream = std.io.fixedBufferStream(data);
+    var stream: std.Io.Reader = .fixed(data);
 
     const persist = sailor.state_persist.StatePersist(SimpleState).init(
         encodeSimple,
         decodeSimple,
     );
 
-    const state = try persist.load(stream.reader(), allocator);
+    const state = try persist.load(&stream, allocator);
     try testing.expectEqual(@as(i32, -100), state.count);
 }
 
 test "StatePersist load large value" {
     const allocator = testing.allocator;
     const data = "999999";
-    // MIGRATION-TODO: fixedBufferStream read-mode, needs std.Io.Reader conversion
-    var stream = std.io.fixedBufferStream(data);
+    var stream: std.Io.Reader = .fixed(data);
 
     const persist = sailor.state_persist.StatePersist(SimpleState).init(
         encodeSimple,
         decodeSimple,
     );
 
-    const state = try persist.load(stream.reader(), allocator);
+    const state = try persist.load(&stream, allocator);
     try testing.expectEqual(@as(i32, 999999), state.count);
 }
 
@@ -240,10 +236,9 @@ test "StatePersist round-trip preserves state" {
     try persist.save(original, &save_stream);
 
     const written = save_stream.buffered();
-    // MIGRATION-TODO: fixedBufferStream read-mode, needs std.Io.Reader conversion
-    var load_stream = std.io.fixedBufferStream(written);
+    var load_stream: std.Io.Reader = .fixed(written);
 
-    const loaded = try persist.load(load_stream.reader(), allocator);
+    const loaded = try persist.load(&load_stream, allocator);
     try testing.expectEqual(original.count, loaded.count);
 }
 
@@ -264,10 +259,9 @@ test "StatePersist round-trip multiple values" {
         try persist.save(original, &save_stream);
 
         const written = save_stream.buffered();
-        // MIGRATION-TODO: fixedBufferStream read-mode, needs std.Io.Reader conversion
-        var load_stream = std.io.fixedBufferStream(written);
+        var load_stream: std.Io.Reader = .fixed(written);
 
-        const loaded = try persist.load(load_stream.reader(), allocator);
+        const loaded = try persist.load(&load_stream, allocator);
         try testing.expectEqual(val, loaded.count);
     }
 }
@@ -300,15 +294,14 @@ test "StatePersist complex state with strings" {
 test "StatePersist complex state load" {
     const allocator = testing.allocator;
     const data = "Alice|30|1";
-    // MIGRATION-TODO: fixedBufferStream read-mode, needs std.Io.Reader conversion
-    var stream = std.io.fixedBufferStream(data);
+    var stream: std.Io.Reader = .fixed(data);
 
     const persist = sailor.state_persist.StatePersist(ComplexState).init(
         encodeComplex,
         decodeComplex,
     );
 
-    const state = try persist.load(stream.reader(), allocator);
+    const state = try persist.load(&stream, allocator);
     defer allocator.free(state.name);
     try testing.expectEqualStrings("Alice", state.name);
     try testing.expectEqual(@as(u32, 30), state.age);
@@ -318,15 +311,14 @@ test "StatePersist complex state load" {
 test "StatePersist complex state inactive" {
     const allocator = testing.allocator;
     const data = "Bob|25|0";
-    // MIGRATION-TODO: fixedBufferStream read-mode, needs std.Io.Reader conversion
-    var stream = std.io.fixedBufferStream(data);
+    var stream: std.Io.Reader = .fixed(data);
 
     const persist = sailor.state_persist.StatePersist(ComplexState).init(
         encodeComplex,
         decodeComplex,
     );
 
-    const state = try persist.load(stream.reader(), allocator);
+    const state = try persist.load(&stream, allocator);
     defer allocator.free(state.name);
     try testing.expectEqualStrings("Bob", state.name);
     try testing.expectEqual(@as(u32, 25), state.age);
@@ -352,10 +344,9 @@ test "StatePersist complex state round-trip" {
     try persist.save(original, &save_stream);
 
     const written = save_stream.buffered();
-    // MIGRATION-TODO: fixedBufferStream read-mode, needs std.Io.Reader conversion
-    var load_stream = std.io.fixedBufferStream(written);
+    var load_stream: std.Io.Reader = .fixed(written);
 
-    const loaded = try persist.load(load_stream.reader(), allocator);
+    const loaded = try persist.load(&load_stream, allocator);
     defer allocator.free(loaded.name);
     try testing.expectEqualStrings(original.name, loaded.name);
     try testing.expectEqual(original.age, loaded.age);
@@ -369,30 +360,28 @@ test "StatePersist complex state round-trip" {
 test "StatePersist load invalid format returns error" {
     const allocator = testing.allocator;
     const data = "not-a-number";
-    // MIGRATION-TODO: fixedBufferStream read-mode, needs std.Io.Reader conversion
-    var stream = std.io.fixedBufferStream(data);
+    var stream: std.Io.Reader = .fixed(data);
 
     const persist = sailor.state_persist.StatePersist(SimpleState).init(
         encodeSimple,
         decodeSimple,
     );
 
-    const result = persist.load(stream.reader(), allocator);
+    const result = persist.load(&stream, allocator);
     try testing.expectError(error.InvalidCharacter, result);
 }
 
 test "StatePersist complex load missing field" {
     const allocator = testing.allocator;
     const data = "Alice|30"; // Missing active flag
-    // MIGRATION-TODO: fixedBufferStream read-mode, needs std.Io.Reader conversion
-    var stream = std.io.fixedBufferStream(data);
+    var stream: std.Io.Reader = .fixed(data);
 
     const persist = sailor.state_persist.StatePersist(ComplexState).init(
         encodeComplex,
         decodeComplex,
     );
 
-    const result = persist.load(stream.reader(), allocator);
+    const result = persist.load(&stream, allocator);
     try testing.expectError(error.InvalidFormat, result);
 }
 
@@ -444,10 +433,9 @@ test "StatePersist handles UTF-8 strings" {
     try persist.save(original, &save_stream);
 
     const written = save_stream.buffered();
-    // MIGRATION-TODO: fixedBufferStream read-mode, needs std.Io.Reader conversion
-    var load_stream = std.io.fixedBufferStream(written);
+    var load_stream: std.Io.Reader = .fixed(written);
 
-    const loaded = try persist.load(load_stream.reader(), allocator);
+    const loaded = try persist.load(&load_stream, allocator);
     defer allocator.free(loaded.name);
     try testing.expectEqualStrings(original.name, loaded.name);
 }
@@ -471,10 +459,9 @@ test "StatePersist handles emoji strings" {
     try persist.save(original, &save_stream);
 
     const written = save_stream.buffered();
-    // MIGRATION-TODO: fixedBufferStream read-mode, needs std.Io.Reader conversion
-    var load_stream = std.io.fixedBufferStream(written);
+    var load_stream: std.Io.Reader = .fixed(written);
 
-    const loaded = try persist.load(load_stream.reader(), allocator);
+    const loaded = try persist.load(&load_stream, allocator);
     defer allocator.free(loaded.name);
     try testing.expectEqualStrings(original.name, loaded.name);
 }
@@ -486,15 +473,14 @@ test "StatePersist handles emoji strings" {
 test "StatePersist with empty reader" {
     const allocator = testing.allocator;
     const data = "";
-    // MIGRATION-TODO: fixedBufferStream read-mode, needs std.Io.Reader conversion
-    var stream = std.io.fixedBufferStream(data);
+    var stream: std.Io.Reader = .fixed(data);
 
     const persist = sailor.state_persist.StatePersist(SimpleState).init(
         encodeSimple,
         decodeSimple,
     );
 
-    const result = persist.load(stream.reader(), allocator);
+    const result = persist.load(&stream, allocator);
     try testing.expectError(error.InvalidCharacter, result);
 }
 
@@ -517,10 +503,9 @@ test "StatePersist with empty string in complex" {
     try persist.save(original, &save_stream);
 
     const written = save_stream.buffered();
-    // MIGRATION-TODO: fixedBufferStream read-mode, needs std.Io.Reader conversion
-    var load_stream = std.io.fixedBufferStream(written);
+    var load_stream: std.Io.Reader = .fixed(written);
 
-    const loaded = try persist.load(load_stream.reader(), allocator);
+    const loaded = try persist.load(&load_stream, allocator);
     defer allocator.free(loaded.name);
     try testing.expectEqualStrings("", loaded.name);
     try testing.expectEqual(@as(u32, 0), loaded.age);

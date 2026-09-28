@@ -304,13 +304,13 @@ pub const RawMode = struct {
 /// Bracketed paste mode - prevents command injection and allows detecting paste events
 /// Terminals supporting this mode wrap pasted content with special escape sequences.
 pub const BracketedPaste = struct {
-    writer: std.io.AnyWriter,
+    writer: *std.Io.Writer,
 
     /// Enable bracketed paste mode.
     /// Sends CSI ? 2004 h sequence to the terminal.
     /// Pasted content will be wrapped with ESC[200~ (start) and ESC[201~ (end).
     /// Returns RAII guard that disables on deinit.
-    pub fn enable(writer: std.io.AnyWriter) !BracketedPaste {
+    pub fn enable(writer: *std.Io.Writer) !BracketedPaste {
         try writer.writeAll("\x1b[?2004h");
         return BracketedPaste{ .writer = writer };
     }
@@ -326,13 +326,13 @@ pub const BracketedPaste = struct {
 /// Terminals supporting this mode will batch output until explicitly flushed.
 /// Based on DEC private mode 2026.
 pub const SynchronizedOutput = struct {
-    writer: std.io.AnyWriter,
+    writer: *std.Io.Writer,
 
     /// Begin synchronized output mode (DEC private mode 2026).
     /// Sends CSI ? 2026 h sequence to the terminal.
     /// Terminal batches output until end() is called, eliminating tearing.
     /// Returns guard that automatically ends synchronized mode on deinit.
-    pub fn begin(writer: std.io.AnyWriter) !SynchronizedOutput {
+    pub fn begin(writer: *std.Io.Writer) !SynchronizedOutput {
         try writer.writeAll("\x1b[?2026h");
         return SynchronizedOutput{ .writer = writer };
     }
@@ -349,7 +349,7 @@ pub const SynchronizedOutput = struct {
 /// Format: ESC ] 8 ; ; url ST text ESC ] 8 ; ; ST
 /// where ST = ESC \ (String Terminator).
 /// Use writeHyperlinkWithParams for id/custom parameters.
-pub fn writeHyperlink(writer: std.io.AnyWriter, url: []const u8, text: []const u8) !void {
+pub fn writeHyperlink(writer: *std.Io.Writer, url: []const u8, text: []const u8) !void {
     // Start hyperlink: OSC 8 ; ; url ST
     try writer.writeAll("\x1b]8;;");
     try writer.writeAll(url);
@@ -366,7 +366,7 @@ pub fn writeHyperlink(writer: std.io.AnyWriter, url: []const u8, text: []const u
 /// Format: ESC ] 8 ; params ; url ST text ESC ] 8 ; ; ST.
 /// Common params: "id=xyz" for linking related hyperlinks.
 /// Use empty string for params if not needed.
-pub fn writeHyperlinkWithParams(writer: std.io.AnyWriter, params: []const u8, url: []const u8, text: []const u8) !void {
+pub fn writeHyperlinkWithParams(writer: *std.Io.Writer, params: []const u8, url: []const u8, text: []const u8) !void {
     // Start hyperlink: OSC 8 ; params ; url ST
     try writer.writeAll("\x1b]8;");
     try writer.writeAll(params);
@@ -385,13 +385,13 @@ pub fn writeHyperlinkWithParams(writer: std.io.AnyWriter, params: []const u8, ur
 /// Terminals supporting this mode will send focus in/out events.
 /// Based on DEC private mode 1004.
 pub const FocusTracking = struct {
-    writer: std.io.AnyWriter,
+    writer: *std.Io.Writer,
 
     /// Enable focus tracking (DEC private mode 1004).
     /// Sends CSI ? 1004 h sequence to the terminal.
     /// Terminal will send ESC[I on focus in, ESC[O on focus out.
     /// Returns guard that disables on deinit.
-    pub fn enable(writer: std.io.AnyWriter) !FocusTracking {
+    pub fn enable(writer: *std.Io.Writer) !FocusTracking {
         try writer.writeAll("\x1b[?1004h");
         return FocusTracking{ .writer = writer };
     }

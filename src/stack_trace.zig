@@ -128,13 +128,13 @@ test "ensure - success" {
 test "StackTrace.capture" {
     const trace = StackTrace.capture();
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(std.testing.allocator);
+    var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    defer buf.deinit();
 
-    try trace.format(buf.writer(std.testing.allocator));
+    try trace.format(&buf.writer);
 
     // Should produce some output
-    try std.testing.expect(buf.items.len > 0);
+    try std.testing.expect(buf.written().len > 0);
 }
 
 test "debugHere - does not crash" {

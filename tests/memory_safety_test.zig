@@ -174,15 +174,15 @@ test "arraylist automatic resizing" {
 }
 
 test "string builder memory management" {
-    var list: std.ArrayList(u8) = .empty;
-    defer list.deinit(testing.allocator);
+    var list: std.Io.Writer.Allocating = .init(testing.allocator);
+    defer list.deinit();
 
-    const writer = list.writer(testing.allocator);
+    const writer = &list.writer;
 
     try writer.writeAll("Hello, ");
     try writer.writeAll("sailor!");
 
-    try testing.expectEqualStrings("Hello, sailor!", list.items);
+    try testing.expectEqualStrings("Hello, sailor!", list.written());
 }
 
 test "hash map memory management" {

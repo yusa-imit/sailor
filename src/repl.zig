@@ -35,8 +35,8 @@ pub const Validation = enum {
 pub const Completer = *const fn (buf: []const u8, allocator: Allocator) anyerror![]const []const u8;
 
 /// Syntax highlighting callback signature
-/// Writer must be std.io.AnyWriter (generic over all writers)
-pub const Highlighter = *const fn (buf: []const u8, writer: std.io.AnyWriter) anyerror!void;
+/// Writer must be *std.Io.Writer (generic over all writers)
+pub const Highlighter = *const fn (buf: []const u8, writer: *std.Io.Writer) anyerror!void;
 
 /// Validation callback signature
 pub const Validator = *const fn (buf: []const u8) Validation;
@@ -162,8 +162,8 @@ pub const Repl = struct {
 
     /// Read a line of input
     /// Returns null on EOF (Ctrl+D on empty line)
-    /// Writer is used for prompts and interactive feedback (pass std.io.null_writer for no output)
-    pub fn readLine(self: *Self, writer: anytype) Error!?[]const u8 {
+    /// Writer is used for prompts and interactive feedback (pass a std.Io.Writer.Discarding writer for no output)
+    pub fn readLine(self: *Self, writer: *std.Io.Writer) Error!?[]const u8 {
         self.initTerminal();
 
         if (self.is_tty) {
@@ -174,7 +174,7 @@ pub const Repl = struct {
     }
 
     /// Read line in interactive mode (TTY)
-    fn readLineInteractive(self: *Self, writer: anytype) Error!?[]const u8 {
+    fn readLineInteractive(self: *Self, writer: *std.Io.Writer) Error!?[]const u8 {
         // Enter raw mode if not already
         if (self.raw_mode == null) {
             self.raw_mode = try term.RawMode.enter(std.posix.STDIN_FILENO);
@@ -182,7 +182,7 @@ pub const Repl = struct {
 
         // Enable bracketed paste mode if not already enabled
         if (self.config.enable_bracketed_paste and self.paste_mode == null) {
-            self.paste_mode = term.BracketedPaste.enable(writer.any()) catch null;
+            self.paste_mode = term.BracketedPaste.enable(writer) catch null;
         }
 
         // Reset state
@@ -234,7 +234,7 @@ pub const Repl = struct {
 
     /// Handle a key press
     /// Returns true if line is complete
-    fn handleKey(self: *Self, key: []const u8, writer: anytype) !bool {
+    fn handleKey(self: *Self, key: []const u8, writer: *std.Io.Writer) !bool {
         // Handle bracketed paste markers
         if (self.in_paste) {
             // Look for end marker
@@ -511,7 +511,7 @@ pub const Repl = struct {
     }
 
     /// Print prompt
-    fn printPrompt(self: *Self, writer: anytype) !void {
+    fn printPrompt(self: *Self, writer: *std.Io.Writer) !void {
         if (self.use_color) {
             const style = color.Style{ .fg = .{ .basic = .cyan }, .attrs = .{ .bold = true } };
             try style.write(writer);
@@ -523,7 +523,7 @@ pub const Repl = struct {
     }
 
     /// Redraw the line
-    fn redraw(self: *Self, writer: anytype) !void {
+    fn redraw(self: *Self, writer: *std.Io.Writer) !void {
         // Move to start of line
         try writer.writeAll("\r");
 
@@ -535,7 +535,7 @@ pub const Repl = struct {
 
         // Print buffer (with highlighting if available)
         if (self.config.highlighter) |highlight| {
-            const any_writer = writer.any();
+            const any_writer = writer;
             try highlight(self.buffer.items, any_writer);
         } else {
             try writer.writeAll(self.buffer.items);
@@ -867,7 +867,8 @@ test "single-chunk paste with embedded newline" {
     defer repl.deinit();
 
     // Use a null writer since we don't care about output
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Call handleKey with a complete single-chunk paste containing a newline
     const complete = try repl.handleKey("\x1b[200~line1\nline2\x1b[201~", writer);
@@ -891,7 +892,8 @@ test "multi-chunk paste simulating large paste split across read() calls" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // First chunk: start marker + partial content, no end marker
     const complete1 = try repl.handleKey("\x1b[200~hello ", writer);
@@ -921,7 +923,8 @@ test "paste with trailing bytes after end marker in same chunk" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Paste content followed by explicit Enter keypress in the same chunk
     const complete = try repl.handleKey("\x1b[200~abc\x1b[201~\r", writer);
@@ -940,7 +943,8 @@ test "cursor position after paste followed by normal character insert" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // First: paste some content
     _ = try repl.handleKey("\x1b[200~hello\x1b[201~", writer);
@@ -961,7 +965,8 @@ test "empty paste is handled safely" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Empty paste: start marker immediately followed by end marker
     const complete = try repl.handleKey("\x1b[200~\x1b[201~", writer);
@@ -984,7 +989,8 @@ test "paste inserted at mid-buffer cursor position" {
     try repl.buffer.appendSlice("ab");
     repl.cursor = 1;
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Paste "XY" at cursor position 1
     _ = try repl.handleKey("\x1b[200~XY\x1b[201~", writer);
@@ -1002,7 +1008,8 @@ test "Repl.deinit() safely handles unflushed paste content" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Simulate interrupted paste: only start marker + content, no end marker
     _ = try repl.handleKey("\x1b[200~partial paste data", writer);
@@ -1032,7 +1039,8 @@ test "paste_buffer accumulates content across multiple chunks" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // First chunk: start + "chunk1"
     _ = try repl.handleKey("\x1b[200~chunk1", writer);
@@ -1062,7 +1070,8 @@ test "paste_buffer is cleared after flushing to buffer" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Multi-chunk paste
     _ = try repl.handleKey("\x1b[200~data", writer);
@@ -1081,7 +1090,8 @@ test "non-paste input is handled normally when not in paste mode" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Normal character input (not a paste)
     _ = try repl.handleKey("a", writer);
@@ -1098,7 +1108,8 @@ test "paste with special escape sequences in content" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Paste containing arrow key escape sequences as literal text
     const paste_content = "\x1b[A\x1b[B\x1b[C";
@@ -1126,7 +1137,8 @@ test "multiple consecutive pastes in sequence" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // First paste
     _ = try repl.handleKey("\x1b[200~first\x1b[201~", writer);
@@ -1151,7 +1163,8 @@ test "Ctrl+U kills from line start to cursor" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: buffer = "hello world", cursor = 8 (after "hello wo")
     try repl.buffer.appendSlice("hello world");
@@ -1171,7 +1184,8 @@ test "Ctrl+U at cursor position 0 is a no-op" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: buffer = "hello", cursor = 0
     try repl.buffer.appendSlice("hello");
@@ -1191,7 +1205,8 @@ test "Ctrl+U at end of buffer kills entire line" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: buffer = "hello world", cursor = 11 (at end)
     try repl.buffer.appendSlice("hello world");
@@ -1211,7 +1226,8 @@ test "Ctrl+K kills from cursor to end of line" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: buffer = "hello world", cursor = 6 (after "hello ")
     try repl.buffer.appendSlice("hello world");
@@ -1231,7 +1247,8 @@ test "Ctrl+K at cursor position 0 kills entire buffer" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: buffer = "hello world", cursor = 0
     try repl.buffer.appendSlice("hello world");
@@ -1251,7 +1268,8 @@ test "Ctrl+K at end of buffer is a no-op" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: buffer = "hello", cursor = 5 (at end)
     try repl.buffer.appendSlice("hello");
@@ -1271,7 +1289,8 @@ test "Ctrl+W kills word backward, skipping trailing whitespace" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: buffer = "foo bar  " (two spaces at end), cursor = 9 (at end)
     try repl.buffer.appendSlice("foo bar  ");
@@ -1291,7 +1310,8 @@ test "Ctrl+W at start of buffer is a no-op" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: buffer = "hello", cursor = 0
     try repl.buffer.appendSlice("hello");
@@ -1311,7 +1331,8 @@ test "Ctrl+W with single word deletes entire word from cursor" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: buffer = "hello", cursor = 5 (at end)
     try repl.buffer.appendSlice("hello");
@@ -1331,7 +1352,8 @@ test "Ctrl+W with cursor in middle of word deletes to word start" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: buffer = "foo bar baz", cursor = 9 (in middle of "baz", at 'a')
     // Canonical algorithm: skip whitespace backward, then skip non-whitespace backward
@@ -1353,7 +1375,8 @@ test "Ctrl+W on empty buffer is a no-op" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: empty buffer, cursor = 0
     // (no need to appendSlice)
@@ -1376,7 +1399,8 @@ test "Alt+B from a word boundary moves to start of previous word" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: buffer = "foo bar baz", cursor = 8 (at word boundary, start of "baz")
     // From cursor=8: skip whitespace backward at position 7, then skip non-whitespace positions 6,5,4
@@ -1396,7 +1420,8 @@ test "Alt+B at start of buffer is a no-op" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: buffer = "foo bar", cursor = 0
     try repl.buffer.appendSlice("foo bar");
@@ -1415,7 +1440,8 @@ test "Alt+B from middle of word moves to start of that word" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: buffer = "foo bar baz", cursor = 9 (in middle of "baz", at 'a')
     // Canonical algorithm: skip whitespace backward, then skip non-whitespace backward
@@ -1436,7 +1462,8 @@ test "Alt+B on empty buffer is a no-op" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: empty buffer, cursor = 0
 
@@ -1453,7 +1480,8 @@ test "Alt+F moves cursor forward to end of next word" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: buffer = "foo bar baz", cursor = 0 (before 'f')
     try repl.buffer.appendSlice("foo bar baz");
@@ -1472,7 +1500,8 @@ test "Alt+F at end of buffer is a no-op" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: buffer = "hello", cursor = 5 (at end)
     try repl.buffer.appendSlice("hello");
@@ -1491,7 +1520,8 @@ test "Alt+F from middle of word moves to end of current word" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: buffer = "foo bar baz", cursor = 1 (in "foo", at 'o')
     try repl.buffer.appendSlice("foo bar baz");
@@ -1510,7 +1540,8 @@ test "Alt+F from whitespace skips to end of next word" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: buffer = "foo bar baz", cursor = 4 (after "foo ", at 'b' in "bar")
     try repl.buffer.appendSlice("foo bar baz");
@@ -1533,7 +1564,8 @@ test "Alt+F on empty buffer is a no-op" {
     var repl = try Repl.init(allocator, .{});
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Setup: empty buffer, cursor = 0
 
@@ -1779,7 +1811,8 @@ test "validator callback: multi-line incomplete lines accumulate with preserved 
     });
     defer repl.deinit();
 
-    const writer = std.io.null_writer;
+    var discarding: std.Io.Writer.Discarding = .init(&.{});
+    const writer = &discarding.writer;
 
     // Simulate three lines:
     // 1. "line1" — Enter (incomplete)
