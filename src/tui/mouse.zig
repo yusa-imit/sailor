@@ -422,8 +422,8 @@ test "enableTracking" {
 
     try enableTracking(writer, .click);
     const written = fbs.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?1000h") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?1006h") != null);
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?1000h") != null);
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?1006h") != null);
 }
 
 test "disableTracking" {
@@ -433,5 +433,5 @@ test "disableTracking" {
 
     try disableTracking(writer);
     const written = fbs.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?1000l") != null);
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?1000l") != null);
 }

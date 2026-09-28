@@ -238,7 +238,7 @@ pub const Repl = struct {
         // Handle bracketed paste markers
         if (self.in_paste) {
             // Look for end marker
-            if (std.mem.indexOf(u8, key, "\x1b[201~")) |idx| {
+            if (std.mem.find(u8, key, "\x1b[201~")) |idx| {
                 // End marker found
                 // Append content before end marker to paste_buffer
                 try self.paste_buffer.appendSlice(key[0..idx]);
@@ -270,7 +270,7 @@ pub const Repl = struct {
             const remainder = key[6..]; // len("\x1b[200~") = 6
 
             // Search remainder for end marker
-            if (std.mem.indexOf(u8, remainder, "\x1b[201~")) |j| {
+            if (std.mem.find(u8, remainder, "\x1b[201~")) |j| {
                 // End marker found in same chunk
                 // Insert content between markers
                 try self.buffer.replaceRange(self.cursor, 0, remainder[0..j]);
@@ -1644,7 +1644,7 @@ test "validator callback: .incomplete — Enter returns false, newline inserted,
 
     // Expected: continuation prompt appears in output
     const output = stream.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, output, "  ") != null);
+    try std.testing.expect(std.mem.find(u8, output, "  ") != null);
 }
 
 test "validator callback: .incomplete at mid-buffer cursor position inserts newline correctly" {
@@ -1673,7 +1673,7 @@ test "validator callback: .incomplete at mid-buffer cursor position inserts newl
 
     // Check continuation prompt in output
     const output = stream.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, output, ".. ") != null);
+    try std.testing.expect(std.mem.find(u8, output, ".. ") != null);
 }
 
 test "validator callback: .invalid — Enter returns false, buffer cleared, cursor reset, primary prompt printed" {
@@ -1701,7 +1701,7 @@ test "validator callback: .invalid — Enter returns false, buffer cleared, curs
 
     // Expected: primary prompt appears in output
     const output = stream.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, output, ">>> ") != null);
+    try std.testing.expect(std.mem.find(u8, output, ">>> ") != null);
 }
 
 test "validator callback: .invalid with non-empty buffer clears it" {

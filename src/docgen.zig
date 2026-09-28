@@ -174,9 +174,9 @@ pub const DocGenerator = struct {
             }
 
             // Parse declaration line
-            if (std.mem.indexOf(u8, trimmed, "fn ") != null or
-                std.mem.indexOf(u8, trimmed, "const ") != null or
-                std.mem.indexOf(u8, trimmed, "var ") != null)
+            if (std.mem.find(u8, trimmed, "fn ") != null or
+                std.mem.find(u8, trimmed, "const ") != null or
+                std.mem.find(u8, trimmed, "var ") != null)
             {
                 try self.parseDeclaration(trimmed, pending_comment);
                 if (pending_comment) |pc| {
@@ -188,28 +188,28 @@ pub const DocGenerator = struct {
     }
 
     fn parseDeclaration(self: *Self, line: []const u8, comment: ?[]const u8) !void {
-        const is_public = std.mem.indexOf(u8, line, "pub ") != null;
+        const is_public = std.mem.find(u8, line, "pub ") != null;
 
-        if (std.mem.indexOf(u8, line, "fn ") != null) {
+        if (std.mem.find(u8, line, "fn ") != null) {
             try self.parseFunctionDeclaration(line, comment, is_public);
-        } else if (std.mem.indexOf(u8, line, "struct") != null) {
+        } else if (std.mem.find(u8, line, "struct") != null) {
             // For now, just extract basic struct info
             try self.parseStructDeclaration(line, comment, is_public);
-        } else if (std.mem.indexOf(u8, line, "enum") != null) {
+        } else if (std.mem.find(u8, line, "enum") != null) {
             try self.parseEnumDeclaration(line, comment, is_public);
-        } else if (std.mem.indexOf(u8, line, "union") != null) {
+        } else if (std.mem.find(u8, line, "union") != null) {
             try self.parseUnionDeclaration(line, comment, is_public);
-        } else if (std.mem.indexOf(u8, line, "const ") != null or std.mem.indexOf(u8, line, "var ") != null) {
+        } else if (std.mem.find(u8, line, "const ") != null or std.mem.find(u8, line, "var ") != null) {
             try self.parseConstantDeclaration(line, comment, is_public);
         }
     }
 
     fn parseFunctionDeclaration(self: *Self, line: []const u8, comment: ?[]const u8, is_public: bool) !void {
-        const fn_idx = std.mem.indexOf(u8, line, "fn ") orelse return;
+        const fn_idx = std.mem.find(u8, line, "fn ") orelse return;
         const fn_part = line[fn_idx + 3 ..];
 
         // Extract function name
-        const paren_idx = std.mem.indexOf(u8, fn_part, "(") orelse return;
+        const paren_idx = std.mem.find(u8, fn_part, "(") orelse return;
         const func_name = std.mem.trim(u8, fn_part[0..paren_idx], " \t");
 
         // Find matching closing paren
@@ -238,7 +238,7 @@ pub const DocGenerator = struct {
                 const p = std.mem.trim(u8, param_str, " \t");
                 if (p.len == 0) continue;
 
-                if (std.mem.indexOf(u8, p, ":")) |colon_idx| {
+                if (std.mem.find(u8, p, ":")) |colon_idx| {
                     const param_name = std.mem.trim(u8, p[0..colon_idx], " \t");
                     const param_type = std.mem.trim(u8, p[colon_idx + 1 ..], " \t");
 
@@ -253,7 +253,7 @@ pub const DocGenerator = struct {
         // Extract return type
         const after_paren = fn_part[close_paren_idx..];
         var return_type: []const u8 = "void";
-        if (std.mem.indexOf(u8, after_paren, "{")) |brace_idx| {
+        if (std.mem.find(u8, after_paren, "{")) |brace_idx| {
             const ret_str = std.mem.trim(u8, after_paren[0..brace_idx], " \t");
             if (ret_str.len > 0) {
                 return_type = ret_str;
@@ -279,32 +279,32 @@ pub const DocGenerator = struct {
 
     fn parseStructDeclaration(self: *Self, line: []const u8, comment: ?[]const u8, is_public: bool) !void {
         // Extract struct name
-        const const_idx = std.mem.indexOf(u8, line, "const ") orelse return;
+        const const_idx = std.mem.find(u8, line, "const ") orelse return;
         const struct_part = line[const_idx + 6 ..];
-        const eq_idx = std.mem.indexOf(u8, struct_part, "=") orelse return;
+        const eq_idx = std.mem.find(u8, struct_part, "=") orelse return;
         _ = std.mem.trim(u8, struct_part[0..eq_idx], " \t");
 
         // For now, create struct declaration without field details (full parsing requires multi-line)
         var fields = std.ArrayListUnmanaged(StructField){};
 
         // Try to extract basic field info from same line
-        if (std.mem.indexOf(u8, line, "struct")) |struct_idx| {
+        if (std.mem.find(u8, line, "struct")) |struct_idx| {
             const after_struct = line[struct_idx + 6 ..];
-            if (std.mem.indexOf(u8, after_struct, "{")) |open_brace| {
+            if (std.mem.find(u8, after_struct, "{")) |open_brace| {
                 const brace_content = after_struct[open_brace + 1 ..];
-                if (std.mem.indexOf(u8, brace_content, "}")) |close_brace| {
+                if (std.mem.find(u8, brace_content, "}")) |close_brace| {
                     const field_str = brace_content[0..close_brace];
                     var field_split = std.mem.splitScalar(u8, field_str, ',');
                     while (field_split.next()) |field_decl| {
                         const f = std.mem.trim(u8, field_decl, " \t\r\n");
                         if (f.len == 0) continue;
 
-                        if (std.mem.indexOf(u8, f, ":")) |colon_idx| {
+                        if (std.mem.find(u8, f, ":")) |colon_idx| {
                             const fname = std.mem.trim(u8, f[0..colon_idx], " \t");
                             const ftype_part = f[colon_idx + 1 ..];
                             // Extract type, stop at '=' for default values
                             var ftype = std.mem.trim(u8, ftype_part, " \t;");
-                            if (std.mem.indexOf(u8, ftype, "=")) |eq_pos| {
+                            if (std.mem.find(u8, ftype, "=")) |eq_pos| {
                                 ftype = std.mem.trim(u8, ftype[0..eq_pos], " \t");
                             }
 
@@ -329,20 +329,20 @@ pub const DocGenerator = struct {
     }
 
     fn parseEnumDeclaration(self: *Self, line: []const u8, comment: ?[]const u8, is_public: bool) !void {
-        const const_idx = std.mem.indexOf(u8, line, "const ") orelse return;
+        const const_idx = std.mem.find(u8, line, "const ") orelse return;
         const enum_part = line[const_idx + 6 ..];
-        const eq_idx = std.mem.indexOf(u8, enum_part, "=") orelse return;
+        const eq_idx = std.mem.find(u8, enum_part, "=") orelse return;
         _ = std.mem.trim(u8, enum_part[0..eq_idx], " \t");
 
         var values = std.ArrayListUnmanaged(EnumValue){};
         defer values.deinit(self.allocator);
 
         // Try to extract values from same line
-        if (std.mem.indexOf(u8, line, "enum")) |enum_idx| {
+        if (std.mem.find(u8, line, "enum")) |enum_idx| {
             const after_enum = line[enum_idx + 4 ..];
-            if (std.mem.indexOf(u8, after_enum, "{")) |open_brace| {
+            if (std.mem.find(u8, after_enum, "{")) |open_brace| {
                 const brace_content = after_enum[open_brace + 1 ..];
-                if (std.mem.indexOf(u8, brace_content, "}")) |close_brace| {
+                if (std.mem.find(u8, brace_content, "}")) |close_brace| {
                     const value_str = brace_content[0..close_brace];
                     var value_split = std.mem.splitScalar(u8, value_str, ',');
                     while (value_split.next()) |value_decl| {
@@ -366,27 +366,27 @@ pub const DocGenerator = struct {
     }
 
     fn parseUnionDeclaration(self: *Self, line: []const u8, comment: ?[]const u8, is_public: bool) !void {
-        const const_idx = std.mem.indexOf(u8, line, "const ") orelse return;
+        const const_idx = std.mem.find(u8, line, "const ") orelse return;
         const union_part = line[const_idx + 6 ..];
-        const eq_idx = std.mem.indexOf(u8, union_part, "=") orelse return;
+        const eq_idx = std.mem.find(u8, union_part, "=") orelse return;
         _ = std.mem.trim(u8, union_part[0..eq_idx], " \t");
 
         var fields = std.ArrayListUnmanaged(StructField){};
         defer fields.deinit(self.allocator);
 
         // Try to extract fields from same line
-        if (std.mem.indexOf(u8, line, "union")) |union_idx| {
+        if (std.mem.find(u8, line, "union")) |union_idx| {
             const after_union = line[union_idx + 5 ..];
-            if (std.mem.indexOf(u8, after_union, "{")) |open_brace| {
+            if (std.mem.find(u8, after_union, "{")) |open_brace| {
                 const brace_content = after_union[open_brace + 1 ..];
-                if (std.mem.indexOf(u8, brace_content, "}")) |close_brace| {
+                if (std.mem.find(u8, brace_content, "}")) |close_brace| {
                     const field_str = brace_content[0..close_brace];
                     var field_split = std.mem.splitScalar(u8, field_str, ',');
                     while (field_split.next()) |field_decl| {
                         const f = std.mem.trim(u8, field_decl, " \t\r\n");
                         if (f.len == 0) continue;
 
-                        if (std.mem.indexOf(u8, f, ":")) |colon_idx| {
+                        if (std.mem.find(u8, f, ":")) |colon_idx| {
                             const fname = std.mem.trim(u8, f[0..colon_idx], " \t");
                             const ftype_part = f[colon_idx + 1 ..];
                             const ftype = std.mem.trim(u8, ftype_part, " \t");
@@ -410,10 +410,10 @@ pub const DocGenerator = struct {
     }
 
     fn parseConstantDeclaration(self: *Self, line: []const u8, comment: ?[]const u8, is_public: bool) !void {
-        const const_idx = std.mem.indexOf(u8, line, "const ") orelse
-            std.mem.indexOf(u8, line, "var ") orelse return;
+        const const_idx = std.mem.find(u8, line, "const ") orelse
+            std.mem.find(u8, line, "var ") orelse return;
         const const_part = line[const_idx + 6 ..];
-        const eq_idx = std.mem.indexOf(u8, const_part, "=") orelse return;
+        const eq_idx = std.mem.find(u8, const_part, "=") orelse return;
         _ = std.mem.trim(u8, const_part[0..eq_idx], " \t");
 
         try self.declarations.append(self.allocator, Declaration{
@@ -594,8 +594,8 @@ test "DocGenerator: parse module comment" {
 
     try testing.expect(gen.module_comment != null);
     const comment = gen.module_comment.?;
-    try testing.expect(std.mem.indexOf(u8, comment.content, "This is a module") != null);
-    try testing.expect(std.mem.indexOf(u8, comment.content, "with multiple lines") != null);
+    try testing.expect(std.mem.find(u8, comment.content, "This is a module") != null);
+    try testing.expect(std.mem.find(u8, comment.content, "with multiple lines") != null);
 }
 
 test "DocGenerator: parse public function" {
@@ -798,12 +798,12 @@ test "DocGenerator: generateMarkdown with function" {
     try gen.generateMarkdown(fbs.writer());
 
     const output = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, output, "# Overview") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "Test module") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "fn mul(") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "a: i32") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "b: i32") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "Multiplies two numbers") != null);
+    try testing.expect(std.mem.find(u8, output, "# Overview") != null);
+    try testing.expect(std.mem.find(u8, output, "Test module") != null);
+    try testing.expect(std.mem.find(u8, output, "fn mul(") != null);
+    try testing.expect(std.mem.find(u8, output, "a: i32") != null);
+    try testing.expect(std.mem.find(u8, output, "b: i32") != null);
+    try testing.expect(std.mem.find(u8, output, "Multiplies two numbers") != null);
 }
 
 test "DocGenerator: generateMarkdown with struct" {
@@ -823,11 +823,11 @@ test "DocGenerator: generateMarkdown with struct" {
     try gen.generateMarkdown(fbs.writer());
 
     const output = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, output, "## Struct") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "A rectangle") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "### Fields") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "width: u32") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "height: u32") != null);
+    try testing.expect(std.mem.find(u8, output, "## Struct") != null);
+    try testing.expect(std.mem.find(u8, output, "A rectangle") != null);
+    try testing.expect(std.mem.find(u8, output, "### Fields") != null);
+    try testing.expect(std.mem.find(u8, output, "width: u32") != null);
+    try testing.expect(std.mem.find(u8, output, "height: u32") != null);
 }
 
 test "DocGenerator: generateMarkdown with enum" {
@@ -847,12 +847,12 @@ test "DocGenerator: generateMarkdown with enum" {
     try gen.generateMarkdown(fbs.writer());
 
     const output = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, output, "## Enum") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "Status enumeration") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "### Values") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "pending") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "active") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "done") != null);
+    try testing.expect(std.mem.find(u8, output, "## Enum") != null);
+    try testing.expect(std.mem.find(u8, output, "Status enumeration") != null);
+    try testing.expect(std.mem.find(u8, output, "### Values") != null);
+    try testing.expect(std.mem.find(u8, output, "pending") != null);
+    try testing.expect(std.mem.find(u8, output, "active") != null);
+    try testing.expect(std.mem.find(u8, output, "done") != null);
 }
 
 test "DocGenerator: skip private declarations in markdown" {
@@ -872,8 +872,8 @@ test "DocGenerator: skip private declarations in markdown" {
     try gen.generateMarkdown(fbs.writer());
 
     const output = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, output, "publicFunc") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "privateFunc") == null);
+    try testing.expect(std.mem.find(u8, output, "publicFunc") != null);
+    try testing.expect(std.mem.find(u8, output, "privateFunc") == null);
 }
 
 test "DocGenerator: multiple declarations" {
@@ -915,7 +915,7 @@ test "DocGenerator: function with complex return type" {
     const sig = decls[0].signature.?;
     try testing.expectEqualStrings("allocate", sig.name);
     try testing.expectEqual(@as(usize, 1), sig.parameters.len);
-    try testing.expect(std.mem.indexOf(u8, sig.return_type, "![]u8") != null);
+    try testing.expect(std.mem.find(u8, sig.return_type, "![]u8") != null);
 }
 
 test "DocGenerator: struct with default values" {

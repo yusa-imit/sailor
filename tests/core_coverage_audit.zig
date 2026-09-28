@@ -84,10 +84,10 @@ test "Rect.debugFormat writes rectangle info" {
     try r.debugFormat(stream.writer());
 
     const output = stream.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, output, "x=10") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "y=20") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "width=30") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "height=40") != null);
+    try std.testing.expect(std.mem.find(u8, output, "x=10") != null);
+    try std.testing.expect(std.mem.find(u8, output, "y=20") != null);
+    try std.testing.expect(std.mem.find(u8, output, "width=30") != null);
+    try std.testing.expect(std.mem.find(u8, output, "height=40") != null);
 }
 
 // ============================================================================

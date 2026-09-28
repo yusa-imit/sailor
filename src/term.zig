@@ -409,7 +409,7 @@ pub const FocusTracking = struct {
 pub fn isFocusIn(buf: []const u8) bool {
     const marker = "\x1b[I";
     comptime assert(marker.len > 0);
-    const result = std.mem.indexOf(u8, buf, marker) != null;
+    const result = std.mem.find(u8, buf, marker) != null;
     if (result) assert(buf.len >= marker.len);
     return result;
 }
@@ -420,7 +420,7 @@ pub fn isFocusIn(buf: []const u8) bool {
 pub fn isFocusOut(buf: []const u8) bool {
     const marker = "\x1b[O";
     comptime assert(marker.len > 0);
-    const result = std.mem.indexOf(u8, buf, marker) != null;
+    const result = std.mem.find(u8, buf, marker) != null;
     if (result) assert(buf.len >= marker.len);
     return result;
 }
@@ -431,7 +431,7 @@ pub fn isFocusOut(buf: []const u8) bool {
 pub fn isPasteStart(buf: []const u8) bool {
     const marker = "\x1b[200~";
     comptime assert(marker.len > 0);
-    const result = std.mem.indexOf(u8, buf, marker) != null;
+    const result = std.mem.find(u8, buf, marker) != null;
     if (result) assert(buf.len >= marker.len);
     return result;
 }
@@ -442,7 +442,7 @@ pub fn isPasteStart(buf: []const u8) bool {
 pub fn isPasteEnd(buf: []const u8) bool {
     const marker = "\x1b[201~";
     comptime assert(marker.len > 0);
-    const result = std.mem.indexOf(u8, buf, marker) != null;
+    const result = std.mem.find(u8, buf, marker) != null;
     if (result) assert(buf.len >= marker.len);
     return result;
 }
@@ -635,14 +635,14 @@ pub fn buildXtgettcapQuery(writer: anytype, allocator: std.mem.Allocator, capabi
 /// Caller must free result.value if non-null.
 pub fn parseXtgettcapResponse(allocator: std.mem.Allocator, response: []const u8) !XtgettcapResult {
     // Find DCS prefix: ESC P
-    const dcs_start = std.mem.indexOf(u8, response, "\x1bP") orelse return error.InvalidResponse;
+    const dcs_start = std.mem.find(u8, response, "\x1bP") orelse return error.InvalidResponse;
     const after_dcs = dcs_start + 2;
     // Invariant: indexOf only returns an index where the full 2-byte needle
     // fit, so slicing response[after_dcs..] below cannot go out of bounds.
     assert(after_dcs <= response.len);
 
     // Find ST suffix: ESC \
-    const st_start = std.mem.indexOf(u8, response[after_dcs..], "\x1b\\") orelse return error.InvalidResponse;
+    const st_start = std.mem.find(u8, response[after_dcs..], "\x1b\\") orelse return error.InvalidResponse;
     // Invariant: st_start is an index within response[after_dcs..], so the
     // slice below stays within response's own bounds.
     assert(after_dcs + st_start <= response.len);
@@ -666,7 +666,7 @@ pub fn parseXtgettcapResponse(allocator: std.mem.Allocator, response: []const u8
     }
 
     // Parse hex-encoded name and optional value
-    if (std.mem.indexOf(u8, body, "=")) |eq_pos| {
+    if (std.mem.find(u8, body, "=")) |eq_pos| {
         // Invariant: eq_pos was found inside body, so both slices below
         // (0..eq_pos and eq_pos+1..) stay within body's bounds.
         assert(eq_pos < body.len);
@@ -767,7 +767,7 @@ pub fn queryTerminalCapability(
         response_len += n;
 
         // Check if we have a complete response (ends with ST: ESC \)
-        if (std.mem.indexOf(u8, response_buf[0..response_len], "\x1b\\")) |_| {
+        if (std.mem.find(u8, response_buf[0..response_len], "\x1b\\")) |_| {
             break;
         }
     }
@@ -821,7 +821,7 @@ fn queryTerminalCapabilityMock(allocator: std.mem.Allocator, capability_name: []
                 mock.chunk_index += 1;
 
                 // Check if we have a complete response
-                if (std.mem.indexOf(u8, response_buf[0..response_len], "\x1b\\")) |_| {
+                if (std.mem.find(u8, response_buf[0..response_len], "\x1b\\")) |_| {
                     break;
                 }
             }
@@ -1359,8 +1359,8 @@ test "BracketedPaste RAII disables on scope exit" {
 
     const written = stream.getWritten();
     // Should contain both enable and disable sequences
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?2004h") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?2004l") != null);
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?2004h") != null);
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?2004l") != null);
 }
 
 test "isPasteStart detects paste start sequence" {
@@ -1471,8 +1471,8 @@ test "SynchronizedOutput RAII flushes on scope exit" {
 
     const written = stream.getWritten();
     // Should contain both begin and end sequences
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?2026h") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?2026l") != null);
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?2026h") != null);
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?2026l") != null);
 }
 
 test "SynchronizedOutput prevents tearing during rapid updates" {
@@ -1494,7 +1494,7 @@ test "SynchronizedOutput prevents tearing during rapid updates" {
     // Should have begin sequence, content, then end sequence
     try std.testing.expect(std.mem.startsWith(u8, written, "\x1b[?2026h"));
     try std.testing.expect(std.mem.endsWith(u8, written, "\x1b[?2026l"));
-    try std.testing.expect(std.mem.indexOf(u8, written, "Line 1\nLine 2\nLine 3\n") != null);
+    try std.testing.expect(std.mem.find(u8, written, "Line 1\nLine 2\nLine 3\n") != null);
 }
 
 test "SynchronizedOutput multiple begin/end cycles" {
@@ -1583,8 +1583,8 @@ test "writeHyperlink special characters in url" {
     try writeHyperlink(stream.writer().any(), url, "Complex URL");
 
     const written = stream.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, written, url) != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "Complex URL") != null);
+    try std.testing.expect(std.mem.find(u8, written, url) != null);
+    try std.testing.expect(std.mem.find(u8, written, "Complex URL") != null);
 }
 
 test "writeHyperlinkWithParams adds parameters" {
@@ -1620,11 +1620,11 @@ test "writeHyperlink multiple links in sequence" {
     try writeHyperlink(stream.writer().any(), "https://second.com", "Second");
 
     const written = stream.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, written, "https://first.com") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "First") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "https://second.com") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "Second") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, " - ") != null);
+    try std.testing.expect(std.mem.find(u8, written, "https://first.com") != null);
+    try std.testing.expect(std.mem.find(u8, written, "First") != null);
+    try std.testing.expect(std.mem.find(u8, written, "https://second.com") != null);
+    try std.testing.expect(std.mem.find(u8, written, "Second") != null);
+    try std.testing.expect(std.mem.find(u8, written, " - ") != null);
 }
 
 test "writeHyperlink unicode text" {
@@ -1634,8 +1634,8 @@ test "writeHyperlink unicode text" {
     try writeHyperlink(stream.writer().any(), "https://example.com", "링크 🔗 Link");
 
     const written = stream.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, written, "링크 🔗 Link") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "https://example.com") != null);
+    try std.testing.expect(std.mem.find(u8, written, "링크 🔗 Link") != null);
+    try std.testing.expect(std.mem.find(u8, written, "https://example.com") != null);
 }
 
 test "writeHyperlinkWithParams multiple params" {
@@ -1645,8 +1645,8 @@ test "writeHyperlinkWithParams multiple params" {
     try writeHyperlinkWithParams(stream.writer().any(), "id=x:type=external", "https://example.com", "Multi-param");
 
     const written = stream.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, written, "id=x:type=external") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "https://example.com") != null);
+    try std.testing.expect(std.mem.find(u8, written, "id=x:type=external") != null);
+    try std.testing.expect(std.mem.find(u8, written, "https://example.com") != null);
 }
 
 // Focus Tracking Tests
@@ -1687,8 +1687,8 @@ test "FocusTracking RAII disables on scope exit" {
 
     const written = stream.getWritten();
     // Should contain both enable and disable sequences
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?1004h") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?1004l") != null);
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?1004h") != null);
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?1004l") != null);
 }
 
 test "isFocusIn detects focus in event" {

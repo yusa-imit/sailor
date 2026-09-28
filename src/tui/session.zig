@@ -138,20 +138,20 @@ pub const SessionRecorder = struct {
         // {"ts":123,"event":{"type":"key","key":"a"}}
 
         // Find timestamp
-        const ts_start = std.mem.indexOf(u8, line, "\"ts\":") orelse return null;
-        const ts_end = std.mem.indexOfPos(u8, line, ts_start, ",") orelse return null;
+        const ts_start = std.mem.find(u8, line, "\"ts\":") orelse return null;
+        const ts_end = std.mem.findPos(u8, line, ts_start, ",") orelse return null;
         const ts_str = line[ts_start + 5 .. ts_end];
         const timestamp_ms = try std.fmt.parseInt(i64, ts_str, 10);
 
         // Find event type
-        const type_start = std.mem.indexOf(u8, line, "\"type\":\"") orelse return null;
-        const type_end = std.mem.indexOfPos(u8, line, type_start + 8, "\"") orelse return null;
+        const type_start = std.mem.find(u8, line, "\"type\":\"") orelse return null;
+        const type_end = std.mem.findPos(u8, line, type_start + 8, "\"") orelse return null;
         const event_type = line[type_start + 8 .. type_end];
 
         const event: Event = if (std.mem.eql(u8, event_type, "key")) blk: {
             // Parse key event
-            const key_start = std.mem.indexOf(u8, line, "\"key\":\"") orelse break :blk .{ .key = .{ .code = .enter } };
-            const key_end = std.mem.indexOfPos(u8, line, key_start + 7, "\"") orelse break :blk .{ .key = .{ .code = .enter } };
+            const key_start = std.mem.find(u8, line, "\"key\":\"") orelse break :blk .{ .key = .{ .code = .enter } };
+            const key_end = std.mem.findPos(u8, line, key_start + 7, "\"") orelse break :blk .{ .key = .{ .code = .enter } };
             const key_str = line[key_start + 7 .. key_end];
 
             // Simple key mapping
@@ -165,13 +165,13 @@ pub const SessionRecorder = struct {
 
             break :blk .{ .key = .{ .code = .enter } }; // Default
         } else if (std.mem.eql(u8, event_type, "resize")) blk: {
-            const width_start = std.mem.indexOf(u8, line, "\"width\":") orelse break :blk .{ .resize = .{ .width = 80, .height = 24 } };
-            const width_end = std.mem.indexOfPos(u8, line, width_start, ",") orelse break :blk .{ .resize = .{ .width = 80, .height = 24 } };
+            const width_start = std.mem.find(u8, line, "\"width\":") orelse break :blk .{ .resize = .{ .width = 80, .height = 24 } };
+            const width_end = std.mem.findPos(u8, line, width_start, ",") orelse break :blk .{ .resize = .{ .width = 80, .height = 24 } };
             const width_str = line[width_start + 8 .. width_end];
             const width = try std.fmt.parseInt(u16, width_str, 10);
 
-            const height_start = std.mem.indexOf(u8, line, "\"height\":") orelse break :blk .{ .resize = .{ .width = width, .height = 24 } };
-            const height_end = std.mem.indexOfPos(u8, line, height_start, "}") orelse break :blk .{ .resize = .{ .width = width, .height = 24 } };
+            const height_start = std.mem.find(u8, line, "\"height\":") orelse break :blk .{ .resize = .{ .width = width, .height = 24 } };
+            const height_end = std.mem.findPos(u8, line, height_start, "}") orelse break :blk .{ .resize = .{ .width = width, .height = 24 } };
             const height_str = line[height_start + 9 .. height_end];
             const height = try std.fmt.parseInt(u16, height_str, 10);
 

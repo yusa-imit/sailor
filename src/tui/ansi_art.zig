@@ -15,7 +15,7 @@ pub fn detectColorMode() AnsiArtRenderer.ColorMode {
 
     if (std.process.getEnvVarOwned(alloc, "TERM")) |val| {
         defer alloc.free(val);
-        if (std.mem.indexOf(u8, val, "256color") != null) return .colors256;
+        if (std.mem.find(u8, val, "256color") != null) return .colors256;
         if (std.mem.startsWith(u8, val, "xterm") or
             std.mem.startsWith(u8, val, "screen") or
             std.mem.startsWith(u8, val, "tmux")) return .colors16;

@@ -316,9 +316,9 @@ test "ColorTheme.applyBg writes background color" {
     try std.testing.expect(output.len > 0);
 
     // Should write background ANSI code (48 for truecolor/indexed, 4X for basic, 10X for bright)
-    const has_bg_code = std.mem.indexOf(u8, output, "\x1b[48") != null or
-        std.mem.indexOf(u8, output, "\x1b[4") != null or
-        std.mem.indexOf(u8, output, "\x1b[10") != null;
+    const has_bg_code = std.mem.find(u8, output, "\x1b[48") != null or
+        std.mem.find(u8, output, "\x1b[4") != null or
+        std.mem.find(u8, output, "\x1b[10") != null;
     try std.testing.expect(has_bg_code);
 }
 
@@ -338,7 +338,7 @@ test "ColorTheme.styled creates Style from semantic color" {
     try sailor.color.writeStyled(writer, style, "error message");
 
     const output = fbs.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, output, "error message") != null);
+    try std.testing.expect(std.mem.find(u8, output, "error message") != null);
 }
 
 // ============================================================================
@@ -545,9 +545,9 @@ test "ColorTheme writeStyled with theme colors" {
     try sailor.color.writeStyled(writer, style, "Operation succeeded");
 
     const output = fbs.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, output, "Operation succeeded") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "\x1b[") != null); // ANSI code
-    try std.testing.expect(std.mem.indexOf(u8, output, "\x1b[0m") != null); // reset
+    try std.testing.expect(std.mem.find(u8, output, "Operation succeeded") != null);
+    try std.testing.expect(std.mem.find(u8, output, "\x1b[") != null); // ANSI code
+    try std.testing.expect(std.mem.find(u8, output, "\x1b[0m") != null); // reset
 }
 
 // ============================================================================

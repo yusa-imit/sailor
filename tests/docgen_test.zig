@@ -14,7 +14,7 @@ const EnumValue = sailor.docgen.EnumValue;
 
 // Helper function for string containment checks
 fn expectStringContains(haystack: []const u8, needle: []const u8) !void {
-    if (std.mem.indexOf(u8, haystack, needle) == null) {
+    if (std.mem.find(u8, haystack, needle) == null) {
         std.debug.print("String '{s}' not found in '{s}'\n", .{ needle, haystack });
         return error.StringNotFound;
     }
@@ -59,7 +59,7 @@ test "DocGenerator parses module comment with examples" {
     const comment = gen.getModuleComment();
 
     try testing.expect(comment != null);
-    try testing.expect(std.mem.indexOf(u8, comment.?.content, "```zig") != null);
+    try testing.expect(std.mem.find(u8, comment.?.content, "```zig") != null);
 }
 
 test "DocGenerator handles missing module comment" {
@@ -703,8 +703,8 @@ test "DocGenerator extracts code examples from doc comments" {
 
     try testing.expect(decls.len > 0);
     const content = decls[0].comment.?.content;
-    try testing.expect(std.mem.indexOf(u8, content, "```zig") != null);
-    try testing.expect(std.mem.indexOf(u8, content, "init") != null);
+    try testing.expect(std.mem.find(u8, content, "```zig") != null);
+    try testing.expect(std.mem.find(u8, content, "init") != null);
 }
 
 test "DocGenerator preserves code example formatting" {
@@ -1402,8 +1402,8 @@ test "DocGenerator markdown includes inline code for functions" {
     const output = stream.getWritten();
 
     // Should have inline code markers for function signature
-    try testing.expect(std.mem.indexOf(u8, output, "`fn ") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "myFunc") != null);
+    try testing.expect(std.mem.find(u8, output, "`fn ") != null);
+    try testing.expect(std.mem.find(u8, output, "myFunc") != null);
 }
 
 test "DocGenerator markdown escapes special characters" {

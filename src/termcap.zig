@@ -65,7 +65,7 @@ pub const TermInfo = struct {
         offset += names_size;
 
         // Extract terminal name (first null-terminated string)
-        const name_end = std.mem.indexOfScalar(u8, names_section, 0) orelse names_section.len;
+        const name_end = std.mem.findScalar(u8, names_section, 0) orelse names_section.len;
         const term_name = names_section[0..name_end];
 
         // Booleans section
@@ -335,7 +335,7 @@ pub const TermInfo = struct {
         if (start >= self.string_table.len) return null;
 
         // Find null terminator
-        const end = std.mem.indexOfScalarPos(u8, self.string_table, start, 0) orelse self.string_table.len;
+        const end = std.mem.findScalarPos(u8, self.string_table, start, 0) orelse self.string_table.len;
         return self.string_table[start..end];
     }
 
@@ -349,7 +349,7 @@ pub const TermInfo = struct {
         const start = @as(usize, @intCast(offset));
         if (start >= self.string_table.len) return error.CapabilityNotFound;
 
-        const end = std.mem.indexOfScalarPos(u8, self.string_table, start, 0) orelse self.string_table.len;
+        const end = std.mem.findScalarPos(u8, self.string_table, start, 0) orelse self.string_table.len;
         return self.string_table[start..end];
     }
 

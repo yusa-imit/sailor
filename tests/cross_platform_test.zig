@@ -59,7 +59,7 @@ test "newline convention detection" {
     try writer.print("line1{s}line2", .{expected_newline});
 
     const written = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, written, expected_newline) != null);
+    try testing.expect(std.mem.find(u8, written, expected_newline) != null);
 }
 
 test "endianness detection" {

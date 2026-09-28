@@ -91,7 +91,7 @@ pub const Autocomplete = struct {
         return .{
             .allocator = allocator,
             .input = "",
-            .suggestions = ArrayList(Suggestion){},
+            .suggestions = ArrayList(Suggestion).empty,
             .selected_index = 0,
             .scroll_offset = 0,
             .max_visible = 10,

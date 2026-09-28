@@ -54,7 +54,7 @@ pub const Markdown = struct {
     pub fn init(allocator: Allocator) !Markdown {
         return .{
             .allocator = allocator,
-            .nodes = std.ArrayList(markdown_mod.Node){},
+            .nodes = std.ArrayList(markdown_mod.Node).empty,
         };
     }
 
@@ -157,7 +157,7 @@ pub const Markdown = struct {
     fn parse(self: *Markdown) !void {
         var lines = std.mem.splitScalar(u8, self.content, '\n');
         var in_code_block = false;
-        var code_block_content = std.ArrayList(u8){};
+        var code_block_content = std.ArrayList(u8).empty;
         defer code_block_content.deinit(self.allocator);
         var code_block_lang: ?[]const u8 = null;
 

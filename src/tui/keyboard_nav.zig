@@ -403,7 +403,7 @@ test "NavigationHints: format hints" {
     const formatted = try hints.formatHints(allocator);
     defer allocator.free(formatted);
 
-    try std.testing.expect(std.mem.indexOf(u8, formatted, "Keyboard Navigation:") != null);
-    try std.testing.expect(std.mem.indexOf(u8, formatted, "Tab") != null);
-    try std.testing.expect(std.mem.indexOf(u8, formatted, "Enter") != null);
+    try std.testing.expect(std.mem.find(u8, formatted, "Keyboard Navigation:") != null);
+    try std.testing.expect(std.mem.find(u8, formatted, "Tab") != null);
+    try std.testing.expect(std.mem.find(u8, formatted, "Enter") != null);
 }

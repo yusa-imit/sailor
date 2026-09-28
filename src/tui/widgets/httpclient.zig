@@ -234,7 +234,7 @@ pub const HttpClient = struct {
                 var lines: u16 = 0;
                 var i: usize = 0;
                 while (i < preview.len and lines < max_lines) {
-                    const line_end = std.mem.indexOfScalarPos(u8, preview, i, '\n') orelse preview.len;
+                    const line_end = std.mem.findScalarPos(u8, preview, i, '\n') orelse preview.len;
                     const line = preview[i..line_end];
                     const display_len = @min(line.len, render_area.width);
                     buf.setString(render_area.x, y + lines, line[0..display_len], .{});
@@ -324,12 +324,12 @@ test "HttpClient - render idle state" {
 
     // Check that URL is rendered
     const line0 = buffer.getLine(0);
-    try std.testing.expect(std.mem.indexOf(u8, line0, "URL:") != null);
-    try std.testing.expect(std.mem.indexOf(u8, line0, "example.com") != null);
+    try std.testing.expect(std.mem.find(u8, line0, "URL:") != null);
+    try std.testing.expect(std.mem.find(u8, line0, "example.com") != null);
 
     // Check that state is rendered
     const line1 = buffer.getLine(1);
-    try std.testing.expect(std.mem.indexOf(u8, line1, "Idle") != null);
+    try std.testing.expect(std.mem.find(u8, line1, "Idle") != null);
 }
 
 test "HttpClient - render receiving state" {
@@ -345,7 +345,7 @@ test "HttpClient - render receiving state" {
 
     // Check state line
     const line1 = buffer.getLine(1);
-    try std.testing.expect(std.mem.indexOf(u8, line1, "Receiving") != null);
+    try std.testing.expect(std.mem.find(u8, line1, "Receiving") != null);
 }
 
 test "HttpClient - render completed state" {
@@ -362,7 +362,7 @@ test "HttpClient - render completed state" {
 
     // Check completed state
     const line1 = buffer.getLine(1);
-    try std.testing.expect(std.mem.indexOf(u8, line1, "Completed") != null);
+    try std.testing.expect(std.mem.find(u8, line1, "Completed") != null);
 }
 
 test "HttpClient - render failed state" {
@@ -378,7 +378,7 @@ test "HttpClient - render failed state" {
 
     // Check failed state
     const line1 = buffer.getLine(1);
-    try std.testing.expect(std.mem.indexOf(u8, line1, "Failed") != null);
+    try std.testing.expect(std.mem.find(u8, line1, "Failed") != null);
 }
 
 test "HttpClient - setBlock" {
@@ -422,14 +422,14 @@ test "HttpClient - speed calculation zero elapsed" {
 test "HttpClient - formatBytes" {
     // Note: formatBytes uses static buffer, so these must be tested sequentially
     const bytes_str = HttpClient.formatBytes(512);
-    try std.testing.expect(std.mem.indexOf(u8, bytes_str, "B") != null);
+    try std.testing.expect(std.mem.find(u8, bytes_str, "B") != null);
 
     const kb_str = HttpClient.formatBytes(1536); // 1.5 KB
-    try std.testing.expect(std.mem.indexOf(u8, kb_str, "KB") != null);
+    try std.testing.expect(std.mem.find(u8, kb_str, "KB") != null);
 
     const mb_str = HttpClient.formatBytes(2 * 1024 * 1024); // 2 MB
-    try std.testing.expect(std.mem.indexOf(u8, mb_str, "MB") != null);
+    try std.testing.expect(std.mem.find(u8, mb_str, "MB") != null);
 
     const gb_str = HttpClient.formatBytes(3 * 1024 * 1024 * 1024); // 3 GB
-    try std.testing.expect(std.mem.indexOf(u8, gb_str, "GB") != null);
+    try std.testing.expect(std.mem.find(u8, gb_str, "GB") != null);
 }

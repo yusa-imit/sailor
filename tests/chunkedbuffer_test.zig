@@ -91,12 +91,12 @@ test "ChunkedBuffer.render writes correct line content to buffer" {
     // Verify line 0 contains "Line 0"
     const line0 = buf.getLine(0, 0, 40);
     defer allocator.free(line0);
-    try testing.expect(std.mem.indexOf(u8, line0, "Line 0") != null);
+    try testing.expect(std.mem.find(u8, line0, "Line 0") != null);
 
     // Verify line 2 contains "Line 2"
     const line2 = buf.getLine(2, 0, 40);
     defer allocator.free(line2);
-    try testing.expect(std.mem.indexOf(u8, line2, "Line 2") != null);
+    try testing.expect(std.mem.find(u8, line2, "Line 2") != null);
 }
 
 // ============================================================================
@@ -123,12 +123,12 @@ test "ChunkedBuffer.withLineOffset scrolls to different lines" {
     // First visible line should be line 50
     const line0 = buf.getLine(0, 0, 40);
     defer allocator.free(line0);
-    try testing.expect(std.mem.indexOf(u8, line0, "Line 50") != null);
+    try testing.expect(std.mem.find(u8, line0, "Line 50") != null);
 
     // Last visible line should be line 54
     const line4 = buf.getLine(4, 0, 40);
     defer allocator.free(line4);
-    try testing.expect(std.mem.indexOf(u8, line4, "Line 54") != null);
+    try testing.expect(std.mem.find(u8, line4, "Line 54") != null);
 }
 
 test "ChunkedBuffer.withLineOffset clamps at boundaries" {
@@ -233,7 +233,7 @@ test "ChunkedBuffer.render handles millions of lines without loading all into me
     // Verify correct line is at viewport start
     const line0 = buf.getLine(0, 0, 80);
     defer allocator.free(line0);
-    try testing.expect(std.mem.indexOf(u8, line0, "5000000") != null);
+    try testing.expect(std.mem.find(u8, line0, "5000000") != null);
 }
 
 test "ChunkedBuffer.render callback invoked exactly viewport height times" {
@@ -289,7 +289,7 @@ test "ChunkedBuffer.withBlock renders with borders" {
     // Verify title is rendered
     const line0 = buf.getLine(0, 0, 40);
     defer allocator.free(line0);
-    try testing.expect(std.mem.indexOf(u8, line0, "Log Viewer") != null);
+    try testing.expect(std.mem.find(u8, line0, "Log Viewer") != null);
 }
 
 test "ChunkedBuffer.withBlock reduces effective render area" {
@@ -342,7 +342,7 @@ test "ChunkedBuffer.withWrap wraps long lines within viewport width" {
     // Line 0 should have "This is a very long"
     const line0 = buf.getLine(0, 0, 20);
     defer allocator.free(line0);
-    try testing.expect(std.mem.indexOf(u8, line0, "This is") != null);
+    try testing.expect(std.mem.find(u8, line0, "This is") != null);
 
     // Line 1 should have continuation (or next logical chunk)
     const line1 = buf.getLine(1, 0, 20);
@@ -570,12 +570,12 @@ test "ChunkedBuffer full integration: scroll + wrap + block" {
     // Verify title
     const line0 = buf.getLine(0, 0, 50);
     defer allocator.free(line0);
-    try testing.expect(std.mem.indexOf(u8, line0, "Logs") != null);
+    try testing.expect(std.mem.find(u8, line0, "Logs") != null);
 
     // Verify content starts from line 100 (offset), inside border
     const line1 = buf.getLine(1, 1, 48); // Inside border
     defer allocator.free(line1);
-    try testing.expect(std.mem.indexOf(u8, line1, "100") != null);
+    try testing.expect(std.mem.find(u8, line1, "100") != null);
 }
 
 // ============================================================================

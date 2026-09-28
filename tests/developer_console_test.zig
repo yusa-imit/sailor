@@ -69,10 +69,10 @@ test "DeveloperConsole - help command lists available commands" {
     defer allocator.free(result);
 
     // Should list key commands
-    try testing.expect(std.mem.indexOf(u8, result, "eval") != null);
-    try testing.expect(std.mem.indexOf(u8, result, "query") != null);
-    try testing.expect(std.mem.indexOf(u8, result, "mutate") != null);
-    try testing.expect(std.mem.indexOf(u8, result, "screenshot") != null);
+    try testing.expect(std.mem.find(u8, result, "eval") != null);
+    try testing.expect(std.mem.find(u8, result, "query") != null);
+    try testing.expect(std.mem.find(u8, result, "mutate") != null);
+    try testing.expect(std.mem.find(u8, result, "screenshot") != null);
 }
 
 test "DeveloperConsole - clear command resets output buffer" {
@@ -239,7 +239,7 @@ test "DeveloperConsole - query by ID selector matches single widget" {
     }
 
     try testing.expectEqual(@as(usize, 1), results.len);
-    try testing.expect(std.mem.indexOf(u8, results[0], "submit") != null);
+    try testing.expect(std.mem.find(u8, results[0], "submit") != null);
 }
 
 test "DeveloperConsole - query by class selector filters by class" {
@@ -492,7 +492,7 @@ test "DeveloperConsole - mutate sets widget text property" {
     const result = try console.executeCommand("mutate #btn1 text='New Text'");
     defer allocator.free(result);
 
-    try testing.expect(std.mem.indexOf(u8, result, "New Text") != null);
+    try testing.expect(std.mem.find(u8, result, "New Text") != null);
 }
 
 test "DeveloperConsole - mutate triggers widget actions" {
@@ -512,7 +512,7 @@ test "DeveloperConsole - mutate triggers widget actions" {
     const result = try console.executeCommand("mutate #btn1 focus");
     defer allocator.free(result);
 
-    try testing.expect(std.mem.indexOf(u8, result, "focus") != null);
+    try testing.expect(std.mem.find(u8, result, "focus") != null);
 }
 
 test "DeveloperConsole - mutate applies batch updates to multiple widgets" {
@@ -541,7 +541,7 @@ test "DeveloperConsole - mutate applies batch updates to multiple widgets" {
     const result = try console.executeCommand("mutate .primary text='Updated'");
     defer allocator.free(result);
 
-    try testing.expect(std.mem.indexOf(u8, result, "2 widgets") != null);
+    try testing.expect(std.mem.find(u8, result, "2 widgets") != null);
 }
 
 test "DeveloperConsole - undo restores previous widget state" {
@@ -564,7 +564,7 @@ test "DeveloperConsole - undo restores previous widget state" {
     const undo_result = try console.executeCommand("undo");
     defer allocator.free(undo_result);
 
-    try testing.expect(std.mem.indexOf(u8, undo_result, "Original") != null);
+    try testing.expect(std.mem.find(u8, undo_result, "Original") != null);
 }
 
 test "DeveloperConsole - redo restores undone mutation" {
@@ -589,7 +589,7 @@ test "DeveloperConsole - redo restores undone mutation" {
     const redo_result = try console.executeCommand("redo");
     defer allocator.free(redo_result);
 
-    try testing.expect(std.mem.indexOf(u8, redo_result, "Changed") != null);
+    try testing.expect(std.mem.find(u8, redo_result, "Changed") != null);
 }
 
 test "DeveloperConsole - mutate rejects invalid syntax" {
@@ -715,7 +715,7 @@ test "DeveloperConsole - screenshot export to ANSI text format" {
     defer allocator.free(ansi_data);
 
     // ANSI text should contain escape sequences
-    try testing.expect(std.mem.indexOf(u8, ansi_data, "\x1b[") != null);
+    try testing.expect(std.mem.find(u8, ansi_data, "\x1b[") != null);
 }
 
 // ============================================================================
@@ -830,7 +830,7 @@ test "DeveloperConsole - Unicode support in commands and output" {
     const result = try console.executeCommand("mutate #label1 text='🚀 Rocket'");
     defer allocator.free(result);
 
-    try testing.expect(std.mem.indexOf(u8, result, "🚀") != null);
+    try testing.expect(std.mem.find(u8, result, "🚀") != null);
 }
 
 test "DeveloperConsole - command execution with special characters" {

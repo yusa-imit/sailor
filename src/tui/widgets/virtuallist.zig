@@ -271,7 +271,7 @@ test "VirtualList.render handles huge item counts efficiently" {
     const found = for (0..24) |y| {
         const line = buf.getLine(@intCast(y), 0, 80);
         defer testing.allocator.free(line);
-        if (std.mem.indexOf(u8, line, expected_line)) |_| break true;
+        if (std.mem.find(u8, line, expected_line)) |_| break true;
     } else false;
 
     try testing.expect(found);
@@ -290,8 +290,8 @@ test "VirtualList.renderSlice convenience method" {
     // Check selected item is highlighted
     const line2 = buf.getLine(2, 0, 30);
     defer testing.allocator.free(line2);
-    try testing.expect(std.mem.indexOf(u8, line2, ">") != null);
-    try testing.expect(std.mem.indexOf(u8, line2, "Item 2") != null);
+    try testing.expect(std.mem.find(u8, line2, ">") != null);
+    try testing.expect(std.mem.find(u8, line2, "Item 2") != null);
 }
 
 test "VirtualList.withSelected builder" {

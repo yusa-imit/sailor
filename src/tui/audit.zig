@@ -578,9 +578,9 @@ test "AuditLogger: write to file" {
     const content = try file.readToEndAlloc(allocator, 1024 * 1024);
     defer allocator.free(content);
 
-    try std.testing.expect(std.mem.indexOf(u8, content, "INFO") != null);
-    try std.testing.expect(std.mem.indexOf(u8, content, "WARN") != null);
-    try std.testing.expect(std.mem.indexOf(u8, content, "user1") != null);
+    try std.testing.expect(std.mem.find(u8, content, "INFO") != null);
+    try std.testing.expect(std.mem.find(u8, content, "WARN") != null);
+    try std.testing.expect(std.mem.find(u8, content, "user1") != null);
 }
 
 test "AuditLogger: export JSON" {
@@ -597,9 +597,9 @@ test "AuditLogger: export JSON" {
     try logger.exportJson(writer);
 
     const json = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, json, "\"timestamp\"") != null);
-    try std.testing.expect(std.mem.indexOf(u8, json, "\"session\"") != null);
-    try std.testing.expect(std.mem.indexOf(u8, json, "\"user\":\"alice\"") != null);
+    try std.testing.expect(std.mem.find(u8, json, "\"timestamp\"") != null);
+    try std.testing.expect(std.mem.find(u8, json, "\"session\"") != null);
+    try std.testing.expect(std.mem.find(u8, json, "\"user\":\"alice\"") != null);
 }
 
 test "AuditLogger: clear entries" {

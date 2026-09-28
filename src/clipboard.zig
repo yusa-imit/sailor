@@ -517,17 +517,17 @@ test "write to different selections" {
     var buf1: [4096]u8 = undefined;
     var stream1 = std.io.fixedBufferStream(&buf1);
     try Clipboard.write(stream1.writer(), "text", .clipboard);
-    try testing.expect(std.mem.indexOf(u8, stream1.getWritten(), ";c;") != null);
+    try testing.expect(std.mem.find(u8, stream1.getWritten(), ";c;") != null);
 
     var buf2: [4096]u8 = undefined;
     var stream2 = std.io.fixedBufferStream(&buf2);
     try Clipboard.write(stream2.writer(), "text", .primary);
-    try testing.expect(std.mem.indexOf(u8, stream2.getWritten(), ";p;") != null);
+    try testing.expect(std.mem.find(u8, stream2.getWritten(), ";p;") != null);
 
     var buf3: [4096]u8 = undefined;
     var stream3 = std.io.fixedBufferStream(&buf3);
     try Clipboard.write(stream3.writer(), "text", .system);
-    try testing.expect(std.mem.indexOf(u8, stream3.getWritten(), ";s;") != null);
+    try testing.expect(std.mem.find(u8, stream3.getWritten(), ";s;") != null);
 }
 
 // ============================================================================
@@ -547,7 +547,7 @@ test "OSC 52 sequence format is correct" {
     try testing.expectEqual(@as(u8, ']'), output[1]);
 
     // Must contain "52;"
-    try testing.expect(std.mem.indexOf(u8, output, "52;") != null);
+    try testing.expect(std.mem.find(u8, output, "52;") != null);
 
     // Must end with BEL (0x07)
     try testing.expectEqual(@as(u8, 0x07), output[output.len - 1]);
@@ -562,7 +562,7 @@ test "base64 encoding is correct" {
     const output = stream.getWritten();
 
     // Extract base64 part (between second semicolon and BEL)
-    const b64_start = std.mem.indexOf(u8, output, ";c;").? + 3;
+    const b64_start = std.mem.find(u8, output, ";c;").? + 3;
     const b64_end = output.len - 1; // Before BEL
     const b64 = output[b64_start..b64_end];
 
@@ -812,7 +812,7 @@ test "base64 padding is correct for various input lengths" {
         try Clipboard.write(stream.writer(), tc.input, .clipboard);
 
         const output = stream.getWritten();
-        const b64_start = std.mem.indexOf(u8, output, ";c;").? + 3;
+        const b64_start = std.mem.find(u8, output, ";c;").? + 3;
         const b64_end = output.len - 1;
         const b64 = output[b64_start..b64_end];
 

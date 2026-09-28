@@ -396,8 +396,8 @@ test "Bar basic" {
     try bar.render(buf.writer());
 
     const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "50.0%") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "(50/100)") != null);
+    try std.testing.expect(std.mem.find(u8, output, "50.0%") != null);
+    try std.testing.expect(std.mem.find(u8, output, "(50/100)") != null);
 }
 
 test "Bar inc" {
@@ -461,7 +461,7 @@ test "Bar ETA not shown when current equals zero" {
 
     const output = buf.items;
     // Should NOT contain ETA since current == 0
-    try std.testing.expect(std.mem.indexOf(u8, output, " ETA ") == null);
+    try std.testing.expect(std.mem.find(u8, output, " ETA ") == null);
 }
 
 test "Bar ETA not shown when current equals total" {
@@ -475,7 +475,7 @@ test "Bar ETA not shown when current equals total" {
 
     const output = buf.items;
     // Should NOT contain ETA since current == total
-    try std.testing.expect(std.mem.indexOf(u8, output, " ETA ") == null);
+    try std.testing.expect(std.mem.find(u8, output, " ETA ") == null);
 }
 
 test "Bar ETA formatted with seconds when elapsed produces eta_sec < 60" {
@@ -498,7 +498,7 @@ test "Bar ETA formatted with seconds when elapsed produces eta_sec < 60" {
 
     const output = buf.items;
     // Should contain the exact ETA string for 45 seconds
-    try std.testing.expect(std.mem.indexOf(u8, output, " ETA 45s") != null);
+    try std.testing.expect(std.mem.find(u8, output, " ETA 45s") != null);
 }
 
 test "Bar ETA formatted with minutes when elapsed produces 60 <= eta_sec < 3600" {
@@ -519,7 +519,7 @@ test "Bar ETA formatted with minutes when elapsed produces 60 <= eta_sec < 3600"
 
     const output = buf.items;
     // Should contain the exact ETA string for 2m30s (150 seconds = 2*60 + 30)
-    try std.testing.expect(std.mem.indexOf(u8, output, " ETA 2m30s") != null);
+    try std.testing.expect(std.mem.find(u8, output, " ETA 2m30s") != null);
 }
 
 test "Bar ETA formatted with hours when eta_sec >= 3600" {
@@ -540,7 +540,7 @@ test "Bar ETA formatted with hours when eta_sec >= 3600" {
 
     const output = buf.items;
     // Should contain the exact ETA string for 1h0m (3600 seconds = 1*3600 + 0)
-    try std.testing.expect(std.mem.indexOf(u8, output, " ETA 1h0m") != null);
+    try std.testing.expect(std.mem.find(u8, output, " ETA 1h0m") != null);
 }
 
 test "Spinner frames" {
@@ -572,7 +572,7 @@ test "Spinner render" {
     try spinner.render(buf.writer());
 
     const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "Loading") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Loading") != null);
 }
 
 test "Multi basic" {

@@ -245,7 +245,7 @@ test "dependency verification - no external deps" {
     // sailor must have ZERO external dependencies — only stdlib allowed
     // Verify critical stdlib modules are present and functional
     try testing.expect(std.mem.eql(u8, "test", "test"));
-    try testing.expect(std.mem.indexOfScalar(u8, "hello", 'e') != null);
+    try testing.expect(std.mem.findScalar(u8, "hello", 'e') != null);
     var buf: [8]u8 = undefined;
     const written = try std.fmt.bufPrint(&buf, "{d}", .{42});
     try testing.expectEqualStrings("42", written);

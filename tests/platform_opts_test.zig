@@ -130,8 +130,8 @@ test "Linux emitAnsi writes directly to Writer with minimal overhead" {
 
     const written = stream.getWritten();
     try testing.expect(std.mem.startsWith(u8, written, "\x1b[31m"));
-    try testing.expect(std.mem.indexOf(u8, written, "Hello") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "World") != null);
+    try testing.expect(std.mem.find(u8, written, "Hello") != null);
+    try testing.expect(std.mem.find(u8, written, "World") != null);
 }
 
 test "Linux batch multiple ANSI sequences in single write call" {

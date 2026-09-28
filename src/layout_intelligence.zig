@@ -524,11 +524,11 @@ pub const AccessibilityChecker = struct {
         _ = self;
 
         // Return suggestions based on widget path
-        if (std.mem.indexOf(u8, widget_path, "input") != null) {
+        if (std.mem.find(u8, widget_path, "input") != null) {
             return "Add focus indicator for keyboard navigation";
-        } else if (std.mem.indexOf(u8, widget_path, "button") != null) {
+        } else if (std.mem.find(u8, widget_path, "button") != null) {
             return "Add keyboard shortcut for accessibility";
-        } else if (std.mem.indexOf(u8, widget_path, "contrast") != null) {
+        } else if (std.mem.find(u8, widget_path, "contrast") != null) {
             return "Increase color contrast to meet WCAG AA standard";
         } else {
             return "Add focus indicator and ensure sufficient color contrast";
@@ -642,14 +642,14 @@ pub const PerformanceAnalyzer = struct {
 // ============================================================================
 
 fn isInputWidget(name: []const u8) bool {
-    return std.mem.indexOf(u8, name, "Input") != null or
-           std.mem.indexOf(u8, name, "input") != null or
-           std.mem.indexOf(u8, name, "TextField") != null;
+    return std.mem.find(u8, name, "Input") != null or
+           std.mem.find(u8, name, "input") != null or
+           std.mem.find(u8, name, "TextField") != null;
 }
 
 fn isButtonWidget(name: []const u8) bool {
-    return std.mem.indexOf(u8, name, "Button") != null or
-           std.mem.indexOf(u8, name, "button") != null;
+    return std.mem.find(u8, name, "Button") != null or
+           std.mem.find(u8, name, "button") != null;
 }
 
 fn isCustomWidget(name: []const u8) bool {
@@ -660,7 +660,7 @@ fn isCustomWidget(name: []const u8) bool {
     };
 
     for (standard) |std_name| {
-        if (std.mem.indexOf(u8, name, std_name) != null) {
+        if (std.mem.find(u8, name, std_name) != null) {
             return false;
         }
     }

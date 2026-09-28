@@ -590,8 +590,8 @@ test "renderDiff - simple" {
 
     const output = fbs.getWritten();
     // Should contain cursor positioning and characters
-    try std.testing.expect(std.mem.indexOf(u8, output, "\x1b[1;1H") != null); // cursor to 1,1
-    try std.testing.expect(std.mem.indexOf(u8, output, "A") != null);
+    try std.testing.expect(std.mem.find(u8, output, "\x1b[1;1H") != null); // cursor to 1,1
+    try std.testing.expect(std.mem.find(u8, output, "A") != null);
 }
 
 test "Buffer.setString - unicode characters" {
@@ -1221,5 +1221,5 @@ test "Buffer.getLine - with unicode characters" {
     // "Test" = 4 cells, "你" = 2 cells (at position 4), "好" = 2 cells (at position 6)
     // getLine() reads character-by-character from cells, so it should capture the full string
     try std.testing.expect(std.mem.startsWith(u8, line, "Test"));
-    try std.testing.expect(std.mem.indexOf(u8, line, "你") != null);
+    try std.testing.expect(std.mem.find(u8, line, "你") != null);
 }

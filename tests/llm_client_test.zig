@@ -572,7 +572,7 @@ test "ResponseStreamWidget - auto scroll shows latest content" {
 
     // Should show the last 5 lines (15-19)
     const first_line = widget.getVisibleLine(0);
-    try testing.expect(std.mem.indexOf(u8, first_line, "Line 15") != null);
+    try testing.expect(std.mem.find(u8, first_line, "Line 15") != null);
 }
 
 test "ResponseStreamWidget - loading spinner shows when waiting" {
@@ -639,8 +639,8 @@ test "ResponseStreamWidget - scroll up shows earlier content" {
 
     // Should show earlier content
     const first_line = widget.getVisibleLine(0);
-    try testing.expect(std.mem.indexOf(u8, first_line, "Line 5") != null or
-                       std.mem.indexOf(u8, first_line, "Line 6") != null);
+    try testing.expect(std.mem.find(u8, first_line, "Line 5") != null or
+                       std.mem.find(u8, first_line, "Line 6") != null);
 }
 
 test "ResponseStreamWidget - clear resets buffer" {

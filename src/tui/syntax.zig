@@ -235,12 +235,12 @@ pub const Lexer = struct {
         const operators = "+-*/%=<>!&|^~";
         const punctuation = "(){}[];:,.";
 
-        if (std.mem.indexOfScalar(u8, operators, c) != null) {
+        if (std.mem.findScalar(u8, operators, c) != null) {
             self.pos += 1;
             return Token{ .type = .operator, .start = start, .end = self.pos };
         }
 
-        if (std.mem.indexOfScalar(u8, punctuation, c) != null) {
+        if (std.mem.findScalar(u8, punctuation, c) != null) {
             self.pos += 1;
             return Token{ .type = .punctuation, .start = start, .end = self.pos };
         }
@@ -373,14 +373,14 @@ pub const Lexer = struct {
 
         // Operators
         const operators = "+-*/%=<>!&|^~";
-        if (std.mem.indexOfScalar(u8, operators, c) != null) {
+        if (std.mem.findScalar(u8, operators, c) != null) {
             self.pos += 1;
             return Token{ .type = .operator, .start = start, .end = self.pos };
         }
 
         // Punctuation
         const punctuation = "(){}[];:,.";
-        if (std.mem.indexOfScalar(u8, punctuation, c) != null) {
+        if (std.mem.findScalar(u8, punctuation, c) != null) {
             self.pos += 1;
             return Token{ .type = .punctuation, .start = start, .end = self.pos };
         }
@@ -479,14 +479,14 @@ pub const Lexer = struct {
 
         // Operators
         const operators = "+-*/%=<>!&|^~";
-        if (std.mem.indexOfScalar(u8, operators, c) != null) {
+        if (std.mem.findScalar(u8, operators, c) != null) {
             self.pos += 1;
             return Token{ .type = .operator, .start = start, .end = self.pos };
         }
 
         // Punctuation
         const punctuation = "(){}[];:,.";
-        if (std.mem.indexOfScalar(u8, punctuation, c) != null) {
+        if (std.mem.findScalar(u8, punctuation, c) != null) {
             self.pos += 1;
             return Token{ .type = .punctuation, .start = start, .end = self.pos };
         }
@@ -571,7 +571,7 @@ pub const Lexer = struct {
 
         // Punctuation
         const punctuation = "{}[]:,";
-        if (std.mem.indexOfScalar(u8, punctuation, c) != null) {
+        if (std.mem.findScalar(u8, punctuation, c) != null) {
             self.pos += 1;
             return Token{ .type = .punctuation, .start = start, .end = self.pos };
         }

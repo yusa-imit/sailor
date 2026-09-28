@@ -38,7 +38,7 @@ test "kitty: writeApc with no payload emits no semicolon" {
     try testing.expect(written.len > 0);
     try testing.expect(std.mem.startsWith(u8, written, "\x1b_G"));
     try testing.expect(std.mem.endsWith(u8, written, "\x1b\\"));
-    try testing.expect(std.mem.indexOf(u8, written, ";") == null);
+    try testing.expect(std.mem.find(u8, written, ";") == null);
 }
 
 test "kitty: writeApc with empty payload emits semicolon" {
@@ -54,7 +54,7 @@ test "kitty: writeApc with empty payload emits semicolon" {
     try testing.expect(std.mem.startsWith(u8, written, "\x1b_G"));
     try testing.expect(std.mem.endsWith(u8, written, "\x1b\\"));
     // Should contain a semicolon before the empty (no) base64 data
-    try testing.expect(std.mem.indexOf(u8, written, ";") != null);
+    try testing.expect(std.mem.find(u8, written, ";") != null);
 }
 
 test "kitty: writeApc encodes payload to base64" {
@@ -68,7 +68,7 @@ test "kitty: writeApc encodes payload to base64" {
 
     const written = output.items;
     // Base64 of "hello" is "aGVsbG8="
-    try testing.expect(std.mem.indexOf(u8, written, "aGVsbG8=") != null);
+    try testing.expect(std.mem.find(u8, written, "aGVsbG8=") != null);
 }
 
 test "kitty: writeApc output starts with escape and ends with terminator" {
@@ -97,9 +97,9 @@ test "kitty: writeApc with multiple params comma-separates them" {
 
     const written = output.items;
     const content = written[3 .. written.len - 2]; // Strip escape codes
-    try testing.expect(std.mem.indexOf(u8, content, "a=T") != null);
-    try testing.expect(std.mem.indexOf(u8, content, "f=100") != null);
-    try testing.expect(std.mem.indexOf(u8, content, "i=1") != null);
+    try testing.expect(std.mem.find(u8, content, "a=T") != null);
+    try testing.expect(std.mem.find(u8, content, "f=100") != null);
+    try testing.expect(std.mem.find(u8, content, "i=1") != null);
     try testing.expectEqual(@as(usize, 2), std.mem.count(u8, content, ","));
 }
 
@@ -123,9 +123,9 @@ test "kitty: transmit small data in single APC with m=0" {
 
     try testing.expect(image_id > 0);
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "m=0") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "a=T") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "f=100") != null);
+    try testing.expect(std.mem.find(u8, written, "m=0") != null);
+    try testing.expect(std.mem.find(u8, written, "a=T") != null);
+    try testing.expect(std.mem.find(u8, written, "f=100") != null);
     // Should only be one APC sequence for small data
     try testing.expectEqual(@as(usize, 1), std.mem.count(u8, written, "\x1b_G"));
 }
@@ -153,9 +153,9 @@ test "kitty: transmit large data in multiple APCs with m=1 then m=0" {
     // Should have multiple APC sequences
     try testing.expect(std.mem.count(u8, written, "\x1b_G") > 1);
     // Should have m=1 for intermediate chunks
-    try testing.expect(std.mem.indexOf(u8, written, "m=1") != null);
+    try testing.expect(std.mem.find(u8, written, "m=1") != null);
     // Should have m=0 for final chunk
-    try testing.expect(std.mem.indexOf(u8, written, "m=0") != null);
+    try testing.expect(std.mem.find(u8, written, "m=0") != null);
 }
 
 test "kitty: transmit returns valid image_id > 0" {
@@ -190,7 +190,7 @@ test "kitty: transmit with explicit image_id uses it" {
 
     try testing.expectEqual(explicit_id, image_id);
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "i=42") != null);
+    try testing.expect(std.mem.find(u8, written, "i=42") != null);
 }
 
 test "kitty: transmit PNG format emits f=100" {
@@ -207,7 +207,7 @@ test "kitty: transmit PNG format emits f=100" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "f=100") != null);
+    try testing.expect(std.mem.find(u8, written, "f=100") != null);
 }
 
 test "kitty: transmit RGBA format emits f=32" {
@@ -224,7 +224,7 @@ test "kitty: transmit RGBA format emits f=32" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "f=32") != null);
+    try testing.expect(std.mem.find(u8, written, "f=32") != null);
 }
 
 test "kitty: transmit RGB format emits f=24" {
@@ -241,7 +241,7 @@ test "kitty: transmit RGB format emits f=24" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "f=24") != null);
+    try testing.expect(std.mem.find(u8, written, "f=24") != null);
 }
 
 test "kitty: transmit quiet mode emits q=2" {
@@ -258,7 +258,7 @@ test "kitty: transmit quiet mode emits q=2" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "q=2") != null);
+    try testing.expect(std.mem.find(u8, written, "q=2") != null);
 }
 
 // ============================================================================
@@ -277,7 +277,7 @@ test "kitty: display basic produces APC with a=p" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "a=p") != null);
+    try testing.expect(std.mem.find(u8, written, "a=p") != null);
 }
 
 test "kitty: display with image_id emits i=<id>" {
@@ -292,7 +292,7 @@ test "kitty: display with image_id emits i=<id>" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "i=123") != null);
+    try testing.expect(std.mem.find(u8, written, "i=123") != null);
 }
 
 test "kitty: display with placement_id emits p=<id>" {
@@ -307,7 +307,7 @@ test "kitty: display with placement_id emits p=<id>" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "p=99") != null);
+    try testing.expect(std.mem.find(u8, written, "p=99") != null);
 }
 
 test "kitty: display with x,y position emits x=<col>,y=<row>" {
@@ -322,8 +322,8 @@ test "kitty: display with x,y position emits x=<col>,y=<row>" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "x=10") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "y=20") != null);
+    try testing.expect(std.mem.find(u8, written, "x=10") != null);
+    try testing.expect(std.mem.find(u8, written, "y=20") != null);
 }
 
 test "kitty: display with w,h size emits w=<w>,h=<h>" {
@@ -338,8 +338,8 @@ test "kitty: display with w,h size emits w=<w>,h=<h>" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "w=30") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "h=40") != null);
+    try testing.expect(std.mem.find(u8, written, "w=30") != null);
+    try testing.expect(std.mem.find(u8, written, "h=40") != null);
 }
 
 test "kitty: display with z_index emits z=<n>" {
@@ -354,7 +354,7 @@ test "kitty: display with z_index emits z=<n>" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "z=5") != null);
+    try testing.expect(std.mem.find(u8, written, "z=5") != null);
 }
 
 test "kitty: display with negative z_index encoded correctly" {
@@ -369,7 +369,7 @@ test "kitty: display with negative z_index encoded correctly" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "z=-3") != null);
+    try testing.expect(std.mem.find(u8, written, "z=-3") != null);
 }
 
 test "kitty: display with unicode_placeholder emits U=1" {
@@ -384,7 +384,7 @@ test "kitty: display with unicode_placeholder emits U=1" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "U=1") != null);
+    try testing.expect(std.mem.find(u8, written, "U=1") != null);
 }
 
 // ============================================================================
@@ -403,9 +403,9 @@ test "kitty: delete by image_id produces a=d,d=I,i=<id>" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "a=d") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "d=I") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "i=5") != null);
+    try testing.expect(std.mem.find(u8, written, "a=d") != null);
+    try testing.expect(std.mem.find(u8, written, "d=I") != null);
+    try testing.expect(std.mem.find(u8, written, "i=5") != null);
 }
 
 test "kitty: delete by placement_id produces a=d,d=p,p=<pid>" {
@@ -420,9 +420,9 @@ test "kitty: delete by placement_id produces a=d,d=p,p=<pid>" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "a=d") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "d=p") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "p=7") != null);
+    try testing.expect(std.mem.find(u8, written, "a=d") != null);
+    try testing.expect(std.mem.find(u8, written, "d=p") != null);
+    try testing.expect(std.mem.find(u8, written, "p=7") != null);
 }
 
 test "kitty: delete all produces a=d,d=A" {
@@ -437,8 +437,8 @@ test "kitty: delete all produces a=d,d=A" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "a=d") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "d=A") != null);
+    try testing.expect(std.mem.find(u8, written, "a=d") != null);
+    try testing.expect(std.mem.find(u8, written, "d=A") != null);
 }
 
 test "kitty: delete output ends with escape terminator" {
@@ -468,8 +468,8 @@ test "kitty: delete with both image_id and placement includes both" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "i=10") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "p=20") != null);
+    try testing.expect(std.mem.find(u8, written, "i=10") != null);
+    try testing.expect(std.mem.find(u8, written, "p=20") != null);
 }
 
 test "kitty: delete with scope all ignores ids" {
@@ -484,10 +484,10 @@ test "kitty: delete with scope all ignores ids" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "d=A") != null);
+    try testing.expect(std.mem.find(u8, written, "d=A") != null);
     // ids should not be in output for scope=all
-    try testing.expect(std.mem.indexOf(u8, written, "i=99") == null);
-    try testing.expect(std.mem.indexOf(u8, written, "p=88") == null);
+    try testing.expect(std.mem.find(u8, written, "i=99") == null);
+    try testing.expect(std.mem.find(u8, written, "p=88") == null);
 }
 
 // ============================================================================
@@ -531,7 +531,7 @@ test "kitty: intermediate chunks have m=1" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "m=1") != null);
+    try testing.expect(std.mem.find(u8, written, "m=1") != null);
 }
 
 test "kitty: final chunk has m=0" {
@@ -552,7 +552,7 @@ test "kitty: final chunk has m=0" {
     );
 
     const written = output.items;
-    try testing.expect(std.mem.indexOf(u8, written, "m=0") != null);
+    try testing.expect(std.mem.find(u8, written, "m=0") != null);
 }
 
 test "kitty: all chunks decode to original data when concatenated" {
@@ -622,16 +622,16 @@ test "kitty: first chunk has full params, subsequent chunks have only m=<n>" {
     const written = output.items;
 
     // First APC should have a=T,f=100
-    const first_apc_end = std.mem.indexOf(u8, written, "\x1b\\").?;
+    const first_apc_end = std.mem.find(u8, written, "\x1b\\").?;
     const first_apc = written[0..first_apc_end];
-    try testing.expect(std.mem.indexOf(u8, first_apc, "a=T") != null);
-    try testing.expect(std.mem.indexOf(u8, first_apc, "f=100") != null);
+    try testing.expect(std.mem.find(u8, first_apc, "a=T") != null);
+    try testing.expect(std.mem.find(u8, first_apc, "f=100") != null);
 
     // Subsequent chunks should have m=1 or m=0 but minimal params
     const rest = written[first_apc_end + 2 ..];
     if (rest.len > 0) {
-        try testing.expect(std.mem.indexOf(u8, rest, "m=1") != null or
-            std.mem.indexOf(u8, rest, "m=0") != null);
+        try testing.expect(std.mem.find(u8, rest, "m=1") != null or
+            std.mem.find(u8, rest, "m=0") != null);
     }
 }
 

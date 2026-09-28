@@ -216,7 +216,7 @@ pub fn Parser(comptime flags: []const FlagDef) type {
                 if (std.mem.startsWith(u8, arg, "--")) {
                     // Long flag
                     const name = arg[2..];
-                    if (std.mem.indexOf(u8, name, "=")) |eq_pos| {
+                    if (std.mem.find(u8, name, "=")) |eq_pos| {
                         // --flag=value
                         const flag_name = name[0..eq_pos];
                         const value = name[eq_pos + 1 ..];
@@ -734,11 +734,11 @@ test "Parser help generation" {
     try P.writeHelp(writer);
 
     const help = fbs.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, help, "Options:") != null);
-    try std.testing.expect(std.mem.indexOf(u8, help, "-v, --verbose") != null);
-    try std.testing.expect(std.mem.indexOf(u8, help, "Enable verbose output") != null);
-    try std.testing.expect(std.mem.indexOf(u8, help, "(required)") != null);
-    try std.testing.expect(std.mem.indexOf(u8, help, "[default: out.txt]") != null);
+    try std.testing.expect(std.mem.find(u8, help, "Options:") != null);
+    try std.testing.expect(std.mem.find(u8, help, "-v, --verbose") != null);
+    try std.testing.expect(std.mem.find(u8, help, "Enable verbose output") != null);
+    try std.testing.expect(std.mem.find(u8, help, "(required)") != null);
+    try std.testing.expect(std.mem.find(u8, help, "[default: out.txt]") != null);
 }
 
 test "Parser multiple short flags" {
@@ -1247,12 +1247,12 @@ test "Commands writeHelp lists command names and help text" {
     try C.writeHelp(writer);
 
     const help = fbs.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, help, "Commands:") != null);
-    try std.testing.expect(std.mem.indexOf(u8, help, "build") != null);
-    try std.testing.expect(std.mem.indexOf(u8, help, "Compile the project") != null);
-    try std.testing.expect(std.mem.indexOf(u8, help, "test") != null);
-    try std.testing.expect(std.mem.indexOf(u8, help, "Run test suite") != null);
-    try std.testing.expect(std.mem.indexOf(u8, help, "clean") != null);
+    try std.testing.expect(std.mem.find(u8, help, "Commands:") != null);
+    try std.testing.expect(std.mem.find(u8, help, "build") != null);
+    try std.testing.expect(std.mem.find(u8, help, "Compile the project") != null);
+    try std.testing.expect(std.mem.find(u8, help, "test") != null);
+    try std.testing.expect(std.mem.find(u8, help, "Run test suite") != null);
+    try std.testing.expect(std.mem.find(u8, help, "clean") != null);
 }
 
 test "Parser backward compat: existing Parser type still works unchanged" {

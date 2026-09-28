@@ -204,7 +204,7 @@ fn medianCutQuantize(allocator: Allocator, colors: []const SixelImage.Color, max
 
     // Filter out transparent colors and collect unique colors using a hash set
     // for O(n) deduplication instead of O(n²).
-    var unique_list = ArrayList(SixelImage.Color){};
+    var unique_list = ArrayList(SixelImage.Color).empty;
     defer unique_list.deinit(allocator);
 
     var seen = std.AutoHashMap(u32, void).init(allocator);
@@ -237,7 +237,7 @@ fn medianCutQuantize(allocator: Allocator, colors: []const SixelImage.Color, max
 
     // Median cut algorithm
 
-    var buckets = ArrayList(Bucket){};
+    var buckets = ArrayList(Bucket).empty;
     defer {
         for (buckets.items) |b| allocator.free(b.colors);
         buckets.deinit(allocator);
@@ -401,7 +401,7 @@ fn octreeQuantize(allocator: Allocator, colors: []const SixelImage.Color, max_pa
 
     var reducible_nodes: [8]ArrayList(*OctreeNode) = undefined;
     for (&reducible_nodes) |*list| {
-        list.* = ArrayList(*OctreeNode){};
+        list.* = ArrayList(*OctreeNode).empty;
     }
     defer {
         for (&reducible_nodes) |*list| list.deinit(allocator);
@@ -431,7 +431,7 @@ fn octreeQuantize(allocator: Allocator, colors: []const SixelImage.Color, max_pa
     }
 
     // Extract palette
-    var palette_list = ArrayList(SixelImage.Color){};
+    var palette_list = ArrayList(SixelImage.Color).empty;
     defer palette_list.deinit(allocator);
     try collectOctreeLeaves(allocator, root, &palette_list);
 
@@ -562,7 +562,7 @@ fn kmeansQuantize(allocator: Allocator, colors: []const SixelImage.Color, max_pa
     }
 
     // Filter transparent colors
-    var opaque_list = ArrayList(SixelImage.Color){};
+    var opaque_list = ArrayList(SixelImage.Color).empty;
     defer opaque_list.deinit(allocator);
     for (colors) |c| {
         if (c.a >= 128) try opaque_list.append(allocator, c);
@@ -730,7 +730,7 @@ pub const SixelEncoder = struct {
     ///   Propagates errors from encode() and compression
     pub fn encodeCompressed(self: SixelEncoder, allocator: Allocator, image: SixelImage, writer: anytype) !void {
         // First, encode normally to a buffer
-        var encoded_buf = std.ArrayList(u8){};
+        var encoded_buf = std.ArrayList(u8).empty;
         defer encoded_buf.deinit(allocator);
 
         try self.encode(allocator, image, encoded_buf.writer(allocator));
@@ -888,7 +888,7 @@ pub const SixelDecoder = struct {
         var height: u16 = 0;
         var pos: usize = 0;
 
-        if (std.mem.indexOfScalar(u8, payload, '"')) |raster_start| {
+        if (std.mem.findScalar(u8, payload, '"')) |raster_start| {
             pos = raster_start + 1;
 
             // Find end of raster attributes (first non-digit/semicolon char)
@@ -940,7 +940,7 @@ pub const SixelDecoder = struct {
             switch (c) {
                 '#' => {
                     // Color definition or selection: #index;2;r;g;b OR #index
-                    const semicolon1 = std.mem.indexOfScalarPos(u8, payload, pos, ';') orelse {
+                    const semicolon1 = std.mem.findScalarPos(u8, payload, pos, ';') orelse {
                         // Just color selection: #index (no semicolon)
                         var num_end = pos;
                         while (num_end < payload.len and payload[num_end] >= '0' and payload[num_end] <= '9') : (num_end += 1) {}
@@ -961,14 +961,14 @@ pub const SixelDecoder = struct {
                         pos += 1; // Skip ';'
 
                         // Parse R
-                        const semicolon2 = std.mem.indexOfScalarPos(u8, payload, pos, ';') orelse return error.InvalidColorDefinition;
+                        const semicolon2 = std.mem.findScalarPos(u8, payload, pos, ';') orelse return error.InvalidColorDefinition;
                         const r_str = payload[pos..semicolon2];
                         const r_val = std.fmt.parseInt(u16, r_str, 10) catch return error.InvalidColorDefinition;
                         if (r_val > 100) return error.ColorValueOutOfRange;
                         pos = semicolon2 + 1;
 
                         // Parse G
-                        const semicolon3 = std.mem.indexOfScalarPos(u8, payload, pos, ';') orelse return error.InvalidColorDefinition;
+                        const semicolon3 = std.mem.findScalarPos(u8, payload, pos, ';') orelse return error.InvalidColorDefinition;
                         const g_str = payload[pos..semicolon3];
                         const g_val = std.fmt.parseInt(u16, g_str, 10) catch return error.InvalidColorDefinition;
                         if (g_val > 100) return error.ColorValueOutOfRange;
@@ -1123,7 +1123,7 @@ test "SixelEncoder basic encode 2x2 solid image" {
     // Verify Sixel sequence markers
     try std.testing.expect(std.mem.startsWith(u8, result, "\x1bPq")); // Start
     try std.testing.expect(std.mem.endsWith(u8, result, "\x1b\\")); // End
-    try std.testing.expect(std.mem.indexOf(u8, result, "\"1;1;2;2") != null); // Raster attrs
+    try std.testing.expect(std.mem.find(u8, result, "\"1;1;2;2") != null); // Raster attrs
 }
 
 test "SixelEncoder transparency handling" {
@@ -1258,7 +1258,7 @@ test "SixelEncoder 1x6 vertical stripe" {
     const result = output.items;
 
     // Should encode full sixel (6 bits set = 63 + 0x3f = 0x7e = '~')
-    try std.testing.expect(std.mem.indexOf(u8, result, "~") != null);
+    try std.testing.expect(std.mem.find(u8, result, "~") != null);
 }
 
 test "SixelEncoder 1x7 vertical stripe (partial sixel)" {
@@ -1285,7 +1285,7 @@ test "SixelEncoder 1x7 vertical stripe (partial sixel)" {
     const result = output.items;
 
     // Should have row separator '-'
-    try std.testing.expect(std.mem.indexOf(u8, result, "-") != null);
+    try std.testing.expect(std.mem.find(u8, result, "-") != null);
 }
 
 test "detectSixelSupport with known terminal" {
@@ -1320,7 +1320,7 @@ test "SixelEncoder color RGB scaling" {
 
     // Color definition should scale RGB to 0-100 range
     // r=255 → 100, g=128 → 50, b=64 → 25
-    try std.testing.expect(std.mem.indexOf(u8, result, "#0;2;100;50;25") != null);
+    try std.testing.expect(std.mem.find(u8, result, "#0;2;100;50;25") != null);
 }
 
 test "SixelEncoder multiple colors with run-length" {
@@ -1349,8 +1349,8 @@ test "SixelEncoder multiple colors with run-length" {
     const result = output.items;
 
     // Should define at least 2 colors
-    try std.testing.expect(std.mem.indexOf(u8, result, "#0;2;") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "#1;2;") != null);
+    try std.testing.expect(std.mem.find(u8, result, "#0;2;") != null);
+    try std.testing.expect(std.mem.find(u8, result, "#1;2;") != null);
 }
 
 test "SixelEncoder empty image (0x0)" {
@@ -1397,7 +1397,7 @@ test "SixelEncoder single pixel" {
     const result = output.items;
 
     try std.testing.expect(std.mem.startsWith(u8, result, "\x1bPq"));
-    try std.testing.expect(std.mem.indexOf(u8, result, "\"1;1;1;1") != null); // 1x1 raster
+    try std.testing.expect(std.mem.find(u8, result, "\"1;1;1;1") != null); // 1x1 raster
 }
 
 test "SixelEncoder no transparency mode" {
@@ -1454,7 +1454,7 @@ test "SixelEncoder wide image (triggers multiple columns)" {
 
     // Should produce valid Sixel with multiple pixel runs
     try std.testing.expect(std.mem.startsWith(u8, result, "\x1bPq"));
-    try std.testing.expect(std.mem.indexOf(u8, result, "\"1;1;8;1") != null); // 8x1 raster
+    try std.testing.expect(std.mem.find(u8, result, "\"1;1;8;1") != null); // 8x1 raster
 }
 
 test "SixelEncoder tall image (multiple sixel rows)" {
@@ -1481,8 +1481,8 @@ test "SixelEncoder tall image (multiple sixel rows)" {
     const result = output.items;
 
     // Should have row separator '-'
-    try std.testing.expect(std.mem.indexOf(u8, result, "-") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "\"1;1;1;12") != null); // 1x12 raster
+    try std.testing.expect(std.mem.find(u8, result, "-") != null);
+    try std.testing.expect(std.mem.find(u8, result, "\"1;1;1;12") != null); // 1x12 raster
 }
 
 // ============================================================================
@@ -1520,7 +1520,7 @@ pub const SixelAnimator = struct {
     pub fn init(allocator: Allocator) !SixelAnimator {
         return SixelAnimator{
             .allocator = allocator,
-            .frames = ArrayList(Frame){},
+            .frames = ArrayList(Frame).empty,
             .current_frame_index = 0,
             .elapsed_ms = 0,
             .playing = false,
@@ -1723,7 +1723,7 @@ pub const SixelCompressor = struct {
             return try allocator.alloc(u8, 0);
         }
 
-        var result = std.ArrayList(u8){};
+        var result = std.ArrayList(u8).empty;
         errdefer result.deinit(allocator);
 
         var i: usize = 0;
@@ -1797,7 +1797,7 @@ pub const SixelCompressor = struct {
             return try allocator.alloc(u8, 0);
         }
 
-        var result = std.ArrayList(u8){};
+        var result = std.ArrayList(u8).empty;
         errdefer result.deinit(allocator);
 
         var i: usize = 0;

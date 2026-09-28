@@ -240,7 +240,7 @@ pub const FileBrowser = struct {
     pub fn parentDirectory(self: *FileBrowser) void {
         // Find the last separator (platform-specific)
         const sep = std.fs.path.sep;
-        if (std.mem.lastIndexOfScalar(u8, self.current_path, sep)) |idx| {
+        if (std.mem.findScalarLast(u8, self.current_path, sep)) |idx| {
             if (idx == 0) {
                 // Already at root
                 return;

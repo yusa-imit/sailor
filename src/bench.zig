@@ -291,9 +291,9 @@ test "bench result format has proper column spacing" {
     const formatted = stream.getWritten();
 
     // Verify columns are present: name | iters | ns/op | ops/sec
-    try std.testing.expect(std.mem.indexOf(u8, formatted, "iters") != null);
-    try std.testing.expect(std.mem.indexOf(u8, formatted, "ns/op") != null);
-    try std.testing.expect(std.mem.indexOf(u8, formatted, "ops/sec") != null);
+    try std.testing.expect(std.mem.find(u8, formatted, "iters") != null);
+    try std.testing.expect(std.mem.find(u8, formatted, "ns/op") != null);
+    try std.testing.expect(std.mem.find(u8, formatted, "ops/sec") != null);
 }
 
 test "benchBuffer output contains all benchmark names" {
@@ -320,16 +320,16 @@ test "benchBuffer output contains numeric values and columns" {
     const output = stream.getWritten();
 
     // Verify output has iteration counts
-    try std.testing.expect(std.mem.indexOf(u8, output, "iters") != null);
+    try std.testing.expect(std.mem.find(u8, output, "iters") != null);
 
     // Verify output has ns/op column
-    try std.testing.expect(std.mem.indexOf(u8, output, "ns/op") != null);
+    try std.testing.expect(std.mem.find(u8, output, "ns/op") != null);
 
     // Verify output has ops/sec column
-    try std.testing.expect(std.mem.indexOf(u8, output, "ops/sec") != null);
+    try std.testing.expect(std.mem.find(u8, output, "ops/sec") != null);
 
     // Verify output has section header
-    try std.testing.expect(std.mem.indexOf(u8, output, "=== Buffer Operations ===") != null);
+    try std.testing.expect(std.mem.find(u8, output, "=== Buffer Operations ===") != null);
 }
 
 test "benchBuffer completes without error" {
@@ -449,7 +449,7 @@ test "bench result with small numbers formats correctly" {
 
 // Helper function for expectStringContains
 fn expectStringContains(haystack: []const u8, needle: []const u8) !void {
-    if (std.mem.indexOf(u8, haystack, needle) == null) {
+    if (std.mem.find(u8, haystack, needle) == null) {
         std.debug.print("\nexpectStringContains failed:\n", .{});
         std.debug.print("  Haystack: {s}\n", .{haystack});
         std.debug.print("  Looking for: {s}\n", .{needle});

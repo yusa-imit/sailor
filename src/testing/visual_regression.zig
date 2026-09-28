@@ -504,7 +504,7 @@ test "SideBySideComparison render no changes" {
     try comparison.render(output.writer(allocator));
 
     // Should mention no changes
-    try std.testing.expect(std.mem.indexOf(u8, output.items, "No visual changes") != null);
+    try std.testing.expect(std.mem.find(u8, output.items, "No visual changes") != null);
 }
 
 test "SideBySideComparison render with changes" {
@@ -529,8 +529,8 @@ test "SideBySideComparison render with changes" {
     try comparison.render(output.writer(allocator));
 
     // Should show changes
-    try std.testing.expect(std.mem.indexOf(u8, output.items, "Visual changes detected") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output.items, "Side-by-Side") != null);
+    try std.testing.expect(std.mem.find(u8, output.items, "Visual changes detected") != null);
+    try std.testing.expect(std.mem.find(u8, output.items, "Side-by-Side") != null);
 }
 
 test "VisualDiff format output" {
@@ -552,8 +552,8 @@ test "VisualDiff format output" {
     try diff.format("", .{}, output.writer(allocator));
 
     // Check output contains change information
-    try std.testing.expect(std.mem.indexOf(u8, output.items, "Visual changes detected: 1 total") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output.items, "Modified: 1") != null);
+    try std.testing.expect(std.mem.find(u8, output.items, "Visual changes detected: 1 total") != null);
+    try std.testing.expect(std.mem.find(u8, output.items, "Modified: 1") != null);
 }
 
 test "Change format output" {
@@ -575,6 +575,6 @@ test "Change format output" {
     try change.format("", .{}, output.writer(allocator));
 
     // Check output format
-    try std.testing.expect(std.mem.indexOf(u8, output.items, "[ADD]") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output.items, "(3, 7)") != null);
+    try std.testing.expect(std.mem.find(u8, output.items, "[ADD]") != null);
+    try std.testing.expect(std.mem.find(u8, output.items, "(3, 7)") != null);
 }

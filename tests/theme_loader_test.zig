@@ -631,7 +631,7 @@ test "ThemeLoader - loaded theme can render styled spans" {
     const output = fbs.getWritten();
     // Should contain ANSI escape codes for red + bold
     try std.testing.expect(output.len > "Error!".len);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Error!") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Error!") != null);
 }
 
 // ============================================================================

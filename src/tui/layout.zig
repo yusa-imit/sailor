@@ -2120,10 +2120,10 @@ test "Rect.debugFormat formats simple rect" {
 
     const output = stream.getWritten();
     // Should contain: "Rect{x=10, y=5, width=80, height=24}"
-    try std.testing.expect(std.mem.indexOf(u8, output, "x=10") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "y=5") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "width=80") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "height=24") != null);
+    try std.testing.expect(std.mem.find(u8, output, "x=10") != null);
+    try std.testing.expect(std.mem.find(u8, output, "y=5") != null);
+    try std.testing.expect(std.mem.find(u8, output, "width=80") != null);
+    try std.testing.expect(std.mem.find(u8, output, "height=24") != null);
 }
 
 test "Rect.debugFormat handles zero dimensions" {
@@ -2136,10 +2136,10 @@ test "Rect.debugFormat handles zero dimensions" {
     try r.debugFormat(stream.writer());
 
     const output = stream.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, output, "x=0") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "y=0") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "width=0") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "height=0") != null);
+    try std.testing.expect(std.mem.find(u8, output, "x=0") != null);
+    try std.testing.expect(std.mem.find(u8, output, "y=0") != null);
+    try std.testing.expect(std.mem.find(u8, output, "width=0") != null);
+    try std.testing.expect(std.mem.find(u8, output, "height=0") != null);
 }
 
 test "DebugNode captures constraint and rect" {
@@ -2370,11 +2370,11 @@ test "LayoutDebugger.print outputs constraint info" {
 
     const output = stream.getWritten();
     // Should contain constraint types
-    try std.testing.expect(std.mem.indexOf(u8, output, "length") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "percentage") != null);
+    try std.testing.expect(std.mem.find(u8, output, "length") != null);
+    try std.testing.expect(std.mem.find(u8, output, "percentage") != null);
     // Should contain rect dimensions
-    try std.testing.expect(std.mem.indexOf(u8, output, "width") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "height") != null);
+    try std.testing.expect(std.mem.find(u8, output, "width") != null);
+    try std.testing.expect(std.mem.find(u8, output, "height") != null);
 }
 
 test "LayoutDebugger.print shows tree indentation" {
@@ -2399,8 +2399,8 @@ test "LayoutDebugger.print shows tree indentation" {
     const output = stream.getWritten();
     // Should show constraint info and rect info
     try std.testing.expect(output.len > 0);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Constraint:") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Rect{") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Constraint:") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Rect{") != null);
 }
 
 test "LayoutDebugger.print nested layout shows hierarchy" {
@@ -2499,8 +2499,8 @@ test "LayoutDebugger.print with rect coordinates" {
 
     const output = stream.getWritten();
     // Should show x, y coordinates
-    try std.testing.expect(std.mem.indexOf(u8, output, "x=") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "y=") != null);
+    try std.testing.expect(std.mem.find(u8, output, "x=") != null);
+    try std.testing.expect(std.mem.find(u8, output, "y=") != null);
 }
 
 test "LayoutDebugger handles zero-size rects" {
@@ -2959,11 +2959,11 @@ test "Rect.debugFormat - output" {
     try rect.debugFormat(fbs.writer());
 
     const output = fbs.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, output, "Rect{") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "x=10") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "y=20") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "width=80") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "height=24") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Rect{") != null);
+    try std.testing.expect(std.mem.find(u8, output, "x=10") != null);
+    try std.testing.expect(std.mem.find(u8, output, "y=20") != null);
+    try std.testing.expect(std.mem.find(u8, output, "width=80") != null);
+    try std.testing.expect(std.mem.find(u8, output, "height=24") != null);
 }
 
 test "Margin.all - convenience constructor" {

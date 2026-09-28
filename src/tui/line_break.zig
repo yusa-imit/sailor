@@ -75,7 +75,7 @@ pub const LineBreaker = struct {
                 var i: usize = 0;
                 var last_space: ?usize = null;
                 while (i < remaining.len and i < available) : (i += 1) {
-                    if (std.mem.indexOfScalar(u8, " \t\n", remaining[i])) |_| {
+                    if (std.mem.findScalar(u8, " \t\n", remaining[i])) |_| {
                         last_space = i;
                         found_space = true;
                     }

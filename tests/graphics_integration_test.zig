@@ -253,8 +253,8 @@ test "Kitty image placement positioning" {
 
     // Should contain placement parameters
     try testing.expect(std.mem.startsWith(u8, result, "\x1b_G"));
-    try testing.expect(std.mem.indexOf(u8, result, "a=p") != null); // placement action
-    try testing.expect(std.mem.indexOf(u8, result, "i=123") != null); // image ID
+    try testing.expect(std.mem.find(u8, result, "a=p") != null); // placement action
+    try testing.expect(std.mem.find(u8, result, "i=123") != null); // image ID
 }
 
 test "Kitty image deletion" {
@@ -272,8 +272,8 @@ test "Kitty image deletion" {
 
     // Should contain deletion command
     try testing.expect(std.mem.startsWith(u8, result, "\x1b_G"));
-    try testing.expect(std.mem.indexOf(u8, result, "a=d") != null); // delete action
-    try testing.expect(std.mem.indexOf(u8, result, "i=456") != null); // image ID
+    try testing.expect(std.mem.find(u8, result, "a=d") != null); // delete action
+    try testing.expect(std.mem.find(u8, result, "i=456") != null); // image ID
 }
 
 test "Kitty delete all images" {
@@ -291,8 +291,8 @@ test "Kitty delete all images" {
 
     // Should contain delete-all command
     try testing.expect(std.mem.startsWith(u8, result, "\x1b_G"));
-    try testing.expect(std.mem.indexOf(u8, result, "a=d") != null);
-    try testing.expect(std.mem.indexOf(u8, result, "d=a") != null); // delete all
+    try testing.expect(std.mem.find(u8, result, "a=d") != null);
+    try testing.expect(std.mem.find(u8, result, "d=a") != null); // delete all
 }
 
 test "Kitty large image chunking" {
@@ -321,7 +321,7 @@ test "Kitty large image chunking" {
 
     // Should produce chunked output (multiple m=1 chunks, last m=0)
     const result = output.items;
-    try testing.expect(std.mem.indexOf(u8, result, "m=1") != null); // more chunks
+    try testing.expect(std.mem.find(u8, result, "m=1") != null); // more chunks
     try testing.expect(result.len > 10000); // Base64 encoded data is large
 }
 
@@ -346,19 +346,19 @@ test "Kitty transmission medium selection" {
     var direct_output: std.ArrayList(u8) = .empty;
     defer direct_output.deinit(allocator);
     try encoder.encode(image, direct_output.writer(allocator), .direct);
-    try testing.expect(std.mem.indexOf(u8, direct_output.items, "t=d") != null);
+    try testing.expect(std.mem.find(u8, direct_output.items, "t=d") != null);
 
     // Test file transmission
     var file_output: std.ArrayList(u8) = .empty;
     defer file_output.deinit(allocator);
     try encoder.encode(image, file_output.writer(allocator), .file);
-    try testing.expect(std.mem.indexOf(u8, file_output.items, "t=f") != null);
+    try testing.expect(std.mem.find(u8, file_output.items, "t=f") != null);
 
     // Test shared memory transmission
     var shmem_output: std.ArrayList(u8) = .empty;
     defer shmem_output.deinit(allocator);
     try encoder.encode(image, shmem_output.writer(allocator), .shared_mem);
-    try testing.expect(std.mem.indexOf(u8, shmem_output.items, "t=s") != null);
+    try testing.expect(std.mem.find(u8, shmem_output.items, "t=s") != null);
 }
 
 // ============================================================================

@@ -456,9 +456,9 @@ test "inspector outputs widget tree to writer" {
     const written = stream.getWritten();
 
     // Should contain widget names
-    try testing.expect(std.mem.indexOf(u8, written, "Root") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "Child1") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "Child2") != null);
+    try testing.expect(std.mem.find(u8, written, "Root") != null);
+    try testing.expect(std.mem.find(u8, written, "Child1") != null);
+    try testing.expect(std.mem.find(u8, written, "Child2") != null);
 
     // Should show hierarchy (indentation or tree symbols)
     try testing.expect(written.len > 0);
@@ -483,9 +483,9 @@ test "inspector outputs layout info to writer" {
     const written = stream.getWritten();
 
     // Should contain widget name and dimensions
-    try testing.expect(std.mem.indexOf(u8, written, "Widget") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "30") != null); // width
-    try testing.expect(std.mem.indexOf(u8, written, "15") != null); // height
+    try testing.expect(std.mem.find(u8, written, "Widget") != null);
+    try testing.expect(std.mem.find(u8, written, "30") != null); // width
+    try testing.expect(std.mem.find(u8, written, "15") != null); // height
 }
 
 test "inspector outputs event log to writer" {
@@ -507,9 +507,9 @@ test "inspector outputs event log to writer" {
     const written = stream.getWritten();
 
     // Should contain event types
-    try testing.expect(std.mem.indexOf(u8, written, "keyboard") != null or std.mem.indexOf(u8, written, "key") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "mouse") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "resize") != null);
+    try testing.expect(std.mem.find(u8, written, "keyboard") != null or std.mem.find(u8, written, "key") != null);
+    try testing.expect(std.mem.find(u8, written, "mouse") != null);
+    try testing.expect(std.mem.find(u8, written, "resize") != null);
 
     // Should have timestamps
     try testing.expect(written.len > 0);
@@ -533,9 +533,9 @@ test "inspector outputs to writer in JSON format" {
     const written = stream.getWritten();
 
     // Should be valid JSON
-    try testing.expect(std.mem.indexOf(u8, written, "{") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "}") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "Root") != null);
+    try testing.expect(std.mem.find(u8, written, "{") != null);
+    try testing.expect(std.mem.find(u8, written, "}") != null);
+    try testing.expect(std.mem.find(u8, written, "Root") != null);
 }
 
 test "inspector never writes to stdout directly" {

@@ -161,8 +161,8 @@ test "Windows console ANSI escape sequence handling" {
 
     const written = fbs.getWritten();
     try testing.expect(written.len > 0);
-    try testing.expect(std.mem.indexOf(u8, written, "\x1b[31m") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "\x1b[42m") != null);
+    try testing.expect(std.mem.find(u8, written, "\x1b[31m") != null);
+    try testing.expect(std.mem.find(u8, written, "\x1b[42m") != null);
 }
 
 test "Windows console CSI sequence parsing" {
@@ -233,8 +233,8 @@ test "Windows console 256-color mode" {
     try writer.writeAll("\x1b[0m");
 
     const written = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, written, "\x1b[38;5;196m") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "\x1b[48;5;21m") != null);
+    try testing.expect(std.mem.find(u8, written, "\x1b[38;5;196m") != null);
+    try testing.expect(std.mem.find(u8, written, "\x1b[48;5;21m") != null);
 }
 
 test "Windows console 24-bit truecolor mode" {
@@ -255,8 +255,8 @@ test "Windows console 24-bit truecolor mode" {
     try writer.writeAll("\x1b[0m");
 
     const written = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, written, "\x1b[38;2;255;128;64m") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "\x1b[48;2;32;64;128m") != null);
+    try testing.expect(std.mem.find(u8, written, "\x1b[38;2;255;128;64m") != null);
+    try testing.expect(std.mem.find(u8, written, "\x1b[48;2;32;64;128m") != null);
 }
 
 test "Windows console legacy console mode vs VT mode" {
@@ -311,7 +311,7 @@ test "Windows console path separator in escape sequences" {
     try writer.writeAll("\x1b[0m"); // Reset
 
     const written = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, written, path) != null);
+    try testing.expect(std.mem.find(u8, written, path) != null);
 }
 
 test "Windows console combining characters" {
@@ -407,8 +407,8 @@ test "Windows console newline handling CRLF vs LF" {
     try writer.writeAll("Line 3\r\n");
 
     const written = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, written, "\r\n") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "Line 2\n") != null);
+    try testing.expect(std.mem.find(u8, written, "\r\n") != null);
+    try testing.expect(std.mem.find(u8, written, "Line 2\n") != null);
 }
 
 test "Windows console GetConsoleMode feature detection" {

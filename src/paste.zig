@@ -36,7 +36,7 @@ pub const PasteHandler = struct {
 
     /// Find paste start position in buffer (returns index after \x1b[200~).
     pub fn findPasteStart(buffer: []const u8) ?usize {
-        if (std.mem.indexOf(u8, buffer, start_marker)) |idx| {
+        if (std.mem.find(u8, buffer, start_marker)) |idx| {
             return idx + start_marker.len;
         }
         return null;
@@ -44,7 +44,7 @@ pub const PasteHandler = struct {
 
     /// Find paste end position in buffer (returns index before \x1b[201~).
     pub fn findPasteEnd(buffer: []const u8) ?usize {
-        if (std.mem.indexOf(u8, buffer, end_marker)) |idx| {
+        if (std.mem.find(u8, buffer, end_marker)) |idx| {
             return idx;
         }
         return null;

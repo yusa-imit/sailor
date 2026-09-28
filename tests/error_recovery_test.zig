@@ -874,9 +874,9 @@ test "ErrorReporter - structured logging to writer" {
     const written = stream.getWritten();
 
     // Verify JSON structure
-    try testing.expect(std.mem.indexOf(u8, written, "\"error\"") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "TestError") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "\"message\"") != null);
+    try testing.expect(std.mem.find(u8, written, "\"error\"") != null);
+    try testing.expect(std.mem.find(u8, written, "TestError") != null);
+    try testing.expect(std.mem.find(u8, written, "\"message\"") != null);
 }
 
 // ============================================================================

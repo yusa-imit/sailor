@@ -112,7 +112,7 @@ pub const ParticleSystem = struct {
     pub fn init(allocator: std.mem.Allocator, particle_type: ParticleType) !ParticleSystem {
         const rng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp()));
         return .{
-            .particles = std.ArrayList(Particle){},
+            .particles = std.ArrayList(Particle).empty,
             .particle_type = particle_type,
             .gravity = 0.1,
             .spawn_rate = 5,

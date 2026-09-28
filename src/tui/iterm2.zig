@@ -442,13 +442,13 @@ test "ITerm2Encoder encode - minimal image" {
     try testing.expect(std.mem.startsWith(u8, output, "\x1b]1337;File="));
 
     // Check inline=1 parameter
-    try testing.expect(std.mem.indexOf(u8, output, "inline=1") != null);
+    try testing.expect(std.mem.find(u8, output, "inline=1") != null);
 
     // Check BEL terminator
     try testing.expect(std.mem.endsWith(u8, output, "\x07"));
 
     // Check base64 data is present after colon
-    try testing.expect(std.mem.indexOf(u8, output, ":") != null);
+    try testing.expect(std.mem.find(u8, output, ":") != null);
 }
 
 test "ITerm2Encoder encode - with all parameters" {
@@ -474,11 +474,11 @@ test "ITerm2Encoder encode - with all parameters" {
     const output = fbs.getWritten();
 
     // Check all parameters are present
-    try testing.expect(std.mem.indexOf(u8, output, "inline=0") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "width=40") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "height=50%") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "preserveAspectRatio=0") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "name=") != null);
+    try testing.expect(std.mem.find(u8, output, "inline=0") != null);
+    try testing.expect(std.mem.find(u8, output, "width=40") != null);
+    try testing.expect(std.mem.find(u8, output, "height=50%") != null);
+    try testing.expect(std.mem.find(u8, output, "preserveAspectRatio=0") != null);
+    try testing.expect(std.mem.find(u8, output, "name=") != null);
 }
 
 test "ITerm2Encoder encode - width pixels" {
@@ -498,7 +498,7 @@ test "ITerm2Encoder encode - width pixels" {
     try encoder.encode(img, writer);
 
     const output = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, output, "width=800px") != null);
+    try testing.expect(std.mem.find(u8, output, "width=800px") != null);
 }
 
 test "ITerm2Encoder encode - auto dimensions" {
@@ -521,8 +521,8 @@ test "ITerm2Encoder encode - auto dimensions" {
     const output = fbs.getWritten();
 
     // Auto dimensions should not output width/height parameters
-    try testing.expect(std.mem.indexOf(u8, output, "width=") == null);
-    try testing.expect(std.mem.indexOf(u8, output, "height=") == null);
+    try testing.expect(std.mem.find(u8, output, "width=") == null);
+    try testing.expect(std.mem.find(u8, output, "height=") == null);
 }
 
 test "ITerm2Encoder init and deinit" {

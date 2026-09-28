@@ -177,7 +177,7 @@ pub const PromptTemplate = struct {
     /// Variables are provided as a tuple/struct with field names matching variable names.
     /// Escaped braces {{{{}}}} are rendered as {{}}.
     pub fn render(self: PromptTemplate, allocator: std.mem.Allocator, vars: anytype) ![]u8 {
-        var result = std.ArrayList(u8){};
+        var result = std.ArrayList(u8).empty;
         errdefer result.deinit(allocator);
 
         var i: usize = 0;
@@ -440,7 +440,7 @@ pub const ResponseStreamWidget = struct {
     pub fn init(allocator: std.mem.Allocator) !ResponseStreamWidget {
         return ResponseStreamWidget{
             .allocator = allocator,
-            .buffer = std.ArrayList(u8){},
+            .buffer = std.ArrayList(u8).empty,
         };
     }
 
@@ -477,7 +477,7 @@ pub const ResponseStreamWidget = struct {
     /// Render widget to buffer.
     pub fn render(self: *ResponseStreamWidget, buf: *sailor.Buffer, area: sailor.Rect) !void {
         // Split text into lines
-        var lines = std.ArrayList([]const u8){};
+        var lines = std.ArrayList([]const u8).empty;
         defer lines.deinit(self.allocator);
 
         if (self.buffer.items.len > 0) {

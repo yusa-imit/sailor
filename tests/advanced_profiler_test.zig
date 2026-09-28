@@ -730,8 +730,8 @@ test "chrome devtools export json serialization flamegraph" {
 
     const json_output = stream.getWritten();
     try testing.expect(json_output.len > 0);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"name\"") != null);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"dur\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"name\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"dur\"") != null);
 }
 
 test "chrome devtools export memory allocations" {
@@ -764,8 +764,8 @@ test "chrome devtools export memory allocations" {
 
     const json_output = stream.getWritten();
     try testing.expect(json_output.len > 0);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"location\"") != null);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"bytes\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"location\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"bytes\"") != null);
 }
 
 test "chrome devtools export event latency distribution" {
@@ -795,8 +795,8 @@ test "chrome devtools export event latency distribution" {
 
     const json_output = stream.getWritten();
     try testing.expect(json_output.len > 0);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"event\"") != null);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"avg_us\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"event\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"avg_us\"") != null);
 }
 
 test "chrome devtools export combined profile snapshot" {
@@ -868,10 +868,10 @@ test "chrome devtools export combined profile snapshot" {
 
     const json_output = stream.getWritten();
     try testing.expect(json_output.len > 0);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"profile\"") != null);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"flamegraph\"") != null);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"memory\"") != null);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"events\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"profile\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"flamegraph\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"memory\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"events\"") != null);
 }
 
 // ============================================================================

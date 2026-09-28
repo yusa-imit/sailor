@@ -23,17 +23,17 @@ test "Parser with argument groups" {
     const help = fbs.getWritten();
 
     // Should have group headers
-    try testing.expect(std.mem.indexOf(u8, help, "Input Options:") != null);
-    try testing.expect(std.mem.indexOf(u8, help, "Output Options:") != null);
-    try testing.expect(std.mem.indexOf(u8, help, "Logging:") != null);
+    try testing.expect(std.mem.find(u8, help, "Input Options:") != null);
+    try testing.expect(std.mem.find(u8, help, "Output Options:") != null);
+    try testing.expect(std.mem.find(u8, help, "Logging:") != null);
 
     // Flags should appear after their group header
-    const input_opts_pos = std.mem.indexOf(u8, help, "Input Options:").?;
-    const input_flag_pos = std.mem.indexOf(u8, help, "--input").?;
+    const input_opts_pos = std.mem.find(u8, help, "Input Options:").?;
+    const input_flag_pos = std.mem.find(u8, help, "--input").?;
     try testing.expect(input_flag_pos > input_opts_pos);
 
-    const output_opts_pos = std.mem.indexOf(u8, help, "Output Options:").?;
-    const output_flag_pos = std.mem.indexOf(u8, help, "--output").?;
+    const output_opts_pos = std.mem.find(u8, help, "Output Options:").?;
+    const output_flag_pos = std.mem.find(u8, help, "--output").?;
     try testing.expect(output_flag_pos > output_opts_pos);
 }
 
@@ -55,15 +55,15 @@ test "Parser with mixed grouped and ungrouped flags" {
     const help = fbs.getWritten();
 
     // Should have "Options:" for ungrouped flags
-    try testing.expect(std.mem.indexOf(u8, help, "Options:") != null);
+    try testing.expect(std.mem.find(u8, help, "Options:") != null);
 
     // Should have custom group names
-    try testing.expect(std.mem.indexOf(u8, help, "Input:") != null);
-    try testing.expect(std.mem.indexOf(u8, help, "Output:") != null);
+    try testing.expect(std.mem.find(u8, help, "Input:") != null);
+    try testing.expect(std.mem.find(u8, help, "Output:") != null);
 
     // Ungrouped flags should be under "Options:"
-    const options_pos = std.mem.indexOf(u8, help, "Options:").?;
-    const verbose_pos = std.mem.indexOf(u8, help, "--verbose").?;
+    const options_pos = std.mem.find(u8, help, "Options:").?;
+    const verbose_pos = std.mem.find(u8, help, "--verbose").?;
     try testing.expect(verbose_pos > options_pos);
 }
 

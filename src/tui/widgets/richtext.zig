@@ -889,10 +889,10 @@ pub const RichText = struct {
     pub fn init(allocator: Allocator) RichText {
         return .{
             .allocator = allocator,
-            .text = ArrayList(u8){},
+            .text = ArrayList(u8).empty,
             .cursor = 0,
             .selection = null,
-            .spans = ArrayList(FormatSpan){},
+            .spans = ArrayList(FormatSpan).empty,
         };
     }
 
@@ -1325,7 +1325,7 @@ pub const RichText = struct {
 
     /// Export to markdown
     pub fn toMarkdown(self: *const RichText, allocator: Allocator) ![]u8 {
-        var result = ArrayList(u8){};
+        var result = ArrayList(u8).empty;
         errdefer result.deinit(allocator);
 
         // Sort spans by start position
@@ -1339,7 +1339,7 @@ pub const RichText = struct {
         }.lessThan);
 
         var pos: usize = 0;
-        var active_spans = ArrayList(FormatSpan){};
+        var active_spans = ArrayList(FormatSpan).empty;
         defer active_spans.deinit(allocator);
 
         while (pos < self.text.items.len) {
@@ -1426,7 +1426,7 @@ pub const RichText = struct {
         errdefer allocator.free(text);
 
         // Collect spans that overlap with selection
-        var spans_list = ArrayList(FormatSpan){};
+        var spans_list = ArrayList(FormatSpan).empty;
         defer spans_list.deinit(allocator);
 
         for (self.spans.items) |span| {

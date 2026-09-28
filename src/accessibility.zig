@@ -299,7 +299,7 @@ test "accessibility: value with percentage" {
     const hint = try builder.build();
     defer std.testing.allocator.free(hint);
 
-    try std.testing.expect(std.mem.indexOf(u8, hint, "75%") != null);
+    try std.testing.expect(std.mem.find(u8, hint, "75%") != null);
 }
 
 test "accessibility: generateHint simple" {
@@ -324,9 +324,9 @@ test "accessibility: generateHint with description" {
     const hint = try generateHint(std.testing.allocator, metadata);
     defer std.testing.allocator.free(hint);
 
-    try std.testing.expect(std.mem.indexOf(u8, hint, "text input") != null);
-    try std.testing.expect(std.mem.indexOf(u8, hint, "Search") != null);
-    try std.testing.expect(std.mem.indexOf(u8, hint, "Press Enter") != null);
+    try std.testing.expect(std.mem.find(u8, hint, "text input") != null);
+    try std.testing.expect(std.mem.find(u8, hint, "Search") != null);
+    try std.testing.expect(std.mem.find(u8, hint, "Press Enter") != null);
 }
 
 test "accessibility: generateHint with state" {
@@ -342,10 +342,10 @@ test "accessibility: generateHint with state" {
     const hint = try generateHint(std.testing.allocator, metadata);
     defer std.testing.allocator.free(hint);
 
-    try std.testing.expect(std.mem.indexOf(u8, hint, "list") != null);
-    try std.testing.expect(std.mem.indexOf(u8, hint, "Tasks") != null);
-    try std.testing.expect(std.mem.indexOf(u8, hint, "focused") != null);
-    try std.testing.expect(std.mem.indexOf(u8, hint, "3 items") != null);
+    try std.testing.expect(std.mem.find(u8, hint, "list") != null);
+    try std.testing.expect(std.mem.find(u8, hint, "Tasks") != null);
+    try std.testing.expect(std.mem.find(u8, hint, "focused") != null);
+    try std.testing.expect(std.mem.find(u8, hint, "3 items") != null);
 }
 
 test "accessibility: presentation role is skipped" {

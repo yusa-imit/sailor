@@ -55,7 +55,7 @@ pub const ColorLevel = enum {
 
         // Check TERM for color capabilities
         if (getEnvVar("TERM")) |term_val| {
-            if (std.mem.indexOf(u8, term_val, "256color")) |_| {
+            if (std.mem.find(u8, term_val, "256color")) |_| {
                 return .extended;
             }
             if (!std.mem.eql(u8, term_val, "dumb") and
@@ -325,9 +325,9 @@ test "Style.write complete" {
     try style.write(writer);
 
     const result = fbs.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[31m") != null); // fg red
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[47m") != null); // bg white
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[1m") != null); // bold
+    try std.testing.expect(std.mem.find(u8, result, "\x1b[31m") != null); // fg red
+    try std.testing.expect(std.mem.find(u8, result, "\x1b[47m") != null); // bg white
+    try std.testing.expect(std.mem.find(u8, result, "\x1b[1m") != null); // bold
 }
 
 test "Style.reset" {
@@ -349,9 +349,9 @@ test "writeStyled" {
     try writeStyled(writer, style, "success");
 
     const result = fbs.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[32m") != null); // green
-    try std.testing.expect(std.mem.indexOf(u8, result, "success") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[0m") != null); // reset
+    try std.testing.expect(std.mem.find(u8, result, "\x1b[32m") != null); // green
+    try std.testing.expect(std.mem.find(u8, result, "success") != null);
+    try std.testing.expect(std.mem.find(u8, result, "\x1b[0m") != null); // reset
 }
 
 test "printStyled" {
@@ -363,10 +363,10 @@ test "printStyled" {
     try printStyled(writer, style, "error: {s}", .{"failed"});
 
     const result = fbs.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[31m") != null); // red
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[1m") != null); // bold
-    try std.testing.expect(std.mem.indexOf(u8, result, "error: failed") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[0m") != null); // reset
+    try std.testing.expect(std.mem.find(u8, result, "\x1b[31m") != null); // red
+    try std.testing.expect(std.mem.find(u8, result, "\x1b[1m") != null); // bold
+    try std.testing.expect(std.mem.find(u8, result, "error: failed") != null);
+    try std.testing.expect(std.mem.find(u8, result, "\x1b[0m") != null); // reset
 }
 
 test "semantic.err style" {
@@ -376,8 +376,8 @@ test "semantic.err style" {
 
     try semantic.err.write(writer);
     const result = fbs.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[91m") != null); // bright red
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[1m") != null); // bold
+    try std.testing.expect(std.mem.find(u8, result, "\x1b[91m") != null); // bright red
+    try std.testing.expect(std.mem.find(u8, result, "\x1b[1m") != null); // bold
 }
 
 test "semantic.ok style" {
@@ -387,7 +387,7 @@ test "semantic.ok style" {
 
     try semantic.ok.write(writer);
     const result = fbs.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, result, "\x1b[32m") != null); // green
+    try std.testing.expect(std.mem.find(u8, result, "\x1b[32m") != null); // green
 }
 
 // ============================================================================
@@ -604,7 +604,7 @@ fn parseOSC11Response(response: []const u8) !Color {
     // Expected format: "\x1b]11;rgb:RRRR/GGGG/BBBB\x1b\\" or "\x1b]11;rgb:RRRR/GGGG/BBBB\x07"
 
     // Find "rgb:" prefix
-    const rgb_start = std.mem.indexOf(u8, response, "rgb:") orelse return error.InvalidFormat;
+    const rgb_start = std.mem.find(u8, response, "rgb:") orelse return error.InvalidFormat;
     const rgb_data = response[rgb_start + 4..];
 
     // Parse hex components separated by '/'
@@ -616,9 +616,9 @@ fn parseOSC11Response(response: []const u8) !Color {
 
     // Remove trailing escape sequences
     var b_str = b_str_raw;
-    if (std.mem.indexOfScalar(u8, b_str, '\x1b')) |idx| {
+    if (std.mem.findScalar(u8, b_str, '\x1b')) |idx| {
         b_str = b_str[0..idx];
-    } else if (std.mem.indexOfScalar(u8, b_str, '\x07')) |idx| {
+    } else if (std.mem.findScalar(u8, b_str, '\x07')) |idx| {
         b_str = b_str[0..idx];
     }
 
@@ -785,7 +785,7 @@ test "ColorTheme.apply - writes foreground color" {
 
     const output = fbs.getWritten();
     // Should contain ANSI escape for bright red foreground
-    try std.testing.expect(std.mem.indexOf(u8, output, "\x1b[") != null);
+    try std.testing.expect(std.mem.find(u8, output, "\x1b[") != null);
 }
 
 test "ColorTheme.applyBg - writes background color" {
@@ -798,7 +798,7 @@ test "ColorTheme.applyBg - writes background color" {
 
     const output = fbs.getWritten();
     // Should contain ANSI escape for RGB background
-    try std.testing.expect(std.mem.indexOf(u8, output, "\x1b[") != null);
+    try std.testing.expect(std.mem.find(u8, output, "\x1b[") != null);
 }
 
 test "ColorTheme.styled - creates Style from semantic name" {

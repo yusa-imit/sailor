@@ -328,7 +328,7 @@ test "Markdown parses code block" {
 
     try testing.expect(nodes.len > 0);
     try testing.expectEqual(Markdown.NodeType.code_block, nodes[0].node_type);
-    try testing.expect(std.mem.indexOf(u8, nodes[0].text, "function main") != null);
+    try testing.expect(std.mem.find(u8, nodes[0].text, "function main") != null);
 }
 
 test "Markdown code block with language" {
@@ -342,7 +342,7 @@ test "Markdown code block with language" {
     try testing.expect(nodes.len > 0);
     try testing.expectEqual(Markdown.NodeType.code_block, nodes[0].node_type);
     try testing.expectEqualStrings("zig", nodes[0].language.?);
-    try testing.expect(std.mem.indexOf(u8, nodes[0].text, "const x = 5") != null);
+    try testing.expect(std.mem.find(u8, nodes[0].text, "const x = 5") != null);
 }
 
 test "Markdown code block preserves indentation" {
@@ -355,7 +355,7 @@ test "Markdown code block preserves indentation" {
 
     try testing.expect(nodes.len > 0);
     try testing.expectEqual(Markdown.NodeType.code_block, nodes[0].node_type);
-    try testing.expect(std.mem.indexOf(u8, nodes[0].text, "  indented") != null);
+    try testing.expect(std.mem.find(u8, nodes[0].text, "  indented") != null);
 }
 
 test "Markdown code block requires closing fence" {

@@ -110,8 +110,8 @@ pub fn detectMetalSupport(allocator: std.mem.Allocator) !MetalCapability {
     // On macOS, assume Metal is available for modern terminals
     // iTerm2 and Terminal.app both support Metal rendering
     const available = if (term_program) |prog| blk: {
-        const is_iterm = std.mem.indexOf(u8, prog, "iTerm") != null;
-        const is_terminal = std.mem.indexOf(u8, prog, "Terminal") != null;
+        const is_iterm = std.mem.find(u8, prog, "iTerm") != null;
+        const is_terminal = std.mem.find(u8, prog, "Terminal") != null;
         break :blk is_iterm or is_terminal;
     } else false;
 

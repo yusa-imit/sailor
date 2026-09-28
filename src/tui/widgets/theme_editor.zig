@@ -514,8 +514,8 @@ test "ThemeEditor - export theme" {
     const exported = try editor.exportTheme(std.testing.allocator);
     defer std.testing.allocator.free(exported);
 
-    try std.testing.expect(std.mem.indexOf(u8, exported, "\"Primary\"") != null);
-    try std.testing.expect(std.mem.indexOf(u8, exported, "[100, 150, 200]") != null);
+    try std.testing.expect(std.mem.find(u8, exported, "\"Primary\"") != null);
+    try std.testing.expect(std.mem.find(u8, exported, "[100, 150, 200]") != null);
 }
 
 test "ThemeEditor - render basic" {

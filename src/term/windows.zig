@@ -242,7 +242,7 @@ pub fn ansiToConsoleAttribute(ansi: []const u8) !u16 {
     }
 
     // Combined codes (e.g., "1;34" for bold blue)
-    if (std.mem.indexOf(u8, code_str, ";")) |_| {
+    if (std.mem.find(u8, code_str, ";")) |_| {
         var attr: u16 = 0;
         var iter = std.mem.splitScalar(u8, code_str, ';');
 
@@ -277,7 +277,7 @@ pub fn ansiToCursorPosition(ansi: []const u8) !COORD {
     const coords_str = ansi[2..end_idx];
 
     // Parse row;col
-    const semicolon_idx = std.mem.indexOf(u8, coords_str, ";") orelse return error.InvalidAnsiSequence;
+    const semicolon_idx = std.mem.find(u8, coords_str, ";") orelse return error.InvalidAnsiSequence;
 
     const row_str = coords_str[0..semicolon_idx];
     const col_str = coords_str[semicolon_idx + 1 ..];

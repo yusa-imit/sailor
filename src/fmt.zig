@@ -523,9 +523,9 @@ pub fn Csv(comptime WriterType: type) type {
             self.first_in_row = false;
 
             const needs_quote = self.config.always_quote or
-                std.mem.indexOfScalar(u8, value, self.config.delimiter) != null or
-                std.mem.indexOfScalar(u8, value, self.config.quote) != null or
-                std.mem.indexOfScalar(u8, value, '\n') != null;
+                std.mem.findScalar(u8, value, self.config.delimiter) != null or
+                std.mem.findScalar(u8, value, self.config.quote) != null or
+                std.mem.findScalar(u8, value, '\n') != null;
 
             if (needs_quote) {
                 try self.writer.writeByte(self.config.quote);
@@ -603,8 +603,8 @@ test "Table basic" {
     try table.render(buf.writer());
 
     const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "Alice") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "30") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Alice") != null);
+    try std.testing.expect(std.mem.find(u8, output, "30") != null);
 }
 
 test "Table with borders" {
@@ -621,8 +621,8 @@ test "Table with borders" {
     try table.render(buf.writer());
 
     const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "┌") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "│") != null);
+    try std.testing.expect(std.mem.find(u8, output, "┌") != null);
+    try std.testing.expect(std.mem.find(u8, output, "│") != null);
 }
 
 test "JsonArray" {
@@ -755,9 +755,9 @@ test "Table with empty cells" {
     try table.render(buf.writer());
 
     const result = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, result, "value") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "data") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "item") != null);
+    try std.testing.expect(std.mem.find(u8, result, "value") != null);
+    try std.testing.expect(std.mem.find(u8, result, "data") != null);
+    try std.testing.expect(std.mem.find(u8, result, "item") != null);
 }
 
 test "JsonArray nested objects" {
@@ -818,8 +818,8 @@ test "Table with custom horizontal padding" {
 
     const output = buf.items;
     // Expected: padding adds 2 spaces on each side of cell content
-    try std.testing.expect(std.mem.indexOf(u8, output, "Alice") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "30") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Alice") != null);
+    try std.testing.expect(std.mem.find(u8, output, "30") != null);
 }
 
 test "Table with custom vertical padding" {
@@ -841,7 +841,7 @@ test "Table with custom vertical padding" {
 
     const output = buf.items;
     // With vertical padding, each row should have blank lines above and below
-    try std.testing.expect(std.mem.indexOf(u8, output, "Data") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Data") != null);
 }
 
 test "Table with asymmetric padding" {
@@ -862,7 +862,7 @@ test "Table with asymmetric padding" {
     try table.render(buf.writer());
 
     const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "X") != null);
+    try std.testing.expect(std.mem.find(u8, output, "X") != null);
 }
 
 test "Table with zero padding" {
@@ -886,7 +886,7 @@ test "Table with zero padding" {
 
     const output = buf.items;
     // With zero padding, content should be adjacent to boundaries
-    try std.testing.expect(std.mem.indexOf(u8, output, "Test") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Test") != null);
 }
 
 test "Table with large padding values" {
@@ -909,7 +909,7 @@ test "Table with large padding values" {
     try table.render(buf.writer());
 
     const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "A") != null);
+    try std.testing.expect(std.mem.find(u8, output, "A") != null);
 }
 
 // Multi-line cell tests
@@ -931,8 +931,8 @@ test "Table with newline in cell" {
 
     const output = buf.items;
     // Multi-line cell should preserve newlines
-    try std.testing.expect(std.mem.indexOf(u8, output, "Line 1") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Line 2") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Line 1") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Line 2") != null);
 }
 
 test "Table with cell wrapping on max_width" {
@@ -973,9 +973,9 @@ test "Table with mixed single and multi-line cells in same row" {
 
     const output = buf.items;
     // Both types of cells should be present
-    try std.testing.expect(std.mem.indexOf(u8, output, "Single") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Multi") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Line") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Single") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Multi") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Line") != null);
 }
 
 test "Table with multiple newlines in single cell" {
@@ -994,9 +994,9 @@ test "Table with multiple newlines in single cell" {
     try table.render(buf.writer());
 
     const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "First") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Second") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Third") != null);
+    try std.testing.expect(std.mem.find(u8, output, "First") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Second") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Third") != null);
 }
 
 test "Table with empty lines within cell" {
@@ -1016,8 +1016,8 @@ test "Table with empty lines within cell" {
 
     const output = buf.items;
     // Should handle blank lines within cell content
-    try std.testing.expect(std.mem.indexOf(u8, output, "Line 1") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Line 3") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Line 1") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Line 3") != null);
 }
 
 test "Table with word wrapping at word boundaries" {
@@ -1083,8 +1083,8 @@ test "Table with newlines and padding combined" {
 
     const output = buf.items;
     // Multi-line cells with padding should work together
-    try std.testing.expect(std.mem.indexOf(u8, output, "Line A") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Line B") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Line A") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Line B") != null);
 }
 
 test "Table multi-line with borders and padding" {
@@ -1105,8 +1105,8 @@ test "Table multi-line with borders and padding" {
     try table.render(buf.writer());
 
     const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "Alice") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "A") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Alice") != null);
+    try std.testing.expect(std.mem.find(u8, output, "A") != null);
 }
 
 test "Table alignment with multi-line cells" {
@@ -1127,7 +1127,7 @@ test "Table alignment with multi-line cells" {
 
     const output = buf.items;
     // Center alignment should work with multi-line content
-    try std.testing.expect(std.mem.indexOf(u8, output, "First") != null);
+    try std.testing.expect(std.mem.find(u8, output, "First") != null);
 }
 
 test "Table left alignment" {
@@ -1150,8 +1150,8 @@ test "Table left alignment" {
 
     const output = buf.items;
     // Left alignment: text should be at the start with trailing spaces
-    try std.testing.expect(std.mem.indexOf(u8, output, "Alice     ") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "30        ") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Alice     ") != null);
+    try std.testing.expect(std.mem.find(u8, output, "30        ") != null);
 }
 
 test "Table right alignment" {
@@ -1174,8 +1174,8 @@ test "Table right alignment" {
 
     const output = buf.items;
     // Right alignment: numbers should have leading spaces
-    try std.testing.expect(std.mem.indexOf(u8, output, "       100") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "        50") != null);
+    try std.testing.expect(std.mem.find(u8, output, "       100") != null);
+    try std.testing.expect(std.mem.find(u8, output, "        50") != null);
 }
 
 test "Table center alignment" {
@@ -1199,9 +1199,9 @@ test "Table center alignment" {
     const output = buf.items;
     // Center alignment: text should have balanced padding
     // "OK" (2 chars) in 12 width: 5 left, 5 right padding
-    try std.testing.expect(std.mem.indexOf(u8, output, "     OK     ") != null);
+    try std.testing.expect(std.mem.find(u8, output, "     OK     ") != null);
     // "FAIL" (4 chars) in 12 width: 4 left, 4 right padding
-    try std.testing.expect(std.mem.indexOf(u8, output, "    FAIL    ") != null);
+    try std.testing.expect(std.mem.find(u8, output, "    FAIL    ") != null);
 }
 
 test "Table mixed alignments" {
@@ -1224,9 +1224,9 @@ test "Table mixed alignments" {
 
     const output = buf.items;
     // Should contain all three alignment styles
-    try std.testing.expect(std.mem.indexOf(u8, output, "Alice") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "95") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "PASS") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Alice") != null);
+    try std.testing.expect(std.mem.find(u8, output, "95") != null);
+    try std.testing.expect(std.mem.find(u8, output, "PASS") != null);
 }
 
 test "Table alignment with varying widths" {
@@ -1247,8 +1247,8 @@ test "Table alignment with varying widths" {
 
     const output = buf.items;
     // Each column should adapt to its header width with proper alignment
-    try std.testing.expect(std.mem.indexOf(u8, output, "Short") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Medium Length") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Short") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Medium Length") != null);
     try std.testing.expect(output.len > 0);
 }
 
@@ -1274,7 +1274,7 @@ test "Table alignment with padding" {
     const output = buf.items;
     // Padding should not interfere with alignment
     try std.testing.expect(output.len > 0);
-    try std.testing.expect(std.mem.indexOf(u8, output, "A") != null);
+    try std.testing.expect(std.mem.find(u8, output, "A") != null);
 }
 
 // Plain formatter tests
@@ -1307,15 +1307,15 @@ test "Plain multiple fields maintain order" {
 
     const output = buf.items;
     // Verify order: "first:" must come before "second:" which must come before "third:"
-    const first_pos = std.mem.indexOf(u8, output, "first:") orelse 0;
-    const second_pos = std.mem.indexOf(u8, output, "second:") orelse 0;
-    const third_pos = std.mem.indexOf(u8, output, "third:") orelse 0;
+    const first_pos = std.mem.find(u8, output, "first:") orelse 0;
+    const second_pos = std.mem.find(u8, output, "second:") orelse 0;
+    const third_pos = std.mem.find(u8, output, "third:") orelse 0;
 
     try std.testing.expect(first_pos < second_pos);
     try std.testing.expect(second_pos < third_pos);
-    try std.testing.expect(std.mem.indexOf(u8, output, "first: 1\n") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "second: 2\n") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "third: 3\n") != null);
+    try std.testing.expect(std.mem.find(u8, output, "first: 1\n") != null);
+    try std.testing.expect(std.mem.find(u8, output, "second: 2\n") != null);
+    try std.testing.expect(std.mem.find(u8, output, "third: 3\n") != null);
 }
 
 test "Plain key with colon character is unescaped" {

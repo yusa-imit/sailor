@@ -222,7 +222,7 @@ pub fn detectKittySupport() bool {
 
     if (term_mod.queryTerminalCapability(allocator, stdout_fd, "TN", 100)) |value| {
         defer allocator.free(value);
-        const has_kitty = std.mem.indexOf(u8, value, "kitty") != null;
+        const has_kitty = std.mem.find(u8, value, "kitty") != null;
         if (has_kitty) return true;
     } else |_| {
         // XTGETTCAP failed - fall back to env vars
@@ -244,7 +244,7 @@ pub fn detectKittySupport() bool {
         // Check for TERM containing "kitty"
         const term = std.posix.getenv("TERM");
         if (term) |t| {
-            if (std.mem.indexOf(u8, t, "kitty") != null) return true;
+            if (std.mem.find(u8, t, "kitty") != null) return true;
         }
 
         return false;
@@ -327,13 +327,13 @@ test "KittyEncoder: encode small RGBA image (direct)" {
 
     const output = fbs.getWritten();
     // Should contain Kitty control sequence
-    try testing.expect(std.mem.indexOf(u8, output, "\x1b_G") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "a=T") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "f=32") != null); // RGBA32
-    try testing.expect(std.mem.indexOf(u8, output, "s=2") != null); // width
-    try testing.expect(std.mem.indexOf(u8, output, "v=2") != null); // height
-    try testing.expect(std.mem.indexOf(u8, output, "t=d") != null); // direct transmission
-    try testing.expect(std.mem.indexOf(u8, output, "\x1b\\") != null);
+    try testing.expect(std.mem.find(u8, output, "\x1b_G") != null);
+    try testing.expect(std.mem.find(u8, output, "a=T") != null);
+    try testing.expect(std.mem.find(u8, output, "f=32") != null); // RGBA32
+    try testing.expect(std.mem.find(u8, output, "s=2") != null); // width
+    try testing.expect(std.mem.find(u8, output, "v=2") != null); // height
+    try testing.expect(std.mem.find(u8, output, "t=d") != null); // direct transmission
+    try testing.expect(std.mem.find(u8, output, "\x1b\\") != null);
 }
 
 test "KittyEncoder: encode RGB24 image" {
@@ -357,9 +357,9 @@ test "KittyEncoder: encode RGB24 image" {
     try encoder.encode(img, fbs.writer(), .direct);
 
     const output = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, output, "f=24") != null); // RGB24
-    try testing.expect(std.mem.indexOf(u8, output, "s=3") != null); // width
-    try testing.expect(std.mem.indexOf(u8, output, "v=1") != null); // height
+    try testing.expect(std.mem.find(u8, output, "f=24") != null); // RGB24
+    try testing.expect(std.mem.find(u8, output, "s=3") != null); // width
+    try testing.expect(std.mem.find(u8, output, "v=1") != null); // height
 }
 
 test "KittyEncoder: chunked encoding for large image" {
@@ -387,8 +387,8 @@ test "KittyEncoder: chunked encoding for large image" {
 
     const output = buf.items;
     // Should have multiple chunks (m=0 for continuation, m=1 for last)
-    const first_chunk = std.mem.indexOf(u8, output, "m=0");
-    const last_chunk = std.mem.indexOf(u8, output, "m=1");
+    const first_chunk = std.mem.find(u8, output, "m=0");
+    const last_chunk = std.mem.find(u8, output, "m=1");
     try testing.expect(first_chunk != null);
     try testing.expect(last_chunk != null);
 }
@@ -402,12 +402,12 @@ test "KittyEncoder: placeImage" {
     try encoder.placeImage(fbs.writer(), 42, 10, 5, 20, 15);
 
     const output = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, output, "\x1b_Ga=p") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "i=42") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "X=10") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "Y=5") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "c=20") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "r=15") != null);
+    try testing.expect(std.mem.find(u8, output, "\x1b_Ga=p") != null);
+    try testing.expect(std.mem.find(u8, output, "i=42") != null);
+    try testing.expect(std.mem.find(u8, output, "X=10") != null);
+    try testing.expect(std.mem.find(u8, output, "Y=5") != null);
+    try testing.expect(std.mem.find(u8, output, "c=20") != null);
+    try testing.expect(std.mem.find(u8, output, "r=15") != null);
 }
 
 test "KittyEncoder: placeImage without cols/rows" {
@@ -419,12 +419,12 @@ test "KittyEncoder: placeImage without cols/rows" {
     try encoder.placeImage(fbs.writer(), 42, 10, 5, null, null);
 
     const output = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, output, "i=42") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "X=10") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "Y=5") != null);
+    try testing.expect(std.mem.find(u8, output, "i=42") != null);
+    try testing.expect(std.mem.find(u8, output, "X=10") != null);
+    try testing.expect(std.mem.find(u8, output, "Y=5") != null);
     // Should NOT contain cols/rows
-    try testing.expect(std.mem.indexOf(u8, output, "c=") == null);
-    try testing.expect(std.mem.indexOf(u8, output, "r=") == null);
+    try testing.expect(std.mem.find(u8, output, "c=") == null);
+    try testing.expect(std.mem.find(u8, output, "r=") == null);
 }
 
 test "KittyEncoder: deleteImage" {
@@ -468,7 +468,7 @@ test "KittyEncoder: file transmission medium" {
     try encoder.encode(img, fbs.writer(), .file);
 
     const output = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, output, "t=f") != null); // file transmission
+    try testing.expect(std.mem.find(u8, output, "t=f") != null); // file transmission
 }
 
 test "KittyEncoder: shared memory transmission medium" {
@@ -488,7 +488,7 @@ test "KittyEncoder: shared memory transmission medium" {
     try encoder.encode(img, fbs.writer(), .shared_mem);
 
     const output = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, output, "t=s") != null); // shared mem transmission
+    try testing.expect(std.mem.find(u8, output, "t=s") != null); // shared mem transmission
 }
 
 test "detectKittySupport: no environment variables" {
@@ -527,8 +527,8 @@ test "KittyEncoder: single pixel image" {
     try encoder.encode(img, fbs.writer(), .direct);
 
     const output = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, output, "s=1") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "v=1") != null);
+    try testing.expect(std.mem.find(u8, output, "s=1") != null);
+    try testing.expect(std.mem.find(u8, output, "v=1") != null);
 }
 
 test "KittyEncoder: wide image (1000x1 RGB24)" {
@@ -552,8 +552,8 @@ test "KittyEncoder: wide image (1000x1 RGB24)" {
     try encoder.encode(img, buf.writer(allocator), .direct);
 
     const output = buf.items;
-    try testing.expect(std.mem.indexOf(u8, output, "s=1000") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "v=1") != null);
+    try testing.expect(std.mem.find(u8, output, "s=1000") != null);
+    try testing.expect(std.mem.find(u8, output, "v=1") != null);
 }
 
 test "KittyEncoder: tall image (1x500 RGBA32)" {
@@ -577,8 +577,8 @@ test "KittyEncoder: tall image (1x500 RGBA32)" {
     try encoder.encode(img, buf.writer(allocator), .direct);
 
     const output = buf.items;
-    try testing.expect(std.mem.indexOf(u8, output, "s=1") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "v=500") != null);
+    try testing.expect(std.mem.find(u8, output, "s=1") != null);
+    try testing.expect(std.mem.find(u8, output, "v=500") != null);
 }
 
 test "KittyEncoder: custom chunk size" {

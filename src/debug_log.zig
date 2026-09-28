@@ -105,7 +105,7 @@ fn initOnce() void {
     }
 
     // SAILOR_DEBUG=module:level
-    if (std.mem.indexOf(u8, env_debug, ":")) |colon_idx| {
+    if (std.mem.find(u8, env_debug, ":")) |colon_idx| {
         const scope_str = env_debug[0..colon_idx];
         const level_str = env_debug[colon_idx + 1 ..];
 

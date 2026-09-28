@@ -92,7 +92,7 @@ pub const Editor = struct {
     /// Initializes a new editor with a single empty line.
     /// The returned instance must be freed with `.deinit()`.
     pub fn init(allocator: std.mem.Allocator) Editor {
-        var lines = std.ArrayList([]const u8){};
+        var lines = std.ArrayList([]const u8).empty;
         // Start with one empty line
         lines.append(allocator, "") catch unreachable;
 
@@ -100,8 +100,8 @@ pub const Editor = struct {
             .lines = lines,
             .cursor = .{ .line = 0, .col = 0 },
             .selection = null,
-            .undo_stack = std.ArrayList(Edit){},
-            .redo_stack = std.ArrayList(Edit){},
+            .undo_stack = std.ArrayList(Edit).empty,
+            .redo_stack = std.ArrayList(Edit).empty,
             .scroll_offset = 0,
             .language = .none,
             .block = null,
@@ -167,7 +167,7 @@ pub const Editor = struct {
     /// Returns the entire editor content as a single string with newline separators.
     /// Caller owns the returned memory.
     pub fn getText(self: *const Editor, allocator: std.mem.Allocator) ![]const u8 {
-        var result = std.ArrayList(u8){};
+        var result = std.ArrayList(u8).empty;
         defer result.deinit(allocator);
 
         for (self.lines.items, 0..) |line, i| {
@@ -446,7 +446,7 @@ pub const Editor = struct {
         if (text_width == 0) return;
 
         // Tokenize all visible lines if language is set
-        var tokens_by_line = std.ArrayList([]syntax.Token){};
+        var tokens_by_line = std.ArrayList([]syntax.Token).empty;
         defer {
             for (tokens_by_line.items) |tokens| {
                 self.allocator.free(tokens);

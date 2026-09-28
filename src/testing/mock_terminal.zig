@@ -36,8 +36,8 @@ pub const MockTerminal = struct {
     pub fn init(allocator: Allocator, term_size: Size) MockTerminal {
         return MockTerminal{
             .size = term_size,
-            .output = std.ArrayList(u8){},
-            .event_queue = std.ArrayList(Event){},
+            .output = std.ArrayList(u8).empty,
+            .event_queue = std.ArrayList(Event).empty,
             .allocator = allocator,
         };
     }

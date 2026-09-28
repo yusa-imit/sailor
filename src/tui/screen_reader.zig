@@ -319,8 +319,8 @@ test "ScreenReaderOutput: announce ARIA text" {
     try sr.announce(writer, "Test message", .polite);
 
     const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "[polite]") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Test message") != null);
+    try std.testing.expect(std.mem.find(u8, output, "[polite]") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Test message") != null);
 }
 
 test "ScreenReaderOutput: announce JSON" {
@@ -336,9 +336,9 @@ test "ScreenReaderOutput: announce JSON" {
     try sr.announce(writer, "Test", .assertive);
 
     const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "\"type\":\"announce\"") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "\"priority\":\"assertive\"") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "\"message\":\"Test\"") != null);
+    try std.testing.expect(std.mem.find(u8, output, "\"type\":\"announce\"") != null);
+    try std.testing.expect(std.mem.find(u8, output, "\"priority\":\"assertive\"") != null);
+    try std.testing.expect(std.mem.find(u8, output, "\"message\":\"Test\"") != null);
 }
 
 test "ScreenReaderOutput: announce widget" {
@@ -360,8 +360,8 @@ test "ScreenReaderOutput: announce widget" {
     try sr.announceWidget(writer, metadata);
 
     const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "button") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Submit") != null);
+    try std.testing.expect(std.mem.find(u8, output, "button") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Submit") != null);
 }
 
 test "ScreenReaderOutput: announce navigation" {
@@ -377,7 +377,7 @@ test "ScreenReaderOutput: announce navigation" {
     try sr.announceNavigation(writer, "Home", "Settings");
 
     const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "Navigated from Home to Settings") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Navigated from Home to Settings") != null);
 }
 
 test "ScreenReaderOutput: announce error" {
@@ -393,8 +393,8 @@ test "ScreenReaderOutput: announce error" {
     try sr.announceError(writer, "File not found");
 
     const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "Error: File not found") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "[assertive]") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Error: File not found") != null);
+    try std.testing.expect(std.mem.find(u8, output, "[assertive]") != null);
 }
 
 test "ScreenReaderOutput: announce success" {
@@ -410,7 +410,7 @@ test "ScreenReaderOutput: announce success" {
     try sr.announceSuccess(writer, "File saved");
 
     const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "Success: File saved") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Success: File saved") != null);
 }
 
 test "ScreenReaderOutput: announce shortcut" {
@@ -427,7 +427,7 @@ test "ScreenReaderOutput: announce shortcut" {
     try sr.announceShortcut(writer, "Ctrl+S", "save");
 
     const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "Press Ctrl+S to save") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Press Ctrl+S to save") != null);
 }
 
 test "ScreenReaderOutput: quiet mode skips shortcuts" {
@@ -461,7 +461,7 @@ test "ScreenReaderOutput: announce help" {
     try sr.announceHelp(writer, "Use arrow keys to navigate");
 
     const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "Use arrow keys") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Use arrow keys") != null);
 }
 
 test "ScreenReaderOutput: disabled skips announcements" {
@@ -497,9 +497,9 @@ test "Region: announce" {
     const announcement = try region.announce(allocator);
     defer allocator.free(announcement);
 
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "Region: Main Content") != null);
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "Search") != null);
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "Ctrl+F") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "Region: Main Content") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "Search") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "Ctrl+F") != null);
 }
 
 test "Region: announce without landmarks" {
@@ -513,6 +513,6 @@ test "Region: announce without landmarks" {
     const announcement = try region.announce(allocator);
     defer allocator.free(announcement);
 
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "Region: Sidebar") != null);
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "group") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "Region: Sidebar") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "group") != null);
 }

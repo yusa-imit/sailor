@@ -140,17 +140,17 @@ pub const Validator = struct {
                     }
 
                     // Check for null bytes
-                    if (std.mem.indexOfScalar(u8, input, 0) != null) {
+                    if (std.mem.findScalar(u8, input, 0) != null) {
                         return .{ .invalid = "Email address cannot contain null bytes" };
                     }
 
                     // Find @ sign
-                    const at_pos = std.mem.indexOfScalar(u8, input, '@') orelse {
+                    const at_pos = std.mem.findScalar(u8, input, '@') orelse {
                         return .{ .invalid = "Email must contain @ sign" };
                     };
 
                     // Check for exactly one @
-                    if (std.mem.indexOfScalarPos(u8, input, at_pos + 1, '@') != null) {
+                    if (std.mem.findScalarPos(u8, input, at_pos + 1, '@') != null) {
                         return .{ .invalid = "Email must contain only one @ sign" };
                     }
 
@@ -168,7 +168,7 @@ pub const Validator = struct {
 
                     // Domain must have at least one dot (basic check)
                     // Note: We allow unicode domains (IDN) like 例え.jp
-                    if (std.mem.indexOfScalar(u8, domain, '.') == null) {
+                    if (std.mem.findScalar(u8, domain, '.') == null) {
                         return .{ .invalid = "Email domain must contain a dot" };
                     }
 
@@ -203,12 +203,12 @@ pub const Validator = struct {
                     }
 
                     // Basic malformed check — no spaces in domain
-                    if (std.mem.indexOfScalar(u8, remainder, ' ') != null) {
+                    if (std.mem.findScalar(u8, remainder, ' ') != null) {
                         return .{ .invalid = "URL cannot contain spaces" };
                     }
 
                     // Check for invalid characters in URL
-                    if (std.mem.indexOfScalar(u8, remainder, '!') != null) {
+                    if (std.mem.findScalar(u8, remainder, '!') != null) {
                         return .{ .invalid = "URL contains invalid characters" };
                     }
 
@@ -278,9 +278,9 @@ pub const Validator = struct {
         }
 
         // Simple validation for common regex syntax errors
-        if (std.mem.indexOf(u8, pattern, "[unclosed") != null or
-            std.mem.indexOfScalar(u8, pattern, '[') != null and
-            std.mem.indexOfScalar(u8, pattern, ']') == null)
+        if (std.mem.find(u8, pattern, "[unclosed") != null or
+            std.mem.findScalar(u8, pattern, '[') != null and
+            std.mem.findScalar(u8, pattern, ']') == null)
         {
             return error.InvalidRegex;
         }

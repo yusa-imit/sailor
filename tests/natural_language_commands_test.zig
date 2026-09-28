@@ -759,7 +759,7 @@ test "NaturalLanguageCommands - parser handles very long input" {
     var parser = nlc.CommandParser.init(allocator, &default_context);
     defer parser.deinit();
 
-    var long_input = std.ArrayList(u8){};
+    var long_input = std.ArrayList(u8).empty;
     defer long_input.deinit(allocator);
 
     try long_input.appendSlice(allocator, "search for ");

@@ -73,7 +73,7 @@ const ExecutionLog = struct {
 
     fn init(_: std.mem.Allocator) @This() {
         return .{
-            .calls = std.ArrayList([]const u8){},
+            .calls = std.ArrayList([]const u8).empty,
         };
     }
 

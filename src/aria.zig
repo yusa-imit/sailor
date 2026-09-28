@@ -441,8 +441,8 @@ test "aria: generate announcement simple" {
     const announcement = try attrs.generateAnnouncement(std.testing.allocator);
     defer std.testing.allocator.free(announcement);
 
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "button") != null);
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "Submit") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "button") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "Submit") != null);
 }
 
 test "aria: generate announcement with state" {
@@ -455,10 +455,10 @@ test "aria: generate announcement with state" {
     const announcement = try attrs.generateAnnouncement(std.testing.allocator);
     defer std.testing.allocator.free(announcement);
 
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "checkbox") != null);
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "Accept terms") != null);
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "checked") != null);
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "required") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "checkbox") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "Accept terms") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "checked") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "required") != null);
 }
 
 test "aria: generate announcement with range" {
@@ -470,9 +470,9 @@ test "aria: generate announcement with range" {
     const announcement = try attrs.generateAnnouncement(std.testing.allocator);
     defer std.testing.allocator.free(announcement);
 
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "slider") != null);
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "Volume") != null);
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "75") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "slider") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "Volume") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "75") != null);
 }
 
 test "aria: generate announcement disabled" {
@@ -484,7 +484,7 @@ test "aria: generate announcement disabled" {
     const announcement = try attrs.generateAnnouncement(std.testing.allocator);
     defer std.testing.allocator.free(announcement);
 
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "disabled") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "disabled") != null);
 }
 
 test "aria: generate announcement expanded/collapsed" {
@@ -496,14 +496,14 @@ test "aria: generate announcement expanded/collapsed" {
     {
         const announcement = try attrs.generateAnnouncement(std.testing.allocator);
         defer std.testing.allocator.free(announcement);
-        try std.testing.expect(std.mem.indexOf(u8, announcement, "expanded") != null);
+        try std.testing.expect(std.mem.find(u8, announcement, "expanded") != null);
     }
 
     attrs = attrs.withExpanded(false);
     {
         const announcement = try attrs.generateAnnouncement(std.testing.allocator);
         defer std.testing.allocator.free(announcement);
-        try std.testing.expect(std.mem.indexOf(u8, announcement, "collapsed") != null);
+        try std.testing.expect(std.mem.find(u8, announcement, "collapsed") != null);
     }
 }
 
@@ -554,8 +554,8 @@ test "aria: widget announcement" {
     const announcement = try widget.announce(std.testing.allocator);
     defer std.testing.allocator.free(announcement);
 
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "button") != null);
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "Submit form") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "button") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "Submit form") != null);
 }
 
 test "aria: all widget roles" {
