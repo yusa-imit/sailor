@@ -925,3 +925,125 @@ pub fn main() !void {
     try terminal.run(ctx.render);
 }
 ```
+
+## Migrating to v3.0.0 (Zig 0.16.0)
+
+v3.0.0 targets Zig 0.16.0 and follows the kingdom `io: std.Io` convention
+(`citadel/core/rules/zig-0.16.md`). Rules of thumb:
+
+- Functions that touch the filesystem, clock, sleep, mutexes or the terminal take `io: std.Io`,
+  first after the receiver. Long-lived owning structs (`Profiler`, `Pool`, `EventBus`, ...) take
+  `io` once in `init` and cache it.
+- There is no global `getenv` any more. Anything that reads environment variables takes
+  `environ_map: *const std.process.Environ.Map`. A binary gets one from
+  `std.process.Init.environ_map`; tests build one with `Environ.Map.init(gpa)` and `put`.
+- `render(self, buf, area)` stays `Io`-free; the break is confined to construction, the CLI
+  layer and the event loop.
+- Functions that can be canceled now return `std.Io.Cancelable` (`error.Canceled`) in their
+  error sets; propagate it, never swallow it.
+
+Before → after for every changed public signature (`file: before → after`):
+
+```text
+debounce.zig: Debouncer.init(allocator, delay_ns) → init(allocator, io, delay_ns);
+    Throttler.init(allocator, interval_ns) → init(allocator, io, interval_ns)
+budget.zig: RenderBudget.init(target_fps) → init(io, target_fps)
+batch.zig: EventBatcher.init(allocator, batch_window_ms) → init(allocator, io, batch_window_ms)
+gamepad.zig:
+    GamepadEvent.{buttonPress,buttonRelease,analogMove,triggerMove,connected,disconnected}(gamepad_id,
+    ...) → (io, gamepad_id, ...)
+tui/hotreload.zig: ThemeWatcher.init(allocator, path, check_interval_ms) → init(allocator, io,
+    path, check_interval_ms)
+tui/hotreload.zig: ThemeWatcher.check(self) → check(self, io)
+tui/hotreload.zig: ThemeWatcher.reload(self) → reload(self, io)
+tui/theme_loader.zig: ThemeLoader.fromFile(allocator, file_path) → fromFile(allocator, io,
+    file_path)
+tui/widgets/filebrowser.zig: FileBrowser.init(allocator, root_path) → init(allocator, io,
+    root_path) (io cached in struct field; other methods unchanged; accepts relative paths, no
+    longer asserts absolute)
+audit.zig: AuditLogger.init(allocator, session_id) → init(allocator, io, session_id)  (writeToFile
+    keeps signature, uses cached io)
+session.zig: SessionRecorder.init(allocator) → init(allocator, io);
+    SessionRecorder.loadFromFile(allocator, path) → loadFromFile(allocator, io, path);
+    saveToFile/SessionPlayer unchanged (use cached recorder.io)
+widget_state.zig: StateSnapshot(T).now(state) → now(io, state)
+widgets/particles.zig: ParticleSystem.init(allocator, particle_type) → init(allocator, io,
+    particle_type)
+widgets/debug.zig: DebugOverlay.init(allocator, mode, position) → init(allocator, io, mode,
+    position)
+iterm2.zig: ITerm2Capability.detect(allocator) → detect(environ_map);
+    ITerm2Encoder.init(allocator, cache) → init(allocator, environ_map, cache);
+    ITerm2Cache.init(allocator, max_size) → init(allocator, io, max_size)
+platform_opts.zig: detectMetalSupport(allocator) → detectMetalSupport(allocator, environ_map)
+screen_reader.zig: ScreenReaderOutput.init(allocator) → init(allocator, environ_map);
+    detectScreenReader() → detectScreenReader(environ_map)
+ansi_art.zig: detectColorMode() → detectColorMode(environ_map);
+    AnsiArtRenderer.renderAuto(allocator, pixels, ...) → renderAuto(allocator, environ_map,
+    pixels, ...)
+error_recovery.zig: GracefulDegradation.init(allocator) → init(allocator, io);
+    ErrorInjector.init(allocator) → init(allocator, io)
+profiler.zig: Profiler.init(allocator, threshold_ms) → init(allocator, io, threshold_ms);
+    MemoryTracker.init(allocator) → init(allocator, io); EventLoopProfiler.init(allocator,
+    latency_threshold_ms) → init(allocator, io, latency_threshold_ms) (io cached)
+llm_client.zig: RateLimiter.checkAndConsume(tokens) → checkAndConsume(io, tokens);
+    RateLimiter.waitTime() → waitTime(io); RateLimiter.exponentialBackoff() →
+    exponentialBackoff(io); LlmClient.init(allocator, api_key, base_url) → init(allocator, io,
+    api_key, base_url) (io cached); LlmError gains Canceled
+pool.zig: Pool(T).init(alloc, config) → init(alloc, io, config) (io cached)
+progress.zig: Bar.init(total, config) → init(environ_map, io, total, config)
+    std.Io.Cancelable!Self; Spinner.init(message, style, use_color) → init(environ_map, io,
+    message, style, use_color) Cancelable!Self; Multi.init(allocator) → init(allocator, io);
+    Multi.addBar(total, config) → addBar(environ_map, total, config); Multi.addSpinner(message,
+    style, use_color) → addSpinner(environ_map, message, style, use_color)
+eventbus.zig: EventBus.init(allocator) → init(allocator, io) (io cached)
+developer_console.zig: DeveloperConsole.init(allocator) → init(allocator, io) (io cached)
+validation.zig: AsyncValidator.init(allocator, validator, debounce_ms) → init(allocator, io,
+    validator, debounce_ms) (io cached)
+bench.zig: runAll(allocator, writer) → runAll(allocator, io, writer); benchBuffer(allocator,
+    writer) → benchBuffer(allocator, io, writer); BenchResult.format(self, comptime fmt, options,
+    writer) → format(self, writer: *std.Io.Writer) Writer.Error!void
+natural_language_commands.zig: CommandHistory.init(allocator, max_size) → init(allocator, io,
+    max_size) (io cached)
+docgen.zig: DocGenerator.parseDirectory(self, dir_path) → parseDirectory(self, io, dir_path)
+term.zig: isatty(fd: anytype) bool → isatty(io: std.Io, file: std.Io.File) std.Io.Cancelable!bool
+term.zig: RawMode.enter(fd) Error!RawMode → RawMode.enter(io: std.Io, fd: posix.fd_t) (Error ||
+    Cancelable)!RawMode
+term.zig: readByte(timeout_ms) → readByte(io: std.Io, timeout_ms)
+term.zig: queryTerminalCapability(allocator, fd, name, timeout_ms) →
+    queryTerminalCapability(allocator, io, fd, name, timeout_ms)
+term.zig: hasCapability(allocator, fd, name, timeout_ms) → hasCapability(allocator, io, fd, name,
+    timeout_ms)
+color.zig: ColorLevel.detect() ColorLevel → detect(environ_map: *const Environ.Map, io: std.Io)
+    Cancelable!ColorLevel
+color.zig: ColorTheme.detectFromTerminal(allocator) → detectFromTerminal(allocator, io)
+color.zig: ColorTheme.detectFromTerminalWithQuery(allocator, queryFn: *const fn () anyerror!Color)
+    → (allocator, io, queryFn: *const fn (io: std.Io) anyerror!Color)
+env.zig: get(allocator, key, default) → get(allocator, environ_map: *const Environ.Map, key,
+    default)
+env.zig: getBool(key, default) → getBool(environ_map, key, default)
+env.zig: getInt(T, key, default) → getInt(T, environ_map, key, default)
+terminal_detect.zig: TerminalInfo.detect() → detect(environ_map: *const Environ.Map);
+    detectWith(getenv) unchanged (param now comptime)
+terminal_caps.zig: Capabilities.detect() → detect(environ_map: *const Environ.Map);
+    detectWith(getenv) unchanged
+termcap.zig: TermInfo.load(allocator, term_name) → load(allocator, io, term_name); Error gains
+    Canceled
+debug_log.zig: lazy env read removed; NEW init(environ_map: *const Environ.Map) void must be
+    called at startup (logging is off until then); scoped() unchanged
+clipboard.zig: SystemClipboard.isAvailable() → isAvailable(io); write(allocator, text) →
+    write(allocator, io, text); read(allocator) → read(allocator, io)
+repl.zig: Repl.init(allocator, config) → init(allocator, environ_map, io, config) (io cached;
+    environ_map read only during init for color detection); Repl.readLine error set → anyerror
+    (callbacks return anyerror); Error gains LineTooLong, Canceled
+tui/kitty.zig: detectKittySupport() bool → detectKittySupport(environ_map, io) Cancelable!bool
+tui/sixel.zig: detectSixelSupport() bool → detectSixelSupport(environ_map, io) Cancelable!bool
+tui/image_renderer.zig: detectProtocol() → detectProtocol(environ_map, io) Cancelable!Protocol;
+    renderImage(allocator, pixels, ...) → renderImage(allocator, environ_map, io, pixels, ...)
+tui/adaptive_renderer.zig: AdaptiveImageRenderer.render(allocator, pixels, ...) →
+    render(allocator, environ_map, io, pixels, ...)
+tui/quirks.zig: Quirks.detect() → detect(environ_map)
+testing/mock_terminal.zig: MockTerminal.writer() returns std.ArrayList(u8).Writer → returns
+    MockTerminal.OutputWriter (writeAll, print)
+testing/visual_regression.zig: Change.format / VisualDiff.format(self, fmt, options, writer) →
+    format(self, writer: *std.Io.Writer)
+```
