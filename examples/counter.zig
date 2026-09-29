@@ -10,6 +10,7 @@
 
 const std = @import("std");
 const sailor = @import("sailor");
+const support = @import("support.zig");
 
 const Buffer = sailor.tui.Buffer;
 const Block = sailor.tui.widgets.Block;
@@ -26,10 +27,9 @@ const App = struct {
     history: [5]i32 = [_]i32{ 10, 20, 30, 35, 42 },
 };
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
     const app = App{};
 
@@ -45,12 +45,13 @@ pub fn main() !void {
     const area = Rect{ .x = 0, .y = 0, .width = width, .height = height };
 
     // Layout
-    const chunks = layout.split(.vertical, &.{
+    const chunks = try layout.split(allocator, .vertical, area, &.{
         .{ .length = 3 },
         .{ .length = 5 },
         .{ .min = 5 },
         .{ .length = 8 },
-    }, area);
+    });
+    defer allocator.free(chunks);
 
     // Title
     const title_style = Style{
@@ -76,19 +77,14 @@ pub fn main() !void {
     };
     counter_block.render(&buffer, chunks[1]);
 
-    const counter_area = counter_block.innerArea(chunks[1]);
+    const counter_area = counter_block.inner(chunks[1]);
     var counter_buf: [64]u8 = undefined;
     const counter_text = try std.fmt.bufPrint(&counter_buf, "Value: {d} (step: {d})\nStatus: {s}", .{
         app.counter,
         app.step,
         if (app.counter >= 0) "Positive" else "Negative",
     });
-    var counter_para = Paragraph{
-        .text = counter_text,
-        .alignment = .center,
-        .style = counter_style,
-    };
-    counter_para.render(&buffer, counter_area);
+    support.renderText(&buffer, counter_area, counter_text, .center, counter_style);
 
     // History
     var history_block = Block{
@@ -97,7 +93,7 @@ pub fn main() !void {
     };
     history_block.render(&buffer, chunks[2]);
 
-    const history_area = history_block.innerArea(chunks[2]);
+    const history_area = history_block.inner(chunks[2]);
     var items_buf: [5][32]u8 = undefined;
     var items: [5][]const u8 = undefined;
     for (app.history, 0..) |val, i| {
@@ -115,7 +111,7 @@ pub fn main() !void {
     };
     inst_block.render(&buffer, chunks[3]);
 
-    const inst_area = inst_block.innerArea(chunks[3]);
+    const inst_area = inst_block.inner(chunks[3]);
     const inst_text =
         \\This example shows state management patterns:
         \\
@@ -124,15 +120,14 @@ pub fn main() !void {
         \\  • History tracking with List widget
         \\  • Dynamic text formatting with bufPrint
     ;
-    var inst_para = Paragraph{
-        .text = inst_text,
-        .alignment = .left,
-    };
-    inst_para.render(&buffer, inst_area);
+    support.renderText(&buffer, inst_area, inst_text, .left, .{});
 
     // Render
-    const stdout = std.io.getStdOut().writer();
-    try buffer.renderTo(stdout);
+    var out_buf: [4096]u8 = undefined;
+    var fw = std.Io.File.stdout().writer(io, &out_buf);
+    const stdout = &fw.interface;
+    try support.renderBuffer(allocator, buffer, stdout);
+    try stdout.flush();
 
     std.debug.print("\n✓ Counter state rendered successfully!\n", .{});
 }

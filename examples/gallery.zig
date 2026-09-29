@@ -1,5 +1,6 @@
 const std = @import("std");
 const sailor = @import("sailor");
+const support = @import("support.zig");
 
 const Buffer = sailor.tui.Buffer;
 const Block = sailor.tui.widgets.Block;
@@ -10,10 +11,9 @@ const Color = sailor.tui.Color;
 const Line = sailor.tui.Line;
 const Span = sailor.tui.Span;
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
     // Get terminal size
     const term_size = try sailor.term.getSize();
@@ -96,29 +96,24 @@ pub fn main() !void {
         .lines = &text_lines,
     };
 
-    const text_paragraph = Paragraph{
-        .text = widgets_text,
-        .style = .{ .fg = Color{ .indexed = 7 } },
-    };
-
     // Render
     const title_area = Rect{ .x = 0, .y = 0, .width = width, .height = 1 };
     const content_area = Rect{ .x = 0, .y = 2, .width = width, .height = height -| 2 };
 
     content_paragraph.render(&buffer, title_area);
-    text_paragraph.render(&buffer, content_area);
+    support.renderText(&buffer, content_area, widgets_text, .left, .{ .fg = Color{ .indexed = 7 } });
 
     // Output
     var previous = try Buffer.init(allocator, width, height);
     defer previous.deinit();
 
-    var output_buf: std.ArrayList(u8) = .empty;
-    defer output_buf.deinit(allocator);
-    const writer = output_buf.writer(allocator);
+    var out_buf: [4096]u8 = undefined;
+    var fw = std.Io.File.stdout().writer(io, &out_buf);
+    const writer = &fw.interface;
 
     const diff_ops = try sailor.tui.buffer.diff(allocator, previous, buffer);
     defer allocator.free(diff_ops);
     try sailor.tui.buffer.renderDiff(diff_ops, writer);
 
-    _ = try std.posix.write(std.posix.STDOUT_FILENO, output_buf.items);
+    try writer.flush();
 }

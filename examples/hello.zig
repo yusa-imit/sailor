@@ -10,6 +10,7 @@
 
 const std = @import("std");
 const sailor = @import("sailor");
+const support = @import("support.zig");
 
 const Buffer = sailor.tui.Buffer;
 const Block = sailor.tui.widgets.Block;
@@ -19,10 +20,9 @@ const Style = sailor.tui.Style;
 const Color = sailor.tui.Color;
 const layout = sailor.tui.layout;
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
     // Get terminal size
     const term_size = try sailor.term.getSize();
@@ -36,11 +36,12 @@ pub fn main() !void {
     const area = Rect{ .x = 0, .y = 0, .width = width, .height = height };
 
     // Create layout
-    const chunks = layout.split(.vertical, &.{
+    const chunks = try layout.split(allocator, .vertical, area, &.{
         .{ .length = 3 },
         .{ .min = 8 },
         .{ .length = 5 },
-    }, area);
+    });
+    defer allocator.free(chunks);
 
     // Title block
     const title_style = Style{
@@ -74,12 +75,8 @@ pub fn main() !void {
     };
     content_block.render(&buffer, chunks[1]);
 
-    const content_area = content_block.innerArea(chunks[1]);
-    var content_para = Paragraph{
-        .text = content,
-        .alignment = .left,
-    };
-    content_para.render(&buffer, content_area);
+    const content_area = content_block.inner(chunks[1]);
+    support.renderText(&buffer, content_area, content, .left, .{});
 
     // Footer
     const footer_style = Style{
@@ -93,18 +90,17 @@ pub fn main() !void {
     };
     footer_block.render(&buffer, chunks[2]);
 
-    const footer_area = footer_block.innerArea(chunks[2]);
+    const footer_area = footer_block.inner(chunks[2]);
     const footer_text = "Build with: zig build example-hello\n" ++
         "View more examples: zig build example-counter";
-    var footer_para = Paragraph{
-        .text = footer_text,
-        .alignment = .center,
-    };
-    footer_para.render(&buffer, footer_area);
+    support.renderText(&buffer, footer_area, footer_text, .center, .{});
 
     // Render buffer to stdout
-    const stdout = std.io.getStdOut().writer();
-    try buffer.renderTo(stdout);
+    var out_buf: [4096]u8 = undefined;
+    var fw = std.Io.File.stdout().writer(io, &out_buf);
+    const stdout = &fw.interface;
+    try support.renderBuffer(allocator, buffer, stdout);
+    try stdout.flush();
 
     std.debug.print("\n✓ Sailor TUI rendering complete!\n", .{});
 }

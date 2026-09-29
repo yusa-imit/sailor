@@ -23,20 +23,19 @@ const TestIssue = struct {
     description: []const u8,
 };
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
     std.debug.print("=== Sailor Test Quality Audit ===\n\n", .{});
 
     // Scan test files
     const test_dirs = [_][]const u8{ "tests", "src" };
-    var issues = std.ArrayList(TestIssue){};
+    var issues: std.ArrayList(TestIssue) = .empty;
     defer issues.deinit(allocator);
 
     for (test_dirs) |dir| {
-        try scanDirectory(allocator, dir, &issues);
+        try scanDirectory(allocator, io, dir, &issues);
     }
 
     // Report findings
@@ -55,32 +54,44 @@ pub fn main() !void {
     }
 }
 
-fn scanDirectory(allocator: std.mem.Allocator, dir_path: []const u8, issues: *std.ArrayList(TestIssue)) !void {
-    var dir = std.fs.cwd().openDir(dir_path, .{ .iterate = true }) catch |err| {
-        if (err == error.FileNotFound) return;
-        return err;
+fn scanDirectory(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    dir_path: []const u8,
+    issues: *std.ArrayList(TestIssue),
+) !void {
+    var dir = std.Io.Dir.cwd().openDir(io, dir_path, .{ .iterate = true }) catch |err| switch (err) {
+        error.FileNotFound => return,
+        else => return err,
     };
-    defer dir.close();
+    defer dir.close(io);
 
     var it = dir.iterate();
-    while (try it.next()) |entry| {
+    while (try it.next(io)) |entry| {
         if (entry.kind == .directory) {
             const sub_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir_path, entry.name });
             defer allocator.free(sub_path);
-            try scanDirectory(allocator, sub_path, issues);
+            try scanDirectory(allocator, io, sub_path, issues);
         } else if (entry.kind == .file and std.mem.endsWith(u8, entry.name, ".zig")) {
             const file_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir_path, entry.name });
             defer allocator.free(file_path);
-            try analyzeFile(allocator, file_path, issues);
+            try analyzeFile(allocator, io, file_path, issues);
         }
     }
 }
 
-fn analyzeFile(allocator: std.mem.Allocator, file_path: []const u8, issues: *std.ArrayList(TestIssue)) !void {
-    const file = try std.fs.cwd().openFile(file_path, .{});
-    defer file.close();
-
-    const content = try file.readToEndAlloc(allocator, 10 * 1024 * 1024);
+fn analyzeFile(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    file_path: []const u8,
+    issues: *std.ArrayList(TestIssue),
+) !void {
+    const content = try std.Io.Dir.cwd().readFileAlloc(
+        io,
+        file_path,
+        allocator,
+        .limited(10 * 1024 * 1024),
+    );
     defer allocator.free(content);
 
     var lines = std.mem.splitScalar(u8, content, '\n');
@@ -94,7 +105,7 @@ fn analyzeFile(allocator: std.mem.Allocator, file_path: []const u8, issues: *std
         line_num += 1;
 
         // Detect test start
-        if (std.mem.indexOf(u8, line, "test \"") != null) {
+        if (std.mem.find(u8, line, "test \"") != null) {
             if (in_test and !test_has_assertion) {
                 // Previous test had no assertions
                 try issues.append(allocator, .{
@@ -111,9 +122,9 @@ fn analyzeFile(allocator: std.mem.Allocator, file_path: []const u8, issues: *std
             test_has_assertion = false;
 
             // Extract test name
-            if (std.mem.indexOf(u8, line, "test \"")) |start_idx| {
+            if (std.mem.find(u8, line, "test \"")) |start_idx| {
                 const name_start = start_idx + 6;
-                if (std.mem.indexOfPos(u8, line, name_start, "\"")) |end_idx| {
+                if (std.mem.findPos(u8, line, name_start, "\"")) |end_idx| {
                     current_test_name = line[name_start..end_idx];
                 }
             }
@@ -121,16 +132,16 @@ fn analyzeFile(allocator: std.mem.Allocator, file_path: []const u8, issues: *std
 
         // Detect assertions
         if (in_test) {
-            if (std.mem.indexOf(u8, line, "try testing.expect") != null or
-                std.mem.indexOf(u8, line, "try expect") != null or
-                std.mem.indexOf(u8, line, "@panic") != null)
+            if (std.mem.find(u8, line, "try testing.expect") != null or
+                std.mem.find(u8, line, "try expect") != null or
+                std.mem.find(u8, line, "@panic") != null)
             {
                 test_has_assertion = true;
             }
 
             // Detect trivial always-true assertions
-            if (std.mem.indexOf(u8, line, "try testing.expect(true)") != null or
-                std.mem.indexOf(u8, line, "try expectEqual(true, true)") != null)
+            if (std.mem.find(u8, line, "try testing.expect(true)") != null or
+                std.mem.find(u8, line, "try expectEqual(true, true)") != null)
             {
                 try issues.append(allocator, .{
                     .file = try allocator.dupe(u8, file_path),
@@ -142,7 +153,7 @@ fn analyzeFile(allocator: std.mem.Allocator, file_path: []const u8, issues: *std
             }
 
             // Detect unreachable after try testing.expect(false)
-            if (std.mem.indexOf(u8, line, "try testing.expect(false)") != null) {
+            if (std.mem.find(u8, line, "try testing.expect(false)") != null) {
                 const trimmed = std.mem.trim(u8, line, " \t");
                 if (!std.mem.startsWith(u8, trimmed, "//")) {
                     try issues.append(allocator, .{

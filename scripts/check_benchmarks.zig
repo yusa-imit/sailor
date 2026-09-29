@@ -22,12 +22,12 @@ const BenchmarkResult = struct {
 
     pub fn parseFromLine(allocator: std.mem.Allocator, line: []const u8) !?BenchmarkResult {
         // Expected format: "Block.render: 12.34ms total, 0.0012ms per op (833333 ops/sec)"
-        const colon_idx = std.mem.indexOf(u8, line, ":") orelse return null;
+        const colon_idx = std.mem.find(u8, line, ":") orelse return null;
         const name = try allocator.dupe(u8, std.mem.trim(u8, line[0..colon_idx], " \t"));
 
         // Parse "12.34ms total"
         const total_marker = "ms total";
-        const total_idx = std.mem.indexOf(u8, line, total_marker) orelse return null;
+        const total_idx = std.mem.find(u8, line, total_marker) orelse return null;
         var total_start = colon_idx + 1;
         while (total_start < total_idx and (line[total_start] == ' ' or line[total_start] == '\t')) : (total_start += 1) {}
         const total_str = line[total_start..total_idx];
@@ -35,7 +35,7 @@ const BenchmarkResult = struct {
 
         // Parse "0.0012ms per op"
         const per_op_marker = "ms per op";
-        const per_op_idx = std.mem.indexOf(u8, line, per_op_marker) orelse return null;
+        const per_op_idx = std.mem.find(u8, line, per_op_marker) orelse return null;
         var per_op_start = total_idx + total_marker.len + 1;
         while (per_op_start < per_op_idx and (line[per_op_start] == ' ' or line[per_op_start] == '\t' or line[per_op_start] == ',')) : (per_op_start += 1) {}
         const per_op_str = line[per_op_start..per_op_idx];
@@ -43,9 +43,9 @@ const BenchmarkResult = struct {
 
         // Parse "833333 ops/sec"
         const ops_marker = " ops/sec)";
-        const ops_end_idx = std.mem.indexOf(u8, line, ops_marker) orelse return null;
+        const ops_end_idx = std.mem.find(u8, line, ops_marker) orelse return null;
         const ops_start_marker = "(";
-        const ops_start_idx = std.mem.lastIndexOf(u8, line[0..ops_end_idx], ops_start_marker) orelse return null;
+        const ops_start_idx = std.mem.findLast(u8, line[0..ops_end_idx], ops_start_marker) orelse return null;
         const ops_str = line[ops_start_idx + 1 .. ops_end_idx];
         const ops_per_sec = std.fmt.parseFloat(f64, ops_str) catch return null;
 
@@ -68,10 +68,11 @@ const BenchmarkResult = struct {
     }
 };
 
-fn parseBenchmarkFile(allocator: std.mem.Allocator, path: []const u8) !std.StringHashMap(BenchmarkResult) {
-    const file = try std.fs.cwd().openFile(path, .{});
-    defer file.close();
-
+fn parseBenchmarkFile(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    path: []const u8,
+) !std.StringHashMap(BenchmarkResult) {
     var results = std.StringHashMap(BenchmarkResult).init(allocator);
     errdefer {
         var it = results.valueIterator();
@@ -79,7 +80,12 @@ fn parseBenchmarkFile(allocator: std.mem.Allocator, path: []const u8) !std.Strin
         results.deinit();
     }
 
-    const contents = try file.readToEndAlloc(allocator, 10 * 1024 * 1024); // 10MB max
+    const contents = try std.Io.Dir.cwd().readFileAlloc(
+        io,
+        path,
+        allocator,
+        .limited(10 * 1024 * 1024), // 10MB max
+    );
     defer allocator.free(contents);
 
     var lines = std.mem.splitScalar(u8, contents, '\n');
@@ -92,13 +98,11 @@ fn parseBenchmarkFile(allocator: std.mem.Allocator, path: []const u8) !std.Strin
     return results;
 }
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    const args = try init.minimal.args.toSlice(init.arena.allocator());
 
     if (args.len < 2) {
         std.debug.print("Usage: {s} <current_results.txt> [baseline_results.txt]\n", .{args[0]});
@@ -109,7 +113,7 @@ pub fn main() !void {
     const baseline_path = if (args.len > 2) args[2] else null;
 
     // Parse current results
-    var current_results = try parseBenchmarkFile(allocator, current_path);
+    var current_results = try parseBenchmarkFile(allocator, io, current_path);
     defer {
         var it = current_results.valueIterator();
         while (it.next()) |result| result.deinit(allocator);
@@ -120,7 +124,7 @@ pub fn main() !void {
 
     if (baseline_path) |baseline| {
         // Parse baseline results
-        var baseline_results = try parseBenchmarkFile(allocator, baseline);
+        var baseline_results = try parseBenchmarkFile(allocator, io, baseline);
         defer {
             var it = baseline_results.valueIterator();
             while (it.next()) |result| result.deinit(allocator);

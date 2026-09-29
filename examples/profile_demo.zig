@@ -7,35 +7,34 @@ const Profiler = profiler_mod.Profiler;
 const MemoryTracker = profiler_mod.MemoryTracker;
 const EventLoopProfiler = profiler_mod.EventLoopProfiler;
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
     std.debug.print("\n=== sailor Profiling Demo ===\n\n", .{});
 
-    try demoRenderProfiler(allocator);
-    try demoMemoryTracker(allocator);
-    try demoEventLoopProfiler(allocator);
-    try demoWidgetMetrics(allocator);
+    try demoRenderProfiler(allocator, io);
+    try demoMemoryTracker(allocator, io);
+    try demoEventLoopProfiler(allocator, io);
+    try demoWidgetMetrics(allocator, io);
 
     std.debug.print("\n=== Demo Complete ===\n", .{});
 }
 
-fn demoRenderProfiler(allocator: std.mem.Allocator) !void {
+fn demoRenderProfiler(allocator: std.mem.Allocator, io: std.Io) !void {
     std.debug.print("1. Render Profiler with Flame Graphs\n", .{});
     std.debug.print("   ===================================\n\n", .{});
 
-    var prof = try Profiler.init(allocator, 16.0);
+    var prof = try Profiler.init(allocator, io, 16.0);
     defer prof.deinit();
 
     try prof.beginScope("Frame");
-    std.Thread.sleep(500_000);
+    try io.sleep(.fromNanoseconds(500_000), .awake);
     try prof.beginScope("Layout");
-    std.Thread.sleep(300_000);
+    try io.sleep(.fromNanoseconds(300_000), .awake);
     try prof.endScope();
     try prof.beginScope("Render");
-    std.Thread.sleep(200_000);
+    try io.sleep(.fromNanoseconds(200_000), .awake);
     try prof.endScope();
     try prof.endScope();
 
@@ -54,11 +53,11 @@ fn demoRenderProfiler(allocator: std.mem.Allocator) !void {
     });
 }
 
-fn demoMemoryTracker(allocator: std.mem.Allocator) !void {
+fn demoMemoryTracker(allocator: std.mem.Allocator, io: std.Io) !void {
     std.debug.print("2. Memory Allocation Tracker\n", .{});
     std.debug.print("   ==========================\n\n", .{});
 
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, io);
     defer tracker.deinit();
 
     try tracker.recordAlloc("Button", 1024);
@@ -70,27 +69,27 @@ fn demoMemoryTracker(allocator: std.mem.Allocator) !void {
 
     std.debug.print("   Top Allocation Hot Spots:\n", .{});
     for (hot_spots, 0..) |stats, i| {
-        std.debug.print("   {}. {s} - {} bytes\n", .{i + 1, stats.location, stats.total_allocated});
+        std.debug.print("   {}. {s} - {} bytes\n", .{ i + 1, stats.location, stats.total_allocated });
     }
     std.debug.print("\n", .{});
 }
 
-fn demoEventLoopProfiler(allocator: std.mem.Allocator) !void {
+fn demoEventLoopProfiler(allocator: std.mem.Allocator, io: std.Io) !void {
     std.debug.print("3. Event Loop Profiler\n", .{});
     std.debug.print("   ====================\n\n", .{});
 
-    var prof = try EventLoopProfiler.init(allocator, 10.0);
+    var prof = try EventLoopProfiler.init(allocator, io, 10.0);
     defer prof.deinit();
 
     // Use guard for proper profiling
     {
         var guard = prof.startEvent("key", 0);
-        std.Thread.sleep(2_000_000);
+        try io.sleep(.fromNanoseconds(2_000_000), .awake);
         try guard.end();
     }
     {
         var guard = prof.startEvent("mouse", 0);
-        std.Thread.sleep(15_000_000);
+        try io.sleep(.fromNanoseconds(15_000_000), .awake);
         try guard.end();
     }
 
@@ -102,11 +101,11 @@ fn demoEventLoopProfiler(allocator: std.mem.Allocator) !void {
     std.debug.print("   Slow Events (>10ms): {}\n\n", .{slow.len});
 }
 
-fn demoWidgetMetrics(allocator: std.mem.Allocator) !void {
+fn demoWidgetMetrics(allocator: std.mem.Allocator, io: std.Io) !void {
     std.debug.print("4. Widget Performance Metrics\n", .{});
     std.debug.print("   ===========================\n\n", .{});
 
-    var prof = try Profiler.init(allocator, 16.0);
+    var prof = try Profiler.init(allocator, io, 16.0);
     defer prof.deinit();
 
     try prof.recordWithCache("Button", 1_000_000, true);
