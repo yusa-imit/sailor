@@ -205,7 +205,11 @@ pub const AuditLogger = struct {
     /// Write audit log to a file (append mode).
     pub fn writeToFile(self: *AuditLogger, path: []const u8) !void {
         const io = self.io;
-        const file = try std.Io.Dir.cwd().createFile(io, path, .{ .read = true, .truncate = false });
+        // Read access: Windows needs it to stat the length below.
+        const file = try std.Io.Dir.cwd().createFile(io, path, .{
+            .read = true,
+            .truncate = false,
+        });
         defer file.close(io);
 
         // Append: write after the current end of file
