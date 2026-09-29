@@ -227,10 +227,11 @@ pub fn detectKittySupport(
         defer allocator.free(value);
         const has_kitty = std.mem.find(u8, value, "kitty") != null;
         if (has_kitty) return true;
-    } else |err| switch (err) {
-        error.Canceled => return error.Canceled,
-        // XTGETTCAP failed - fall back to env vars.
-        else => {},
+    } else |err| {
+        // Cancellation must propagate; the Windows query path has no `Canceled` in its error
+        // set, so compare through `anyerror`. Any other failure (XTGETTCAP unsupported, not a
+        // TTY, ...) falls back to the environment variables below.
+        if (@as(anyerror, err) == error.Canceled) return error.Canceled;
     }
 
     // Fallback: Check for TERM_PROGRAM=kitty or KITTY_WINDOW_ID environment variable.

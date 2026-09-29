@@ -38,8 +38,8 @@ extern "kernel32" fn PeekNamedPipe(
     lpBytesRead: ?*std.os.windows.DWORD,
     lpTotalBytesAvail: ?*std.os.windows.DWORD,
     lpBytesLeftThisMessage: ?*std.os.windows.DWORD,
-) callconv(.winapi) std.os.windows.BOOL;
-extern "kernel32" fn SetStdHandle(nStdHandle: std.os.windows.DWORD, hHandle: std.os.windows.HANDLE) callconv(.winapi) std.os.windows.BOOL;
+) callconv(.winapi) c_int;
+extern "kernel32" fn SetStdHandle(nStdHandle: std.os.windows.DWORD, hHandle: std.os.windows.HANDLE) callconv(.winapi) c_int;
 
 pub const Error = error{
     NotATty,
@@ -180,7 +180,7 @@ pub const RawMode = struct {
     /// Returns Error.NotATty if fd is not a terminal.
     /// Propagates `error.Canceled` from the TTY probe.
     pub fn enter(io: std.Io, fd: posix.fd_t) (Error || std.Io.Cancelable)!RawMode {
-        if (!try isatty(io, fileFromFd(testFd(fd)))) {
+        if (!try isatty(io, fileFromFd(fd))) {
             return Error.NotATty;
         }
 
@@ -711,7 +711,7 @@ pub fn queryTerminalCapability(
 
     // Do not write to non-TTY fds — doing so in zig's test runner (--listen=-)
     // corrupts the binary test protocol and causes the runner to hang.
-    if (!try isatty(io, fileFromFd(testFd(fd)))) return error.NotATty;
+    if (!try isatty(io, fileFromFd(fd))) return error.NotATty;
 
     // Build and send query
     var query_buf: [256]u8 = undefined;
@@ -719,7 +719,7 @@ pub fn queryTerminalCapability(
     try buildXtgettcapQuery(&query_stream, allocator, capability_name);
 
     const query = query_stream.buffered();
-    try fileFromFd(testFd(fd)).writeStreamingAll(io, query);
+    try fileFromFd(fd).writeStreamingAll(io, query);
 
     // Read response with timeout
     var response_buf: [1024]u8 = undefined;
