@@ -4,7 +4,7 @@
 //! Supports priority-based dispatch, multiple subscribers per event type, and custom data payloads.
 //
 // Example usage:
-//   var bus = EventBus.init(allocator);
+//   var bus = EventBus.init(allocator, io);
 //   defer bus.deinit();
 //
 //   // Subscribe to an event
@@ -26,7 +26,8 @@ const Allocator = std.mem.Allocator;
 pub const EventBus = struct {
     allocator: Allocator,
     subscribers: std.StringHashMap(SubscriberList),
-    mutex: std.Thread.Mutex,
+    io: std.Io,
+    mutex: std.Io.Mutex,
     alive: bool,
 
     const SubscriberList = std.ArrayList(Subscriber);
@@ -56,20 +57,21 @@ pub const EventBus = struct {
     };
 
     /// Initialize event bus.
-    pub fn init(allocator: Allocator) EventBus {
+    pub fn init(allocator: Allocator, io: std.Io) EventBus {
         return .{
             .allocator = allocator,
+            .io = io,
             .subscribers = StringHashMap.init(allocator),
-            .mutex = .{},
+            .mutex = .init,
             .alive = true,
         };
     }
 
     /// Clean up event bus.
     pub fn deinit(self: *EventBus) void {
-        self.mutex.lock();
+        self.mutex.lockUncancelable(self.io);
         self.alive = false;
-        self.mutex.unlock();
+        self.mutex.unlock(self.io);
 
         var it = self.subscribers.iterator();
         while (it.next()) |entry| {
@@ -90,15 +92,15 @@ pub const EventBus = struct {
         context: ?*anyopaque,
         priority: i32,
     ) !usize {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         const gop = try self.subscribers.getOrPut(event_type);
         if (!gop.found_existing) {
             // Copy the event type string (caller doesn't need to keep it alive)
             const event_type_copy = try self.allocator.dupe(u8, event_type);
             gop.key_ptr.* = event_type_copy;
-            gop.value_ptr.* = .{};
+            gop.value_ptr.* = .empty;
         }
 
         const sub = Subscriber{
@@ -131,15 +133,15 @@ pub const EventBus = struct {
         context: ?*anyopaque,
         priority: i32,
     ) !usize {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         const gop = try self.subscribers.getOrPut(event_type);
         if (!gop.found_existing) {
             // Copy the event type string (caller doesn't need to keep it alive)
             const event_type_copy = try self.allocator.dupe(u8, event_type);
             gop.key_ptr.* = event_type_copy;
-            gop.value_ptr.* = .{};
+            gop.value_ptr.* = .empty;
         }
 
         const sub = Subscriber{
@@ -173,15 +175,15 @@ pub const EventBus = struct {
         context: ?*anyopaque,
         priority: i32,
     ) !usize {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         const gop = try self.subscribers.getOrPut(event_type);
         if (!gop.found_existing) {
             // Copy the event type string (caller doesn't need to keep it alive)
             const event_type_copy = try self.allocator.dupe(u8, event_type);
             gop.key_ptr.* = event_type_copy;
-            gop.value_ptr.* = .{};
+            gop.value_ptr.* = .empty;
         }
 
         const sub = Subscriber{
@@ -213,9 +215,9 @@ pub const EventBus = struct {
 
         pub fn deinit(self: ScopedSubscription) void {
             // Check if bus is still alive before trying to unsubscribe
-            self.bus.mutex.lock();
+            self.bus.mutex.lockUncancelable(self.bus.io);
             const alive = self.bus.alive;
-            self.bus.mutex.unlock();
+            self.bus.mutex.unlock(self.bus.io);
 
             if (alive) {
                 self.bus.unsubscribe(self.event_type, self.id);
@@ -241,8 +243,8 @@ pub const EventBus = struct {
 
     /// Unsubscribe from an event type by subscription ID.
     pub fn unsubscribe(self: *EventBus, event_type: []const u8, subscription_id: usize) void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         if (self.subscribers.getPtr(event_type)) |list| {
             if (subscription_id < list.items.len) {
@@ -269,8 +271,8 @@ pub const EventBus = struct {
         // Copy subscriber list under lock to avoid iterator invalidation
         // when callbacks modify subscriptions
         const subscribers_copy = blk: {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.mutex.lockUncancelable(self.io);
+            defer self.mutex.unlock(self.io);
 
             if (self.subscribers.get(event.type)) |list| {
                 const copy = temp_allocator.alloc(Subscriber, list.items.len) catch return;
@@ -330,14 +332,14 @@ pub const EventBus = struct {
 
 // Tests
 test "EventBus: init and deinit" {
-    var bus = EventBus.init(std.testing.allocator);
+    var bus = EventBus.init(std.testing.allocator, std.testing.io);
     defer bus.deinit();
 
     try std.testing.expectEqual(@as(usize, 0), bus.subscribers.count());
 }
 
 test "EventBus: subscribe and publish" {
-    var bus = EventBus.init(std.testing.allocator);
+    var bus = EventBus.init(std.testing.allocator, std.testing.io);
     defer bus.deinit();
 
     var counter: usize = 0;
@@ -358,7 +360,7 @@ test "EventBus: subscribe and publish" {
 }
 
 test "EventBus: multiple subscribers" {
-    var bus = EventBus.init(std.testing.allocator);
+    var bus = EventBus.init(std.testing.allocator, std.testing.io);
     defer bus.deinit();
 
     var counter1: usize = 0;
@@ -389,7 +391,7 @@ test "EventBus: multiple subscribers" {
 }
 
 test "EventBus: priority ordering" {
-    var bus = EventBus.init(std.testing.allocator);
+    var bus = EventBus.init(std.testing.allocator, std.testing.io);
     defer bus.deinit();
 
     var order: std.ArrayList(usize) = .empty;
@@ -432,7 +434,7 @@ test "EventBus: priority ordering" {
 }
 
 test "EventBus: unsubscribe" {
-    var bus = EventBus.init(std.testing.allocator);
+    var bus = EventBus.init(std.testing.allocator, std.testing.io);
     defer bus.deinit();
 
     var counter: usize = 0;
@@ -456,7 +458,7 @@ test "EventBus: unsubscribe" {
 }
 
 test "EventBus: unsubscribeAll" {
-    var bus = EventBus.init(std.testing.allocator);
+    var bus = EventBus.init(std.testing.allocator, std.testing.io);
     defer bus.deinit();
 
     var counter1: usize = 0;
@@ -491,7 +493,7 @@ test "EventBus: unsubscribeAll" {
 }
 
 test "EventBus: subscriberCount" {
-    var bus = EventBus.init(std.testing.allocator);
+    var bus = EventBus.init(std.testing.allocator, std.testing.io);
     defer bus.deinit();
 
     try std.testing.expectEqual(@as(usize, 0), bus.subscriberCount("test.event"));
@@ -508,7 +510,7 @@ test "EventBus: subscriberCount" {
 }
 
 test "EventBus: hasSubscribers" {
-    var bus = EventBus.init(std.testing.allocator);
+    var bus = EventBus.init(std.testing.allocator, std.testing.io);
     defer bus.deinit();
 
     try std.testing.expectEqual(false, bus.hasSubscribers("test.event"));
@@ -522,7 +524,7 @@ test "EventBus: hasSubscribers" {
 }
 
 test "EventBus: eventTypes" {
-    var bus = EventBus.init(std.testing.allocator);
+    var bus = EventBus.init(std.testing.allocator, std.testing.io);
     defer bus.deinit();
 
     const callback = struct {
@@ -540,7 +542,7 @@ test "EventBus: eventTypes" {
 }
 
 test "EventBus: event with data" {
-    var bus = EventBus.init(std.testing.allocator);
+    var bus = EventBus.init(std.testing.allocator, std.testing.io);
     defer bus.deinit();
 
     var result: i32 = 0;
@@ -563,7 +565,7 @@ test "EventBus: event with data" {
 }
 
 test "EventBus: no subscribers for event type" {
-    var bus = EventBus.init(std.testing.allocator);
+    var bus = EventBus.init(std.testing.allocator, std.testing.io);
     defer bus.deinit();
 
     // Assert bus is empty before publish
@@ -580,7 +582,7 @@ test "EventBus: no subscribers for event type" {
 }
 
 test "EventBus: multiple event types" {
-    var bus = EventBus.init(std.testing.allocator);
+    var bus = EventBus.init(std.testing.allocator, std.testing.io);
     defer bus.deinit();
 
     var counter1: usize = 0;
@@ -616,7 +618,7 @@ test "EventBus: multiple event types" {
 }
 
 test "EventBus: unsubscribe invalid ID" {
-    var bus = EventBus.init(std.testing.allocator);
+    var bus = EventBus.init(std.testing.allocator, std.testing.io);
     defer bus.deinit();
 
     const callback = struct {

@@ -377,12 +377,14 @@ pub const CommandParser = struct {
 
 pub const CommandHistory = struct {
     allocator: std.mem.Allocator,
+    io: std.Io,
     entries: std.ArrayList(HistoryEntry),
     max_size: usize,
 
-    pub fn init(allocator: std.mem.Allocator, max_size: usize) CommandHistory {
+    pub fn init(allocator: std.mem.Allocator, io: std.Io, max_size: usize) CommandHistory {
         return .{
             .allocator = allocator,
+            .io = io,
             .entries = std.ArrayList(HistoryEntry).empty,
             .max_size = max_size,
         };
@@ -400,7 +402,7 @@ pub const CommandHistory = struct {
         for (self.entries.items) |*entry| {
             if (std.mem.eql(u8, entry.command, command)) {
                 // Update timestamp and count
-                entry.timestamp = std.time.timestamp();
+                entry.timestamp = std.Io.Clock.real.now(self.io).toSeconds();
                 entry.count += 1;
                 return;
             }
@@ -412,7 +414,7 @@ pub const CommandHistory = struct {
 
         const entry = HistoryEntry{
             .command = owned_command,
-            .timestamp = std.time.timestamp(),
+            .timestamp = std.Io.Clock.real.now(self.io).toSeconds(),
             .count = 1,
         };
 

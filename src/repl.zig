@@ -18,11 +18,19 @@ const term = @import("term.zig");
 const color = @import("color.zig");
 const Allocator = std.mem.Allocator;
 
+/// Upper bound on one pipe-mode input line.
+const line_bytes_max: usize = 16 * 1024 * 1024;
+
+/// Upper bound on the history file we are willing to load.
+const history_file_bytes_max: usize = 10 * 1024 * 1024;
+
 pub const Error = error{
     EndOfStream,
+    LineTooLong,
     HistoryLoadFailed,
     HistorySaveFailed,
-} || Allocator.Error || term.Error;
+} || Allocator.Error || term.Error || std.Io.Cancelable || std.Io.Writer.Error ||
+    std.Io.File.Reader.Error;
 
 /// Validation result for multi-line input
 pub const Validation = enum {
@@ -74,6 +82,8 @@ pub const Config = struct {
 /// REPL state
 pub const Repl = struct {
     allocator: Allocator,
+    /// Runtime used for TTY probing, raw-mode entry, stdin reads and history files.
+    io: std.Io,
     config: Config,
 
     // Terminal state
@@ -90,6 +100,9 @@ pub const Repl = struct {
 
     // Color support
     use_color: bool,
+    /// Whether the environment (NO_COLOR/COLORTERM/TERM + stdout TTY) allows color;
+    /// captured once at init so the environ map is never retained.
+    env_color: bool,
 
     // Bracketed paste mode
     paste_mode: ?term.BracketedPaste = null,
@@ -98,10 +111,22 @@ pub const Repl = struct {
 
     const Self = @This();
 
-    /// Initialize REPL
-    pub fn init(allocator: Allocator, config: Config) Error!Self {
+    /// Initialize REPL.
+    /// `environ_map` is only read during init (color detection); it is not retained.
+    /// `io` is cached for the lifetime of the REPL.
+    pub fn init(
+        allocator: Allocator,
+        environ_map: *const std.process.Environ.Map,
+        io: std.Io,
+        config: Config,
+    ) Error!Self {
+        // Precondition: a positive history limit, otherwise every add would evict itself.
+        std.debug.assert(config.history_size > 0);
+        const env_color = (try color.ColorLevel.detect(environ_map, io)) != .none;
+
         var self = Self{
             .allocator = allocator,
+            .io = io,
             .config = config,
             .is_tty = false, // Will be set on first readLine
             .raw_mode = null,
@@ -110,6 +135,7 @@ pub const Repl = struct {
             .history = std.array_list.Managed([]const u8).init(allocator),
             .history_index = null,
             .use_color = false, // Will be set on first readLine
+            .env_color = env_color,
             .paste_mode = null,
             .in_paste = false,
             .paste_buffer = std.array_list.Managed(u8).init(allocator),
@@ -117,19 +143,30 @@ pub const Repl = struct {
 
         // Load history if file specified
         if (config.history_file) |path| {
-            // Non-fatal: silently continue on error
-            self.loadHistory(path) catch {};
+            // Non-fatal: silently continue on error (cancelation still propagates)
+            self.loadHistory(path) catch |err| switch (err) {
+                error.Canceled => {
+                    // Do not run deinit(): it would overwrite the history file with
+                    // the partially loaded state.
+                    self.releaseMemory();
+                    return error.Canceled;
+                },
+                else => {},
+            };
         }
 
         return self;
     }
 
     /// Initialize terminal settings (called lazily on first readLine)
-    fn initTerminal(self: *Self) void {
+    fn initTerminal(self: *Self) std.Io.Cancelable!void {
         if (self.is_tty or self.use_color) return; // Already initialized
 
-        self.is_tty = term.isatty(std.posix.STDIN_FILENO);
-        self.use_color = if (self.config.color) |explicit| explicit else (self.is_tty and color.ColorLevel.detect() != .none);
+        self.is_tty = try term.isatty(self.io, std.Io.File.stdin());
+        self.use_color = if (self.config.color) |explicit|
+            explicit
+        else
+            (self.is_tty and self.env_color);
     }
 
     /// Cleanup resources
@@ -150,7 +187,11 @@ pub const Repl = struct {
             paste.deinit();
         }
 
-        // Free history entries
+        self.releaseMemory();
+    }
+
+    /// Free history entries and internal buffers (no I/O).
+    fn releaseMemory(self: *Self) void {
         for (self.history.items) |line| {
             self.allocator.free(line);
         }
@@ -162,9 +203,10 @@ pub const Repl = struct {
 
     /// Read a line of input
     /// Returns null on EOF (Ctrl+D on empty line)
+    /// The error set is `anyerror` because completer/highlighter callbacks may fail with any error.
     /// Writer is used for prompts and interactive feedback (pass a std.Io.Writer.Discarding writer for no output)
-    pub fn readLine(self: *Self, writer: *std.Io.Writer) Error!?[]const u8 {
-        self.initTerminal();
+    pub fn readLine(self: *Self, writer: *std.Io.Writer) anyerror!?[]const u8 {
+        try self.initTerminal();
 
         if (self.is_tty) {
             return self.readLineInteractive(writer);
@@ -174,10 +216,10 @@ pub const Repl = struct {
     }
 
     /// Read line in interactive mode (TTY)
-    fn readLineInteractive(self: *Self, writer: *std.Io.Writer) Error!?[]const u8 {
+    fn readLineInteractive(self: *Self, writer: *std.Io.Writer) anyerror!?[]const u8 {
         // Enter raw mode if not already
         if (self.raw_mode == null) {
-            self.raw_mode = try term.RawMode.enter(std.posix.STDIN_FILENO);
+            self.raw_mode = try term.RawMode.enter(self.io, std.Io.File.stdin().handle);
         }
 
         // Enable bracketed paste mode if not already enabled
@@ -196,7 +238,11 @@ pub const Repl = struct {
         // Read loop
         var key_buf: [16]u8 = undefined;
         while (true) {
-            const n = try std.posix.read(std.posix.STDIN_FILENO, &key_buf);
+            const stdin = std.Io.File.stdin();
+            const n = stdin.readStreaming(self.io, &.{&key_buf}) catch |err| switch (err) {
+                error.EndOfStream => return null, // EOF
+                else => return err,
+            };
             if (n == 0) return null; // EOF
 
             const key = key_buf[0..n];
@@ -216,25 +262,40 @@ pub const Repl = struct {
         return try self.allocator.dupe(u8, self.buffer.items);
     }
 
-    /// Read line in pipe mode (non-TTY)
+    /// Read line in pipe mode (non-TTY).
+    /// Reads stdin unbuffered, one byte at a time, so no bytes past the newline are consumed.
     fn readLinePipe(self: *Self, _: anytype) Error!?[]const u8 {
-        const stdin = std.fs.File.stdin().reader();
+        const stdin = std.Io.File.stdin();
+        var byte: [1]u8 = undefined;
+        var line_complete = false;
 
         self.buffer.clearRetainingCapacity();
 
-        stdin.streamUntilDelimiter(self.buffer.writer(), '\n', null) catch |err| switch (err) {
-            error.EndOfStream => {
+        for (0..line_bytes_max) |_| {
+            const n = stdin.readStreaming(self.io, &.{&byte}) catch |err| switch (err) {
+                error.EndOfStream => 0,
+                else => return err,
+            };
+            if (n == 0) {
                 if (self.buffer.items.len == 0) return null;
-            },
-            else => return err,
-        };
+                line_complete = true;
+                break;
+            }
+            if (byte[0] == '\n') {
+                line_complete = true;
+                break;
+            }
+            try self.buffer.append(byte[0]);
+        }
+        if (!line_complete) return error.LineTooLong;
 
+        std.debug.assert(self.buffer.items.len <= line_bytes_max);
         return try self.allocator.dupe(u8, self.buffer.items);
     }
 
     /// Handle a key press
     /// Returns true if line is complete
-    fn handleKey(self: *Self, key: []const u8, writer: *std.Io.Writer) !bool {
+    fn handleKey(self: *Self, key: []const u8, writer: *std.Io.Writer) anyerror!bool {
         // Handle bracketed paste markers
         if (self.in_paste) {
             // Look for end marker
@@ -609,13 +670,16 @@ pub const Repl = struct {
 
     /// Load history from file
     fn loadHistory(self: *Self, path: []const u8) !void {
-        const file = std.fs.cwd().openFile(path, .{}) catch |err| switch (err) {
+        std.debug.assert(path.len > 0);
+        const content = std.Io.Dir.cwd().readFileAlloc(
+            self.io,
+            path,
+            self.allocator,
+            .limited(history_file_bytes_max),
+        ) catch |err| switch (err) {
             error.FileNotFound => return, // OK, no history yet
             else => return err,
         };
-        defer file.close();
-
-        const content = try file.readToEndAlloc(self.allocator, 10 * 1024 * 1024); // 10MB max
         defer self.allocator.free(content);
 
         var lines = std.mem.splitScalar(u8, content, '\n');
@@ -630,22 +694,31 @@ pub const Repl = struct {
 
     /// Save history to file
     fn saveHistory(self: *Self, path: []const u8) !void {
-        const file = try std.fs.cwd().createFile(path, .{});
-        defer file.close();
+        std.debug.assert(path.len > 0);
+        const file = try std.Io.Dir.cwd().createFile(self.io, path, .{});
+        defer file.close(self.io);
 
         for (self.history.items) |line| {
-            try file.writeAll(line);
-            try file.writeAll("\n");
+            try file.writeStreamingAll(self.io, line);
+            try file.writeStreamingAll(self.io, "\n");
         }
     }
 };
+
+/// Test helper: build a Repl over an empty environment and `std.testing.io`.
+fn testRepl(allocator: Allocator, config: Config) Error!Repl {
+    var environ_map = std.process.Environ.Map.init(allocator);
+    defer environ_map.deinit();
+
+    return Repl.init(allocator, &environ_map, std.testing.io, config);
+}
 
 // Tests
 
 test "Repl.init and deinit" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     try std.testing.expect(repl.buffer.items.len == 0);
@@ -656,7 +729,7 @@ test "Repl.init and deinit" {
 test "Repl.addHistory" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{ .history_size = 3 });
+    var repl = try testRepl(allocator, .{ .history_size = 3 });
     defer repl.deinit();
 
     try repl.addHistory("first");
@@ -675,7 +748,7 @@ test "Repl.addHistory" {
 test "Repl.addHistory deduplicates consecutive entries" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     try repl.addHistory("first");
@@ -721,7 +794,7 @@ test "Repl pipe mode" {
     const allocator = std.testing.allocator;
 
     // Create a fake stdin
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     // Force pipe mode
@@ -745,7 +818,7 @@ test "loadHistory with missing file is caught gracefully" {
 
     // loadHistory catches FileNotFound at line 439 and returns void (no error)
     // This tests that missing files don't cause init to fail
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     // History should be empty when file doesn't exist
@@ -756,7 +829,7 @@ test "init with missing history file does not error" {
     const allocator = std.testing.allocator;
 
     // init calls loadHistory internally and silently catches errors
-    var repl = try Repl.init(allocator, .{ .history_file = "/nonexistent/history.txt" });
+    var repl = try testRepl(allocator, .{ .history_file = "/nonexistent/history.txt" });
     defer repl.deinit();
 
     // Repl should still be valid even if history file doesn't exist
@@ -766,7 +839,7 @@ test "init with missing history file does not error" {
 test "addHistory enforces max size limit" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{ .history_size = 2 });
+    var repl = try testRepl(allocator, .{ .history_size = 2 });
     defer repl.deinit();
 
     // Add beyond limit
@@ -788,7 +861,7 @@ test "addHistory enforces max size limit" {
 test "addHistory prevents consecutive duplicates but allows later duplicates" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{ .history_size = 10 });
+    var repl = try testRepl(allocator, .{ .history_size = 10 });
     defer repl.deinit();
 
     try repl.addHistory("cmd1");
@@ -810,7 +883,7 @@ test "findCommonPrefix with different first char has no prefix" {
 test "addHistory with empty line is rejected" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     try repl.addHistory("");
@@ -821,7 +894,7 @@ test "addHistory with empty line is rejected" {
 test "addHistory respects history_size boundary" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{ .history_size = 3 });
+    var repl = try testRepl(allocator, .{ .history_size = 3 });
     defer repl.deinit();
 
     try repl.addHistory("a");
@@ -839,7 +912,7 @@ test "addHistory respects history_size boundary" {
 test "Repl.buffer starts empty" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     try std.testing.expectEqual(0, repl.buffer.items.len);
@@ -853,7 +926,7 @@ test "Repl.buffer starts empty" {
 test "Config default: enable_bracketed_paste is true" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     // New Config field: enable_bracketed_paste should default to true
@@ -863,7 +936,7 @@ test "Config default: enable_bracketed_paste is true" {
 test "single-chunk paste with embedded newline" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     // Use a null writer since we don't care about output
@@ -889,7 +962,7 @@ test "single-chunk paste with embedded newline" {
 test "multi-chunk paste simulating large paste split across read() calls" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -920,7 +993,7 @@ test "multi-chunk paste simulating large paste split across read() calls" {
 test "paste with trailing bytes after end marker in same chunk" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -940,7 +1013,7 @@ test "paste with trailing bytes after end marker in same chunk" {
 test "cursor position after paste followed by normal character insert" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -962,7 +1035,7 @@ test "cursor position after paste followed by normal character insert" {
 test "empty paste is handled safely" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -982,7 +1055,7 @@ test "empty paste is handled safely" {
 test "paste inserted at mid-buffer cursor position" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     // Setup: buffer = "ab", cursor = 1 (between 'a' and 'b')
@@ -1005,7 +1078,7 @@ test "paste inserted at mid-buffer cursor position" {
 test "Repl.deinit() safely handles unflushed paste content" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1026,7 +1099,7 @@ test "Repl.deinit() safely handles unflushed paste content" {
 test "paste mode flag is initialized to false" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     // in_paste should be false initially
@@ -1036,7 +1109,7 @@ test "paste mode flag is initialized to false" {
 test "paste_buffer accumulates content across multiple chunks" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1067,7 +1140,7 @@ test "paste_buffer accumulates content across multiple chunks" {
 test "paste_buffer is cleared after flushing to buffer" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1087,7 +1160,7 @@ test "paste_buffer is cleared after flushing to buffer" {
 test "non-paste input is handled normally when not in paste mode" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1105,7 +1178,7 @@ test "non-paste input is handled normally when not in paste mode" {
 test "paste with special escape sequences in content" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1124,7 +1197,7 @@ test "paste can be enabled or disabled via config" {
     const allocator = std.testing.allocator;
 
     // Init with enable_bracketed_paste = false
-    var repl = try Repl.init(allocator, .{ .enable_bracketed_paste = false });
+    var repl = try testRepl(allocator, .{ .enable_bracketed_paste = false });
     defer repl.deinit();
 
     // Config should reflect the setting
@@ -1134,7 +1207,7 @@ test "paste can be enabled or disabled via config" {
 test "multiple consecutive pastes in sequence" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1160,7 +1233,7 @@ test "multiple consecutive pastes in sequence" {
 test "Ctrl+U kills from line start to cursor" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1181,7 +1254,7 @@ test "Ctrl+U kills from line start to cursor" {
 test "Ctrl+U at cursor position 0 is a no-op" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1202,7 +1275,7 @@ test "Ctrl+U at cursor position 0 is a no-op" {
 test "Ctrl+U at end of buffer kills entire line" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1223,7 +1296,7 @@ test "Ctrl+U at end of buffer kills entire line" {
 test "Ctrl+K kills from cursor to end of line" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1244,7 +1317,7 @@ test "Ctrl+K kills from cursor to end of line" {
 test "Ctrl+K at cursor position 0 kills entire buffer" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1265,7 +1338,7 @@ test "Ctrl+K at cursor position 0 kills entire buffer" {
 test "Ctrl+K at end of buffer is a no-op" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1286,7 +1359,7 @@ test "Ctrl+K at end of buffer is a no-op" {
 test "Ctrl+W kills word backward, skipping trailing whitespace" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1307,7 +1380,7 @@ test "Ctrl+W kills word backward, skipping trailing whitespace" {
 test "Ctrl+W at start of buffer is a no-op" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1328,7 +1401,7 @@ test "Ctrl+W at start of buffer is a no-op" {
 test "Ctrl+W with single word deletes entire word from cursor" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1349,7 +1422,7 @@ test "Ctrl+W with single word deletes entire word from cursor" {
 test "Ctrl+W with cursor in middle of word deletes to word start" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1372,7 +1445,7 @@ test "Ctrl+W with cursor in middle of word deletes to word start" {
 test "Ctrl+W on empty buffer is a no-op" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1396,7 +1469,7 @@ test "Ctrl+W on empty buffer is a no-op" {
 test "Alt+B from a word boundary moves to start of previous word" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1417,7 +1490,7 @@ test "Alt+B from a word boundary moves to start of previous word" {
 test "Alt+B at start of buffer is a no-op" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1437,7 +1510,7 @@ test "Alt+B at start of buffer is a no-op" {
 test "Alt+B from middle of word moves to start of that word" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1459,7 +1532,7 @@ test "Alt+B from middle of word moves to start of that word" {
 test "Alt+B on empty buffer is a no-op" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1477,7 +1550,7 @@ test "Alt+B on empty buffer is a no-op" {
 test "Alt+F moves cursor forward to end of next word" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1497,7 +1570,7 @@ test "Alt+F moves cursor forward to end of next word" {
 test "Alt+F at end of buffer is a no-op" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1517,7 +1590,7 @@ test "Alt+F at end of buffer is a no-op" {
 test "Alt+F from middle of word moves to end of current word" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1537,7 +1610,7 @@ test "Alt+F from middle of word moves to end of current word" {
 test "Alt+F from whitespace skips to end of next word" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1561,7 +1634,7 @@ test "Alt+F from whitespace skips to end of next word" {
 test "Alt+F on empty buffer is a no-op" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{});
+    var repl = try testRepl(allocator, .{});
     defer repl.deinit();
 
     var discarding: std.Io.Writer.Discarding = .init(&.{});
@@ -1605,7 +1678,7 @@ fn validatorInvalidIfEmpty(buf: []const u8) Validation {
 test "validator callback: null validator (default) — Enter returns true immediately" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{
+    var repl = try testRepl(allocator, .{
         .validator = null, // Explicitly null
     });
     defer repl.deinit();
@@ -1629,7 +1702,7 @@ test "validator callback: null validator (default) — Enter returns true immedi
 test "validator callback: .complete — Enter returns true, buffer unchanged" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{
+    var repl = try testRepl(allocator, .{
         .validator = &validatorAlwaysComplete,
     });
     defer repl.deinit();
@@ -1653,7 +1726,7 @@ test "validator callback: .complete — Enter returns true, buffer unchanged" {
 test "validator callback: .incomplete — Enter returns false, newline inserted, cursor advanced, continuation prompt printed" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{
+    var repl = try testRepl(allocator, .{
         .validator = &validatorIncompleteUntilSemicolon,
         .continuation_prompt = "  ",
     });
@@ -1682,7 +1755,7 @@ test "validator callback: .incomplete — Enter returns false, newline inserted,
 test "validator callback: .incomplete at mid-buffer cursor position inserts newline correctly" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{
+    var repl = try testRepl(allocator, .{
         .validator = &validatorIncompleteUntilSemicolon,
         .continuation_prompt = ".. ",
     });
@@ -1711,7 +1784,7 @@ test "validator callback: .incomplete at mid-buffer cursor position inserts newl
 test "validator callback: .invalid — Enter returns false, buffer cleared, cursor reset, primary prompt printed" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{
+    var repl = try testRepl(allocator, .{
         .validator = &validatorInvalidIfEmpty,
         .prompt = ">>> ",
     });
@@ -1739,7 +1812,7 @@ test "validator callback: .invalid — Enter returns false, buffer cleared, curs
 test "validator callback: .invalid with non-empty buffer clears it" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{
+    var repl = try testRepl(allocator, .{
         .validator = &validatorInvalidIfEmpty,
         .prompt = "> ",
     });
@@ -1775,7 +1848,7 @@ test "validator callback: .invalid with non-empty buffer clears it" {
 test "validator callback: multi-line accumulation over two Enter presses" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{
+    var repl = try testRepl(allocator, .{
         .validator = &validatorIncompleteUntilSemicolon,
     });
     defer repl.deinit();
@@ -1806,7 +1879,7 @@ test "validator callback: multi-line accumulation over two Enter presses" {
 test "validator callback: multi-line incomplete lines accumulate with preserved content" {
     const allocator = std.testing.allocator;
 
-    var repl = try Repl.init(allocator, .{
+    var repl = try testRepl(allocator, .{
         .validator = &validatorIncompleteUntilSemicolon,
     });
     defer repl.deinit();
@@ -1839,4 +1912,40 @@ test "validator callback: multi-line incomplete lines accumulate with preserved 
     const complete = try repl.handleKey("\r", writer); // Returns true
     try std.testing.expect(complete);
     try std.testing.expectEqualStrings("line1\nline2\nline3;", repl.buffer.items);
+}
+
+test "Repl declarations all compile (forces analysis of I/O paths)" {
+    std.testing.refAllDecls(Repl);
+    _ = &Repl.readLine;
+    _ = &Repl.handleKey;
+    _ = &Repl.readLineInteractive;
+    _ = &Repl.readLinePipe;
+}
+
+test "history file round-trips through saveHistory and loadHistory" {
+    const allocator = std.testing.allocator;
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var path_buf: [std.fs.max_path_bytes]u8 = undefined;
+    const path = try std.fmt.bufPrint(
+        &path_buf,
+        ".zig-cache/tmp/{s}/history.txt",
+        .{tmp.sub_path},
+    );
+
+    var writer_repl = try testRepl(allocator, .{});
+    defer writer_repl.deinit();
+    try writer_repl.addHistory("alpha");
+    try writer_repl.addHistory("beta");
+    try writer_repl.saveHistory(path);
+
+    var reader_repl = try testRepl(allocator, .{});
+    defer reader_repl.deinit();
+    try reader_repl.loadHistory(path);
+
+    try std.testing.expectEqual(2, reader_repl.history.items.len);
+    try std.testing.expectEqualStrings("alpha", reader_repl.history.items[0]);
+    try std.testing.expectEqualStrings("beta", reader_repl.history.items[1]);
 }

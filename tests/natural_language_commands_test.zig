@@ -407,7 +407,7 @@ test "NaturalLanguageCommands - contextual synonyms: 'delete' vs 'remove' based 
 
 test "NaturalLanguageCommands - CommandHistory add command" {
     const allocator = testing.allocator;
-    var history = nlc.CommandHistory.init(allocator, 100);
+    var history = nlc.CommandHistory.init(allocator, testing.io, 100);
     defer history.deinit();
 
     try history.add("show logs");
@@ -416,7 +416,7 @@ test "NaturalLanguageCommands - CommandHistory add command" {
 
 test "NaturalLanguageCommands - CommandHistory search by exact match" {
     const allocator = testing.allocator;
-    var history = nlc.CommandHistory.init(allocator, 100);
+    var history = nlc.CommandHistory.init(allocator, testing.io, 100);
     defer history.deinit();
 
     try history.add("show logs");
@@ -431,7 +431,7 @@ test "NaturalLanguageCommands - CommandHistory search by exact match" {
 
 test "NaturalLanguageCommands - CommandHistory search by partial match" {
     const allocator = testing.allocator;
-    var history = nlc.CommandHistory.init(allocator, 100);
+    var history = nlc.CommandHistory.init(allocator, testing.io, 100);
     defer history.deinit();
 
     try history.add("show logs");
@@ -446,7 +446,7 @@ test "NaturalLanguageCommands - CommandHistory search by partial match" {
 
 test "NaturalLanguageCommands - CommandHistory search by synonym" {
     const allocator = testing.allocator;
-    var history = nlc.CommandHistory.init(allocator, 100);
+    var history = nlc.CommandHistory.init(allocator, testing.io, 100);
     defer history.deinit();
 
     try history.add("search for errors");
@@ -460,7 +460,7 @@ test "NaturalLanguageCommands - CommandHistory search by synonym" {
 
 test "NaturalLanguageCommands - CommandHistory search by semantic similarity" {
     const allocator = testing.allocator;
-    var history = nlc.CommandHistory.init(allocator, 100);
+    var history = nlc.CommandHistory.init(allocator, testing.io, 100);
     defer history.deinit();
 
     try history.add("close dialog");
@@ -473,7 +473,7 @@ test "NaturalLanguageCommands - CommandHistory search by semantic similarity" {
 
 test "NaturalLanguageCommands - CommandHistory return top N results sorted by relevance" {
     const allocator = testing.allocator;
-    var history = nlc.CommandHistory.init(allocator, 100);
+    var history = nlc.CommandHistory.init(allocator, testing.io, 100);
     defer history.deinit();
 
     for (0..10) |i| {
@@ -490,7 +490,7 @@ test "NaturalLanguageCommands - CommandHistory return top N results sorted by re
 
 test "NaturalLanguageCommands - CommandHistory size limit" {
     const allocator = testing.allocator;
-    var history = nlc.CommandHistory.init(allocator, 10);
+    var history = nlc.CommandHistory.init(allocator, testing.io, 10);
     defer history.deinit();
 
     for (0..20) |i| {
@@ -505,7 +505,7 @@ test "NaturalLanguageCommands - CommandHistory size limit" {
 
 test "NaturalLanguageCommands - CommandHistory duplicate commands update timestamp" {
     const allocator = testing.allocator;
-    var history = nlc.CommandHistory.init(allocator, 100);
+    var history = nlc.CommandHistory.init(allocator, testing.io, 100);
     defer history.deinit();
 
     try history.add("command1");
@@ -523,7 +523,7 @@ test "NaturalLanguageCommands - CommandHistory duplicate commands update timesta
 
 test "NaturalLanguageCommands - CommandHistory clear" {
     const allocator = testing.allocator;
-    var history = nlc.CommandHistory.init(allocator, 100);
+    var history = nlc.CommandHistory.init(allocator, testing.io, 100);
     defer history.deinit();
 
     try history.add("command1");
@@ -535,7 +535,7 @@ test "NaturalLanguageCommands - CommandHistory clear" {
 
 test "NaturalLanguageCommands - CommandHistory export to string" {
     const allocator = testing.allocator;
-    var history = nlc.CommandHistory.init(allocator, 100);
+    var history = nlc.CommandHistory.init(allocator, testing.io, 100);
     defer history.deinit();
 
     try history.add("command1");
@@ -552,7 +552,7 @@ test "NaturalLanguageCommands - CommandHistory export to string" {
 
 test "NaturalLanguageCommands - CommandHistory load from string" {
     const allocator = testing.allocator;
-    var history = nlc.CommandHistory.init(allocator, 100);
+    var history = nlc.CommandHistory.init(allocator, testing.io, 100);
     defer history.deinit();
 
     const data =
@@ -570,7 +570,7 @@ test "NaturalLanguageCommands - CommandHistory load from string" {
 
 test "NaturalLanguageCommands - CommandHistory empty history returns no results" {
     const allocator = testing.allocator;
-    var history = nlc.CommandHistory.init(allocator, 100);
+    var history = nlc.CommandHistory.init(allocator, testing.io, 100);
     defer history.deinit();
 
     const results = try history.search("anything", 5);
@@ -837,7 +837,7 @@ test "NaturalLanguageCommands - CommandHistory cleanup" {
     const allocator = testing.allocator;
 
     {
-        var history = nlc.CommandHistory.init(allocator, 100);
+        var history = nlc.CommandHistory.init(allocator, testing.io, 100);
         defer history.deinit();
 
         try history.add("command1");
@@ -882,7 +882,7 @@ test "NaturalLanguageCommands - large history cleanup" {
     const allocator = testing.allocator;
 
     {
-        var history = nlc.CommandHistory.init(allocator, 1000);
+        var history = nlc.CommandHistory.init(allocator, testing.io, 1000);
         defer history.deinit();
 
         for (0..1000) |i| {

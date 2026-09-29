@@ -30,11 +30,13 @@ pub const Debouncer = struct {
     callback_context: ?*anyopaque = null,
     pending: bool = false,
     allocator: Allocator,
+    io: std.Io,
 
-    /// Initialize a debouncer with delay in nanoseconds
-    pub fn init(allocator: Allocator, delay_ns: u64) Debouncer {
+    /// Initialize a debouncer with delay in nanoseconds (caches `io` for clock reads)
+    pub fn init(allocator: Allocator, io: std.Io, delay_ns: u64) Debouncer {
         return .{
             .allocator = allocator,
+            .io = io,
             .delay_ns = delay_ns,
         };
     }
@@ -48,7 +50,7 @@ pub const Debouncer = struct {
     ) !void {
         self.callback = maybe_callback;
         self.callback_context = maybe_context;
-        self.last_trigger_ns = std.time.nanoTimestamp();
+        self.last_trigger_ns = std.Io.Clock.awake.now(self.io).toNanoseconds();
         self.pending = true;
     }
 
@@ -59,7 +61,7 @@ pub const Debouncer = struct {
             return false;
         }
 
-        const now = std.time.nanoTimestamp();
+        const now = std.Io.Clock.awake.now(self.io).toNanoseconds();
         const elapsed = @as(u64, @intCast(now - self.last_trigger_ns));
 
         if (elapsed >= self.delay_ns) {
@@ -101,11 +103,13 @@ pub const Throttler = struct {
     callback: ?EventCallback = null,
     callback_context: ?*anyopaque = null,
     allocator: Allocator,
+    io: std.Io,
 
-    /// Initialize a throttler with minimum interval in nanoseconds
-    pub fn init(allocator: Allocator, interval_ns: u64) Throttler {
+    /// Initialize a throttler with minimum interval in nanoseconds (caches `io`)
+    pub fn init(allocator: Allocator, io: std.Io, interval_ns: u64) Throttler {
         return .{
             .allocator = allocator,
+            .io = io,
             .interval_ns = interval_ns,
         };
     }
@@ -117,7 +121,7 @@ pub const Throttler = struct {
         maybe_callback: ?EventCallback,
         maybe_context: ?*anyopaque,
     ) !bool {
-        const now = std.time.nanoTimestamp();
+        const now = std.Io.Clock.awake.now(self.io).toNanoseconds();
         const elapsed = if (self.last_execution_ns == 0)
             self.interval_ns
         else
@@ -162,7 +166,7 @@ const TestContext = struct {
     pub fn callback(ctx: *anyopaque) void {
         const self: *TestContext = @ptrCast(@alignCast(ctx));
         self.execution_count += 1;
-        self.last_execution_time_ns = std.time.nanoTimestamp();
+        self.last_execution_time_ns = std.Io.Clock.awake.now(std.testing.io).toNanoseconds();
     }
 };
 
@@ -171,7 +175,7 @@ const TestContext = struct {
 // ============================================================================
 
 test "debounce: single trigger executes after delay" {
-    var debouncer = Debouncer.init(testing.allocator, 100_000_000); // 100ms
+    var debouncer = Debouncer.init(testing.allocator, testing.io, 100_000_000); // 100ms
     defer debouncer.deinit();
 
     var ctx = TestContext{};
@@ -191,7 +195,7 @@ test "debounce: single trigger executes after delay" {
 }
 
 test "debounce: multiple rapid triggers execute once" {
-    var debouncer = Debouncer.init(testing.allocator, 100_000_000); // 100ms
+    var debouncer = Debouncer.init(testing.allocator, testing.io, 100_000_000); // 100ms
     defer debouncer.deinit();
 
     var ctx = TestContext{};
@@ -207,7 +211,7 @@ test "debounce: multiple rapid triggers execute once" {
 }
 
 test "debounce: cancel prevents execution" {
-    var debouncer = Debouncer.init(testing.allocator, 100_000_000); // 100ms
+    var debouncer = Debouncer.init(testing.allocator, testing.io, 100_000_000); // 100ms
     defer debouncer.deinit();
 
     var ctx = TestContext{};
@@ -220,7 +224,7 @@ test "debounce: cancel prevents execution" {
 }
 
 test "debounce: timer resets on each trigger" {
-    var debouncer = Debouncer.init(testing.allocator, 100_000_000); // 100ms
+    var debouncer = Debouncer.init(testing.allocator, testing.io, 100_000_000); // 100ms
     defer debouncer.deinit();
 
     var ctx = TestContext{};
@@ -230,7 +234,7 @@ test "debounce: timer resets on each trigger" {
     const first_trigger_ns = debouncer.last_trigger_ns;
 
     // Simulate some time passing
-    std.Thread.sleep(10 * std.time.ns_per_ms); // 10ms
+    try std.testing.io.sleep(.fromMilliseconds(10), .awake); // 10ms
 
     // Second trigger should reset timer
     try debouncer.trigger(TestContext.callback, &ctx);
@@ -242,7 +246,7 @@ test "debounce: timer resets on each trigger" {
 }
 
 test "debounce: different contexts work correctly" {
-    var debouncer = Debouncer.init(testing.allocator, 50_000_000); // 50ms
+    var debouncer = Debouncer.init(testing.allocator, testing.io, 50_000_000); // 50ms
     defer debouncer.deinit();
 
     var ctx1 = TestContext{};
@@ -260,7 +264,7 @@ test "debounce: different contexts work correctly" {
 }
 
 test "debounce: zero delay edge case" {
-    var debouncer = Debouncer.init(testing.allocator, 0); // 0 nanoseconds
+    var debouncer = Debouncer.init(testing.allocator, testing.io, 0); // 0 nanoseconds
     defer debouncer.deinit();
 
     var ctx = TestContext{};
@@ -275,7 +279,7 @@ test "debounce: zero delay edge case" {
 
 test "debounce: very large delay doesn't overflow" {
     const large_delay: u64 = std.math.maxInt(u64) - 1000;
-    var debouncer = Debouncer.init(testing.allocator, large_delay);
+    var debouncer = Debouncer.init(testing.allocator, testing.io, large_delay);
     defer debouncer.deinit();
 
     var ctx = TestContext{};
@@ -286,7 +290,7 @@ test "debounce: very large delay doesn't overflow" {
 }
 
 test "debounce: no callback set is safe" {
-    var debouncer = Debouncer.init(testing.allocator, 100_000_000); // 100ms
+    var debouncer = Debouncer.init(testing.allocator, testing.io, 100_000_000); // 100ms
     defer debouncer.deinit();
 
     // Trigger without setting callback
@@ -298,7 +302,7 @@ test "debounce: no callback set is safe" {
 }
 
 test "debounce: trigger, cancel, trigger again" {
-    var debouncer = Debouncer.init(testing.allocator, 100_000_000); // 100ms
+    var debouncer = Debouncer.init(testing.allocator, testing.io, 100_000_000); // 100ms
     defer debouncer.deinit();
 
     var ctx = TestContext{};
@@ -317,7 +321,7 @@ test "debounce: trigger, cancel, trigger again" {
 test "debounce: execution count reflects single execution for multiple triggers" {
     // This test verifies the core debounce behavior:
     // Multiple triggers within delay window should result in single execution
-    var debouncer = Debouncer.init(testing.allocator, 100_000_000); // 100ms
+    var debouncer = Debouncer.init(testing.allocator, testing.io, 100_000_000); // 100ms
     defer debouncer.deinit();
 
     var ctx = TestContext{};
@@ -335,7 +339,7 @@ test "debounce: execution count reflects single execution for multiple triggers"
 // ============================================================================
 
 test "throttle: first call executes immediately" {
-    var throttler = Throttler.init(testing.allocator, 100_000_000); // 100ms
+    var throttler = Throttler.init(testing.allocator, testing.io, 100_000_000); // 100ms
     defer throttler.deinit();
 
     var ctx = TestContext{};
@@ -347,7 +351,7 @@ test "throttle: first call executes immediately" {
 }
 
 test "throttle: rapid calls within interval are skipped" {
-    var throttler = Throttler.init(testing.allocator, 100_000_000); // 100ms
+    var throttler = Throttler.init(testing.allocator, testing.io, 100_000_000); // 100ms
     defer throttler.deinit();
 
     var ctx = TestContext{};
@@ -366,7 +370,7 @@ test "throttle: rapid calls within interval are skipped" {
 }
 
 test "throttle: call after interval executes" {
-    var throttler = Throttler.init(testing.allocator, 10_000_000); // 10ms
+    var throttler = Throttler.init(testing.allocator, testing.io, 10_000_000); // 10ms
     defer throttler.deinit();
 
     var ctx = TestContext{};
@@ -376,7 +380,7 @@ test "throttle: call after interval executes" {
     try testing.expect(ctx.execution_count == 1);
 
     // Wait for interval to pass
-    std.Thread.sleep(15 * std.time.ns_per_ms); // 15ms
+    try std.testing.io.sleep(.fromMilliseconds(15), .awake); // 15ms
 
     // Next call after interval should execute
     _ = try throttler.trigger(TestContext.callback, &ctx);
@@ -384,7 +388,7 @@ test "throttle: call after interval executes" {
 }
 
 test "throttle: reset allows immediate execution" {
-    var throttler = Throttler.init(testing.allocator, 100_000_000); // 100ms
+    var throttler = Throttler.init(testing.allocator, testing.io, 100_000_000); // 100ms
     defer throttler.deinit();
 
     var ctx = TestContext{};
@@ -404,7 +408,7 @@ test "throttle: reset allows immediate execution" {
 }
 
 test "throttle: zero interval always executes" {
-    var throttler = Throttler.init(testing.allocator, 0); // 0 nanoseconds
+    var throttler = Throttler.init(testing.allocator, testing.io, 0); // 0 nanoseconds
     defer throttler.deinit();
 
     var ctx = TestContext{};
@@ -418,7 +422,7 @@ test "throttle: zero interval always executes" {
 }
 
 test "throttle: high frequency events are rate-limited" {
-    var throttler = Throttler.init(testing.allocator, 16_666_667); // ~60 Hz (16.67ms)
+    var throttler = Throttler.init(testing.allocator, testing.io, 16_666_667); // ~60 Hz (16.67ms)
     defer throttler.deinit();
 
     var ctx = TestContext{};
@@ -435,7 +439,7 @@ test "throttle: high frequency events are rate-limited" {
 }
 
 test "throttle: returns true when executed, false when throttled" {
-    var throttler = Throttler.init(testing.allocator, 100_000_000); // 100ms
+    var throttler = Throttler.init(testing.allocator, testing.io, 100_000_000); // 100ms
     defer throttler.deinit();
 
     var ctx = TestContext{};
@@ -454,7 +458,7 @@ test "throttle: returns true when executed, false when throttled" {
 }
 
 test "throttle: null callback is safe" {
-    var throttler = Throttler.init(testing.allocator, 100_000_000); // 100ms
+    var throttler = Throttler.init(testing.allocator, testing.io, 100_000_000); // 100ms
     defer throttler.deinit();
 
     // Should not crash with null callback
@@ -463,7 +467,7 @@ test "throttle: null callback is safe" {
 }
 
 test "throttle: works with different contexts" {
-    var throttler = Throttler.init(testing.allocator, 100_000_000); // 100ms
+    var throttler = Throttler.init(testing.allocator, testing.io, 100_000_000); // 100ms
     defer throttler.deinit();
 
     var ctx1 = TestContext{};
@@ -479,7 +483,7 @@ test "throttle: works with different contexts" {
 }
 
 test "throttle: very small interval provides fine-grained rate limiting" {
-    var throttler = Throttler.init(testing.allocator, 1_000_000); // 1ms
+    var throttler = Throttler.init(testing.allocator, testing.io, 1_000_000); // 1ms
     defer throttler.deinit();
 
     var ctx = TestContext{};
@@ -489,14 +493,14 @@ test "throttle: very small interval provides fine-grained rate limiting" {
     const first_count = ctx.execution_count;
 
     // Wait slightly longer than interval
-    std.Thread.sleep(2 * std.time.ns_per_ms); // 2ms
+    try std.testing.io.sleep(.fromMilliseconds(2), .awake); // 2ms
 
     _ = try throttler.trigger(TestContext.callback, &ctx);
     try testing.expect(ctx.execution_count > first_count);
 }
 
 test "throttle: multiple resets enable multiple rapid executions" {
-    var throttler = Throttler.init(testing.allocator, 100_000_000); // 100ms
+    var throttler = Throttler.init(testing.allocator, testing.io, 100_000_000); // 100ms
     defer throttler.deinit();
 
     var ctx = TestContext{};
@@ -517,7 +521,7 @@ test "throttle: multiple resets enable multiple rapid executions" {
 }
 
 test "throttle: very large interval still respects throttling" {
-    var throttler = Throttler.init(testing.allocator, 1_000_000_000_000); // 1 second
+    var throttler = Throttler.init(testing.allocator, testing.io, 1_000_000_000_000); // 1 second
     defer throttler.deinit();
 
     var ctx = TestContext{};
@@ -540,10 +544,10 @@ test "debounce vs throttle: debounce delays execution, throttle rate-limits" {
     // Debounce: waits for quiet period
     // Throttle: enforces minimum time between executions
 
-    var debouncer = Debouncer.init(testing.allocator, 50_000_000); // 50ms
+    var debouncer = Debouncer.init(testing.allocator, testing.io, 50_000_000); // 50ms
     defer debouncer.deinit();
 
-    var throttler = Throttler.init(testing.allocator, 50_000_000); // 50ms
+    var throttler = Throttler.init(testing.allocator, testing.io, 50_000_000); // 50ms
     defer throttler.deinit();
 
     var debounce_ctx = TestContext{};
@@ -562,7 +566,7 @@ test "debounce vs throttle: debounce delays execution, throttle rate-limits" {
 
 test "debounce: suitable for search-as-you-type use case" {
     // Simulates user typing "hello" with debounced validation
-    var debouncer = Debouncer.init(testing.allocator, 200_000_000); // 200ms
+    var debouncer = Debouncer.init(testing.allocator, testing.io, 200_000_000); // 200ms
     defer debouncer.deinit();
 
     var ctx = TestContext{};
@@ -571,14 +575,14 @@ test "debounce: suitable for search-as-you-type use case" {
     var i: usize = 0;
     while (i < 5) : (i += 1) {
         try debouncer.trigger(TestContext.callback, &ctx);
-        std.Thread.sleep(20 * std.time.ns_per_ms); // 20ms between keystrokes
+        try std.testing.io.sleep(.fromMilliseconds(20), .awake); // 20ms between keystrokes
     }
 
     // Validation hasn't run yet (still within debounce window)
     try testing.expect(ctx.execution_count == 0);
 
     // Wait for debounce delay to pass
-    std.Thread.sleep(250 * std.time.ns_per_ms); // 250ms
+    try std.testing.io.sleep(.fromMilliseconds(250), .awake); // 250ms
 
     // After waiting, poll should trigger execution
     const executed = debouncer.poll();
@@ -589,7 +593,7 @@ test "debounce: suitable for search-as-you-type use case" {
 
 test "throttle: suitable for resize handling use case" {
     // Simulates rapid resize events at 60+ Hz
-    var throttler = Throttler.init(testing.allocator, 16_666_667); // ~60 Hz
+    var throttler = Throttler.init(testing.allocator, testing.io, 16_666_667); // ~60 Hz
     defer throttler.deinit();
 
     var ctx = TestContext{};

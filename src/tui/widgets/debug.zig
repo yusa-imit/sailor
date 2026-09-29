@@ -42,6 +42,8 @@ pub const DebugOverlay = struct {
     /// Position on screen
     position: Position,
     allocator: Allocator,
+    /// Runtime handle used to timestamp logged events
+    io: std.Io,
 
     pub const Position = enum {
         top_left,
@@ -70,7 +72,12 @@ pub const DebugOverlay = struct {
     };
 
     /// Initialize debug overlay
-    pub fn init(allocator: Allocator, mode: DebugMode, position: Position) DebugOverlay {
+    pub fn init(
+        allocator: Allocator,
+        io: std.Io,
+        mode: DebugMode,
+        position: Position,
+    ) DebugOverlay {
         return .{
             .rects = .empty,
             .stats = .{},
@@ -79,6 +86,7 @@ pub const DebugOverlay = struct {
             .mode = mode,
             .position = position,
             .allocator = allocator,
+            .io = io,
         };
     }
 
@@ -112,7 +120,7 @@ pub const DebugOverlay = struct {
 
     /// Log an event
     pub fn logEvent(self: *DebugOverlay, event: Event) !void {
-        const now = std.time.nanoTimestamp();
+        const now = std.Io.Clock.awake.now(self.io).toNanoseconds();
         const entry = EventLogEntry{ .timestamp_ns = @intCast(now), .event = event };
 
         if (self.events.items.len >= self.max_events) {
@@ -282,7 +290,7 @@ pub const DebugOverlay = struct {
 
 test "DebugOverlay init" {
     const allocator = std.testing.allocator;
-    var overlay = DebugOverlay.init(allocator, .all, .top_left);
+    var overlay = DebugOverlay.init(allocator, std.testing.io, .all, .top_left);
     defer overlay.deinit();
 
     try std.testing.expectEqual(DebugMode.all, overlay.mode);
@@ -291,7 +299,7 @@ test "DebugOverlay init" {
 
 test "DebugOverlay addRect" {
     const allocator = std.testing.allocator;
-    var overlay = DebugOverlay.init(allocator, .layout_rects, .top_left);
+    var overlay = DebugOverlay.init(allocator, std.testing.io, .layout_rects, .top_left);
     defer overlay.deinit();
 
     try overlay.addRect(Rect{ .x = 0, .y = 0, .width = 10, .height = 5 }, "Widget1", Color.red);
@@ -304,7 +312,7 @@ test "DebugOverlay addRect" {
 
 test "DebugOverlay clearRects" {
     const allocator = std.testing.allocator;
-    var overlay = DebugOverlay.init(allocator, .layout_rects, .top_left);
+    var overlay = DebugOverlay.init(allocator, std.testing.io, .layout_rects, .top_left);
     defer overlay.deinit();
 
     try overlay.addRect(Rect{ .x = 0, .y = 0, .width = 10, .height = 5 }, "Widget1", Color.red);
@@ -315,10 +323,10 @@ test "DebugOverlay clearRects" {
 
 test "DebugOverlay updateStats" {
     const allocator = std.testing.allocator;
-    var overlay = DebugOverlay.init(allocator, .render_stats, .top_right);
+    var overlay = DebugOverlay.init(allocator, std.testing.io, .render_stats, .top_right);
     defer overlay.deinit();
 
-    var budget = RenderBudget.init(60);
+    var budget = RenderBudget.init(std.testing.io, 60);
     budget.stats.recordFrame(16_666_666); // ~60fps
 
     overlay.updateStats(&budget, null);
@@ -329,7 +337,7 @@ test "DebugOverlay updateStats" {
 
 test "DebugOverlay logEvent" {
     const allocator = std.testing.allocator;
-    var overlay = DebugOverlay.init(allocator, .event_log, .bottom_left);
+    var overlay = DebugOverlay.init(allocator, std.testing.io, .event_log, .bottom_left);
     defer overlay.deinit();
 
     try overlay.logEvent(.{ .key = .{ .code = .{ .char = 'a' } } });
@@ -340,7 +348,7 @@ test "DebugOverlay logEvent" {
 
 test "DebugOverlay event log circular buffer" {
     const allocator = std.testing.allocator;
-    var overlay = DebugOverlay.init(allocator, .event_log, .bottom_right);
+    var overlay = DebugOverlay.init(allocator, std.testing.io, .event_log, .bottom_right);
     defer overlay.deinit();
 
     overlay.max_events = 3;
@@ -361,7 +369,7 @@ test "DebugOverlay event log circular buffer" {
 
 test "DebugOverlay clearEvents" {
     const allocator = std.testing.allocator;
-    var overlay = DebugOverlay.init(allocator, .event_log, .top_left);
+    var overlay = DebugOverlay.init(allocator, std.testing.io, .event_log, .top_left);
     defer overlay.deinit();
 
     try overlay.logEvent(.{ .key = .{ .code = .{ .char = 'a' } } });
@@ -372,7 +380,7 @@ test "DebugOverlay clearEvents" {
 
 test "DebugOverlay render layout_rects" {
     const allocator = std.testing.allocator;
-    var overlay = DebugOverlay.init(allocator, .layout_rects, .top_left);
+    var overlay = DebugOverlay.init(allocator, std.testing.io, .layout_rects, .top_left);
     defer overlay.deinit();
 
     var buf = try Buffer.init(allocator, 40, 10);
@@ -382,7 +390,10 @@ test "DebugOverlay render layout_rects" {
 
     overlay.render(&buf, Rect{ .x = 0, .y = 0, .width = 40, .height = 10 });
 
-    // Verify border characters are drawn
+    // Verify border characters are drawn. The left border is drawn after the top border,
+    // so the corner cell holds '│'; the label "Test[0]" covers x = 3..9 of the top row.
     const top_left = buf.getConst(2, 2).?;
-    try std.testing.expectEqual(@as(u21, '─'), top_left.char);
+    try std.testing.expectEqual(@as(u21, '│'), top_left.char);
+    const top_edge = buf.getConst(10, 2).?;
+    try std.testing.expectEqual(@as(u21, '─'), top_edge.char);
 }

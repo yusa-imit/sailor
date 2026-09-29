@@ -8,20 +8,25 @@ const builtin = @import("builtin");
 const sailor = @import("sailor");
 const term = sailor.term;
 
+/// Build a blocking `File` around a raw (possibly invalid) descriptor.
+fn invalidFile(fd: std.posix.fd_t) std.Io.File {
+    return .{ .handle = fd, .flags = .{ .nonblocking = false } };
+}
+
 // Test that isatty correctly identifies all standard streams
 test "isatty on all standard file descriptors" {
     // Test stdin (fd 0)
-    const stdin_is_tty = term.isatty(std.posix.STDIN_FILENO);
+    const stdin_is_tty = try term.isatty(std.testing.io, std.Io.File.stdin());
     // CI environments typically don't have TTY, interactive shells do
     // We can't assert specific value, but should not crash
     _ = stdin_is_tty;
 
     // Test stdout (fd 1)
-    const stdout_is_tty = term.isatty(std.posix.STDOUT_FILENO);
+    const stdout_is_tty = try term.isatty(std.testing.io, std.Io.File.stdout());
     _ = stdout_is_tty;
 
     // Test stderr (fd 2)
-    const stderr_is_tty = term.isatty(std.posix.STDERR_FILENO);
+    const stderr_is_tty = try term.isatty(std.testing.io, std.Io.File.stderr());
     _ = stderr_is_tty;
 
     // All three calls should complete without crashing
@@ -30,11 +35,11 @@ test "isatty on all standard file descriptors" {
 // Test that isatty returns false for non-existent file descriptors
 test "isatty returns false for invalid file descriptors" {
     // Very high fd that definitely doesn't exist
-    try std.testing.expect(!term.isatty(9999));
+    try std.testing.expect(!try term.isatty(std.testing.io, invalidFile(9999)));
 
     // Negative fd (invalid on all platforms)
     if (builtin.os.tag != .windows) {
-        try std.testing.expect(!term.isatty(-1));
+        try std.testing.expect(!try term.isatty(std.testing.io, invalidFile(-1)));
     }
 }
 
@@ -168,7 +173,7 @@ test "isatty is thread-safe" {
 
         fn run(ctx: @This()) void {
             // Each thread checks if stdout is a TTY
-            ctx.results[ctx.index] = term.isatty(std.posix.STDOUT_FILENO);
+            ctx.results[ctx.index] = term.isatty(std.testing.io, std.Io.File.stdout()) catch false;
         }
     };
 

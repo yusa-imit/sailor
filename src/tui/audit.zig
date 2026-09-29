@@ -8,6 +8,8 @@ const Event = @import("tui.zig").Event;
 /// Logs all user interactions with configurable filtering and retention policies.
 pub const AuditLogger = struct {
     allocator: Allocator,
+    /// Runtime handle used to read the wall clock for entry timestamps
+    io: std.Io,
     entries: ArrayList(AuditEntry),
     enabled: bool,
     max_entries: usize, // 0 = unlimited
@@ -81,9 +83,10 @@ pub const AuditLogger = struct {
     };
 
     /// Initializes an audit logger with the given session ID.
-    pub fn init(allocator: Allocator, session_id: []const u8) !AuditLogger {
+    pub fn init(allocator: Allocator, io: std.Io, session_id: []const u8) !AuditLogger {
         return AuditLogger{
             .allocator = allocator,
+            .io = io,
             .entries = .empty,
             .enabled = true,
             .max_entries = 10000, // Default retention
@@ -132,7 +135,7 @@ pub const AuditLogger = struct {
         if (!self.shouldLog(event_type, severity, user_id)) return;
 
         const entry = AuditEntry{
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = std.Io.Clock.real.now(self.io).toMilliseconds(),
             .session_id = self.session_id,
             .user_id = if (user_id) |uid| try self.allocator.dupe(u8, uid) else null,
             .event_type = event_type,
@@ -201,15 +204,16 @@ pub const AuditLogger = struct {
 
     /// Write audit log to a file (append mode).
     pub fn writeToFile(self: *AuditLogger, path: []const u8) !void {
-        const file = try std.fs.cwd().createFile(path, .{ .truncate = false });
-        defer file.close();
+        const io = self.io;
+        const file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = false });
+        defer file.close(io);
 
-        // Seek to end for append
-        try file.seekFromEnd(0);
+        // Append: write after the current end of file
+        const end_offset = try file.length(io);
 
-        var buf: std.ArrayList(u8) = .empty;
-        defer buf.deinit(self.allocator);
-        const writer = buf.writer(self.allocator);
+        var out: std.Io.Writer.Allocating = .init(self.allocator);
+        defer out.deinit();
+        const writer = &out.writer;
 
         for (self.entries.items) |entry| {
             try writer.print("{d}|{s}|{s}|{s}|", .{
@@ -228,7 +232,7 @@ pub const AuditLogger = struct {
             try writer.print("{s}\n", .{entry.details});
         }
 
-        try file.writeAll(buf.items);
+        try file.writePositionalAll(io, out.written(), end_offset);
     }
 
     /// Export to JSON format.
@@ -352,7 +356,7 @@ pub const AuditLogger = struct {
 // Tests
 test "AuditLogger: init and deinit" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "test-session-123");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "test-session-123");
     defer logger.deinit();
 
     try std.testing.expect(logger.enabled);
@@ -362,7 +366,7 @@ test "AuditLogger: init and deinit" {
 
 test "AuditLogger: log basic event" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "test-session");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "test-session");
     defer logger.deinit();
 
     try logger.logEvent(.data_access, "file.txt", .info, "user1");
@@ -377,7 +381,7 @@ test "AuditLogger: log basic event" {
 
 test "AuditLogger: log TUI events" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "tui-session");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "tui-session");
     defer logger.deinit();
 
     // TUI events are logged at debug level, so we need to enable debug logging
@@ -391,7 +395,7 @@ test "AuditLogger: log TUI events" {
 
 test "AuditLogger: enable/disable" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "test");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "test");
     defer logger.deinit();
 
     logger.setEnabled(false);
@@ -405,7 +409,7 @@ test "AuditLogger: enable/disable" {
 
 test "AuditLogger: max entries retention" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "test");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "test");
     defer logger.deinit();
 
     logger.setMaxEntries(3);
@@ -423,7 +427,7 @@ test "AuditLogger: max entries retention" {
 
 test "AuditLogger: severity filter" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "test");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "test");
     defer logger.deinit();
 
     logger.setFilter(.{
@@ -443,7 +447,7 @@ test "AuditLogger: severity filter" {
 
 test "AuditLogger: event type filter" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "test");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "test");
     defer logger.deinit();
 
     const allowed_types = [_]AuditLogger.AuditEntry.EventType{ .data_access, .data_modification };
@@ -463,7 +467,7 @@ test "AuditLogger: event type filter" {
 
 test "AuditLogger: exclude event types" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "test");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "test");
     defer logger.deinit();
 
     const excluded_types = [_]AuditLogger.AuditEntry.EventType{.key_press};
@@ -482,7 +486,7 @@ test "AuditLogger: exclude event types" {
 
 test "AuditLogger: user filter" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "test");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "test");
     defer logger.deinit();
 
     const users = [_][]const u8{"alice"};
@@ -502,7 +506,7 @@ test "AuditLogger: user filter" {
 
 test "AuditLogger: log data access" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "test");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "test");
     defer logger.deinit();
 
     try logger.logDataAccess("/api/users", "admin");
@@ -513,7 +517,7 @@ test "AuditLogger: log data access" {
 
 test "AuditLogger: log data modification" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "test");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "test");
     defer logger.deinit();
 
     try logger.logDataModification("/api/users/123", "update", "admin");
@@ -525,7 +529,7 @@ test "AuditLogger: log data modification" {
 
 test "AuditLogger: log authentication" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "test");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "test");
     defer logger.deinit();
 
     try logger.logAuthentication("alice", true);
@@ -538,7 +542,7 @@ test "AuditLogger: log authentication" {
 
 test "AuditLogger: log authorization failure" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "test");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "test");
     defer logger.deinit();
 
     try logger.logAuthorizationFailure("bob", "/admin/panel");
@@ -550,7 +554,7 @@ test "AuditLogger: log authorization failure" {
 
 test "AuditLogger: log error" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "test");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "test");
     defer logger.deinit();
 
     try logger.logError("Database connection failed");
@@ -562,7 +566,7 @@ test "AuditLogger: log error" {
 
 test "AuditLogger: write to file" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "test");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "test");
     defer logger.deinit();
 
     try logger.logEvent(.data_access, "file.txt", .info, "user1");
@@ -570,12 +574,15 @@ test "AuditLogger: write to file" {
 
     const test_file = "test_audit.log";
     try logger.writeToFile(test_file);
-    defer std.fs.cwd().deleteFile(test_file) catch {};
+    const io = std.testing.io;
+    defer std.Io.Dir.cwd().deleteFile(io, test_file) catch {};
 
-    const file = try std.fs.cwd().openFile(test_file, .{});
-    defer file.close();
-
-    const content = try file.readToEndAlloc(allocator, 1024 * 1024);
+    const content = try std.Io.Dir.cwd().readFileAlloc(
+        io,
+        test_file,
+        allocator,
+        .limited(1024 * 1024),
+    );
     defer allocator.free(content);
 
     try std.testing.expect(std.mem.find(u8, content, "INFO") != null);
@@ -585,18 +592,17 @@ test "AuditLogger: write to file" {
 
 test "AuditLogger: export JSON" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "test");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "test");
     defer logger.deinit();
 
     try logger.logEvent(.data_access, "test.txt", .info, "alice");
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var out: std.Io.Writer.Allocating = .init(allocator);
+    defer out.deinit();
 
-    try logger.exportJson(writer);
+    try logger.exportJson(&out.writer);
 
-    const json = buf.items;
+    const json = out.written();
     try std.testing.expect(std.mem.find(u8, json, "\"timestamp\"") != null);
     try std.testing.expect(std.mem.find(u8, json, "\"session\"") != null);
     try std.testing.expect(std.mem.find(u8, json, "\"user\":\"alice\"") != null);
@@ -604,7 +610,7 @@ test "AuditLogger: export JSON" {
 
 test "AuditLogger: clear entries" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "test");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "test");
     defer logger.deinit();
 
     try logger.logEvent(.system, "test1", .info, null);
@@ -617,7 +623,7 @@ test "AuditLogger: clear entries" {
 
 test "AuditLogger: get filtered entries" {
     const allocator = std.testing.allocator;
-    var logger = try AuditLogger.init(allocator, "test");
+    var logger = try AuditLogger.init(allocator, std.testing.io, "test");
     defer logger.deinit();
 
     try logger.logEvent(.data_access, "file1.txt", .info, "alice");

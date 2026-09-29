@@ -1308,7 +1308,7 @@ test "sixel palette: octree performance: 10000 colors to 256 in <100ms" {
         c.* = randomColor(i + 10000);
     }
 
-    const start = std.time.nanoTimestamp();
+    const start = std.Io.Clock.awake.now(testing.io);
 
     const palette = try sailor.tui.sixel.quantizeColors(
         allocator,
@@ -1317,8 +1317,8 @@ test "sixel palette: octree performance: 10000 colors to 256 in <100ms" {
         .octree,
     );
 
-    const end = std.time.nanoTimestamp();
-    const elapsed_ms = @divTrunc(end - start, 1_000_000);
+    const elapsed_ns = start.untilNow(testing.io, .awake).toNanoseconds();
+    const elapsed_ms = @divTrunc(elapsed_ns, 1_000_000);
 
     try testing.expect(elapsed_ms < 5000); // Should complete in reasonable time (<5s even on slow CI)
     try testing.expect(palette.colors.len <= 256); // Octree may produce fewer colors than max
@@ -1587,14 +1587,14 @@ test "sixel palette: distance caching for performance" {
     // Query same color multiple times (cache should speed up)
     const test_color = SixelImage.Color{ .r = 123, .g = 45, .b = 67 };
 
-    const start = std.time.nanoTimestamp();
+    const start = std.Io.Clock.awake.now(testing.io);
 
     for (0..1000) |_| {
         _ = palette.findNearest(test_color);
     }
 
-    const end = std.time.nanoTimestamp();
-    const elapsed_ms = @divTrunc(end - start, 1_000_000);
+    const elapsed_ns = start.untilNow(testing.io, .awake).toNanoseconds();
+    const elapsed_ms = @divTrunc(elapsed_ns, 1_000_000);
 
     // With caching, 1000 lookups should be fast
     try testing.expect(elapsed_ms < 100);
@@ -1756,7 +1756,7 @@ test "sixel palette: benchmark: 10000 colors to 256 in <50ms (median cut)" {
         c.* = randomColor(i + 20000);
     }
 
-    const start = std.time.nanoTimestamp();
+    const start = std.Io.Clock.awake.now(testing.io);
 
     const palette = try sailor.tui.sixel.quantizeColors(
         allocator,
@@ -1766,8 +1766,8 @@ test "sixel palette: benchmark: 10000 colors to 256 in <50ms (median cut)" {
     );
     defer palette.deinit();
 
-    const end = std.time.nanoTimestamp();
-    const elapsed_ms = @divTrunc(end - start, 1_000_000);
+    const elapsed_ns = start.untilNow(testing.io, .awake).toNanoseconds();
+    const elapsed_ms = @divTrunc(elapsed_ns, 1_000_000);
 
     try testing.expect(elapsed_ms < 2000); // Should complete in reasonable time (<2s even on slow CI)
     try testing.expect(palette.colors.len <= 256);
@@ -3600,10 +3600,13 @@ test "sixel compressor: compression completes in reasonable time (<100ms for 10K
     defer allocator.free(large_input);
     @memset(large_input, '?');
 
-    const start = std.time.microTimestamp();
+    const start = std.Io.Clock.awake.now(testing.io);
     const compressed = try SixelCompressor.compress(allocator, large_input);
     defer allocator.free(compressed);
-    const elapsed_us = std.time.microTimestamp() - start;
+    const elapsed_us: i64 = @intCast(@divTrunc(
+        start.untilNow(testing.io, .awake).toNanoseconds(),
+        1000,
+    ));
     const elapsed_ms = @as(f32, @floatFromInt(elapsed_us)) / 1000.0;
 
     // Should complete in < 100ms
@@ -3618,10 +3621,13 @@ test "sixel compressor: decompression completes in reasonable time (<50ms for 5K
     defer allocator.free(large_compressed);
     @memset(large_compressed, '?');
 
-    const start = std.time.microTimestamp();
+    const start = std.Io.Clock.awake.now(testing.io);
     const decompressed = try SixelCompressor.decompress(allocator, large_compressed);
     defer allocator.free(decompressed);
-    const elapsed_us = std.time.microTimestamp() - start;
+    const elapsed_us: i64 = @intCast(@divTrunc(
+        start.untilNow(testing.io, .awake).toNanoseconds(),
+        1000,
+    ));
     const elapsed_ms = @as(f32, @floatFromInt(elapsed_us)) / 1000.0;
 
     // Should complete in < 50ms

@@ -105,12 +105,18 @@ pub const ParticleSystem = struct {
     ///
     /// Args:
     ///   allocator: Memory allocator for particle storage
+    ///   io: Runtime handle, used once to seed the PRNG from the wall clock
     ///   particle_type: Type of particles to emit (confetti, sparkles, etc.)
     ///
     /// Returns:
     ///   Initialized ParticleSystem with empty particle list
-    pub fn init(allocator: std.mem.Allocator, particle_type: ParticleType) !ParticleSystem {
-        const rng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp()));
+    pub fn init(
+        allocator: std.mem.Allocator,
+        io: std.Io,
+        particle_type: ParticleType,
+    ) !ParticleSystem {
+        const seed_s: u64 = @intCast(std.Io.Clock.real.now(io).toSeconds());
+        const rng = std.Random.DefaultPrng.init(seed_s);
         return .{
             .particles = std.ArrayList(Particle).empty,
             .particle_type = particle_type,
@@ -331,7 +337,7 @@ test "Particle gravity affects velocity" {
 }
 
 test "ParticleSystem.init and deinit" {
-    var sys = try ParticleSystem.init(testing.allocator, .confetti);
+    var sys = try ParticleSystem.init(testing.allocator, testing.io, .confetti);
     defer sys.deinit();
 
     try testing.expectEqual(ParticleType.confetti, sys.particle_type);
@@ -339,7 +345,7 @@ test "ParticleSystem.init and deinit" {
 }
 
 test "ParticleSystem.spawn creates particles" {
-    var sys = try ParticleSystem.init(testing.allocator, .sparkles);
+    var sys = try ParticleSystem.init(testing.allocator, testing.io, .sparkles);
     defer sys.deinit();
 
     sys.setSpawnRate(3);
@@ -349,7 +355,7 @@ test "ParticleSystem.spawn creates particles" {
 }
 
 test "ParticleSystem.spawnArea" {
-    var sys = try ParticleSystem.init(testing.allocator, .stars);
+    var sys = try ParticleSystem.init(testing.allocator, testing.io, .stars);
     defer sys.deinit();
 
     sys.setSpawnRate(10);
@@ -366,7 +372,7 @@ test "ParticleSystem.spawnArea" {
 }
 
 test "ParticleSystem.spawnArea with zero area" {
-    var sys = try ParticleSystem.init(testing.allocator, .hearts);
+    var sys = try ParticleSystem.init(testing.allocator, testing.io, .hearts);
     defer sys.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
@@ -376,7 +382,7 @@ test "ParticleSystem.spawnArea with zero area" {
 }
 
 test "ParticleSystem.update removes dead particles" {
-    var sys = try ParticleSystem.init(testing.allocator, .confetti);
+    var sys = try ParticleSystem.init(testing.allocator, testing.io, .confetti);
     defer sys.deinit();
 
     // Create short-lived particles
@@ -393,7 +399,7 @@ test "ParticleSystem.update removes dead particles" {
 }
 
 test "ParticleSystem.setGravity" {
-    var sys = try ParticleSystem.init(testing.allocator, .snowflakes);
+    var sys = try ParticleSystem.init(testing.allocator, testing.io, .snowflakes);
     defer sys.deinit();
 
     sys.setGravity(0.5);
@@ -401,7 +407,7 @@ test "ParticleSystem.setGravity" {
 }
 
 test "ParticleSystem.setSpawnRate" {
-    var sys = try ParticleSystem.init(testing.allocator, .bubbles);
+    var sys = try ParticleSystem.init(testing.allocator, testing.io, .bubbles);
     defer sys.deinit();
 
     sys.setSpawnRate(20);
@@ -409,7 +415,7 @@ test "ParticleSystem.setSpawnRate" {
 }
 
 test "ParticleSystem.count" {
-    var sys = try ParticleSystem.init(testing.allocator, .confetti);
+    var sys = try ParticleSystem.init(testing.allocator, testing.io, .confetti);
     defer sys.deinit();
 
     try testing.expectEqual(@as(usize, 0), sys.count());
@@ -419,7 +425,7 @@ test "ParticleSystem.count" {
 }
 
 test "ParticleSystem.clear" {
-    var sys = try ParticleSystem.init(testing.allocator, .sparkles);
+    var sys = try ParticleSystem.init(testing.allocator, testing.io, .sparkles);
     defer sys.deinit();
 
     try sys.spawn(5, 5);
@@ -430,7 +436,7 @@ test "ParticleSystem.clear" {
 }
 
 test "ParticleSystem.render to buffer" {
-    var sys = try ParticleSystem.init(testing.allocator, .stars);
+    var sys = try ParticleSystem.init(testing.allocator, testing.io, .stars);
     defer sys.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
@@ -456,7 +462,7 @@ test "ParticleSystem.render to buffer" {
 }
 
 test "ParticleSystem.render respects bounds" {
-    var sys = try ParticleSystem.init(testing.allocator, .confetti);
+    var sys = try ParticleSystem.init(testing.allocator, testing.io, .confetti);
     defer sys.deinit();
 
     // Create particle outside buffer
@@ -471,7 +477,7 @@ test "ParticleSystem.render respects bounds" {
 }
 
 test "ParticleType.confetti uses varied chars" {
-    var sys = try ParticleSystem.init(testing.allocator, .confetti);
+    var sys = try ParticleSystem.init(testing.allocator, testing.io, .confetti);
     defer sys.deinit();
 
     sys.setSpawnRate(20);
@@ -490,7 +496,7 @@ test "ParticleType.confetti uses varied chars" {
 }
 
 test "ParticleType.sparkles uses sparkle chars" {
-    var sys = try ParticleSystem.init(testing.allocator, .sparkles);
+    var sys = try ParticleSystem.init(testing.allocator, testing.io, .sparkles);
     defer sys.deinit();
 
     sys.setSpawnRate(10);
@@ -503,7 +509,7 @@ test "ParticleType.sparkles uses sparkle chars" {
 }
 
 test "ParticleType.hearts uses red color" {
-    var sys = try ParticleSystem.init(testing.allocator, .hearts);
+    var sys = try ParticleSystem.init(testing.allocator, testing.io, .hearts);
     defer sys.deinit();
 
     sys.setSpawnRate(10);
@@ -515,7 +521,7 @@ test "ParticleType.hearts uses red color" {
 }
 
 test "ParticleType.snowflakes uses white color" {
-    var sys = try ParticleSystem.init(testing.allocator, .snowflakes);
+    var sys = try ParticleSystem.init(testing.allocator, testing.io, .snowflakes);
     defer sys.deinit();
 
     sys.setSpawnRate(10);
@@ -543,7 +549,7 @@ test "Particle opacity fades over lifetime" {
 }
 
 test "ParticleSystem confetti uses varied colors" {
-    var sys = try ParticleSystem.init(testing.allocator, .confetti);
+    var sys = try ParticleSystem.init(testing.allocator, testing.io, .confetti);
     defer sys.deinit();
 
     sys.setSpawnRate(30);

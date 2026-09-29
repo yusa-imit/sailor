@@ -628,11 +628,14 @@ pub const GracefulDegradation = struct {
     non_critical_widgets: StringHashMap(void),
     critical_widgets: StringHashMap(void),
     render_budget_ns: u64,
+    /// Runtime handle used to time renders against the budget
+    io: std.Io,
 
-    /// Initialize graceful degradation
-    pub fn init(allocator: Allocator) !GracefulDegradation {
+    /// Initialize graceful degradation (caches `io` for budget timing)
+    pub fn init(allocator: Allocator, io: std.Io) !GracefulDegradation {
         return .{
             .allocator = allocator,
+            .io = io,
             .quality_level = .normal,
             .stats = .{ .total_renders = 0, .successes = 0, .failures = 0 },
             .consecutive_failures = 0,
@@ -738,12 +741,12 @@ pub const GracefulDegradation = struct {
 
     /// Render widget with budget
     pub fn renderWithBudget(self: *GracefulDegradation, widget: anytype, buf: *Buffer, area: Rect) !void {
-        const start = std.time.nanoTimestamp();
+        const start = std.Io.Clock.awake.now(self.io);
 
         // Attempt render
         try self.render(widget, buf, area);
 
-        const elapsed = std.time.nanoTimestamp() - start;
+        const elapsed = start.untilNow(self.io, .awake).toNanoseconds();
         if (elapsed > self.render_budget_ns) {
             return error.BudgetExceeded;
         }
@@ -911,11 +914,14 @@ pub const ErrorInjector = struct {
     stats: StringHashMap(InjectionStats),
     rng: std.Random.DefaultPrng,
     alloc_fail_at: usize,
+    /// Runtime handle used to implement injected delays
+    io: std.Io,
 
-    /// Initialize error injector
-    pub fn init(allocator: Allocator) !ErrorInjector {
+    /// Initialize error injector (caches `io` for delay injection)
+    pub fn init(allocator: Allocator, io: std.Io) !ErrorInjector {
         return .{
             .allocator = allocator,
+            .io = io,
             .injections = StringHashMap(ArrayList(InjectionEntry)).init(allocator),
             .stats = StringHashMap(InjectionStats).init(allocator),
             .rng = std.Random.DefaultPrng.init(0),
@@ -1061,7 +1067,7 @@ pub const ErrorInjector = struct {
                         }
                     },
                     .delay => {
-                        std.Thread.sleep(entry.delay_ns);
+                        try self.io.sleep(.fromNanoseconds(entry.delay_ns), .awake);
                     },
                     .conditional => {
                         if (entry.condition) |cond| {

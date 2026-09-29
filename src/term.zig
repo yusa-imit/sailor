@@ -16,7 +16,6 @@ const std = @import("std");
 const builtin = @import("builtin");
 const posix = std.posix;
 const os = std.os;
-const io = std.io;
 const assert = std.debug.assert;
 
 // Windows console mode flags (missing from std.os.windows)
@@ -57,42 +56,22 @@ pub const Size = struct {
     rows: u16,
 };
 
-/// Check if a file descriptor is a TTY (terminal device).
-/// On Unix: accepts fd integers (0=stdin, 1=stdout, 2=stderr)
-/// On Windows: accepts HANDLE (*anyopaque) or integer (0, 1, 2)
-/// Returns true if the FD is connected to a terminal, false otherwise.
-/// Cross-platform: uses isatty() on Unix, GetConsoleMode() on Windows.
-pub fn isatty(fd: anytype) bool {
-    const FdType = @TypeOf(fd);
-    // Precondition: fd must be a POSIX fd (integer) or a Windows-style handle
-    // (pointer-like) — anything else is a caller misuse of this API.
-    assert(@typeInfo(FdType) == .int or @typeInfo(FdType) == .comptime_int or
-        @typeInfo(FdType) == .pointer);
+/// Check if a file is connected to a TTY (terminal device).
+/// Use `std.Io.File.stdin()/stdout()/stderr()` for the standard streams.
+/// Returns true if the file is a terminal, false otherwise (including for
+/// invalid handles). Propagates `error.Canceled` from the underlying `Io`.
+pub fn isatty(io: std.Io, file: std.Io.File) std.Io.Cancelable!bool {
+    // Precondition: the file handle type is the platform fd/HANDLE type.
+    comptime assert(@TypeOf(file.handle) == posix.fd_t);
+    // Precondition: `io` is a constructed runtime (vtable is never null).
+    assert(@intFromPtr(io.vtable) != 0);
 
-    return switch (builtin.os.tag) {
-        .linux, .macos => posix.isatty(fd),
-        .windows => blk: {
-            const handle: std.os.windows.HANDLE = if (FdType == comptime_int or FdType == i32) blk2: {
-                // Integer fd (0, 1, 2) - convert to standard handle
-                const std_handle: std.os.windows.DWORD = switch (fd) {
-                    0 => std.os.windows.STD_INPUT_HANDLE,
-                    1 => std.os.windows.STD_OUTPUT_HANDLE,
-                    2 => std.os.windows.STD_ERROR_HANDLE,
-                    else => return false,
-                };
-                // Invariant: the switch above only falls through to here for
-                // one of the three known standard stdio slots.
-                assert(fd == 0 or fd == 1 or fd == 2);
-                break :blk2 std.os.windows.GetStdHandle(std_handle) catch return false;
-            } else blk2: {
-                // Already a HANDLE (*anyopaque)
-                break :blk2 @ptrCast(fd);
-            };
-            var mode: std.os.windows.DWORD = undefined;
-            break :blk std.os.windows.kernel32.GetConsoleMode(handle, &mode) != 0;
-        },
-        else => false,
-    };
+    return file.isTty(io);
+}
+
+/// Wrap a raw fd/HANDLE in a blocking `std.Io.File` (no ownership taken).
+fn fileFromFd(fd: posix.fd_t) std.Io.File {
+    return .{ .handle = fd, .flags = .{ .nonblocking = false } };
 }
 
 /// Get terminal size in columns and rows.
@@ -193,8 +172,9 @@ pub const RawMode = struct {
     /// Raw mode disables: canonical input, echo, signals, line editing.
     /// Returns RAII guard that automatically restores original mode on deinit.
     /// Returns Error.NotATty if fd is not a terminal.
-    pub fn enter(fd: posix.fd_t) Error!RawMode {
-        if (!isatty(fd)) {
+    /// Propagates `error.Canceled` from the TTY probe.
+    pub fn enter(io: std.Io, fd: posix.fd_t) (Error || std.Io.Cancelable)!RawMode {
+        if (!try isatty(io, fileFromFd(fd))) {
             return Error.NotATty;
         }
 
@@ -451,9 +431,9 @@ pub fn isPasteEnd(buf: []const u8) bool {
 /// Returns null if timeout expires, byte value if available.
 /// Cross-platform: uses poll() on Unix, WaitForSingleObject() on Windows.
 /// Use in raw mode for non-blocking input with timeout.
-pub fn readByte(timeout_ms: u32) !?u8 {
+pub fn readByte(io: std.Io, timeout_ms: u32) !?u8 {
     if (builtin.os.tag == .windows) {
-        return readByteWindows(timeout_ms);
+        return readByteWindows(io, timeout_ms);
     } else {
         return readByteUnix(timeout_ms);
     }
@@ -480,7 +460,7 @@ fn readByteUnix(timeout_ms: u32) !?u8 {
     return buf[0];
 }
 
-fn readByteWindows(timeout_ms: u32) !?u8 {
+fn readByteWindows(io: std.Io, timeout_ms: u32) !?u8 {
     const win = std.os.windows;
     const handle = try win.GetStdHandle(win.STD_INPUT_HANDLE);
 
@@ -491,7 +471,8 @@ fn readByteWindows(timeout_ms: u32) !?u8 {
     // hang forever waiting for input that never arrives. Poll pipe handles
     // with PeekNamedPipe instead, bounded by the same timeout.
     if (GetFileType(handle) == FILE_TYPE_PIPE) {
-        const deadline = std.time.milliTimestamp() + @as(i64, timeout_ms);
+        const start = std.Io.Clock.awake.now(io);
+        const timeout_ns: i96 = @as(i96, timeout_ms) * std.time.ns_per_ms;
         while (true) {
             var bytes_avail: win.DWORD = 0;
             if (PeekNamedPipe(handle, null, 0, null, &bytes_avail, null) == 0) {
@@ -499,8 +480,8 @@ fn readByteWindows(timeout_ms: u32) !?u8 {
                 return null;
             }
             if (bytes_avail > 0) break;
-            if (std.time.milliTimestamp() >= deadline) return null;
-            std.Thread.sleep(1 * std.time.ns_per_ms);
+            if (start.untilNow(io, .awake).toNanoseconds() >= timeout_ns) return null;
+            try io.sleep(.fromMilliseconds(1), .awake);
         }
     } else {
         // Console handles and regular files: WaitForSingleObject correctly
@@ -698,6 +679,7 @@ pub fn parseXtgettcapResponse(allocator: std.mem.Allocator, response: []const u8
 /// Not supported on Windows (Unix VT100 feature only).
 pub fn queryTerminalCapability(
     allocator: std.mem.Allocator,
+    io: std.Io,
     fd: posix.fd_t,
     capability_name: []const u8,
     timeout_ms: u32,
@@ -723,7 +705,7 @@ pub fn queryTerminalCapability(
 
     // Do not write to non-TTY fds — doing so in zig's test runner (--listen=-)
     // corrupts the binary test protocol and causes the runner to hang.
-    if (!posix.isatty(fd)) return error.NotATty;
+    if (!try isatty(io, fileFromFd(fd))) return error.NotATty;
 
     // Build and send query
     var query_buf: [256]u8 = undefined;
@@ -731,15 +713,15 @@ pub fn queryTerminalCapability(
     try buildXtgettcapQuery(&query_stream, allocator, capability_name);
 
     const query = query_stream.buffered();
-    _ = try posix.write(fd, query);
+    try fileFromFd(fd).writeStreamingAll(io, query);
 
     // Read response with timeout
     var response_buf: [1024]u8 = undefined;
     var response_len: usize = 0;
-    const start_time = std.time.milliTimestamp();
+    const start_time = std.Io.Clock.awake.now(io);
 
     while (response_len < response_buf.len) {
-        const elapsed = std.time.milliTimestamp() - start_time;
+        const elapsed = start_time.untilNow(io, .awake).toMilliseconds();
         if (elapsed > timeout_ms) {
             return error.QueryTimeout;
         }
@@ -853,11 +835,18 @@ fn queryTerminalCapabilityMock(allocator: std.mem.Allocator, capability_name: []
 /// Returns error only on unexpected failures (not timeout/unsupported).
 pub fn hasCapability(
     allocator: std.mem.Allocator,
+    io: std.Io,
     fd: posix.fd_t,
     capability_name: []const u8,
     timeout_ms: u32,
 ) !bool {
-    const value = queryTerminalCapability(allocator, fd, capability_name, timeout_ms) catch |err| {
+    const value = queryTerminalCapability(
+        allocator,
+        io,
+        fd,
+        capability_name,
+        timeout_ms,
+    ) catch |err| {
         if (err == error.CapabilityNotSupported or err == error.QueryTimeout) {
             return false;
         }
@@ -947,7 +936,7 @@ pub const MockTerminal = struct {
 // Tests
 
 test "isatty with invalid fd" {
-    const result = isatty(9999);
+    const result = try isatty(std.testing.io, fileFromFd(9999));
     try std.testing.expect(!result);
 }
 
@@ -970,13 +959,13 @@ test "RawMode.enter on invalid fd fails" {
         @ptrFromInt(0xDEADBEEF) // Invalid handle on Windows
     else
         9999; // Invalid fd on Unix
-    const result = RawMode.enter(invalid_fd);
+    const result = RawMode.enter(std.testing.io, invalid_fd);
     try std.testing.expectError(Error.NotATty, result);
 }
 
 test "readByte with zero timeout" {
     // In non-interactive mode, this should timeout immediately
-    const byte = readByte(0) catch |err| {
+    const byte = readByte(std.testing.io, 0) catch |err| {
         // Allow various errors in CI
         try std.testing.expect(err == error.NotATty or
             err == error.AccessDenied or
@@ -1013,7 +1002,7 @@ test "readByte on empty pipe stdin returns null instead of blocking" {
     _ = SetStdHandle(win.STD_INPUT_HANDLE, read_handle);
 
     const start = std.time.milliTimestamp();
-    const result = try readByte(50);
+    const result = try readByte(std.testing.io, 50);
     const elapsed = std.time.milliTimestamp() - start;
 
     try std.testing.expect(result == null);
@@ -1193,7 +1182,13 @@ test "queryTerminalCapability - mock successful query" {
     global_mock_terminal = &mock_terminal;
     defer global_mock_terminal = null;
 
-    const value = try queryTerminalCapability(allocator, mock_terminal.fd(), "Sixel", 100);
+    const value = try queryTerminalCapability(
+        allocator,
+        std.testing.io,
+        mock_terminal.fd(),
+        "Sixel",
+        100,
+    );
     defer allocator.free(value);
 
     try std.testing.expectEqualStrings("1", value);
@@ -1207,7 +1202,13 @@ test "queryTerminalCapability - capability not supported" {
     global_mock_terminal = &mock_terminal;
     defer global_mock_terminal = null;
 
-    const result = queryTerminalCapability(allocator, mock_terminal.fd(), "Sixel", 100);
+    const result = queryTerminalCapability(
+        allocator,
+        std.testing.io,
+        mock_terminal.fd(),
+        "Sixel",
+        100,
+    );
     try std.testing.expectError(error.CapabilityNotSupported, result);
 }
 
@@ -1219,7 +1220,13 @@ test "queryTerminalCapability - timeout" {
     global_mock_terminal = &mock_terminal;
     defer global_mock_terminal = null;
 
-    const result = queryTerminalCapability(allocator, mock_terminal.fd(), "Sixel", 50);
+    const result = queryTerminalCapability(
+        allocator,
+        std.testing.io,
+        mock_terminal.fd(),
+        "Sixel",
+        50,
+    );
     try std.testing.expectError(error.QueryTimeout, result);
 }
 
@@ -1229,7 +1236,13 @@ test "hasCapability - returns true for supported capability" {
     global_mock_terminal = &mock_terminal;
     defer global_mock_terminal = null;
 
-    const supported = try hasCapability(std.testing.allocator, mock_terminal.fd(), "Sixel", 100);
+    const supported = try hasCapability(
+        std.testing.allocator,
+        std.testing.io,
+        mock_terminal.fd(),
+        "Sixel",
+        100,
+    );
     try std.testing.expect(supported);
 }
 
@@ -1239,7 +1252,13 @@ test "hasCapability - returns false for unsupported capability" {
     global_mock_terminal = &mock_terminal;
     defer global_mock_terminal = null;
 
-    const supported = try hasCapability(std.testing.allocator, mock_terminal.fd(), "Sixel", 100);
+    const supported = try hasCapability(
+        std.testing.allocator,
+        std.testing.io,
+        mock_terminal.fd(),
+        "Sixel",
+        100,
+    );
     try std.testing.expect(!supported);
 }
 
@@ -1249,7 +1268,13 @@ test "hasCapability - returns false on timeout" {
     global_mock_terminal = &mock_terminal;
     defer global_mock_terminal = null;
 
-    const supported = try hasCapability(std.testing.allocator, mock_terminal.fd(), "Sixel", 50);
+    const supported = try hasCapability(
+        std.testing.allocator,
+        std.testing.io,
+        mock_terminal.fd(),
+        "Sixel",
+        50,
+    );
     try std.testing.expect(!supported);
 }
 
@@ -1265,7 +1290,13 @@ test "queryTerminalCapability - handles partial response reads" {
     global_mock_terminal = &mock_terminal;
     defer global_mock_terminal = null;
 
-    const value = try queryTerminalCapability(allocator, mock_terminal.fd(), "Sixel", 200);
+    const value = try queryTerminalCapability(
+        allocator,
+        std.testing.io,
+        mock_terminal.fd(),
+        "Sixel",
+        200,
+    );
     defer allocator.free(value);
 
     try std.testing.expectEqualStrings("1", value);
@@ -1280,7 +1311,13 @@ test "queryTerminalCapability - handles interleaved terminal output" {
     global_mock_terminal = &mock_terminal;
     defer global_mock_terminal = null;
 
-    const value = try queryTerminalCapability(allocator, mock_terminal.fd(), "Sixel", 200);
+    const value = try queryTerminalCapability(
+        allocator,
+        std.testing.io,
+        mock_terminal.fd(),
+        "Sixel",
+        200,
+    );
     defer allocator.free(value);
 
     try std.testing.expectEqualStrings("1", value);
@@ -1296,7 +1333,7 @@ test "queryTerminalCapability with fd=42 returns NotATty when no mock is set" {
     const allocator = std.testing.allocator;
     try std.testing.expect(global_mock_terminal == null);
 
-    const result = queryTerminalCapability(allocator, 42, "Sixel", 50);
+    const result = queryTerminalCapability(allocator, std.testing.io, 42, "Sixel", 50);
     try std.testing.expectError(error.NotATty, result);
 }
 
@@ -1869,15 +1906,15 @@ test "parseXtgettcapResponse with capability not supported (0) returns supported
 
 test "isatty with negative fd returns false" {
     // Boundary: a negative fd is never a valid descriptor on any platform.
-    try std.testing.expect(!isatty(@as(i32, -1)));
+    try std.testing.expect(!try isatty(std.testing.io, fileFromFd(-1)));
 }
 
 test "isatty is idempotent for the same fd" {
     // Postcondition: isatty is a pure query — repeated calls on the same fd
     // must agree (no hidden mutation of process-global state).
     const fd: i32 = 9999;
-    const first = isatty(fd);
-    const second = isatty(fd);
+    const first = try isatty(std.testing.io, fileFromFd(fd));
+    const second = try isatty(std.testing.io, fileFromFd(fd));
     try std.testing.expectEqual(first, second);
 }
 
@@ -2057,6 +2094,7 @@ test "hasCapability result depends only on the mock response, not on the capabil
 
     const supported = try hasCapability(
         std.testing.allocator,
+        std.testing.io,
         mock_terminal.fd(),
         "TotallyDifferentName",
         100,

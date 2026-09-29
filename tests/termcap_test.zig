@@ -603,13 +603,13 @@ test "termcap: works on all platforms" {
 
     if (builtin.os.tag == .windows) {
         // On Windows, should use fallback (no terminfo files)
-        const terminfo = try sailor.termcap.TermInfo.load(allocator, "xterm");
+        const terminfo = try sailor.termcap.TermInfo.load(allocator, testing.io, "xterm");
         defer terminfo.deinit();
 
         try testing.expect(terminfo.supportsColors());
     } else {
         // On Unix, should try to load real terminfo or fallback
-        const terminfo = sailor.termcap.TermInfo.load(allocator, "xterm") catch |err| {
+        const terminfo = sailor.termcap.TermInfo.load(allocator, testing.io, "xterm") catch |err| {
             // Allow TerminalNotFound if system doesn't have terminfo
             if (err == error.TerminalNotFound) return;
             return err;

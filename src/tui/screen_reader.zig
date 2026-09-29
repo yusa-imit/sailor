@@ -1,6 +1,5 @@
 //! Terminal screen reader integration for TUI applications.
 const std = @import("std");
-const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
 const accessibility = @import("../accessibility.zig");
 const Role = accessibility.Role;
@@ -34,10 +33,13 @@ pub const ScreenReaderOutput = struct {
     /// Initialize screen reader output with auto-detection.
     /// Detects if a screen reader is active via environment variables.
     /// Default: normal verbosity, auto output mode.
-    pub fn init(allocator: Allocator) ScreenReaderOutput {
+    pub fn init(
+        allocator: Allocator,
+        environ_map: *const std.process.Environ.Map,
+    ) ScreenReaderOutput {
         return .{
             .allocator = allocator,
-            .enabled = detectScreenReader(),
+            .enabled = detectScreenReader(environ_map),
             .verbosity = .normal,
             .output_mode = .auto,
         };
@@ -46,7 +48,7 @@ pub const ScreenReaderOutput = struct {
     /// Detect if a screen reader is active in the terminal.
     /// Checks environment variables: SCREEN_READER, NVDA, JAWS, ORCA, VOICEOVER.
     /// Returns true if any of these are set.
-    pub fn detectScreenReader() bool {
+    pub fn detectScreenReader(environ_map: *const std.process.Environ.Map) bool {
         // Check for screen reader environment variables
         const screen_reader_vars = [_][]const u8{
             "SCREEN_READER", // Generic
@@ -56,18 +58,11 @@ pub const ScreenReaderOutput = struct {
             "VOICEOVER", // VoiceOver on macOS
         };
 
-        // Windows doesn't support std.posix.getenv (env vars are UTF-16)
-        if (builtin.os.tag == .windows) {
-            return false;
-        } else {
-            for (screen_reader_vars) |var_name| {
-                if (std.posix.getenv(var_name)) |_| {
-                    return true;
-                }
-            }
-
-            return false;
+        for (screen_reader_vars) |var_name| {
+            if (environ_map.get(var_name) != null) return true;
         }
+
+        return false;
     }
 
     /// Enable or disable screen reader output.
@@ -277,7 +272,9 @@ pub const Region = struct {
 // Tests
 test "ScreenReaderOutput: init" {
     const allocator = std.testing.allocator;
-    const sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    const sr = ScreenReaderOutput.init(allocator, &env);
 
     // Detection should work (true or false is fine)
     try std.testing.expect(sr.enabled == true or sr.enabled == false);
@@ -286,7 +283,9 @@ test "ScreenReaderOutput: init" {
 
 test "ScreenReaderOutput: enable/disable" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
 
     sr.setEnabled(true);
     try std.testing.expect(sr.enabled);
@@ -297,7 +296,9 @@ test "ScreenReaderOutput: enable/disable" {
 
 test "ScreenReaderOutput: set verbosity" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
 
     sr.setVerbosity(.quiet);
     try std.testing.expectEqual(ScreenReaderOutput.Verbosity.quiet, sr.verbosity);
@@ -308,7 +309,9 @@ test "ScreenReaderOutput: set verbosity" {
 
 test "ScreenReaderOutput: announce ARIA text" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
@@ -325,7 +328,9 @@ test "ScreenReaderOutput: announce ARIA text" {
 
 test "ScreenReaderOutput: announce JSON" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.json);
 
@@ -343,7 +348,9 @@ test "ScreenReaderOutput: announce JSON" {
 
 test "ScreenReaderOutput: announce widget" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
@@ -366,7 +373,9 @@ test "ScreenReaderOutput: announce widget" {
 
 test "ScreenReaderOutput: announce navigation" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
@@ -382,7 +391,9 @@ test "ScreenReaderOutput: announce navigation" {
 
 test "ScreenReaderOutput: announce error" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
@@ -399,7 +410,9 @@ test "ScreenReaderOutput: announce error" {
 
 test "ScreenReaderOutput: announce success" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
@@ -415,7 +428,9 @@ test "ScreenReaderOutput: announce success" {
 
 test "ScreenReaderOutput: announce shortcut" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
     sr.setVerbosity(.normal);
@@ -432,7 +447,9 @@ test "ScreenReaderOutput: announce shortcut" {
 
 test "ScreenReaderOutput: quiet mode skips shortcuts" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
     sr.setVerbosity(.quiet);
@@ -449,7 +466,9 @@ test "ScreenReaderOutput: quiet mode skips shortcuts" {
 
 test "ScreenReaderOutput: announce help" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
     sr.setVerbosity(.verbose);
@@ -466,7 +485,9 @@ test "ScreenReaderOutput: announce help" {
 
 test "ScreenReaderOutput: disabled skips announcements" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(false);
     sr.setOutputMode(.aria_text);
 
@@ -515,4 +536,17 @@ test "Region: announce without landmarks" {
 
     try std.testing.expect(std.mem.find(u8, announcement, "Region: Sidebar") != null);
     try std.testing.expect(std.mem.find(u8, announcement, "group") != null);
+}
+
+test "ScreenReaderOutput: detect reads injected environment" {
+    var env = std.process.Environ.Map.init(std.testing.allocator);
+    defer env.deinit();
+
+    try std.testing.expect(!ScreenReaderOutput.detectScreenReader(&env));
+
+    try env.put("ORCA", "1");
+    try std.testing.expect(ScreenReaderOutput.detectScreenReader(&env));
+
+    const sr = ScreenReaderOutput.init(std.testing.allocator, &env);
+    try std.testing.expect(sr.enabled);
 }

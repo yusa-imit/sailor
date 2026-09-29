@@ -523,25 +523,35 @@ pub const DocGenerator = struct {
     }
 
     /// Parse a directory recursively
-    pub fn parseDirectory(self: *Self, dir_path: []const u8) !void {
-        var dir = std.fs.cwd().openDir(dir_path, .{ .iterate = true }) catch |err| {
+    pub fn parseDirectory(self: *Self, io: std.Io, dir_path: []const u8) !void {
+        var dir = std.Io.Dir.cwd().openDir(io, dir_path, .{ .iterate = true }) catch |err| {
             return err;
         };
-        defer dir.close();
+        defer dir.close(io);
 
-        try self.parseDirectoryRecursive(dir, dir_path);
+        try self.parseDirectoryRecursive(io, dir, dir_path);
     }
 
     /// Recursively parse directory helper
-    fn parseDirectoryRecursive(self: *Self, dir: std.fs.Dir, base_path: []const u8) !void {
+    fn parseDirectoryRecursive(
+        self: *Self,
+        io: std.Io,
+        dir: std.Io.Dir,
+        base_path: []const u8,
+    ) !void {
         var iter = dir.iterate();
-        while (try iter.next()) |entry| {
+        while (try iter.next(io)) |entry| {
             switch (entry.kind) {
                 .file => {
                     // Only process .zig files
                     if (std.mem.endsWith(u8, entry.name, ".zig")) {
                         // Read file contents
-                        const file_contents = try dir.readFileAlloc(self.allocator, entry.name, 1024 * 1024); // 1MB max
+                        const file_contents = try dir.readFileAlloc(
+                            io,
+                            entry.name,
+                            self.allocator,
+                            .limited(1024 * 1024), // 1MB max
+                        );
                         defer self.allocator.free(file_contents);
 
                         // Parse the file
@@ -550,14 +560,14 @@ pub const DocGenerator = struct {
                 },
                 .directory => {
                     // Recursively scan subdirectories
-                    var subdir = try dir.openDir(entry.name, .{ .iterate = true });
-                    defer subdir.close();
+                    var subdir = try dir.openDir(io, entry.name, .{ .iterate = true });
+                    defer subdir.close(io);
 
                     // Construct new base path
-                    var path_buf: [std.fs.max_path_bytes]u8 = undefined;
+                    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
                     const new_base = try std.fmt.bufPrint(&path_buf, "{s}/{s}", .{ base_path, entry.name });
 
-                    try self.parseDirectoryRecursive(subdir, new_base);
+                    try self.parseDirectoryRecursive(io, subdir, new_base);
                 },
                 else => {}, // Skip symlinks, pipes, etc.
             }
@@ -949,7 +959,7 @@ test "parseDirectory rejects non-existent path" {
     var gen = try DocGenerator.init(testing.allocator);
     defer gen.deinit();
 
-    const result = gen.parseDirectory("/this/path/does/not/exist/12345/67890");
+    const result = gen.parseDirectory(testing.io, "/this/path/does/not/exist/12345/67890");
     try testing.expectError(error.FileNotFound, result);
 }
 
@@ -957,37 +967,37 @@ test "parseDirectory rejects file path (not a directory)" {
     const testing = std.testing;
 
     // Create a temporary file
-    var tmp_dir = try std.fs.cwd().makeOpenPath("/tmp/docgen_test_error", .{});
-    defer tmp_dir.close();
+    var tmp_dir = try std.Io.Dir.cwd().createDirPathOpen(testing.io, "/tmp/docgen_test_error", .{});
+    defer tmp_dir.close(testing.io);
 
-    const test_file = try tmp_dir.createFile("test_file.txt", .{});
-    defer test_file.close();
+    const test_file = try tmp_dir.createFile(testing.io, "test_file.txt", .{});
+    defer test_file.close(testing.io);
 
-    try test_file.writeAll("dummy content");
+    try test_file.writeStreamingAll(testing.io, "dummy content");
 
     var gen = try DocGenerator.init(testing.allocator);
     defer gen.deinit();
 
     // Try to parse the file as if it were a directory
-    const result = gen.parseDirectory("/tmp/docgen_test_error/test_file.txt");
+    const result = gen.parseDirectory(testing.io, "/tmp/docgen_test_error/test_file.txt");
     try testing.expectError(error.NotDir, result);
 
     // Cleanup
-    try tmp_dir.deleteFile("test_file.txt");
+    try tmp_dir.deleteFile(testing.io, "test_file.txt");
 }
 
 test "parseDirectory succeeds with empty directory" {
     const testing = std.testing;
 
     // Create a temporary empty directory
-    var tmp_dir = try std.fs.cwd().makeOpenPath("/tmp/docgen_test_empty", .{});
-    defer tmp_dir.close();
+    var tmp_dir = try std.Io.Dir.cwd().createDirPathOpen(testing.io, "/tmp/docgen_test_empty", .{});
+    defer tmp_dir.close(testing.io);
 
     var gen = try DocGenerator.init(testing.allocator);
     defer gen.deinit();
 
     // Parse empty directory should not error
-    try gen.parseDirectory("/tmp/docgen_test_empty");
+    try gen.parseDirectory(testing.io, "/tmp/docgen_test_empty");
 
     // No files were parsed, so no declarations
     try testing.expectEqual(@as(usize, 0), gen.getDeclarations().len);
@@ -997,23 +1007,27 @@ test "parseDirectory processes only .zig files" {
     const testing = std.testing;
 
     // Create a temporary directory with mixed files
-    var tmp_dir = try std.fs.cwd().makeOpenPath("/tmp/docgen_test_zig_only", .{});
-    defer tmp_dir.close();
+    var tmp_dir = try std.Io.Dir.cwd().createDirPathOpen(
+        testing.io,
+        "/tmp/docgen_test_zig_only",
+        .{},
+    );
+    defer tmp_dir.close(testing.io);
 
     // Create a .zig file with valid content
-    const zig_file = try tmp_dir.createFile("module.zig", .{});
-    defer zig_file.close();
-    try zig_file.writeAll("pub fn test_func() void {}");
+    const zig_file = try tmp_dir.createFile(testing.io, "module.zig", .{});
+    defer zig_file.close(testing.io);
+    try zig_file.writeStreamingAll(testing.io, "pub fn test_func() void {}");
 
     // Create a non-.zig file (should be ignored)
-    const txt_file = try tmp_dir.createFile("readme.txt", .{});
-    defer txt_file.close();
-    try txt_file.writeAll("This is a readme");
+    const txt_file = try tmp_dir.createFile(testing.io, "readme.txt", .{});
+    defer txt_file.close(testing.io);
+    try txt_file.writeStreamingAll(testing.io, "This is a readme");
 
     var gen = try DocGenerator.init(testing.allocator);
     defer gen.deinit();
 
-    try gen.parseDirectory("/tmp/docgen_test_zig_only");
+    try gen.parseDirectory(testing.io, "/tmp/docgen_test_zig_only");
 
     // Only the .zig file should be parsed
     const decls = gen.getDeclarations();
@@ -1021,35 +1035,39 @@ test "parseDirectory processes only .zig files" {
     try testing.expectEqual(DeclarationType.function, decls[0].type);
 
     // Cleanup
-    try tmp_dir.deleteFile("module.zig");
-    try tmp_dir.deleteFile("readme.txt");
+    try tmp_dir.deleteFile(testing.io, "module.zig");
+    try tmp_dir.deleteFile(testing.io, "readme.txt");
 }
 
 test "parseDirectory processes .zig files in subdirectories" {
     const testing = std.testing;
 
     // Create nested directory structure
-    var tmp_dir = try std.fs.cwd().makeOpenPath("/tmp/docgen_test_nested", .{});
-    defer tmp_dir.close();
+    var tmp_dir = try std.Io.Dir.cwd().createDirPathOpen(
+        testing.io,
+        "/tmp/docgen_test_nested",
+        .{},
+    );
+    defer tmp_dir.close(testing.io);
 
     // Create a .zig file in root
-    const root_zig = try tmp_dir.createFile("root.zig", .{});
-    defer root_zig.close();
-    try root_zig.writeAll("pub fn root_func() void {}");
+    const root_zig = try tmp_dir.createFile(testing.io, "root.zig", .{});
+    defer root_zig.close(testing.io);
+    try root_zig.writeStreamingAll(testing.io, "pub fn root_func() void {}");
 
     // Create subdirectory with .zig file
-    try tmp_dir.makePath("subdir");
-    var subdir = try tmp_dir.openDir("subdir", .{});
-    defer subdir.close();
+    try tmp_dir.createDirPath(testing.io, "subdir");
+    var subdir = try tmp_dir.openDir(testing.io, "subdir", .{});
+    defer subdir.close(testing.io);
 
-    const sub_zig = try subdir.createFile("sub.zig", .{});
-    defer sub_zig.close();
-    try sub_zig.writeAll("pub fn sub_func() void {}");
+    const sub_zig = try subdir.createFile(testing.io, "sub.zig", .{});
+    defer sub_zig.close(testing.io);
+    try sub_zig.writeStreamingAll(testing.io, "pub fn sub_func() void {}");
 
     var gen = try DocGenerator.init(testing.allocator);
     defer gen.deinit();
 
-    try gen.parseDirectory("/tmp/docgen_test_nested");
+    try gen.parseDirectory(testing.io, "/tmp/docgen_test_nested");
 
     // Both files should be parsed (2 functions total)
     const decls = gen.getDeclarations();
@@ -1058,9 +1076,9 @@ test "parseDirectory processes .zig files in subdirectories" {
     try testing.expectEqual(DeclarationType.function, decls[1].type);
 
     // Cleanup
-    try subdir.deleteFile("sub.zig");
-    try tmp_dir.deleteDir("subdir");
-    try tmp_dir.deleteFile("root.zig");
+    try subdir.deleteFile(testing.io, "sub.zig");
+    try tmp_dir.deleteDir(testing.io, "subdir");
+    try tmp_dir.deleteFile(testing.io, "root.zig");
 }
 
 test "parseSource handles empty source gracefully" {

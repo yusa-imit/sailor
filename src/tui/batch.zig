@@ -23,14 +23,17 @@ pub const EventBatcher = struct {
     /// Last flush timestamp
     last_flush_ns: u64,
     allocator: Allocator,
+    /// Runtime handle used to read the monotonic clock
+    io: std.Io,
 
-    /// Initialize event batcher with batch window (default: 16ms)
-    pub fn init(allocator: Allocator, batch_window_ms: u32) EventBatcher {
+    /// Initialize event batcher with batch window (default: 16ms); caches `io`
+    pub fn init(allocator: Allocator, io: std.Io, batch_window_ms: u32) EventBatcher {
         return .{
             .events = .empty,
             .batch_window_ns = @as(u64, batch_window_ms) * 1_000_000,
             .last_flush_ns = 0,
             .allocator = allocator,
+            .io = io,
         };
     }
 
@@ -56,7 +59,7 @@ pub const EventBatcher = struct {
     /// Check if batch window has elapsed
     pub fn shouldFlush(self: EventBatcher) bool {
         if (self.last_flush_ns == 0) return true; // First flush
-        const now = std.time.nanoTimestamp();
+        const now = std.Io.Clock.awake.now(self.io).toNanoseconds();
         const elapsed = @as(u64, @intCast(now)) - self.last_flush_ns;
         return elapsed >= self.batch_window_ns;
     }
@@ -75,7 +78,7 @@ pub const EventBatcher = struct {
         self.events.clearRetainingCapacity();
 
         // Update flush timestamp
-        const now = std.time.nanoTimestamp();
+        const now = std.Io.Clock.awake.now(self.io).toNanoseconds();
         self.last_flush_ns = @intCast(now);
     }
 
@@ -100,7 +103,7 @@ pub const EventBatcher = struct {
 
 test "EventBatcher init" {
     const allocator = std.testing.allocator;
-    var batcher = EventBatcher.init(allocator, 16);
+    var batcher = EventBatcher.init(allocator, std.testing.io, 16);
     defer batcher.deinit();
 
     try std.testing.expectEqual(@as(u64, 16_000_000), batcher.batch_window_ns);
@@ -109,7 +112,7 @@ test "EventBatcher init" {
 
 test "EventBatcher coalesce resize" {
     const allocator = std.testing.allocator;
-    var batcher = EventBatcher.init(allocator, 16);
+    var batcher = EventBatcher.init(allocator, std.testing.io, 16);
     defer batcher.deinit();
 
     // Push multiple resize events
@@ -127,7 +130,7 @@ test "EventBatcher coalesce resize" {
 
 test "EventBatcher key events not coalesced" {
     const allocator = std.testing.allocator;
-    var batcher = EventBatcher.init(allocator, 16);
+    var batcher = EventBatcher.init(allocator, std.testing.io, 16);
     defer batcher.deinit();
 
     // Push multiple key events
@@ -141,7 +144,7 @@ test "EventBatcher key events not coalesced" {
 
 test "EventBatcher mixed events" {
     const allocator = std.testing.allocator;
-    var batcher = EventBatcher.init(allocator, 16);
+    var batcher = EventBatcher.init(allocator, std.testing.io, 16);
     defer batcher.deinit();
 
     // Push mixed events
@@ -156,7 +159,7 @@ test "EventBatcher mixed events" {
 
 test "EventBatcher flush" {
     const allocator = std.testing.allocator;
-    var batcher = EventBatcher.init(allocator, 16);
+    var batcher = EventBatcher.init(allocator, std.testing.io, 16);
     defer batcher.deinit();
 
     var output = std.ArrayList(Event).empty;
@@ -186,7 +189,7 @@ test "EventBatcher flush" {
 
 test "EventBatcher clear" {
     const allocator = std.testing.allocator;
-    var batcher = EventBatcher.init(allocator, 16);
+    var batcher = EventBatcher.init(allocator, std.testing.io, 16);
     defer batcher.deinit();
 
     try batcher.push(.{ .key = .{ .code = .{ .char = 'a' } } });
@@ -201,7 +204,7 @@ test "EventBatcher clear" {
 
 test "EventBatcher shouldFlush timing" {
     const allocator = std.testing.allocator;
-    var batcher = EventBatcher.init(allocator, 1); // 1ms window
+    var batcher = EventBatcher.init(allocator, std.testing.io, 1); // 1ms window
     defer batcher.deinit();
 
     // First flush should always return true
@@ -220,7 +223,7 @@ test "EventBatcher shouldFlush timing" {
 
 test "EventBatcher multiple flush cycles" {
     const allocator = std.testing.allocator;
-    var batcher = EventBatcher.init(allocator, 16);
+    var batcher = EventBatcher.init(allocator, std.testing.io, 16);
     defer batcher.deinit();
 
     var output = std.ArrayList(Event).empty;

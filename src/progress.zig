@@ -138,6 +138,7 @@ pub const Template = struct {
 
 /// Progress bar state
 pub const Bar = struct {
+    io: std.Io,
     config: BarConfig,
     total: u64,
     current: u64,
@@ -146,14 +147,22 @@ pub const Bar = struct {
 
     const Self = @This();
 
-    /// Create a new progress bar
-    pub fn init(total: u64, config: BarConfig) Self {
+    /// Create a new progress bar. `environ_map` is only consulted when
+    /// `config.use_color` is null (color auto-detection).
+    pub fn init(
+        environ_map: *const std.process.Environ.Map,
+        io: std.Io,
+        total: u64,
+        config: BarConfig,
+    ) std.Io.Cancelable!Self {
         return Self{
+            .io = io,
             .config = config,
             .total = total,
             .current = 0,
-            .start_time = std.time.milliTimestamp(),
-            .use_color = config.use_color orelse (color.ColorLevel.detect() != .none),
+            .start_time = std.Io.Clock.real.now(io).toMilliseconds(),
+            .use_color = config.use_color orelse
+                (try color.ColorLevel.detect(environ_map, io) != .none),
         };
     }
 
@@ -219,7 +228,7 @@ pub const Bar = struct {
 
         // ETA
         if (self.config.show_eta and self.current > 0 and self.current < self.total) {
-            const elapsed = std.time.milliTimestamp() - self.start_time;
+            const elapsed = std.Io.Clock.real.now(self.io).toMilliseconds() - self.start_time;
             const rate = @as(f64, @floatFromInt(elapsed)) / @as(f64, @floatFromInt(self.current));
             const remaining = @as(i64, @intFromFloat(rate * @as(f64, @floatFromInt(self.total - self.current))));
             const eta_sec = @divFloor(remaining, 1000);
@@ -250,13 +259,20 @@ pub const Spinner = struct {
 
     const Self = @This();
 
-    /// Create a new spinner
-    pub fn init(message: []const u8, style: SpinnerStyle, use_color: ?bool) Self {
+    /// Create a new spinner. `environ_map` is only consulted when `use_color` is null.
+    pub fn init(
+        environ_map: *const std.process.Environ.Map,
+        io: std.Io,
+        message: []const u8,
+        style: SpinnerStyle,
+        use_color: ?bool,
+    ) std.Io.Cancelable!Self {
         return Self{
             .style = style,
             .frame_index = 0,
             .message = message,
-            .use_color = use_color orelse (color.ColorLevel.detect() != .none),
+            .use_color = use_color orelse
+                (try color.ColorLevel.detect(environ_map, io) != .none),
         };
     }
 
@@ -295,19 +311,21 @@ pub const Spinner = struct {
 /// Multi-progress manager (thread-safe)
 pub const Multi = struct {
     allocator: Allocator,
-    mutex: std.Thread.Mutex,
+    io: std.Io,
+    mutex: std.Io.Mutex,
     bars: std.ArrayListUnmanaged(Bar),
     spinners: std.ArrayListUnmanaged(Spinner),
 
     const Self = @This();
 
     /// Initialize multi-progress manager
-    pub fn init(allocator: Allocator) Self {
+    pub fn init(allocator: Allocator, io: std.Io) Self {
         return Self{
             .allocator = allocator,
-            .mutex = .{},
-            .bars = .{},
-            .spinners = .{},
+            .io = io,
+            .mutex = .init,
+            .bars = .empty,
+            .spinners = .empty,
         };
     }
 
@@ -318,29 +336,40 @@ pub const Multi = struct {
     }
 
     /// Add a progress bar
-    pub fn addBar(self: *Self, total: u64, config: BarConfig) !usize {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+    pub fn addBar(
+        self: *Self,
+        environ_map: *const std.process.Environ.Map,
+        total: u64,
+        config: BarConfig,
+    ) !usize {
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
-        const bar = Bar.init(total, config);
+        const bar = try Bar.init(environ_map, self.io, total, config);
         try self.bars.append(self.allocator, bar);
         return self.bars.items.len - 1;
     }
 
     /// Add a spinner
-    pub fn addSpinner(self: *Self, message: []const u8, style: SpinnerStyle, use_color: ?bool) !usize {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+    pub fn addSpinner(
+        self: *Self,
+        environ_map: *const std.process.Environ.Map,
+        message: []const u8,
+        style: SpinnerStyle,
+        use_color: ?bool,
+    ) !usize {
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
-        const spinner = Spinner.init(message, style, use_color);
+        const spinner = try Spinner.init(environ_map, self.io, message, style, use_color);
         try self.spinners.append(self.allocator, spinner);
         return self.spinners.items.len - 1;
     }
 
     /// Update bar progress (thread-safe)
     pub fn updateBar(self: *Self, index: usize, current: u64) void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         if (index < self.bars.items.len) {
             self.bars.items[index].update(current);
@@ -349,8 +378,8 @@ pub const Multi = struct {
 
     /// Tick spinner (thread-safe)
     pub fn tickSpinner(self: *Self, index: usize) void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         if (index < self.spinners.items.len) {
             self.spinners.items[index].tick();
@@ -359,8 +388,8 @@ pub const Multi = struct {
 
     /// Render all indicators to writer (thread-safe)
     pub fn render(self: *Self, writer: anytype) !void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         // Move cursor up to start of progress display
         const total_lines = self.bars.items.len + self.spinners.items.len;
@@ -386,11 +415,18 @@ pub const Multi = struct {
 
 // Tests
 
+fn testEnv() std.process.Environ.Map {
+    return std.process.Environ.Map.init(std.testing.allocator);
+}
+
 test "Bar basic" {
+    var env = testEnv();
+    defer env.deinit();
+
     var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
-    var bar = Bar.init(100, .{ .use_color = false });
+    var bar = try Bar.init(&env, std.testing.io, 100, .{ .use_color = false });
     bar.update(50);
 
     try bar.render(&buf.writer);
@@ -401,7 +437,10 @@ test "Bar basic" {
 }
 
 test "Bar inc" {
-    var bar = Bar.init(10, .{});
+    var env = testEnv();
+    defer env.deinit();
+
+    var bar = try Bar.init(&env, std.testing.io, 10, .{});
     try std.testing.expectEqual(@as(u64, 0), bar.current);
 
     bar.inc();
@@ -412,18 +451,24 @@ test "Bar inc" {
 }
 
 test "Bar clamps at total" {
-    var bar = Bar.init(10, .{});
+    var env = testEnv();
+    defer env.deinit();
+
+    var bar = try Bar.init(&env, std.testing.io, 10, .{});
     bar.update(20);
     try std.testing.expectEqual(@as(u64, 10), bar.current);
 }
 
 test "Bar filled_width glyph count at 50% progress" {
+    var env = testEnv();
+    defer env.deinit();
+
     // Default width is 40, so at 50% we should see exactly 20 filled glyphs
     // filled_width = @intFromFloat(40.0 * 50.0 / 100.0) = @intFromFloat(20.0) = 20
     var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
-    var bar = Bar.init(100, .{ .use_color = false });
+    var bar = try Bar.init(&env, std.testing.io, 100, .{ .use_color = false });
     bar.update(50);
     try bar.render(&buf.writer);
 
@@ -436,11 +481,14 @@ test "Bar filled_width glyph count at 50% progress" {
 }
 
 test "Bar filled_width glyph count at 25% progress" {
+    var env = testEnv();
+    defer env.deinit();
+
     // At 25%, filled_width = @intFromFloat(40.0 * 25.0 / 100.0) = 10
     var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
-    var bar = Bar.init(100, .{ .use_color = false });
+    var bar = try Bar.init(&env, std.testing.io, 100, .{ .use_color = false });
     bar.update(25);
     try bar.render(&buf.writer);
 
@@ -452,10 +500,16 @@ test "Bar filled_width glyph count at 25% progress" {
 }
 
 test "Bar ETA not shown when current equals zero" {
+    var env = testEnv();
+    defer env.deinit();
+
     var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
-    var bar = Bar.init(100, .{ .show_eta = true, .use_color = false });
+    var bar = try Bar.init(&env, std.testing.io, 100, .{
+        .show_eta = true,
+        .use_color = false,
+    });
     // current is 0 by default after init, so guard condition (current > 0) fails
     try bar.render(&buf.writer);
 
@@ -465,10 +519,16 @@ test "Bar ETA not shown when current equals zero" {
 }
 
 test "Bar ETA not shown when current equals total" {
+    var env = testEnv();
+    defer env.deinit();
+
     var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
-    var bar = Bar.init(100, .{ .show_eta = true, .use_color = false });
+    var bar = try Bar.init(&env, std.testing.io, 100, .{
+        .show_eta = true,
+        .use_color = false,
+    });
     bar.update(100);
     // current equals total, so guard condition (current < total) fails
     try bar.render(&buf.writer);
@@ -479,10 +539,16 @@ test "Bar ETA not shown when current equals total" {
 }
 
 test "Bar ETA formatted with seconds when elapsed produces eta_sec < 60" {
+    var env = testEnv();
+    defer env.deinit();
+
     var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
-    var bar = Bar.init(100, .{ .show_eta = true, .use_color = false });
+    var bar = try Bar.init(&env, std.testing.io, 100, .{
+        .show_eta = true,
+        .use_color = false,
+    });
     bar.update(50);
 
     // Manually set start_time to force specific elapsed time
@@ -502,10 +568,16 @@ test "Bar ETA formatted with seconds when elapsed produces eta_sec < 60" {
 }
 
 test "Bar ETA formatted with minutes when elapsed produces 60 <= eta_sec < 3600" {
+    var env = testEnv();
+    defer env.deinit();
+
     var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
-    var bar = Bar.init(200, .{ .show_eta = true, .use_color = false });
+    var bar = try Bar.init(&env, std.testing.io, 200, .{
+        .show_eta = true,
+        .use_color = false,
+    });
     bar.update(100);
 
     // Want eta_sec = 150 seconds = 2m 30s
@@ -523,10 +595,16 @@ test "Bar ETA formatted with minutes when elapsed produces 60 <= eta_sec < 3600"
 }
 
 test "Bar ETA formatted with hours when eta_sec >= 3600" {
+    var env = testEnv();
+    defer env.deinit();
+
     var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
-    var bar = Bar.init(3600, .{ .show_eta = true, .use_color = false });
+    var bar = try Bar.init(&env, std.testing.io, 3600, .{
+        .show_eta = true,
+        .use_color = false,
+    });
     bar.update(1800);
 
     // Want eta_sec = 3600 seconds = 1h 0m
@@ -552,7 +630,10 @@ test "Spinner frames" {
 }
 
 test "Spinner tick" {
-    var spinner = Spinner.init("Loading", .line, false);
+    var env = testEnv();
+    defer env.deinit();
+
+    var spinner = try Spinner.init(&env, std.testing.io, "Loading", .line, false);
     try std.testing.expectEqual(@as(usize, 0), spinner.frame_index);
 
     spinner.tick();
@@ -565,10 +646,13 @@ test "Spinner tick" {
 }
 
 test "Spinner render" {
+    var env = testEnv();
+    defer env.deinit();
+
     var buf: std.Io.Writer.Allocating = .init(std.testing.allocator);
     defer buf.deinit();
 
-    const spinner = Spinner.init("Loading", .line, false);
+    const spinner = try Spinner.init(&env, std.testing.io, "Loading", .line, false);
     try spinner.render(&buf.writer);
 
     const output = buf.written();
@@ -576,17 +660,20 @@ test "Spinner render" {
 }
 
 test "Multi basic" {
+    var env = testEnv();
+    defer env.deinit();
+
     const allocator = std.testing.allocator;
 
-    var multi = Multi.init(allocator);
+    var multi = Multi.init(allocator, std.testing.io);
     defer multi.deinit();
 
-    const bar_idx = try multi.addBar(100, .{ .use_color = false });
+    const bar_idx = try multi.addBar(&env, 100, .{ .use_color = false });
     try std.testing.expectEqual(@as(usize, 0), bar_idx);
 
     multi.updateBar(bar_idx, 50);
 
-    const spinner_idx = try multi.addSpinner("Loading", .line, false);
+    const spinner_idx = try multi.addSpinner(&env, "Loading", .line, false);
     try std.testing.expectEqual(@as(usize, 0), spinner_idx);
 
     multi.tickSpinner(spinner_idx);
@@ -680,59 +767,113 @@ test "Template processing preset has valid bar config" {
 }
 
 test "create Bar from download template" {
+    var env = testEnv();
+    defer env.deinit();
+
     const template = Template.download;
-    var bar = Bar.init(1000, template.config);
+    var bar = try Bar.init(&env, std.testing.io, 1000, template.config);
     bar.update(500);
     try std.testing.expectEqual(@as(u64, 500), bar.current);
     try std.testing.expectEqual(@as(u64, 1000), bar.total);
 }
 
 test "create Bar from build template" {
+    var env = testEnv();
+    defer env.deinit();
+
     const template = Template.build;
-    var bar = Bar.init(100, template.config);
+    var bar = try Bar.init(&env, std.testing.io, 100, template.config);
     bar.update(75);
     try std.testing.expectEqual(@as(u64, 75), bar.current);
     try std.testing.expectEqual(@as(u64, 100), bar.total);
 }
 
 test "create Bar from test_run template" {
+    var env = testEnv();
+    defer env.deinit();
+
     const template = Template.test_run;
-    var bar = Bar.init(50, template.config);
+    var bar = try Bar.init(&env, std.testing.io, 50, template.config);
     bar.inc();
     try std.testing.expectEqual(@as(u64, 1), bar.current);
 }
 
 test "create Spinner from download template" {
+    var env = testEnv();
+    defer env.deinit();
+
     const template = Template.download;
-    const spinner = Spinner.init(template.label, template.spinner, false);
+    const spinner = try Spinner.init(
+        &env,
+        std.testing.io,
+        template.label,
+        template.spinner,
+        false,
+    );
     try std.testing.expectEqual(template.spinner, spinner.style);
     try std.testing.expectEqualStrings(template.label, spinner.message);
 }
 
 test "create Spinner from build template" {
+    var env = testEnv();
+    defer env.deinit();
+
     const template = Template.build;
-    const spinner = Spinner.init(template.label, template.spinner, false);
+    const spinner = try Spinner.init(
+        &env,
+        std.testing.io,
+        template.label,
+        template.spinner,
+        false,
+    );
     try std.testing.expectEqual(template.spinner, spinner.style);
     try std.testing.expectEqualStrings(template.label, spinner.message);
 }
 
 test "create Spinner from test_run template" {
+    var env = testEnv();
+    defer env.deinit();
+
     const template = Template.test_run;
-    const spinner = Spinner.init(template.label, template.spinner, false);
+    const spinner = try Spinner.init(
+        &env,
+        std.testing.io,
+        template.label,
+        template.spinner,
+        false,
+    );
     try std.testing.expectEqual(template.spinner, spinner.style);
     try std.testing.expectEqualStrings(template.label, spinner.message);
 }
 
 test "create Spinner from install template" {
+    var env = testEnv();
+    defer env.deinit();
+
     const template = Template.install;
-    const spinner = Spinner.init(template.label, template.spinner, false);
+    const spinner = try Spinner.init(
+        &env,
+        std.testing.io,
+        template.label,
+        template.spinner,
+        false,
+    );
     try std.testing.expectEqual(template.spinner, spinner.style);
     try std.testing.expectEqualStrings(template.label, spinner.message);
 }
 
 test "create Spinner from processing template" {
+    var env = testEnv();
+    defer env.deinit();
+
     const template = Template.processing;
-    const spinner = Spinner.init(template.label, template.spinner, false);
+    const spinner = try Spinner.init(
+        &env,
+        std.testing.io,
+        template.label,
+        template.spinner,
+        false,
+    );
     try std.testing.expectEqual(template.spinner, spinner.style);
     try std.testing.expectEqualStrings(template.label, spinner.message);
 }

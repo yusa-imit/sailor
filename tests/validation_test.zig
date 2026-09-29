@@ -312,7 +312,7 @@ test "combine validators OR mode - all fail" {
 
 test "async validator - debounced validation" {
     const allocator = testing.allocator;
-    var async_validator = try validation.AsyncValidator.init(allocator, Validator.email(), 100); // 100ms debounce
+    var async_validator = try validation.AsyncValidator.init(allocator, testing.io, Validator.email(), 100); // 100ms debounce
     defer async_validator.deinit();
 
     // Queue multiple validations rapidly
@@ -321,7 +321,7 @@ test "async validator - debounced validation" {
     try async_validator.queueValidation("user@example.com");
 
     // Only the last one should be validated after debounce period
-    std.Thread.sleep(150 * std.time.ns_per_ms);
+    try testing.io.sleep(.fromMilliseconds(150), .awake);
 
     const result = try async_validator.getResult();
     try testing.expectEqual(ValidatorResult.valid, result);
@@ -329,7 +329,7 @@ test "async validator - debounced validation" {
 
 test "async validator - pending state" {
     const allocator = testing.allocator;
-    var async_validator = try validation.AsyncValidator.init(allocator, Validator.email(), 100);
+    var async_validator = try validation.AsyncValidator.init(allocator, testing.io, Validator.email(), 100);
     defer async_validator.deinit();
 
     try async_validator.queueValidation("user@example.com");
@@ -346,13 +346,14 @@ test "async validator - timeout handling" {
     const slow_validator = Validator{
         .validateFn = struct {
             fn validate(_: ?*const anyopaque, _: []const u8) ValidatorResult {
-                std.Thread.sleep(500 * std.time.ns_per_ms); // 500ms delay
+                // Test double: nothing cancels this sleep.
+                testing.io.sleep(.fromMilliseconds(500), .awake) catch {}; // 500ms delay
                 return .valid;
             }
         }.validate,
     };
 
-    var async_validator = try validation.AsyncValidator.init(allocator, slow_validator, 50);
+    var async_validator = try validation.AsyncValidator.init(allocator, testing.io, slow_validator, 50);
     defer async_validator.deinit();
 
     try async_validator.queueValidation("test");
@@ -720,7 +721,7 @@ test "combine validators - survives more than 32 concurrent combinations without
     var storages: [39]validation.CombinedStorage = undefined;
     var combined: [39]Validator = undefined;
     inline for (0..39) |i| {
-        const min_val = i + 5;  // comptime-known in inline for
+        const min_val = i + 5; // comptime-known in inline for
         const validators = &.{Validator.minLength(min_val)};
         combined[i] = Validator.combine(&storages[i], validators, .all);
     }

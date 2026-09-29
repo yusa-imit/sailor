@@ -853,7 +853,7 @@ test "DocGenerator parses single .zig file from directory" {
     defer tmp.cleanup();
 
     // Create a single .zig file
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "module.zig",
         .data = "/// Adds two numbers\npub fn add(a: i32, b: i32) i32 {\n    return a + b;\n}\n",
     });
@@ -865,7 +865,7 @@ test "DocGenerator parses single .zig file from directory" {
     var path_buf: [256]u8 = undefined;
     const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
 
-    try gen.parseDirectory(path);
+    try gen.parseDirectory(testing.io, path);
 
     const decls = gen.getDeclarations();
     try testing.expect(decls.len > 0);
@@ -879,21 +879,21 @@ test "DocGenerator scans recursive nested directories" {
     defer tmp.cleanup();
 
     // Create nested structure
-    try tmp.dir.makeDir("src");
-    try tmp.dir.makeDir("src/utils");
+    try tmp.dir.createDir(testing.io, "src", .default_dir);
+    try tmp.dir.createDir(testing.io, "src/utils", .default_dir);
 
     // Create files at different levels
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "root.zig",
         .data = "/// Root level function\npub fn rootFunc() void {}\n",
     });
 
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "src/module.zig",
         .data = "/// Module function\npub fn moduleFunc() void {}\n",
     });
 
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "src/utils/helper.zig",
         .data = "/// Helper function\npub fn helper() void {}\n",
     });
@@ -903,7 +903,7 @@ test "DocGenerator scans recursive nested directories" {
 
     var path_buf: [256]u8 = undefined;
     const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
-    try gen.parseDirectory(path);
+    try gen.parseDirectory(testing.io, path);
 
     const decls = gen.getDeclarations();
     // Should have parsed functions from all three files
@@ -917,22 +917,22 @@ test "DocGenerator filters non-.zig files" {
     defer tmp.cleanup();
 
     // Create mixed file types
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "module.zig",
         .data = "pub fn zigFunc() void {}\n",
     });
 
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "README.md",
         .data = "# Documentation\nThis is markdown",
     });
 
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "config.json",
         .data = "{\"version\": \"1.0.0\"}",
     });
 
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "notes.txt",
         .data = "Some notes",
     });
@@ -942,7 +942,7 @@ test "DocGenerator filters non-.zig files" {
 
     var path_buf: [256]u8 = undefined;
     const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
-    try gen.parseDirectory(path);
+    try gen.parseDirectory(testing.io, path);
 
     const decls = gen.getDeclarations();
     // Should only parse the .zig file
@@ -958,12 +958,12 @@ test "DocGenerator accumulates declarations from multiple files" {
     defer tmp.cleanup();
 
     // Create multiple .zig files with different declarations
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "functions.zig",
         .data = "pub fn func1() void {}\npub fn func2() void {}\n",
     });
 
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "types.zig",
         .data = "pub const Point = struct { x: i32, y: i32 };\npub const Color = enum { red, green, blue };\n",
     });
@@ -973,7 +973,7 @@ test "DocGenerator accumulates declarations from multiple files" {
 
     var path_buf: [256]u8 = undefined;
     const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
-    try gen.parseDirectory(path);
+    try gen.parseDirectory(testing.io, path);
 
     const decls = gen.getDeclarations();
     // Should have accumulated all declarations from both files
@@ -991,7 +991,7 @@ test "DocGenerator handles empty directory" {
 
     var path_buf: [256]u8 = undefined;
     const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
-    try gen.parseDirectory(path);
+    try gen.parseDirectory(testing.io, path);
 
     const decls = gen.getDeclarations();
     // Empty directory should produce no declarations
@@ -1005,12 +1005,12 @@ test "DocGenerator handles directory with no .zig files" {
     defer tmp.cleanup();
 
     // Create only non-Zig files
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "readme.md",
         .data = "# README",
     });
 
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "config.toml",
         .data = "version = \"1.0\"",
     });
@@ -1020,7 +1020,7 @@ test "DocGenerator handles directory with no .zig files" {
 
     var path_buf: [256]u8 = undefined;
     const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
-    try gen.parseDirectory(path);
+    try gen.parseDirectory(testing.io, path);
 
     const decls = gen.getDeclarations();
     try testing.expectEqual(@as(usize, 0), decls.len);
@@ -1032,7 +1032,7 @@ test "DocGenerator handles non-existent directory path" {
     var gen = try DocGenerator.init(allocator);
     defer gen.deinit();
 
-    const result = gen.parseDirectory("/nonexistent/path/that/does/not/exist");
+    const result = gen.parseDirectory(testing.io, "/nonexistent/path/that/does/not/exist");
     // Should return an error (specific type depends on implementation)
     try testing.expectError(error.FileNotFound, result);
 }
@@ -1044,19 +1044,19 @@ test "DocGenerator handles deeply nested directory structure" {
     defer tmp.cleanup();
 
     // Create deeply nested structure
-    try tmp.dir.makePath("a/b/c/d/e");
+    try tmp.dir.createDirPath(testing.io, "a/b/c/d/e");
 
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "a/file1.zig",
         .data = "pub fn level1() void {}\n",
     });
 
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "a/b/file2.zig",
         .data = "pub fn level2() void {}\n",
     });
 
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "a/b/c/d/e/file5.zig",
         .data = "pub fn level5() void {}\n",
     });
@@ -1066,7 +1066,7 @@ test "DocGenerator handles deeply nested directory structure" {
 
     var path_buf: [256]u8 = undefined;
     const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
-    try gen.parseDirectory(path);
+    try gen.parseDirectory(testing.io, path);
 
     const decls = gen.getDeclarations();
     // Should find all files at all nesting levels
@@ -1079,7 +1079,7 @@ test "DocGenerator parses doc comments from directory files" {
     var tmp = testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "documented.zig",
         .data = "/// This function has documentation\npub fn documented() void {}\n",
     });
@@ -1089,7 +1089,7 @@ test "DocGenerator parses doc comments from directory files" {
 
     var path_buf: [256]u8 = undefined;
     const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
-    try gen.parseDirectory(path);
+    try gen.parseDirectory(testing.io, path);
 
     const decls = gen.getDeclarations();
     try testing.expect(decls.len > 0);
@@ -1104,13 +1104,13 @@ test "DocGenerator preserves file content accuracy across multiple files" {
     defer tmp.cleanup();
 
     // File 1: specific signature
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "math.zig",
         .data = "pub fn add(a: i32, b: i32) i32 { return a + b; }\n",
     });
 
     // File 2: different signature
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "string.zig",
         .data = "pub fn concat(left: []const u8, right: []const u8) []const u8 { return left; }\n",
     });
@@ -1120,7 +1120,7 @@ test "DocGenerator preserves file content accuracy across multiple files" {
 
     var path_buf: [256]u8 = undefined;
     const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
-    try gen.parseDirectory(path);
+    try gen.parseDirectory(testing.io, path);
 
     const decls = gen.getDeclarations();
 
@@ -1154,12 +1154,12 @@ test "DocGenerator handles .zig files with mixed case" {
     defer tmp.cleanup();
 
     // Create files with various cases (case-sensitive filesystems)
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "Module.zig",
         .data = "pub fn moduleFunc() void {}\n",
     });
 
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "CONSTANTS.zig",
         .data = "pub const MAX = 100;\n",
     });
@@ -1169,7 +1169,7 @@ test "DocGenerator handles .zig files with mixed case" {
 
     var path_buf: [256]u8 = undefined;
     const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
-    try gen.parseDirectory(path);
+    try gen.parseDirectory(testing.io, path);
 
     const decls = gen.getDeclarations();
     try testing.expect(decls.len >= 2);
@@ -1182,7 +1182,7 @@ test "DocGenerator handles scan of directory with permission constraints" {
     defer tmp.cleanup();
 
     // Create accessible files
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "accessible.zig",
         .data = "pub fn func() void {}\n",
     });
@@ -1194,7 +1194,7 @@ test "DocGenerator handles scan of directory with permission constraints" {
     const path = try std.fmt.bufPrint(&buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
 
     // This should succeed for accessible files
-    try gen.parseDirectory(path);
+    try gen.parseDirectory(testing.io, path);
 
     const decls = gen.getDeclarations();
     try testing.expect(decls.len > 0);
@@ -1206,11 +1206,11 @@ test "DocGenerator parses multiple struct and enum definitions across files" {
     var tmp = testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "types.zig",
         .data =
-            \\pub const Config = struct { timeout: u32, retries: u8 };
-            \\pub const Status = enum { pending, active, complete };
+        \\pub const Config = struct { timeout: u32, retries: u8 };
+        \\pub const Status = enum { pending, active, complete };
         ,
     });
 
@@ -1219,7 +1219,7 @@ test "DocGenerator parses multiple struct and enum definitions across files" {
 
     var path_buf: [256]u8 = undefined;
     const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
-    try gen.parseDirectory(path);
+    try gen.parseDirectory(testing.io, path);
 
     const decls = gen.getDeclarations();
 
@@ -1243,12 +1243,12 @@ test "DocGenerator correctly counts declarations when parsing directory" {
     defer tmp.cleanup();
 
     // Create files with known number of declarations
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "file1.zig",
         .data = "pub fn f1() void {}\npub fn f2() void {}\npub fn f3() void {}\n",
     });
 
-    try tmp.dir.writeFile(.{
+    try tmp.dir.writeFile(testing.io, .{
         .sub_path = "file2.zig",
         .data = "pub const C1 = 1;\npub const C2 = 2;\n",
     });
@@ -1258,7 +1258,7 @@ test "DocGenerator correctly counts declarations when parsing directory" {
 
     var path_buf: [256]u8 = undefined;
     const path = try std.fmt.bufPrint(&path_buf, ".zig-cache/tmp/{s}", .{tmp.sub_path});
-    try gen.parseDirectory(path);
+    try gen.parseDirectory(testing.io, path);
 
     const decls = gen.getDeclarations();
     // Should have 5 declarations total (3 functions + 2 constants)

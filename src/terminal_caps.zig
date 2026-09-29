@@ -18,42 +18,37 @@ const terminal_detect = @import("terminal_detect.zig");
 
 /// Terminal feature capabilities
 pub const Capabilities = struct {
-    truecolor: bool,      // 24-bit RGB color support
-    mouse: bool,          // Mouse event support (SGR mode)
-    clipboard: bool,      // OSC 52 clipboard support
+    truecolor: bool, // 24-bit RGB color support
+    mouse: bool, // Mouse event support (SGR mode)
+    clipboard: bool, // OSC 52 clipboard support
     bracketed_paste: bool, // Bracketed paste mode
-    sync_output: bool,    // Synchronized output (BSU/ESU)
-    hyperlinks: bool,     // OSC 8 hyperlink support
-    sixel: bool,          // Sixel graphics protocol
+    sync_output: bool, // Synchronized output (BSU/ESU)
+    hyperlinks: bool, // OSC 8 hyperlink support
+    sixel: bool, // Sixel graphics protocol
     kitty_graphics: bool, // Kitty graphics protocol
 
-    /// Detect capabilities from environment
-    pub fn detect() Capabilities {
-        const builtin = @import("builtin");
-        if (builtin.os.tag == .windows) {
-            // Windows: convert UTF-8 key to UTF-16, read via PEB, convert value back to UTF-8
-            const Ctx = struct {
-                threadlocal var val_buf: [4096]u8 = undefined;
+    /// Detect capabilities from environment.
+    /// `environ_map` supplies TERM/COLORTERM/... (borrowed, never freed).
+    pub fn detect(environ_map: *const std.process.Environ.Map) Capabilities {
+        // Precondition: the map is a live, addressable value.
+        std.debug.assert(@intFromPtr(environ_map) != 0);
 
-                fn getenv(key: []const u8) ?[]const u8 {
-                    var key_w: [256:0]u16 = undefined;
-                    if (key.len >= 256) return null;
-                    for (key, 0..) |c, i| key_w[i] = c;
-                    key_w[key.len] = 0;
+        const term_info = terminal_detect.TerminalInfo.detect(environ_map);
+        var caps = detectFor(term_info.type);
 
-                    const value_w = std.process.getenvW(&key_w) orelse return null;
-                    const len = std.unicode.utf16LeToUtf8(&val_buf, value_w) catch return null;
-                    return val_buf[0..len];
-                }
-            };
-            return detectWith(Ctx.getenv);
-        } else {
-            return detectWith(std.posix.getenv);
-        }
+        // Override truecolor based on COLORTERM
+        const colorterm = environ_map.get("COLORTERM") orelse "";
+        const colorterm_truecolor = std.mem.eql(u8, colorterm, "truecolor") or
+            std.mem.eql(u8, colorterm, "24bit");
+        if (colorterm_truecolor) caps.truecolor = true;
+
+        // Postcondition: COLORTERM=truecolor|24bit always implies truecolor.
+        std.debug.assert(!colorterm_truecolor or caps.truecolor);
+        return caps;
     }
 
     /// Detect with custom environment getter (for testing)
-    pub fn detectWith(getenv: fn([]const u8) ?[]const u8) Capabilities {
+    pub fn detectWith(getenv: fn ([]const u8) ?[]const u8) Capabilities {
         // 1. Detect terminal type
         const term_info = terminal_detect.TerminalInfo.detectWith(getenv);
 
@@ -64,7 +59,8 @@ pub const Capabilities = struct {
         if (getenv("COLORTERM")) |colorterm| {
             if (colorterm.len > 0) {
                 if (std.mem.eql(u8, colorterm, "truecolor") or
-                    std.mem.eql(u8, colorterm, "24bit")) {
+                    std.mem.eql(u8, colorterm, "24bit"))
+                {
                     caps.truecolor = true;
                 }
             }
@@ -652,7 +648,10 @@ test "detectFor uses TerminalType correctly" {
 
 test "detect uses environment detection" {
     // Just verify it doesn't crash - actual env varies by test environment
-    const caps = Capabilities.detect();
+    var environ_map = try std.testing.environ.createMap(std.testing.allocator);
+    defer environ_map.deinit();
+
+    const caps = Capabilities.detect(&environ_map);
 
     // Should return valid boolean values
     _ = caps.truecolor;
@@ -822,4 +821,13 @@ test "Windows Terminal in WSL2" {
     try std.testing.expectEqual(true, caps.mouse);
     try std.testing.expectEqual(true, caps.clipboard);
     try std.testing.expectEqual(true, caps.hyperlinks);
+}
+
+test "detect from injected environ map honors COLORTERM" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+    try environ_map.put("COLORTERM", "24bit");
+
+    const caps = Capabilities.detect(&environ_map);
+    try std.testing.expect(caps.truecolor);
 }

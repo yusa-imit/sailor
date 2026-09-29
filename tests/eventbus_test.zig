@@ -25,7 +25,7 @@ const Event = EventBus.Event;
 // ============================================================================
 
 test "EventBus - subscribeFiltered with passing filter invokes callback" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var invoked = false;
@@ -56,7 +56,7 @@ test "EventBus - subscribeFiltered with passing filter invokes callback" {
 }
 
 test "EventBus - subscribeFiltered with failing filter does not invoke callback" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var invoked = false;
@@ -86,7 +86,7 @@ test "EventBus - subscribeFiltered with failing filter does not invoke callback"
 }
 
 test "EventBus - filter returns true for some events, false for others" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var count: usize = 0;
@@ -125,7 +125,7 @@ test "EventBus - filter returns true for some events, false for others" {
 }
 
 test "EventBus - filter function throws error gracefully" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var invoked = false;
@@ -154,7 +154,7 @@ test "EventBus - filter function throws error gracefully" {
 }
 
 test "EventBus - multiple filters on same topic are independent" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var count1: usize = 0;
@@ -208,7 +208,7 @@ test "EventBus - multiple filters on same topic are independent" {
 }
 
 test "EventBus - filter with empty payload behaves correctly" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var invoked = false;
@@ -240,7 +240,7 @@ test "EventBus - filter with empty payload behaves correctly" {
 // ============================================================================
 
 test "EventBus - subscribeTransformed callback receives transformed payload" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var result: i32 = 0;
@@ -277,7 +277,7 @@ test "EventBus - subscribeTransformed callback receives transformed payload" {
 }
 
 test "EventBus - transformation function modifies payload correctly" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var result: [10]u8 = undefined;
@@ -320,7 +320,7 @@ test "EventBus - transformation function modifies payload correctly" {
 }
 
 test "EventBus - transformation returns error is handled gracefully" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var invoked = false;
@@ -353,7 +353,7 @@ test "EventBus - transformation returns error is handled gracefully" {
 }
 
 test "EventBus - transformation allocates memory that is cleaned up" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var result: i32 = 0;
@@ -392,7 +392,7 @@ test "EventBus - transformation allocates memory that is cleaned up" {
 }
 
 test "EventBus - multiple transformations on same event are independent" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var result1: i32 = 0;
@@ -454,7 +454,7 @@ test "EventBus - multiple transformations on same event are independent" {
 }
 
 test "EventBus - transformation with empty payload behaves correctly" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var invoked = false;
@@ -486,7 +486,7 @@ test "EventBus - transformation with empty payload behaves correctly" {
 // ============================================================================
 
 test "EventBus - scopedSubscribe auto-unsubscribes on deinit" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var count: usize = 0;
@@ -514,7 +514,7 @@ test "EventBus - scopedSubscribe auto-unsubscribes on deinit" {
 }
 
 test "EventBus - multiple scoped subscriptions all auto-unsubscribe" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var count1: usize = 0;
@@ -566,7 +566,7 @@ test "EventBus - multiple scoped subscriptions all auto-unsubscribe" {
 }
 
 test "EventBus - scoped subscription outlives EventBus deinit does not crash" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
 
     var count: usize = 0;
     const callback = struct {
@@ -588,7 +588,7 @@ test "EventBus - scoped subscription outlives EventBus deinit does not crash" {
 }
 
 test "EventBus - scoped subscription deinit mid-event is safe" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var count: usize = 0;
@@ -617,7 +617,7 @@ test "EventBus - scoped subscription deinit mid-event is safe" {
 }
 
 test "EventBus - scoped subscription with priority honors priority" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var order: std.ArrayList(usize) = .empty;
@@ -658,7 +658,7 @@ test "EventBus - scoped subscription with priority honors priority" {
 // ============================================================================
 
 test "EventBus - publish from multiple threads, all events processed" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     const num_threads = 10;
@@ -699,12 +699,12 @@ test "EventBus - publish from multiple threads, all events processed" {
 }
 
 test "EventBus - subscribe from multiple threads, no race conditions" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     const num_threads = 10;
 
-    var mutex = std.Thread.Mutex{};
+    var mutex: std.Io.Mutex = .init;
     var counters: [num_threads]usize = [_]usize{0} ** num_threads;
 
     const callback = struct {
@@ -718,9 +718,9 @@ test "EventBus - subscribe from multiple threads, no race conditions" {
     var threads: [num_threads]std.Thread = undefined;
     for (&threads, 0..) |*t, i| {
         t.* = try std.Thread.spawn(.{}, struct {
-            fn threadFn(b: *EventBus, idx: usize, cnt: *usize, mtx: *std.Thread.Mutex) void {
-                mtx.lock();
-                defer mtx.unlock();
+            fn threadFn(b: *EventBus, idx: usize, cnt: *usize, mtx: *std.Io.Mutex) void {
+                mtx.lockUncancelable(testing.io);
+                defer mtx.unlock(testing.io);
                 _ = b.subscribe("test.sub", callback, cnt, @intCast(idx)) catch unreachable;
             }
         }.threadFn, .{ &bus, i, &counters[i], &mutex });
@@ -742,7 +742,7 @@ test "EventBus - subscribe from multiple threads, no race conditions" {
 }
 
 test "EventBus - unsubscribe during event dispatch does not crash" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var sub_id: usize = 0;
@@ -770,7 +770,7 @@ test "EventBus - unsubscribe during event dispatch does not crash" {
 }
 
 test "EventBus - concurrent publish and subscribe maintains consistent state" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     const num_threads = 5;
@@ -810,7 +810,7 @@ test "EventBus - concurrent publish and subscribe maintains consistent state" {
 }
 
 test "EventBus - stress test, 1000 events from 10 threads, all received" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     const num_threads = 10;
@@ -855,7 +855,7 @@ test "EventBus - stress test, 1000 events from 10 threads, all received" {
 test "EventBus - deinit frees all subscriptions" {
     const allocator = testing.allocator;
 
-    var bus = EventBus.init(allocator);
+    var bus = EventBus.init(allocator, testing.io);
 
     const callback = struct {
         fn call(_: ?*anyopaque, _: Event) void {}
@@ -873,7 +873,7 @@ test "EventBus - deinit frees all subscriptions" {
 test "EventBus - unsubscribe frees memory immediately" {
     const allocator = testing.allocator;
 
-    var bus = EventBus.init(allocator);
+    var bus = EventBus.init(allocator, testing.io);
     defer bus.deinit();
 
     const callback = struct {
@@ -892,7 +892,7 @@ test "EventBus - unsubscribe frees memory immediately" {
 test "EventBus - publish allocates temporary memory that is freed after dispatch" {
     const allocator = testing.allocator;
 
-    var bus = EventBus.init(allocator);
+    var bus = EventBus.init(allocator, testing.io);
     defer bus.deinit();
 
     var invoked = false;
@@ -921,7 +921,7 @@ test "EventBus - publish allocates temporary memory that is freed after dispatch
 test "EventBus - payload copy semantics, subscriber modifications do not affect others" {
     const allocator = testing.allocator;
 
-    var bus = EventBus.init(allocator);
+    var bus = EventBus.init(allocator, testing.io);
     defer bus.deinit();
 
     var value1: i32 = 0;
@@ -966,7 +966,7 @@ test "EventBus - memory leak test with LeakCheckAllocator" {
     // LeakCheckAllocator is testing.allocator by default in Zig tests
     const allocator = testing.allocator;
 
-    var bus = EventBus.init(allocator);
+    var bus = EventBus.init(allocator, testing.io);
 
     const callback = struct {
         fn call(_: ?*anyopaque, _: Event) void {}
@@ -995,7 +995,7 @@ test "EventBus - memory leak test with LeakCheckAllocator" {
 test "EventBus - scoped subscriptions free memory on deinit" {
     const allocator = testing.allocator;
 
-    var bus = EventBus.init(allocator);
+    var bus = EventBus.init(allocator, testing.io);
     defer bus.deinit();
 
     const callback = struct {
@@ -1027,7 +1027,7 @@ test "EventBus - scoped subscriptions free memory on deinit" {
 // ============================================================================
 
 test "EventBus - topic with Unicode characters is valid" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var invoked = false;
@@ -1048,7 +1048,7 @@ test "EventBus - topic with Unicode characters is valid" {
 }
 
 test "EventBus - topic with null bytes returns error" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     const callback = struct {
@@ -1065,7 +1065,7 @@ test "EventBus - topic with null bytes returns error" {
 }
 
 test "EventBus - very long topic name (1KB+) is supported" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var invoked = false;
@@ -1091,7 +1091,7 @@ test "EventBus - very long topic name (1KB+) is supported" {
 }
 
 test "EventBus - publish 10K+ events, no performance degradation" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     var counter: usize = 0;
@@ -1115,7 +1115,7 @@ test "EventBus - publish 10K+ events, no performance degradation" {
 }
 
 test "EventBus - 1000+ subscribers on single topic, all invoked" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
     defer bus.deinit();
 
     const num_subscribers = 1000;
@@ -1143,7 +1143,7 @@ test "EventBus - 1000+ subscribers on single topic, all invoked" {
 }
 
 test "EventBus - event dispatch during deinit has safe shutdown" {
-    var bus = EventBus.init(testing.allocator);
+    var bus = EventBus.init(testing.allocator, testing.io);
 
     var invoked = false;
 

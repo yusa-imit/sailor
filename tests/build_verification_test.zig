@@ -190,7 +190,7 @@ test "inline assembly availability" {
     // Verify CPU architecture is one of the common ones that support inline asm
     const arch = builtin.cpu.arch;
     const supports_asm = arch == .x86_64 or arch == .aarch64 or
-                         arch == .arm or arch == .x86 or arch == .riscv64;
+        arch == .arm or arch == .x86 or arch == .riscv64;
 
     // All our supported platforms should support inline assembly
     try testing.expect(supports_asm);
@@ -232,10 +232,10 @@ test "test allocator is working" {
     try testing.expectEqual(100, buf.len);
 }
 
-test "std.io module is available" {
-    // Verify std.io has the basic types we expect
-    const has_writer = @hasDecl(std.io, "Writer");
-    const has_reader = @hasDecl(std.io, "Reader");
+test "std.Io module is available" {
+    // Verify std.Io has the basic types we expect
+    const has_writer = @hasDecl(std.Io, "Writer");
+    const has_reader = @hasDecl(std.Io, "Reader");
 
     try testing.expect(has_writer);
     try testing.expect(has_reader);

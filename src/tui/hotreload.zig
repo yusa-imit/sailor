@@ -21,13 +21,18 @@ pub const ThemeWatcher = struct {
     allocator: Allocator,
 
     /// Initialize theme watcher
-    pub fn init(allocator: Allocator, path: []const u8, check_interval_ms: u32) !ThemeWatcher {
+    pub fn init(
+        allocator: Allocator,
+        io: std.Io,
+        path: []const u8,
+        check_interval_ms: u32,
+    ) !ThemeWatcher {
         const path_copy = try allocator.dupe(u8, path);
         errdefer allocator.free(path_copy);
 
         // Load initial theme
-        const initial_theme = loadThemeFromFile(allocator, path) catch theme_mod.default_dark;
-        const mtime = getFileModTime(path) catch 0;
+        const initial_theme = loadThemeFromFile(allocator, io, path) catch theme_mod.default_dark;
+        const mtime = getFileModTime(io, path) catch 0;
 
         return .{
             .path = path_copy,
@@ -46,8 +51,8 @@ pub const ThemeWatcher = struct {
 
     /// Check for file changes and reload if modified
     /// Returns true if theme was reloaded
-    pub fn check(self: *ThemeWatcher) bool {
-        const now = std.time.nanoTimestamp();
+    pub fn check(self: *ThemeWatcher, io: std.Io) bool {
+        const now = std.Io.Clock.awake.now(io).toNanoseconds();
 
         // Throttle checks to avoid excessive file system operations
         if (self.last_check_ns > 0) {
@@ -58,11 +63,11 @@ pub const ThemeWatcher = struct {
         self.last_check_ns = @intCast(now);
 
         // Check modification time
-        const mtime = getFileModTime(self.path) catch return false;
+        const mtime = getFileModTime(io, self.path) catch return false;
 
         if (mtime > self.last_mtime_ns) {
             // File modified, reload theme
-            if (loadThemeFromFile(self.allocator, self.path)) |new_theme| {
+            if (loadThemeFromFile(self.allocator, io, self.path)) |new_theme| {
                 self.current = new_theme;
                 self.last_mtime_ns = mtime;
                 return true;
@@ -81,30 +86,27 @@ pub const ThemeWatcher = struct {
     }
 
     /// Manually reload theme from file
-    pub fn reload(self: *ThemeWatcher) !void {
-        const new_theme = try loadThemeFromFile(self.allocator, self.path);
+    pub fn reload(self: *ThemeWatcher, io: std.Io) !void {
+        const new_theme = try loadThemeFromFile(self.allocator, io, self.path);
         self.current = new_theme;
-        const mtime = try getFileModTime(self.path);
+        const mtime = try getFileModTime(io, self.path);
         self.last_mtime_ns = mtime;
     }
 };
 
 /// Get file modification time in nanoseconds
-fn getFileModTime(path: []const u8) !i128 {
-    const file = try std.fs.cwd().openFile(path, .{});
-    defer file.close();
+fn getFileModTime(io: std.Io, path: []const u8) !i128 {
+    const file = try std.Io.Dir.cwd().openFile(io, path, .{});
+    defer file.close(io);
 
-    const stat = try file.stat();
-    return stat.mtime;
+    const stat = try file.stat(io);
+    return stat.mtime.toNanoseconds();
 }
 
 /// Load theme from JSON file
-fn loadThemeFromFile(allocator: Allocator, path: []const u8) !Theme {
-    const file = try std.fs.cwd().openFile(path, .{});
-    defer file.close();
-
+fn loadThemeFromFile(allocator: Allocator, io: std.Io, path: []const u8) !Theme {
     const max_size = 1024 * 1024; // 1MB max
-    const content = try file.readToEndAlloc(allocator, max_size);
+    const content = try std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(max_size));
     defer allocator.free(content);
 
     return try parseThemeJson(content);
@@ -178,14 +180,16 @@ test "ThemeWatcher getFileModTime" {
     defer tmp.cleanup();
 
     const path = "test_theme.json";
-    var file = try tmp.dir.createFile(path, .{});
-    file.close();
+    const io = std.testing.io;
+    var file = try tmp.dir.createFile(io, path, .{});
+    file.close(io);
 
     // Get absolute path for testing
-    var buf: [std.fs.max_path_bytes]u8 = undefined;
-    const abs_path = try tmp.dir.realpath(path, &buf);
+    var buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_len = try tmp.dir.realPathFile(io, path, &buf);
+    const abs_path = buf[0..abs_len];
 
-    const mtime = try getFileModTime(abs_path);
+    const mtime = try getFileModTime(io, abs_path);
     try std.testing.expect(mtime > 0);
 }
 
@@ -233,20 +237,20 @@ test "ThemeWatcher loadThemeFromFile" {
     defer tmp.cleanup();
 
     const path = "test_theme.json";
-    var file = try tmp.dir.createFile(path, .{});
-    try file.writeAll(
+    const io = std.testing.io;
+    try tmp.dir.writeFile(io, .{ .sub_path = path, .data =
         \\{
         \\  "primary": "green",
         \\  "background": "#000000"
         \\}
-    );
-    file.close();
+    });
 
     // Get absolute path
-    var buf: [std.fs.max_path_bytes]u8 = undefined;
-    const abs_path = try tmp.dir.realpath(path, &buf);
+    var buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_len = try tmp.dir.realPathFile(io, path, &buf);
+    const abs_path = buf[0..abs_len];
 
-    const theme = try loadThemeFromFile(std.testing.allocator, abs_path);
+    const theme = try loadThemeFromFile(std.testing.allocator, io, abs_path);
     try std.testing.expectEqual(Color.green, theme.primary);
     try std.testing.expectEqual(Color{ .rgb = .{ .r = 0, .g = 0, .b = 0 } }, theme.background);
 }
@@ -257,19 +261,19 @@ test "ThemeWatcher init and deinit" {
     defer tmp.cleanup();
 
     const path = "test_theme.json";
-    var file = try tmp.dir.createFile(path, .{});
-    try file.writeAll(
+    const io = std.testing.io;
+    try tmp.dir.writeFile(io, .{ .sub_path = path, .data =
         \\{
         \\  "primary": "cyan"
         \\}
-    );
-    file.close();
+    });
 
     // Get absolute path
-    var buf: [std.fs.max_path_bytes]u8 = undefined;
-    const abs_path = try tmp.dir.realpath(path, &buf);
+    var buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_len = try tmp.dir.realPathFile(io, path, &buf);
+    const abs_path = buf[0..abs_len];
 
-    var watcher = try ThemeWatcher.init(std.testing.allocator, abs_path, 100);
+    var watcher = try ThemeWatcher.init(std.testing.allocator, io, abs_path, 100);
     defer watcher.deinit();
 
     try std.testing.expectEqual(Color.cyan, watcher.theme().primary);
@@ -281,33 +285,31 @@ test "ThemeWatcher reload" {
     defer tmp.cleanup();
 
     const path = "test_theme.json";
-    var file = try tmp.dir.createFile(path, .{});
-    try file.writeAll(
+    const io = std.testing.io;
+    try tmp.dir.writeFile(io, .{ .sub_path = path, .data =
         \\{
         \\  "primary": "red"
         \\}
-    );
-    file.close();
+    });
 
     // Get absolute path
-    var buf: [std.fs.max_path_bytes]u8 = undefined;
-    const abs_path = try tmp.dir.realpath(path, &buf);
+    var buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const abs_len = try tmp.dir.realPathFile(io, path, &buf);
+    const abs_path = buf[0..abs_len];
 
-    var watcher = try ThemeWatcher.init(std.testing.allocator, abs_path, 100);
+    var watcher = try ThemeWatcher.init(std.testing.allocator, io, abs_path, 100);
     defer watcher.deinit();
 
     try std.testing.expectEqual(Color.red, watcher.theme().primary);
 
     // Modify file
-    file = try tmp.dir.createFile(path, .{});
-    try file.writeAll(
+    try tmp.dir.writeFile(io, .{ .sub_path = path, .data =
         \\{
         \\  "primary": "blue"
         \\}
-    );
-    file.close();
+    });
 
     // Manually reload
-    try watcher.reload();
+    try watcher.reload(io);
     try std.testing.expectEqual(Color.blue, watcher.theme().primary);
 }

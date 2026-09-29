@@ -169,7 +169,9 @@ test "macOS detectMetalSupport checks framework availability" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
 
     const allocator = testing.allocator;
-    const result = try sailor.tui.platform_opts.detectMetalSupport(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    const result = try sailor.tui.platform_opts.detectMetalSupport(allocator, &env);
     defer result.deinit();
 
     // Should return a MetalCapability struct
@@ -181,29 +183,36 @@ test "macOS detectMetalSupport queries TERM_PROGRAM environment variable" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
 
     const allocator = testing.allocator;
-    const result = try sailor.tui.platform_opts.detectMetalSupport(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    try env.put("TERM_PROGRAM", "iTerm.app");
+    const result = try sailor.tui.platform_opts.detectMetalSupport(allocator, &env);
     defer result.deinit();
 
-    // TERM_PROGRAM could be iTerm2, Terminal.app, or other
-    // Should return reasonable value (either available or not)
-    try testing.expect(result.available == true or result.available == false);
+    // iTerm2 supports Metal rendering
+    try testing.expect(result.available);
 }
 
 test "macOS detectMetalSupport handles missing environment gracefully" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
 
     const allocator = testing.allocator;
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
 
     // Should not crash or panic when env vars are missing
-    const result = try sailor.tui.platform_opts.detectMetalSupport(allocator);
+    const result = try sailor.tui.platform_opts.detectMetalSupport(allocator, &env);
     defer result.deinit();
+    try testing.expect(!result.available);
 }
 
 test "macOS MetalCapability struct contains version info" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
 
     const allocator = testing.allocator;
-    const result = try sailor.tui.platform_opts.detectMetalSupport(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    const result = try sailor.tui.platform_opts.detectMetalSupport(allocator, &env);
     defer result.deinit();
 
     // Version should be either 0 (not available) or > 0
@@ -214,9 +223,11 @@ test "macOS detectMetalSupport returns allocated result that must be freed" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
 
     const allocator = testing.allocator;
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
 
-    const result1 = try sailor.tui.platform_opts.detectMetalSupport(allocator);
-    const result2 = try sailor.tui.platform_opts.detectMetalSupport(allocator);
+    const result1 = try sailor.tui.platform_opts.detectMetalSupport(allocator, &env);
+    const result2 = try sailor.tui.platform_opts.detectMetalSupport(allocator, &env);
 
     // Both calls should succeed
     result1.deinit();

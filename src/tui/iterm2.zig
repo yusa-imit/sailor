@@ -33,7 +33,7 @@
 //! };
 //!
 //! // Encode and write to terminal
-//! var encoder = iterm2.ITerm2Encoder.init(allocator);
+//! var encoder = iterm2.ITerm2Encoder.init(allocator, environ_map, null);
 //! defer encoder.deinit();
 //! try encoder.encode(img, &fbs);
 //! ```
@@ -102,13 +102,11 @@ pub const ITerm2Capability = struct {
 
     /// Detect iTerm2 capability from environment variables.
     /// Checks TERM_PROGRAM for iTerm2, WezTerm, Hyper.
-    pub fn detect(allocator: Allocator) ITerm2Capability {
+    pub fn detect(environ_map: *const std.process.Environ.Map) ITerm2Capability {
         var cap = ITerm2Capability{};
 
-        // Check TERM_PROGRAM environment variable
-        if (std.process.getEnvVarOwned(allocator, "TERM_PROGRAM")) |term_program| {
-            defer allocator.free(term_program);
-
+        // Check TERM_PROGRAM environment variable (unset: assume no support)
+        if (environ_map.get("TERM_PROGRAM")) |term_program| {
             if (std.mem.eql(u8, term_program, "iTerm.app")) {
                 cap.supports_inline_images = true;
                 cap.emulator = "iTerm2";
@@ -119,8 +117,6 @@ pub const ITerm2Capability = struct {
                 cap.supports_inline_images = true;
                 cap.emulator = "Hyper";
             }
-        } else |_| {
-            // TERM_PROGRAM not set, assume no support
         }
 
         return cap;
@@ -148,11 +144,14 @@ pub const ITerm2Cache = struct {
     current_size: usize,
     /// Maximum cache size in bytes (default: 10 MB)
     max_size: usize,
+    /// Runtime handle used to read the wall clock for LRU timestamps
+    io: std.Io,
 
-    /// Initialize cache with allocator and optional max size.
-    pub fn init(allocator: Allocator, max_size: ?usize) ITerm2Cache {
+    /// Initialize cache with allocator, `io` (cached), and optional max size.
+    pub fn init(allocator: Allocator, io: std.Io, max_size: ?usize) ITerm2Cache {
         return .{
             .allocator = allocator,
+            .io = io,
             .entries = std.AutoHashMap(u64, CacheEntry).init(allocator),
             .current_size = 0,
             .max_size = max_size orelse 10 * 1024 * 1024, // 10 MB default
@@ -175,7 +174,7 @@ pub const ITerm2Cache = struct {
 
         // Check if already cached
         if (self.entries.getPtr(hash)) |entry| {
-            entry.last_access = std.time.timestamp();
+            entry.last_access = std.Io.Clock.real.now(self.io).toSeconds();
             return entry.data;
         }
 
@@ -195,7 +194,7 @@ pub const ITerm2Cache = struct {
         try self.entries.put(hash, .{
             .data = encoded_data,
             .size = encoded_len,
-            .last_access = std.time.timestamp(),
+            .last_access = std.Io.Clock.real.now(self.io).toSeconds(),
             .hash = hash,
         });
         self.current_size += encoded_len;
@@ -241,12 +240,16 @@ pub const ITerm2Encoder = struct {
     /// Terminal capability detection result
     capability: ITerm2Capability,
 
-    /// Initialize iTerm2 encoder with allocator and optional cache.
-    pub fn init(allocator: Allocator, cache: ?*ITerm2Cache) ITerm2Encoder {
+    /// Initialize iTerm2 encoder with allocator, environment, and optional cache.
+    pub fn init(
+        allocator: Allocator,
+        environ_map: *const std.process.Environ.Map,
+        cache: ?*ITerm2Cache,
+    ) ITerm2Encoder {
         return .{
             .allocator = allocator,
             .cache = cache,
-            .capability = ITerm2Capability.detect(allocator),
+            .capability = ITerm2Capability.detect(environ_map),
         };
     }
 
@@ -365,7 +368,7 @@ test "ITerm2Image validate - empty data" {
 
 test "ITerm2Image validate - invalid percent (0%)" {
     const img = ITerm2Image{
-        .data = &[_]u8{0x89, 0x50, 0x4e, 0x47}, // PNG header
+        .data = &[_]u8{ 0x89, 0x50, 0x4e, 0x47 }, // PNG header
         .width = .{ .percent = 0 },
     };
     try testing.expectError(error.InvalidPercentage, img.validate());
@@ -373,7 +376,7 @@ test "ITerm2Image validate - invalid percent (0%)" {
 
 test "ITerm2Image validate - invalid percent (101%)" {
     const img = ITerm2Image{
-        .data = &[_]u8{0x89, 0x50, 0x4e, 0x47}, // PNG header
+        .data = &[_]u8{ 0x89, 0x50, 0x4e, 0x47 }, // PNG header
         .width = .{ .percent = 101 },
     };
     try testing.expectError(error.InvalidPercentage, img.validate());
@@ -381,7 +384,7 @@ test "ITerm2Image validate - invalid percent (101%)" {
 
 test "ITerm2Image validate - valid image" {
     const img = ITerm2Image{
-        .data = &[_]u8{0x89, 0x50, 0x4e, 0x47}, // PNG header
+        .data = &[_]u8{ 0x89, 0x50, 0x4e, 0x47 }, // PNG header
         .width = .{ .cells = 40 },
         .height = .{ .percent = 50 },
     };
@@ -429,7 +432,10 @@ test "ITerm2Encoder encode - minimal image" {
         .data = &png_header,
     };
 
-    var encoder = ITerm2Encoder.init(testing.allocator, null);
+    var test_env = std.process.Environ.Map.init(testing.allocator);
+    defer test_env.deinit();
+
+    var encoder = ITerm2Encoder.init(testing.allocator, &test_env, null);
     defer encoder.deinit();
     // Force capability to supported for testing
     encoder.capability.supports_inline_images = true;
@@ -464,7 +470,10 @@ test "ITerm2Encoder encode - with all parameters" {
         .is_inline = false,
     };
 
-    var encoder = ITerm2Encoder.init(testing.allocator, null);
+    var test_env = std.process.Environ.Map.init(testing.allocator);
+    defer test_env.deinit();
+
+    var encoder = ITerm2Encoder.init(testing.allocator, &test_env, null);
     defer encoder.deinit();
     encoder.capability.supports_inline_images = true;
     try encoder.encode(img, &fbs);
@@ -489,7 +498,10 @@ test "ITerm2Encoder encode - width pixels" {
         .width = .{ .pixels = 800 },
     };
 
-    var encoder = ITerm2Encoder.init(testing.allocator, null);
+    var test_env = std.process.Environ.Map.init(testing.allocator);
+    defer test_env.deinit();
+
+    var encoder = ITerm2Encoder.init(testing.allocator, &test_env, null);
     defer encoder.deinit();
     encoder.capability.supports_inline_images = true;
     try encoder.encode(img, &fbs);
@@ -509,7 +521,10 @@ test "ITerm2Encoder encode - auto dimensions" {
         .height = .auto,
     };
 
-    var encoder = ITerm2Encoder.init(testing.allocator, null);
+    var test_env = std.process.Environ.Map.init(testing.allocator);
+    defer test_env.deinit();
+
+    var encoder = ITerm2Encoder.init(testing.allocator, &test_env, null);
     defer encoder.deinit();
     encoder.capability.supports_inline_images = true;
     try encoder.encode(img, &fbs);
@@ -522,7 +537,10 @@ test "ITerm2Encoder encode - auto dimensions" {
 }
 
 test "ITerm2Encoder init and deinit" {
-    var encoder = ITerm2Encoder.init(testing.allocator, null);
+    var test_env = std.process.Environ.Map.init(testing.allocator);
+    defer test_env.deinit();
+
+    var encoder = ITerm2Encoder.init(testing.allocator, &test_env, null);
     encoder.deinit();
 }
 
@@ -535,7 +553,10 @@ test "ITerm2Encoder unsupported terminal" {
         .data = &png_header,
     };
 
-    var encoder = ITerm2Encoder.init(testing.allocator, null);
+    var test_env = std.process.Environ.Map.init(testing.allocator);
+    defer test_env.deinit();
+
+    var encoder = ITerm2Encoder.init(testing.allocator, &test_env, null);
     defer encoder.deinit();
     // Force unsupported
     encoder.capability.supports_inline_images = false;
@@ -544,12 +565,12 @@ test "ITerm2Encoder unsupported terminal" {
 }
 
 test "ITerm2Cache init and deinit" {
-    var cache = ITerm2Cache.init(testing.allocator, null);
+    var cache = ITerm2Cache.init(testing.allocator, testing.io, null);
     defer cache.deinit();
 }
 
 test "ITerm2Cache getOrAdd - single image" {
-    var cache = ITerm2Cache.init(testing.allocator, null);
+    var cache = ITerm2Cache.init(testing.allocator, testing.io, null);
     defer cache.deinit();
 
     const png_header = [_]u8{ 0x89, 0x50, 0x4e, 0x47 };
@@ -565,7 +586,7 @@ test "ITerm2Cache getOrAdd - single image" {
 
 test "ITerm2Cache eviction" {
     // Small cache (100 bytes) to force eviction
-    var cache = ITerm2Cache.init(testing.allocator, 100);
+    var cache = ITerm2Cache.init(testing.allocator, testing.io, 100);
     defer cache.deinit();
 
     const img1 = [_]u8{ 0x89, 0x50, 0x4e, 0x47, 0x01, 0x02, 0x03 };
@@ -580,7 +601,7 @@ test "ITerm2Cache eviction" {
 }
 
 test "ITerm2Cache clear" {
-    var cache = ITerm2Cache.init(testing.allocator, null);
+    var cache = ITerm2Cache.init(testing.allocator, testing.io, null);
     defer cache.deinit();
 
     const png_header = [_]u8{ 0x89, 0x50, 0x4e, 0x47 };
@@ -596,7 +617,7 @@ test "ITerm2Cache clear" {
 }
 
 test "ITerm2Encoder with cache" {
-    var cache = ITerm2Cache.init(testing.allocator, null);
+    var cache = ITerm2Cache.init(testing.allocator, testing.io, null);
     defer cache.deinit();
 
     var buf: [1024]u8 = undefined;
@@ -607,11 +628,29 @@ test "ITerm2Encoder with cache" {
         .data = &png_header,
     };
 
-    var encoder = ITerm2Encoder.init(testing.allocator, &cache);
+    var test_env = std.process.Environ.Map.init(testing.allocator);
+    defer test_env.deinit();
+
+    var encoder = ITerm2Encoder.init(testing.allocator, &test_env, &cache);
     defer encoder.deinit();
     encoder.capability.supports_inline_images = true;
     try encoder.encode(img, &fbs);
 
     // Verify cache was used
     try testing.expect(cache.entries.count() == 1);
+}
+
+test "ITerm2Capability detect - reads TERM_PROGRAM from injected map" {
+    var env = std.process.Environ.Map.init(testing.allocator);
+    defer env.deinit();
+
+    try testing.expect(!ITerm2Capability.detect(&env).supports_inline_images);
+
+    try env.put("TERM_PROGRAM", "iTerm.app");
+    const cap = ITerm2Capability.detect(&env);
+    try testing.expect(cap.supports_inline_images);
+    try testing.expectEqualStrings("iTerm2", cap.emulator.?);
+
+    try env.put("TERM_PROGRAM", "xterm");
+    try testing.expect(!ITerm2Capability.detect(&env).supports_inline_images);
 }

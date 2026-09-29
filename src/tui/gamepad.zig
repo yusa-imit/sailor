@@ -89,62 +89,67 @@ pub const GamepadEvent = struct {
     timestamp: u64 = 0, // Milliseconds since epoch
 
     /// Creates a button press event for the specified gamepad and button
-    pub fn buttonPress(gamepad_id: u32, button: Button) GamepadEvent {
+    pub fn buttonPress(io: std.Io, gamepad_id: u32, button: Button) GamepadEvent {
         return .{
             .event_type = .button_press,
             .gamepad_id = gamepad_id,
             .button = button,
-            .timestamp = @intCast(std.time.milliTimestamp()),
+            .timestamp = @intCast(std.Io.Clock.real.now(io).toMilliseconds()),
         };
     }
 
     /// Creates a button release event for the specified gamepad and button
-    pub fn buttonRelease(gamepad_id: u32, button: Button) GamepadEvent {
+    pub fn buttonRelease(io: std.Io, gamepad_id: u32, button: Button) GamepadEvent {
         return .{
             .event_type = .button_release,
             .gamepad_id = gamepad_id,
             .button = button,
-            .timestamp = @intCast(std.time.milliTimestamp()),
+            .timestamp = @intCast(std.Io.Clock.real.now(io).toMilliseconds()),
         };
     }
 
     /// Creates an analog stick movement event with left and right stick positions
-    pub fn analogMove(gamepad_id: u32, left: AnalogStick, right: AnalogStick) GamepadEvent {
+    pub fn analogMove(
+        io: std.Io,
+        gamepad_id: u32,
+        left: AnalogStick,
+        right: AnalogStick,
+    ) GamepadEvent {
         return .{
             .event_type = .analog_move,
             .gamepad_id = gamepad_id,
             .left_stick = left,
             .right_stick = right,
-            .timestamp = @intCast(std.time.milliTimestamp()),
+            .timestamp = @intCast(std.Io.Clock.real.now(io).toMilliseconds()),
         };
     }
 
     /// Creates a trigger movement event with left and right trigger pressure values (0.0 to 1.0)
-    pub fn triggerMove(gamepad_id: u32, left_trig: f32, right_trig: f32) GamepadEvent {
+    pub fn triggerMove(io: std.Io, gamepad_id: u32, left_trig: f32, right_trig: f32) GamepadEvent {
         return .{
             .event_type = .trigger_move,
             .gamepad_id = gamepad_id,
             .left_trigger = left_trig,
             .right_trigger = right_trig,
-            .timestamp = @intCast(std.time.milliTimestamp()),
+            .timestamp = @intCast(std.Io.Clock.real.now(io).toMilliseconds()),
         };
     }
 
     /// Creates a gamepad connected event
-    pub fn connected(gamepad_id: u32) GamepadEvent {
+    pub fn connected(io: std.Io, gamepad_id: u32) GamepadEvent {
         return .{
             .event_type = .connected,
             .gamepad_id = gamepad_id,
-            .timestamp = @intCast(std.time.milliTimestamp()),
+            .timestamp = @intCast(std.Io.Clock.real.now(io).toMilliseconds()),
         };
     }
 
     /// Creates a gamepad disconnected event
-    pub fn disconnected(gamepad_id: u32) GamepadEvent {
+    pub fn disconnected(io: std.Io, gamepad_id: u32) GamepadEvent {
         return .{
             .event_type = .disconnected,
             .gamepad_id = gamepad_id,
-            .timestamp = @intCast(std.time.milliTimestamp()),
+            .timestamp = @intCast(std.Io.Clock.real.now(io).toMilliseconds()),
         };
     }
 };
@@ -351,28 +356,29 @@ test "AnalogStick operations" {
 }
 
 test "GamepadEvent constructors" {
-    const press = GamepadEvent.buttonPress(0, .a);
+    const press = GamepadEvent.buttonPress(std.testing.io, 0, .a);
     try std.testing.expectEqual(EventType.button_press, press.event_type);
     try std.testing.expectEqual(@as(u32, 0), press.gamepad_id);
     try std.testing.expectEqual(Button.a, press.button.?);
 
-    const release = GamepadEvent.buttonRelease(1, .b);
+    const release = GamepadEvent.buttonRelease(std.testing.io, 1, .b);
     try std.testing.expectEqual(EventType.button_release, release.event_type);
     try std.testing.expectEqual(@as(u32, 1), release.gamepad_id);
 
-    const analog = GamepadEvent.analogMove(0, .{ .x = 0.5, .y = 0.5 }, AnalogStick.zero());
+    const stick: AnalogStick = .{ .x = 0.5, .y = 0.5 };
+    const analog = GamepadEvent.analogMove(std.testing.io, 0, stick, AnalogStick.zero());
     try std.testing.expectEqual(EventType.analog_move, analog.event_type);
     try std.testing.expectApproxEqAbs(@as(f32, 0.5), analog.left_stick.x, 0.01);
 
-    const trigger = GamepadEvent.triggerMove(0, 0.7, 0.3);
+    const trigger = GamepadEvent.triggerMove(std.testing.io, 0, 0.7, 0.3);
     try std.testing.expectEqual(EventType.trigger_move, trigger.event_type);
     try std.testing.expectApproxEqAbs(@as(f32, 0.7), trigger.left_trigger, 0.01);
 
-    const conn = GamepadEvent.connected(2);
+    const conn = GamepadEvent.connected(std.testing.io, 2);
     try std.testing.expectEqual(EventType.connected, conn.event_type);
     try std.testing.expectEqual(@as(u32, 2), conn.gamepad_id);
 
-    const disconn = GamepadEvent.disconnected(3);
+    const disconn = GamepadEvent.disconnected(std.testing.io, 3);
     try std.testing.expectEqual(EventType.disconnected, disconn.event_type);
 }
 
@@ -380,11 +386,11 @@ test "GamepadState button tracking" {
     var state = GamepadState.init(0);
     try std.testing.expect(!state.isButtonPressed(.a));
 
-    const press = GamepadEvent.buttonPress(0, .a);
+    const press = GamepadEvent.buttonPress(std.testing.io, 0, .a);
     state.handleEvent(press);
     try std.testing.expect(state.isButtonPressed(.a));
 
-    const release = GamepadEvent.buttonRelease(0, .a);
+    const release = GamepadEvent.buttonRelease(std.testing.io, 0, .a);
     state.handleEvent(release);
     try std.testing.expect(!state.isButtonPressed(.a));
 }
@@ -394,7 +400,7 @@ test "GamepadState analog stick tracking" {
     state.deadzone = 0.1;
 
     const stick = AnalogStick{ .x = 0.8, .y = 0.6 };
-    const event = GamepadEvent.analogMove(0, stick, AnalogStick.zero());
+    const event = GamepadEvent.analogMove(std.testing.io, 0, stick, AnalogStick.zero());
     state.handleEvent(event);
 
     const left = state.getLeftStick();
@@ -408,7 +414,7 @@ test "GamepadState deadzone handling" {
 
     // Small movement within deadzone
     const small = AnalogStick{ .x = 0.1, .y = 0.1 };
-    const event = GamepadEvent.analogMove(0, small, AnalogStick.zero());
+    const event = GamepadEvent.analogMove(std.testing.io, 0, small, AnalogStick.zero());
     state.handleEvent(event);
 
     const stick = state.getLeftStick();
@@ -420,7 +426,7 @@ test "GamepadState trigger tracking" {
     var state = GamepadState.init(0);
     state.deadzone = 0.1;
 
-    const event = GamepadEvent.triggerMove(0, 0.8, 0.3);
+    const event = GamepadEvent.triggerMove(std.testing.io, 0, 0.8, 0.3);
     state.handleEvent(event);
 
     try std.testing.expectApproxEqAbs(@as(f32, 0.8), state.getLeftTrigger(), 0.01);
@@ -430,11 +436,11 @@ test "GamepadState trigger tracking" {
 test "GamepadState disconnect resets state" {
     var state = GamepadState.init(0);
     state.connected = true;
-    const press = GamepadEvent.buttonPress(0, .a);
+    const press = GamepadEvent.buttonPress(std.testing.io, 0, .a);
     state.handleEvent(press);
     try std.testing.expect(state.isButtonPressed(.a));
 
-    const disconn = GamepadEvent.disconnected(0);
+    const disconn = GamepadEvent.disconnected(std.testing.io, 0);
     state.handleEvent(disconn);
     try std.testing.expect(!state.connected);
     try std.testing.expect(!state.isButtonPressed(.a));
@@ -447,12 +453,12 @@ test "GamepadManager connect and disconnect" {
 
     try std.testing.expectEqual(@as(usize, 0), manager.getConnectedCount());
 
-    const conn = GamepadEvent.connected(0);
+    const conn = GamepadEvent.connected(std.testing.io, 0);
     try manager.handleEvent(conn);
     try std.testing.expect(manager.isConnected(0));
     try std.testing.expectEqual(@as(usize, 1), manager.getConnectedCount());
 
-    const disconn = GamepadEvent.disconnected(0);
+    const disconn = GamepadEvent.disconnected(std.testing.io, 0);
     try manager.handleEvent(disconn);
     try std.testing.expect(!manager.isConnected(0));
     try std.testing.expectEqual(@as(usize, 0), manager.getConnectedCount());
@@ -463,9 +469,9 @@ test "GamepadManager multiple gamepads" {
     var manager = GamepadManager.init(allocator);
     defer manager.deinit();
 
-    try manager.handleEvent(GamepadEvent.connected(0));
-    try manager.handleEvent(GamepadEvent.connected(1));
-    try manager.handleEvent(GamepadEvent.connected(2));
+    try manager.handleEvent(GamepadEvent.connected(std.testing.io, 0));
+    try manager.handleEvent(GamepadEvent.connected(std.testing.io, 1));
+    try manager.handleEvent(GamepadEvent.connected(std.testing.io, 2));
 
     try std.testing.expectEqual(@as(usize, 3), manager.getConnectedCount());
     try std.testing.expect(manager.isConnected(0));
@@ -479,11 +485,11 @@ test "GamepadManager max gamepads limit" {
     defer manager.deinit();
     manager.max_gamepads = 2;
 
-    try manager.handleEvent(GamepadEvent.connected(0));
-    try manager.handleEvent(GamepadEvent.connected(1));
+    try manager.handleEvent(GamepadEvent.connected(std.testing.io, 0));
+    try manager.handleEvent(GamepadEvent.connected(std.testing.io, 1));
 
     // Third gamepad should fail
-    const result = manager.handleEvent(GamepadEvent.connected(2));
+    const result = manager.handleEvent(GamepadEvent.connected(std.testing.io, 2));
     try std.testing.expectError(error.MaxGamepadsReached, result);
     try std.testing.expectEqual(@as(usize, 2), manager.getConnectedCount());
 }
@@ -493,13 +499,13 @@ test "GamepadManager state updates" {
     var manager = GamepadManager.init(allocator);
     defer manager.deinit();
 
-    try manager.handleEvent(GamepadEvent.connected(0));
-    try manager.handleEvent(GamepadEvent.buttonPress(0, .a));
+    try manager.handleEvent(GamepadEvent.connected(std.testing.io, 0));
+    try manager.handleEvent(GamepadEvent.buttonPress(std.testing.io, 0, .a));
 
     const state = manager.getGamepad(0).?;
     try std.testing.expect(state.isButtonPressed(.a));
 
-    try manager.handleEvent(GamepadEvent.buttonRelease(0, .a));
+    try manager.handleEvent(GamepadEvent.buttonRelease(std.testing.io, 0, .a));
     try std.testing.expect(!state.isButtonPressed(.a));
 }
 
@@ -510,7 +516,7 @@ test "GamepadManager get first connected" {
 
     try std.testing.expectEqual(@as(?u32, null), manager.getFirstConnected());
 
-    try manager.handleEvent(GamepadEvent.connected(2));
+    try manager.handleEvent(GamepadEvent.connected(std.testing.io, 2));
     const first = manager.getFirstConnected();
     try std.testing.expect(first != null);
     try std.testing.expectEqual(@as(u32, 2), first.?);

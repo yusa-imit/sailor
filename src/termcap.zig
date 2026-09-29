@@ -8,6 +8,9 @@
 
 const std = @import("std");
 
+/// Upper bound on a terminfo file we are willing to read.
+const terminfo_file_bytes_max: usize = 1024 * 1024;
+
 pub const Error = error{
     InvalidMagicNumber,
     TruncatedFile,
@@ -15,6 +18,7 @@ pub const Error = error{
     TerminalNotFound,
     InvalidTerminalName,
     OutOfMemory,
+    Canceled,
 };
 
 /// Terminfo binary format header
@@ -61,7 +65,7 @@ pub const TermInfo = struct {
 
         // Names section
         if (offset + names_size > data.len) return error.TruncatedFile;
-        const names_section = data[offset..offset + names_size];
+        const names_section = data[offset .. offset + names_size];
         offset += names_size;
 
         // Extract terminal name (first null-terminated string)
@@ -103,14 +107,14 @@ pub const TermInfo = struct {
         const data_offset_str_offsets = data_offset_nums + numbers_size;
         const data_offset_str_table = data_offset_str_offsets + str_offsets_size;
 
-        const owned_bools = owned_data[data_offset_bools..data_offset_bools + bool_count];
-        const owned_nums_bytes = owned_data[data_offset_nums..data_offset_nums + numbers_size];
+        const owned_bools = owned_data[data_offset_bools .. data_offset_bools + bool_count];
+        const owned_nums_bytes = owned_data[data_offset_nums .. data_offset_nums + numbers_size];
         const owned_nums = std.mem.bytesAsSlice(i16, @as([]align(2) u8, @alignCast(owned_nums_bytes)));
 
-        const owned_str_offsets_bytes = owned_data[data_offset_str_offsets..data_offset_str_offsets + str_offsets_size];
+        const owned_str_offsets_bytes = owned_data[data_offset_str_offsets .. data_offset_str_offsets + str_offsets_size];
         const owned_str_offsets = std.mem.bytesAsSlice(i16, @as([]align(2) u8, @alignCast(owned_str_offsets_bytes)));
 
-        const owned_str_table = owned_data[data_offset_str_table..data_offset_str_table + str_table_size];
+        const owned_str_table = owned_data[data_offset_str_table .. data_offset_str_table + str_table_size];
 
         return TermInfo{
             .name = owned_name,
@@ -126,8 +130,9 @@ pub const TermInfo = struct {
         };
     }
 
-    /// Load terminfo from file system
-    pub fn load(allocator: std.mem.Allocator, term_name: []const u8) Error!TermInfo {
+    /// Load terminfo from file system.
+    /// Unreadable/missing files are skipped; only `error.Canceled` aborts the search.
+    pub fn load(allocator: std.mem.Allocator, io: std.Io, term_name: []const u8) Error!TermInfo {
         if (term_name.len == 0) return error.InvalidTerminalName;
 
         // Try to load from standard terminfo directories
@@ -144,12 +149,17 @@ pub const TermInfo = struct {
         var path_buf: [std.fs.max_path_bytes]u8 = undefined;
 
         for (search_dirs) |dir| {
-            const path = std.fmt.bufPrint(&path_buf, "{s}/{c}/{s}", .{dir, first_char, term_name}) catch continue;
+            const path = std.fmt.bufPrint(&path_buf, "{s}/{c}/{s}", .{ dir, first_char, term_name }) catch continue;
 
-            const file = std.fs.openFileAbsolute(path, .{}) catch continue;
-            defer file.close();
-
-            const data = file.readToEndAlloc(allocator, 1024 * 1024) catch continue;
+            const data = std.Io.Dir.cwd().readFileAlloc(
+                io,
+                path,
+                allocator,
+                .limited(terminfo_file_bytes_max),
+            ) catch |err| switch (err) {
+                error.Canceled => return error.Canceled,
+                else => continue,
+            };
             defer allocator.free(data);
 
             return parse(allocator, data);
@@ -174,7 +184,7 @@ pub const TermInfo = struct {
         var path_buf: [std.fs.max_path_bytes]u8 = undefined;
 
         for (search_dirs) |dir| {
-            const path = std.fmt.bufPrint(&path_buf, "{s}/{c}/{s}", .{dir, first_char, term_name}) catch continue;
+            const path = std.fmt.bufPrint(&path_buf, "{s}/{c}/{s}", .{ dir, first_char, term_name }) catch continue;
 
             if (fs.readFile(path)) |data| {
                 return parse(allocator, data) catch continue;
@@ -224,8 +234,8 @@ pub const TermInfo = struct {
         // Calculate string table size
         const str_table_size: u16 = if (is_dumb) 0 else blk: {
             var size: u16 = 0;
-            size += 8;  // clear: "\x1b[H\x1b[2J\x00"
-            size += 4;  // home: "\x1b[H\x00"
+            size += 8; // clear: "\x1b[H\x1b[2J\x00"
+            size += 4; // home: "\x1b[H\x00"
             size += 17; // cup: "\x1b[%i%p1%d;%p2%dH\x00"
             size += 10; // setaf: "\x1b[3%p1%dm\x00"
             size += 10; // setab: "\x1b[4%p1%dm\x00"
@@ -396,9 +406,9 @@ pub const TermInfo = struct {
 fn boolCapabilityIndex(name: []const u8) ?usize {
     // Standard boolean capabilities in terminfo order
     const caps = [_][]const u8{
-        "bce",  // 0: back_color_erase
-        "ccc",  // 1: can_change
-        "xsb",  // 2: xon_xoff
+        "bce", // 0: back_color_erase
+        "ccc", // 1: can_change
+        "xsb", // 2: xon_xoff
     };
 
     for (caps, 0..) |cap, i| {
@@ -410,10 +420,10 @@ fn boolCapabilityIndex(name: []const u8) ?usize {
 fn numCapabilityIndex(name: []const u8) ?usize {
     // Standard numeric capabilities in terminfo order
     const caps = [_][]const u8{
-        "cols",   // 0: columns
-        "lines",  // 1: lines
+        "cols", // 0: columns
+        "lines", // 1: lines
         "colors", // 2: max_colors
-        "pairs",  // 3: max_pairs
+        "pairs", // 3: max_pairs
     };
 
     for (caps, 0..) |cap, i| {
@@ -426,8 +436,8 @@ fn strCapabilityIndex(name: []const u8) ?usize {
     // Standard string capabilities in terminfo order
     const caps = [_][]const u8{
         "clear", // 0: clear_screen
-        "home",  // 1: cursor_home
-        "cup",   // 2: cursor_address
+        "home", // 1: cursor_home
+        "cup", // 2: cursor_address
         "setaf", // 3: set_a_foreground
         "setab", // 4: set_a_background
         "smcup", // 5: enter_ca_mode
@@ -923,7 +933,7 @@ test "create fallback xterm includes all string capabilities" {
 test "load with empty terminal name returns error" {
     const allocator = std.testing.allocator;
 
-    const result = TermInfo.load(allocator, "");
+    const result = TermInfo.load(allocator, std.testing.io, "");
     try std.testing.expectError(error.InvalidTerminalName, result);
 }
 

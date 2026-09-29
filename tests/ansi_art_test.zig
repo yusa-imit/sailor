@@ -753,13 +753,28 @@ test "ansi art: both dithering modes produce valid output" {
 // ============================================================================
 
 test "ansi art: detectColorMode returns a valid ColorMode enum value" {
-    const mode = detectColorMode();
+    var env = std.process.Environ.Map.init(testing.allocator);
+    defer env.deinit();
+    const mode = detectColorMode(&env);
     // Should return one of the four valid modes
     const valid = mode == .truecolor or
         mode == .colors256 or
         mode == .colors16 or
         mode == .grayscale;
     try testing.expect(valid);
+}
+
+test "ansi art: detectColorMode reads injected COLORTERM and TERM" {
+    var env = std.process.Environ.Map.init(testing.allocator);
+    defer env.deinit();
+
+    try testing.expectEqual(AnsiArtRenderer.ColorMode.colors16, detectColorMode(&env));
+
+    try env.put("TERM", "xterm-256color");
+    try testing.expectEqual(AnsiArtRenderer.ColorMode.colors256, detectColorMode(&env));
+
+    try env.put("COLORTERM", "truecolor");
+    try testing.expectEqual(AnsiArtRenderer.ColorMode.truecolor, detectColorMode(&env));
 }
 
 // ============================================================================
@@ -855,11 +870,13 @@ test "ansi art: renderAuto works and produces output" {
     var buf: [4096]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
 
     const pixels = try createSolidImage(allocator, 4, 4, 150, 150, 150);
     defer allocator.free(pixels);
 
-    try AnsiArtRenderer.renderAuto(allocator, pixels, 4, 4, 8, &stream);
+    try AnsiArtRenderer.renderAuto(allocator, &env, pixels, 4, 4, 8, &stream);
     const output = stream.buffered();
 
     try testing.expect(output.len > 0);

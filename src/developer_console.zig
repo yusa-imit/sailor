@@ -143,14 +143,16 @@ pub const DeveloperConsole = struct {
     recording: ?struct {
         frames: ArrayList([]const u8),
     },
-    mutex: std.Thread.Mutex,
+    io: std.Io,
+    mutex: std.Io.Mutex,
 
     const MAX_HISTORY = 100;
     const MAX_UNDO_STACK = 50;
 
-    pub fn init(allocator: Allocator) !DeveloperConsole {
+    pub fn init(allocator: Allocator, io: std.Io) !DeveloperConsole {
         return DeveloperConsole{
             .allocator = allocator,
+            .io = io,
             .open = false,
             .widgets = ArrayList(Widget).empty,
             .history = ArrayList([]const u8).empty,
@@ -158,7 +160,7 @@ pub const DeveloperConsole = struct {
             .undo_stack = ArrayList(MutationSnapshot).empty,
             .redo_stack = ArrayList(MutationSnapshot).empty,
             .recording = null,
-            .mutex = std.Thread.Mutex{},
+            .mutex = .init,
         };
     }
 
@@ -220,7 +222,7 @@ pub const DeveloperConsole = struct {
 
         if (should_add) {
             const cmd_copy = try self.allocator.dupe(u8, cmd);
-            try self.history.append(self.allocator,cmd_copy);
+            try self.history.append(self.allocator, cmd_copy);
 
             // Limit history size
             if (self.history.items.len > MAX_HISTORY) {
@@ -366,16 +368,15 @@ pub const DeveloperConsole = struct {
         }
 
         // Format results
-        var result_list = ArrayList(u8).empty;
-        defer result_list.deinit(self.allocator);
+        var out: std.Io.Writer.Allocating = .init(self.allocator);
+        defer out.deinit();
 
-        const writer = result_list.writer(self.allocator);
-        try writer.print("Found {d} widget(s):\n", .{results.len});
+        try out.writer.print("Found {d} widget(s):\n", .{results.len});
         for (results) |r| {
-            try writer.print("  {s}\n", .{r});
+            try out.writer.print("  {s}\n", .{r});
         }
 
-        return result_list.toOwnedSlice(self.allocator);
+        return out.toOwnedSlice();
     }
 
     fn mutateCommand(self: *DeveloperConsole, rest: []const u8) ![]const u8 {
@@ -410,8 +411,8 @@ pub const DeveloperConsole = struct {
         // Save current state for undo
         try self.saveSnapshot();
 
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         // Find matching widgets
         const matches = try self.findWidgets(selector);
@@ -482,10 +483,10 @@ pub const DeveloperConsole = struct {
 
         for (self.widgets.items) |*widget| {
             const widget_copy = try widget.dupe(self.allocator);
-            try snapshot.widgets.append(self.allocator,widget_copy);
+            try snapshot.widgets.append(self.allocator, widget_copy);
         }
 
-        try self.undo_stack.append(self.allocator,snapshot);
+        try self.undo_stack.append(self.allocator, snapshot);
 
         // Limit stack size
         if (self.undo_stack.items.len > MAX_UNDO_STACK) {
@@ -640,7 +641,7 @@ pub const DeveloperConsole = struct {
             widget.info.class = try self.allocator.dupe(u8, class);
         }
 
-        try self.widgets.append(self.allocator,widget);
+        try self.widgets.append(self.allocator, widget);
     }
 
     pub fn registerWidgetChild(
@@ -671,12 +672,12 @@ pub const DeveloperConsole = struct {
             widget.info.class = try self.allocator.dupe(u8, class);
         }
 
-        try self.widgets.append(self.allocator,widget);
+        try self.widgets.append(self.allocator, widget);
     }
 
     pub fn query(self: *DeveloperConsole, selector: []const u8, allocator: Allocator) ![]const []const u8 {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         const matches = try self.findWidgets(selector);
         defer self.allocator.free(matches);
@@ -703,7 +704,7 @@ pub const DeveloperConsole = struct {
                     widget.info.bounds.height,
                 },
             );
-            try results.append(allocator,try allocator.dupe(u8, desc));
+            try results.append(allocator, try allocator.dupe(u8, desc));
         }
 
         return results.toOwnedSlice(allocator);
@@ -726,7 +727,7 @@ pub const DeveloperConsole = struct {
                 if (widget.parent_type != null and widget.parent_id != null) {
                     if (self.matchesSelector(widget.parent_type.?, widget.parent_id.?, parent_sel)) {
                         if (self.matchesSimpleSelector(widget, child_sel)) {
-                            try matches.append(self.allocator,idx);
+                            try matches.append(self.allocator, idx);
                         }
                     }
                 }
@@ -741,7 +742,7 @@ pub const DeveloperConsole = struct {
                 if (widget.parent_type != null) {
                     if (std.mem.eql(u8, widget.parent_type.?, ancestor_sel)) {
                         if (self.matchesSimpleSelector(widget, descendant_sel)) {
-                            try matches.append(self.allocator,idx);
+                            try matches.append(self.allocator, idx);
                         }
                     }
                 }
@@ -752,7 +753,7 @@ pub const DeveloperConsole = struct {
         // Simple selector
         for (self.widgets.items, 0..) |*widget, idx| {
             if (self.matchesSimpleSelector(widget, selector)) {
-                try matches.append(self.allocator,idx);
+                try matches.append(self.allocator, idx);
             }
         }
 
@@ -902,7 +903,7 @@ pub const DeveloperConsole = struct {
     pub fn captureFrame(self: *DeveloperConsole) !void {
         if (self.recording) |*rec| {
             const frame_data = try self.allocator.dupe(u8, "FRAME_DATA");
-            try rec.frames.append(self.allocator,frame_data);
+            try rec.frames.append(self.allocator, frame_data);
         }
     }
 
@@ -933,7 +934,7 @@ pub const DeveloperConsole = struct {
 
 test "DeveloperConsole - basic init and deinit" {
     const testing = std.testing;
-    var console = try DeveloperConsole.init(testing.allocator);
+    var console = try DeveloperConsole.init(testing.allocator, testing.io);
     defer console.deinit();
     try testing.expect(!console.isOpen());
 }

@@ -13,63 +13,62 @@ const std = @import("std");
 
 /// Terminal emulator type
 pub const TerminalType = enum {
-    xterm,           // Generic xterm
-    xterm_256color,  // xterm with 256 colors
-    kitty,           // Kitty terminal
-    iterm2,          // iTerm2 (macOS)
+    xterm, // Generic xterm
+    xterm_256color, // xterm with 256 colors
+    kitty, // Kitty terminal
+    iterm2, // iTerm2 (macOS)
     windows_terminal, // Windows Terminal
-    alacritty,       // Alacritty
-    wezterm,         // WezTerm
-    foot,            // Foot (Wayland)
-    gnome_terminal,  // GNOME Terminal
-    konsole,         // KDE Konsole
-    tmux,            // tmux multiplexer
-    screen,          // GNU screen
-    vscode,          // VS Code integrated terminal
-    unknown,         // Cannot detect or unrecognized
+    alacritty, // Alacritty
+    wezterm, // WezTerm
+    foot, // Foot (Wayland)
+    gnome_terminal, // GNOME Terminal
+    konsole, // KDE Konsole
+    tmux, // tmux multiplexer
+    screen, // GNU screen
+    vscode, // VS Code integrated terminal
+    unknown, // Cannot detect or unrecognized
 };
 
 /// Terminal information
 pub const TerminalInfo = struct {
     type: TerminalType,
-    name: []const u8,        // e.g., "kitty", "iTerm2"
-    version: ?[]const u8,    // Version string if detectable
+    name: []const u8, // e.g., "kitty", "iTerm2"
+    version: ?[]const u8, // Version string if detectable
 
-    /// Detect terminal emulator from environment variables
-    pub fn detect() TerminalInfo {
-        const builtin = @import("builtin");
-        if (builtin.os.tag == .windows) {
-            // Windows: convert UTF-8 key to UTF-16, read via PEB, convert value back to UTF-8
-            const Ctx = struct {
-                threadlocal var val_buf: [4096]u8 = undefined;
+    /// Detect terminal emulator from environment variables.
+    /// `environ_map` supplies TERM/TERM_PROGRAM/... (borrowed; the returned
+    /// `version` slice may point into the map, so the map must outlive it).
+    pub fn detect(environ_map: *const std.process.Environ.Map) TerminalInfo {
+        // Precondition: the map is a live, addressable value.
+        std.debug.assert(@intFromPtr(environ_map) != 0);
+        const info = detectImpl(environ_map, mapGet);
+        // Postcondition: a detected terminal always has a non-empty name.
+        std.debug.assert(info.name.len > 0);
+        return info;
+    }
 
-                fn getenv(key: []const u8) ?[]const u8 {
-                    // Env var keys are ASCII — simple byte-by-byte copy to UTF-16
-                    var key_w: [256:0]u16 = undefined;
-                    if (key.len >= 256) return null;
-                    for (key, 0..) |c, i| key_w[i] = c;
-                    key_w[key.len] = 0;
-
-                    // Read env var directly from PEB (no allocation)
-                    const value_w = std.process.getenvW(&key_w) orelse return null;
-
-                    // Convert UTF-16 value to UTF-8 in threadlocal buffer
-                    const len = std.unicode.utf16LeToUtf8(&val_buf, value_w) catch return null;
-                    return val_buf[0..len];
-                }
-            };
-            return detectWith(Ctx.getenv);
-        } else {
-            return detectWith(std.posix.getenv);
-        }
+    fn mapGet(environ_map: *const std.process.Environ.Map, key: []const u8) ?[]const u8 {
+        std.debug.assert(key.len > 0);
+        return environ_map.get(key);
     }
 
     /// Detect with custom environment getter (for testing)
-    pub fn detectWith(getenv: fn([]const u8) ?[]const u8) TerminalInfo {
+    pub fn detectWith(comptime getenv: fn ([]const u8) ?[]const u8) TerminalInfo {
+        const Adapter = struct {
+            fn get(_: void, key: []const u8) ?[]const u8 {
+                std.debug.assert(key.len > 0);
+                return getenv(key);
+            }
+        };
+        return detectImpl({}, Adapter.get);
+    }
+
+    /// Shared detection body; `getFn(ctx, key)` looks up one environment variable.
+    fn detectImpl(ctx: anytype, comptime getFn: anytype) TerminalInfo {
         // Detection priority: most specific → most generic
 
         // 1. Check WT_SESSION (Windows Terminal)
-        if (getenv("WT_SESSION")) |wt| {
+        if (getFn(ctx, "WT_SESSION")) |wt| {
             if (wt.len > 0) {
                 return .{
                     .type = .windows_terminal,
@@ -80,7 +79,7 @@ pub const TerminalInfo = struct {
         }
 
         // 2. Check KITTY_WINDOW_ID (Kitty)
-        if (getenv("KITTY_WINDOW_ID")) |_| {
+        if (getFn(ctx, "KITTY_WINDOW_ID")) |_| {
             return .{
                 .type = .kitty,
                 .name = "Kitty",
@@ -89,14 +88,14 @@ pub const TerminalInfo = struct {
         }
 
         // 3. Check ALACRITTY_SOCKET or ALACRITTY_LOG (Alacritty)
-        if (getenv("ALACRITTY_SOCKET")) |_| {
+        if (getFn(ctx, "ALACRITTY_SOCKET")) |_| {
             return .{
                 .type = .alacritty,
                 .name = "Alacritty",
                 .version = null,
             };
         }
-        if (getenv("ALACRITTY_LOG")) |_| {
+        if (getFn(ctx, "ALACRITTY_LOG")) |_| {
             return .{
                 .type = .alacritty,
                 .name = "Alacritty",
@@ -105,7 +104,7 @@ pub const TerminalInfo = struct {
         }
 
         // 4. Check KONSOLE_VERSION (KDE Konsole) — before VTE_VERSION
-        if (getenv("KONSOLE_VERSION")) |ver| {
+        if (getFn(ctx, "KONSOLE_VERSION")) |ver| {
             if (ver.len > 0) {
                 return .{
                     .type = .konsole,
@@ -116,7 +115,7 @@ pub const TerminalInfo = struct {
         }
 
         // 5. Check VTE_VERSION (GNOME Terminal)
-        if (getenv("VTE_VERSION")) |vte| {
+        if (getFn(ctx, "VTE_VERSION")) |vte| {
             if (vte.len > 0) {
                 return .{
                     .type = .gnome_terminal,
@@ -127,9 +126,9 @@ pub const TerminalInfo = struct {
         }
 
         // 6. Check TERM_PROGRAM (iTerm2, WezTerm, VS Code, etc.)
-        if (getenv("TERM_PROGRAM")) |prog| {
+        if (getFn(ctx, "TERM_PROGRAM")) |prog| {
             const version = blk: {
-                if (getenv("TERM_PROGRAM_VERSION")) |v| {
+                if (getFn(ctx, "TERM_PROGRAM_VERSION")) |v| {
                     if (v.len > 0) {
                         break :blk v;
                     }
@@ -161,7 +160,7 @@ pub const TerminalInfo = struct {
         }
 
         // 7. Parse TERM variable
-        if (getenv("TERM")) |term| {
+        if (getFn(ctx, "TERM")) |term| {
             if (term.len == 0) {
                 return .{
                     .type = .unknown,
@@ -902,24 +901,44 @@ test "both KONSOLE_VERSION and VTE_VERSION - KONSOLE wins" {
 // ============================================================================
 
 test "detect from real environment does not crash" {
-    const info = TerminalInfo.detect();
+    var environ_map = try std.testing.environ.createMap(std.testing.allocator);
+    defer environ_map.deinit();
+
+    const info = TerminalInfo.detect(&environ_map);
 
     // Should always return something (at least unknown)
     try std.testing.expect(info.type == .unknown or
-                          info.type == .xterm or
-                          info.type == .xterm_256color or
-                          info.type == .kitty or
-                          info.type == .iterm2 or
-                          info.type == .windows_terminal or
-                          info.type == .alacritty or
-                          info.type == .wezterm or
-                          info.type == .foot or
-                          info.type == .gnome_terminal or
-                          info.type == .konsole or
-                          info.type == .tmux or
-                          info.type == .screen or
-                          info.type == .vscode);
+        info.type == .xterm or
+        info.type == .xterm_256color or
+        info.type == .kitty or
+        info.type == .iterm2 or
+        info.type == .windows_terminal or
+        info.type == .alacritty or
+        info.type == .wezterm or
+        info.type == .foot or
+        info.type == .gnome_terminal or
+        info.type == .konsole or
+        info.type == .tmux or
+        info.type == .screen or
+        info.type == .vscode);
 
     // Name should not be empty
     try std.testing.expect(info.name.len > 0);
+}
+
+test "detect from injected environ map" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+    try environ_map.put("KITTY_WINDOW_ID", "1");
+
+    const info = TerminalInfo.detect(&environ_map);
+    try std.testing.expectEqual(TerminalType.kitty, info.type);
+}
+
+test "detect from empty environ map is unknown" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
+    const info = TerminalInfo.detect(&environ_map);
+    try std.testing.expectEqual(TerminalType.unknown, info.type);
 }

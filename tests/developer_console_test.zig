@@ -31,7 +31,7 @@ const Style = sailor.tui.style.Style;
 
 test "DeveloperConsole - init and deinit" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     // Console should initialize successfully
@@ -40,7 +40,7 @@ test "DeveloperConsole - init and deinit" {
 
 test "DeveloperConsole - eval command executes valid expression" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     // Evaluate simple math expression
@@ -52,7 +52,7 @@ test "DeveloperConsole - eval command executes valid expression" {
 
 test "DeveloperConsole - eval command handles invalid syntax" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     // Invalid expression should return error
@@ -62,7 +62,7 @@ test "DeveloperConsole - eval command handles invalid syntax" {
 
 test "DeveloperConsole - help command lists available commands" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     const result = try console.executeCommand("help");
@@ -77,7 +77,7 @@ test "DeveloperConsole - help command lists available commands" {
 
 test "DeveloperConsole - clear command resets output buffer" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     // Execute some commands
@@ -93,7 +93,7 @@ test "DeveloperConsole - clear command resets output buffer" {
 
 test "DeveloperConsole - history navigation with previous command" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     // Execute command to add to history
@@ -109,7 +109,7 @@ test "DeveloperConsole - history navigation with previous command" {
 
 test "DeveloperConsole - history navigation with next command" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     // Add two commands
@@ -133,7 +133,7 @@ test "DeveloperConsole - history navigation with next command" {
 
 test "DeveloperConsole - history navigation on empty history returns error" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     // No history yet
@@ -143,7 +143,7 @@ test "DeveloperConsole - history navigation on empty history returns error" {
 
 test "DeveloperConsole - multi-line input validation detects incomplete input" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     // Input with unclosed brace
@@ -155,7 +155,7 @@ test "DeveloperConsole - multi-line input validation detects incomplete input" {
 
 test "DeveloperConsole - multi-line input validation detects complete input" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     // Complete input
@@ -167,7 +167,7 @@ test "DeveloperConsole - multi-line input validation detects complete input" {
 
 test "DeveloperConsole - error messages include context" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     // Register a widget for querying
@@ -190,7 +190,7 @@ test "DeveloperConsole - error messages include context" {
 
 test "DeveloperConsole - query by type selector matches all widgets of type" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     // Register multiple Button widgets
@@ -221,7 +221,7 @@ test "DeveloperConsole - query by type selector matches all widgets of type" {
 
 test "DeveloperConsole - query by ID selector matches single widget" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     try console.registerWidget("Button", .{
@@ -244,7 +244,7 @@ test "DeveloperConsole - query by ID selector matches single widget" {
 
 test "DeveloperConsole - query by class selector filters by class" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     try console.registerWidget("Button", .{
@@ -275,7 +275,7 @@ test "DeveloperConsole - query by class selector filters by class" {
 
 test "DeveloperConsole - query by attribute selector with prefix match" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     try console.registerWidget("Input", .{
@@ -307,7 +307,7 @@ test "DeveloperConsole - query by attribute selector with prefix match" {
 
 test "DeveloperConsole - query with descendant combinator finds nested widgets" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     // Register parent and child
@@ -338,7 +338,7 @@ test "DeveloperConsole - query with descendant combinator finds nested widgets" 
 
 test "DeveloperConsole - query with child combinator finds direct children only" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     // Dialog > Panel > Button (Button is grandchild)
@@ -376,7 +376,7 @@ test "DeveloperConsole - query with child combinator finds direct children only"
 
 test "DeveloperConsole - query with :visible predicate filters visibility" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     try console.registerWidget("Button", .{
@@ -405,7 +405,7 @@ test "DeveloperConsole - query with :visible predicate filters visibility" {
 
 test "DeveloperConsole - query with :focused predicate filters focus state" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     try console.registerWidget("Input", .{
@@ -434,7 +434,7 @@ test "DeveloperConsole - query with :focused predicate filters focus state" {
 
 test "DeveloperConsole - query returns error when no matches found" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     const result = console.query("#nonexistent", allocator);
@@ -443,7 +443,7 @@ test "DeveloperConsole - query returns error when no matches found" {
 
 test "DeveloperConsole - query with bounds predicate filters by coordinates" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     try console.registerWidget("Button", .{
@@ -477,7 +477,7 @@ test "DeveloperConsole - query with bounds predicate filters by coordinates" {
 
 test "DeveloperConsole - mutate sets widget text property" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     try console.registerWidget("Button", .{
@@ -497,7 +497,7 @@ test "DeveloperConsole - mutate sets widget text property" {
 
 test "DeveloperConsole - mutate triggers widget actions" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     try console.registerWidget("Button", .{
@@ -517,7 +517,7 @@ test "DeveloperConsole - mutate triggers widget actions" {
 
 test "DeveloperConsole - mutate applies batch updates to multiple widgets" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     try console.registerWidget("Button", .{
@@ -546,7 +546,7 @@ test "DeveloperConsole - mutate applies batch updates to multiple widgets" {
 
 test "DeveloperConsole - undo restores previous widget state" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     try console.registerWidget("Button", .{
@@ -569,7 +569,7 @@ test "DeveloperConsole - undo restores previous widget state" {
 
 test "DeveloperConsole - redo restores undone mutation" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     try console.registerWidget("Button", .{
@@ -594,7 +594,7 @@ test "DeveloperConsole - redo restores undone mutation" {
 
 test "DeveloperConsole - mutate rejects invalid syntax" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     const result = console.executeCommand("mutate #btn1 invalid syntax");
@@ -603,7 +603,7 @@ test "DeveloperConsole - mutate rejects invalid syntax" {
 
 test "DeveloperConsole - mutate returns error when widget not found" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     const result = console.executeCommand("mutate #nonexistent text='foo'");
@@ -612,7 +612,7 @@ test "DeveloperConsole - mutate returns error when widget not found" {
 
 test "DeveloperConsole - mutate parses property assignment syntax" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     try console.registerWidget("Button", .{
@@ -640,7 +640,7 @@ test "DeveloperConsole - mutate parses property assignment syntax" {
 
 test "DeveloperConsole - screenshot captures full screen" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     const data = try console.screenshot(allocator, null);
@@ -652,7 +652,7 @@ test "DeveloperConsole - screenshot captures full screen" {
 
 test "DeveloperConsole - screenshot captures region by widget ID" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     try console.registerWidget("Panel", .{
@@ -672,7 +672,7 @@ test "DeveloperConsole - screenshot captures region by widget ID" {
 
 test "DeveloperConsole - recording captures frame sequence" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     try console.startRecording();
@@ -690,7 +690,7 @@ test "DeveloperConsole - recording captures frame sequence" {
 
 test "DeveloperConsole - screenshot export to PNG format" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     const data = try console.screenshot(allocator, null);
@@ -705,7 +705,7 @@ test "DeveloperConsole - screenshot export to PNG format" {
 
 test "DeveloperConsole - screenshot export to ANSI text format" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     const data = try console.screenshot(allocator, null);
@@ -724,7 +724,7 @@ test "DeveloperConsole - screenshot export to ANSI text format" {
 
 test "DeveloperConsole - Ctrl+Shift+D toggles console open" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     try testing.expect(!console.isOpen());
@@ -743,7 +743,7 @@ test "DeveloperConsole - Ctrl+Shift+D toggles console open" {
 
 test "DeveloperConsole - Ctrl+Shift+D toggles console closed" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     // Open console first
@@ -765,7 +765,7 @@ test "DeveloperConsole - Ctrl+Shift+D toggles console closed" {
 test "DeveloperConsole - memory cleanup frees command history" {
     const allocator = testing.allocator;
 
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
 
     // Execute many commands to populate history
     var i: usize = 0;
@@ -780,7 +780,7 @@ test "DeveloperConsole - memory cleanup frees command history" {
 
 test "DeveloperConsole - concurrent command execution is thread-safe" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     // Register widget for concurrent access
@@ -815,7 +815,7 @@ fn threadQuery(console: *DeveloperConsole, allocator: std.mem.Allocator) void {
 
 test "DeveloperConsole - Unicode support in commands and output" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     try console.registerWidget("Label", .{
@@ -835,7 +835,7 @@ test "DeveloperConsole - Unicode support in commands and output" {
 
 test "DeveloperConsole - command execution with special characters" {
     const allocator = testing.allocator;
-    var console = try DeveloperConsole.init(allocator);
+    var console = try DeveloperConsole.init(allocator, testing.io);
     defer console.deinit();
 
     try console.registerWidget("Input", .{

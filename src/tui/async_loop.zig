@@ -52,24 +52,27 @@ pub const AsyncEventLoop = struct {
     next_task_id: u32,
     event_queue: std.ArrayListUnmanaged(Event),
     quit_requested: bool,
-    mutex: std.Thread.Mutex,
+    mutex: std.Io.Mutex,
+    /// Runtime handle used for locking and terminal polling
+    io: std.Io,
 
-    /// Initialize async event loop
-    pub fn init(allocator: Allocator) AsyncEventLoop {
+    /// Initialize async event loop (caches `io` for locking and terminal reads)
+    pub fn init(allocator: Allocator, io: std.Io) AsyncEventLoop {
         return .{
             .allocator = allocator,
-            .tasks = .{},
+            .tasks = .empty,
             .next_task_id = 1,
-            .event_queue = .{},
+            .event_queue = .empty,
             .quit_requested = false,
-            .mutex = .{},
+            .mutex = .init,
+            .io = io,
         };
     }
 
     /// Clean up event loop and cancel all pending tasks
     pub fn deinit(self: *AsyncEventLoop) void {
         // Lock to safely cancel all tasks and prevent concurrent modifications
-        self.mutex.lock();
+        self.mutex.lockUncancelable(self.io);
 
         // Cancel all tasks
         for (self.tasks.items) |*task| {
@@ -81,7 +84,7 @@ pub const AsyncEventLoop = struct {
 
         // Unlock before joining threads to prevent deadlock
         // (threads may need to acquire lock during shutdown)
-        self.mutex.unlock();
+        self.mutex.unlock(self.io);
 
         // Join all threads
         for (self.tasks.items) |*task| {
@@ -112,8 +115,8 @@ pub const AsyncEventLoop = struct {
         errdefer self.allocator.destroy(cancelled_ptr);
         cancelled_ptr.* = false;
 
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         const task_id = self.next_task_id;
         self.next_task_id += 1;
@@ -138,7 +141,7 @@ pub const AsyncEventLoop = struct {
 
             fn run(ctx: @This()) void {
                 // Find task and mark as running
-                ctx.loop.mutex.lock();
+                ctx.loop.mutex.lockUncancelable(ctx.loop.io);
                 var callback_fn: ?TaskCallback = null;
                 var callback_data: ?*anyopaque = null;
 
@@ -151,15 +154,15 @@ pub const AsyncEventLoop = struct {
                         break;
                     }
                 }
-                ctx.loop.mutex.unlock();
+                ctx.loop.mutex.unlock(ctx.loop.io);
 
                 // Execute task function outside of lock with stable cancelled pointer
                 const result = ctx.task_fn_ptr(ctx.task_context, ctx.cancelled_ptr);
 
                 // Update task state - re-find task after re-acquiring lock
                 {
-                    ctx.loop.mutex.lock();
-                    defer ctx.loop.mutex.unlock();
+                    ctx.loop.mutex.lockUncancelable(ctx.loop.io);
+                    defer ctx.loop.mutex.unlock(ctx.loop.io);
 
                     for (ctx.loop.tasks.items) |*t| {
                         if (t.id == ctx.task_id) {
@@ -211,8 +214,8 @@ pub const AsyncEventLoop = struct {
         handle.cancelled.* = true;
 
         // Update task state under lock
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         for (self.tasks.items) |*task| {
             if (task.id == handle.id) {
@@ -227,8 +230,8 @@ pub const AsyncEventLoop = struct {
 
     /// Get task state
     pub fn getTaskState(self: *AsyncEventLoop, handle: TaskHandle) ?TaskState {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         for (self.tasks.items) |*task| {
             if (task.id == handle.id) {
@@ -240,8 +243,8 @@ pub const AsyncEventLoop = struct {
 
     /// Push an event to the queue (thread-safe)
     pub fn pushEvent(self: *AsyncEventLoop, event: Event) !void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
         try self.event_queue.append(self.allocator, event);
     }
 
@@ -253,8 +256,8 @@ pub const AsyncEventLoop = struct {
     ) !?Event {
         // Check event queue first
         {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.mutex.lockUncancelable(self.io);
+            defer self.mutex.unlock(self.io);
 
             if (self.event_queue.items.len > 0) {
                 return self.event_queue.orderedRemove(0);
@@ -289,7 +292,7 @@ pub const AsyncEventLoop = struct {
         if (timeout_ms == null) {
             while (!self.quit_requested) {
                 // Use 250ms per iteration to balance responsiveness and CPU usage
-                if (try term_mod.readByte(250)) |first_byte| {
+                if (try term_mod.readByte(self.io, 250)) |first_byte| {
                     // Got first byte; try to read more for escape sequences
                     var buffer: [8]u8 = undefined;
                     buffer[0] = first_byte;
@@ -298,7 +301,7 @@ pub const AsyncEventLoop = struct {
                     // If it's an ESC byte, try to read follow-up bytes with short timeout
                     if (first_byte == 0x1b) {
                         while (len < buffer.len) {
-                            if (try term_mod.readByte(10)) |byte| {
+                            if (try term_mod.readByte(self.io, 10)) |byte| {
                                 buffer[len] = byte;
                                 len += 1;
                                 // Check if we have a complete sequence
@@ -320,7 +323,7 @@ pub const AsyncEventLoop = struct {
 
         // For timeout mode, respect caller's timeout_ms as total budget for first byte
         const timeout_u32 = @min(timeout_ms.?, std.math.maxInt(u32));
-        if (try term_mod.readByte(timeout_u32)) |first_byte| {
+        if (try term_mod.readByte(self.io, timeout_u32)) |first_byte| {
             // Got first byte; try to read more for escape sequences with remaining time
             var buffer: [8]u8 = undefined;
             buffer[0] = first_byte;
@@ -329,7 +332,7 @@ pub const AsyncEventLoop = struct {
             // If it's an ESC byte, try to read follow-up bytes with short timeout
             if (first_byte == 0x1b) {
                 while (len < buffer.len) {
-                    if (try term_mod.readByte(10)) |byte| {
+                    if (try term_mod.readByte(self.io, 10)) |byte| {
                         buffer[len] = byte;
                         len += 1;
                         // Check if we have a complete sequence
@@ -361,8 +364,8 @@ pub const AsyncEventLoop = struct {
 
     /// Clean up completed/cancelled tasks
     pub fn cleanupTasks(self: *AsyncEventLoop) void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         var i: usize = 0;
         while (i < self.tasks.items.len) {
@@ -382,8 +385,8 @@ pub const AsyncEventLoop = struct {
 
     /// Get count of active tasks
     pub fn activeTaskCount(self: *AsyncEventLoop) usize {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         var count: usize = 0;
         for (self.tasks.items) |*task| {
@@ -396,8 +399,8 @@ pub const AsyncEventLoop = struct {
 
     /// Get count of completed tasks
     pub fn completedTaskCount(self: *AsyncEventLoop) usize {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         var count: usize = 0;
         for (self.tasks.items) |*task| {
@@ -539,7 +542,7 @@ pub fn decodeEventBytes(bytes: []const u8) ?Event {
 // ============================================================================
 
 test "AsyncEventLoop init and deinit" {
-    var loop = AsyncEventLoop.init(std.testing.allocator);
+    var loop = AsyncEventLoop.init(std.testing.allocator, std.testing.io);
     defer loop.deinit();
 
     try std.testing.expect(!loop.shouldQuit());
@@ -547,7 +550,7 @@ test "AsyncEventLoop init and deinit" {
 }
 
 test "AsyncEventLoop spawn task" {
-    var loop = AsyncEventLoop.init(std.testing.allocator);
+    var loop = AsyncEventLoop.init(std.testing.allocator, std.testing.io);
     defer loop.deinit();
 
     const TestContext = struct {
@@ -571,7 +574,7 @@ test "AsyncEventLoop spawn task" {
             _ = cancelled;
             context.value.* = 42;
             // Short sleep to ensure task completes before deinit
-            std.Thread.sleep(10 * std.time.ns_per_ms);
+            try std.testing.io.sleep(.fromMilliseconds(10), .awake);
         }
     }.run;
 
@@ -581,7 +584,7 @@ test "AsyncEventLoop spawn task" {
     // Wait for task to complete with timeout
     var retries: usize = 0;
     while (retries < 100 and !completed) : (retries += 1) {
-        std.Thread.sleep(10 * std.time.ns_per_ms);
+        try std.testing.io.sleep(.fromMilliseconds(10), .awake);
     }
 
     try std.testing.expect(completed);
@@ -592,7 +595,7 @@ test "AsyncEventLoop spawn task" {
 }
 
 test "AsyncEventLoop cancel task" {
-    var loop = AsyncEventLoop.init(std.testing.allocator);
+    var loop = AsyncEventLoop.init(std.testing.allocator, std.testing.io);
     defer loop.deinit();
 
     const TestContext = struct {
@@ -616,7 +619,7 @@ test "AsyncEventLoop cancel task" {
             var i: u32 = 0;
             while (i < 100 and !cancelled.*) : (i += 1) {
                 context.value.* = i;
-                std.Thread.sleep(1 * std.time.ns_per_ms);
+                try std.testing.io.sleep(.fromMilliseconds(1), .awake);
             }
         }
     }.run;
@@ -624,7 +627,7 @@ test "AsyncEventLoop cancel task" {
     const handle = try loop.spawnTask(ctx, task_fn, callback, &completed);
 
     // Give task time to start
-    std.Thread.sleep(5 * std.time.ns_per_ms);
+    try std.testing.io.sleep(.fromMilliseconds(5), .awake);
 
     // Cancel the task
     loop.cancelTask(handle);
@@ -632,7 +635,7 @@ test "AsyncEventLoop cancel task" {
     // Wait for callback
     var retries: usize = 0;
     while (retries < 200 and !completed) : (retries += 1) {
-        std.Thread.sleep(1 * std.time.ns_per_ms);
+        try std.testing.io.sleep(.fromMilliseconds(1), .awake);
     }
 
     try std.testing.expect(completed);
@@ -643,7 +646,7 @@ test "AsyncEventLoop cancel task" {
 }
 
 test "AsyncEventLoop push and poll event" {
-    var loop = AsyncEventLoop.init(std.testing.allocator);
+    var loop = AsyncEventLoop.init(std.testing.allocator, std.testing.io);
     defer loop.deinit();
 
     const event = Event{ .key = .{ .code = .{ .char = 'a' } } };
@@ -661,7 +664,7 @@ test "AsyncEventLoop push and poll event" {
 }
 
 test "AsyncEventLoop quit request" {
-    var loop = AsyncEventLoop.init(std.testing.allocator);
+    var loop = AsyncEventLoop.init(std.testing.allocator, std.testing.io);
     defer loop.deinit();
 
     try std.testing.expect(!loop.shouldQuit());
@@ -670,7 +673,7 @@ test "AsyncEventLoop quit request" {
 }
 
 test "AsyncEventLoop cleanup tasks" {
-    var loop = AsyncEventLoop.init(std.testing.allocator);
+    var loop = AsyncEventLoop.init(std.testing.allocator, std.testing.io);
     defer loop.deinit();
 
     const ctx = struct {
@@ -692,7 +695,7 @@ test "AsyncEventLoop cleanup tasks" {
         fn run(context: @TypeOf(ctx), cancelled: *bool) anyerror!void {
             _ = context;
             _ = cancelled;
-            std.Thread.sleep(5 * std.time.ns_per_ms);
+            try std.testing.io.sleep(.fromMilliseconds(5), .awake);
         }
     }.run;
 
@@ -704,7 +707,7 @@ test "AsyncEventLoop cleanup tasks" {
     // Wait for tasks to complete
     var retries: usize = 0;
     while (retries < 100 and (!completed1 or !completed2)) : (retries += 1) {
-        std.Thread.sleep(5 * std.time.ns_per_ms);
+        try std.testing.io.sleep(.fromMilliseconds(5), .awake);
     }
 
     try std.testing.expect(completed1);
@@ -720,7 +723,7 @@ test "AsyncEventLoop cleanup tasks" {
 }
 
 test "AsyncEventLoop task state transitions" {
-    var loop = AsyncEventLoop.init(std.testing.allocator);
+    var loop = AsyncEventLoop.init(std.testing.allocator, std.testing.io);
     defer loop.deinit();
 
     const ctx = struct {
@@ -740,7 +743,7 @@ test "AsyncEventLoop task state transitions" {
         fn run(context: @TypeOf(ctx), cancelled: *bool) anyerror!void {
             _ = context;
             _ = cancelled;
-            std.Thread.sleep(20 * std.time.ns_per_ms);
+            try std.testing.io.sleep(.fromMilliseconds(20), .awake);
         }
     }.run;
 
@@ -758,14 +761,14 @@ test "AsyncEventLoop task state transitions" {
     while (start_retries < 100) : (start_retries += 1) {
         running_state = loop.getTaskState(handle);
         if (running_state == .running or running_state == .completed) break;
-        std.Thread.sleep(5 * std.time.ns_per_ms);
+        try std.testing.io.sleep(.fromMilliseconds(5), .awake);
     }
     try std.testing.expect(running_state == .running or running_state == .completed);
 
     // Wait for completion
     var retries: usize = 0;
     while (retries < 100 and !completed) : (retries += 1) {
-        std.Thread.sleep(5 * std.time.ns_per_ms);
+        try std.testing.io.sleep(.fromMilliseconds(5), .awake);
     }
 
     const final_state = loop.getTaskState(handle);
@@ -775,7 +778,7 @@ test "AsyncEventLoop task state transitions" {
 }
 
 test "AsyncEventLoop multiple concurrent tasks" {
-    var loop = AsyncEventLoop.init(std.testing.allocator);
+    var loop = AsyncEventLoop.init(std.testing.allocator, std.testing.io);
     defer loop.deinit();
 
     const TestContext = struct {
@@ -799,7 +802,7 @@ test "AsyncEventLoop multiple concurrent tasks" {
         fn run(context: TestContext, cancelled: *bool) anyerror!void {
             _ = cancelled;
             _ = context.counter.fetchAdd(1, .seq_cst);
-            std.Thread.sleep(10 * std.time.ns_per_ms);
+            try std.testing.io.sleep(.fromMilliseconds(10), .awake);
         }
     }.run;
 
@@ -818,7 +821,7 @@ test "AsyncEventLoop multiple concurrent tasks" {
         for (completed_flags) |flag| {
             if (!flag) all_done = false;
         }
-        std.Thread.sleep(5 * std.time.ns_per_ms);
+        try std.testing.io.sleep(.fromMilliseconds(5), .awake);
     }
 
     try std.testing.expect(all_done);
@@ -828,7 +831,7 @@ test "AsyncEventLoop multiple concurrent tasks" {
 }
 
 test "AsyncEventLoop error handling in tasks" {
-    var loop = AsyncEventLoop.init(std.testing.allocator);
+    var loop = AsyncEventLoop.init(std.testing.allocator, std.testing.io);
     defer loop.deinit();
 
     const ctx = struct {
@@ -848,7 +851,7 @@ test "AsyncEventLoop error handling in tasks" {
         fn run(context: @TypeOf(ctx), cancelled: *bool) anyerror!void {
             _ = context;
             _ = cancelled;
-            std.Thread.sleep(10 * std.time.ns_per_ms);
+            try std.testing.io.sleep(.fromMilliseconds(10), .awake);
             return error.TaskFailed;
         }
     }.run;
@@ -858,7 +861,7 @@ test "AsyncEventLoop error handling in tasks" {
     // Wait for task to fail
     var retries: usize = 0;
     while (retries < 100 and !completed) : (retries += 1) {
-        std.Thread.sleep(5 * std.time.ns_per_ms);
+        try std.testing.io.sleep(.fromMilliseconds(5), .awake);
     }
 
     try std.testing.expect(completed);
@@ -872,7 +875,7 @@ test "AsyncEventLoop error handling in tasks" {
 test "AsyncEventLoop dangling pointer safety after array reallocation" {
     // This test ensures TaskHandle.cancelled pointer remains valid
     // even after tasks array reallocates
-    var loop = AsyncEventLoop.init(std.testing.allocator);
+    var loop = AsyncEventLoop.init(std.testing.allocator, std.testing.io);
     defer loop.deinit();
 
     const ctx = struct {
@@ -896,7 +899,7 @@ test "AsyncEventLoop dangling pointer safety after array reallocation" {
             // Check cancelled flag multiple times during execution
             var i: usize = 0;
             while (i < 50 and !cancelled.*) : (i += 1) {
-                std.Thread.sleep(1 * std.time.ns_per_ms);
+                try std.testing.io.sleep(.fromMilliseconds(1), .awake);
             }
         }
     }.run;
@@ -919,7 +922,7 @@ test "AsyncEventLoop dangling pointer safety after array reallocation" {
             if (!flag) all_done = false;
         }
         if (all_done) break;
-        std.Thread.sleep(5 * std.time.ns_per_ms);
+        try std.testing.io.sleep(.fromMilliseconds(5), .awake);
     }
 
     // First task should have been cancelled

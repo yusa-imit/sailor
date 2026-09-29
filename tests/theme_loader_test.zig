@@ -297,19 +297,18 @@ test "ThemeLoader - load theme from file path" {
         \\}
     ;
 
-    const file = try tmp_dir.dir.createFile("theme.json", .{});
-    defer file.close();
-    try file.writeAll(theme_json);
+    const io = std.testing.io;
+    try tmp_dir.dir.writeFile(io, .{ .sub_path = "theme.json", .data = theme_json });
 
     // Get absolute path to temp file
-    const tmp_dir_path = try tmp_dir.dir.realpathAlloc(allocator, ".");
+    const tmp_dir_path = try tmp_dir.dir.realPathFileAlloc(io, ".", allocator);
     defer allocator.free(tmp_dir_path);
 
     const theme_path = try std.fs.path.join(allocator, &.{ tmp_dir_path, "theme.json" });
     defer allocator.free(theme_path);
 
-    // Expected API: sailor.tui.ThemeLoader.fromFile(allocator, file_path)
-    const theme = try sailor.tui.ThemeLoader.fromFile(allocator, theme_path);
+    // Expected API: sailor.tui.ThemeLoader.fromFile(allocator, io, file_path)
+    const theme = try sailor.tui.ThemeLoader.fromFile(allocator, io, theme_path);
 
     // Verify theme was loaded correctly
     switch (theme.background) {
@@ -533,7 +532,7 @@ test "ThemeLoader - error on file not found" {
 
     const nonexistent_path = "/nonexistent/path/to/theme.json";
 
-    const result = sailor.tui.ThemeLoader.fromFile(allocator, nonexistent_path);
+    const result = sailor.tui.ThemeLoader.fromFile(allocator, std.testing.io, nonexistent_path);
     try std.testing.expectError(error.FileNotFound, result);
 }
 
@@ -543,10 +542,11 @@ test "ThemeLoader - error on directory instead of file" {
     var tmp_dir = std.testing.tmpDir(.{});
     defer tmp_dir.cleanup();
 
-    const tmp_dir_path = try tmp_dir.dir.realpathAlloc(allocator, ".");
+    const io = std.testing.io;
+    const tmp_dir_path = try tmp_dir.dir.realPathFileAlloc(io, ".", allocator);
     defer allocator.free(tmp_dir_path);
 
-    const result = sailor.tui.ThemeLoader.fromFile(allocator, tmp_dir_path);
+    const result = sailor.tui.ThemeLoader.fromFile(allocator, io, tmp_dir_path);
     try std.testing.expectError(error.IsDir, result);
 }
 

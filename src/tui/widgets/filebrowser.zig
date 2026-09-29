@@ -32,6 +32,8 @@ pub const SelectionResult = struct {
 /// FileBrowser widget - interactive file system navigator with selection and preview
 pub const FileBrowser = struct {
     allocator: std.mem.Allocator,
+    /// Runtime handle cached at `init`; every filesystem call goes through it.
+    io: std.Io,
     current_path: []const u8,
     entries: []Entry,
     selected_index: usize = 0,
@@ -43,12 +45,12 @@ pub const FileBrowser = struct {
     filter_pattern: ?[]const u8 = null,
 
     /// Initialize FileBrowser with a root path
-    pub fn init(allocator: std.mem.Allocator, root_path: []const u8) !FileBrowser {
+    pub fn init(allocator: std.mem.Allocator, io: std.Io, root_path: []const u8) !FileBrowser {
         // Verify path exists
-        var dir = std.fs.openDirAbsolute(root_path, .{ .iterate = true }) catch {
+        var dir = std.Io.Dir.cwd().openDir(io, root_path, .{ .iterate = true }) catch {
             return error.PathNotFound;
         };
-        defer dir.close();
+        defer dir.close(io);
 
         // Duplicate path for storage
         const path_copy = try allocator.dupe(u8, root_path);
@@ -57,6 +59,7 @@ pub const FileBrowser = struct {
         // Initialize with empty entries
         var browser = FileBrowser{
             .allocator = allocator,
+            .io = io,
             .current_path = path_copy,
             .entries = &.{},
         };
@@ -140,14 +143,15 @@ pub const FileBrowser = struct {
         self.freeEntries();
         self.entries = &.{};
 
-        var dir = try std.fs.openDirAbsolute(self.current_path, .{ .iterate = true });
-        defer dir.close();
+        const io = self.io;
+        var dir = try std.Io.Dir.cwd().openDir(io, self.current_path, .{ .iterate = true });
+        defer dir.close(io);
 
         var entries_list: std.ArrayList(Entry) = .empty;
         defer entries_list.deinit(self.allocator);
 
         var iter = dir.iterate();
-        while (try iter.next()) |entry| {
+        while (try iter.next(io)) |entry| {
             // Skip hidden files unless enabled
             if (!self.show_hidden_files and std.mem.startsWith(u8, entry.name, ".")) {
                 continue;
@@ -334,18 +338,27 @@ pub const FileBrowser = struct {
     }
 
     /// Get preview text for a file
-    pub fn getFilePreview(_: *FileBrowser, allocator: std.mem.Allocator, entry: *const Entry) ![]const u8 {
+    pub fn getFilePreview(
+        self: *FileBrowser,
+        allocator: std.mem.Allocator,
+        entry: *const Entry,
+    ) ![]const u8 {
         if (entry.is_dir) return error.IsDirectory;
 
-        var file = std.fs.openFileAbsolute(entry.path, .{}) catch return error.CannotOpenFile;
-        defer file.close();
+        const io = self.io;
+        var file = std.Io.Dir.cwd().openFile(io, entry.path, .{}) catch {
+            return error.CannotOpenFile;
+        };
+        defer file.close(io);
 
         // Read up to 1KB for preview
         const preview_size = 1024;
         const buf = try allocator.alloc(u8, preview_size);
         errdefer allocator.free(buf);
 
-        const bytes_read = try file.readAll(buf);
+        var read_buf: [256]u8 = undefined;
+        var file_reader = file.reader(io, &read_buf);
+        const bytes_read = try file_reader.interface.readSliceShort(buf);
 
         // Resize to actual size to allow proper deallocation
         if (bytes_read < buf.len) {
@@ -356,16 +369,23 @@ pub const FileBrowser = struct {
     }
 
     /// Get info about a directory
-    pub fn getDirectoryInfo(_: *FileBrowser, allocator: std.mem.Allocator, entry: *const Entry) ![]const u8 {
+    pub fn getDirectoryInfo(
+        self: *FileBrowser,
+        allocator: std.mem.Allocator,
+        entry: *const Entry,
+    ) ![]const u8 {
         if (!entry.is_dir) return error.NotADirectory;
 
-        var dir = std.fs.openDirAbsolute(entry.path, .{ .iterate = true }) catch return error.CannotOpenDirectory;
-        defer dir.close();
+        const io = self.io;
+        var dir = std.Io.Dir.cwd().openDir(io, entry.path, .{ .iterate = true }) catch {
+            return error.CannotOpenDirectory;
+        };
+        defer dir.close(io);
 
         // Count items in directory
         var count: usize = 0;
         var iter = dir.iterate();
-        while (try iter.next()) |_| {
+        while (try iter.next(io)) |_| {
             count += 1;
         }
 
@@ -545,9 +565,10 @@ test "FileBrowser init and deinit" {
     defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_path = path_buf[0..abs_len];
 
-    var browser = try FileBrowser.init(allocator, abs_path);
+    var browser = try FileBrowser.init(allocator, std.testing.io, abs_path);
     defer browser.deinit();
 
     try testing.expectEqualStrings(abs_path, browser.current_path);
@@ -573,9 +594,10 @@ test "FileBrowser refresh loads entries" {
     try std.Io.Dir.cwd().createDir(std.testing.io, test_dir ++ "/subdir", .default_dir);
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_path = path_buf[0..abs_len];
 
-    var browser = try FileBrowser.init(allocator, abs_path);
+    var browser = try FileBrowser.init(allocator, std.testing.io, abs_path);
     defer browser.deinit();
 
     // Should have 3 entries (2 files + 1 dir)
@@ -602,9 +624,10 @@ test "FileBrowser navigation" {
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file3.txt", .data = "c" });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_path = path_buf[0..abs_len];
 
-    var browser = try FileBrowser.init(allocator, abs_path);
+    var browser = try FileBrowser.init(allocator, std.testing.io, abs_path);
     defer browser.deinit();
 
     try testing.expectEqual(@as(usize, 0), browser.selected_index);
@@ -639,15 +662,16 @@ test "FileBrowser hidden files" {
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/.hidden", .data = "b" });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_path = path_buf[0..abs_len];
 
     // Without hidden files (default)
-    var browser = try FileBrowser.init(allocator, abs_path);
+    var browser = try FileBrowser.init(allocator, std.testing.io, abs_path);
     defer browser.deinit();
     try testing.expectEqual(@as(usize, 1), browser.entries.len);
 
     // With hidden files
-    var browser_hidden = try FileBrowser.init(allocator, abs_path);
+    var browser_hidden = try FileBrowser.init(allocator, std.testing.io, abs_path);
     defer browser_hidden.deinit();
     browser_hidden = browser_hidden.withHiddenFiles(true);
     try browser_hidden.refresh();
@@ -669,9 +693,10 @@ test "FileBrowser selection" {
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file2.txt", .data = "b" });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_path = path_buf[0..abs_len];
 
-    var browser = try FileBrowser.init(allocator, abs_path);
+    var browser = try FileBrowser.init(allocator, std.testing.io, abs_path);
     defer browser.deinit();
 
     // Single select mode
@@ -701,9 +726,10 @@ test "FileBrowser multiselect" {
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file3.txt", .data = "c" });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_path = path_buf[0..abs_len];
 
-    var browser = try FileBrowser.init(allocator, abs_path);
+    var browser = try FileBrowser.init(allocator, std.testing.io, abs_path);
     defer browser.deinit();
     browser = browser.withMultiselect(true);
 
@@ -744,9 +770,10 @@ test "FileBrowser filter" {
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file3.txt", .data = "c" });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_path = path_buf[0..abs_len];
 
-    var browser = try FileBrowser.init(allocator, abs_path);
+    var browser = try FileBrowser.init(allocator, std.testing.io, abs_path);
     defer browser.deinit();
 
     // All files initially
@@ -777,9 +804,10 @@ test "FileBrowser render basic" {
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file.txt", .data = "test" });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_path = path_buf[0..abs_len];
 
-    var browser = try FileBrowser.init(allocator, abs_path);
+    var browser = try FileBrowser.init(allocator, std.testing.io, abs_path);
     defer browser.deinit();
 
     var buffer = try Buffer.init(allocator, 40, 10);
@@ -789,8 +817,12 @@ test "FileBrowser render basic" {
     try browser.render(&buffer, area);
 
     // Verify path is rendered
-    const first_row = buffer.getRow(0);
-    try testing.expect(first_row.len > 0);
+    var row_has_text = false;
+    for (0..buffer.width) |x| {
+        const c = buffer.get(@intCast(x), 0).?;
+        if (c.char != ' ') row_has_text = true;
+    }
+    try testing.expect(row_has_text);
 }
 
 test "FileBrowser render with block" {
@@ -805,12 +837,13 @@ test "FileBrowser render with block" {
     defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_path = path_buf[0..abs_len];
 
-    var browser = try FileBrowser.init(allocator, abs_path);
+    var browser = try FileBrowser.init(allocator, std.testing.io, abs_path);
     defer browser.deinit();
 
-    const block = (Block{}).withTitle("Files").withBorders(.all);
+    const block = (Block{}).withTitle("Files", .top_left).withBorders(.all);
     browser = browser.withBlock(block);
 
     var buffer = try Buffer.init(allocator, 40, 10);
@@ -820,14 +853,14 @@ test "FileBrowser render with block" {
     try browser.render(&buffer, area);
 
     // Verify block borders are rendered (top-left corner)
-    const cell = buffer.get(0, 0);
+    const cell = buffer.get(0, 0).?;
     try testing.expect(cell.char != ' '); // Border character rendered
 
     // Verify title "Files" appears in buffer
     var found_title = false;
     for (0..buffer.height) |y| {
         for (0..buffer.width) |x| {
-            const c = buffer.get(@intCast(x), @intCast(y));
+            const c = buffer.get(@intCast(x), @intCast(y)).?;
             if (c.char == 'F') found_title = true;
         }
     }
@@ -849,9 +882,10 @@ test "FileBrowser enter and parent directory" {
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/subdir/file.txt", .data = "test" });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_path = path_buf[0..abs_len];
 
-    var browser = try FileBrowser.init(allocator, abs_path);
+    var browser = try FileBrowser.init(allocator, std.testing.io, abs_path);
     defer browser.deinit();
 
     const original_path = browser.current_path;
@@ -880,9 +914,10 @@ test "FileBrowser SelectionResult deinit" {
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_path = path_buf[0..abs_len];
 
-    var browser = try FileBrowser.init(allocator, abs_path);
+    var browser = try FileBrowser.init(allocator, std.testing.io, abs_path);
     defer browser.deinit();
 
     browser.toggleSelection();
@@ -907,9 +942,10 @@ test "FileBrowser render preview disabled (regression guard)" {
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/ztest.txt", .data = "content" });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_path = path_buf[0..abs_len];
 
-    var browser = try FileBrowser.init(allocator, abs_path);
+    var browser = try FileBrowser.init(allocator, std.testing.io, abs_path);
     defer browser.deinit();
 
     // Verify preview is disabled by default
@@ -927,14 +963,14 @@ test "FileBrowser render preview disabled (regression guard)" {
     var filename_x: u16 = 0;
     for (0..buffer.height) |y| {
         for (0..buffer.width) |x| {
-            const c = buffer.get(@intCast(x), @intCast(y));
+            const c = buffer.get(@intCast(x), @intCast(y)).?;
             if (c.char == 'z') {
                 // Found 'z' from "ztest.txt", verify rest of filename follows
                 var match = true;
                 const target = "ztest.txt";
                 for (target, 0..) |expected_char, offset| {
                     if (x + offset < buffer.width) {
-                        const check_cell = buffer.get(@intCast(x + offset), @intCast(y));
+                        const check_cell = buffer.get(@intCast(x + offset), @intCast(y)).?;
                         if (check_cell.char != expected_char) {
                             match = false;
                             break;
@@ -968,9 +1004,10 @@ test "FileBrowser render preview enabled but too narrow (width < 20)" {
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file.txt", .data = "test" });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_path = path_buf[0..abs_len];
 
-    var browser = try FileBrowser.init(allocator, abs_path);
+    var browser = try FileBrowser.init(allocator, std.testing.io, abs_path);
     defer browser.deinit();
     browser = browser.withPreview(true);
 
@@ -986,7 +1023,7 @@ test "FileBrowser render preview enabled but too narrow (width < 20)" {
     var found_divider = false;
     for (0..buffer.height) |y| {
         for (0..buffer.width) |x| {
-            const c = buffer.get(@intCast(x), @intCast(y));
+            const c = buffer.get(@intCast(x), @intCast(y)).?;
             if (c.char == '│') {
                 found_divider = true;
             }
@@ -1009,9 +1046,10 @@ test "FileBrowser render preview enabled and wide enough (divider appears)" {
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file.txt", .data = "test" });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_path = path_buf[0..abs_len];
 
-    var browser = try FileBrowser.init(allocator, abs_path);
+    var browser = try FileBrowser.init(allocator, std.testing.io, abs_path);
     defer browser.deinit();
     browser = browser.withPreview(true);
 
@@ -1030,7 +1068,7 @@ test "FileBrowser render preview enabled and wide enough (divider appears)" {
     // Verify divider char '│' appears at expected x position
     var found_divider = false;
     for (0..buffer.height) |y| {
-        const c = buffer.get(divider_x, @intCast(y));
+        const c = buffer.get(divider_x, @intCast(y)).?;
         if (c.char == '│') {
             found_divider = true;
         }
@@ -1053,9 +1091,10 @@ test "FileBrowser render file preview content appears in preview pane" {
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/hello.txt", .data = "hello" });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_path = path_buf[0..abs_len];
 
-    var browser = try FileBrowser.init(allocator, abs_path);
+    var browser = try FileBrowser.init(allocator, std.testing.io, abs_path);
     defer browser.deinit();
     browser = browser.withPreview(true);
 
@@ -1081,7 +1120,7 @@ test "FileBrowser render file preview content appears in preview pane" {
     var all_match = true;
     for (target, 0..) |expected_char, offset| {
         if (preview_area_x + offset < area.width) {
-            const c = buffer.get(@intCast(preview_area_x + offset), preview_area_y);
+            const c = buffer.get(@intCast(preview_area_x + offset), preview_area_y).?;
             if (c.char != expected_char) {
                 all_match = false;
                 break;
@@ -1116,9 +1155,10 @@ test "FileBrowser render directory preview shows items count" {
     try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/adir/file3.txt", .data = "c" });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const abs_path = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
+    const abs_path = path_buf[0..abs_len];
 
-    var browser = try FileBrowser.init(allocator, abs_path);
+    var browser = try FileBrowser.init(allocator, std.testing.io, abs_path);
     defer browser.deinit();
     browser = browser.withPreview(true);
 
@@ -1137,14 +1177,14 @@ test "FileBrowser render directory preview shows items count" {
     var found_items_text = false;
     for (0..buffer.height) |y| {
         for (0..buffer.width) |x| {
-            const c = buffer.get(@intCast(x), @intCast(y));
+            const c = buffer.get(@intCast(x), @intCast(y)).?;
             if (c.char == 'i') {
                 // Check if "items" appears here
                 const target = "items";
                 var match = true;
                 for (target, 0..) |expected_char, offset| {
                     if (x + offset < buffer.width) {
-                        if (buffer.get(@intCast(x + offset), @intCast(y)).char != expected_char) {
+                        if (buffer.get(@intCast(x + offset), @intCast(y)).?.char != expected_char) {
                             match = false;
                             break;
                         }
@@ -1173,7 +1213,7 @@ test "FileBrowser render with empty entries does not crash" {
     };
     defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    var browser = try FileBrowser.init(allocator, test_dir);
+    var browser = try FileBrowser.init(allocator, std.testing.io, test_dir);
     defer browser.deinit();
     browser = browser.withPreview(true);
 

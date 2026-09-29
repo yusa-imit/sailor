@@ -171,7 +171,7 @@ test "ColorTheme.detectFromTerminal returns valid theme" {
     const allocator = std.testing.allocator;
 
     // Should return either light or dark theme based on terminal
-    const theme = try ColorTheme.detectFromTerminal(allocator);
+    const theme = try ColorTheme.detectFromTerminal(allocator, std.testing.io);
 
     // Theme should have valid semantic colors
     _ = theme.error_fg;
@@ -184,13 +184,14 @@ test "ColorTheme.detectFromTerminal with mock light background" {
 
     // Mock function that returns light background RGB
     const MockTerminal = struct {
-        fn queryBackground() !Color {
+        fn queryBackground(_: std.Io) !Color {
             return Color.fromRgb(250, 250, 250); // Very light background
         }
     };
 
     const theme = try ColorTheme.detectFromTerminalWithQuery(
         allocator,
+        std.testing.io,
         MockTerminal.queryBackground,
     );
 
@@ -214,13 +215,14 @@ test "ColorTheme.detectFromTerminal with mock dark background" {
 
     // Mock function that returns dark background RGB
     const MockTerminal = struct {
-        fn queryBackground() !Color {
+        fn queryBackground(_: std.Io) !Color {
             return Color.fromRgb(20, 20, 20); // Very dark background
         }
     };
 
     const theme = try ColorTheme.detectFromTerminalWithQuery(
         allocator,
+        std.testing.io,
         MockTerminal.queryBackground,
     );
 
@@ -244,13 +246,14 @@ test "ColorTheme.detectFromTerminal handles query failure gracefully" {
 
     // Mock function that fails
     const MockTerminal = struct {
-        fn queryBackground() !Color {
+        fn queryBackground(_: std.Io) !Color {
             return error.TerminalQueryFailed;
         }
     };
 
     const theme = try ColorTheme.detectFromTerminalWithQuery(
         allocator,
+        std.testing.io,
         MockTerminal.queryBackground,
     );
 
@@ -439,7 +442,7 @@ test "ColorTheme.detectFromTerminal handles allocation failure" {
     // Use FailingAllocator to test allocation failures
     var failing_allocator = std.testing.FailingAllocator.init(std.testing.allocator, .{ .fail_index = 0 });
 
-    const result = ColorTheme.detectFromTerminal(failing_allocator.allocator());
+    const result = ColorTheme.detectFromTerminal(failing_allocator.allocator(), std.testing.io);
 
     // Should return error on allocation failure
     try std.testing.expectError(error.OutOfMemory, result);

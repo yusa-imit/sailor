@@ -4,6 +4,11 @@ const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Event = @import("tui.zig").Event;
 
+/// Monotonic milliseconds used for session-relative timestamps.
+fn nowMs(io: std.Io) i64 {
+    return std.Io.Clock.awake.now(io).toMilliseconds();
+}
+
 /// Session recording and playback for debugging TUI applications.
 /// Records all events and frame states to a file that can be replayed later.
 pub const SessionRecorder = struct {
@@ -11,6 +16,8 @@ pub const SessionRecorder = struct {
     events: ArrayList(RecordedEvent),
     start_time: i64,
     is_recording: bool,
+    /// Runtime handle used for clock reads and file I/O
+    io: std.Io,
 
     pub const RecordedEvent = struct {
         timestamp_ms: i64, // Milliseconds since recording started
@@ -24,15 +31,17 @@ pub const SessionRecorder = struct {
     ///
     /// Args:
     ///   allocator: Memory allocator for event storage
+    ///   io: Runtime handle, cached for clock reads and file I/O
     ///
     /// Returns:
     ///   Initialized SessionRecorder
-    pub fn init(allocator: Allocator) !SessionRecorder {
+    pub fn init(allocator: Allocator, io: std.Io) !SessionRecorder {
         return SessionRecorder{
             .allocator = allocator,
             .events = .empty,
-            .start_time = std.time.milliTimestamp(),
+            .start_time = nowMs(io),
             .is_recording = false,
+            .io = io,
         };
     }
 
@@ -47,7 +56,7 @@ pub const SessionRecorder = struct {
     /// Start recording events.
     pub fn startRecording(self: *SessionRecorder) void {
         self.is_recording = true;
-        self.start_time = std.time.milliTimestamp();
+        self.start_time = nowMs(self.io);
         self.events.clearRetainingCapacity();
     }
 
@@ -60,7 +69,7 @@ pub const SessionRecorder = struct {
     pub fn recordEvent(self: *SessionRecorder, event: Event) !void {
         if (!self.is_recording) return;
 
-        const now = std.time.milliTimestamp();
+        const now = nowMs(self.io);
         const elapsed = now - self.start_time;
 
         try self.events.append(self.allocator, .{
@@ -71,12 +80,13 @@ pub const SessionRecorder = struct {
 
     /// Save recorded session to a file.
     pub fn saveToFile(self: *SessionRecorder, path: []const u8) !void {
-        const file = try std.fs.cwd().createFile(path, .{});
-        defer file.close();
+        const io = self.io;
+        const file = try std.Io.Dir.cwd().createFile(io, path, .{});
+        defer file.close(io);
 
-        var buf: std.ArrayList(u8) = .empty;
-        defer buf.deinit(self.allocator);
-        const writer = buf.writer(self.allocator);
+        var out: std.Io.Writer.Allocating = .init(self.allocator);
+        defer out.deinit();
+        const writer = &out.writer;
 
         // Write header
         try writer.print("# Sailor Session Recording\n", .{});
@@ -92,18 +102,20 @@ pub const SessionRecorder = struct {
             try writer.print("}}\n", .{});
         }
 
-        try file.writeAll(buf.items);
+        try file.writeStreamingAll(io, out.written());
     }
 
     /// Load recorded session from a file.
-    pub fn loadFromFile(allocator: Allocator, path: []const u8) !SessionRecorder {
-        var recorder = try SessionRecorder.init(allocator);
+    pub fn loadFromFile(allocator: Allocator, io: std.Io, path: []const u8) !SessionRecorder {
+        var recorder = try SessionRecorder.init(allocator, io);
         errdefer recorder.deinit();
 
-        const file = try std.fs.cwd().openFile(path, .{});
-        defer file.close();
-
-        const content = try file.readToEndAlloc(allocator, 10 * 1024 * 1024); // 10MB max
+        const content = try std.Io.Dir.cwd().readFileAlloc(
+            io,
+            path,
+            allocator,
+            .limited(10 * 1024 * 1024), // 10MB max
+        );
         defer allocator.free(content);
 
         var lines = std.mem.tokenizeScalar(u8, content, '\n');
@@ -227,7 +239,7 @@ pub const SessionPlayer = struct {
     pub fn startPlayback(self: *SessionPlayer) void {
         self.is_playing = true;
         self.current_index = 0;
-        self.playback_start_time = std.time.milliTimestamp();
+        self.playback_start_time = nowMs(self.recorder.io);
     }
 
     /// Stop playback.
@@ -250,7 +262,7 @@ pub const SessionPlayer = struct {
         }
 
         const recorded = self.recorder.events.items[self.current_index];
-        const now = std.time.milliTimestamp();
+        const now = nowMs(self.recorder.io);
         const elapsed = now - self.playback_start_time;
 
         // Adjust for speed multiplier
@@ -272,7 +284,7 @@ pub const SessionPlayer = struct {
                 break;
             }
         }
-        self.playback_start_time = std.time.milliTimestamp() - target_ms;
+        self.playback_start_time = nowMs(self.recorder.io) - target_ms;
     }
 
     /// Get progress percentage (0.0 to 1.0).
@@ -285,7 +297,7 @@ pub const SessionPlayer = struct {
 // Tests
 test "SessionRecorder: init and deinit" {
     const allocator = std.testing.allocator;
-    var recorder = try SessionRecorder.init(allocator);
+    var recorder = try SessionRecorder.init(allocator, std.testing.io);
     defer recorder.deinit();
 
     try std.testing.expect(!recorder.is_recording);
@@ -294,7 +306,7 @@ test "SessionRecorder: init and deinit" {
 
 test "SessionRecorder: start and stop recording" {
     const allocator = std.testing.allocator;
-    var recorder = try SessionRecorder.init(allocator);
+    var recorder = try SessionRecorder.init(allocator, std.testing.io);
     defer recorder.deinit();
 
     recorder.startRecording();
@@ -306,7 +318,7 @@ test "SessionRecorder: start and stop recording" {
 
 test "SessionRecorder: record key events" {
     const allocator = std.testing.allocator;
-    var recorder = try SessionRecorder.init(allocator);
+    var recorder = try SessionRecorder.init(allocator, std.testing.io);
     defer recorder.deinit();
 
     const tui = @import("tui.zig");
@@ -325,7 +337,7 @@ test "SessionRecorder: record key events" {
 
 test "SessionRecorder: record resize events" {
     const allocator = std.testing.allocator;
-    var recorder = try SessionRecorder.init(allocator);
+    var recorder = try SessionRecorder.init(allocator, std.testing.io);
     defer recorder.deinit();
 
     recorder.startRecording();
@@ -338,13 +350,13 @@ test "SessionRecorder: record resize events" {
 
 test "SessionRecorder: timestamps increase" {
     const allocator = std.testing.allocator;
-    var recorder = try SessionRecorder.init(allocator);
+    var recorder = try SessionRecorder.init(allocator, std.testing.io);
     defer recorder.deinit();
 
     recorder.startRecording();
 
     try recorder.recordEvent(.{ .key = .{ .code = .enter } });
-    std.Thread.sleep(2 * std.time.ns_per_ms); // Sleep 2ms
+    try std.testing.io.sleep(.fromMilliseconds(2), .awake);
     try recorder.recordEvent(.{ .key = .{ .code = .esc } });
 
     try std.testing.expectEqual(@as(usize, 2), recorder.events.items.len);
@@ -356,7 +368,7 @@ test "SessionRecorder: save and load from file" {
     const tui = @import("tui.zig");
 
     // Record session
-    var recorder1 = try SessionRecorder.init(allocator);
+    var recorder1 = try SessionRecorder.init(allocator, std.testing.io);
     defer recorder1.deinit();
 
     recorder1.startRecording();
@@ -368,10 +380,10 @@ test "SessionRecorder: save and load from file" {
     // Save to file
     const test_file = "test_session.rec";
     try recorder1.saveToFile(test_file);
-    defer std.fs.cwd().deleteFile(test_file) catch {};
+    defer std.Io.Dir.cwd().deleteFile(std.testing.io, test_file) catch {};
 
     // Load from file
-    var recorder2 = try SessionRecorder.loadFromFile(allocator, test_file);
+    var recorder2 = try SessionRecorder.loadFromFile(allocator, std.testing.io, test_file);
     defer recorder2.deinit();
 
     try std.testing.expectEqual(@as(usize, 3), recorder2.events.items.len);
@@ -382,7 +394,7 @@ test "SessionRecorder: save and load from file" {
 
 test "SessionPlayer: init and playback control" {
     const allocator = std.testing.allocator;
-    var recorder = try SessionRecorder.init(allocator);
+    var recorder = try SessionRecorder.init(allocator, std.testing.io);
     recorder.startRecording();
     try recorder.recordEvent(.{ .key = .{ .code = .enter } });
     recorder.stopRecording();
@@ -402,7 +414,7 @@ test "SessionPlayer: init and playback control" {
 test "SessionPlayer: get next event timing" {
     const allocator = std.testing.allocator;
     const tui = @import("tui.zig");
-    var recorder = try SessionRecorder.init(allocator);
+    var recorder = try SessionRecorder.init(allocator, std.testing.io);
 
     // Manually create events with specific timestamps
     try recorder.events.append(allocator, .{ .timestamp_ms = 0, .event = .{ .key = .{ .code = .enter } } });
@@ -419,16 +431,16 @@ test "SessionPlayer: get next event timing" {
     }
 
     // Second event requires waiting
-    const start = std.time.milliTimestamp();
+    const start = nowMs(std.testing.io);
     while (player.getNextEvent() == null) {
-        if (std.time.milliTimestamp() - start > 200) break;
-        std.Thread.sleep(10 * std.time.ns_per_ms);
+        if (nowMs(std.testing.io) - start > 200) break;
+        try std.testing.io.sleep(.fromMilliseconds(10), .awake);
     }
 }
 
 test "SessionPlayer: speed multiplier" {
     const allocator = std.testing.allocator;
-    var recorder = try SessionRecorder.init(allocator);
+    var recorder = try SessionRecorder.init(allocator, std.testing.io);
     defer recorder.deinit();
 
     var player = SessionPlayer.init(recorder);
@@ -443,7 +455,7 @@ test "SessionPlayer: speed multiplier" {
 
 test "SessionPlayer: seek to time" {
     const allocator = std.testing.allocator;
-    var recorder = try SessionRecorder.init(allocator);
+    var recorder = try SessionRecorder.init(allocator, std.testing.io);
 
     try recorder.events.append(allocator, .{ .timestamp_ms = 0, .event = .{ .key = .{ .code = .enter } } });
     try recorder.events.append(allocator, .{ .timestamp_ms = 100, .event = .{ .key = .{ .code = .esc } } });
@@ -458,7 +470,7 @@ test "SessionPlayer: seek to time" {
 
 test "SessionPlayer: get progress" {
     const allocator = std.testing.allocator;
-    var recorder = try SessionRecorder.init(allocator);
+    var recorder = try SessionRecorder.init(allocator, std.testing.io);
 
     try recorder.events.append(allocator, .{ .timestamp_ms = 0, .event = .{ .key = .{ .code = .enter } } });
     try recorder.events.append(allocator, .{ .timestamp_ms = 100, .event = .{ .key = .{ .code = .esc } } });
@@ -479,7 +491,7 @@ test "SessionPlayer: get progress" {
 
 test "SessionRecorder: clear on start recording" {
     const allocator = std.testing.allocator;
-    var recorder = try SessionRecorder.init(allocator);
+    var recorder = try SessionRecorder.init(allocator, std.testing.io);
     defer recorder.deinit();
 
     recorder.startRecording();

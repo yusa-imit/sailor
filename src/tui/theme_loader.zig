@@ -56,20 +56,22 @@ pub const ThemeLoader = struct {
     }
 
     /// Load a theme from a JSON file
-    pub fn fromFile(allocator: std.mem.Allocator, file_path: []const u8) !Theme {
+    pub fn fromFile(allocator: std.mem.Allocator, io: std.Io, file_path: []const u8) !Theme {
         // Check if path exists and is a file
-        const stat = std.fs.cwd().statFile(file_path) catch |err| {
+        const stat = std.Io.Dir.cwd().statFile(io, file_path, .{}) catch |err| {
             return if (err == error.FileNotFound) error.FileNotFound else err;
         };
 
         if (stat.kind == .directory) return error.IsDir;
 
         // Read file contents
-        const file = try std.fs.cwd().openFile(file_path, .{});
-        defer file.close();
-
         const max_size = 1024 * 1024; // 1MB max
-        const contents = try file.readToEndAlloc(allocator, max_size);
+        const contents = try std.Io.Dir.cwd().readFileAlloc(
+            io,
+            file_path,
+            allocator,
+            .limited(max_size),
+        );
         defer allocator.free(contents);
 
         return try fromString(allocator, contents);
@@ -412,5 +414,10 @@ test "ThemeLoader.fromString - invalid color value" {
 }
 
 test "ThemeLoader.fromFile - nonexistent file" {
-    try std.testing.expectError(error.FileNotFound, ThemeLoader.fromFile(std.testing.allocator, "/nonexistent/theme.json"));
+    const result = ThemeLoader.fromFile(
+        std.testing.allocator,
+        std.testing.io,
+        "/nonexistent/theme.json",
+    );
+    try std.testing.expectError(error.FileNotFound, result);
 }

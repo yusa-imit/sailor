@@ -792,7 +792,7 @@ test "benchmark setString with realistic workload" {
     const style = Style{ .fg = .white };
 
     // Measure total time for all writes
-    var timer = try std.time.Timer.start();
+    var timer = std.Io.Clock.awake.now(std.testing.io);
 
     var i: usize = 0;
     while (i < num_writes) : (i += 1) {
@@ -806,7 +806,7 @@ test "benchmark setString with realistic workload" {
         }
     }
 
-    const elapsed = timer.read();
+    const elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Verify correctness: first write should be present
     try std.testing.expectEqual(@as(u21, 'T'), buffer.get(0, 0).?.char);
@@ -838,7 +838,7 @@ test "benchmark setString vs fill performance comparison" {
 
     // Benchmark setString: multiple writes
     const num_writes = 50;
-    var timer = try std.time.Timer.start();
+    var timer = std.Io.Clock.awake.now(std.testing.io);
 
     var i: usize = 0;
     while (i < num_writes) : (i += 1) {
@@ -848,10 +848,10 @@ test "benchmark setString vs fill performance comparison" {
         }
     }
 
-    const setstring_elapsed = timer.read();
+    const setstring_elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Benchmark fill: for comparison (similar number of cells written)
-    timer = try std.time.Timer.start();
+    timer = std.Io.Clock.awake.now(std.testing.io);
 
     var j: usize = 0;
     while (j < num_writes) : (j += 1) {
@@ -864,7 +864,7 @@ test "benchmark setString vs fill performance comparison" {
         buffer.fill(area, 'X', style);
     }
 
-    const fill_elapsed = timer.read();
+    const fill_elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Verify data was written
     try std.testing.expect(buffer.get(0, 0) != null);
@@ -887,7 +887,7 @@ test "benchmark setString high-frequency updates" {
     const status_text = "Status: Processing...";
     const style = Style{ .fg = .yellow };
 
-    var timer = try std.time.Timer.start();
+    var timer = std.Io.Clock.awake.now(std.testing.io);
 
     var i: usize = 0;
     while (i < num_updates) : (i += 1) {
@@ -895,7 +895,7 @@ test "benchmark setString high-frequency updates" {
         buffer.setString(0, 23, status_text, style);
     }
 
-    const elapsed = timer.read();
+    const elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Verify correctness
     try std.testing.expectEqual(@as(u21, 'S'), buffer.get(0, 23).?.char);
@@ -929,7 +929,7 @@ test "benchmark set() with 10000 operations" {
     }
 
     // Start measurement
-    var timer = try std.time.Timer.start();
+    var timer = std.Io.Clock.awake.now(std.testing.io);
 
     // Perform 10,000 set operations with pseudo-random positions
     // Using simple LCG to avoid overhead of complex PRNG
@@ -945,7 +945,7 @@ test "benchmark set() with 10000 operations" {
         buffer.set(x, y, .{ .char = char, .style = style });
     }
 
-    const elapsed = timer.read();
+    const elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Verify that data was actually written (prevent optimization dead code)
     try std.testing.expect(buffer.get(0, 0) != null);
@@ -974,7 +974,7 @@ test "benchmark set() comparison: sequential vs random positions" {
     const style = Style{ .fg = .green };
 
     // Test 1: Sequential positions (best cache locality)
-    var timer = try std.time.Timer.start();
+    var timer = std.Io.Clock.awake.now(std.testing.io);
 
     var seq_op: usize = 0;
     while (seq_op < num_ops) : (seq_op += 1) {
@@ -984,10 +984,10 @@ test "benchmark set() comparison: sequential vs random positions" {
         buffer.set(x, y, .{ .char = 'S', .style = style });
     }
 
-    const seq_elapsed = timer.read();
+    const seq_elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Test 2: Random positions (worst cache locality)
-    timer = try std.time.Timer.start();
+    timer = std.Io.Clock.awake.now(std.testing.io);
 
     var seed: u32 = 9999;
     var rand_op: usize = 0;
@@ -998,7 +998,7 @@ test "benchmark set() comparison: sequential vs random positions" {
         buffer.set(x, y, .{ .char = 'R', .style = style });
     }
 
-    const rand_elapsed = timer.read();
+    const rand_elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Verify operations completed
     try std.testing.expect(buffer.get(0, 0) != null);
@@ -1032,7 +1032,7 @@ test "benchmark set() with style variations" {
     const num_ops = 5_000;
 
     // Test 1: No style (minimal data)
-    var timer = try std.time.Timer.start();
+    var timer = std.Io.Clock.awake.now(std.testing.io);
 
     var op1: usize = 0;
     while (op1 < num_ops) : (op1 += 1) {
@@ -1041,10 +1041,10 @@ test "benchmark set() with style variations" {
         buffer.set(x, y, .{ .char = 'A', .style = .{} });
     }
 
-    const nostyle_elapsed = timer.read();
+    const nostyle_elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Test 2: Complex style (many attributes)
-    timer = try std.time.Timer.start();
+    timer = std.Io.Clock.awake.now(std.testing.io);
 
     var op2: usize = 0;
     while (op2 < num_ops) : (op2 += 1) {
@@ -1062,7 +1062,7 @@ test "benchmark set() with style variations" {
         });
     }
 
-    const styled_elapsed = timer.read();
+    const styled_elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Verify operations
     try std.testing.expect(buffer.get(0, 0) != null);

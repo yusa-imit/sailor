@@ -6,6 +6,16 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+/// Monotonic nanoseconds for measuring durations (only differences are meaningful).
+fn nowNs(io: std.Io) i128 {
+    return std.Io.Clock.awake.now(io).toNanoseconds();
+}
+
+/// Wall-clock nanoseconds since the Unix epoch, for event timestamps.
+fn wallNs(io: std.Io) i128 {
+    return std.Io.Clock.real.now(io).toNanoseconds();
+}
+
 /// Profile entry for a single widget render
 pub const RenderProfile = struct {
     widget_name: []const u8,
@@ -58,6 +68,7 @@ pub const WidgetMetrics = struct {
 /// Profiler that tracks widget render times and detects bottlenecks
 pub const Profiler = struct {
     allocator: Allocator,
+    io: std.Io,
     profiles: std.ArrayList(RenderProfile),
     all_profiles: std.ArrayList(RenderProfile), // All historical profiles across frames
     current_frame: u64,
@@ -104,9 +115,10 @@ pub const Profiler = struct {
     };
 
     /// Initialize a new profiler
-    pub fn init(allocator: Allocator, threshold_ms: f64) !Self {
+    pub fn init(allocator: Allocator, io: std.Io, threshold_ms: f64) !Self {
         return Self{
             .allocator = allocator,
+            .io = io,
             .profiles = .empty,
             .all_profiles = .empty,
             .current_frame = 0,
@@ -135,7 +147,7 @@ pub const Profiler = struct {
         return ProfileGuard{
             .profiler = self,
             .widget_name = widget_name,
-            .start_time = std.time.nanoTimestamp(),
+            .start_time = nowNs(self.io),
         };
     }
 
@@ -144,7 +156,7 @@ pub const Profiler = struct {
         const entry: RenderProfile = .{
             .widget_name = widget_name,
             .duration_ns = duration_ns,
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = std.Io.Clock.real.now(self.io).toMilliseconds(),
             .is_cache_hit = false,
         };
         try self.profiles.append(self.allocator, entry);
@@ -156,7 +168,7 @@ pub const Profiler = struct {
         const entry: RenderProfile = .{
             .widget_name = widget_name,
             .duration_ns = duration_ns,
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = std.Io.Clock.real.now(self.io).toMilliseconds(),
             .is_cache_hit = is_cache_hit,
         };
         try self.profiles.append(self.allocator, entry);
@@ -278,8 +290,8 @@ pub const Profiler = struct {
     pub fn beginScope(self: *Self, name: []const u8) !void {
         const entry = ScopeEntry{
             .name = name,
-            .start_time = std.time.nanoTimestamp(),
-            .children = .{},
+            .start_time = nowNs(self.io),
+            .children = .empty,
         };
         try self.scope_stack.append(self.allocator, entry);
     }
@@ -291,7 +303,7 @@ pub const Profiler = struct {
         }
 
         const last_idx = self.scope_stack.items.len - 1;
-        self.scope_stack.items[last_idx].end_time = std.time.nanoTimestamp();
+        self.scope_stack.items[last_idx].end_time = nowNs(self.io);
 
         const scope = self.scope_stack.orderedRemove(last_idx);
 
@@ -415,7 +427,7 @@ pub const ProfileGuard = struct {
     /// Ends profiling and records the duration.
     /// Call this when the profiled operation completes.
     pub fn end(self: ProfileGuard) !void {
-        const end_time = std.time.nanoTimestamp();
+        const end_time: i128 = nowNs(self.profiler.io);
         const duration_ns: u64 = @intCast(end_time - self.start_time);
         try self.profiler.record(self.widget_name, duration_ns);
     }
@@ -429,7 +441,7 @@ const testing = std.testing;
 
 test "profiler init and deinit" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try testing.expectEqual(@as(u64, 0), profiler.current_frame);
@@ -438,12 +450,12 @@ test "profiler init and deinit" {
 
 test "profile guard records duration" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     {
         var guard = try profiler.start("test_widget");
-        std.Thread.sleep(1_000_000); // 1ms
+        try std.testing.io.sleep(.fromNanoseconds(1_000_000), .awake); // 1ms
         try guard.end();
     }
 
@@ -455,7 +467,7 @@ test "profile guard records duration" {
 
 test "detect bottlenecks" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 5.0); // 5ms threshold
+    var profiler = try Profiler.init(allocator, testing.io, 5.0); // 5ms threshold
     defer profiler.deinit();
 
     // Fast widget (< 5ms)
@@ -473,7 +485,7 @@ test "detect bottlenecks" {
 
 test "get statistics for widget" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try profiler.record("widget_a", 1_000_000); // 1ms
@@ -490,7 +502,7 @@ test "get statistics for widget" {
 
 test "slowest and fastest widget" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try profiler.record("fast", 1_000_000); // 1ms
@@ -508,7 +520,7 @@ test "slowest and fastest widget" {
 
 test "total render time" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try profiler.record("a", 1_000_000); // 1ms
@@ -521,7 +533,7 @@ test "total render time" {
 
 test "next frame clears profiles" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try profiler.record("widget", 1_000_000);
@@ -534,7 +546,7 @@ test "next frame clears profiles" {
 
 test "reset clears all state" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try profiler.record("widget", 1_000_000);
@@ -573,7 +585,7 @@ test "stats conversions" {
 
 test "empty profiler operations" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try testing.expect(profiler.slowestWidget() == null);
@@ -587,7 +599,7 @@ test "empty profiler operations" {
 
 test "multiple widgets same frame" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try profiler.record("button", 1_000_000);
@@ -606,21 +618,21 @@ test "multiple widgets same frame" {
 
 test "flame graph nested scopes track hierarchy" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // Nested profiling: root -> child1 -> grandchild
     // Use longer sleeps (10x) to make timer jitter negligible on CI runners.
     try profiler.beginScope("root");
-    std.Thread.sleep(10_000_000); // 10ms
+    try std.testing.io.sleep(.fromNanoseconds(10_000_000), .awake); // 10ms
     try profiler.beginScope("child1");
-    std.Thread.sleep(5_000_000); // 5ms
+    try std.testing.io.sleep(.fromNanoseconds(5_000_000), .awake); // 5ms
     try profiler.beginScope("grandchild");
-    std.Thread.sleep(2_000_000); // 2ms
+    try std.testing.io.sleep(.fromNanoseconds(2_000_000), .awake); // 2ms
     try profiler.endScope(); // grandchild
     try profiler.endScope(); // child1
     try profiler.beginScope("child2");
-    std.Thread.sleep(3_000_000); // 3ms
+    try std.testing.io.sleep(.fromNanoseconds(3_000_000), .awake); // 3ms
     try profiler.endScope(); // child2
     try profiler.endScope(); // root
 
@@ -644,16 +656,16 @@ test "flame graph nested scopes track hierarchy" {
 
 test "flame graph self time excludes children" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // Use longer sleeps (10x) to make timer jitter negligible on CI runners.
     try profiler.beginScope("parent");
-    std.Thread.sleep(10_000_000); // 10ms self
+    try std.testing.io.sleep(.fromNanoseconds(10_000_000), .awake); // 10ms self
     try profiler.beginScope("child");
-    std.Thread.sleep(5_000_000); // 5ms child
+    try std.testing.io.sleep(.fromNanoseconds(5_000_000), .awake); // 5ms child
     try profiler.endScope();
-    std.Thread.sleep(5_000_000); // 5ms more self
+    try std.testing.io.sleep(.fromNanoseconds(5_000_000), .awake); // 5ms more self
     try profiler.endScope();
 
     const flame_data = try profiler.flameGraphData(allocator);
@@ -678,18 +690,18 @@ test "flame graph self time excludes children" {
 
 test "flame graph multiple sibling scopes" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try profiler.beginScope("root");
     try profiler.beginScope("sibling1");
-    std.Thread.sleep(100_000);
+    try std.testing.io.sleep(.fromNanoseconds(100_000), .awake);
     try profiler.endScope();
     try profiler.beginScope("sibling2");
-    std.Thread.sleep(200_000);
+    try std.testing.io.sleep(.fromNanoseconds(200_000), .awake);
     try profiler.endScope();
     try profiler.beginScope("sibling3");
-    std.Thread.sleep(150_000);
+    try std.testing.io.sleep(.fromNanoseconds(150_000), .awake);
     try profiler.endScope();
     try profiler.endScope();
 
@@ -710,7 +722,7 @@ test "flame graph multiple sibling scopes" {
 
 test "flame graph error on unmatched endScope" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     const result = profiler.endScope();
@@ -719,7 +731,7 @@ test "flame graph error on unmatched endScope" {
 
 test "extended widget metrics track render count" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // Simulate 3 renders of button widget
@@ -734,7 +746,7 @@ test "extended widget metrics track render count" {
 
 test "extended widget metrics track cache hits and misses" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // Record widget with cache hits/misses
@@ -802,6 +814,7 @@ pub const AllocStats = struct {
 /// Memory allocation tracker for identifying hot spots and leaks
 pub const MemoryTracker = struct {
     allocator: Allocator,
+    io: std.Io,
     events: std.ArrayList(AllocEvent),
     current_allocated: std.StringHashMap(usize), // location -> bytes
     peak_allocated: std.StringHashMap(usize), // location -> peak bytes
@@ -811,9 +824,10 @@ pub const MemoryTracker = struct {
     const Self = @This();
 
     /// Initialize memory tracker
-    pub fn init(allocator: Allocator) !Self {
+    pub fn init(allocator: Allocator, io: std.Io) !Self {
         return Self{
             .allocator = allocator,
+            .io = io,
             .events = .empty,
             .current_allocated = std.StringHashMap(usize).init(allocator),
             .peak_allocated = std.StringHashMap(usize).init(allocator),
@@ -864,7 +878,7 @@ pub const MemoryTracker = struct {
         try self.events.append(self.allocator, .{
             .location = location_str,
             .size = size,
-            .timestamp = std.time.nanoTimestamp(),
+            .timestamp = wallNs(self.io),
             .allocation_type = .allocate,
         });
 
@@ -889,7 +903,7 @@ pub const MemoryTracker = struct {
         try self.events.append(self.allocator, .{
             .location = location_str,
             .size = size,
-            .timestamp = std.time.nanoTimestamp(),
+            .timestamp = wallNs(self.io),
             .allocation_type = .free,
         });
 
@@ -909,7 +923,7 @@ pub const MemoryTracker = struct {
         try self.events.append(self.allocator, .{
             .location = location_str,
             .size = new_size,
-            .timestamp = std.time.nanoTimestamp(),
+            .timestamp = wallNs(self.io),
             .allocation_type = .resize,
         });
 
@@ -1070,7 +1084,7 @@ pub const MemoryTracker = struct {
 
 test "memory tracker init and deinit" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     try testing.expect(tracker.enabled);
@@ -1079,7 +1093,7 @@ test "memory tracker init and deinit" {
 
 test "memory tracker records allocations" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     try tracker.recordAlloc("widget_render", 1024);
@@ -1092,7 +1106,7 @@ test "memory tracker records allocations" {
 
 test "memory tracker calculates stats correctly" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     try tracker.recordAlloc("button", 1000);
@@ -1109,7 +1123,7 @@ test "memory tracker calculates stats correctly" {
 
 test "memory tracker tracks peak allocation" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     try tracker.recordAlloc("table", 1000);
@@ -1122,7 +1136,7 @@ test "memory tracker tracks peak allocation" {
 
 test "memory tracker detects leaks" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     // No leak
@@ -1144,7 +1158,7 @@ test "memory tracker detects leaks" {
 
 test "memory tracker hot spots sorted by total allocated" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     try tracker.recordAlloc("small", 100);
@@ -1162,7 +1176,7 @@ test "memory tracker hot spots sorted by total allocated" {
 
 test "memory tracker resize updates correctly" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     try tracker.recordAlloc("buffer", 1000);
@@ -1175,7 +1189,7 @@ test "memory tracker resize updates correctly" {
 
 test "memory tracker total allocated" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     try tracker.recordAlloc("a", 1000);
@@ -1188,7 +1202,7 @@ test "memory tracker total allocated" {
 
 test "memory tracker enable/disable" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     try tracker.recordAlloc("test", 1000);
@@ -1205,7 +1219,7 @@ test "memory tracker enable/disable" {
 
 test "memory tracker reset clears all data" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     try tracker.recordAlloc("test", 1000);
@@ -1267,6 +1281,7 @@ pub const EventLoopStats = struct {
 /// Event loop profiler for measuring event processing latency
 pub const EventLoopProfiler = struct {
     allocator: Allocator,
+    io: std.Io,
     records: std.ArrayList(EventProcessingRecord),
     enabled: bool,
     latency_threshold_ms: f64, // Warn if event processing exceeds this
@@ -1274,9 +1289,10 @@ pub const EventLoopProfiler = struct {
     const Self = @This();
 
     /// Initialize event loop profiler
-    pub fn init(allocator: Allocator, latency_threshold_ms: f64) !Self {
+    pub fn init(allocator: Allocator, io: std.Io, latency_threshold_ms: f64) !Self {
         return Self{
             .allocator = allocator,
+            .io = io,
             .records = .empty,
             .enabled = true,
             .latency_threshold_ms = latency_threshold_ms,
@@ -1294,7 +1310,7 @@ pub const EventLoopProfiler = struct {
             .profiler = self,
             .event_type = event_type,
             .queue_depth = queue_depth,
-            .start_time = std.time.nanoTimestamp(),
+            .start_time = nowNs(self.io),
         };
     }
 
@@ -1305,7 +1321,7 @@ pub const EventLoopProfiler = struct {
         try self.records.append(self.allocator, .{
             .event_type = event_type,
             .processing_time_ns = processing_time_ns,
-            .timestamp = std.time.nanoTimestamp(),
+            .timestamp = wallNs(self.io),
             .queue_depth = queue_depth,
         });
     }
@@ -1418,7 +1434,7 @@ pub const EventGuard = struct {
 
     /// Ends event timing and records the latency
     pub fn end(self: EventGuard) !void {
-        const end_time = std.time.nanoTimestamp();
+        const end_time: i128 = nowNs(self.profiler.io);
         const duration_ns: u64 = @intCast(end_time - self.start_time);
         try self.profiler.recordEvent(self.event_type, duration_ns, self.queue_depth);
     }
@@ -1430,7 +1446,7 @@ pub const EventGuard = struct {
 
 test "event loop profiler init and deinit" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try testing.expect(profiler.enabled);
@@ -1439,12 +1455,12 @@ test "event loop profiler init and deinit" {
 
 test "event loop profiler records events" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     {
         var guard = profiler.startEvent("key", 0);
-        std.Thread.sleep(1_000_000); // 1ms
+        try std.testing.io.sleep(.fromNanoseconds(1_000_000), .awake); // 1ms
         try guard.end();
     }
 
@@ -1455,7 +1471,7 @@ test "event loop profiler records events" {
 
 test "event loop profiler calculates stats" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // Simulate multiple key events with known latencies
@@ -1474,7 +1490,7 @@ test "event loop profiler calculates stats" {
 
 test "event loop profiler percentiles" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // 100 events with latencies 0ms to 99ms
@@ -1498,7 +1514,7 @@ test "event loop profiler percentiles" {
 
 test "event loop profiler detects slow events" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 10.0); // 10ms threshold
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 10.0); // 10ms threshold
     defer profiler.deinit();
 
     try profiler.recordEvent("fast", 5_000_000, 0); // 5ms (OK)
@@ -1515,7 +1531,7 @@ test "event loop profiler detects slow events" {
 
 test "event loop profiler overall average" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try profiler.recordEvent("key", 2_000_000, 0); // 2ms
@@ -1528,7 +1544,7 @@ test "event loop profiler overall average" {
 
 test "event loop profiler reset" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try profiler.recordEvent("test", 1_000_000, 0);
@@ -1540,7 +1556,7 @@ test "event loop profiler reset" {
 
 test "event loop profiler enable/disable" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try profiler.recordEvent("test", 1_000_000, 0);
@@ -1557,7 +1573,7 @@ test "event loop profiler enable/disable" {
 
 test "event loop profiler empty stats" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     const stats = try profiler.getStats("nonexistent");
@@ -1567,7 +1583,7 @@ test "event loop profiler empty stats" {
 
 test "event loop profiler queue depth tracking" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try profiler.recordEvent("key", 1_000_000, 5); // Queue depth 5

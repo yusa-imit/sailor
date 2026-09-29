@@ -5,8 +5,11 @@
 //! - SAILOR_DEBUG=module - Enable debug for specific module (e.g., "tui", "arg", "repl")
 //! - SAILOR_DEBUG=module:level - Enable with specific level (trace, debug, info, warn, error)
 //!
+//! Call `init(environ_map)` once at startup (no global env in Zig 0.16); logging is off until then.
+//!
 //! Example usage:
 //! ```zig
+//! sailor.debug_log.init(init.environ_map);
 //! const log = @import("debug_log.zig");
 //! const debug = log.scoped(.tui);
 //!
@@ -17,7 +20,7 @@
 //! ```
 
 const std = @import("std");
-const builtin = @import("builtin");
+const assert = std.debug.assert;
 
 /// Log levels (ordered by severity)
 pub const Level = enum(u8) {
@@ -79,22 +82,31 @@ pub const Scope = enum {
     env,
 };
 
-/// Global debug configuration (read from env vars)
+/// Global debug configuration (set by `init` from the SAILOR_DEBUG variable)
 var global_enabled: bool = false;
 var global_scope: ?Scope = null;
 var global_level: Level = .debug;
-var init_done: bool = false;
 
-/// Initialize debug logging from environment
-fn initOnce() void {
-    if (init_done) return;
-    init_done = true;
+/// Configure debug logging from the injected environment (reads SAILOR_DEBUG).
+///
+/// Zig 0.16 has no global environment access, so the application calls this once at
+/// startup (e.g. with `process.Init.environ_map`). Until `init` runs, logging is disabled.
+/// Calling `init` again reconfigures from scratch (a missing variable disables logging).
+pub fn init(environ_map: *const std.process.Environ.Map) void {
+    // Precondition: the map is a live, addressable value.
+    assert(@intFromPtr(environ_map) != 0);
 
-    const env_debug = std.process.getEnvVarOwned(
-        std.heap.page_allocator,
-        "SAILOR_DEBUG",
-    ) catch return;
-    defer std.heap.page_allocator.free(env_debug);
+    configure(environ_map.get("SAILOR_DEBUG") orelse "");
+
+    // Postcondition: a scope filter can only exist while logging is enabled.
+    assert(global_scope == null or global_enabled);
+}
+
+/// Apply a SAILOR_DEBUG value: "", "1", "module" or "module:level".
+fn configure(env_debug: []const u8) void {
+    global_enabled = false;
+    global_scope = null;
+    global_level = .debug;
 
     if (env_debug.len == 0) return;
 
@@ -131,7 +143,6 @@ fn parseScopeName(name: []const u8) ?Scope {
 
 /// Check if logging is enabled for scope and level
 fn isEnabled(scope: Scope, level: Level) bool {
-    if (!init_done) initOnce();
     if (!global_enabled) return false;
 
     // If global scope is set, only log for that scope
@@ -245,4 +256,28 @@ test "multiple scopes" {
 
     tui_log.info("TUI initialized", .{});
     arg_log.debug("Parsing args", .{});
+}
+
+test "init reads SAILOR_DEBUG from injected map" {
+    var map = std.process.Environ.Map.init(std.testing.allocator);
+    defer map.deinit();
+    defer configure("");
+
+    init(&map);
+    try std.testing.expect(!isEnabled(.tui, .err));
+
+    try map.put("SAILOR_DEBUG", "1");
+    init(&map);
+    try std.testing.expect(isEnabled(.tui, .debug));
+    try std.testing.expect(!isEnabled(.tui, .trace));
+
+    try map.put("SAILOR_DEBUG", "tui:warn");
+    init(&map);
+    try std.testing.expect(isEnabled(.tui, .warn));
+    try std.testing.expect(!isEnabled(.tui, .info));
+    try std.testing.expect(!isEnabled(.arg, .err));
+
+    try map.put("SAILOR_DEBUG", "bogus");
+    init(&map);
+    try std.testing.expect(!isEnabled(.tui, .err));
 }

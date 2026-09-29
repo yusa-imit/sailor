@@ -81,14 +81,17 @@ test "pointer size matches target" {
 
 test "standard file descriptors availability" {
     // These should always be available
-    // In Zig 0.15.x, stdio moved to std.io.getStdIn/Out/Err fields
-    // Just verify std.io exists
-    _ = std.io;
+    // In Zig 0.16 stdio is std.Io.File.stdin()/stdout()/stderr() (io-parameterized)
+    // Just verify std.Io exists and the standard files can be named
+    _ = std.Io;
+    _ = std.Io.File.stdin();
+    _ = std.Io.File.stdout();
+    _ = std.Io.File.stderr();
 }
 
 test "environment variable access" {
     // Test that we can access environment variables
-    var env_map = try std.process.getEnvMap(testing.allocator);
+    var env_map = try std.testing.environ.createMap(testing.allocator);
     defer env_map.deinit();
 
     // PATH should exist on all platforms
