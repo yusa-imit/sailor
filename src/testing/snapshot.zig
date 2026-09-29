@@ -327,15 +327,15 @@ test "SnapshotRecorder.diff identical snapshots" {
     var b = try Snapshot.init(std.testing.allocator, "Hello\nWorld");
     defer b.deinit();
 
-    var output = std.ArrayList(u8).empty;
-    defer output.deinit(std.testing.allocator);
+    var output: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    defer output.deinit();
 
-    try recorder.diff(&a, &b, output.writer(std.testing.allocator));
+    try recorder.diff(&a, &b, &output.writer);
 
     // Identical snapshots should produce no output or minimal "no changes" message
     // Design choice: empty output or "No differences"?
     // Let's expect empty output
-    try std.testing.expectEqualStrings("", output.items);
+    try std.testing.expectEqualStrings("", output.written());
 }
 
 test "SnapshotRecorder.diff with additions" {
@@ -347,14 +347,14 @@ test "SnapshotRecorder.diff with additions" {
     var b = try Snapshot.init(std.testing.allocator, "Hello\nWorld");
     defer b.deinit();
 
-    var output = std.ArrayList(u8).empty;
-    defer output.deinit(std.testing.allocator);
+    var output: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    defer output.deinit();
 
-    try recorder.diff(&a, &b, output.writer(std.testing.allocator));
+    try recorder.diff(&a, &b, &output.writer);
 
     // Should show added line with + prefix
     // Format: "+ World\n"
-    try std.testing.expect(std.mem.find(u8, output.items, "+ World") != null);
+    try std.testing.expect(std.mem.find(u8, output.written(), "+ World") != null);
 }
 
 test "SnapshotRecorder.diff with deletions" {
@@ -366,14 +366,14 @@ test "SnapshotRecorder.diff with deletions" {
     var b = try Snapshot.init(std.testing.allocator, "Hello");
     defer b.deinit();
 
-    var output = std.ArrayList(u8).empty;
-    defer output.deinit(std.testing.allocator);
+    var output: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    defer output.deinit();
 
-    try recorder.diff(&a, &b, output.writer(std.testing.allocator));
+    try recorder.diff(&a, &b, &output.writer);
 
     // Should show deleted line with - prefix
     // Format: "- World\n"
-    try std.testing.expect(std.mem.find(u8, output.items, "- World") != null);
+    try std.testing.expect(std.mem.find(u8, output.written(), "- World") != null);
 }
 
 test "SnapshotRecorder.diff with modifications" {
@@ -385,14 +385,14 @@ test "SnapshotRecorder.diff with modifications" {
     var b = try Snapshot.init(std.testing.allocator, "Hello\nTest");
     defer b.deinit();
 
-    var output = std.ArrayList(u8).empty;
-    defer output.deinit(std.testing.allocator);
+    var output: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    defer output.deinit();
 
-    try recorder.diff(&a, &b, output.writer(std.testing.allocator));
+    try recorder.diff(&a, &b, &output.writer);
 
     // Should show both deletion and addition
-    try std.testing.expect(std.mem.find(u8, output.items, "- World") != null);
-    try std.testing.expect(std.mem.find(u8, output.items, "+ Test") != null);
+    try std.testing.expect(std.mem.find(u8, output.written(), "- World") != null);
+    try std.testing.expect(std.mem.find(u8, output.written(), "+ Test") != null);
 }
 
 test "SnapshotRecorder.diff multiline changes" {
@@ -404,15 +404,15 @@ test "SnapshotRecorder.diff multiline changes" {
     var b = try Snapshot.init(std.testing.allocator, "Line1\nModified\nLine3\nLine4");
     defer b.deinit();
 
-    var output = std.ArrayList(u8).empty;
-    defer output.deinit(std.testing.allocator);
+    var output: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    defer output.deinit();
 
-    try recorder.diff(&a, &b, output.writer(std.testing.allocator));
+    try recorder.diff(&a, &b, &output.writer);
 
     // Should show Line2 deleted, Modified and Line4 added
-    try std.testing.expect(std.mem.find(u8, output.items, "- Line2") != null);
-    try std.testing.expect(std.mem.find(u8, output.items, "+ Modified") != null);
-    try std.testing.expect(std.mem.find(u8, output.items, "+ Line4") != null);
+    try std.testing.expect(std.mem.find(u8, output.written(), "- Line2") != null);
+    try std.testing.expect(std.mem.find(u8, output.written(), "+ Modified") != null);
+    try std.testing.expect(std.mem.find(u8, output.written(), "+ Line4") != null);
 }
 
 test "SnapshotRecorder.captureBuffer preserves exact layout" {
@@ -503,13 +503,13 @@ test "SnapshotRecorder.diff empty to non-empty" {
     var b = try Snapshot.init(std.testing.allocator, "New content");
     defer b.deinit();
 
-    var output = std.ArrayList(u8).empty;
-    defer output.deinit(std.testing.allocator);
+    var output: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    defer output.deinit();
 
-    try recorder.diff(&a, &b, output.writer(std.testing.allocator));
+    try recorder.diff(&a, &b, &output.writer);
 
     // Should show addition
-    try std.testing.expect(std.mem.find(u8, output.items, "+ New content") != null);
+    try std.testing.expect(std.mem.find(u8, output.written(), "+ New content") != null);
 }
 
 test "SnapshotRecorder.diff non-empty to empty" {
@@ -521,11 +521,11 @@ test "SnapshotRecorder.diff non-empty to empty" {
     var b = try Snapshot.init(std.testing.allocator, "");
     defer b.deinit();
 
-    var output = std.ArrayList(u8).empty;
-    defer output.deinit(std.testing.allocator);
+    var output: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    defer output.deinit();
 
-    try recorder.diff(&a, &b, output.writer(std.testing.allocator));
+    try recorder.diff(&a, &b, &output.writer);
 
     // Should show deletion
-    try std.testing.expect(std.mem.find(u8, output.items, "- Old content") != null);
+    try std.testing.expect(std.mem.find(u8, output.written(), "- Old content") != null);
 }

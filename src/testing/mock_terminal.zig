@@ -98,9 +98,26 @@ pub const MockTerminal = struct {
     }
 
     /// Get a writer for output capture
-    pub fn writer(self: *MockTerminal) std.ArrayList(u8).Writer {
-        return self.output.writer(self.allocator);
+    pub fn writer(self: *MockTerminal) OutputWriter {
+        return .{ .terminal = self };
     }
+
+    /// Minimal writer facade appending into the terminal's output buffer.
+    pub const OutputWriter = struct {
+        terminal: *MockTerminal,
+
+        pub fn writeAll(self: OutputWriter, data: []const u8) std.mem.Allocator.Error!void {
+            try self.terminal.output.appendSlice(self.terminal.allocator, data);
+        }
+
+        pub fn print(
+            self: OutputWriter,
+            comptime fmt: []const u8,
+            args: anytype,
+        ) std.mem.Allocator.Error!void {
+            try self.terminal.output.print(self.terminal.allocator, fmt, args);
+        }
+    };
 };
 
 // ============================================================================
@@ -365,7 +382,9 @@ test "MockTerminal edge case - large output" {
     // Write large output
     var i: usize = 0;
     while (i < 100) : (i += 1) {
-        try term.write("This is a line of text that will be written to the terminal output buffer.\n");
+        try term.write(
+            "This is a line of text that will be written to the terminal output buffer.\n",
+        );
     }
 
     const output = term.getOutput();

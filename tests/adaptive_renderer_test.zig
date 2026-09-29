@@ -108,6 +108,9 @@ fn hasSixelFraming(output: []const u8) bool {
 // ============================================================================
 
 test "adaptive: force_ansi mode produces ANSI escape codes for 2x2 image" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf: [4096]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
@@ -122,13 +125,16 @@ test "adaptive: force_ansi mode produces ANSI escape codes for 2x2 image" {
         .ansi_width = 10,
     };
 
-    try AdaptiveImageRenderer.render(allocator, pixels, 2, 2, options, &stream);
+    try AdaptiveImageRenderer.render(allocator, &environ_map, std.testing.io, pixels, 2, 2, options, &stream);
     const output = stream.buffered();
 
     try testing.expect(hasAnsiEscapes(output));
 }
 
 test "adaptive: force_ansi mode with block algorithm outputs block characters" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf: [4096]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
@@ -143,13 +149,16 @@ test "adaptive: force_ansi mode with block algorithm outputs block characters" {
         .ansi_width = 10,
     };
 
-    try AdaptiveImageRenderer.render(allocator, pixels, 2, 2, options, &stream);
+    try AdaptiveImageRenderer.render(allocator, &environ_map, std.testing.io, pixels, 2, 2, options, &stream);
     const output = stream.buffered();
 
     try testing.expect(hasBlockCharacters(output));
 }
 
 test "adaptive: force_ansi mode with braille algorithm outputs braille characters" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf: [4096]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
@@ -164,13 +173,16 @@ test "adaptive: force_ansi mode with braille algorithm outputs braille character
         .ansi_width = 20,
     };
 
-    try AdaptiveImageRenderer.render(allocator, pixels, 4, 4, options, &stream);
+    try AdaptiveImageRenderer.render(allocator, &environ_map, std.testing.io, pixels, 4, 4, options, &stream);
     const output = stream.buffered();
 
     try testing.expect(hasBrailleCharacters(output));
 }
 
 test "adaptive: force_ansi mode with ascii algorithm outputs ASCII only" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf: [4096]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
@@ -185,13 +197,16 @@ test "adaptive: force_ansi mode with ascii algorithm outputs ASCII only" {
         .ansi_width = 16,
     };
 
-    try AdaptiveImageRenderer.render(allocator, pixels, 4, 4, options, &stream);
+    try AdaptiveImageRenderer.render(allocator, &environ_map, std.testing.io, pixels, 4, 4, options, &stream);
     const output = stream.buffered();
 
     try testing.expect(isAsciiOnly(output));
 }
 
 test "adaptive: force_ansi mode produces output for 1x1 image" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf: [4096]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
@@ -203,13 +218,16 @@ test "adaptive: force_ansi mode produces output for 1x1 image" {
         .mode = .force_ansi,
     };
 
-    try AdaptiveImageRenderer.render(allocator, pixels, 1, 1, options, &stream);
+    try AdaptiveImageRenderer.render(allocator, &environ_map, std.testing.io, pixels, 1, 1, options, &stream);
     const output = stream.buffered();
 
     try testing.expect(output.len > 0);
 }
 
 test "adaptive: force_ansi mode produces output for 4x4 image" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf: [4096]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
@@ -221,13 +239,16 @@ test "adaptive: force_ansi mode produces output for 4x4 image" {
         .mode = .force_ansi,
     };
 
-    try AdaptiveImageRenderer.render(allocator, pixels, 4, 4, options, &stream);
+    try AdaptiveImageRenderer.render(allocator, &environ_map, std.testing.io, pixels, 4, 4, options, &stream);
     const output = stream.buffered();
 
     try testing.expect(output.len > 0);
 }
 
 test "adaptive: force_ansi mode with grayscale outputs non-empty result" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf: [4096]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
@@ -242,13 +263,16 @@ test "adaptive: force_ansi mode with grayscale outputs non-empty result" {
         .ansi_width = 10,
     };
 
-    try AdaptiveImageRenderer.render(allocator, pixels, 2, 2, options, &stream);
+    try AdaptiveImageRenderer.render(allocator, &environ_map, std.testing.io, pixels, 2, 2, options, &stream);
     const output = stream.buffered();
 
     try testing.expect(output.len > 0);
 }
 
 test "adaptive: force_ansi mode output differs between widths (10 vs 40)" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     // Truecolor ANSI for a 20x20 image at width=20 (capped) needs ~10KB; use 32KB to be safe.
     var buf1: [32768]u8 = undefined;
     var stream1: std.Io.Writer = .fixed(&buf1);
@@ -262,7 +286,7 @@ test "adaptive: force_ansi mode output differs between widths (10 vs 40)" {
         .ansi_width = 10,
     };
 
-    try AdaptiveImageRenderer.render(allocator, pixels, 20, 20, options1, &stream1);
+    try AdaptiveImageRenderer.render(allocator, &environ_map, std.testing.io, pixels, 20, 20, options1, &stream1);
     const output1 = stream1.buffered();
 
     var buf2: [32768]u8 = undefined;
@@ -273,7 +297,7 @@ test "adaptive: force_ansi mode output differs between widths (10 vs 40)" {
         .ansi_width = 40,
     };
 
-    try AdaptiveImageRenderer.render(allocator, pixels, 20, 20, options2, &stream2);
+    try AdaptiveImageRenderer.render(allocator, &environ_map, std.testing.io, pixels, 20, 20, options2, &stream2);
     const output2 = stream2.buffered();
 
     // Different widths should produce different output lengths
@@ -281,6 +305,9 @@ test "adaptive: force_ansi mode output differs between widths (10 vs 40)" {
 }
 
 test "adaptive: force_ansi mode with zero width returns error" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf: [4096]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
@@ -293,11 +320,14 @@ test "adaptive: force_ansi mode with zero width returns error" {
         .ansi_width = 0,
     };
 
-    const result = AdaptiveImageRenderer.render(allocator, pixels, 2, 2, options, &stream);
+    const result = AdaptiveImageRenderer.render(allocator, &environ_map, std.testing.io, pixels, 2, 2, options, &stream);
     try testing.expectError(error.InvalidDimensions, result);
 }
 
 test "adaptive: force_ansi mode with 16-color produces different output than truecolor" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf1: [4096]u8 = undefined;
     var stream1: std.Io.Writer = .fixed(&buf1);
     const allocator = testing.allocator;
@@ -312,7 +342,7 @@ test "adaptive: force_ansi mode with 16-color produces different output than tru
         .ansi_width = 10,
     };
 
-    try AdaptiveImageRenderer.render(allocator, pixels, 2, 2, options1, &stream1);
+    try AdaptiveImageRenderer.render(allocator, &environ_map, std.testing.io, pixels, 2, 2, options1, &stream1);
     const output1 = stream1.buffered();
 
     var buf2: [4096]u8 = undefined;
@@ -325,7 +355,7 @@ test "adaptive: force_ansi mode with 16-color produces different output than tru
         .ansi_width = 10,
     };
 
-    try AdaptiveImageRenderer.render(allocator, pixels, 2, 2, options2, &stream2);
+    try AdaptiveImageRenderer.render(allocator, &environ_map, std.testing.io, pixels, 2, 2, options2, &stream2);
     const output2 = stream2.buffered();
 
     // Different color modes should produce different output
@@ -337,6 +367,9 @@ test "adaptive: force_ansi mode with 16-color produces different output than tru
 // ============================================================================
 
 test "adaptive: force_sixel mode produces DCS-framed output for 2x2 image" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf: [8192]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
@@ -348,13 +381,16 @@ test "adaptive: force_sixel mode produces DCS-framed output for 2x2 image" {
         .mode = .force_sixel,
     };
 
-    try AdaptiveImageRenderer.render(allocator, pixels, 2, 2, options, &stream);
+    try AdaptiveImageRenderer.render(allocator, &environ_map, std.testing.io, pixels, 2, 2, options, &stream);
     const output = stream.buffered();
 
     try testing.expect(hasSixelFraming(output));
 }
 
 test "adaptive: force_sixel produces valid sixel output with Pq marker" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf: [8192]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
@@ -367,7 +403,7 @@ test "adaptive: force_sixel produces valid sixel output with Pq marker" {
         .palette_size = 16,
     };
 
-    try AdaptiveImageRenderer.render(allocator, pixels, 3, 3, options, &stream);
+    try AdaptiveImageRenderer.render(allocator, &environ_map, std.testing.io, pixels, 3, 3, options, &stream);
     const output = stream.buffered();
 
     // Output should start with ESC P and end with ESC \
@@ -386,6 +422,9 @@ test "adaptive: default options sets mode to auto" {
 }
 
 test "adaptive: pixel count validation rejects incorrect buffer size" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf: [4096]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
@@ -398,11 +437,14 @@ test "adaptive: pixel count validation rejects incorrect buffer size" {
         .mode = .force_ansi,
     };
 
-    const result = AdaptiveImageRenderer.render(allocator, pixels, 2, 1, options, &stream);
+    const result = AdaptiveImageRenderer.render(allocator, &environ_map, std.testing.io, pixels, 2, 1, options, &stream);
     try testing.expectError(error.BufferTooSmall, result);
 }
 
 test "adaptive: auto mode produces non-empty output" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf: [4096]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
@@ -414,13 +456,16 @@ test "adaptive: auto mode produces non-empty output" {
         .mode = .auto,
     };
 
-    try AdaptiveImageRenderer.render(allocator, pixels, 2, 2, options, &stream);
+    try AdaptiveImageRenderer.render(allocator, &environ_map, std.testing.io, pixels, 2, 2, options, &stream);
     const output = stream.buffered();
 
     try testing.expect(output.len > 0);
 }
 
 test "adaptive: force_ansi mode respects custom ansi_height option" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf: [32768]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
@@ -434,7 +479,7 @@ test "adaptive: force_ansi mode respects custom ansi_height option" {
         .ansi_height = 5,
     };
 
-    try AdaptiveImageRenderer.render(allocator, pixels, 10, 10, options, &stream);
+    try AdaptiveImageRenderer.render(allocator, &environ_map, std.testing.io, pixels, 10, 10, options, &stream);
     const output = stream.buffered();
 
     try testing.expect(output.len > 0);

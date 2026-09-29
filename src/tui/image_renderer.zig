@@ -36,9 +36,12 @@ pub const RenderOptions = struct {
 
 /// Detect the best available graphics protocol for the current terminal.
 /// Returns .ansi_art if nothing better is available.
-pub fn detectProtocol() Protocol {
-    if (kitty.detectKittySupport()) return .kitty;
-    if (sixel.detectSixelSupport()) return .sixel;
+pub fn detectProtocol(
+    environ_map: *const std.process.Environ.Map,
+    io: std.Io,
+) std.Io.Cancelable!Protocol {
+    if (try kitty.detectKittySupport(environ_map, io)) return .kitty;
+    if (try sixel.detectSixelSupport(environ_map, io)) return .sixel;
     return .ansi_art;
 }
 
@@ -48,6 +51,8 @@ pub fn detectProtocol() Protocol {
 /// Falls back gracefully: Kitty → Sixel → ANSI art.
 pub fn renderImage(
     allocator: Allocator,
+    environ_map: *const std.process.Environ.Map,
+    io: std.Io,
     pixels: []const u8,
     width: u32,
     height: u32,
@@ -57,7 +62,10 @@ pub fn renderImage(
     if (width == 0 or height == 0) return error.InvalidDimensions;
     if (pixels.len < @as(usize, width) * height * 3) return error.BufferTooSmall;
 
-    const protocol = if (options.protocol == .auto) detectProtocol() else options.protocol;
+    const protocol = if (options.protocol == .auto)
+        try detectProtocol(environ_map, io)
+    else
+        options.protocol;
 
     switch (protocol) {
         .kitty => try renderKitty(allocator, pixels, width, height, options, writer),
@@ -152,12 +160,18 @@ pub fn renderKitty(
 // ============================================================================
 
 test "detectProtocol returns a valid protocol" {
-    const proto = detectProtocol();
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
+    const proto = try detectProtocol(&environ_map, std.testing.io);
     // Must be one of the valid non-auto values
     try std.testing.expect(proto == .kitty or proto == .sixel or proto == .ansi_art);
 }
 
 test "renderImage with ansi_art protocol produces output" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf: [8192]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
 
@@ -170,7 +184,7 @@ test "renderImage with ansi_art protocol produces output" {
         pixels[i * 3 + 2] = 50;
     }
 
-    try renderImage(std.testing.allocator, &pixels, width, height, .{
+    try renderImage(std.testing.allocator, &environ_map, std.testing.io, &pixels, width, height, .{
         .protocol = .ansi_art,
     }, &stream);
 
@@ -189,37 +203,67 @@ test "renderAnsiArt produces non-empty output" {
 }
 
 test "renderImage with zero width returns error" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf: [256]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
 
     const pixels = [_]u8{0} ** 12;
-    const result = renderImage(std.testing.allocator, &pixels, 0, 2, .{
-        .protocol = .ansi_art,
-    }, &stream);
+    const result = renderImage(
+        std.testing.allocator,
+        &environ_map,
+        std.testing.io,
+        &pixels,
+        0,
+        2,
+        .{ .protocol = .ansi_art },
+        &stream,
+    );
 
     try std.testing.expectError(error.InvalidDimensions, result);
 }
 
 test "renderImage with zero height returns error" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf: [256]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
 
     const pixels = [_]u8{0} ** 12;
-    const result = renderImage(std.testing.allocator, &pixels, 2, 0, .{
-        .protocol = .ansi_art,
-    }, &stream);
+    const result = renderImage(
+        std.testing.allocator,
+        &environ_map,
+        std.testing.io,
+        &pixels,
+        2,
+        0,
+        .{ .protocol = .ansi_art },
+        &stream,
+    );
 
     try std.testing.expectError(error.InvalidDimensions, result);
 }
 
 test "renderImage with too-small pixel buffer returns error" {
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
     var buf: [256]u8 = undefined;
     var stream: std.Io.Writer = .fixed(&buf);
 
     const pixels = [_]u8{0} ** 3; // only 1 pixel, but we claim 4x4
-    const result = renderImage(std.testing.allocator, &pixels, 4, 4, .{
-        .protocol = .ansi_art,
-    }, &stream);
+    const result = renderImage(
+        std.testing.allocator,
+        &environ_map,
+        std.testing.io,
+        &pixels,
+        4,
+        4,
+        .{ .protocol = .ansi_art },
+        &stream,
+    );
 
     try std.testing.expectError(error.BufferTooSmall, result);
 }

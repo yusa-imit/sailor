@@ -66,165 +66,111 @@ pub const TerminalInfo = struct {
     /// Shared detection body; `getFn(ctx, key)` looks up one environment variable.
     fn detectImpl(ctx: anytype, comptime getFn: anytype) TerminalInfo {
         // Detection priority: most specific → most generic
+        if (fromEmulatorVars(
+            getFn(ctx, "WT_SESSION"),
+            getFn(ctx, "KITTY_WINDOW_ID"),
+            getFn(ctx, "ALACRITTY_SOCKET"),
+            getFn(ctx, "ALACRITTY_LOG"),
+            getFn(ctx, "KONSOLE_VERSION"),
+            getFn(ctx, "VTE_VERSION"),
+        )) |info| return info;
 
-        // 1. Check WT_SESSION (Windows Terminal)
-        if (getFn(ctx, "WT_SESSION")) |wt| {
-            if (wt.len > 0) {
-                return .{
-                    .type = .windows_terminal,
-                    .name = "Windows Terminal",
-                    .version = null,
-                };
-            }
-        }
+        if (fromTermProgram(
+            getFn(ctx, "TERM_PROGRAM"),
+            getFn(ctx, "TERM_PROGRAM_VERSION"),
+        )) |info| return info;
 
-        // 2. Check KITTY_WINDOW_ID (Kitty)
-        if (getFn(ctx, "KITTY_WINDOW_ID")) |_| {
-            return .{
-                .type = .kitty,
-                .name = "Kitty",
-                .version = null,
-            };
-        }
-
-        // 3. Check ALACRITTY_SOCKET or ALACRITTY_LOG (Alacritty)
-        if (getFn(ctx, "ALACRITTY_SOCKET")) |_| {
-            return .{
-                .type = .alacritty,
-                .name = "Alacritty",
-                .version = null,
-            };
-        }
-        if (getFn(ctx, "ALACRITTY_LOG")) |_| {
-            return .{
-                .type = .alacritty,
-                .name = "Alacritty",
-                .version = null,
-            };
-        }
-
-        // 4. Check KONSOLE_VERSION (KDE Konsole) — before VTE_VERSION
-        if (getFn(ctx, "KONSOLE_VERSION")) |ver| {
-            if (ver.len > 0) {
-                return .{
-                    .type = .konsole,
-                    .name = "Konsole",
-                    .version = ver,
-                };
-            }
-        }
-
-        // 5. Check VTE_VERSION (GNOME Terminal)
-        if (getFn(ctx, "VTE_VERSION")) |vte| {
-            if (vte.len > 0) {
-                return .{
-                    .type = .gnome_terminal,
-                    .name = "GNOME Terminal",
-                    .version = vte,
-                };
-            }
-        }
-
-        // 6. Check TERM_PROGRAM (iTerm2, WezTerm, VS Code, etc.)
-        if (getFn(ctx, "TERM_PROGRAM")) |prog| {
-            const version = blk: {
-                if (getFn(ctx, "TERM_PROGRAM_VERSION")) |v| {
-                    if (v.len > 0) {
-                        break :blk v;
-                    }
-                }
-                break :blk null;
-            };
-
-            if (std.mem.eql(u8, prog, "iTerm.app")) {
-                return .{
-                    .type = .iterm2,
-                    .name = "iTerm2",
-                    .version = version,
-                };
-            }
-            if (std.mem.eql(u8, prog, "WezTerm")) {
-                return .{
-                    .type = .wezterm,
-                    .name = "WezTerm",
-                    .version = version,
-                };
-            }
-            if (std.mem.eql(u8, prog, "vscode")) {
-                return .{
-                    .type = .vscode,
-                    .name = "VS Code",
-                    .version = version,
-                };
-            }
-        }
-
-        // 7. Parse TERM variable
-        if (getFn(ctx, "TERM")) |term| {
-            if (term.len == 0) {
-                return .{
-                    .type = .unknown,
-                    .name = "unknown",
-                    .version = null,
-                };
-            }
-
-            // tmux prefix
-            if (std.mem.startsWith(u8, term, "tmux")) {
-                return .{
-                    .type = .tmux,
-                    .name = "tmux",
-                    .version = null,
-                };
-            }
-
-            // screen prefix
-            if (std.mem.startsWith(u8, term, "screen")) {
-                return .{
-                    .type = .screen,
-                    .name = "screen",
-                    .version = null,
-                };
-            }
-
-            // Exact matches
-            if (std.mem.eql(u8, term, "foot")) {
-                return .{
-                    .type = .foot,
-                    .name = "Foot",
-                    .version = null,
-                };
-            }
-            if (std.mem.eql(u8, term, "xterm-256color")) {
-                return .{
-                    .type = .xterm_256color,
-                    .name = "xterm-256color",
-                    .version = null,
-                };
-            }
-            if (std.mem.eql(u8, term, "xterm-kitty")) {
-                // Without KITTY_WINDOW_ID, treat as xterm variant
-                return .{
-                    .type = .xterm_256color,
-                    .name = "xterm-256color",
-                    .version = null,
-                };
-            }
-            if (std.mem.eql(u8, term, "xterm")) {
-                return .{
-                    .type = .xterm,
-                    .name = "xterm",
-                    .version = null,
-                };
-            }
-        }
+        if (fromTerm(getFn(ctx, "TERM"))) |info| return info;
 
         // 8. Fallback to unknown
-        return .{
-            .type = .unknown,
-            .name = "unknown",
-            .version = null,
-        };
+        return .{ .type = .unknown, .name = "unknown", .version = null };
+    }
+
+    /// Steps 1-5: emulator-specific variables, already resolved by the caller.
+    fn fromEmulatorVars(
+        wt_session: ?[]const u8,
+        kitty_window_id: ?[]const u8,
+        alacritty_socket: ?[]const u8,
+        alacritty_log: ?[]const u8,
+        konsole_version: ?[]const u8,
+        vte_version: ?[]const u8,
+    ) ?TerminalInfo {
+        // Windows Terminal: WT_SESSION must be non-empty.
+        if (wt_session) |wt| {
+            if (wt.len > 0) {
+                return .{ .type = .windows_terminal, .name = "Windows Terminal", .version = null };
+            }
+        }
+        // Kitty: KITTY_WINDOW_ID present (any value).
+        if (kitty_window_id != null) {
+            return .{ .type = .kitty, .name = "Kitty", .version = null };
+        }
+        // Alacritty: ALACRITTY_SOCKET or ALACRITTY_LOG present.
+        if (alacritty_socket != null or alacritty_log != null) {
+            return .{ .type = .alacritty, .name = "Alacritty", .version = null };
+        }
+        // KDE Konsole — checked before VTE_VERSION.
+        if (konsole_version) |ver| {
+            if (ver.len > 0) return .{ .type = .konsole, .name = "Konsole", .version = ver };
+        }
+        // GNOME Terminal (VTE).
+        if (vte_version) |vte| {
+            if (vte.len > 0) {
+                return .{ .type = .gnome_terminal, .name = "GNOME Terminal", .version = vte };
+            }
+        }
+        return null;
+    }
+
+    /// Step 6: TERM_PROGRAM (iTerm2, WezTerm, VS Code); null when unset or unrecognized.
+    fn fromTermProgram(prog_opt: ?[]const u8, version_raw: ?[]const u8) ?TerminalInfo {
+        const prog = prog_opt orelse return null;
+        var version: ?[]const u8 = null;
+        if (version_raw) |v| {
+            if (v.len > 0) version = v;
+        }
+        // Negative space: an empty/absent version is never reported as a version.
+        std.debug.assert(version == null or version.?.len > 0);
+
+        if (std.mem.eql(u8, prog, "iTerm.app")) {
+            return .{ .type = .iterm2, .name = "iTerm2", .version = version };
+        }
+        if (std.mem.eql(u8, prog, "WezTerm")) {
+            return .{ .type = .wezterm, .name = "WezTerm", .version = version };
+        }
+        if (std.mem.eql(u8, prog, "vscode")) {
+            return .{ .type = .vscode, .name = "VS Code", .version = version };
+        }
+        return null;
+    }
+
+    /// Step 7: parse the TERM variable; null when unset or unrecognized.
+    fn fromTerm(term_opt: ?[]const u8) ?TerminalInfo {
+        const term = term_opt orelse return null;
+        if (term.len == 0) return .{ .type = .unknown, .name = "unknown", .version = null };
+        // Positive space: only non-empty values reach the prefix/exact matching below.
+        std.debug.assert(term.len > 0);
+
+        if (std.mem.startsWith(u8, term, "tmux")) {
+            return .{ .type = .tmux, .name = "tmux", .version = null };
+        }
+        if (std.mem.startsWith(u8, term, "screen")) {
+            return .{ .type = .screen, .name = "screen", .version = null };
+        }
+        if (std.mem.eql(u8, term, "foot")) {
+            return .{ .type = .foot, .name = "Foot", .version = null };
+        }
+        if (std.mem.eql(u8, term, "xterm-256color")) {
+            return .{ .type = .xterm_256color, .name = "xterm-256color", .version = null };
+        }
+        // Without KITTY_WINDOW_ID, xterm-kitty is treated as an xterm variant.
+        if (std.mem.eql(u8, term, "xterm-kitty")) {
+            return .{ .type = .xterm_256color, .name = "xterm-256color", .version = null };
+        }
+        if (std.mem.eql(u8, term, "xterm")) {
+            return .{ .type = .xterm, .name = "xterm", .version = null };
+        }
+        return null;
     }
 };
 

@@ -9,7 +9,7 @@
 const std = @import("std");
 
 /// Upper bound on a terminfo file we are willing to read.
-const terminfo_file_bytes_max: usize = 1024 * 1024;
+const terminfo_file_bytes_max: u32 = 1024 * 1024;
 
 pub const Error = error{
     InvalidMagicNumber,

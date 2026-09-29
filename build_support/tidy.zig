@@ -25,7 +25,7 @@ pub fn countLongLines(text: []const u8, max: usize) u32 {
     while (lines.next()) |raw_line| {
         assert(lines_seen_max < std.math.maxInt(u32));
         lines_seen_max += 1;
-        const line = std.mem.trimRight(u8, raw_line, "\r");
+        const line = std.mem.trimEnd(u8, raw_line, "\r");
         if (line.len > max) violations += 1;
     }
     assert(violations <= lines_seen_max);

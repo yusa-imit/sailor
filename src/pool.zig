@@ -102,9 +102,7 @@ pub fn Pool(comptime T: type) type {
 
                 // Update statistics
                 self.in_use += 1;
-                if (self.in_use > self.peak_usage) {
-                    self.peak_usage = self.in_use;
-                }
+                if (self.in_use > self.peak_usage) self.peak_usage = self.in_use;
 
                 return obj;
             }
@@ -122,9 +120,7 @@ pub fn Pool(comptime T: type) type {
 
             // Update statistics
             self.in_use += 1;
-            if (self.in_use > self.peak_usage) {
-                self.peak_usage = self.in_use;
-            }
+            if (self.in_use > self.peak_usage) self.peak_usage = self.in_use;
 
             return obj;
         }

@@ -43,8 +43,6 @@ jobs:
 
       - name: Install Zig
         uses: mlugg/setup-zig@v2
-        with:
-          version: 0.15.2
 
       - name: Clean Cache (Windows workaround)
         if: matrix.os == 'Windows'
@@ -92,8 +90,6 @@ jobs:
 
       - name: Install Zig
         uses: mlugg/setup-zig@v2
-        with:
-          version: 0.15.2
 
       - name: Build for ${{ matrix.target }}
         run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
@@ -110,8 +106,6 @@ jobs:
 
       - name: Install Zig
         uses: mlugg/setup-zig@v2
-        with:
-          version: 0.15.2
 
       - name: Build Benchmark Executable
         run: zig build benchmark

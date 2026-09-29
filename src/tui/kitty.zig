@@ -204,7 +204,10 @@ pub const KittyEncoder = struct {
 };
 
 /// Detect if terminal supports Kitty graphics protocol
-pub fn detectKittySupport() bool {
+pub fn detectKittySupport(
+    environ_map: *const std.process.Environ.Map,
+    io: std.Io,
+) std.Io.Cancelable!bool {
     const term_mod = @import("../term.zig");
 
     // Try XTGETTCAP query first (most reliable)
@@ -219,35 +222,29 @@ pub fn detectKittySupport() bool {
         break :blk @ptrCast(handle);
     } else std.posix.STDOUT_FILENO;
 
-    if (term_mod.queryTerminalCapability(allocator, stdout_fd, "TN", 100)) |value| {
+    if (term_mod.queryTerminalCapability(allocator, io, stdout_fd, "TN", 100)) |value| {
         defer allocator.free(value);
         const has_kitty = std.mem.find(u8, value, "kitty") != null;
         if (has_kitty) return true;
-    } else |_| {
-        // XTGETTCAP failed - fall back to env vars
+    } else |err| switch (err) {
+        error.Canceled => return error.Canceled,
+        // XTGETTCAP failed - fall back to env vars.
+        else => {},
     }
 
-    // Fallback: Check for TERM_PROGRAM=kitty or KITTY_WINDOW_ID environment variable
-    // (Windows doesn't support std.posix.getenv - env vars are UTF-16)
-    if (builtin.os.tag == .windows) {
-        return false;
-    } else {
-        const term_program = std.posix.getenv("TERM_PROGRAM");
-        if (term_program) |prog| {
-            if (std.mem.eql(u8, prog, "kitty")) return true;
-        }
-
-        const kitty_window = std.posix.getenv("KITTY_WINDOW_ID");
-        if (kitty_window != null) return true;
-
-        // Check for TERM containing "kitty"
-        const term = std.posix.getenv("TERM");
-        if (term) |t| {
-            if (std.mem.find(u8, t, "kitty") != null) return true;
-        }
-
-        return false;
+    // Fallback: Check for TERM_PROGRAM=kitty or KITTY_WINDOW_ID environment variable.
+    if (environ_map.get("TERM_PROGRAM")) |prog| {
+        if (std.mem.eql(u8, prog, "kitty")) return true;
     }
+
+    if (environ_map.get("KITTY_WINDOW_ID") != null) return true;
+
+    // Check for TERM containing "kitty".
+    if (environ_map.get("TERM")) |t| {
+        if (std.mem.find(u8, t, "kitty") != null) return true;
+    }
+
+    return false;
 }
 
 // ============================================================================
@@ -494,8 +491,11 @@ test "detectKittySupport: no environment variables" {
     // detectKittySupport() writes escape sequences to STDOUT_FILENO which
     // would corrupt the --listen=- IPC pipe
     const term_mod = @import("../term.zig");
-    if (!term_mod.isatty(std.posix.STDOUT_FILENO)) return error.SkipZigTest;
-    _ = detectKittySupport();
+    if (!try term_mod.isatty(std.testing.io, std.Io.File.stdout())) return error.SkipZigTest;
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
+    _ = try detectKittySupport(&environ_map, std.testing.io);
 }
 
 test "KittyEncoder: zero-sized image validation" {

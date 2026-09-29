@@ -164,7 +164,10 @@ pub const FileBrowser = struct {
                 }
             }
 
-            const path = try std.fs.path.join(self.allocator, &[_][]const u8{ self.current_path, entry.name });
+            const path = try std.fs.path.join(
+                self.allocator,
+                &[_][]const u8{ self.current_path, entry.name },
+            );
             const name = try self.allocator.dupe(u8, entry.name);
 
             const is_dir = entry.kind == .directory;
@@ -280,7 +283,8 @@ pub const FileBrowser = struct {
         if (self.selected_index >= self.entries.len) return;
 
         if (self.multiselect_enabled) {
-            self.entries[self.selected_index].selected = !self.entries[self.selected_index].selected;
+            const entry = &self.entries[self.selected_index];
+            entry.selected = !entry.selected;
         } else {
             // Single select: just select current
             for (0..self.entries.len) |i| {
@@ -315,7 +319,8 @@ pub const FileBrowser = struct {
     pub fn toggleExpand(self: *FileBrowser) void {
         if (self.selected_index >= self.entries.len) return;
         if (self.entries[self.selected_index].is_dir) {
-            self.entries[self.selected_index].expanded = !self.entries[self.selected_index].expanded;
+            const entry = &self.entries[self.selected_index];
+            entry.expanded = !entry.expanded;
         }
     }
 
@@ -589,8 +594,14 @@ test "FileBrowser refresh loads entries" {
     defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
     // Create test files
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file1.txt", .data = "test" });
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file2.zig", .data = "test" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/file1.txt",
+        .data = "test",
+    });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/file2.zig",
+        .data = "test",
+    });
     try std.Io.Dir.cwd().createDir(std.testing.io, test_dir ++ "/subdir", .default_dir);
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
@@ -619,9 +630,18 @@ test "FileBrowser navigation" {
     };
     defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file2.txt", .data = "b" });
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file3.txt", .data = "c" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/file1.txt",
+        .data = "a",
+    });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/file2.txt",
+        .data = "b",
+    });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/file3.txt",
+        .data = "c",
+    });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
@@ -658,8 +678,14 @@ test "FileBrowser hidden files" {
     };
     defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/visible.txt", .data = "a" });
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/.hidden", .data = "b" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/visible.txt",
+        .data = "a",
+    });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/.hidden",
+        .data = "b",
+    });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
@@ -689,8 +715,14 @@ test "FileBrowser selection" {
     };
     defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file2.txt", .data = "b" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/file1.txt",
+        .data = "a",
+    });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/file2.txt",
+        .data = "b",
+    });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
@@ -721,9 +753,18 @@ test "FileBrowser multiselect" {
     };
     defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file2.txt", .data = "b" });
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file3.txt", .data = "c" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/file1.txt",
+        .data = "a",
+    });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/file2.txt",
+        .data = "b",
+    });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/file3.txt",
+        .data = "c",
+    });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
@@ -765,9 +806,18 @@ test "FileBrowser filter" {
     };
     defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file2.zig", .data = "b" });
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file3.txt", .data = "c" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/file1.txt",
+        .data = "a",
+    });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/file2.zig",
+        .data = "b",
+    });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/file3.txt",
+        .data = "c",
+    });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
@@ -801,7 +851,10 @@ test "FileBrowser render basic" {
     };
     defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file.txt", .data = "test" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/file.txt",
+        .data = "test",
+    });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
@@ -879,7 +932,10 @@ test "FileBrowser enter and parent directory" {
     defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
     try std.Io.Dir.cwd().createDir(std.testing.io, test_dir ++ "/subdir", .default_dir);
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/subdir/file.txt", .data = "test" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/subdir/file.txt",
+        .data = "test",
+    });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
@@ -911,7 +967,10 @@ test "FileBrowser SelectionResult deinit" {
     };
     defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file1.txt", .data = "a" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/file1.txt",
+        .data = "a",
+    });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
@@ -939,7 +998,10 @@ test "FileBrowser render preview disabled (regression guard)" {
     };
     defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/ztest.txt", .data = "content" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/ztest.txt",
+        .data = "content",
+    });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
@@ -1001,7 +1063,10 @@ test "FileBrowser render preview enabled but too narrow (width < 20)" {
     };
     defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file.txt", .data = "test" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/file.txt",
+        .data = "test",
+    });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
@@ -1043,7 +1108,10 @@ test "FileBrowser render preview enabled and wide enough (divider appears)" {
     };
     defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/file.txt", .data = "test" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/file.txt",
+        .data = "test",
+    });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
@@ -1088,7 +1156,10 @@ test "FileBrowser render file preview content appears in preview pane" {
     defer std.Io.Dir.cwd().deleteTree(std.testing.io, test_dir) catch {};
 
     // Create file with known content "hello"
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/hello.txt", .data = "hello" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/hello.txt",
+        .data = "hello",
+    });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);
@@ -1150,9 +1221,18 @@ test "FileBrowser render directory preview shows items count" {
 
     // Create a directory with some files
     try std.Io.Dir.cwd().createDir(std.testing.io, test_dir ++ "/adir", .default_dir);
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/adir/file1.txt", .data = "a" });
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/adir/file2.txt", .data = "b" });
-    try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = test_dir ++ "/adir/file3.txt", .data = "c" });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/adir/file1.txt",
+        .data = "a",
+    });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/adir/file2.txt",
+        .data = "b",
+    });
+    try std.Io.Dir.cwd().writeFile(std.testing.io, .{
+        .sub_path = test_dir ++ "/adir/file3.txt",
+        .data = "c",
+    });
 
     var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const abs_len = try std.Io.Dir.cwd().realPathFile(std.testing.io, test_dir, &path_buf);

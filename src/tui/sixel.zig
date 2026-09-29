@@ -1035,7 +1035,10 @@ pub const SixelDecoder = struct {
 };
 
 /// Detect if terminal supports Sixel graphics
-pub fn detectSixelSupport() bool {
+pub fn detectSixelSupport(
+    environ_map: *const std.process.Environ.Map,
+    io: std.Io,
+) std.Io.Cancelable!bool {
     const term_mod = @import("../term.zig");
 
     // Try XTGETTCAP query first (most reliable)
@@ -1049,36 +1052,33 @@ pub fn detectSixelSupport() bool {
         break :blk @ptrCast(handle);
     } else std.posix.STDOUT_FILENO;
 
-    if (term_mod.hasCapability(allocator, stdout_fd, "Sixel", 100)) |has_sixel| {
+    if (term_mod.hasCapability(allocator, io, stdout_fd, "Sixel", 100)) |has_sixel| {
         if (has_sixel) return true;
-    } else |_| {
-        // XTGETTCAP failed (not a TTY, unsupported platform, etc.) - fall back to env vars
+    } else |err| switch (err) {
+        error.Canceled => return error.Canceled,
+        // XTGETTCAP failed (not a TTY, unsupported platform, etc.) - fall back to env vars.
+        else => {},
     }
 
-    // Fallback: Check TERM environment variable for known Sixel-capable terminals
-    // Windows doesn't support std.posix.getenv (env vars are UTF-16)
-    if (builtin.os.tag == .windows) {
-        return false;
-    } else {
-        const term = std.posix.getenv("TERM") orelse return false;
+    // Fallback: Check TERM environment variable for known Sixel-capable terminals.
+    const term = environ_map.get("TERM") orelse return false;
 
-        const sixel_terms = [_][]const u8{
-            "xterm-256color",
-            "mlterm",
-            "yaft",
-            "foot",
-            "wezterm",
-            "contour",
-        };
+    const sixel_terms = [_][]const u8{
+        "xterm-256color",
+        "mlterm",
+        "yaft",
+        "foot",
+        "wezterm",
+        "contour",
+    };
 
-        for (sixel_terms) |known_term| {
-            if (std.mem.eql(u8, term, known_term)) {
-                return true;
-            }
+    for (sixel_terms) |known_term| {
+        if (std.mem.eql(u8, term, known_term)) {
+            return true;
         }
-
-        return false;
     }
+
+    return false;
 }
 
 // ============================================================================
@@ -1292,8 +1292,11 @@ test "detectSixelSupport with known terminal" {
     // detectSixelSupport() writes escape sequences to STDOUT_FILENO which
     // would corrupt the --listen=- IPC pipe
     const term_mod = @import("../term.zig");
-    if (!term_mod.isatty(std.posix.STDOUT_FILENO)) return error.SkipZigTest;
-    _ = detectSixelSupport();
+    if (!try term_mod.isatty(std.testing.io, std.Io.File.stdout())) return error.SkipZigTest;
+    var environ_map = std.process.Environ.Map.init(std.testing.allocator);
+    defer environ_map.deinit();
+
+    _ = try detectSixelSupport(&environ_map, std.testing.io);
 }
 
 test "SixelEncoder color RGB scaling" {

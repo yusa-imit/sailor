@@ -17,6 +17,9 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+/// Opening brace of a function body; a named char keeps `{` out of string literals.
+const brace_open_char: u8 = '{';
+
 /// Represents a documentation comment
 pub const Comment = struct {
     /// Raw comment content (without leading //, ///, //!)
@@ -253,7 +256,7 @@ pub const DocGenerator = struct {
         // Extract return type
         const after_paren = fn_part[close_paren_idx..];
         var return_type: []const u8 = "void";
-        if (std.mem.find(u8, after_paren, "{")) |brace_idx| {
+        if (std.mem.findScalar(u8, after_paren, brace_open_char)) |brace_idx| {
             const ret_str = std.mem.trim(u8, after_paren[0..brace_idx], " \t");
             if (ret_str.len > 0) {
                 return_type = ret_str;

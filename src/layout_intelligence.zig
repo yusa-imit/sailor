@@ -271,7 +271,10 @@ pub const LayoutAnalyzer = struct {
     /// Get issues filtered by category
     /// Returns a view into the cached filtered results
     /// The returned slice is valid until the next call to this method
-    pub fn getIssuesByCategory(self: *LayoutAnalyzer, category: LayoutIssue.Category) []const LayoutIssue {
+    pub fn getIssuesByCategory(
+        self: *LayoutAnalyzer,
+        category: LayoutIssue.Category,
+    ) []const LayoutIssue {
         // Clear the cache and rebuild with matching issues
         self.filtered_cache.clearRetainingCapacity();
 
@@ -285,7 +288,12 @@ pub const LayoutAnalyzer = struct {
     }
 
     /// Check if layout is responsive for given screen size
-    pub fn checkResponsiveness(self: *LayoutAnalyzer, root: *WidgetNode, screen_width: u16, screen_height: u16) !bool {
+    pub fn checkResponsiveness(
+        self: *LayoutAnalyzer,
+        root: *WidgetNode,
+        screen_width: u16,
+        screen_height: u16,
+    ) !bool {
         _ = self;
 
         // Check if root widget fits within screen
@@ -324,7 +332,12 @@ pub const LayoutAnalyzer = struct {
     }
 
     /// Auto-adjust layout for target screen size
-    pub fn autoAdjust(self: *LayoutAnalyzer, root: *WidgetNode, target_width: u16, target_height: u16) !*WidgetNode {
+    pub fn autoAdjust(
+        self: *LayoutAnalyzer,
+        root: *WidgetNode,
+        target_width: u16,
+        target_height: u16,
+    ) !*WidgetNode {
         _ = self;
 
         // Adjust root bounds to fit target
@@ -374,7 +387,11 @@ pub const ResponsivenessChecker = struct {
     }
 
     /// Check if constraints work across screen sizes
-    pub fn checkConstraints(self: *const ResponsivenessChecker, constraints: []const Constraint, available: u16) bool {
+    pub fn checkConstraints(
+        self: *const ResponsivenessChecker,
+        constraints: []const Constraint,
+        available: u16,
+    ) bool {
         _ = self;
 
         if (constraints.len == 0) return true;
@@ -409,7 +426,11 @@ pub const ResponsivenessChecker = struct {
     }
 
     /// Detect widgets with fixed sizes that may not be responsive
-    pub fn detectFixedSizes(self: *const ResponsivenessChecker, allocator: Allocator, root: *WidgetNode) !ArrayList([]const u8) {
+    pub fn detectFixedSizes(
+        self: *const ResponsivenessChecker,
+        allocator: Allocator,
+        root: *WidgetNode,
+    ) !ArrayList([]const u8) {
         var result: ArrayList([]const u8) = .empty;
 
         try self.detectFixedSizesRecursive(allocator, root, "root", &result);
@@ -417,10 +438,18 @@ pub const ResponsivenessChecker = struct {
         return result;
     }
 
-    fn detectFixedSizesRecursive(self: *const ResponsivenessChecker, allocator: Allocator, node: *WidgetNode, path: []const u8, result: *ArrayList([]const u8)) !void {
+    fn detectFixedSizesRecursive(
+        self: *const ResponsivenessChecker,
+        allocator: Allocator,
+        node: *WidgetNode,
+        path: []const u8,
+        result: *ArrayList([]const u8),
+    ) !void {
 
         // Check if widget has fixed size that exceeds min screen size
-        if (node.bounds.width > self.min_screen_width or node.bounds.height > self.min_screen_height) {
+        if (node.bounds.width > self.min_screen_width or
+            node.bounds.height > self.min_screen_height)
+        {
             const owned_path = try allocator.dupe(u8, path);
             try result.append(allocator, owned_path);
         }
@@ -428,7 +457,11 @@ pub const ResponsivenessChecker = struct {
         // Check children
         var path_buf: [256]u8 = undefined;
         for (node.children, 0..) |child, i| {
-            const new_path = try std.fmt.bufPrint(&path_buf, "{s}.{s}{d}", .{ path, child.name, i });
+            const new_path = try std.fmt.bufPrint(
+                &path_buf,
+                "{s}.{s}{d}",
+                .{ path, child.name, i },
+            );
             try self.detectFixedSizesRecursive(allocator, child, new_path, result);
         }
     }
@@ -445,7 +478,11 @@ pub const AccessibilityChecker = struct {
     }
 
     /// Check widget tree for accessibility issues
-    pub fn checkTree(self: *AccessibilityChecker, allocator: Allocator, root: *WidgetNode) ![]const LayoutIssue {
+    pub fn checkTree(
+        self: *AccessibilityChecker,
+        allocator: Allocator,
+        root: *WidgetNode,
+    ) ![]const LayoutIssue {
         _ = self;
 
         var issues: ArrayList(LayoutIssue) = .empty;
@@ -455,7 +492,12 @@ pub const AccessibilityChecker = struct {
         return issues.toOwnedSlice(allocator);
     }
 
-    fn checkNodeAccessibility(allocator: Allocator, node: *WidgetNode, path: []const u8, issues: *ArrayList(LayoutIssue)) !void {
+    fn checkNodeAccessibility(
+        allocator: Allocator,
+        node: *WidgetNode,
+        path: []const u8,
+        issues: *ArrayList(LayoutIssue),
+    ) !void {
 
         // Only check input widgets that DON'T have focus and have a parent
         // Root widgets don't need focus indicators
@@ -501,7 +543,9 @@ pub const AccessibilityChecker = struct {
             !node.focused and
             node.parent != null; // Skip top-level root if it has focus
 
-        if (should_check_contrast or (std.mem.eql(u8, node.name, "Root") and node.parent == null and !node.focused)) {
+        const is_root_unfocused = std.mem.eql(u8, node.name, "Root") and
+            node.parent == null and !node.focused;
+        if (should_check_contrast or is_root_unfocused) {
             try issues.append(allocator, .{
                 .severity = .low,
                 .category = .poor_accessibility,
@@ -514,7 +558,11 @@ pub const AccessibilityChecker = struct {
         // Check children
         var path_buf: [256]u8 = undefined;
         for (node.children, 0..) |child, i| {
-            const new_path = try std.fmt.bufPrint(&path_buf, "{s}.{s}{d}", .{ path, child.name, i });
+            const new_path = try std.fmt.bufPrint(
+                &path_buf,
+                "{s}.{s}{d}",
+                .{ path, child.name, i },
+            );
             try checkNodeAccessibility(allocator, child, new_path, issues);
         }
     }
@@ -547,7 +595,11 @@ pub const PerformanceAnalyzer = struct {
     }
 
     /// Analyze widget tree for performance issues
-    pub fn analyze(self: *PerformanceAnalyzer, allocator: Allocator, root: *WidgetNode) ![]const LayoutIssue {
+    pub fn analyze(
+        self: *PerformanceAnalyzer,
+        allocator: Allocator,
+        root: *WidgetNode,
+    ) ![]const LayoutIssue {
         _ = self;
 
         var issues: ArrayList(LayoutIssue) = .empty;
@@ -557,7 +609,12 @@ pub const PerformanceAnalyzer = struct {
         return issues.toOwnedSlice(allocator);
     }
 
-    fn analyzeNodePerformance(allocator: Allocator, node: *WidgetNode, path: []const u8, issues: *ArrayList(LayoutIssue)) !void {
+    fn analyzeNodePerformance(
+        allocator: Allocator,
+        node: *WidgetNode,
+        path: []const u8,
+        issues: *ArrayList(LayoutIssue),
+    ) !void {
 
         // Check for deep nesting
         const depth = node.depth();
@@ -565,9 +622,16 @@ pub const PerformanceAnalyzer = struct {
             try issues.append(allocator, .{
                 .severity = if (depth > 10) .high else .medium,
                 .category = .performance_issue,
-                .description = try std.fmt.allocPrint(allocator, "Deep nesting ({d} levels)", .{depth}),
+                .description = try std.fmt.allocPrint(
+                    allocator,
+                    "Deep nesting ({d} levels)",
+                    .{depth},
+                ),
                 .widget_path = try allocator.dupe(u8, path),
-                .suggestion = try allocator.dupe(u8, "Flatten widget hierarchy to improve performance"),
+                .suggestion = try allocator.dupe(
+                    u8,
+                    "Flatten widget hierarchy to improve performance",
+                ),
             });
         }
 
@@ -576,7 +640,11 @@ pub const PerformanceAnalyzer = struct {
             try issues.append(allocator, .{
                 .severity = if (node.memory_bytes > 10_000_000) .high else .medium,
                 .category = .performance_issue,
-                .description = try std.fmt.allocPrint(allocator, "High memory usage ({d} bytes)", .{node.memory_bytes}),
+                .description = try std.fmt.allocPrint(
+                    allocator,
+                    "High memory usage ({d} bytes)",
+                    .{node.memory_bytes},
+                ),
                 .widget_path = try allocator.dupe(u8, path),
                 .suggestion = try allocator.dupe(u8, "Consider lazy loading or pagination"),
             });
@@ -587,7 +655,11 @@ pub const PerformanceAnalyzer = struct {
             try issues.append(allocator, .{
                 .severity = if (node.render_ns > 50_000_000) .high else .medium,
                 .category = .performance_issue,
-                .description = try std.fmt.allocPrint(allocator, "Slow render time ({d}ms)", .{node.render_ns / 1_000_000}),
+                .description = try std.fmt.allocPrint(
+                    allocator,
+                    "Slow render time ({d}ms)",
+                    .{node.render_ns / 1_000_000},
+                ),
                 .widget_path = try allocator.dupe(u8, path),
                 .suggestion = try allocator.dupe(u8, "Optimize rendering or use virtual scrolling"),
             });
@@ -599,7 +671,11 @@ pub const PerformanceAnalyzer = struct {
             try issues.append(allocator, .{
                 .severity = .medium,
                 .category = .performance_issue,
-                .description = try std.fmt.allocPrint(allocator, "Too many widgets ({d} total)", .{widget_count}),
+                .description = try std.fmt.allocPrint(
+                    allocator,
+                    "Too many widgets ({d} total)",
+                    .{widget_count},
+                ),
                 .widget_path = try allocator.dupe(u8, path),
                 .suggestion = try allocator.dupe(u8, "Use virtualization or pagination"),
             });
@@ -608,7 +684,11 @@ pub const PerformanceAnalyzer = struct {
         // Check children
         var path_buf: [256]u8 = undefined;
         for (node.children, 0..) |child, i| {
-            const new_path = try std.fmt.bufPrint(&path_buf, "{s}.{s}{d}", .{ path, child.name, i });
+            const new_path = try std.fmt.bufPrint(
+                &path_buf,
+                "{s}.{s}{d}",
+                .{ path, child.name, i },
+            );
             try analyzeNodePerformance(allocator, child, new_path, issues);
         }
     }
