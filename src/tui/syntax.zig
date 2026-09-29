@@ -3,6 +3,7 @@ const std = @import("std");
 const style = @import("style.zig");
 const Style = style.Style;
 const Color = style.Color;
+const assert = std.debug.assert;
 
 /// Token type for syntax highlighting
 pub const TokenType = enum {
@@ -88,6 +89,17 @@ pub const Language = enum {
         return .none;
     }
 };
+
+/// Word token class from precomputed predicates; keywords win, then boolean, then null.
+fn classifyWord(is_keyword: bool, is_bool: bool, is_null: bool) TokenType {
+    // Negative space: a word cannot be both a boolean and a null literal.
+    assert(!is_bool or !is_null);
+    if (is_keyword) return .keyword;
+    assert(!is_keyword);
+    if (is_bool) return .boolean;
+    if (is_null) return .null_literal;
+    return .identifier;
+}
 
 /// Lexer interface - tokenizes source code
 pub const Lexer = struct {
@@ -223,10 +235,9 @@ pub const Lexer = struct {
             }
 
             const text = self.source[start..self.pos];
-            const token_type = if (self.isZigKeyword(text)) TokenType.keyword
-                else if (std.mem.eql(u8, text, "true") or std.mem.eql(u8, text, "false")) TokenType.boolean
-                else if (std.mem.eql(u8, text, "null")) TokenType.null_literal
-                else TokenType.identifier;
+            const is_bool = std.mem.eql(u8, text, "true") or std.mem.eql(u8, text, "false");
+            const is_null = std.mem.eql(u8, text, "null");
+            const token_type = classifyWord(self.isZigKeyword(text), is_bool, is_null);
 
             return Token{ .type = token_type, .start = start, .end = self.pos };
         }
@@ -253,13 +264,12 @@ pub const Lexer = struct {
     fn isZigKeyword(self: *Lexer, text: []const u8) bool {
         _ = self;
         const keywords = [_][]const u8{
-            "const", "var", "fn", "pub", "return", "if", "else", "switch",
-            "while", "for", "break", "continue", "struct", "enum", "union",
-            "error", "try", "catch", "defer", "errdefer", "async", "await",
-            "suspend", "resume", "comptime", "inline", "export", "extern",
-            "packed", "align", "linksection", "callconv", "noalias",
-            "anytype", "anyframe", "usingnamespace", "test", "and", "or",
-            "orelse", "unreachable", "undefined",
+            "const",       "var",       "fn",       "pub",            "return", "if",    "else",        "switch",
+            "while",       "for",       "break",    "continue",       "struct", "enum",  "union",       "error",
+            "try",         "catch",     "defer",    "errdefer",       "async",  "await", "suspend",     "resume",
+            "comptime",    "inline",    "export",   "extern",         "packed", "align", "linksection", "callconv",
+            "noalias",     "anytype",   "anyframe", "usingnamespace", "test",   "and",   "or",          "orelse",
+            "unreachable", "undefined",
         };
 
         for (keywords) |kw| {
@@ -287,11 +297,11 @@ pub const Lexer = struct {
     fn isCKeyword(self: *Lexer, text: []const u8) bool {
         _ = self;
         const keywords = [_][]const u8{
-            "auto", "break", "case", "char", "const", "continue", "default",
-            "do", "double", "else", "enum", "extern", "float", "for", "goto",
-            "if", "int", "long", "register", "return", "short", "signed",
-            "sizeof", "static", "struct", "switch", "typedef", "union",
-            "unsigned", "void", "volatile", "while",
+            "auto",     "break",  "case",     "char",   "const",    "continue", "default",
+            "do",       "double", "else",     "enum",   "extern",   "float",    "for",
+            "goto",     "if",     "int",      "long",   "register", "return",   "short",
+            "signed",   "sizeof", "static",   "struct", "switch",   "typedef",  "union",
+            "unsigned", "void",   "volatile", "while",
         };
 
         for (keywords) |kw| {
@@ -363,10 +373,9 @@ pub const Lexer = struct {
             }
 
             const text = self.source[start..self.pos];
-            const token_type = if (self.isPythonKeyword(text)) TokenType.keyword
-                else if (std.mem.eql(u8, text, "True") or std.mem.eql(u8, text, "False")) TokenType.boolean
-                else if (std.mem.eql(u8, text, "None")) TokenType.null_literal
-                else TokenType.identifier;
+            const is_bool = std.mem.eql(u8, text, "True") or std.mem.eql(u8, text, "False");
+            const is_null = std.mem.eql(u8, text, "None");
+            const token_type = classifyWord(self.isPythonKeyword(text), is_bool, is_null);
 
             return Token{ .type = token_type, .start = start, .end = self.pos };
         }
@@ -393,11 +402,11 @@ pub const Lexer = struct {
     fn isPythonKeyword(self: *Lexer, text: []const u8) bool {
         _ = self;
         const keywords = [_][]const u8{
-            "and", "as", "assert", "async", "await", "break", "class",
-            "continue", "def", "del", "elif", "else", "except", "finally",
-            "for", "from", "global", "if", "import", "in", "is", "lambda",
-            "nonlocal", "not", "or", "pass", "raise", "return", "try",
-            "while", "with", "yield",
+            "and",      "as",       "assert", "async", "await",  "break",  "class",
+            "continue", "def",      "del",    "elif",  "else",   "except", "finally",
+            "for",      "from",     "global", "if",    "import", "in",     "is",
+            "lambda",   "nonlocal", "not",    "or",    "pass",   "raise",  "return",
+            "try",      "while",    "with",   "yield",
         };
 
         for (keywords) |kw| {
@@ -469,10 +478,9 @@ pub const Lexer = struct {
             }
 
             const text = self.source[start..self.pos];
-            const token_type = if (self.isJavaScriptKeyword(text)) TokenType.keyword
-                else if (std.mem.eql(u8, text, "true") or std.mem.eql(u8, text, "false")) TokenType.boolean
-                else if (std.mem.eql(u8, text, "null") or std.mem.eql(u8, text, "undefined")) TokenType.null_literal
-                else TokenType.identifier;
+            const is_bool = std.mem.eql(u8, text, "true") or std.mem.eql(u8, text, "false");
+            const is_null = std.mem.eql(u8, text, "null") or std.mem.eql(u8, text, "undefined");
+            const token_type = classifyWord(self.isJavaScriptKeyword(text), is_bool, is_null);
 
             return Token{ .type = token_type, .start = start, .end = self.pos };
         }
@@ -499,11 +507,12 @@ pub const Lexer = struct {
     fn isJavaScriptKeyword(self: *Lexer, text: []const u8) bool {
         _ = self;
         const keywords = [_][]const u8{
-            "break", "case", "catch", "class", "const", "continue", "debugger",
-            "default", "delete", "do", "else", "export", "extends", "finally",
-            "for", "function", "if", "import", "in", "instanceof", "let", "new",
-            "return", "super", "switch", "this", "throw", "try", "typeof", "var",
-            "void", "while", "with", "yield", "async", "await",
+            "break",   "case",     "catch", "class",  "const",  "continue",   "debugger",
+            "default", "delete",   "do",    "else",   "export", "extends",    "finally",
+            "for",     "function", "if",    "import", "in",     "instanceof", "let",
+            "new",     "return",   "super", "switch", "this",   "throw",      "try",
+            "typeof",  "var",      "void",  "while",  "with",   "yield",      "async",
+            "await",
         };
 
         for (keywords) |kw| {
@@ -546,7 +555,7 @@ pub const Lexer = struct {
             self.pos += 1;
             while (self.pos < self.source.len) {
                 const ch = self.source[self.pos];
-                if (!std.ascii.isDigit(ch) and ch != '.' and ch != 'e' and ch != 'E' and ch != '+' and ch != '-') break;
+                if (!std.ascii.isDigit(ch) and std.mem.findScalar(u8, ".eE+-", ch) == null) break;
                 self.pos += 1;
             }
             return Token{ .type = .number, .start = start, .end = self.pos };
@@ -624,7 +633,8 @@ pub const Lexer = struct {
         // List marker
         if ((c == '-' or c == '*' or c == '+') and
             (start == 0 or self.source[start - 1] == '\n') and
-            self.pos + 1 < self.source.len and self.source[self.pos + 1] == ' ') {
+            self.pos + 1 < self.source.len and self.source[self.pos + 1] == ' ')
+        {
             self.pos += 1;
             return Token{ .type = .operator, .start = start, .end = self.pos };
         }

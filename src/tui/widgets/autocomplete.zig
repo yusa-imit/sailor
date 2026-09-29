@@ -72,7 +72,7 @@ pub const Autocomplete = struct {
         text: []const u8,
         score: f32 = 1.0,
         metadata: ?[]const u8 = null, // e.g., type annotation, file path
-        doc: ?[]const u8 = null,      // documentation preview text
+        doc: ?[]const u8 = null, // documentation preview text
     };
 
     /// Simple suggestion item for basic use cases (backward compatible)
@@ -99,7 +99,7 @@ pub const Autocomplete = struct {
             .highlight_style = Style{ .fg = Color{ .indexed = 0 }, .bg = Color{ .indexed = 7 } },
             .normal_style = Style{},
             .metadata_style = Style{ .fg = Color{ .indexed = 8 } }, // gray
-            .doc_style = Style{ .fg = Color{ .indexed = 7 } },       // white
+            .doc_style = Style{ .fg = Color{ .indexed = 7 } }, // white
             .provider = null,
             .show_doc_preview = false,
             .preview_width = 40,

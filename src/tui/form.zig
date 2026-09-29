@@ -198,9 +198,7 @@ pub const Form = struct {
 // Tests
 test "Form with single field initializes correctly" {
     var states = [_]FieldState{FieldState{}};
-    const fields = [_]FormField{
-        .{ .id = "name", .label = "Name", .placeholder = "" }
-    };
+    const fields = [_]FormField{.{ .id = "name", .label = "Name", .placeholder = "" }};
     const form = Form{
         .fields = &fields,
         .states = &states,
@@ -211,9 +209,7 @@ test "Form with single field initializes correctly" {
 
 test "Form default focused_idx is zero" {
     var states = [_]FieldState{FieldState{}};
-    const fields = [_]FormField{
-        .{ .id = "name", .label = "Name" }
-    };
+    const fields = [_]FormField{.{ .id = "name", .label = "Name" }};
     const form = Form{
         .fields = &fields,
         .states = &states,
@@ -223,9 +219,7 @@ test "Form default focused_idx is zero" {
 
 test "Form default label_width is 12" {
     var states = [_]FieldState{FieldState{}};
-    const fields = [_]FormField{
-        .{ .id = "name", .label = "Name" }
-    };
+    const fields = [_]FormField{.{ .id = "name", .label = "Name" }};
     const form = Form{
         .fields = &fields,
         .states = &states,
@@ -235,9 +229,7 @@ test "Form default label_width is 12" {
 
 test "Form default show_errors is true" {
     var states = [_]FieldState{FieldState{}};
-    const fields = [_]FormField{
-        .{ .id = "name", .label = "Name" }
-    };
+    const fields = [_]FormField{.{ .id = "name", .label = "Name" }};
     const form = Form{
         .fields = &fields,
         .states = &states,

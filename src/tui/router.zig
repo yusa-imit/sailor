@@ -168,9 +168,15 @@ test "ScreenRouter.reset pushes root and calls onEnter" {
         left_ptr: *u32,
 
         pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
-        pub fn onEnter(self: *@This()) void { self.entered_ptr.* += 1; }
-        pub fn onLeave(self: *@This()) void { self.left_ptr.* += 1; }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .cont;
+        }
+        pub fn onEnter(self: *@This()) void {
+            self.entered_ptr.* += 1;
+        }
+        pub fn onLeave(self: *@This()) void {
+            self.left_ptr.* += 1;
+        }
     };
 
     var screen = TrackScreen{ .entered_ptr = &entered, .left_ptr = &left };
@@ -195,7 +201,9 @@ test "ScreenRouter.push and pop lifecycle" {
         alloc: Allocator,
 
         pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .cont;
+        }
         pub fn onEnter(self: *@This()) void {
             self.log_ptr.append(self.alloc, 'E') catch {};
             self.log_ptr.append(self.alloc, self.id) catch {};
@@ -239,7 +247,9 @@ test "ScreenRouter.replace lifecycle" {
         alloc: Allocator,
 
         pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .cont;
+        }
         pub fn onEnter(self: *@This()) void {
             self.log_ptr.append(self.alloc, 'E') catch {};
             self.log_ptr.append(self.alloc, self.id) catch {};
@@ -267,7 +277,9 @@ test "ScreenRouter.dispatch routes ScreenResult" {
         result: ScreenResult,
 
         pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-        pub fn handleEvent(self: *@This(), _: Event) ScreenResult { return self.result; }
+        pub fn handleEvent(self: *@This(), _: Event) ScreenResult {
+            return self.result;
+        }
         pub fn onEnter(_: *@This()) void {}
         pub fn onLeave(_: *@This()) void {}
     };
@@ -324,9 +336,13 @@ test "ScreenRouter.deinit calls onLeave on all screens" {
         left_ptr: *u32,
 
         pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .cont;
+        }
         pub fn onEnter(_: *@This()) void {}
-        pub fn onLeave(self: *@This()) void { self.left_ptr.* += 1; }
+        pub fn onLeave(self: *@This()) void {
+            self.left_ptr.* += 1;
+        }
     };
 
     var s1 = LeaveScreen{ .left_ptr = &left };

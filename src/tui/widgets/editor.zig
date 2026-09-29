@@ -215,7 +215,7 @@ pub const Editor = struct {
         // Insert character
         new_line[self.cursor.col] = ch;
         // Copy after cursor
-        @memcpy(new_line[self.cursor.col + 1..], old_line[self.cursor.col..]);
+        @memcpy(new_line[self.cursor.col + 1 ..], old_line[self.cursor.col..]);
 
         // Record edit for undo
         const edit_text = try self.allocator.dupe(u8, &[_]u8{ch});
@@ -246,9 +246,9 @@ pub const Editor = struct {
         var new_line = try self.allocator.alloc(u8, old_line.len - 1);
 
         // Copy before cursor-1
-        @memcpy(new_line[0..self.cursor.col - 1], old_line[0..self.cursor.col - 1]);
+        @memcpy(new_line[0 .. self.cursor.col - 1], old_line[0 .. self.cursor.col - 1]);
         // Copy after cursor
-        @memcpy(new_line[self.cursor.col - 1..], old_line[self.cursor.col..]);
+        @memcpy(new_line[self.cursor.col - 1 ..], old_line[self.cursor.col..]);
 
         // Record edit for undo
         const edit_text = try self.allocator.dupe(u8, old_line[self.cursor.col - 1 .. self.cursor.col]);
@@ -309,7 +309,7 @@ pub const Editor = struct {
                 const old_line = self.lines.items[line_idx];
                 const new_line = try self.allocator.alloc(u8, old_line.len - edit.text.len);
                 @memcpy(new_line[0..edit.pos.col], old_line[0..edit.pos.col]);
-                @memcpy(new_line[edit.pos.col..], old_line[edit.pos.col + edit.text.len..]);
+                @memcpy(new_line[edit.pos.col..], old_line[edit.pos.col + edit.text.len ..]);
 
                 self.allocator.free(old_line);
                 self.lines.items[line_idx] = new_line;
@@ -326,8 +326,8 @@ pub const Editor = struct {
                 const old_line = self.lines.items[line_idx];
                 const new_line = try self.allocator.alloc(u8, old_line.len + edit.text.len);
                 @memcpy(new_line[0..edit.pos.col], old_line[0..edit.pos.col]);
-                @memcpy(new_line[edit.pos.col..edit.pos.col + edit.text.len], edit.text);
-                @memcpy(new_line[edit.pos.col + edit.text.len..], old_line[edit.pos.col..]);
+                @memcpy(new_line[edit.pos.col .. edit.pos.col + edit.text.len], edit.text);
+                @memcpy(new_line[edit.pos.col + edit.text.len ..], old_line[edit.pos.col..]);
 
                 self.allocator.free(old_line);
                 self.lines.items[line_idx] = new_line;
@@ -360,8 +360,8 @@ pub const Editor = struct {
                 const old_line = self.lines.items[line_idx];
                 const new_line = try self.allocator.alloc(u8, old_line.len + edit.text.len);
                 @memcpy(new_line[0..edit.pos.col], old_line[0..edit.pos.col]);
-                @memcpy(new_line[edit.pos.col..edit.pos.col + edit.text.len], edit.text);
-                @memcpy(new_line[edit.pos.col + edit.text.len..], old_line[edit.pos.col..]);
+                @memcpy(new_line[edit.pos.col .. edit.pos.col + edit.text.len], edit.text);
+                @memcpy(new_line[edit.pos.col + edit.text.len ..], old_line[edit.pos.col..]);
 
                 self.allocator.free(old_line);
                 self.lines.items[line_idx] = new_line;
@@ -378,7 +378,7 @@ pub const Editor = struct {
                 const old_line = self.lines.items[line_idx];
                 const new_line = try self.allocator.alloc(u8, old_line.len - edit.text.len);
                 @memcpy(new_line[0..edit.pos.col], old_line[0..edit.pos.col]);
-                @memcpy(new_line[edit.pos.col..], old_line[edit.pos.col + edit.text.len..]);
+                @memcpy(new_line[edit.pos.col..], old_line[edit.pos.col + edit.text.len ..]);
 
                 self.allocator.free(old_line);
                 self.lines.items[line_idx] = new_line;

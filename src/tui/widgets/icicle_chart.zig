@@ -294,6 +294,7 @@ fn renderTree(
 
     const child_count = @min(node.children.len, IcicleChart.MAX_CHILDREN_PER_NODE);
 
+    const col_width_f: f32 = @floatFromInt(col_width);
     var cumulative: f32 = 0.0;
     var positive_idx: usize = 0; // Index among positive-value children
 
@@ -304,15 +305,11 @@ fn renderTree(
         if (child.value <= 0) continue;
 
         // Calculate child's column span using cumulative-floor formula
-        const child_x0 = col_x0 + @as(u16, @intFromFloat(
-            @floor(cumulative / total * @as(f32, @floatFromInt(col_width)))
-        ));
+        const child_x0 = col_x0 + @as(u16, @intFromFloat(@floor(cumulative / total * col_width_f)));
 
         cumulative += child.value;
 
-        var child_x1 = col_x0 + @as(u16, @intFromFloat(
-            @floor(cumulative / total * @as(f32, @floatFromInt(col_width)))
-        ));
+        var child_x1 = col_x0 + @as(u16, @intFromFloat(@floor(cumulative / total * col_width_f)));
 
         // Ensure last positive child reaches the right edge
         // This needs to check if all remaining children are non-positive

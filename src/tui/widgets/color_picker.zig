@@ -18,9 +18,9 @@ const Block = @import("block.zig").Block;
 
 /// Color picker mode
 pub const ColorPickerMode = enum {
-    palette_256,   // Full 256-color palette
-    palette_16,    // Basic ANSI 16-color palette
-    rgb_sliders,   // RGB component sliders
+    palette_256, // Full 256-color palette
+    palette_16, // Basic ANSI 16-color palette
+    rgb_sliders, // RGB component sliders
 };
 
 /// Active RGB component in slider mode
@@ -33,15 +33,15 @@ pub const RgbComponent = enum {
 /// ColorPicker widget — interactive color selection
 pub const ColorPicker = struct {
     mode: ColorPickerMode,
-    cursor_x: u8,              // Palette column cursor [0..15] for palette modes, unused in rgb_sliders
-    cursor_y: u8,              // Palette row cursor [0..15] for palette_256, [0..1] for palette_16
-    r: u8,                     // RGB red component [0..255]
-    g: u8,                     // RGB green component [0..255]
-    b: u8,                     // RGB blue component [0..255]
-    active_component: RgbComponent,  // Active RGB slider (rgb_sliders mode)
-    block: ?Block,             // Optional border block
-    style: Style,              // Default cell style
-    cursor_style: Style,       // Cursor highlight style
+    cursor_x: u8, // Palette column cursor [0..15] for palette modes, unused in rgb_sliders
+    cursor_y: u8, // Palette row cursor [0..15] for palette_256, [0..1] for palette_16
+    r: u8, // RGB red component [0..255]
+    g: u8, // RGB green component [0..255]
+    b: u8, // RGB blue component [0..255]
+    active_component: RgbComponent, // Active RGB slider (rgb_sliders mode)
+    block: ?Block, // Optional border block
+    style: Style, // Default cell style
+    cursor_style: Style, // Cursor highlight style
 
     /// Initialize a new ColorPicker with the given mode
     pub fn init(mode: ColorPickerMode) ColorPicker {
@@ -271,10 +271,10 @@ pub const ColorPicker = struct {
     /// Render 8x2 palette grid for basic 16 colors. Each swatch is 3 chars wide.
     fn renderPalette16(self: ColorPicker, buf: *Buffer, area: Rect) void {
         const basic_colors = [16]Color{
-            Color.black, Color.red, Color.green, Color.yellow,
-            Color.blue, Color.magenta, Color.cyan, Color.white,
-            Color.bright_black, Color.bright_red, Color.bright_green, Color.bright_yellow,
-            Color.bright_blue, Color.bright_magenta, Color.bright_cyan, Color.bright_white,
+            Color.black,        Color.red,            Color.green,        Color.yellow,
+            Color.blue,         Color.magenta,        Color.cyan,         Color.white,
+            Color.bright_black, Color.bright_red,     Color.bright_green, Color.bright_yellow,
+            Color.bright_blue,  Color.bright_magenta, Color.bright_cyan,  Color.bright_white,
         };
         var row: u16 = 0;
         while (row < 2 and row < area.height) : (row += 1) {

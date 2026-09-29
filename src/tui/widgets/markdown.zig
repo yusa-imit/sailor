@@ -178,7 +178,7 @@ pub const Markdown = struct {
                     // End code block
                     in_code_block = false;
                     const text = try code_block_content.toOwnedSlice(self.allocator);
-                    try self.nodes.append(self.allocator,markdown_mod.Node{
+                    try self.nodes.append(self.allocator, markdown_mod.Node{
                         .node_type = .code_block,
                         .text = text,
                         .language = code_block_lang,
@@ -201,7 +201,7 @@ pub const Markdown = struct {
         // Handle unclosed code block
         if (in_code_block) {
             const text = try code_block_content.toOwnedSlice(self.allocator);
-            try self.nodes.append(self.allocator,markdown_mod.Node{
+            try self.nodes.append(self.allocator, markdown_mod.Node{
                 .node_type = .code_block,
                 .text = text,
                 .language = code_block_lang,
@@ -228,7 +228,7 @@ pub const Markdown = struct {
                     text = std.mem.trim(u8, text[0 .. text.len - 1], " \t\r");
                 }
                 const text_copy = try self.allocator.dupe(u8, text);
-                try self.nodes.append(self.allocator,markdown_mod.Node{
+                try self.nodes.append(self.allocator, markdown_mod.Node{
                     .node_type = .heading,
                     .text = text_copy,
                     .level = level,
@@ -255,7 +255,7 @@ pub const Markdown = struct {
                     if (j + 1 < rest.len and rest[j + 1] == ' ') {
                         const text = std.mem.trim(u8, rest[j + 2 ..], " \t\r");
                         const text_copy = try self.allocator.dupe(u8, text);
-                        try self.nodes.append(self.allocator,markdown_mod.Node{
+                        try self.nodes.append(self.allocator, markdown_mod.Node{
                             .node_type = .ordered_item,
                             .text = text_copy,
                             .indent_level = indent_level,
@@ -279,7 +279,7 @@ pub const Markdown = struct {
                 if (rest[1] == ' ') {
                     const text = std.mem.trim(u8, rest[2..], " \t\r");
                     const text_copy = try self.allocator.dupe(u8, text);
-                    try self.nodes.append(self.allocator,markdown_mod.Node{
+                    try self.nodes.append(self.allocator, markdown_mod.Node{
                         .node_type = .list_item,
                         .text = text_copy,
                         .indent_level = indent_level,
@@ -306,7 +306,7 @@ pub const Markdown = struct {
                 // Add text before
                 if (i > last_pos) {
                     const before = try self.allocator.dupe(u8, text[last_pos..i]);
-                    try self.nodes.append(self.allocator,markdown_mod.Node{ .node_type = .text, .text = before });
+                    try self.nodes.append(self.allocator, markdown_mod.Node{ .node_type = .text, .text = before });
                 }
 
                 // Find closing ***
@@ -322,7 +322,7 @@ pub const Markdown = struct {
 
                 if (end) |e| {
                     const content = try self.allocator.dupe(u8, text[start..e]);
-                    try self.nodes.append(self.allocator,markdown_mod.Node{ .node_type = .bold_italic, .text = content });
+                    try self.nodes.append(self.allocator, markdown_mod.Node{ .node_type = .bold_italic, .text = content });
                     i = e + 3;
                     last_pos = i;
                     continue;
@@ -336,7 +336,7 @@ pub const Markdown = struct {
                 // Add text before
                 if (i > last_pos) {
                     const before = try self.allocator.dupe(u8, text[last_pos..i]);
-                    try self.nodes.append(self.allocator,markdown_mod.Node{ .node_type = .text, .text = before });
+                    try self.nodes.append(self.allocator, markdown_mod.Node{ .node_type = .text, .text = before });
                 }
 
                 // Find closing
@@ -352,7 +352,7 @@ pub const Markdown = struct {
 
                 if (end) |e| {
                     const content = try self.allocator.dupe(u8, text[start..e]);
-                    try self.nodes.append(self.allocator,markdown_mod.Node{ .node_type = .bold, .text = content });
+                    try self.nodes.append(self.allocator, markdown_mod.Node{ .node_type = .bold, .text = content });
                     i = e + 2;
                     last_pos = i;
                     continue;
@@ -370,7 +370,7 @@ pub const Markdown = struct {
                 // Add text before
                 if (i > last_pos) {
                     const before = try self.allocator.dupe(u8, text[last_pos..i]);
-                    try self.nodes.append(self.allocator,markdown_mod.Node{ .node_type = .text, .text = before });
+                    try self.nodes.append(self.allocator, markdown_mod.Node{ .node_type = .text, .text = before });
                 }
 
                 // Find closing
@@ -385,7 +385,7 @@ pub const Markdown = struct {
 
                 if (end) |e| {
                     const content = try self.allocator.dupe(u8, text[start..e]);
-                    try self.nodes.append(self.allocator,markdown_mod.Node{ .node_type = .italic, .text = content });
+                    try self.nodes.append(self.allocator, markdown_mod.Node{ .node_type = .italic, .text = content });
                     i = e + 1;
                     last_pos = i;
                     continue;
@@ -401,7 +401,7 @@ pub const Markdown = struct {
                 // Add text before
                 if (i > last_pos) {
                     const before = try self.allocator.dupe(u8, text[last_pos..i]);
-                    try self.nodes.append(self.allocator,markdown_mod.Node{ .node_type = .text, .text = before });
+                    try self.nodes.append(self.allocator, markdown_mod.Node{ .node_type = .text, .text = before });
                 }
 
                 // Find closing `
@@ -416,7 +416,7 @@ pub const Markdown = struct {
 
                 if (end) |e| {
                     const content = try self.allocator.dupe(u8, text[start..e]);
-                    try self.nodes.append(self.allocator,markdown_mod.Node{ .node_type = .code, .text = content });
+                    try self.nodes.append(self.allocator, markdown_mod.Node{ .node_type = .code, .text = content });
                     i = e + 1;
                     last_pos = i;
                     continue;
@@ -449,12 +449,12 @@ pub const Markdown = struct {
                             // Add text before
                             if (i > last_pos) {
                                 const before = try self.allocator.dupe(u8, text[last_pos..i]);
-                                try self.nodes.append(self.allocator,markdown_mod.Node{ .node_type = .text, .text = before });
+                                try self.nodes.append(self.allocator, markdown_mod.Node{ .node_type = .text, .text = before });
                             }
 
                             const link_text = try self.allocator.dupe(u8, text[i + 1 .. te]);
                             const url = try self.allocator.dupe(u8, text[te + 2 .. ue]);
-                            try self.nodes.append(self.allocator,markdown_mod.Node{
+                            try self.nodes.append(self.allocator, markdown_mod.Node{
                                 .node_type = .link,
                                 .text = link_text,
                                 .url = url,
@@ -473,7 +473,7 @@ pub const Markdown = struct {
         // Add remaining text
         if (last_pos < text.len) {
             const remaining = try self.allocator.dupe(u8, text[last_pos..]);
-            try self.nodes.append(self.allocator,markdown_mod.Node{ .node_type = .text, .text = remaining });
+            try self.nodes.append(self.allocator, markdown_mod.Node{ .node_type = .text, .text = remaining });
         }
     }
 

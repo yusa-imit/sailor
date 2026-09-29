@@ -733,7 +733,7 @@ test "TextArea: wrapped lines count correctly for scrolling" {
     var buf = try Buffer.init(std.testing.allocator, 5, 2);
     defer buf.deinit();
 
-    const lines = [_][]const u8{"Short", "Very long line that wraps"};
+    const lines = [_][]const u8{ "Short", "Very long line that wraps" };
     const textarea = TextArea.init(&lines).withWrapMode(.soft);
     textarea.render(&buf, Rect.init(0, 0, 5, 2));
 
@@ -971,7 +971,7 @@ test "TextArea: selection clamps to valid line indices" {
     var buf = try Buffer.init(std.testing.allocator, 20, 5);
     defer buf.deinit();
 
-    const lines = [_][]const u8{"L1", "L2"};
+    const lines = [_][]const u8{ "L1", "L2" };
     const sel_style = Style{ .reverse = true };
     const textarea = TextArea.init(&lines)
         .withSelection(0, 0, 10, 0) // Row 10 doesn't exist

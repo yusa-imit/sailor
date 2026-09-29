@@ -80,19 +80,19 @@ pub const ScreenHandle = struct {
             };
 
             fn renderFn(p: *anyopaque, buf: *Buffer, area: Rect) void {
-                const self: *T = @alignCast(@ptrCast(p));
+                const self: *T = @ptrCast(@alignCast(p));
                 self.render(buf, area);
             }
             fn handleEventFn(p: *anyopaque, event: Event) ScreenResult {
-                const self: *T = @alignCast(@ptrCast(p));
+                const self: *T = @ptrCast(@alignCast(p));
                 return self.handleEvent(event);
             }
             fn onEnterFn(p: *anyopaque) void {
-                const self: *T = @alignCast(@ptrCast(p));
+                const self: *T = @ptrCast(@alignCast(p));
                 self.onEnter();
             }
             fn onLeaveFn(p: *anyopaque) void {
-                const self: *T = @alignCast(@ptrCast(p));
+                const self: *T = @ptrCast(@alignCast(p));
                 self.onLeave();
             }
         };

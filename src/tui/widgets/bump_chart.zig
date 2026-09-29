@@ -49,6 +49,7 @@ const style_mod = @import("../style.zig");
 const Style = style_mod.Style;
 const block_mod = @import("block.zig");
 const Block = block_mod.Block;
+const assert = std.debug.assert;
 
 /// Single series in a bump chart
 pub const BumpSeries = struct {
@@ -252,12 +253,10 @@ pub const BumpChart = struct {
         // Draw focused series last (on top)
         if (self.focused < n_series) {
             // Check if focused_style is explicitly set
-            const focused_style_is_set = self.focused_style.bold or self.focused_style.dim or
-                self.focused_style.italic or self.focused_style.underline or self.focused_style.blink or
-                self.focused_style.reverse or self.focused_style.strikethrough or
-                self.focused_style.fg != null or self.focused_style.bg != null;
+            const focused_style_is_set = styleIsSet(self.focused_style);
 
-            const series_style = if (focused_style_is_set) self.focused_style else self.series[self.focused].style;
+            const base_style = self.series[self.focused].style;
+            const series_style = if (focused_style_is_set) self.focused_style else base_style;
             drawSeries(buf, plot_area, self.series[self.focused], n_timepoints, max_rank, self.line_style, series_style);
         }
 
@@ -267,6 +266,16 @@ pub const BumpChart = struct {
         }
     }
 };
+
+/// True if any attribute or color of `s` is set (an "empty" style has none).
+fn styleIsSet(s: Style) bool {
+    const attrs_set = s.bold or s.dim or s.italic or s.underline or s.blink or s.reverse or
+        s.strikethrough;
+    const is_set = attrs_set or s.fg != null or s.bg != null;
+    assert(is_set or (s.fg == null and s.bg == null));
+    assert(!is_set or attrs_set or s.fg != null or s.bg != null);
+    return is_set;
+}
 
 /// Render timepoint labels in a header row
 fn renderTimepointLabels(buf: *Buffer, area: Rect, row_idx: u16, n_timepoints: usize, labels: []const []const u8) void {
@@ -283,8 +292,7 @@ fn renderTimepointLabels(buf: *Buffer, area: Rect, row_idx: u16, n_timepoints: u
 }
 
 /// Render end labels at the right of the plot area
-fn renderEndLabels(buf: *Buffer, plot_area: Rect, n_series: usize, series: []const BumpSeries,
-                    n_timepoints: usize, max_rank: u32, label_style: Style) void {
+fn renderEndLabels(buf: *Buffer, plot_area: Rect, n_series: usize, series: []const BumpSeries, n_timepoints: usize, max_rank: u32, label_style: Style) void {
     if (plot_area.width == 0 or plot_area.height == 0) return;
 
     const label_x = plot_area.x + plot_area.width;
@@ -312,8 +320,7 @@ fn renderEndLabels(buf: *Buffer, plot_area: Rect, n_series: usize, series: []con
 }
 
 /// Draw a single series as a polyline
-fn drawSeries(buf: *Buffer, plot_area: Rect, series: BumpSeries,
-              n_timepoints: usize, max_rank: u32, line_style: Style, series_style: Style) void {
+fn drawSeries(buf: *Buffer, plot_area: Rect, series: BumpSeries, n_timepoints: usize, max_rank: u32, line_style: Style, series_style: Style) void {
     if (plot_area.width == 0 or plot_area.height == 0) return;
     if (n_timepoints == 0 or series.ranks.len == 0) return;
 
@@ -329,10 +336,11 @@ fn drawSeries(buf: *Buffer, plot_area: Rect, series: BumpSeries,
         const x = timepointX(plot_area, tp_idx, n_timepoints);
 
         if (x >= plot_area.x and x < plot_area.x + plot_area.width and
-            row >= plot_area.y and row < plot_area.y + plot_area.height) {
+            row >= plot_area.y and row < plot_area.y + plot_area.height)
+        {
             // Draw a glyph for the rank point
             const cell_char = '●';
-            const cell_style = if (line_style.fg != null or line_style.bg != null or line_style.bold or line_style.dim or line_style.italic or line_style.underline or line_style.blink or line_style.reverse or line_style.strikethrough) line_style else series_style;
+            const cell_style = if (styleIsSet(line_style)) line_style else series_style;
             buf.set(x, row, Cell.init(cell_char, cell_style));
         }
 
@@ -344,17 +352,16 @@ fn drawSeries(buf: *Buffer, plot_area: Rect, series: BumpSeries,
 
             // Determine direction character
             const dir_char: u21 = if (next_rank < rank)
-                '/'  // rank improved (decreased)
+                '/' // rank improved (decreased)
             else if (next_rank > rank)
-                '\\'  // rank worsened (increased)
+                '\\' // rank worsened (increased)
             else
                 '─'; // rank unchanged
 
-            const segment_style = if (line_style.fg != null or line_style.bg != null or line_style.bold or line_style.dim or line_style.italic or line_style.underline or line_style.blink or line_style.reverse or line_style.strikethrough) line_style else series_style;
+            const segment_style = if (styleIsSet(line_style)) line_style else series_style;
 
             // Draw segment between (x, row) and (next_x, next_row)
-            drawLineSegment(buf, plot_area, @as(i32, @intCast(x)), @as(i32, @intCast(row)),
-                           @as(i32, @intCast(next_x)), @as(i32, @intCast(next_row)), dir_char, segment_style);
+            drawLineSegment(buf, plot_area, @as(i32, @intCast(x)), @as(i32, @intCast(row)), @as(i32, @intCast(next_x)), @as(i32, @intCast(next_row)), dir_char, segment_style);
         }
     }
 }
@@ -385,7 +392,8 @@ fn drawLineSegment(buf: *Buffer, area: Rect, x0: i32, y0: i32, x1: i32, y1: i32,
             const ux: u16 = @intCast(x);
             const uy: u16 = @intCast(y);
             if (ux >= area.x and ux < area.x + area.width and
-                uy >= area.y and uy < area.y + area.height) {
+                uy >= area.y and uy < area.y + area.height)
+            {
                 buf.set(ux, uy, Cell.init(dir_char, style));
             }
         }

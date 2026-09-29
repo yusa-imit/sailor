@@ -34,41 +34,41 @@ const Color = style_mod.Color;
 
 /// Particle effect type
 pub const ParticleKind = enum {
-    fire,    // Upward rising flame
-    rain,    // Downward falling rain
-    snow,    // Slow falling snow
+    fire, // Upward rising flame
+    rain, // Downward falling rain
+    snow, // Slow falling snow
     sparkle, // Static twinkling sparkles
 };
 
 /// Configuration for particle systems
 pub const ParticleConfig = struct {
-    spawn_rate: u8 = 5,           // particles to spawn per 100ms
-    max_particles: u16 = 100,     // maximum active particles
-    seed: u64 = 42,               // PRNG seed for determinism
+    spawn_rate: u8 = 5, // particles to spawn per 100ms
+    max_particles: u16 = 100, // maximum active particles
+    seed: u64 = 42, // PRNG seed for determinism
 };
 
 /// Internal particle state (not public)
 const Particle = struct {
-    x: f32,                    // Float position for smooth movement
+    x: f32, // Float position for smooth movement
     y: f32,
-    vx: f32,                   // Velocity
+    vx: f32, // Velocity
     vy: f32,
-    lifetime_ms: f32,          // Remaining lifetime
-    max_lifetime_ms: f32,      // Initial lifetime
-    char: u21,                 // Unicode character to render
-    color: Color,              // Color to render
-    active: bool,              // Whether this particle is alive
+    lifetime_ms: f32, // Remaining lifetime
+    max_lifetime_ms: f32, // Initial lifetime
+    char: u21, // Unicode character to render
+    color: Color, // Color to render
+    active: bool, // Whether this particle is alive
 };
 
 /// Particle system manager
 pub const ParticleSystem = struct {
     allocator: Allocator,
-    particles: []Particle,           // Fixed pool of particles
+    particles: []Particle, // Fixed pool of particles
     kind: ParticleKind,
-    area: Rect,                      // Constrained area for spawning/rendering
+    area: Rect, // Constrained area for spawning/rendering
     config: ParticleConfig,
-    prng: std.Random.DefaultPrng,    // Deterministic random number generator
-    spawn_accumulator: f32,          // Fractional spawn accumulation
+    prng: std.Random.DefaultPrng, // Deterministic random number generator
+    spawn_accumulator: f32, // Fractional spawn accumulation
 
     /// Initialize a new particle system
     pub fn init(allocator: Allocator, kind: ParticleKind, area: Rect, config: ParticleConfig) !ParticleSystem {
@@ -229,7 +229,7 @@ pub const ParticleSystem = struct {
                 p.x = area_x_f + (rng.float(f32) * area_w_f);
                 p.y = area_y_f;
                 p.vx = -0.3 + rng.float(f32) * 0.6; // -0.3 to +0.3
-                p.vy = 0.5 + rng.float(f32) * 1.0;  // 0.5 to 1.5
+                p.vy = 0.5 + rng.float(f32) * 1.0; // 0.5 to 1.5
                 p.max_lifetime_ms = 2000.0 + rng.float(f32) * 2000.0; // 2000-4000ms
                 p.lifetime_ms = p.max_lifetime_ms;
 

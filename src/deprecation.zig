@@ -56,8 +56,8 @@ pub inline fn warn(comptime message: []const u8, args: anytype) void {
 
 /// Deprecation mode
 const Mode = enum {
-    err,    // Treat deprecation as compile error
-    warn,   // Show warning (default)
+    err, // Treat deprecation as compile error
+    warn, // Show warning (default)
     ignore, // Suppress warnings
 };
 
@@ -96,7 +96,7 @@ pub inline fn replace(
 ) void {
     const message = std.fmt.comptimePrint(
         "{s}() is deprecated and will be removed in v{s}. Use {s}() instead.",
-        .{ old_name, version, new_name }
+        .{ old_name, version, new_name },
     );
     warn(message, .{});
 }
@@ -119,7 +119,7 @@ pub inline fn param(
 ) void {
     const message = std.fmt.comptimePrint(
         "Parameter '{s}' is deprecated and will be removed in v{s}. Use '{s}' instead.",
-        .{ param_name, version, new_param }
+        .{ param_name, version, new_param },
     );
     warn(message, .{});
 }
@@ -143,7 +143,7 @@ pub inline fn type_(
 ) void {
     const message = std.fmt.comptimePrint(
         "Type '{s}' is deprecated and will be removed in v{s}. Use '{s}' instead.",
-        .{ old_type, version, new_type }
+        .{ old_type, version, new_type },
     );
     warn(message, .{});
 }
@@ -172,7 +172,7 @@ pub inline fn field(
 ) void {
     const message = std.fmt.comptimePrint(
         "Field '{s}' is deprecated and will be removed in v{s}. Use '{s}' instead.",
-        .{ field_name, version, new_field }
+        .{ field_name, version, new_field },
     );
     warn(message, .{});
 }
@@ -251,11 +251,11 @@ test "multiple deprecation calls" {
 test "deprecation message formatting" {
     const message = std.fmt.comptimePrint(
         "{s}() is deprecated and will be removed in v{s}. Use {s}() instead.",
-        .{ "oldFunc", "2.0.0", "newFunc" }
+        .{ "oldFunc", "2.0.0", "newFunc" },
     );
 
     try testing.expectEqualStrings(
         "oldFunc() is deprecated and will be removed in v2.0.0. Use newFunc() instead.",
-        message
+        message,
     );
 }

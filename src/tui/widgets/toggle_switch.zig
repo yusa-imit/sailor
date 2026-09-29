@@ -596,7 +596,7 @@ test "ToggleSwitchGroup.init sets style to empty Style by default" {
 }
 
 test "ToggleSwitchGroup.withBlock does not modify original" {
-    var items = [_]ToggleSwitch{ ToggleSwitch.init("A") };
+    var items = [_]ToggleSwitch{ToggleSwitch.init("A")};
     const group1 = ToggleSwitchGroup.init(&items);
     const block = Block{};
     const group2 = group1.withBlock(block);
@@ -605,7 +605,7 @@ test "ToggleSwitchGroup.withBlock does not modify original" {
 }
 
 test "ToggleSwitchGroup.withStyle does not modify original" {
-    var items = [_]ToggleSwitch{ ToggleSwitch.init("A") };
+    var items = [_]ToggleSwitch{ToggleSwitch.init("A")};
     const group1 = ToggleSwitchGroup.init(&items);
     const style = Style{ .fg = .red };
     const group2 = group1.withStyle(style);
@@ -614,7 +614,7 @@ test "ToggleSwitchGroup.withStyle does not modify original" {
 }
 
 test "ToggleSwitchGroup.withHelp does not modify original" {
-    var items = [_]ToggleSwitch{ ToggleSwitch.init("A") };
+    var items = [_]ToggleSwitch{ToggleSwitch.init("A")};
     const group1 = ToggleSwitchGroup.init(&items);
     const group2 = group1.withHelp(false);
     try std.testing.expect(group1.show_help);

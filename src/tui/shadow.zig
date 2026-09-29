@@ -29,9 +29,9 @@ const Rect = layout_mod.Rect;
 
 /// Shadow rendering style
 pub const ShadowStyle = enum {
-    drop,  // External shadow at offset position
+    drop, // External shadow at offset position
     inner, // Internal shadow (only inside widget area)
-    box,   // Shadow on all four sides (like CSS box-shadow)
+    box, // Shadow on all four sides (like CSS box-shadow)
 };
 
 /// Shadow configuration and rendering
@@ -388,19 +388,19 @@ fn indexedToRgb(idx: u8) RgbTriplet {
     // Colors 0-15: standard colors (same as named colors)
     if (idx < 16) {
         return switch (idx) {
-            0 => .{ .r = 0, .g = 0, .b = 0 },       // black
-            1 => .{ .r = 170, .g = 0, .b = 0 },     // red
-            2 => .{ .r = 0, .g = 170, .b = 0 },     // green
-            3 => .{ .r = 170, .g = 85, .b = 0 },    // yellow
-            4 => .{ .r = 0, .g = 0, .b = 170 },     // blue
-            5 => .{ .r = 170, .g = 0, .b = 170 },   // magenta
-            6 => .{ .r = 0, .g = 170, .b = 170 },   // cyan
+            0 => .{ .r = 0, .g = 0, .b = 0 }, // black
+            1 => .{ .r = 170, .g = 0, .b = 0 }, // red
+            2 => .{ .r = 0, .g = 170, .b = 0 }, // green
+            3 => .{ .r = 170, .g = 85, .b = 0 }, // yellow
+            4 => .{ .r = 0, .g = 0, .b = 170 }, // blue
+            5 => .{ .r = 170, .g = 0, .b = 170 }, // magenta
+            6 => .{ .r = 0, .g = 170, .b = 170 }, // cyan
             7 => .{ .r = 170, .g = 170, .b = 170 }, // white
-            8 => .{ .r = 85, .g = 85, .b = 85 },    // bright black
-            9 => .{ .r = 255, .g = 85, .b = 85 },   // bright red
-            10 => .{ .r = 85, .g = 255, .b = 85 },  // bright green
+            8 => .{ .r = 85, .g = 85, .b = 85 }, // bright black
+            9 => .{ .r = 255, .g = 85, .b = 85 }, // bright red
+            10 => .{ .r = 85, .g = 255, .b = 85 }, // bright green
             11 => .{ .r = 255, .g = 255, .b = 85 }, // bright yellow
-            12 => .{ .r = 85, .g = 85, .b = 255 },  // bright blue
+            12 => .{ .r = 85, .g = 85, .b = 255 }, // bright blue
             13 => .{ .r = 255, .g = 85, .b = 255 }, // bright magenta
             14 => .{ .r = 85, .g = 255, .b = 255 }, // bright cyan
             15 => .{ .r = 255, .g = 255, .b = 255 }, // bright white

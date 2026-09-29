@@ -52,9 +52,9 @@ pub const MetricsDashboard = struct {
 
     /// Layout mode for metrics sections
     pub const LayoutMode = enum {
-        vertical,   // Stack sections top-to-bottom
+        vertical, // Stack sections top-to-bottom
         horizontal, // Place sections side-by-side
-        grid,       // 2x2 layout
+        grid, // 2x2 layout
     };
 
     /// Initialize a new MetricsDashboard

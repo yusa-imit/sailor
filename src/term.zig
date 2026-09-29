@@ -1001,9 +1001,9 @@ test "readByte on empty pipe stdin returns null instead of blocking" {
     defer _ = SetStdHandle(win.STD_INPUT_HANDLE, original_stdin);
     _ = SetStdHandle(win.STD_INPUT_HANDLE, read_handle);
 
-    const start = std.time.milliTimestamp();
+    const start = std.Io.Clock.awake.now(std.testing.io);
     const result = try readByte(std.testing.io, 50);
-    const elapsed = std.time.milliTimestamp() - start;
+    const elapsed = start.untilNow(std.testing.io, .awake).toMilliseconds();
 
     try std.testing.expect(result == null);
     // Bounded well above the 50ms timeout to tolerate CI scheduling jitter,

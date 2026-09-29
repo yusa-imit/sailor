@@ -17,14 +17,14 @@ const Block = block_mod.Block;
 
 /// Kind of a node in the flat JSON representation.
 pub const NodeKind = enum {
-    object_open,  // opening '{'
+    object_open, // opening '{'
     object_close, // closing '}'
-    array_open,   // opening '['
-    array_close,  // closing ']'
-    string,       // JSON string value
-    number,       // JSON number value
-    boolean,      // true or false
-    null_val,     // null
+    array_open, // opening '['
+    array_close, // closing ']'
+    string, // JSON string value
+    number, // JSON number value
+    boolean, // true or false
+    null_val, // null
 };
 
 /// A single node in the flat JSON tree.
@@ -258,8 +258,14 @@ pub const JsonBrowser = struct {
         if (node.key.len > 0) {
             const ks = if (is_cursor) self.cursor_style else self.key_style;
             col += writeStr(buf, col, y, max_x, node.key, ks);
-            if (col < max_x) { buf.set(col, y, .{ .char = ':', .style = .{} }); col += 1; }
-            if (col < max_x) { buf.set(col, y, .{ .char = ' ', .style = .{} }); col += 1; }
+            if (col < max_x) {
+                buf.set(col, y, .{ .char = ':', .style = .{} });
+                col += 1;
+            }
+            if (col < max_x) {
+                buf.set(col, y, .{ .char = ' ', .style = .{} });
+                col += 1;
+            }
         }
 
         // Value / bracket

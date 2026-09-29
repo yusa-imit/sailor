@@ -13,7 +13,7 @@
 //!
 //! Usage:
 //! ```zig
-//! const quirks = Quirks.detect();
+//! const quirks = Quirks.detect(environ_map);
 //! if (quirks.clipboard_needs_padding) {
 //!     // Add base64 padding for iTerm2
 //! }
@@ -49,44 +49,12 @@ pub const Quirks = struct {
     needs_colorterm_hint: bool,
 
     /// Detect quirks from environment
-    pub fn detect() Quirks {
-        const builtin = @import("builtin");
-        if (builtin.os.tag == .windows) {
-            const Ctx = struct {
-                threadlocal var buf: [4096]u8 = undefined;
-
-                fn getenv(key: []const u8) ?[]const u8 {
-                    var key_buf: [256]u16 = undefined;
-                    if (key.len >= key_buf.len) return null;
-
-                    var i: usize = 0;
-                    while (i < key.len) : (i += 1) {
-                        key_buf[i] = key[i];
-                    }
-                    key_buf[i] = 0;
-
-                    const len = std.os.windows.kernel32.GetEnvironmentVariableW(
-                        &key_buf,
-                        @ptrCast(&buf),
-                        buf.len / 2,
-                    );
-
-                    if (len == 0 or len >= buf.len / 2) return null;
-
-                    const wide_slice = @as([*]const u16, @ptrCast(&buf))[0..len];
-                    const utf8_len = std.unicode.utf16LeToUtf8(&buf, wide_slice) catch return null;
-
-                    return buf[0..utf8_len];
-                }
-            };
-            return detectWith(Ctx.getenv);
-        } else {
-            return detectWith(std.posix.getenv);
-        }
+    pub fn detect(environ_map: *const std.process.Environ.Map) Quirks {
+        return detectFor(terminal_detect.TerminalInfo.detect(environ_map));
     }
 
     /// Detect with custom environment getter (for testing)
-    pub fn detectWith(getenv: fn([]const u8) ?[]const u8) Quirks {
+    pub fn detectWith(getenv: fn ([]const u8) ?[]const u8) Quirks {
         const term_info = terminal_detect.TerminalInfo.detectWith(getenv);
         return detectFor(term_info);
     }

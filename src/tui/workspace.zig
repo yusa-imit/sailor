@@ -15,24 +15,24 @@ const symbols = @import("symbols.zig");
 
 /// Describes a single pane in a workspace
 pub const WorkspacePane = struct {
-    id: []const u8,         // unique identifier
-    flex: f64 = 1.0,        // relative size weight (proportional allocation)
-    min_size: u16 = 3,      // minimum size in cells
+    id: []const u8, // unique identifier
+    flex: f64 = 1.0, // relative size weight (proportional allocation)
+    min_size: u16 = 3, // minimum size in cells
     focusable: bool = true, // can receive focus
 };
 
 /// Layout direction for panes
 pub const WorkspaceSplit = enum {
     horizontal, // left-to-right
-    vertical,   // top-to-bottom
+    vertical, // top-to-bottom
 };
 
 /// Multi-pane workspace with focus management
 pub const Workspace = struct {
     panes: []const WorkspacePane,
     split: WorkspaceSplit = .horizontal,
-    gap: u16 = 0,           // gap between panes (currently renders as border)
-    focus_idx: usize = 0,   // which pane is focused
+    gap: u16 = 0, // gap between panes (currently renders as border)
+    focus_idx: usize = 0, // which pane is focused
 
     /// Compute rects for all panes given total area.
     /// Returns slice of Rect (length = panes.len), allocated by caller's allocator.

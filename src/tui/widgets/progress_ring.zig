@@ -123,8 +123,7 @@ pub const ProgressRing = struct {
             };
             const pct = self.percentage();
             break :blk std.fmt.bufPrint(&Stack.pct_buf, "{}%", .{pct}) catch "";
-        } else
-            "";
+        } else "";
 
         if (label_str.len > 0 and label_str.len <= inner.width) {
             const label_x: u16 = inner.x + @as(u16, @intCast((inner.width - label_str.len) / 2));

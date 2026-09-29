@@ -26,6 +26,7 @@ const Style = style_mod.Style;
 const Color = style_mod.Color;
 const block_mod = @import("block.zig");
 const Block = block_mod.Block;
+const assert = std.debug.assert;
 
 /// TimeSeriesChart widget - time-based line chart with axis labels
 pub const TimeSeriesChart = struct {
@@ -221,26 +222,20 @@ pub const TimeSeriesChart = struct {
 
         // Max label (top)
         const max_label = std.fmt.bufPrint(&label_buf, "{d:.1}", .{max_y}) catch "---";
-        const max_x_pos = if (render_area.x + y_axis_width > @as(u16, @intCast(max_label.len)))
-            render_area.x + y_axis_width - @as(u16, @intCast(max_label.len)) - 1
-        else render_area.x;
+        const max_x_pos = labelStartX(render_area.x, y_axis_width, max_label.len, 1);
         buf.setString(max_x_pos, plot_area.y, max_label, self.axis_style);
 
         // Mid label
         const mid_y = (max_y + min_y) / 2.0;
         const mid_label = std.fmt.bufPrint(&label_buf, "{d:.1}", .{mid_y}) catch "---";
         const mid_y_pos = plot_area.y + plot_area.height / 2;
-        const mid_x_pos = if (render_area.x + y_axis_width > @as(u16, @intCast(mid_label.len)))
-            render_area.x + y_axis_width - @as(u16, @intCast(mid_label.len)) - 1
-        else render_area.x;
+        const mid_x_pos = labelStartX(render_area.x, y_axis_width, mid_label.len, 1);
         buf.setString(mid_x_pos, mid_y_pos, mid_label, self.axis_style);
 
         // Min label (bottom)
         const min_label = std.fmt.bufPrint(&label_buf, "{d:.1}", .{min_y}) catch "---";
         const min_y_pos = plot_area.y + plot_area.height - 1;
-        const min_x_pos = if (render_area.x + y_axis_width > @as(u16, @intCast(min_label.len)))
-            render_area.x + y_axis_width - @as(u16, @intCast(min_label.len)) - 1
-        else render_area.x;
+        const min_x_pos = labelStartX(render_area.x, y_axis_width, min_label.len, 1);
         buf.setString(min_x_pos, min_y_pos, min_label, self.axis_style);
 
         // Y-axis label
@@ -275,9 +270,7 @@ pub const TimeSeriesChart = struct {
 
         // End time
         const end_time = formatTimestamp(self.timestamps[self.timestamps.len - 1], self.time_format, &time_buf) catch "---";
-        const end_x_pos = if (plot_area.x + plot_area.width > @as(u16, @intCast(end_time.len)))
-            plot_area.x + plot_area.width - @as(u16, @intCast(end_time.len))
-        else plot_area.x;
+        const end_x_pos = labelStartX(plot_area.x, plot_area.width, end_time.len, 0);
         buf.setString(end_x_pos, x_axis_y + 1, end_time, self.axis_style);
 
         // Plot data points and lines
@@ -368,6 +361,18 @@ pub const TimeSeriesChart = struct {
 // ============================================================================
 // Tests
 // ============================================================================
+
+/// Left edge for a label right-aligned inside [base_x, base_x + width), or base_x if it
+/// does not fit; `gap_cols` columns are kept free after the label.
+fn labelStartX(base_x: u16, width: u16, label_len: usize, gap_cols: u16) u16 {
+    assert(gap_cols <= 1);
+    assert(label_len <= std.math.maxInt(u16));
+    const label_cols: u16 = @intCast(label_len);
+    const right_x = base_x + width;
+    const x_pos = if (right_x > label_cols) right_x - label_cols - gap_cols else base_x;
+    assert(x_pos <= right_x);
+    return x_pos;
+}
 
 test "TimeSeriesChart.init" {
     const timestamps = [_]i64{ 1000, 2000, 3000 };

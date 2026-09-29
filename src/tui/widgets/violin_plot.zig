@@ -254,20 +254,16 @@ pub const ViolinPlot = struct {
 
                 // Determine style
                 var cell_style = self.series[series_idx].style;
-                if (self.style.bold or self.style.dim or self.style.italic or self.style.underline or
-                    self.style.blink or self.style.reverse or self.style.strikethrough or
-                    self.style.fg != null or self.style.bg != null) {
-                    // Merge with base style
-                    if (cell_style.fg == null and self.style.fg != null) cell_style.fg = self.style.fg;
-                    if (cell_style.bg == null and self.style.bg != null) cell_style.bg = self.style.bg;
-                    if (!cell_style.bold and self.style.bold) cell_style.bold = true;
-                    if (!cell_style.dim and self.style.dim) cell_style.dim = true;
-                    if (!cell_style.italic and self.style.italic) cell_style.italic = true;
-                    if (!cell_style.underline and self.style.underline) cell_style.underline = true;
-                    if (!cell_style.blink and self.style.blink) cell_style.blink = true;
-                    if (!cell_style.reverse and self.style.reverse) cell_style.reverse = true;
-                    if (!cell_style.strikethrough and self.style.strikethrough) cell_style.strikethrough = true;
-                }
+                // Merge with base style (each line is a no-op when the base field is unset)
+                if (cell_style.fg == null and self.style.fg != null) cell_style.fg = self.style.fg;
+                if (cell_style.bg == null and self.style.bg != null) cell_style.bg = self.style.bg;
+                if (!cell_style.bold and self.style.bold) cell_style.bold = true;
+                if (!cell_style.dim and self.style.dim) cell_style.dim = true;
+                if (!cell_style.italic and self.style.italic) cell_style.italic = true;
+                if (!cell_style.underline and self.style.underline) cell_style.underline = true;
+                if (!cell_style.blink and self.style.blink) cell_style.blink = true;
+                if (!cell_style.reverse and self.style.reverse) cell_style.reverse = true;
+                if (!cell_style.strikethrough and self.style.strikethrough) cell_style.strikethrough = true;
 
                 if (series_idx == self.focused) {
                     cell_style = self.focused_style;

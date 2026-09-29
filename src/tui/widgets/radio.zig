@@ -394,7 +394,7 @@ test "RadioGroup: render with selection" {
 }
 
 test "RadioGroup: render with block" {
-    const items = [_][]const u8{ "Option" };
+    const items = [_][]const u8{"Option"};
     const block = (Block{}).withTitle("Choose one");
     const group = RadioGroup.init(&items).withBlock(block);
 

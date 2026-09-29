@@ -2440,7 +2440,7 @@ test "LayoutDebugger deeply nested layout (5 levels)" {
     var current_area = Rect{ .x = 0, .y = 0, .width = 1000, .height = 1000 };
 
     // Level 1
-    const level1 = [_]Constraint{ .{ .percentage = 100 } };
+    const level1 = [_]Constraint{.{ .percentage = 100 }};
     const nodes1 = try debugger.splitDebug(.vertical, current_area, &level1);
     defer allocator.free(nodes1);
     current_area = nodes1[0].rect;
@@ -2464,7 +2464,7 @@ test "LayoutDebugger deeply nested layout (5 levels)" {
     current_area = nodes4[0].rect;
 
     // Level 5
-    const level5 = [_]Constraint{ .{ .ratio = .{ .num = 1, .denom = 3 } } };
+    const level5 = [_]Constraint{.{ .ratio = .{ .num = 1, .denom = 3 } }};
     const nodes5 = try debugger.splitDebug(.vertical, current_area, &level5);
     defer allocator.free(nodes5);
 

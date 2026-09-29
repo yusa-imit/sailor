@@ -336,17 +336,15 @@ pub const SlopeChart = struct {
                 self.focused_style
             else if (styleIsSet(item.style))
                 item.style
-            else
-                switch (@as(u2, if (right_t > left_t) 1 else if (right_t < left_t) 2 else 0)) {
-                    0 => if (styleIsSet(self.flat_style)) self.flat_style else self.line_style,
-                    1 => if (styleIsSet(self.increase_style)) self.increase_style else self.line_style,
-                    2 => if (styleIsSet(self.decrease_style)) self.decrease_style else self.line_style,
-                    3 => unreachable,
-                };
+            else switch (@as(u2, if (right_t > left_t) 1 else if (right_t < left_t) 2 else 0)) {
+                0 => if (styleIsSet(self.flat_style)) self.flat_style else self.line_style,
+                1 => if (styleIsSet(self.increase_style)) self.increase_style else self.line_style,
+                2 => if (styleIsSet(self.decrease_style)) self.decrease_style else self.line_style,
+                3 => unreachable,
+            };
 
             // Draw the slope line using Bresenham
-            drawLine(buf, chart_area, @as(i32, @intCast(left_x)), @as(i32, @intCast(left_row)),
-                     @as(i32, @intCast(right_x)), @as(i32, @intCast(right_row)), slope_char, item_style);
+            drawLine(buf, chart_area, @as(i32, @intCast(left_x)), @as(i32, @intCast(left_row)), @as(i32, @intCast(right_x)), @as(i32, @intCast(right_row)), slope_char, item_style);
 
             // Draw endpoints (after line so they're visible)
             buf.set(left_x, left_row, Cell.init(self.point_char, item_style));
@@ -354,9 +352,7 @@ pub const SlopeChart = struct {
 
             // Draw labels and values if enabled
             if (self.show_labels or self.show_values) {
-                drawItemLabelsAndValues(buf, inner, chart_area, item, i, left_x, right_x, left_row, right_row,
-                                       left_col_width, right_col_width, self.show_labels, self.show_values,
-                                       self.label_style);
+                drawItemLabelsAndValues(buf, inner, chart_area, item, i, left_x, right_x, left_row, right_row, left_col_width, right_col_width, self.show_labels, self.show_values, self.label_style);
             }
         }
     }
@@ -365,7 +361,7 @@ pub const SlopeChart = struct {
 /// Check if a style has any attributes set
 fn styleIsSet(s: Style) bool {
     return s.bold or s.dim or s.italic or s.underline or s.blink or
-           s.reverse or s.strikethrough or s.fg != null or s.bg != null;
+        s.reverse or s.strikethrough or s.fg != null or s.bg != null;
 }
 
 /// Normalize a value to [0, 1] range based on [min, max]
@@ -407,7 +403,8 @@ fn drawLine(buf: *Buffer, area: Rect, x0: i32, y0: i32, x1: i32, y1: i32, char: 
             const px: u16 = @intCast(x);
             const py: u16 = @intCast(y);
             if (px >= area.x and px < area.x + area.width and
-                py >= area.y and py < area.y + area.height) {
+                py >= area.y and py < area.y + area.height)
+            {
                 buf.set(px, py, Cell.init(char, style));
             }
         }
@@ -495,10 +492,7 @@ fn drawColumnLabels(buf: *Buffer, inner: Rect, left_label: []const u8, right_lab
 }
 
 /// Draw item labels and values at the endpoints
-fn drawItemLabelsAndValues(buf: *Buffer, inner: Rect, chart_area: Rect, item: SlopeItem, item_idx: usize,
-                          left_x: u16, right_x: u16, left_row: u16, right_row: u16,
-                          left_col_width: u16, right_col_width: u16,
-                          show_labels: bool, show_values: bool, style: Style) void {
+fn drawItemLabelsAndValues(buf: *Buffer, inner: Rect, chart_area: Rect, item: SlopeItem, item_idx: usize, left_x: u16, right_x: u16, left_row: u16, right_row: u16, left_col_width: u16, right_col_width: u16, show_labels: bool, show_values: bool, style: Style) void {
     _ = item_idx; // Unused for now, but kept for future extension
     _ = chart_area; // Not currently used, but kept for context
     // Left column (label and/or value)
@@ -518,7 +512,7 @@ fn drawItemLabelsAndValues(buf: *Buffer, inner: Rect, chart_area: Rect, item: Sl
             }
             var val_buf: [16]u8 = undefined;
             const val_str = std.fmt.bufPrint(&val_buf, "{d:.0}", .{item.left_value}) catch "?";
-            @memcpy(text_buf[text_len..text_len + val_str.len], val_str);
+            @memcpy(text_buf[text_len .. text_len + val_str.len], val_str);
             text_len += val_str.len;
         }
 
@@ -551,7 +545,7 @@ fn drawItemLabelsAndValues(buf: *Buffer, inner: Rect, chart_area: Rect, item: Sl
                 text_buf[text_len] = ' ';
                 text_len += 1;
             }
-            @memcpy(text_buf[text_len..text_len + item.label.len], item.label);
+            @memcpy(text_buf[text_len .. text_len + item.label.len], item.label);
             text_len += item.label.len;
         }
 

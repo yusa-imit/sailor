@@ -94,4 +94,3 @@ pub fn MiddlewareStore(State: type, Action: type) type {
         }
     };
 }
-

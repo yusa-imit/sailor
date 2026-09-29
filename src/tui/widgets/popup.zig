@@ -110,13 +110,12 @@ pub const Popup = struct {
                 const content_width = if (popup_width > 4) popup_width -| 4 else 1;
                 const lines = @as(u16, @intCast((self.content.len + content_width - 1) / content_width));
                 break :blk @min(lines + 3, parent.height * 80 / 100);
-            }
-        else if (self.height <= 100)
-            // Percentage
-            parent.height * self.height / 100
-        else
-            // Absolute
-            @min(self.height, parent.height);
+            } else if (self.height <= 100)
+                // Percentage
+                parent.height * self.height / 100
+            else
+                // Absolute
+                @min(self.height, parent.height);
 
         // Calculate position
         const x = if (self.x_percent <= 100)

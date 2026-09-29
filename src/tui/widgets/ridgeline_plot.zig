@@ -45,6 +45,7 @@ const style_mod = @import("../style.zig");
 const Style = style_mod.Style;
 const block_mod = @import("block.zig");
 const Block = block_mod.Block;
+const assert = std.debug.assert;
 
 /// Single series in a ridgeline plot
 pub const RidgelineSeries = struct {
@@ -205,7 +206,7 @@ pub const RidgelinePlot = struct {
         if (self.label_column_width > 0) {
             label_col_width = @min(self.label_column_width, content_area.width);
             content_area.x += label_col_width;
-            content_area.width = if (content_area.width > label_col_width) content_area.width - label_col_width else 0;
+            content_area.width -= label_col_width; // label_col_width <= content_area.width
         }
 
         // Calculate baseline rows
@@ -250,20 +251,12 @@ pub const RidgelinePlot = struct {
             var series_style = series.style;
             if (is_focused) {
                 // Apply focused style only if it's explicitly set (not empty)
-                if (self.focused_style.bold or self.focused_style.dim or
-                    self.focused_style.italic or self.focused_style.underline or
-                    self.focused_style.blink or self.focused_style.reverse or
-                    self.focused_style.strikethrough or
-                    self.focused_style.fg != null or self.focused_style.bg != null) {
+                if (styleIsSet(self.focused_style)) {
                     series_style = self.focused_style;
                 }
             } else {
                 // Use base style if series style is empty
-                if (series_style.fg == null and series_style.bg == null and
-                    !series_style.bold and !series_style.dim and
-                    !series_style.italic and !series_style.underline and
-                    !series_style.blink and !series_style.reverse and
-                    !series_style.strikethrough) {
+                if (!styleIsSet(series_style)) {
                     series_style = self.style;
                 }
             }
@@ -275,8 +268,7 @@ pub const RidgelinePlot = struct {
 
             // Render silhouette for this series
             if (content_area.width > 0) {
-                renderSilhouette(buf, content_area, baseline_row, series.values,
-                                series_max, series_style, self.overlap, inner.height);
+                renderSilhouette(buf, content_area, baseline_row, series.values, series_max, series_style, self.overlap, inner.height);
             }
         }
     }
@@ -285,6 +277,16 @@ pub const RidgelinePlot = struct {
 // ============================================================================
 // Helper Functions
 // ============================================================================
+
+/// True if any attribute or color of `s` is set (an "empty" style has none).
+fn styleIsSet(s: Style) bool {
+    const attrs_set = s.bold or s.dim or s.italic or s.underline or s.blink or s.reverse or
+        s.strikethrough;
+    const is_set = attrs_set or s.fg != null or s.bg != null;
+    assert(is_set or (s.fg == null and s.bg == null));
+    assert(!is_set or attrs_set or s.fg != null or s.bg != null);
+    return is_set;
+}
 
 /// Glyph ramp for block-height visualization (8 levels)
 fn getBlockGlyph(level: u32) u21 {

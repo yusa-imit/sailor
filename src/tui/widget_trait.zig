@@ -23,7 +23,6 @@ const Rect = @import("layout.zig").Rect;
 ///     }
 /// };
 /// ```
-
 /// Size represents the measured dimensions of a widget.
 pub const Size = struct {
     width: u16,

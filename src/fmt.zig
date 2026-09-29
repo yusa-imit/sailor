@@ -114,10 +114,8 @@ pub const Table = struct {
 
         // Update column widths
         for (row, 0..) |cell, i| {
-            const width = @min(
-                if (self.config.max_width) |max| @min(cell.len, max) else cell.len,
-                cell.len
-            );
+            const capped = if (self.config.max_width) |max| @min(cell.len, max) else cell.len;
+            const width = @min(capped, cell.len);
             self.widths[i] = @max(self.widths[i], width);
         }
 
@@ -591,11 +589,11 @@ fn writeJsonString(writer: anytype, s: []const u8) !void {
 test "Table basic" {
     const allocator = std.testing.allocator;
 
-    var table = try Table.init(allocator, &.{"Name", "Age"}, .{ .borders = false });
+    var table = try Table.init(allocator, &.{ "Name", "Age" }, .{ .borders = false });
     defer table.deinit();
 
-    try table.addRow(&.{"Alice", "30"});
-    try table.addRow(&.{"Bob", "25"});
+    try table.addRow(&.{ "Alice", "30" });
+    try table.addRow(&.{ "Bob", "25" });
 
     var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
@@ -610,10 +608,10 @@ test "Table basic" {
 test "Table with borders" {
     const allocator = std.testing.allocator;
 
-    var table = try Table.init(allocator, &.{"ID", "Name"}, .{});
+    var table = try Table.init(allocator, &.{ "ID", "Name" }, .{});
     defer table.deinit();
 
-    try table.addRow(&.{"1", "Test"});
+    try table.addRow(&.{ "1", "Test" });
 
     var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
@@ -743,11 +741,11 @@ test "CSV with newlines in fields" {
 test "Table with empty cells" {
     const allocator = std.testing.allocator;
 
-    var table = try Table.init(allocator, &.{"A", "B", "C"}, .{ .borders = false });
+    var table = try Table.init(allocator, &.{ "A", "B", "C" }, .{ .borders = false });
     defer table.deinit();
 
-    try table.addRow(&.{"", "value", ""});
-    try table.addRow(&.{"data", "", "item"});
+    try table.addRow(&.{ "", "value", "" });
+    try table.addRow(&.{ "data", "", "item" });
 
     var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
@@ -802,14 +800,14 @@ test "JSON escaping control characters" {
 test "Table with custom horizontal padding" {
     const allocator = std.testing.allocator;
 
-    var table = try Table.init(allocator, &.{"Name", "Age"}, .{
+    var table = try Table.init(allocator, &.{ "Name", "Age" }, .{
         .borders = true,
         .padding_left = 2,
         .padding_right = 2,
     });
     defer table.deinit();
 
-    try table.addRow(&.{"Alice", "30"});
+    try table.addRow(&.{ "Alice", "30" });
 
     var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
@@ -847,14 +845,14 @@ test "Table with custom vertical padding" {
 test "Table with asymmetric padding" {
     const allocator = std.testing.allocator;
 
-    var table = try Table.init(allocator, &.{"A", "B"}, .{
+    var table = try Table.init(allocator, &.{ "A", "B" }, .{
         .borders = false,
         .padding_left = 3,
         .padding_right = 1,
     });
     defer table.deinit();
 
-    try table.addRow(&.{"X", "Y"});
+    try table.addRow(&.{ "X", "Y" });
 
     var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
@@ -959,12 +957,12 @@ test "Table with cell wrapping on max_width" {
 test "Table with mixed single and multi-line cells in same row" {
     const allocator = std.testing.allocator;
 
-    var table = try Table.init(allocator, &.{"Col1", "Col2"}, .{
+    var table = try Table.init(allocator, &.{ "Col1", "Col2" }, .{
         .borders = false,
     });
     defer table.deinit();
 
-    try table.addRow(&.{"Single", "Multi\nLine"});
+    try table.addRow(&.{ "Single", "Multi\nLine" });
 
     var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
@@ -1090,14 +1088,14 @@ test "Table with newlines and padding combined" {
 test "Table multi-line with borders and padding" {
     const allocator = std.testing.allocator;
 
-    var table = try Table.init(allocator, &.{"Name", "Desc"}, .{
+    var table = try Table.init(allocator, &.{ "Name", "Desc" }, .{
         .borders = true,
         .padding_left = 1,
         .padding_right = 1,
     });
     defer table.deinit();
 
-    try table.addRow(&.{"Alice", "A\nB"});
+    try table.addRow(&.{ "Alice", "A\nB" });
 
     var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();

@@ -54,7 +54,7 @@ pub const Gauge = struct {
     empty_style: Style = .{},
 
     /// Style for label text
-    label_style: Style = .{ . bold = true },
+    label_style: Style = .{ .bold = true },
 
     /// Optional block for borders/title
     block: ?Block = null,

@@ -19,10 +19,10 @@ pub const LineKind = enum {
     diff_header, // "diff --git", "index", "new file mode", "deleted file mode"
     file_header, // "--- a/..." or "+++ b/..."
     hunk_header, // "@@ -a,b +c,d @@"
-    removed,     // "-" prefix — deleted line
-    added,       // "+" prefix — added line
-    context,     // " " prefix or bare line — unchanged
-    no_newline,  // "\\ No newline at end of file"
+    removed, // "-" prefix — deleted line
+    added, // "+" prefix — added line
+    context, // " " prefix or bare line — unchanged
+    no_newline, // "\\ No newline at end of file"
 };
 
 /// Classifies a single line of unified diff text.

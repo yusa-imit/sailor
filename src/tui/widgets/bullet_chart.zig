@@ -468,9 +468,7 @@ test "BulletChart.render with out-of-range value does not crash" {
     defer buf.deinit();
 
     // Malformed bullet: value (1,000,000) far exceeds max_value (1.0)
-    var bullets = [_]Bullet{
-        .{ .label = "Huge", .value = 1_000_000.0, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Huge", .value = 1_000_000.0, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(1.0);
@@ -484,9 +482,7 @@ test "BulletChart.render with max_value zero does not crash" {
     var buf = try Buffer.init(std.testing.allocator, 50, 20);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "Z", .value = 0.5, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Z", .value = 0.5, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(0.0);

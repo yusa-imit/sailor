@@ -42,10 +42,10 @@ pub const AnimatedText = struct {
     /// Animation style options
     pub const AnimationStyle = enum {
         typewriter, // Reveal characters one by one
-        wave,       // Move characters up and down
-        fade,       // Alternate between visible and invisible
-        blink,      // Toggle between visible and hidden
-        glow,       // Cycle colors through a pattern
+        wave, // Move characters up and down
+        fade, // Alternate between visible and invisible
+        blink, // Toggle between visible and hidden
+        glow, // Cycle colors through a pattern
     };
 
     /// Text content to display

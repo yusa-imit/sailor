@@ -357,13 +357,15 @@ fn renderNonStackedAreas(
             chart.focused_style.italic or chart.focused_style.underline or
             chart.focused_style.blink or chart.focused_style.reverse or
             chart.focused_style.strikethrough or
-            chart.focused_style.fg != null or chart.focused_style.bg != null)) {
+            chart.focused_style.fg != null or chart.focused_style.bg != null))
+        {
             series_style = chart.focused_style;
         } else if (!is_focused and (series_style.fg == null and series_style.bg == null and
             !series_style.bold and !series_style.dim and
             !series_style.italic and !series_style.underline and
             !series_style.blink and !series_style.reverse and
-            !series_style.strikethrough)) {
+            !series_style.strikethrough))
+        {
             series_style = chart.style;
         }
 
@@ -469,13 +471,15 @@ fn renderStackedAreas(
                 chart.focused_style.italic or chart.focused_style.underline or
                 chart.focused_style.blink or chart.focused_style.reverse or
                 chart.focused_style.strikethrough or
-                chart.focused_style.fg != null or chart.focused_style.bg != null)) {
+                chart.focused_style.fg != null or chart.focused_style.bg != null))
+            {
                 series_style = chart.focused_style;
             } else if (!is_focused and (series_style.fg == null and series_style.bg == null and
                 !series_style.bold and !series_style.dim and
                 !series_style.italic and !series_style.underline and
                 !series_style.blink and !series_style.reverse and
-                !series_style.strikethrough)) {
+                !series_style.strikethrough))
+            {
                 series_style = chart.style;
             }
 
