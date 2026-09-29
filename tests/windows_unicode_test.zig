@@ -76,10 +76,29 @@ test "Windows console box drawing characters" {
 
     // Box drawing characters are critical for TUI rendering
     const box_chars = [_][]const u8{
-        "─", "│", "┌", "┐", "└", "┘", // Single line
-        "━", "┃", "┏", "┓", "┗", "┛", // Bold line
-        "═", "║", "╔", "╗", "╚", "╝", // Double line
-        "┼", "├", "┤", "┬", "┴", // Intersections
+        "─",
+        "│",
+        "┌",
+        "┐",
+        "└",
+        "┘", // Single line
+        "━",
+        "┃",
+        "┏",
+        "┓",
+        "┗",
+        "┛", // Bold line
+        "═",
+        "║",
+        "╔",
+        "╗",
+        "╚",
+        "╝", // Double line
+        "┼",
+        "├",
+        "┤",
+        "┬",
+        "┴", // Intersections
     };
 
     for (box_chars) |char| {
@@ -406,7 +425,7 @@ test "Windows console GetConsoleMode feature detection" {
     if (builtin.os.tag != .windows) return error.SkipZigTest;
 
     // Test that we can detect console capabilities via GetConsoleMode
-    const windows = std.os.windows;
+    const windows = sailor.term.win32;
 
     // Try to get stdout handle
     const stdout_handle = windows.GetStdHandle(windows.STD_OUTPUT_HANDLE) catch {

@@ -9,7 +9,11 @@ const sailor = @import("sailor");
 const term = sailor.term;
 
 /// Build a blocking `File` around a raw (possibly invalid) descriptor.
-fn invalidFile(fd: std.posix.fd_t) std.Io.File {
+fn invalidFile(value: i32) std.Io.File {
+    const fd: std.posix.fd_t = if (builtin.os.tag == .windows)
+        @ptrFromInt(@as(usize, @bitCast(@as(isize, value))))
+    else
+        value;
     return .{ .handle = fd, .flags = .{ .nonblocking = false } };
 }
 
@@ -87,7 +91,7 @@ test "Windows console API edge cases" {
     }
 
     // Windows-specific: Test console handle retrieval
-    const windows = std.os.windows;
+    const windows = sailor.term.win32;
 
     // Test that we can get standard handles without crashing
     const stdout_handle = windows.GetStdHandle(windows.STD_OUTPUT_HANDLE) catch {

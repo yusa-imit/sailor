@@ -359,7 +359,7 @@ test "Linux direct ANSI overhead < 5ns per sequence" {
 
     // Measure
     const iterations = 1000;
-    const start = std.time.nanoTimestamp();
+    const start = std.Io.Clock.awake.now(testing.io);
 
     for (0..iterations) |_| {
         var reset_buf: [1024]u8 = undefined;
@@ -368,7 +368,7 @@ test "Linux direct ANSI overhead < 5ns per sequence" {
         _ = reset_stream.buffered();
     }
 
-    const elapsed = std.time.nanoTimestamp() - start;
+    const elapsed = start.untilNow(testing.io, .awake).toNanoseconds();
     const avg_ns = @as(u64, @intCast(@divTrunc(elapsed, iterations)));
 
     // Allow some flexibility for CI environments
@@ -385,12 +385,12 @@ test "Windows batch API > 50% syscall reduction vs non-batched" {
     var buf = try sailor.tui.platform_opts.WindowsConsoleBuffer.init(allocator, 256);
     defer buf.deinit();
 
-    const batched_start = std.time.nanoTimestamp();
+    const batched_start = std.Io.Clock.awake.now(testing.io);
     for (0..100) |i| {
         try buf.addCall(.{ .set_text_attribute = .{ .foreground = @as(u8, @truncate(i % 16)), .background = 0 } });
     }
     try buf.flush();
-    const batched_elapsed = std.time.nanoTimestamp() - batched_start;
+    const batched_elapsed = batched_start.untilNow(testing.io, .awake).toNanoseconds();
 
     // Non-batched approach would call syscall 100 times
     // Batched approach should be significantly faster

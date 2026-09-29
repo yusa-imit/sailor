@@ -74,6 +74,12 @@ fn fileFromFd(fd: posix.fd_t) std.Io.File {
     return .{ .handle = fd, .flags = .{ .nonblocking = false } };
 }
 
+/// Test helper: builds a raw (possibly invalid) descriptor value on every platform.
+fn testFd(value: i32) posix.fd_t {
+    if (builtin.os.tag == .windows) return @ptrFromInt(@as(usize, @bitCast(@as(isize, value))));
+    return value;
+}
+
 /// Get terminal size in columns and rows.
 /// Queries the terminal via TIOCGWINSZ ioctl (Unix) or GetConsoleScreenBufferInfo (Windows).
 /// Returns Error.TerminalSizeUnavailable if not a TTY or dimensions are invalid.
@@ -130,7 +136,7 @@ fn getSizeWindows() Error!Size {
         return Error.UnsupportedPlatform;
     }
 
-    const win = std.os.windows;
+    const win = @import("term/win32.zig");
     const handle = win.GetStdHandle(win.STD_OUTPUT_HANDLE) catch {
         return Error.TerminalSizeUnavailable;
     };
@@ -174,7 +180,7 @@ pub const RawMode = struct {
     /// Returns Error.NotATty if fd is not a terminal.
     /// Propagates `error.Canceled` from the TTY probe.
     pub fn enter(io: std.Io, fd: posix.fd_t) (Error || std.Io.Cancelable)!RawMode {
-        if (!try isatty(io, fileFromFd(fd))) {
+        if (!try isatty(io, fileFromFd(testFd(fd)))) {
             return Error.NotATty;
         }
 
@@ -234,7 +240,7 @@ pub const RawMode = struct {
             return Error.UnsupportedPlatform;
         }
 
-        const win = std.os.windows;
+        const win = @import("term/win32.zig");
         // On Windows, fd is already a handle (*anyopaque)
         const handle: win.HANDLE = @ptrCast(fd);
 
@@ -274,7 +280,7 @@ pub const RawMode = struct {
     }
 
     fn deinitWindows(self: *RawMode) void {
-        const win = std.os.windows;
+        const win = @import("term/win32.zig");
         // On Windows, fd is already a handle (*anyopaque)
         const handle: win.HANDLE = @ptrCast(self.fd);
         _ = win.kernel32.SetConsoleMode(handle, self.original);
@@ -461,7 +467,7 @@ fn readByteUnix(timeout_ms: u32) !?u8 {
 }
 
 fn readByteWindows(io: std.Io, timeout_ms: u32) !?u8 {
-    const win = std.os.windows;
+    const win = @import("term/win32.zig");
     const handle = try win.GetStdHandle(win.STD_INPUT_HANDLE);
 
     // WaitForSingleObject only reliably reports data-readiness for console
@@ -705,7 +711,7 @@ pub fn queryTerminalCapability(
 
     // Do not write to non-TTY fds — doing so in zig's test runner (--listen=-)
     // corrupts the binary test protocol and causes the runner to hang.
-    if (!try isatty(io, fileFromFd(fd))) return error.NotATty;
+    if (!try isatty(io, fileFromFd(testFd(fd)))) return error.NotATty;
 
     // Build and send query
     var query_buf: [256]u8 = undefined;
@@ -713,7 +719,7 @@ pub fn queryTerminalCapability(
     try buildXtgettcapQuery(&query_stream, allocator, capability_name);
 
     const query = query_stream.buffered();
-    try fileFromFd(fd).writeStreamingAll(io, query);
+    try fileFromFd(testFd(fd)).writeStreamingAll(io, query);
 
     // Read response with timeout
     var response_buf: [1024]u8 = undefined;
@@ -936,7 +942,7 @@ pub const MockTerminal = struct {
 // Tests
 
 test "isatty with invalid fd" {
-    const result = try isatty(std.testing.io, fileFromFd(9999));
+    const result = try isatty(std.testing.io, fileFromFd(testFd(9999)));
     try std.testing.expect(!result);
 }
 
@@ -984,7 +990,7 @@ test "readByte on empty pipe stdin returns null instead of blocking" {
     // an open-but-empty pipe (as on CI runners). This reproduces that exact
     // condition with a real pipe and asserts readByte() returns promptly.
     if (builtin.os.tag != .windows) return error.SkipZigTest;
-    const win = std.os.windows;
+    const win = @import("term/win32.zig");
 
     var read_handle: win.HANDLE = undefined;
     var write_handle: win.HANDLE = undefined;
@@ -1906,15 +1912,15 @@ test "parseXtgettcapResponse with capability not supported (0) returns supported
 
 test "isatty with negative fd returns false" {
     // Boundary: a negative fd is never a valid descriptor on any platform.
-    try std.testing.expect(!try isatty(std.testing.io, fileFromFd(-1)));
+    try std.testing.expect(!try isatty(std.testing.io, fileFromFd(testFd(-1))));
 }
 
 test "isatty is idempotent for the same fd" {
     // Postcondition: isatty is a pure query — repeated calls on the same fd
     // must agree (no hidden mutation of process-global state).
     const fd: i32 = 9999;
-    const first = try isatty(std.testing.io, fileFromFd(fd));
-    const second = try isatty(std.testing.io, fileFromFd(fd));
+    const first = try isatty(std.testing.io, fileFromFd(testFd(fd)));
+    const second = try isatty(std.testing.io, fileFromFd(testFd(fd)));
     try std.testing.expectEqual(first, second);
 }
 
@@ -2166,6 +2172,9 @@ test "MockTerminal.fd differs across different instances on Windows" {
 // ============================================================================
 // Windows-specific exports (comptime guarded)
 // ============================================================================
+
+/// Win32 console bindings missing from Zig 0.16's std (Windows targets only).
+pub const win32 = @import("term/win32.zig");
 
 pub const windows = if (builtin.os.tag == .windows) @import("term/windows.zig") else struct {
     pub fn createPseudoConsole(_: u16, _: u16) !void {

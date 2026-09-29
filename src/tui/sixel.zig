@@ -1048,16 +1048,18 @@ pub fn detectSixelSupport(
 
     // Query "Sixel" capability with 100ms timeout
     const stdout_fd: std.posix.fd_t = if (builtin.os.tag == .windows) blk: {
-        const handle = std.os.windows.GetStdHandle(std.os.windows.STD_OUTPUT_HANDLE) catch return false;
+        const win32 = @import("../term/win32.zig");
+        const handle = win32.GetStdHandle(win32.STD_OUTPUT_HANDLE) catch return false;
         break :blk @ptrCast(handle);
     } else std.posix.STDOUT_FILENO;
 
     if (term_mod.hasCapability(allocator, io, stdout_fd, "Sixel", 100)) |has_sixel| {
         if (has_sixel) return true;
-    } else |err| switch (err) {
-        error.Canceled => return error.Canceled,
-        // XTGETTCAP failed (not a TTY, unsupported platform, etc.) - fall back to env vars.
-        else => {},
+    } else |err| {
+        // Cancellation must propagate; the Windows query path has no `Canceled` in its error
+        // set, so compare through `anyerror`. Any other failure (not a TTY, unsupported
+        // platform, ...) falls back to the environment variables below.
+        if (@as(anyerror, err) == error.Canceled) return error.Canceled;
     }
 
     // Fallback: Check TERM environment variable for known Sixel-capable terminals.
