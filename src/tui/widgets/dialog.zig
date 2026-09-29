@@ -310,7 +310,7 @@ test "Dialog.calculateSize default" {
 }
 
 test "Dialog.calculateSize custom" {
-    const buttons = [_][]const u8{ "OK" };
+    const buttons = [_][]const u8{"OK"};
     var dialog = Dialog.init("Info", "Short", &buttons);
     dialog.width = 40;
     dialog.height = 10;

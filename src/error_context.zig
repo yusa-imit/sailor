@@ -109,15 +109,15 @@ test "ErrorContext - basic usage" {
     var ctx = ErrorContext.init(allocator, "test.zig", 42, "testing error context");
     defer ctx.deinit();
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
 
-    try ctx.format(buf.writer(allocator), error.SomeError);
-    const result = buf.items;
+    try ctx.format(&buf.writer, error.SomeError);
+    const result = buf.written();
 
-    try std.testing.expect(std.mem.indexOf(u8, result, "test.zig:42") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "testing error context") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "SomeError") != null);
+    try std.testing.expect(std.mem.find(u8, result, "test.zig:42") != null);
+    try std.testing.expect(std.mem.find(u8, result, "testing error context") != null);
+    try std.testing.expect(std.mem.find(u8, result, "SomeError") != null);
 }
 
 test "ErrorContext - with metadata" {
@@ -128,17 +128,17 @@ test "ErrorContext - with metadata" {
     try ctx.set("path", "/tmp/test.txt");
     try ctx.set("size", "4096");
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
 
-    try ctx.format(buf.writer(allocator), error.FileNotFound);
-    const result = buf.items;
+    try ctx.format(&buf.writer, error.FileNotFound);
+    const result = buf.written();
 
-    try std.testing.expect(std.mem.indexOf(u8, result, "module.zig:100") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "processing file") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "FileNotFound") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "path: /tmp/test.txt") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "size: 4096") != null);
+    try std.testing.expect(std.mem.find(u8, result, "module.zig:100") != null);
+    try std.testing.expect(std.mem.find(u8, result, "processing file") != null);
+    try std.testing.expect(std.mem.find(u8, result, "FileNotFound") != null);
+    try std.testing.expect(std.mem.find(u8, result, "path: /tmp/test.txt") != null);
+    try std.testing.expect(std.mem.find(u8, result, "size: 4096") != null);
 }
 
 test "SimpleErrorMsg - no allocation" {
@@ -147,30 +147,30 @@ test "SimpleErrorMsg - no allocation" {
 
     const result = try msg.formatToBuf(&buf, error.InitFailed);
 
-    try std.testing.expect(std.mem.indexOf(u8, result, "foo.zig:10") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "initializing") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "InitFailed") != null);
+    try std.testing.expect(std.mem.find(u8, result, "foo.zig:10") != null);
+    try std.testing.expect(std.mem.find(u8, result, "initializing") != null);
+    try std.testing.expect(std.mem.find(u8, result, "InitFailed") != null);
 }
 
 test "SimpleErrorMsg - format to writer" {
     const allocator = std.testing.allocator;
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
 
     const msg = SimpleErrorMsg.init("bar.zig", 20, "validating input");
-    try msg.format(buf.writer(allocator), error.InvalidInput);
+    try msg.format(&buf.writer, error.InvalidInput);
 
-    const result = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, result, "bar.zig:20") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "validating input") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "InvalidInput") != null);
+    const result = buf.written();
+    try std.testing.expect(std.mem.find(u8, result, "bar.zig:20") != null);
+    try std.testing.expect(std.mem.find(u8, result, "validating input") != null);
+    try std.testing.expect(std.mem.find(u8, result, "InvalidInput") != null);
 }
 
 test "here() helper - captures source location" {
     const msg = here("testing here() function");
 
     // Should contain this file name
-    try std.testing.expect(std.mem.indexOf(u8, msg.file, "error_context.zig") != null);
+    try std.testing.expect(std.mem.find(u8, msg.file, "error_context.zig") != null);
     try std.testing.expectEqualStrings("testing here() function", msg.context);
     // Line number should be reasonable (this test is somewhere in the file)
     try std.testing.expect(msg.line > 0 and msg.line < 1000);
@@ -181,15 +181,15 @@ test "ErrorContext - empty metadata" {
     var ctx = ErrorContext.init(allocator, "empty.zig", 1, "no metadata");
     defer ctx.deinit();
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
 
-    try ctx.format(buf.writer(allocator), error.NoMetadata);
-    const result = buf.items;
+    try ctx.format(&buf.writer, error.NoMetadata);
+    const result = buf.written();
 
     // Should not have "Details:" section when no metadata
-    try std.testing.expect(std.mem.indexOf(u8, result, "empty.zig:1") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "NoMetadata") != null);
+    try std.testing.expect(std.mem.find(u8, result, "empty.zig:1") != null);
+    try std.testing.expect(std.mem.find(u8, result, "NoMetadata") != null);
 }
 
 test "ErrorContext - multiple metadata entries" {
@@ -201,13 +201,13 @@ test "ErrorContext - multiple metadata entries" {
     try ctx.set("input", "test.json");
     try ctx.set("offset", "1024");
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
 
-    try ctx.format(buf.writer(allocator), error.ParseError);
-    const result = buf.items;
+    try ctx.format(&buf.writer, error.ParseError);
+    const result = buf.written();
 
-    try std.testing.expect(std.mem.indexOf(u8, result, "step: parsing") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "input: test.json") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "offset: 1024") != null);
+    try std.testing.expect(std.mem.find(u8, result, "step: parsing") != null);
+    try std.testing.expect(std.mem.find(u8, result, "input: test.json") != null);
+    try std.testing.expect(std.mem.find(u8, result, "offset: 1024") != null);
 }

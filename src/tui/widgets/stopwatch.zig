@@ -283,9 +283,9 @@ pub const StopWatch = struct {
         // Fill divider buffer with "─" characters
         for (0..actual_width) |i| {
             if (i * 3 + 3 > divider_buf.len) break;
-            divider_buf[i * 3] = 0xE2;      // First byte of ─ in UTF-8
-            divider_buf[i * 3 + 1] = 0x94;  // Second byte
-            divider_buf[i * 3 + 2] = 0x80;  // Third byte
+            divider_buf[i * 3] = 0xE2; // First byte of ─ in UTF-8
+            divider_buf[i * 3 + 1] = 0x94; // Second byte
+            divider_buf[i * 3 + 2] = 0x80; // Third byte
         }
 
         const divider_len = @min(actual_width * 3, divider_buf.len);

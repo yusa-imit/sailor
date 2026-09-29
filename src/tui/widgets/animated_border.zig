@@ -40,9 +40,9 @@ pub const AnimatedBorder = struct {
     /// Animation style determines how colors cycle
     pub const AnimationStyle = enum {
         rainbow, // Each position gets a color based on position + frame
-        pulse,   // All positions get the same color cycling by frame
-        chase,   // One animated cell chases around; rest get base_style
-        flash,   // Alternates between two colors
+        pulse, // All positions get the same color cycling by frame
+        chase, // One animated cell chases around; rest get base_style
+        flash, // Alternates between two colors
         gradient, // Position-based gradient that shifts with frame
     };
 

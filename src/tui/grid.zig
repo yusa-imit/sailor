@@ -409,7 +409,7 @@ test "Grid.layout - fr units" {
     const allocator = std.testing.allocator;
 
     const grid = Grid{
-        .rows = &[_]Track{ .{ .fixed = 25 } },
+        .rows = &[_]Track{.{ .fixed = 25 }},
         .cols = &[_]Track{ .{ .fr = 1 }, .{ .fr = 2 }, .{ .fr = 1 } },
     };
 
@@ -437,8 +437,8 @@ test "Grid.layout - alignment center" {
     const allocator = std.testing.allocator;
 
     const grid = Grid{
-        .rows = &[_]Track{ .{ .fixed = 50 } },
-        .cols = &[_]Track{ .{ .fixed = 100 } },
+        .rows = &[_]Track{.{ .fixed = 50 }},
+        .cols = &[_]Track{.{ .fixed = 100 }},
     };
 
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
@@ -460,8 +460,8 @@ test "Grid.layout - empty items" {
     const allocator = std.testing.allocator;
 
     const grid = Grid{
-        .rows = &[_]Track{ .{ .fixed = 25 } },
-        .cols = &[_]Track{ .{ .fixed = 40 } },
+        .rows = &[_]Track{.{ .fixed = 25 }},
+        .cols = &[_]Track{.{ .fixed = 40 }},
     };
 
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
@@ -477,8 +477,8 @@ test "Grid.layout - out of bounds item" {
     const allocator = std.testing.allocator;
 
     const grid = Grid{
-        .rows = &[_]Track{ .{ .fixed = 25 } },
-        .cols = &[_]Track{ .{ .fixed = 40 } },
+        .rows = &[_]Track{.{ .fixed = 25 }},
+        .cols = &[_]Track{.{ .fixed = 40 }},
     };
 
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
@@ -526,8 +526,8 @@ test "Grid.layout - single cell" {
     const allocator = std.testing.allocator;
 
     const grid = Grid{
-        .rows = &[_]Track{ .{ .fixed = 50 } },
-        .cols = &[_]Track{ .{ .fixed = 100 } },
+        .rows = &[_]Track{.{ .fixed = 50 }},
+        .cols = &[_]Track{.{ .fixed = 100 }},
     };
 
     const area = Rect{ .x = 10, .y = 20, .width = 100, .height = 50 };
@@ -671,8 +671,8 @@ test "nested grid - auto-sizing inner grid content" {
 
     // Outer grid with flexible track
     const outer_grid = Grid{
-        .rows = &[_]Track{ .{ .fr = 1 } },
-        .cols = &[_]Track{ .{ .fr = 1 } },
+        .rows = &[_]Track{.{ .fr = 1 }},
+        .cols = &[_]Track{.{ .fr = 1 }},
     };
 
     const outer_area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
@@ -757,8 +757,8 @@ test "nested grid - multiple nested grids in different cells" {
 
     // Layout nested grid in top-left cell
     const inner_grid_tl = Grid{
-        .rows = &[_]Track{ .{ .fixed = 30 } },
-        .cols = &[_]Track{ .{ .fixed = 30 } },
+        .rows = &[_]Track{.{ .fixed = 30 }},
+        .cols = &[_]Track{.{ .fixed = 30 }},
     };
 
     const inner_items_tl = [_]GridItem{
@@ -798,8 +798,8 @@ test "nested grid - deep nesting (3 levels)" {
 
     // Level 1: Outer grid (1x1)
     const level1_grid = Grid{
-        .rows = &[_]Track{ .{ .fixed = 100 } },
-        .cols = &[_]Track{ .{ .fixed = 100 } },
+        .rows = &[_]Track{.{ .fixed = 100 }},
+        .cols = &[_]Track{.{ .fixed = 100 }},
     };
 
     const level1_area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
@@ -816,8 +816,8 @@ test "nested grid - deep nesting (3 levels)" {
 
     // Level 2: Middle grid (1x1) inside Level 1's cell
     const level2_grid = Grid{
-        .rows = &[_]Track{ .{ .fixed = 50 } },
-        .cols = &[_]Track{ .{ .fixed = 50 } },
+        .rows = &[_]Track{.{ .fixed = 50 }},
+        .cols = &[_]Track{.{ .fixed = 50 }},
     };
 
     const level2_items = [_]GridItem{
@@ -833,8 +833,8 @@ test "nested grid - deep nesting (3 levels)" {
 
     // Level 3: Inner grid (1x1) inside Level 2's cell
     const level3_grid = Grid{
-        .rows = &[_]Track{ .{ .fixed = 25 } },
-        .cols = &[_]Track{ .{ .fixed = 25 } },
+        .rows = &[_]Track{.{ .fixed = 25 }},
+        .cols = &[_]Track{.{ .fixed = 25 }},
     };
 
     const level3_items = [_]GridItem{
@@ -856,8 +856,8 @@ test "nested grid - empty nested grid" {
 
     // Outer grid
     const outer_grid = Grid{
-        .rows = &[_]Track{ .{ .fixed = 50 } },
-        .cols = &[_]Track{ .{ .fixed = 50 } },
+        .rows = &[_]Track{.{ .fixed = 50 }},
+        .cols = &[_]Track{.{ .fixed = 50 }},
     };
 
     const outer_area = Rect{ .x = 0, .y = 0, .width = 50, .height = 50 };
@@ -872,8 +872,8 @@ test "nested grid - empty nested grid" {
 
     // Layout empty inner grid in the cell
     const inner_grid = Grid{
-        .rows = &[_]Track{ .{ .fixed = 25 } },
-        .cols = &[_]Track{ .{ .fixed = 25 } },
+        .rows = &[_]Track{.{ .fixed = 25 }},
+        .cols = &[_]Track{.{ .fixed = 25 }},
     };
 
     const inner_items = [_]GridItem{};
@@ -890,8 +890,8 @@ test "nested grid - oversized nested grid content" {
 
     // Outer grid with small cell
     const outer_grid = Grid{
-        .rows = &[_]Track{ .{ .fixed = 50 } },
-        .cols = &[_]Track{ .{ .fixed = 50 } },
+        .rows = &[_]Track{.{ .fixed = 50 }},
+        .cols = &[_]Track{.{ .fixed = 50 }},
     };
 
     const outer_area = Rect{ .x = 0, .y = 0, .width = 50, .height = 50 };
@@ -909,8 +909,8 @@ test "nested grid - oversized nested grid content" {
     // Inner grid with large fixed tracks (100 each)
     // Should be clamped to available space (50x50)
     const inner_grid = Grid{
-        .rows = &[_]Track{ .{ .fixed = 100 } },
-        .cols = &[_]Track{ .{ .fixed = 100 } },
+        .rows = &[_]Track{.{ .fixed = 100 }},
+        .cols = &[_]Track{.{ .fixed = 100 }},
     };
 
     const inner_items = [_]GridItem{
@@ -930,8 +930,8 @@ test "nested grid - with gaps and span" {
 
     // Outer grid
     const outer_grid = Grid{
-        .rows = &[_]Track{ .{ .fixed = 100 } },
-        .cols = &[_]Track{ .{ .fixed = 100 } },
+        .rows = &[_]Track{.{ .fixed = 100 }},
+        .cols = &[_]Track{.{ .fixed = 100 }},
         .col_gap = 5,
         .row_gap = 5,
     };
@@ -972,8 +972,8 @@ test "nested grid - inner grid with fr units" {
 
     // Outer grid
     const outer_grid = Grid{
-        .rows = &[_]Track{ .{ .fixed = 100 } },
-        .cols = &[_]Track{ .{ .fixed = 100 } },
+        .rows = &[_]Track{.{ .fixed = 100 }},
+        .cols = &[_]Track{.{ .fixed = 100 }},
     };
 
     const outer_area = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
@@ -989,7 +989,7 @@ test "nested grid - inner grid with fr units" {
 
     // Inner grid with fr units should distribute the parent cell space
     const inner_grid = Grid{
-        .rows = &[_]Track{ .{ .fixed = 50 } },
+        .rows = &[_]Track{.{ .fixed = 50 }},
         .cols = &[_]Track{ .{ .fr = 1 }, .{ .fr = 2 }, .{ .fr = 1 } },
     };
 
@@ -1014,8 +1014,8 @@ test "nested grid - inner grid respects cell boundaries with padding" {
 
     // Outer grid
     const outer_grid = Grid{
-        .rows = &[_]Track{ .{ .fixed = 100 } },
-        .cols = &[_]Track{ .{ .fixed = 100 } },
+        .rows = &[_]Track{.{ .fixed = 100 }},
+        .cols = &[_]Track{.{ .fixed = 100 }},
     };
 
     const outer_area = Rect{ .x = 10, .y = 20, .width = 100, .height = 100 };
@@ -1035,8 +1035,8 @@ test "nested grid - inner grid respects cell boundaries with padding" {
 
     // Inner grid should be positioned relative to the cell
     const inner_grid = Grid{
-        .rows = &[_]Track{ .{ .fixed = 50 } },
-        .cols = &[_]Track{ .{ .fixed = 50 } },
+        .rows = &[_]Track{.{ .fixed = 50 }},
+        .cols = &[_]Track{.{ .fixed = 50 }},
     };
 
     const inner_items = [_]GridItem{

@@ -500,7 +500,7 @@ test "Select: render basic" {
 }
 
 test "Select: render with block" {
-    const items = [_][]const u8{ "Item 1" };
+    const items = [_][]const u8{"Item 1"};
     var select = try Select.init(std.testing.allocator, &items, false);
     defer select.deinit(std.testing.allocator);
 
@@ -519,7 +519,7 @@ test "Select: render with block" {
 }
 
 test "Select: withStyle builder" {
-    const items = [_][]const u8{ "Item 1" };
+    const items = [_][]const u8{"Item 1"};
     var select1 = try Select.init(std.testing.allocator, &items, false);
     defer select1.deinit(std.testing.allocator);
 
@@ -534,7 +534,7 @@ test "Select: withStyle builder" {
 }
 
 test "Select: withHighlightStyle builder" {
-    const items = [_][]const u8{ "Item 1" };
+    const items = [_][]const u8{"Item 1"};
     var select1 = try Select.init(std.testing.allocator, &items, false);
     defer select1.deinit(std.testing.allocator);
 
@@ -549,7 +549,7 @@ test "Select: withHighlightStyle builder" {
 }
 
 test "Select: withSelectedStyle builder" {
-    const items = [_][]const u8{ "Item 1" };
+    const items = [_][]const u8{"Item 1"};
     var select1 = try Select.init(std.testing.allocator, &items, false);
     defer select1.deinit(std.testing.allocator);
 
@@ -578,7 +578,7 @@ test "Select: withMaxVisible builder" {
 }
 
 test "Select: withHelp builder" {
-    const items = [_][]const u8{ "Item 1" };
+    const items = [_][]const u8{"Item 1"};
     var select1 = try Select.init(std.testing.allocator, &items, false);
     defer select1.deinit(std.testing.allocator);
 

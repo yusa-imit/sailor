@@ -114,7 +114,7 @@ test "Block with title: visual structure" {
     // Verify title is present somewhere in first row
     const snapshot = try term.getSnapshot(testing.allocator);
     defer testing.allocator.free(snapshot);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Test") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Test") != null);
 }
 
 test "Paragraph: renders at correct position" {
@@ -180,7 +180,7 @@ test "Gauge: renders fill character" {
     // Should have some filled characters
     const snapshot = try term.getSnapshot(testing.allocator);
     defer testing.allocator.free(snapshot);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "█") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "█") != null);
 }
 
 test "Gauge: 0% has no fill" {
@@ -195,7 +195,7 @@ test "Gauge: 0% has no fill" {
     // Should NOT have filled characters at 0%
     const snapshot = try term.getSnapshot(testing.allocator);
     defer testing.allocator.free(snapshot);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "█") == null);
+    try testing.expect(std.mem.find(u8, snapshot, "█") == null);
 }
 
 test "Gauge: 100% fills completely" {

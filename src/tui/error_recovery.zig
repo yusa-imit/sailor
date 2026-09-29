@@ -56,7 +56,7 @@ pub const ErrorBoundary = struct {
     pub fn init(allocator: Allocator) !ErrorBoundary {
         return .{
             .allocator = allocator,
-            .errors = .{},
+            .errors = .empty,
             .fallback_message = "",
             .max_errors = 1000, // Default max
             .error_callback = null,
@@ -206,7 +206,7 @@ pub const StateRecovery = struct {
         return .{
             .allocator = allocator,
             .snapshot = null,
-            .snapshot_stack = .{},
+            .snapshot_stack = .empty,
             .validator = null,
             .rollback_counter = 0,
             .compression_threshold = std.math.maxInt(usize), // Disabled by default
@@ -394,18 +394,18 @@ pub const ErrorReporter = struct {
     filter: ?ErrorFilter,
     buffer: ArrayList(BufferedReport),
     buffer_size: usize,
-    log_writer: ?std.io.AnyWriter,
+    log_writer: ?*std.Io.Writer,
     log_format: LogFormat,
 
     /// Initialize error reporter
     pub fn init(allocator: Allocator) !ErrorReporter {
         return .{
             .allocator = allocator,
-            .hooks = .{},
+            .hooks = .empty,
             .next_id = 1,
             .context_map = StringHashMap([]const u8).init(allocator),
             .filter = null,
-            .buffer = .{},
+            .buffer = .empty,
             .buffer_size = 0, // Buffering disabled by default
             .log_writer = null,
             .log_format = .text,
@@ -557,8 +557,8 @@ pub const ErrorReporter = struct {
     }
 
     /// Set log writer
-    pub fn setLogWriter(self: *ErrorReporter, writer: anytype) !void {
-        self.log_writer = writer.any();
+    pub fn setLogWriter(self: *ErrorReporter, writer: *std.Io.Writer) !void {
+        self.log_writer = writer;
     }
 
     /// Set log format
@@ -567,7 +567,7 @@ pub const ErrorReporter = struct {
     }
 
     /// Write log entry
-    fn writeLog(self: *ErrorReporter, writer: std.io.AnyWriter, err: anyerror, message: []const u8) !void {
+    fn writeLog(self: *ErrorReporter, writer: *std.Io.Writer, err: anyerror, message: []const u8) !void {
         switch (self.log_format) {
             .text => {
                 try writer.print("[ERROR] {s}: {s}\n", .{ @errorName(err), message });
@@ -628,11 +628,14 @@ pub const GracefulDegradation = struct {
     non_critical_widgets: StringHashMap(void),
     critical_widgets: StringHashMap(void),
     render_budget_ns: u64,
+    /// Runtime handle used to time renders against the budget
+    io: std.Io,
 
-    /// Initialize graceful degradation
-    pub fn init(allocator: Allocator) !GracefulDegradation {
+    /// Initialize graceful degradation (caches `io` for budget timing)
+    pub fn init(allocator: Allocator, io: std.Io) !GracefulDegradation {
         return .{
             .allocator = allocator,
+            .io = io,
             .quality_level = .normal,
             .stats = .{ .total_renders = 0, .successes = 0, .failures = 0 },
             .consecutive_failures = 0,
@@ -738,12 +741,12 @@ pub const GracefulDegradation = struct {
 
     /// Render widget with budget
     pub fn renderWithBudget(self: *GracefulDegradation, widget: anytype, buf: *Buffer, area: Rect) !void {
-        const start = std.time.nanoTimestamp();
+        const start = std.Io.Clock.awake.now(self.io);
 
         // Attempt render
         try self.render(widget, buf, area);
 
-        const elapsed = std.time.nanoTimestamp() - start;
+        const elapsed = start.untilNow(self.io, .awake).toNanoseconds();
         if (elapsed > self.render_budget_ns) {
             return error.BudgetExceeded;
         }
@@ -911,11 +914,14 @@ pub const ErrorInjector = struct {
     stats: StringHashMap(InjectionStats),
     rng: std.Random.DefaultPrng,
     alloc_fail_at: usize,
+    /// Runtime handle used to implement injected delays
+    io: std.Io,
 
-    /// Initialize error injector
-    pub fn init(allocator: Allocator) !ErrorInjector {
+    /// Initialize error injector (caches `io` for delay injection)
+    pub fn init(allocator: Allocator, io: std.Io) !ErrorInjector {
         return .{
             .allocator = allocator,
+            .io = io,
             .injections = StringHashMap(ArrayList(InjectionEntry)).init(allocator),
             .stats = StringHashMap(InjectionStats).init(allocator),
             .rng = std.Random.DefaultPrng.init(0),
@@ -1025,7 +1031,7 @@ pub const ErrorInjector = struct {
         const result = try self.injections.getOrPut(widget_name);
         if (!result.found_existing) {
             result.key_ptr.* = try self.allocator.dupe(u8, widget_name);
-            result.value_ptr.* = .{};
+            result.value_ptr.* = .empty;
         }
         try result.value_ptr.append(self.allocator, entry);
     }
@@ -1061,7 +1067,7 @@ pub const ErrorInjector = struct {
                         }
                     },
                     .delay => {
-                        std.Thread.sleep(entry.delay_ns);
+                        try self.io.sleep(.fromNanoseconds(entry.delay_ns), .awake);
                     },
                     .conditional => {
                         if (entry.condition) |cond| {

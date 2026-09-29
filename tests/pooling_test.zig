@@ -33,7 +33,7 @@ test "pool init creates empty pool with capacity" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Rect).init(allocator, .{
+    var pool = try Pool(Rect).init(allocator, testing.io, .{
         .capacity = 100,
         .grow_policy = .double,
     });
@@ -53,7 +53,7 @@ test "pool init with minimum capacity" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Cell).init(allocator, .{
+    var pool = try Pool(Cell).init(allocator, testing.io, .{
         .capacity = 1,
         .grow_policy = .{ .linear = 1 },
     });
@@ -71,7 +71,7 @@ test "pool deinit releases all resources" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Rect).init(allocator, .{
+    var pool = try Pool(Rect).init(allocator, testing.io, .{
         .capacity = 50,
         .grow_policy = .double,
     });
@@ -100,7 +100,7 @@ test "pool acquire returns object from pool" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Rect).init(allocator, .{
+    var pool = try Pool(Rect).init(allocator, testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -120,7 +120,7 @@ test "pool release returns object to pool" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Rect).init(allocator, .{
+    var pool = try Pool(Rect).init(allocator, testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -142,7 +142,7 @@ test "pool acquire decrements free count and increments in_use" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Cell).init(allocator, .{
+    var pool = try Pool(Cell).init(allocator, testing.io, .{
         .capacity = 5,
         .grow_policy = .double,
     });
@@ -169,7 +169,7 @@ test "pool release increments free count and decrements in_use" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Style).init(allocator, .{
+    var pool = try Pool(Style).init(allocator, testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -195,7 +195,7 @@ test "pool acquire returns reused object on release" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Rect).init(allocator, .{
+    var pool = try Pool(Rect).init(allocator, testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -227,7 +227,7 @@ test "pool grows when capacity exceeded with double policy" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Cell).init(allocator, .{
+    var pool = try Pool(Cell).init(allocator, testing.io, .{
         .capacity = 5,
         .grow_policy = .double,
     });
@@ -263,7 +263,7 @@ test "pool grows with linear policy incrementing by capacity_step" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Rect).init(allocator, .{
+    var pool = try Pool(Rect).init(allocator, testing.io, .{
         .capacity = 10,
         .grow_policy = .{ .linear = 5 },
     });
@@ -294,7 +294,7 @@ test "pool grows multiple times when many objects acquired" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Cell).init(allocator, .{
+    var pool = try Pool(Cell).init(allocator, testing.io, .{
         .capacity = 4,
         .grow_policy = .double,
     });
@@ -319,7 +319,7 @@ test "pool acquire fails gracefully if allocation fails" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(u64).init(allocator, .{
+    var pool = try Pool(u64).init(allocator, testing.io, .{
         .capacity = 1,
         .grow_policy = .double,
     });
@@ -346,7 +346,7 @@ test "pool reset clears all allocated objects" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Rect).init(allocator, .{
+    var pool = try Pool(Rect).init(allocator, testing.io, .{
         .capacity = 20,
         .grow_policy = .double,
     });
@@ -376,7 +376,7 @@ test "pool reset preserves capacity" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Cell).init(allocator, .{
+    var pool = try Pool(Cell).init(allocator, testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -405,7 +405,7 @@ test "pool reset returns all objects to free queue" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Rect).init(allocator, .{
+    var pool = try Pool(Rect).init(allocator, testing.io, .{
         .capacity = 15,
         .grow_policy = .double,
     });
@@ -447,7 +447,7 @@ test "pool acquire after reset uses old objects" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Rect).init(allocator, .{
+    var pool = try Pool(Rect).init(allocator, testing.io, .{
         .capacity = 5,
         .grow_policy = .double,
     });
@@ -496,7 +496,7 @@ test "pool statistics reflect allocated and in_use counts" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Cell).init(allocator, .{
+    var pool = try Pool(Cell).init(allocator, testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -526,7 +526,7 @@ test "pool peak_usage tracks maximum concurrent usage" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Rect).init(allocator, .{
+    var pool = try Pool(Rect).init(allocator, testing.io, .{
         .capacity = 20,
         .grow_policy = .double,
     });
@@ -569,7 +569,7 @@ test "pool statistics track allocated even after releases" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Style).init(allocator, .{
+    var pool = try Pool(Style).init(allocator, testing.io, .{
         .capacity = 15,
         .grow_policy = .double,
     });
@@ -599,7 +599,7 @@ test "pool allocated count resets to zero after reset()" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Rect).init(allocator, .{
+    var pool = try Pool(Rect).init(allocator, testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -631,7 +631,7 @@ test "pool handles many acquire/release cycles" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Cell).init(allocator, .{
+    var pool = try Pool(Cell).init(allocator, testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -654,7 +654,7 @@ test "pool handles interleaved acquire/release" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Rect).init(allocator, .{
+    var pool = try Pool(Rect).init(allocator, testing.io, .{
         .capacity = 5,
         .grow_policy = .double,
     });
@@ -692,7 +692,7 @@ test "pool maintains consistency through many cycles" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Style).init(allocator, .{
+    var pool = try Pool(Style).init(allocator, testing.io, .{
         .capacity = 8,
         .grow_policy = .double,
     });
@@ -734,7 +734,7 @@ test "pool double release is prevented or handled" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Rect).init(allocator, .{
+    var pool = try Pool(Rect).init(allocator, testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -760,7 +760,7 @@ test "pool empty acquire returns valid object" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Cell).init(allocator, .{
+    var pool = try Pool(Cell).init(allocator, testing.io, .{
         .capacity = 1,
         .grow_policy = .double,
     });
@@ -780,7 +780,7 @@ test "pool with single capacity works" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Rect).init(allocator, .{
+    var pool = try Pool(Rect).init(allocator, testing.io, .{
         .capacity = 1,
         .grow_policy = .double,
     });
@@ -805,7 +805,7 @@ test "pool object addresses are unique per acquire" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Rect).init(allocator, .{
+    var pool = try Pool(Rect).init(allocator, testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -833,7 +833,7 @@ test "pool object reuse after release" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Style).init(allocator, .{
+    var pool = try Pool(Style).init(allocator, testing.io, .{
         .capacity = 5,
         .grow_policy = .double,
     });
@@ -876,7 +876,7 @@ test "pool acquire/release under concurrent load" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Rect).init(allocator, .{
+    var pool = try Pool(Rect).init(allocator, testing.io, .{
         .capacity = 50,
         .grow_policy = .double,
     });
@@ -914,7 +914,7 @@ test "pool stats are thread-safe during updates" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Cell).init(allocator, .{
+    var pool = try Pool(Cell).init(allocator, testing.io, .{
         .capacity = 30,
         .grow_policy = .double,
     });
@@ -946,7 +946,7 @@ test "pool works with Cell type" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Cell).init(allocator, .{
+    var pool = try Pool(Cell).init(allocator, testing.io, .{
         .capacity = 20,
         .grow_policy = .double,
     });
@@ -969,7 +969,7 @@ test "pool works with Rect type" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Rect).init(allocator, .{
+    var pool = try Pool(Rect).init(allocator, testing.io, .{
         .capacity = 15,
         .grow_policy = .double,
     });
@@ -995,7 +995,7 @@ test "pool works with Style type" {
 
     const allocator = gpa.allocator();
 
-    var pool = try Pool(Style).init(allocator, .{
+    var pool = try Pool(Style).init(allocator, testing.io, .{
         .capacity = 25,
         .grow_policy = .double,
     });
@@ -1024,7 +1024,7 @@ test "pool deinit with in_use objects does not leak" {
     const allocator = gpa.allocator();
 
     {
-        var pool = try Pool(Rect).init(allocator, .{
+        var pool = try Pool(Rect).init(allocator, testing.io, .{
             .capacity = 20,
             .grow_policy = .double,
         });
@@ -1049,7 +1049,7 @@ test "pool reset and reuse does not leak" {
     const allocator = gpa.allocator();
 
     {
-        var pool = try Pool(Cell).init(allocator, .{
+        var pool = try Pool(Cell).init(allocator, testing.io, .{
             .capacity = 15,
             .grow_policy = .double,
         });
@@ -1082,7 +1082,7 @@ test "pool grown beyond initial capacity does not leak" {
     // const allocator = gpa.allocator();
     //
     // {
-    //     var pool = try Pool(Style).init(allocator, .{
+    //     var pool = try Pool(Style).init(allocator, testing.io, .{
     //         .capacity = 4,
     //         .grow_policy = .double,
     //     });

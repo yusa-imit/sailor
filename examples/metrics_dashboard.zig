@@ -25,10 +25,8 @@ const RenderMetrics = sailor.render_metrics.MetricsCollector;
 const MemoryMetrics = sailor.memory_metrics.MemoryMetricsCollector;
 const EventMetrics = sailor.event_metrics.EventMetricsCollector;
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
 
     // Initialize metrics collectors
     var render_metrics = RenderMetrics.init(allocator);

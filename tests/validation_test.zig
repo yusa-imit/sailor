@@ -39,14 +39,14 @@ test "email validator - invalid missing at sign" {
     const validator = Validator.email();
     const result = validator.validate("userexample.com");
     try testing.expect(result == .invalid);
-    try testing.expect(std.mem.indexOf(u8, result.invalid, "@ sign") != null);
+    try testing.expect(std.mem.find(u8, result.invalid, "@ sign") != null);
 }
 
 test "email validator - invalid missing domain" {
     const validator = Validator.email();
     const result = validator.validate("user@");
     try testing.expect(result == .invalid);
-    try testing.expect(std.mem.indexOf(u8, result.invalid, "domain") != null);
+    try testing.expect(std.mem.find(u8, result.invalid, "domain") != null);
 }
 
 test "email validator - invalid missing local part" {
@@ -93,7 +93,7 @@ test "url validator - invalid missing protocol" {
     const validator = Validator.url();
     const result = validator.validate("example.com");
     try testing.expect(result == .invalid);
-    try testing.expect(std.mem.indexOf(u8, result.invalid, "protocol") != null);
+    try testing.expect(std.mem.find(u8, result.invalid, "protocol") != null);
 }
 
 test "url validator - invalid malformed url" {
@@ -134,7 +134,7 @@ test "phone validator US - invalid too short" {
     const validator = Validator.phoneUS();
     const result = validator.validate("123-4567");
     try testing.expect(result == .invalid);
-    try testing.expect(std.mem.indexOf(u8, result.invalid, "10 digits") != null);
+    try testing.expect(std.mem.find(u8, result.invalid, "10 digits") != null);
 }
 
 test "phone validator US - invalid too long" {
@@ -201,7 +201,7 @@ test "minLength validator - invalid too short" {
     const validator = Validator.minLength(5);
     const result = validator.validate("hi");
     try testing.expect(result == .invalid);
-    try testing.expect(std.mem.indexOf(u8, result.invalid, "5 characters") != null);
+    try testing.expect(std.mem.find(u8, result.invalid, "5 characters") != null);
 }
 
 test "maxLength validator - valid under maximum" {
@@ -214,7 +214,7 @@ test "maxLength validator - invalid exceeds maximum" {
     const validator = Validator.maxLength(10);
     const result = validator.validate("hello world is too long");
     try testing.expect(result == .invalid);
-    try testing.expect(std.mem.indexOf(u8, result.invalid, "10 characters") != null);
+    try testing.expect(std.mem.find(u8, result.invalid, "10 characters") != null);
 }
 
 test "length range validator - valid within range" {
@@ -312,7 +312,7 @@ test "combine validators OR mode - all fail" {
 
 test "async validator - debounced validation" {
     const allocator = testing.allocator;
-    var async_validator = try validation.AsyncValidator.init(allocator, Validator.email(), 100); // 100ms debounce
+    var async_validator = try validation.AsyncValidator.init(allocator, testing.io, Validator.email(), 100); // 100ms debounce
     defer async_validator.deinit();
 
     // Queue multiple validations rapidly
@@ -321,7 +321,7 @@ test "async validator - debounced validation" {
     try async_validator.queueValidation("user@example.com");
 
     // Only the last one should be validated after debounce period
-    std.Thread.sleep(150 * std.time.ns_per_ms);
+    try testing.io.sleep(.fromMilliseconds(150), .awake);
 
     const result = try async_validator.getResult();
     try testing.expectEqual(ValidatorResult.valid, result);
@@ -329,7 +329,7 @@ test "async validator - debounced validation" {
 
 test "async validator - pending state" {
     const allocator = testing.allocator;
-    var async_validator = try validation.AsyncValidator.init(allocator, Validator.email(), 100);
+    var async_validator = try validation.AsyncValidator.init(allocator, testing.io, Validator.email(), 100);
     defer async_validator.deinit();
 
     try async_validator.queueValidation("user@example.com");
@@ -346,13 +346,14 @@ test "async validator - timeout handling" {
     const slow_validator = Validator{
         .validateFn = struct {
             fn validate(_: ?*const anyopaque, _: []const u8) ValidatorResult {
-                std.Thread.sleep(500 * std.time.ns_per_ms); // 500ms delay
+                // Test double: nothing cancels this sleep.
+                testing.io.sleep(.fromMilliseconds(500), .awake) catch {}; // 500ms delay
                 return .valid;
             }
         }.validate,
     };
 
-    var async_validator = try validation.AsyncValidator.init(allocator, slow_validator, 50);
+    var async_validator = try validation.AsyncValidator.init(allocator, testing.io, slow_validator, 50);
     defer async_validator.deinit();
 
     try async_validator.queueValidation("test");
@@ -504,7 +505,7 @@ test "minLength validator - arbitrary value 3" {
     {
         const result = validator.validate("ab");
         try testing.expect(result == .invalid);
-        try testing.expect(std.mem.indexOf(u8, result.invalid, "3 characters") != null);
+        try testing.expect(std.mem.find(u8, result.invalid, "3 characters") != null);
     }
 
     // Above minimum — should pass
@@ -527,7 +528,7 @@ test "minLength validator - arbitrary value 7" {
     {
         const result = validator.validate("abcdef");
         try testing.expect(result == .invalid);
-        try testing.expect(std.mem.indexOf(u8, result.invalid, "7 characters") != null);
+        try testing.expect(std.mem.find(u8, result.invalid, "7 characters") != null);
     }
 
     // Above minimum — should pass
@@ -550,7 +551,7 @@ test "minLength validator - arbitrary value 15" {
     {
         const result = validator.validate("abcdefghijklmn");
         try testing.expect(result == .invalid);
-        try testing.expect(std.mem.indexOf(u8, result.invalid, "15 characters") != null);
+        try testing.expect(std.mem.find(u8, result.invalid, "15 characters") != null);
     }
 
     // Above minimum — should pass
@@ -573,7 +574,7 @@ test "minLength validator - edge case 1" {
     {
         const result = validator.validate("");
         try testing.expect(result == .invalid);
-        try testing.expect(std.mem.indexOf(u8, result.invalid, "1 character") != null);
+        try testing.expect(std.mem.find(u8, result.invalid, "1 character") != null);
     }
 }
 
@@ -596,7 +597,7 @@ test "maxLength validator - arbitrary value 1" {
     {
         const result = validator.validate("xy");
         try testing.expect(result == .invalid);
-        try testing.expect(std.mem.indexOf(u8, result.invalid, "1 character") != null);
+        try testing.expect(std.mem.find(u8, result.invalid, "1 character") != null);
     }
 }
 
@@ -619,7 +620,7 @@ test "maxLength validator - arbitrary value 50" {
     {
         const result = validator.validate("123456789012345678901234567890123456789012345678901");
         try testing.expect(result == .invalid);
-        try testing.expect(std.mem.indexOf(u8, result.invalid, "50 characters") != null);
+        try testing.expect(std.mem.find(u8, result.invalid, "50 characters") != null);
     }
 }
 
@@ -649,26 +650,26 @@ test "minLength/maxLength validators - no cross-contamination between different 
     // First call with min3 — should require 3 chars
     const result1 = min3_validator.validate("ab"); // 2 chars, fails min3
     try testing.expect(result1 == .invalid);
-    try testing.expect(std.mem.indexOf(u8, result1.invalid, "3 characters") != null);
+    try testing.expect(std.mem.find(u8, result1.invalid, "3 characters") != null);
 
     // Second call with min5 — should require 5 chars
     const result2 = min5_validator.validate("abcd"); // 4 chars, fails min5
     try testing.expect(result2 == .invalid);
-    try testing.expect(std.mem.indexOf(u8, result2.invalid, "5 characters") != null);
+    try testing.expect(std.mem.find(u8, result2.invalid, "5 characters") != null);
 
     // Third call with min3 again — should still report 3, not clobbered by min5
     const result3 = min3_validator.validate("ab"); // 2 chars, fails min3
     try testing.expect(result3 == .invalid);
-    try testing.expect(std.mem.indexOf(u8, result3.invalid, "3 characters") != null);
+    try testing.expect(std.mem.find(u8, result3.invalid, "3 characters") != null);
     // Prove it's not the "5 characters" message from the other validator
-    try testing.expect(std.mem.indexOf(u8, result3.invalid, "5 characters") == null);
+    try testing.expect(std.mem.find(u8, result3.invalid, "5 characters") == null);
 
     // Fourth call with min5 again — should still report 5
     const result4 = min5_validator.validate("abcd"); // 4 chars, fails min5
     try testing.expect(result4 == .invalid);
-    try testing.expect(std.mem.indexOf(u8, result4.invalid, "5 characters") != null);
+    try testing.expect(std.mem.find(u8, result4.invalid, "5 characters") != null);
     // Prove it's not the "3 characters" message from the other validator
-    try testing.expect(std.mem.indexOf(u8, result4.invalid, "3 characters") == null);
+    try testing.expect(std.mem.find(u8, result4.invalid, "3 characters") == null);
 }
 
 test "minLength/maxLength composition - arbitrary values" {
@@ -720,7 +721,7 @@ test "combine validators - survives more than 32 concurrent combinations without
     var storages: [39]validation.CombinedStorage = undefined;
     var combined: [39]Validator = undefined;
     inline for (0..39) |i| {
-        const min_val = i + 5;  // comptime-known in inline for
+        const min_val = i + 5; // comptime-known in inline for
         const validators = &.{Validator.minLength(min_val)};
         combined[i] = Validator.combine(&storages[i], validators, .all);
     }

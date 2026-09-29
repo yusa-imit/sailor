@@ -262,12 +262,12 @@ test "InputMap - gamepad D-pad arrows" {
 
     map.setGamepadDPadArrows();
 
-    const up_event = gamepad.GamepadEvent.buttonPress(0, .dpad_up);
+    const up_event = gamepad.GamepadEvent.buttonPress(testing.io, 0, .dpad_up);
     const mapped = map.mapGamepad(up_event);
     try testing.expect(mapped != null);
     try testing.expectEqual(KeyCode.up, mapped.?.code);
 
-    const down_event = gamepad.GamepadEvent.buttonPress(0, .dpad_down);
+    const down_event = gamepad.GamepadEvent.buttonPress(testing.io, 0, .dpad_down);
     const mapped_down = map.mapGamepad(down_event);
     try testing.expectEqual(KeyCode.down, mapped_down.?.code);
 }
@@ -279,11 +279,11 @@ test "InputMap - gamepad face buttons" {
     map.gamepad_a = .{ .code = .enter, .modifiers = .{} };
     map.gamepad_b = .{ .code = .esc, .modifiers = .{} };
 
-    const a_press = gamepad.GamepadEvent.buttonPress(0, .a);
+    const a_press = gamepad.GamepadEvent.buttonPress(testing.io, 0, .a);
     const mapped_a = map.mapGamepad(a_press);
     try testing.expectEqual(KeyCode.enter, mapped_a.?.code);
 
-    const b_press = gamepad.GamepadEvent.buttonPress(0, .b);
+    const b_press = gamepad.GamepadEvent.buttonPress(testing.io, 0, .b);
     const mapped_b = map.mapGamepad(b_press);
     try testing.expectEqual(KeyCode.esc, mapped_b.?.code);
 }
@@ -355,7 +355,7 @@ test "InputMap.apply - gamepad event" {
 
     map.setGamepadDPadArrows();
 
-    const event = Event{ .gamepad = gamepad.GamepadEvent.buttonPress(0, .dpad_up) };
+    const event = Event{ .gamepad = gamepad.GamepadEvent.buttonPress(testing.io, 0, .dpad_up) };
     const mapped = map.apply(event);
     try testing.expect(mapped != null);
     try testing.expectEqual(KeyCode.up, mapped.?.code);

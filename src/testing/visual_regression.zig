@@ -29,13 +29,8 @@ pub const Change = struct {
     /// Format change as human-readable string
     pub fn format(
         self: Change,
-        comptime fmt: []const u8,
-        options: std.fmt.FormatOptions,
-        writer: anytype,
-    ) !void {
-        _ = fmt;
-        _ = options;
-
+        writer: *std.Io.Writer,
+    ) std.Io.Writer.Error!void {
         const type_str = switch (self.change_type) {
             .added => "ADD",
             .removed => "DEL",
@@ -107,13 +102,8 @@ pub const VisualDiff = struct {
     /// Format diff as string for reporting
     pub fn format(
         self: VisualDiff,
-        comptime fmt: []const u8,
-        options: std.fmt.FormatOptions,
-        writer: anytype,
-    ) !void {
-        _ = fmt;
-        _ = options;
-
+        writer: *std.Io.Writer,
+    ) std.Io.Writer.Error!void {
         if (self.changes.items.len == 0) {
             try writer.writeAll("No visual changes detected.\n");
             return;
@@ -127,7 +117,7 @@ pub const VisualDiff = struct {
 
         for (self.changes.items) |change| {
             try writer.writeAll("  ");
-            try change.format("", .{}, writer);
+            try change.format(writer);
             try writer.writeAll("\n");
         }
     }
@@ -256,7 +246,7 @@ pub const SideBySideComparison = struct {
         try writer.writeAll("=== Visual Regression Comparison ===\n\n");
 
         // Summary
-        try self.diff.format("", .{}, writer);
+        try self.diff.format(writer);
         try writer.writeAll("\n\n");
 
         // If no changes, done
@@ -498,13 +488,13 @@ test "SideBySideComparison render no changes" {
     var comparison = try SideBySideComparison.init(allocator, &buf1, &buf2);
     defer comparison.deinit();
 
-    var output = try std.ArrayList(u8).initCapacity(allocator, 0);
-    defer output.deinit(allocator);
+    var output: std.Io.Writer.Allocating = .init(allocator);
+    defer output.deinit();
 
-    try comparison.render(output.writer(allocator));
+    try comparison.render(&output.writer);
 
     // Should mention no changes
-    try std.testing.expect(std.mem.indexOf(u8, output.items, "No visual changes") != null);
+    try std.testing.expect(std.mem.find(u8, output.written(), "No visual changes") != null);
 }
 
 test "SideBySideComparison render with changes" {
@@ -523,14 +513,14 @@ test "SideBySideComparison render with changes" {
     var comparison = try SideBySideComparison.init(allocator, &buf1, &buf2);
     defer comparison.deinit();
 
-    var output = try std.ArrayList(u8).initCapacity(allocator, 0);
-    defer output.deinit(allocator);
+    var output: std.Io.Writer.Allocating = .init(allocator);
+    defer output.deinit();
 
-    try comparison.render(output.writer(allocator));
+    try comparison.render(&output.writer);
 
     // Should show changes
-    try std.testing.expect(std.mem.indexOf(u8, output.items, "Visual changes detected") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output.items, "Side-by-Side") != null);
+    try std.testing.expect(std.mem.find(u8, output.written(), "Visual changes detected") != null);
+    try std.testing.expect(std.mem.find(u8, output.written(), "Side-by-Side") != null);
 }
 
 test "VisualDiff format output" {
@@ -546,14 +536,14 @@ test "VisualDiff format output" {
         .new_cell = .{ .char = 'Y', .style = .{} },
     });
 
-    var output = try std.ArrayList(u8).initCapacity(allocator, 0);
-    defer output.deinit(allocator);
+    var output: std.Io.Writer.Allocating = .init(allocator);
+    defer output.deinit();
 
-    try diff.format("", .{}, output.writer(allocator));
+    try diff.format(&output.writer);
 
     // Check output contains change information
-    try std.testing.expect(std.mem.indexOf(u8, output.items, "Visual changes detected: 1 total") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output.items, "Modified: 1") != null);
+    try std.testing.expect(std.mem.find(u8, output.written(), "Visual changes detected: 1 total") != null);
+    try std.testing.expect(std.mem.find(u8, output.written(), "Modified: 1") != null);
 }
 
 test "Change format output" {
@@ -565,16 +555,12 @@ test "Change format output" {
         .new_cell = .{ .char = 'Z', .style = .{} },
     };
 
-    var buffer: [128]u8 = undefined;
-    var fba = std.heap.FixedBufferAllocator.init(&buffer);
-    const allocator = fba.allocator();
+    var output: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    defer output.deinit();
 
-    var output = try std.ArrayList(u8).initCapacity(allocator, 0);
-    defer output.deinit(allocator);
-
-    try change.format("", .{}, output.writer(allocator));
+    try change.format(&output.writer);
 
     // Check output format
-    try std.testing.expect(std.mem.indexOf(u8, output.items, "[ADD]") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output.items, "(3, 7)") != null);
+    try std.testing.expect(std.mem.find(u8, output.written(), "[ADD]") != null);
+    try std.testing.expect(std.mem.find(u8, output.written(), "(3, 7)") != null);
 }

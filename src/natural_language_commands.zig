@@ -222,14 +222,14 @@ pub const CommandParser = struct {
     fn parseSearch(self: *CommandParser, input: []const u8) !Intent {
         // Extract query after "search" or "find"
         var query_start: usize = 0;
-        if (std.mem.indexOf(u8, input, "search")) |idx| {
+        if (std.mem.find(u8, input, "search")) |idx| {
             query_start = idx + 6; // len("search")
-        } else if (std.mem.indexOf(u8, input, "find")) |idx| {
+        } else if (std.mem.find(u8, input, "find")) |idx| {
             query_start = idx + 4; // len("find")
         }
 
         // Skip "for" if present
-        var query_slice = std.mem.trimLeft(u8, input[query_start..], " ");
+        var query_slice = std.mem.trimStart(u8, input[query_start..], " ");
         if (std.mem.startsWith(u8, query_slice, "for ")) {
             query_slice = query_slice[4..];
         }
@@ -305,7 +305,7 @@ pub const CommandParser = struct {
         const index = extractNumber(input);
 
         // Check for "first" keyword
-        if (std.mem.indexOf(u8, input, "first")) |_| {
+        if (std.mem.find(u8, input, "first")) |_| {
             return Intent{ .select = .{ .index = 0 } };
         }
 
@@ -377,13 +377,15 @@ pub const CommandParser = struct {
 
 pub const CommandHistory = struct {
     allocator: std.mem.Allocator,
+    io: std.Io,
     entries: std.ArrayList(HistoryEntry),
     max_size: usize,
 
-    pub fn init(allocator: std.mem.Allocator, max_size: usize) CommandHistory {
+    pub fn init(allocator: std.mem.Allocator, io: std.Io, max_size: usize) CommandHistory {
         return .{
             .allocator = allocator,
-            .entries = std.ArrayList(HistoryEntry){},
+            .io = io,
+            .entries = std.ArrayList(HistoryEntry).empty,
             .max_size = max_size,
         };
     }
@@ -400,7 +402,7 @@ pub const CommandHistory = struct {
         for (self.entries.items) |*entry| {
             if (std.mem.eql(u8, entry.command, command)) {
                 // Update timestamp and count
-                entry.timestamp = std.time.timestamp();
+                entry.timestamp = std.Io.Clock.real.now(self.io).toSeconds();
                 entry.count += 1;
                 return;
             }
@@ -412,7 +414,7 @@ pub const CommandHistory = struct {
 
         const entry = HistoryEntry{
             .command = owned_command,
-            .timestamp = std.time.timestamp(),
+            .timestamp = std.Io.Clock.real.now(self.io).toSeconds(),
             .count = 1,
         };
 
@@ -426,7 +428,7 @@ pub const CommandHistory = struct {
     }
 
     pub fn search(self: *CommandHistory, query: []const u8, max_results: usize) ![]HistoryEntry {
-        var results = std.ArrayList(ScoredEntry){};
+        var results = std.ArrayList(ScoredEntry).empty;
         defer results.deinit(self.allocator);
 
         for (self.entries.items) |entry| {
@@ -484,14 +486,14 @@ pub const CommandHistory = struct {
             if (trimmed.len == 0 or trimmed[0] == '[' or trimmed[0] == ']') continue;
 
             // Parse: {"command":"...", "timestamp":..., "count":...}
-            if (std.mem.indexOf(u8, trimmed, "\"command\":\"")) |cmd_start| {
+            if (std.mem.find(u8, trimmed, "\"command\":\"")) |cmd_start| {
                 const cmd_value_start = cmd_start + 11; // len("\"command\":\"")
-                if (std.mem.indexOf(u8, trimmed[cmd_value_start..], "\"")) |cmd_end| {
+                if (std.mem.find(u8, trimmed[cmd_value_start..], "\"")) |cmd_end| {
                     const command = trimmed[cmd_value_start .. cmd_value_start + cmd_end];
 
                     // Extract timestamp
                     var timestamp: i64 = 0;
-                    if (std.mem.indexOf(u8, trimmed, "\"timestamp\":")) |ts_start| {
+                    if (std.mem.find(u8, trimmed, "\"timestamp\":")) |ts_start| {
                         const ts_value_start = ts_start + 12; // len("\"timestamp\":")
                         var ts_end = ts_value_start;
                         while (ts_end < trimmed.len and std.ascii.isDigit(trimmed[ts_end])) {
@@ -502,7 +504,7 @@ pub const CommandHistory = struct {
 
                     // Extract count
                     var count: u32 = 1;
-                    if (std.mem.indexOf(u8, trimmed, "\"count\":")) |cnt_start| {
+                    if (std.mem.find(u8, trimmed, "\"count\":")) |cnt_start| {
                         const cnt_value_start = cnt_start + 8; // len("\"count\":")
                         var cnt_end = cnt_value_start;
                         while (cnt_end < trimmed.len and std.ascii.isDigit(trimmed[cnt_end])) {
@@ -545,14 +547,14 @@ fn scoreMatch(query: []const u8, command: []const u8) u32 {
     }
 
     // Partial match
-    if (std.mem.indexOf(u8, command, query)) |_| {
+    if (std.mem.find(u8, command, query)) |_| {
         return 500;
     }
 
     // Synonym match
     const query_mapped = mapSynonym(query);
     if (!std.mem.eql(u8, query, query_mapped)) {
-        if (std.mem.indexOf(u8, command, query_mapped)) |_| {
+        if (std.mem.find(u8, command, query_mapped)) |_| {
             return 400;
         }
     }
@@ -571,7 +573,7 @@ fn countWordOverlap(a: []const u8, b: []const u8) u32 {
     var count: u32 = 0;
     var words_a = std.mem.tokenizeScalar(u8, a, ' ');
     while (words_a.next()) |word_a| {
-        if (std.mem.indexOf(u8, b, word_a)) |_| {
+        if (std.mem.find(u8, b, word_a)) |_| {
             count += 1;
         }
     }
@@ -649,7 +651,7 @@ fn normalize(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     const trimmed = std.mem.trim(u8, input, " \t\r\n");
 
     // Collapse multiple spaces
-    var result = std.ArrayList(u8){};
+    var result = std.ArrayList(u8).empty;
     defer result.deinit(allocator);
 
     var last_was_space = false;
@@ -669,7 +671,7 @@ fn normalize(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
 }
 
 fn splitWords(allocator: std.mem.Allocator, input: []const u8) ![][]const u8 {
-    var words = std.ArrayList([]const u8){};
+    var words = std.ArrayList([]const u8).empty;
     defer words.deinit(allocator);
 
     var iter = std.mem.tokenizeScalar(u8, input, ' ');

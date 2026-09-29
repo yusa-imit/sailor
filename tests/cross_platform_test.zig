@@ -53,13 +53,12 @@ test "newline convention detection" {
     const expected_newline = if (builtin.os.tag == .windows) "\r\n" else "\n";
 
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try writer.print("line1{s}line2", .{expected_newline});
+    try fbs.print("line1{s}line2", .{expected_newline});
 
-    const written = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, written, expected_newline) != null);
+    const written = fbs.buffered();
+    try testing.expect(std.mem.find(u8, written, expected_newline) != null);
 }
 
 test "endianness detection" {
@@ -82,14 +81,17 @@ test "pointer size matches target" {
 
 test "standard file descriptors availability" {
     // These should always be available
-    // In Zig 0.15.x, stdio moved to std.io.getStdIn/Out/Err fields
-    // Just verify std.io exists
-    _ = std.io;
+    // In Zig 0.16 stdio is std.Io.File.stdin()/stdout()/stderr() (io-parameterized)
+    // Just verify std.Io exists and the standard files can be named
+    _ = std.Io;
+    _ = std.Io.File.stdin();
+    _ = std.Io.File.stdout();
+    _ = std.Io.File.stderr();
 }
 
 test "environment variable access" {
     // Test that we can access environment variables
-    var env_map = try std.process.getEnvMap(testing.allocator);
+    var env_map = try std.testing.environ.createMap(testing.allocator);
     defer env_map.deinit();
 
     // PATH should exist on all platforms

@@ -39,12 +39,11 @@ test "allocator basics" {
 
 test "fixed buffer stream for writer testing" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try writer.writeAll("Hello, sailor!");
+    try fbs.writeAll("Hello, sailor!");
 
-    const written = fbs.getWritten();
+    const written = fbs.buffered();
     try testing.expectEqualStrings("Hello, sailor!", written);
 }
 
@@ -88,7 +87,7 @@ test "writer-based API pattern" {
     // No stdout/stderr allowed — always write to user-provided Writer
 
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     // Simulate a library function that writes output
     const writeOutput = struct {
@@ -97,8 +96,8 @@ test "writer-based API pattern" {
         }
     }.call;
 
-    try writeOutput(fbs.writer(), "test");
-    try testing.expectEqualStrings("test", fbs.getWritten());
+    try writeOutput(&fbs, "test");
+    try testing.expectEqualStrings("test", fbs.buffered());
 }
 
 test "no global state pattern" {

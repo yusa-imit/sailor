@@ -136,7 +136,7 @@ pub const FlowText = struct {
         // Word-wrap text into lines and group by words for column distribution
         var lines: [256][]const u8 = undefined;
         var line_count: usize = 0;
-        var word_line_counts: [256]usize = undefined;  // Track line count per word
+        var word_line_counts: [256]usize = undefined; // Track line count per word
         var word_count: usize = 0;
         self.wrapTextByWord(col_width, &lines, &line_count, &word_line_counts, &word_count);
 

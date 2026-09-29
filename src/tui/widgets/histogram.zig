@@ -150,7 +150,8 @@ pub const Histogram = struct {
         const value_height: u16 = if (self.show_values) 1 else 0;
         const bar_area_height = if (area.height > label_height + value_height)
             area.height - label_height - value_height
-        else 0;
+        else
+            0;
 
         if (bar_area_height == 0) return;
 

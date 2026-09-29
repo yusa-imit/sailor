@@ -467,7 +467,7 @@ test "StreamingTable.render handles huge row counts efficiently" {
     // Verify header is present
     const header_line = buf.getLine(0, 0, 80);
     defer testing.allocator.free(header_line);
-    try testing.expect(std.mem.indexOf(u8, header_line, "ID") != null);
+    try testing.expect(std.mem.find(u8, header_line, "ID") != null);
 }
 
 test "StreamingTable.renderSlice convenience method" {
@@ -493,13 +493,13 @@ test "StreamingTable.renderSlice convenience method" {
     // Check header
     const header = buf.getLine(0, 0, 60);
     defer testing.allocator.free(header);
-    try testing.expect(std.mem.indexOf(u8, header, "Name") != null);
-    try testing.expect(std.mem.indexOf(u8, header, "Age") != null);
+    try testing.expect(std.mem.find(u8, header, "Name") != null);
+    try testing.expect(std.mem.find(u8, header, "Age") != null);
 
     // Check data row
     const row1 = buf.getLine(1, 0, 60);
     defer testing.allocator.free(row1);
-    try testing.expect(std.mem.indexOf(u8, row1, "Alice") != null);
+    try testing.expect(std.mem.find(u8, row1, "Alice") != null);
 }
 
 test "StreamingTable.render with alignment left" {
@@ -524,7 +524,7 @@ test "StreamingTable.render with alignment left" {
     const row = buf.getLine(1, 0, 20);
     defer testing.allocator.free(row);
     // "Hi" should be left-aligned with padding on the right
-    try testing.expect(std.mem.startsWith(u8, std.mem.trimRight(u8, row, " "), "Hi"));
+    try testing.expect(std.mem.startsWith(u8, std.mem.trimEnd(u8, row, " "), "Hi"));
 }
 
 test "StreamingTable.render respects column spacing" {
@@ -554,8 +554,8 @@ test "StreamingTable.render respects column spacing" {
     const row = buf.getLine(1, 0, 20);
     defer testing.allocator.free(row);
     // Should have spacing between columns
-    try testing.expect(std.mem.indexOf(u8, row, "AAA") != null);
-    try testing.expect(std.mem.indexOf(u8, row, "BBB") != null);
+    try testing.expect(std.mem.find(u8, row, "AAA") != null);
+    try testing.expect(std.mem.find(u8, row, "BBB") != null);
 }
 
 test "StreamingTable.withBlock renders border" {

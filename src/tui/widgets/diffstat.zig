@@ -295,16 +295,12 @@ pub const DiffStat = struct {
                     const insertion_cols = if (entry.insertions == 0)
                         0
                     else
-                        @max(1, @min(self.bar_width, @as(u16, @intCast(
-                            ((@as(u64, entry.insertions) * @as(u64, self.bar_width)) + (@as(u64, max_changes) / 2)) / @as(u64, max_changes)
-                        ))));
+                        @max(1, @min(self.bar_width, @as(u16, @intCast(((@as(u64, entry.insertions) * @as(u64, self.bar_width)) + (@as(u64, max_changes) / 2)) / @as(u64, max_changes)))));
 
                     const deletion_cols = if (entry.deletions == 0)
                         0
                     else
-                        @max(1, @min(self.bar_width -| insertion_cols, @as(u16, @intCast(
-                            ((@as(u64, entry.deletions) * @as(u64, self.bar_width)) + (@as(u64, max_changes) / 2)) / @as(u64, max_changes)
-                        ))));
+                        @max(1, @min(self.bar_width -| insertion_cols, @as(u16, @intCast(((@as(u64, entry.deletions) * @as(u64, self.bar_width)) + (@as(u64, max_changes) / 2)) / @as(u64, max_changes)))));
 
                     // Write insertion characters
                     var i: u16 = 0;

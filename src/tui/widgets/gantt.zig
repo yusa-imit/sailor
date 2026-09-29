@@ -40,7 +40,7 @@ pub const Task = struct {
     name: []const u8 = "",
     start: u16 = 0,
     end: u16 = 0,
-    progress: u8 = 0,          // 0-100
+    progress: u8 = 0, // 0-100
     style: ?Style = null,
 };
 
@@ -208,18 +208,15 @@ pub const GanttChart = struct {
             {
                 var col: u16 = 0;
                 while (col < label_width and col < inner.width and col < @as(u16, @intCast(task.name.len))) : (col += 1) {
-                    const char = if (task.name.len > col)
-                        blk: {
-                            const byte = task.name[col];
-                            const len = std.unicode.utf8ByteSequenceLength(byte) catch 1;
-                            const codepoint = if (len == 1)
-                                @as(u21, byte)
-                            else
-                                std.unicode.utf8Decode(task.name[col .. col + len]) catch byte;
-                            break :blk codepoint;
-                        }
-                    else
-                        ' ';
+                    const char = if (task.name.len > col) blk: {
+                        const byte = task.name[col];
+                        const len = std.unicode.utf8ByteSequenceLength(byte) catch 1;
+                        const codepoint = if (len == 1)
+                            @as(u21, byte)
+                        else
+                            std.unicode.utf8Decode(task.name[col .. col + len]) catch byte;
+                        break :blk codepoint;
+                    } else ' ';
 
                     const label_style = if (is_focused) self.focused_style else self.style;
                     buf.set(inner.x + col, y, buffer_mod.Cell.init(char, label_style));
@@ -269,11 +266,11 @@ pub const GanttChart = struct {
                             const char: u21 = if (col >= bar_start_pixel and col < bar_end_pixel)
                                 // Inside bar range
                                 if (col < bar_start_pixel + complete_chars)
-                                    '█'  // Filled
+                                    '█' // Filled
                                 else
-                                    '░'  // Empty
+                                    '░' // Empty
                             else
-                                ' ';  // Outside bar range
+                                ' '; // Outside bar range
 
                             const cell_style = if (is_focused)
                                 self.focused_style

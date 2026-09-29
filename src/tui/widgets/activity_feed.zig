@@ -209,11 +209,11 @@ pub const ActivityFeed = struct {
     /// Get the icon character for a kind
     fn iconForKind(kind: Kind) u21 {
         return switch (kind) {
-            .info => '·',        // U+00B7
-            .success => '●',     // U+25CF
-            .warning => '⚠',     // U+26A0
-            .error_kind => '✗',  // U+2717
-            .action => '→',      // U+2192
+            .info => '·', // U+00B7
+            .success => '●', // U+25CF
+            .warning => '⚠', // U+26A0
+            .error_kind => '✗', // U+2717
+            .action => '→', // U+2192
         };
     }
 

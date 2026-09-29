@@ -46,7 +46,7 @@ fn createGradientImage(allocator: std.mem.Allocator, width: u32, height: u32) ![
 
 test "ansi art: render 2x2 red image produces non-empty output" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 2, 2, 255, 0, 0);
@@ -58,15 +58,15 @@ test "ansi art: render 2x2 red image produces non-empty output" {
         .output_width = 10,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, &stream);
+    const output = stream.buffered();
 
     try testing.expect(output.len > 0);
 }
 
 test "ansi art: render output contains valid ANSI escape sequences" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 2, 2, 255, 0, 0);
@@ -78,8 +78,8 @@ test "ansi art: render output contains valid ANSI escape sequences" {
         .output_width = 10,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, &stream);
+    const output = stream.buffered();
 
     // Check that output contains ESC character (0x1b)
     try testing.expect(std.mem.containsAtLeast(u8, output, 1, "\x1b"));
@@ -87,7 +87,7 @@ test "ansi art: render output contains valid ANSI escape sequences" {
 
 test "ansi art: render output ends with reset sequence" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 2, 2, 0, 255, 0);
@@ -99,8 +99,8 @@ test "ansi art: render output ends with reset sequence" {
         .output_width = 10,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, &stream);
+    const output = stream.buffered();
 
     // Should end with reset (either \x1b[0m or \x1b[m)
     try testing.expect(std.mem.endsWith(u8, output, "\x1b[0m") or
@@ -110,7 +110,7 @@ test "ansi art: render output ends with reset sequence" {
 
 test "ansi art: render 1x1 pixel edge case produces output" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 1, 1, 128, 128, 128);
@@ -122,15 +122,15 @@ test "ansi art: render 1x1 pixel edge case produces output" {
         .output_width = 5,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 1, 1, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 1, 1, options, &stream);
+    const output = stream.buffered();
 
     try testing.expect(output.len > 0);
 }
 
 test "ansi art: render with braille algorithm produces non-empty output" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 4, 4, 255, 255, 255);
@@ -142,15 +142,15 @@ test "ansi art: render with braille algorithm produces non-empty output" {
         .output_width = 10,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, &stream);
+    const output = stream.buffered();
 
     try testing.expect(output.len > 0);
 }
 
 test "ansi art: render with ascii algorithm produces non-empty output" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 4, 4, 100, 100, 100);
@@ -162,15 +162,15 @@ test "ansi art: render with ascii algorithm produces non-empty output" {
         .output_width = 10,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, &stream);
+    const output = stream.buffered();
 
     try testing.expect(output.len > 0);
 }
 
 test "ansi art: render with grayscale mode produces no color codes" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 2, 2, 200, 100, 50);
@@ -182,8 +182,8 @@ test "ansi art: render with grayscale mode produces no color codes" {
         .output_width = 10,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, &stream);
+    const output = stream.buffered();
 
     // Grayscale should not have 38;2 (truecolor foreground) or 38;5 (256-color)
     try testing.expect(!std.mem.containsAtLeast(u8, output, 1, "38;2;"));
@@ -196,7 +196,7 @@ test "ansi art: render with output_height=null auto-calculates height" {
     // Use a smaller image to stay within the 4096-byte fixed buffer.
     // 4x8 image with output_width=4: block mode computes out_h=(8+1)/2=4, 4x4 cells ≈ 700 bytes.
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 4, 8, 50, 100, 150);
@@ -209,8 +209,8 @@ test "ansi art: render with output_height=null auto-calculates height" {
         .output_height = null,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 4, 8, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 4, 8, options, &stream);
+    const output = stream.buffered();
 
     // Block mode auto-height: 8 pixel rows → 4 output rows (pairs); output must be non-empty
     try testing.expect(output.len > 0);
@@ -222,7 +222,7 @@ test "ansi art: render with output_height=null auto-calculates height" {
 
 test "ansi art: block algorithm with 4x2 red image produces block characters" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 4, 2, 255, 0, 0);
@@ -234,8 +234,8 @@ test "ansi art: block algorithm with 4x2 red image produces block characters" {
         .output_width = 8,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 4, 2, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 4, 2, options, &stream);
+    const output = stream.buffered();
 
     // Should contain one of: ▀ (U+2580), ▄ (U+2584), or █ (U+2588) in UTF-8
     const upper_half = "\xe2\x96\x80"; // ▀ in UTF-8
@@ -251,7 +251,7 @@ test "ansi art: block algorithm with 4x2 red image produces block characters" {
 
 test "ansi art: block algorithm with same color top/bottom produces full block" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     // 2x2 all same color (same as 2x2 solid)
@@ -264,8 +264,8 @@ test "ansi art: block algorithm with same color top/bottom produces full block" 
         .output_width = 4,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, &stream);
+    const output = stream.buffered();
 
     // Full block character in UTF-8
     const full_block = "\xe2\x96\x88"; // █
@@ -274,7 +274,7 @@ test "ansi art: block algorithm with same color top/bottom produces full block" 
 
 test "ansi art: block algorithm respects output_width" {
     var buf: [8192]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 20, 20, 50, 100, 150);
@@ -286,8 +286,8 @@ test "ansi art: block algorithm respects output_width" {
         .output_width = 10,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 20, 20, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 20, 20, options, &stream);
+    const output = stream.buffered();
 
     // Count newlines: output_width=10 should produce roughly 10 rows (20 pixels / 2 per row)
     var newline_count: u32 = 0;
@@ -301,7 +301,7 @@ test "ansi art: block algorithm respects output_width" {
 
 test "ansi art: block algorithm with truecolor produces 38;2; sequences" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 2, 2, 200, 100, 50);
@@ -313,8 +313,8 @@ test "ansi art: block algorithm with truecolor produces 38;2; sequences" {
         .output_width = 8,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, &stream);
+    const output = stream.buffered();
 
     // Truecolor: 38;2;R;G;B (foreground) or 48;2;R;G;B (background)
     try testing.expect(std.mem.containsAtLeast(u8, output, 1, "38;2;") or
@@ -323,7 +323,7 @@ test "ansi art: block algorithm with truecolor produces 38;2; sequences" {
 
 test "ansi art: block algorithm with 256-color produces 38;5; sequences" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 2, 2, 200, 100, 50);
@@ -335,8 +335,8 @@ test "ansi art: block algorithm with 256-color produces 38;5; sequences" {
         .output_width = 8,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, &stream);
+    const output = stream.buffered();
 
     // 256-color: 38;5;N (foreground) or 48;5;N (background)
     try testing.expect(std.mem.containsAtLeast(u8, output, 1, "38;5;") or
@@ -349,7 +349,7 @@ test "ansi art: block algorithm with 256-color produces 38;5; sequences" {
 
 test "ansi art: braille with all-white pixels produces bright output" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 4, 4, 255, 255, 255);
@@ -361,8 +361,8 @@ test "ansi art: braille with all-white pixels produces bright output" {
         .output_width = 4,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, &stream);
+    const output = stream.buffered();
 
     // Should contain characters (not empty)
     try testing.expect(output.len > 0);
@@ -370,7 +370,7 @@ test "ansi art: braille with all-white pixels produces bright output" {
 
 test "ansi art: braille with all-black pixels produces dark output" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 4, 4, 0, 0, 0);
@@ -382,15 +382,15 @@ test "ansi art: braille with all-black pixels produces dark output" {
         .output_width = 4,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, &stream);
+    const output = stream.buffered();
 
     try testing.expect(output.len > 0);
 }
 
 test "ansi art: braille output width is approximately output_width characters" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 20, 8, 128, 128, 128);
@@ -402,8 +402,8 @@ test "ansi art: braille output width is approximately output_width characters" {
         .output_width = 10,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 20, 8, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 20, 8, options, &stream);
+    const output = stream.buffered();
 
     // Count characters in first line (before first newline or end)
     var first_line_len: u32 = 0;
@@ -418,7 +418,7 @@ test "ansi art: braille output width is approximately output_width characters" {
 
 test "ansi art: braille algorithm produces characters in UTF-8 braille range" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 4, 4, 100, 100, 100);
@@ -430,8 +430,8 @@ test "ansi art: braille algorithm produces characters in UTF-8 braille range" {
         .output_width = 4,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, &stream);
+    const output = stream.buffered();
 
     // Braille range: U+2800 to U+28FF (UTF-8: E2 A0 80 to E2 A3 BF)
     // Verify output is non-empty and contains braille-range UTF-8 bytes (E2 prefix)
@@ -449,7 +449,7 @@ test "ansi art: braille algorithm produces characters in UTF-8 braille range" {
 
 test "ansi art: braille with 4x4 image works correctly" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 4, 4, 150, 150, 150);
@@ -461,8 +461,8 @@ test "ansi art: braille with 4x4 image works correctly" {
         .output_width = 4,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, &stream);
+    const output = stream.buffered();
 
     try testing.expect(output.len > 0);
 }
@@ -473,7 +473,7 @@ test "ansi art: braille with 4x4 image works correctly" {
 
 test "ansi art: ascii with pure white pixel produces bright character" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 2, 2, 255, 255, 255);
@@ -485,8 +485,8 @@ test "ansi art: ascii with pure white pixel produces bright character" {
         .output_width = 4,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, &stream);
+    const output = stream.buffered();
 
     // ASCII palette: " .,:;i1tfLCG08@" — bright char like '@' for white
     try testing.expect(std.mem.containsAtLeast(u8, output, 1, "@"));
@@ -494,7 +494,7 @@ test "ansi art: ascii with pure white pixel produces bright character" {
 
 test "ansi art: ascii with pure black pixel produces dark character" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 2, 2, 0, 0, 0);
@@ -506,8 +506,8 @@ test "ansi art: ascii with pure black pixel produces dark character" {
         .output_width = 4,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 2, 2, options, &stream);
+    const output = stream.buffered();
 
     // ASCII palette: " .,:;i1tfLCG08@" — space for black
     try testing.expect(std.mem.containsAtLeast(u8, output, 1, " "));
@@ -515,7 +515,7 @@ test "ansi art: ascii with pure black pixel produces dark character" {
 
 test "ansi art: ascii with grayscale mode has no color codes but has ASCII content" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 4, 4, 100, 150, 200);
@@ -527,8 +527,8 @@ test "ansi art: ascii with grayscale mode has no color codes but has ASCII conte
         .output_width = 8,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, &stream);
+    const output = stream.buffered();
 
     // No color codes in grayscale
     try testing.expect(!std.mem.containsAtLeast(u8, output, 1, "38;"));
@@ -539,7 +539,7 @@ test "ansi art: ascii with grayscale mode has no color codes but has ASCII conte
 
 test "ansi art: ascii with 256-color produces colored output" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 4, 4, 200, 100, 50);
@@ -551,8 +551,8 @@ test "ansi art: ascii with 256-color produces colored output" {
         .output_width = 8,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, &stream);
+    const output = stream.buffered();
 
     // 256-color mode should have color codes
     try testing.expect(std.mem.containsAtLeast(u8, output, 1, "38;5;"));
@@ -604,9 +604,9 @@ test "ansi art: rgb16 pure white returns white or bright white index" {
 
 test "ansi art: dithering none produces deterministic output" {
     var buf1: [4096]u8 = undefined;
-    var stream1 = std.io.fixedBufferStream(&buf1);
+    var stream1: std.Io.Writer = .fixed(&buf1);
     var buf2: [4096]u8 = undefined;
-    var stream2 = std.io.fixedBufferStream(&buf2);
+    var stream2: std.Io.Writer = .fixed(&buf2);
 
     const allocator = testing.allocator;
 
@@ -623,20 +623,20 @@ test "ansi art: dithering none produces deterministic output" {
         .output_width = 4,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels1, 4, 4, options, stream1.writer());
-    try AnsiArtRenderer.render(allocator, pixels2, 4, 4, options, stream2.writer());
+    try AnsiArtRenderer.render(allocator, pixels1, 4, 4, options, &stream1);
+    try AnsiArtRenderer.render(allocator, pixels2, 4, 4, options, &stream2);
 
-    const output1 = stream1.getWritten();
-    const output2 = stream2.getWritten();
+    const output1 = stream1.buffered();
+    const output2 = stream2.buffered();
 
     try testing.expectEqualSlices(u8, output1, output2);
 }
 
 test "ansi art: floyd steinberg dithering produces different output than no dithering" {
     var buf_no: [4096]u8 = undefined;
-    var stream_no = std.io.fixedBufferStream(&buf_no);
+    var stream_no: std.Io.Writer = .fixed(&buf_no);
     var buf_fs: [4096]u8 = undefined;
-    var stream_fs = std.io.fixedBufferStream(&buf_fs);
+    var stream_fs: std.Io.Writer = .fixed(&buf_fs);
 
     const allocator = testing.allocator;
 
@@ -662,11 +662,11 @@ test "ansi art: floyd steinberg dithering produces different output than no dith
         .output_width = 8,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels1, 8, 8, options_no, stream_no.writer());
-    try AnsiArtRenderer.render(allocator, pixels2, 8, 8, options_fs, stream_fs.writer());
+    try AnsiArtRenderer.render(allocator, pixels1, 8, 8, options_no, &stream_no);
+    try AnsiArtRenderer.render(allocator, pixels2, 8, 8, options_fs, &stream_fs);
 
-    const output_no = stream_no.getWritten();
-    const output_fs = stream_fs.getWritten();
+    const output_no = stream_no.buffered();
+    const output_fs = stream_fs.buffered();
 
     // Floyd-Steinberg should produce different output
     try testing.expect(!std.mem.eql(u8, output_no, output_fs));
@@ -674,9 +674,9 @@ test "ansi art: floyd steinberg dithering produces different output than no dith
 
 test "ansi art: ordered dithering produces different output than no dithering" {
     var buf_no: [4096]u8 = undefined;
-    var stream_no = std.io.fixedBufferStream(&buf_no);
+    var stream_no: std.Io.Writer = .fixed(&buf_no);
     var buf_ord: [4096]u8 = undefined;
-    var stream_ord = std.io.fixedBufferStream(&buf_ord);
+    var stream_ord: std.Io.Writer = .fixed(&buf_ord);
 
     const allocator = testing.allocator;
 
@@ -700,11 +700,11 @@ test "ansi art: ordered dithering produces different output than no dithering" {
         .output_width = 8,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels1, 8, 8, options_no, stream_no.writer());
-    try AnsiArtRenderer.render(allocator, pixels2, 8, 8, options_ord, stream_ord.writer());
+    try AnsiArtRenderer.render(allocator, pixels1, 8, 8, options_no, &stream_no);
+    try AnsiArtRenderer.render(allocator, pixels2, 8, 8, options_ord, &stream_ord);
 
-    const output_no = stream_no.getWritten();
-    const output_ord = stream_ord.getWritten();
+    const output_no = stream_no.buffered();
+    const output_ord = stream_ord.buffered();
 
     // Ordered dithering should produce different output
     try testing.expect(!std.mem.eql(u8, output_no, output_ord));
@@ -712,9 +712,9 @@ test "ansi art: ordered dithering produces different output than no dithering" {
 
 test "ansi art: both dithering modes produce valid output" {
     var buf_fs: [4096]u8 = undefined;
-    var stream_fs = std.io.fixedBufferStream(&buf_fs);
+    var stream_fs: std.Io.Writer = .fixed(&buf_fs);
     var buf_ord: [4096]u8 = undefined;
-    var stream_ord = std.io.fixedBufferStream(&buf_ord);
+    var stream_ord: std.Io.Writer = .fixed(&buf_ord);
 
     const allocator = testing.allocator;
 
@@ -738,11 +738,11 @@ test "ansi art: both dithering modes produce valid output" {
         .output_width = 4,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels1, 4, 4, options_fs, stream_fs.writer());
-    try AnsiArtRenderer.render(allocator, pixels2, 4, 4, options_ord, stream_ord.writer());
+    try AnsiArtRenderer.render(allocator, pixels1, 4, 4, options_fs, &stream_fs);
+    try AnsiArtRenderer.render(allocator, pixels2, 4, 4, options_ord, &stream_ord);
 
-    const output_fs = stream_fs.getWritten();
-    const output_ord = stream_ord.getWritten();
+    const output_fs = stream_fs.buffered();
+    const output_ord = stream_ord.buffered();
 
     try testing.expect(output_fs.len > 0);
     try testing.expect(output_ord.len > 0);
@@ -753,7 +753,9 @@ test "ansi art: both dithering modes produce valid output" {
 // ============================================================================
 
 test "ansi art: detectColorMode returns a valid ColorMode enum value" {
-    const mode = detectColorMode();
+    var env = std.process.Environ.Map.init(testing.allocator);
+    defer env.deinit();
+    const mode = detectColorMode(&env);
     // Should return one of the four valid modes
     const valid = mode == .truecolor or
         mode == .colors256 or
@@ -762,13 +764,26 @@ test "ansi art: detectColorMode returns a valid ColorMode enum value" {
     try testing.expect(valid);
 }
 
+test "ansi art: detectColorMode reads injected COLORTERM and TERM" {
+    var env = std.process.Environ.Map.init(testing.allocator);
+    defer env.deinit();
+
+    try testing.expectEqual(AnsiArtRenderer.ColorMode.colors16, detectColorMode(&env));
+
+    try env.put("TERM", "xterm-256color");
+    try testing.expectEqual(AnsiArtRenderer.ColorMode.colors256, detectColorMode(&env));
+
+    try env.put("COLORTERM", "truecolor");
+    try testing.expectEqual(AnsiArtRenderer.ColorMode.truecolor, detectColorMode(&env));
+}
+
 // ============================================================================
 // Memory & Error Safety Tests (4 tests)
 // ============================================================================
 
 test "ansi art: render with width=0 returns error" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 1, 1, 100, 100, 100);
@@ -780,13 +795,13 @@ test "ansi art: render with width=0 returns error" {
         .output_width = 0,
     };
 
-    const result = AnsiArtRenderer.render(allocator, pixels, 1, 1, options, stream.writer());
+    const result = AnsiArtRenderer.render(allocator, pixels, 1, 1, options, &stream);
     try testing.expectError(error.InvalidDimensions, result);
 }
 
 test "ansi art: render with height=0 returns error" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 1, 1, 100, 100, 100);
@@ -798,13 +813,13 @@ test "ansi art: render with height=0 returns error" {
         .output_width = 10,
     };
 
-    const result = AnsiArtRenderer.render(allocator, pixels, 1, 0, options, stream.writer());
+    const result = AnsiArtRenderer.render(allocator, pixels, 1, 0, options, &stream);
     try testing.expectError(error.InvalidDimensions, result);
 }
 
 test "ansi art: render with mismatched pixel buffer size returns error or handles gracefully" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     // Create pixels for 2x2 (12 bytes), but claim 3x3 (27 bytes)
@@ -817,7 +832,7 @@ test "ansi art: render with mismatched pixel buffer size returns error or handle
         .output_width = 10,
     };
 
-    const result = AnsiArtRenderer.render(allocator, pixels, 3, 3, options, stream.writer());
+    const result = AnsiArtRenderer.render(allocator, pixels, 3, 3, options, &stream);
     // Should either error or handle the truncated buffer
     if (result) |_| {
         // If it succeeds, that's OK too (might use what's available)
@@ -829,7 +844,7 @@ test "ansi art: render with mismatched pixel buffer size returns error or handle
 
 test "ansi art: render with no memory leaks" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     var gpa = std.heap.DebugAllocator(.{
         .safety = true,
         .verbose_log = false,
@@ -847,20 +862,22 @@ test "ansi art: render with no memory leaks" {
         .output_width = 16,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 8, 8, options, stream.writer());
+    try AnsiArtRenderer.render(allocator, pixels, 8, 8, options, &stream);
     // GPA will detect leaks on deinit if any occurred
 }
 
 test "ansi art: renderAuto works and produces output" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
 
     const pixels = try createSolidImage(allocator, 4, 4, 150, 150, 150);
     defer allocator.free(pixels);
 
-    try AnsiArtRenderer.renderAuto(allocator, pixels, 4, 4, 8, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.renderAuto(allocator, &env, pixels, 4, 4, 8, &stream);
+    const output = stream.buffered();
 
     try testing.expect(output.len > 0);
 }
@@ -871,7 +888,7 @@ test "ansi art: renderAuto works and produces output" {
 
 test "ansi art: render with 4-row image produces appropriate number of newlines" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     // 4 rows with block algorithm = 2 terminal rows (2 pixel rows per terminal row)
@@ -884,8 +901,8 @@ test "ansi art: render with 4-row image produces appropriate number of newlines"
         .output_width = 8,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, &stream);
+    const output = stream.buffered();
 
     // Should have at least one newline to separate rows
     var newline_count: u32 = 0;
@@ -897,7 +914,7 @@ test "ansi art: render with 4-row image produces appropriate number of newlines"
 
 test "ansi art: render clears styling between rows with reset sequence" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
     const allocator = testing.allocator;
 
     const pixels = try createSolidImage(allocator, 4, 4, 200, 100, 50);
@@ -909,8 +926,8 @@ test "ansi art: render clears styling between rows with reset sequence" {
         .output_width = 8,
     };
 
-    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, stream.writer());
-    const output = stream.getWritten();
+    try AnsiArtRenderer.render(allocator, pixels, 4, 4, options, &stream);
+    const output = stream.buffered();
 
     // Should end with a reset sequence
     try testing.expect(std.mem.endsWith(u8, output, "\x1b[0m") or
@@ -1444,7 +1461,7 @@ test "ansi art player: isComplete returns false when loop=true" {
 
 test "ansi art player: render writes non-empty output for a 2x2 frame" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const allocator = testing.allocator;
     const options = AnsiArtRenderer.RenderOptions{
@@ -1460,8 +1477,8 @@ test "ansi art player: render writes non-empty output for a 2x2 frame" {
     defer allocator.free(frame);
     try player.addFrame(frame, 2, 2, 100);
 
-    try player.render(allocator, stream.writer());
-    const output = stream.getWritten();
+    try player.render(allocator, &stream);
+    const output = stream.buffered();
 
     try testing.expect(output.len > 0);
 }
@@ -1535,7 +1552,7 @@ test "ansi art player: deinit frees all frame pixel data" {
 
 test "ansi art: convertVideoFrame with frame_number=0 produces non-empty output" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const allocator = testing.allocator;
     const pixels = try createSolidImage(allocator, 2, 2, 255, 0, 0);
@@ -1547,15 +1564,15 @@ test "ansi art: convertVideoFrame with frame_number=0 produces non-empty output"
         .output_width = 80,
     };
 
-    try sailor.tui.ansi_art.convertVideoFrame(allocator, pixels, 2, 2, options, 0, stream.writer());
-    const output = stream.getWritten();
+    try sailor.tui.ansi_art.convertVideoFrame(allocator, pixels, 2, 2, options, 0, &stream);
+    const output = stream.buffered();
 
     try testing.expect(output.len > 0);
 }
 
 test "ansi art: convertVideoFrame with frame_number>0 writes cursor-up escape sequence" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const allocator = testing.allocator;
     const pixels = try createSolidImage(allocator, 2, 2, 255, 0, 0);
@@ -1567,8 +1584,8 @@ test "ansi art: convertVideoFrame with frame_number>0 writes cursor-up escape se
         .output_width = 80,
     };
 
-    try sailor.tui.ansi_art.convertVideoFrame(allocator, pixels, 2, 2, options, 1, stream.writer());
-    const output = stream.getWritten();
+    try sailor.tui.ansi_art.convertVideoFrame(allocator, pixels, 2, 2, options, 1, &stream);
+    const output = stream.buffered();
 
     // Should contain cursor-up escape: ESC[nA where n is a number
     const has_escape_a = std.mem.containsAtLeast(u8, output, 1, "A");
@@ -1577,7 +1594,7 @@ test "ansi art: convertVideoFrame with frame_number>0 writes cursor-up escape se
 
 test "ansi art: convertVideoFrame produces valid output for various frame numbers" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const allocator = testing.allocator;
     const pixels = try createSolidImage(allocator, 2, 2, 100, 100, 100);
@@ -1589,15 +1606,15 @@ test "ansi art: convertVideoFrame produces valid output for various frame number
         .output_width = 80,
     };
 
-    try sailor.tui.ansi_art.convertVideoFrame(allocator, pixels, 2, 2, options, 5, stream.writer());
-    const output = stream.getWritten();
+    try sailor.tui.ansi_art.convertVideoFrame(allocator, pixels, 2, 2, options, 5, &stream);
+    const output = stream.buffered();
 
     try testing.expect(output.len > 0);
 }
 
 test "ansi art: convertVideoFrame with width=0 returns error" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const allocator = testing.allocator;
     const pixels = try createSolidImage(allocator, 1, 1, 100, 100, 100);
@@ -1609,15 +1626,15 @@ test "ansi art: convertVideoFrame with width=0 returns error" {
         .output_width = 80,
     };
 
-    const result = sailor.tui.ansi_art.convertVideoFrame(allocator, pixels, 0, 1, options, 0, stream.writer());
+    const result = sailor.tui.ansi_art.convertVideoFrame(allocator, pixels, 0, 1, options, 0, &stream);
     try testing.expectError(error.InvalidDimensions, result);
 }
 
 test "ansi art: convertVideoFrame with different algorithms produces different output" {
     var buf1: [4096]u8 = undefined;
-    var stream1 = std.io.fixedBufferStream(&buf1);
+    var stream1: std.Io.Writer = .fixed(&buf1);
     var buf2: [4096]u8 = undefined;
-    var stream2 = std.io.fixedBufferStream(&buf2);
+    var stream2: std.Io.Writer = .fixed(&buf2);
 
     const allocator = testing.allocator;
     const pixels1 = try createSolidImage(allocator, 4, 4, 150, 100, 50);
@@ -1637,11 +1654,11 @@ test "ansi art: convertVideoFrame with different algorithms produces different o
         .output_width = 80,
     };
 
-    try sailor.tui.ansi_art.convertVideoFrame(allocator, pixels1, 4, 4, options_block, 0, stream1.writer());
-    try sailor.tui.ansi_art.convertVideoFrame(allocator, pixels2, 4, 4, options_ascii, 0, stream2.writer());
+    try sailor.tui.ansi_art.convertVideoFrame(allocator, pixels1, 4, 4, options_block, 0, &stream1);
+    try sailor.tui.ansi_art.convertVideoFrame(allocator, pixels2, 4, 4, options_ascii, 0, &stream2);
 
-    const output1 = stream1.getWritten();
-    const output2 = stream2.getWritten();
+    const output1 = stream1.buffered();
+    const output2 = stream2.buffered();
 
     try testing.expect(!std.mem.eql(u8, output1, output2));
 }

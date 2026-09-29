@@ -57,7 +57,7 @@ pub const PerformanceProfiler = struct {
     /// Initialize performance profiler with empty frame history.
     pub fn init(allocator: std.mem.Allocator) PerformanceProfiler {
         return .{
-            .frame_history = std.ArrayList(FrameStats){},
+            .frame_history = std.ArrayList(FrameStats).empty,
             .alloc_stats = .{
                 .total_allocated = 0,
                 .total_freed = 0,
@@ -66,7 +66,7 @@ pub const PerformanceProfiler = struct {
                 .alloc_count = 0,
                 .free_count = 0,
             },
-            .hot_paths = std.ArrayList(HotPath){},
+            .hot_paths = std.ArrayList(HotPath).empty,
             .allocator = allocator,
         };
     }

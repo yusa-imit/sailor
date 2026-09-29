@@ -2,24 +2,20 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-/// Detect terminal color mode from environment variables.
-pub fn detectColorMode() AnsiArtRenderer.ColorMode {
-    const alloc = std.heap.page_allocator;
-
-    if (std.process.getEnvVarOwned(alloc, "COLORTERM")) |val| {
-        defer alloc.free(val);
+/// Detect terminal color mode from environment variables (COLORTERM, TERM).
+pub fn detectColorMode(environ_map: *const std.process.Environ.Map) AnsiArtRenderer.ColorMode {
+    if (environ_map.get("COLORTERM")) |val| {
         if (std.mem.eql(u8, val, "truecolor") or std.mem.eql(u8, val, "24bit")) {
             return .truecolor;
         }
-    } else |_| {}
+    }
 
-    if (std.process.getEnvVarOwned(alloc, "TERM")) |val| {
-        defer alloc.free(val);
-        if (std.mem.indexOf(u8, val, "256color") != null) return .colors256;
+    if (environ_map.get("TERM")) |val| {
+        if (std.mem.find(u8, val, "256color") != null) return .colors256;
         if (std.mem.startsWith(u8, val, "xterm") or
             std.mem.startsWith(u8, val, "screen") or
             std.mem.startsWith(u8, val, "tmux")) return .colors16;
-    } else |_| {}
+    }
 
     return .colors16;
 }
@@ -114,6 +110,7 @@ pub const AnsiArtRenderer = struct {
 
     pub fn renderAuto(
         allocator: Allocator,
+        environ_map: *const std.process.Environ.Map,
         pixels: []const u8,
         width: u32,
         height: u32,
@@ -122,7 +119,7 @@ pub const AnsiArtRenderer = struct {
     ) !void {
         try render(allocator, pixels, width, height, .{
             .algorithm = .block,
-            .color_mode = detectColorMode(),
+            .color_mode = detectColorMode(environ_map),
             .output_width = output_width,
         }, writer);
     }
@@ -473,7 +470,7 @@ pub const AnsiArtPlayer = struct {
     pub fn init(allocator: Allocator, options: AnsiArtRenderer.RenderOptions) AnsiArtPlayer {
         return AnsiArtPlayer{
             .allocator = allocator,
-            .frames = .{},
+            .frames = .empty,
             .current_frame = 0,
             .elapsed_ms = 0,
             .is_playing = false,

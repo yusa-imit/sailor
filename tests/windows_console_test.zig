@@ -101,7 +101,7 @@ test "ConPTY: closePseudoConsole cleanup is idempotent" {
 test "ConPTY: ENABLE_VIRTUAL_TERMINAL_PROCESSING flag detection" {
     if (builtin.os.tag != .windows) return error.SkipZigTest;
 
-    const windows = std.os.windows;
+    const windows = sailor.term.win32;
     const stdout_handle = windows.GetStdHandle(windows.STD_OUTPUT_HANDLE) catch return;
 
     if (stdout_handle == windows.INVALID_HANDLE_VALUE) return;
@@ -122,7 +122,7 @@ test "ConPTY: ENABLE_VIRTUAL_TERMINAL_PROCESSING flag detection" {
 test "ConPTY: ENABLE_VIRTUAL_TERMINAL_INPUT flag detection" {
     if (builtin.os.tag != .windows) return error.SkipZigTest;
 
-    const windows = std.os.windows;
+    const windows = sailor.term.win32;
     const stdin_handle = windows.GetStdHandle(windows.STD_INPUT_HANDLE) catch return;
 
     if (stdin_handle == windows.INVALID_HANDLE_VALUE) return;
@@ -142,7 +142,7 @@ test "ConPTY: ENABLE_VIRTUAL_TERMINAL_INPUT flag detection" {
 test "ConPTY: enable virtual terminal processing" {
     if (builtin.os.tag != .windows) return error.SkipZigTest;
 
-    const windows = std.os.windows;
+    const windows = sailor.term.win32;
     const stdout_handle = windows.GetStdHandle(windows.STD_OUTPUT_HANDLE) catch return;
 
     if (stdout_handle == windows.INVALID_HANDLE_VALUE) return;
@@ -162,7 +162,7 @@ test "ConPTY: enable virtual terminal processing" {
 test "legacy console: SetConsoleMode operations" {
     if (builtin.os.tag != .windows) return error.SkipZigTest;
 
-    const windows = std.os.windows;
+    const windows = sailor.term.win32;
     const stdout_handle = windows.GetStdHandle(windows.STD_OUTPUT_HANDLE) catch return;
 
     if (stdout_handle == windows.INVALID_HANDLE_VALUE) return;
@@ -183,7 +183,7 @@ test "legacy console: SetConsoleMode operations" {
 test "legacy console: GetConsoleMode retrieves current mode" {
     if (builtin.os.tag != .windows) return error.SkipZigTest;
 
-    const windows = std.os.windows;
+    const windows = sailor.term.win32;
     const stdout_handle = windows.GetStdHandle(windows.STD_OUTPUT_HANDLE) catch return;
 
     if (stdout_handle == windows.INVALID_HANDLE_VALUE) return;
@@ -261,7 +261,7 @@ test "legacy console: ANSI reset to default attributes" {
 test "legacy console: cursor positioning via SetConsoleCursorPosition" {
     if (builtin.os.tag != .windows) return error.SkipZigTest;
 
-    const windows = std.os.windows;
+    const windows = sailor.term.win32;
     const stdout_handle = windows.GetStdHandle(windows.STD_OUTPUT_HANDLE) catch return;
 
     if (stdout_handle == windows.INVALID_HANDLE_VALUE) return;
@@ -277,7 +277,7 @@ test "legacy console: cursor positioning via SetConsoleCursorPosition" {
 test "legacy console: screen buffer manipulation" {
     if (builtin.os.tag != .windows) return error.SkipZigTest;
 
-    const windows = std.os.windows;
+    const windows = sailor.term.win32;
     const stdout_handle = windows.GetStdHandle(windows.STD_OUTPUT_HANDLE) catch return;
 
     if (stdout_handle == windows.INVALID_HANDLE_VALUE) return;
@@ -704,14 +704,13 @@ test "integration: ConPTY with ANSI output" {
 
     // Write ANSI sequences to ConPTY
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try writer.writeAll("\x1b[31mRED\x1b[0m");
-    try writer.writeAll(" ");
-    try writer.writeAll("\x1b[32mGREEN\x1b[0m");
+    try fbs.writeAll("\x1b[31mRED\x1b[0m");
+    try fbs.writeAll(" ");
+    try fbs.writeAll("\x1b[32mGREEN\x1b[0m");
 
-    const written = fbs.getWritten();
+    const written = fbs.buffered();
     try testing.expect(written.len > 0);
 }
 

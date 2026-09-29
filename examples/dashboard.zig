@@ -10,6 +10,7 @@
 
 const std = @import("std");
 const sailor = @import("sailor");
+const support = @import("support.zig");
 
 const Buffer = sailor.tui.Buffer;
 const Block = sailor.tui.widgets.Block;
@@ -29,10 +30,9 @@ const Stats = struct {
     uptime_seconds: u64 = 3665, // 1h 1m 5s
 };
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
     const stats = Stats{};
 
@@ -48,10 +48,11 @@ pub fn main() !void {
     const area = Rect{ .x = 0, .y = 0, .width = width, .height = height };
 
     // Main layout
-    const main_chunks = layout.split(.vertical, &.{
+    const main_chunks = try layout.split(allocator, .vertical, area, &.{
         .{ .length = 3 },
         .{ .min = 10 },
-    }, area);
+    });
+    defer allocator.free(main_chunks);
 
     // Header
     const header_style = Style{
@@ -66,24 +67,26 @@ pub fn main() !void {
     header_block.render(&buffer, main_chunks[0]);
 
     // Content: metrics (left) + info (right)
-    const content_chunks = layout.split(.horizontal, &.{
+    const content_chunks = try layout.split(allocator, .horizontal, main_chunks[1], &.{
         .{ .percentage = 50 },
         .{ .percentage = 50 },
-    }, main_chunks[1]);
+    });
+    defer allocator.free(content_chunks);
 
     // Left: metrics
-    const metric_chunks = layout.split(.vertical, &.{
+    const metric_chunks = try layout.split(allocator, .vertical, content_chunks[0], &.{
         .{ .length = 3 },
         .{ .length = 3 },
         .{ .length = 3 },
         .{ .min = 3 },
-    }, content_chunks[0]);
+    });
+    defer allocator.free(metric_chunks);
 
     // CPU Gauge
     var cpu_gauge = Gauge{
-        .percent = @intFromFloat(stats.cpu),
+        .ratio = stats.cpu / 100.0,
         .label = "CPU",
-        .style = Style{
+        .filled_style = Style{
             .fg = if (stats.cpu > 80) Color{ .indexed = 9 } else if (stats.cpu > 50) Color{ .indexed = 11 } else Color{ .indexed = 10 },
         },
     };
@@ -91,9 +94,9 @@ pub fn main() !void {
 
     // Memory Gauge
     var memory_gauge = Gauge{
-        .percent = @intFromFloat(stats.memory),
+        .ratio = stats.memory / 100.0,
         .label = "Memory",
-        .style = Style{
+        .filled_style = Style{
             .fg = if (stats.memory > 80) Color{ .indexed = 9 } else if (stats.memory > 50) Color{ .indexed = 11 } else Color{ .indexed = 10 },
         },
     };
@@ -101,9 +104,9 @@ pub fn main() !void {
 
     // Disk Gauge
     var disk_gauge = Gauge{
-        .percent = @intFromFloat(stats.disk),
+        .ratio = stats.disk / 100.0,
         .label = "Disk",
-        .style = Style{
+        .filled_style = Style{
             .fg = if (stats.disk > 80) Color{ .indexed = 9 } else if (stats.disk > 50) Color{ .indexed = 11 } else Color{ .indexed = 10 },
         },
     };
@@ -116,17 +119,13 @@ pub fn main() !void {
     };
     network_block.render(&buffer, metric_chunks[3]);
 
-    const network_area = network_block.innerArea(metric_chunks[3]);
+    const network_area = network_block.inner(metric_chunks[3]);
     var network_buf: [256]u8 = undefined;
     const network_text = try std.fmt.bufPrint(&network_buf, "RX: {d} KB\nTX: {d} KB", .{
         stats.network_rx / 1024,
         stats.network_tx / 1024,
     });
-    var network_para = Paragraph{
-        .text = network_text,
-        .alignment = .left,
-    };
-    network_para.render(&buffer, network_area);
+    support.renderText(&buffer, network_area, network_text, .left, .{});
 
     // Right: system info
     var info_block = Block{
@@ -135,7 +134,7 @@ pub fn main() !void {
     };
     info_block.render(&buffer, content_chunks[1]);
 
-    const info_area = info_block.innerArea(content_chunks[1]);
+    const info_area = info_block.inner(content_chunks[1]);
     const hours = stats.uptime_seconds / 3600;
     const minutes = (stats.uptime_seconds % 3600) / 60;
     const seconds = stats.uptime_seconds % 60;
@@ -157,15 +156,14 @@ pub fn main() !void {
         \\  • Multiple widget types
     , .{ hours, minutes, seconds });
 
-    var info_para = Paragraph{
-        .text = info_text,
-        .alignment = .left,
-    };
-    info_para.render(&buffer, info_area);
+    support.renderText(&buffer, info_area, info_text, .left, .{});
 
     // Render
-    const stdout = std.io.getStdOut().writer();
-    try buffer.renderTo(stdout);
+    var out_buf: [4096]u8 = undefined;
+    var fw = std.Io.File.stdout().writer(io, &out_buf);
+    const stdout = &fw.interface;
+    try support.renderBuffer(allocator, buffer, stdout);
+    try stdout.flush();
 
     std.debug.print("\n✓ Dashboard rendered successfully!\n", .{});
 }

@@ -254,9 +254,9 @@ pub const NavigationHints = struct {
     /// Format all hints as human-readable text grouped by category
     /// Returns owned string that caller must free
     pub fn formatHints(self: *const NavigationHints, allocator: Allocator) ![]const u8 {
-        var buf: ArrayList(u8) = .empty;
-        defer buf.deinit(allocator);
-        const writer = buf.writer(allocator);
+        var buf: std.Io.Writer.Allocating = .init(allocator);
+        defer buf.deinit();
+        const writer = &buf.writer;
 
         try writer.writeAll("Keyboard Navigation:\n\n");
 
@@ -276,7 +276,7 @@ pub const NavigationHints = struct {
             }
         }
 
-        return buf.toOwnedSlice(allocator);
+        return buf.toOwnedSlice();
     }
 };
 
@@ -403,7 +403,7 @@ test "NavigationHints: format hints" {
     const formatted = try hints.formatHints(allocator);
     defer allocator.free(formatted);
 
-    try std.testing.expect(std.mem.indexOf(u8, formatted, "Keyboard Navigation:") != null);
-    try std.testing.expect(std.mem.indexOf(u8, formatted, "Tab") != null);
-    try std.testing.expect(std.mem.indexOf(u8, formatted, "Enter") != null);
+    try std.testing.expect(std.mem.find(u8, formatted, "Keyboard Navigation:") != null);
+    try std.testing.expect(std.mem.find(u8, formatted, "Tab") != null);
+    try std.testing.expect(std.mem.find(u8, formatted, "Enter") != null);
 }

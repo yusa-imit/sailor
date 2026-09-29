@@ -73,10 +73,9 @@ const ProgressRing = struct {
     }
 };
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
     // Get terminal size
     const term_size = try sailor.term.getSize();
@@ -107,16 +106,16 @@ pub fn main() !void {
     defer previous.deinit();
 
     // Compute diff and render to stdout
-    var output_buf: std.ArrayList(u8) = .empty;
-    defer output_buf.deinit(allocator);
-    const writer = output_buf.writer(allocator);
+    var out_buf: [4096]u8 = undefined;
+    var fw = std.Io.File.stdout().writer(io, &out_buf);
+    const writer = &fw.interface;
 
     const diff_ops = try sailor.tui.buffer.diff(allocator, previous, buffer);
     defer allocator.free(diff_ops);
     try sailor.tui.buffer.renderDiff(diff_ops, writer);
 
     // Write to stdout
-    _ = try std.posix.write(std.posix.STDOUT_FILENO, output_buf.items);
+    try writer.flush();
 
     std.debug.print("\n\n✅ Plugin Demo (v1.23.0)\n", .{});
     std.debug.print("Custom widget: ProgressRing (75% progress)\n", .{});

@@ -163,22 +163,22 @@ test "gamepad analog stick - zero (dead zone)" {
 }
 
 test "gamepad maximum gamepad_id" {
-    const event = gamepad.GamepadEvent.buttonPress(255, .a); // Maximum u8
+    const event = gamepad.GamepadEvent.buttonPress(testing.io, 255, .a); // Maximum u8
     try testing.expectEqual(@as(u8, 255), event.gamepad_id);
 }
 
 test "gamepad button press - all buttons" {
     // Test that all button types can be created
     // Using fully qualified path since GamepadButton is not directly exported
-    const Button = @TypeOf(gamepad.GamepadEvent.buttonPress(0, .a).button.?);
+    const Button = @TypeOf(gamepad.GamepadEvent.buttonPress(testing.io, 0, .a).button.?);
     _ = Button; // Verify type exists
 
     // Test creating events for different buttons
-    const event_a = gamepad.GamepadEvent.buttonPress(0, .a);
+    const event_a = gamepad.GamepadEvent.buttonPress(testing.io, 0, .a);
     try testing.expectEqual(gamepad.EventType.button_press, event_a.event_type);
     try testing.expect(event_a.button.? == .a);
 
-    const event_dpad = gamepad.GamepadEvent.buttonPress(0, .dpad_up);
+    const event_dpad = gamepad.GamepadEvent.buttonPress(testing.io, 0, .dpad_up);
     try testing.expectEqual(gamepad.EventType.button_press, event_dpad.event_type);
     try testing.expect(event_dpad.button.? == .dpad_up);
 }

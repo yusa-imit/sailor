@@ -282,7 +282,7 @@ test "List.withOffset sets scroll offset" {
 }
 
 test "List.withBlock sets block" {
-    const items = &[_][]const u8{ "A" };
+    const items = &[_][]const u8{"A"};
     const block = (Block{});
     const list = List.init(items).withBlock(block);
 
@@ -290,7 +290,7 @@ test "List.withBlock sets block" {
 }
 
 test "List.withItemStyle sets item style" {
-    const items = &[_][]const u8{ "A" };
+    const items = &[_][]const u8{"A"};
     const style = Style{ .bold = true };
     const list = List.init(items).withItemStyle(style);
 
@@ -298,7 +298,7 @@ test "List.withItemStyle sets item style" {
 }
 
 test "List.withSelectedStyle sets selected style" {
-    const items = &[_][]const u8{ "A" };
+    const items = &[_][]const u8{"A"};
     const style = Style{ .italic = true };
     const list = List.init(items).withSelectedStyle(style);
 
@@ -306,7 +306,7 @@ test "List.withSelectedStyle sets selected style" {
 }
 
 test "List.withHighlightSymbol sets symbol" {
-    const items = &[_][]const u8{ "A" };
+    const items = &[_][]const u8{"A"};
     const list = List.init(items).withHighlightSymbol("* ");
 
     try std.testing.expectEqualStrings("* ", list.highlight_symbol);
@@ -349,7 +349,7 @@ test "List.visibleRange handles small lists" {
 }
 
 test "List.render empty area does nothing" {
-    const items = &[_][]const u8{ "A" };
+    const items = &[_][]const u8{"A"};
     const list = List.init(items);
 
     var buf = try Buffer.init(std.testing.allocator, 10, 10);
@@ -431,7 +431,7 @@ test "List.render with custom highlight symbol" {
 }
 
 test "List.render with block border" {
-    const items = &[_][]const u8{ "Item" };
+    const items = &[_][]const u8{"Item"};
     const block = (Block{});
     const list = List.init(items).withBlock(block);
 

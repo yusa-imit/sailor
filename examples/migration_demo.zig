@@ -15,13 +15,15 @@ const Color = sailor.tui.Color;
 const Block = sailor.tui.widgets.Block;
 const Paragraph = sailor.tui.widgets.Paragraph;
 const Gauge = sailor.tui.widgets.Gauge;
+const Line = sailor.tui.style.Line;
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
-    const stdout = std.io.getStdOut().writer();
+    var out_buf: [4096]u8 = undefined;
+    var fw = std.Io.File.stdout().writer(io, &out_buf);
+    const stdout = &fw.interface;
 
     try stdout.writeAll("\n=== sailor v1.x to v2.0.0 Migration Demo ===\n\n");
 
@@ -29,30 +31,31 @@ pub fn main() !void {
     try stdout.writeAll("1. Buffer API: setChar() → set()\n");
     try stdout.writeAll("   v1.x: buffer.setChar(x, y, cell)\n");
     try stdout.writeAll("   v2.0: buffer.set(x, y, cell)\n");
-    try demoBufferAPI(allocator);
+    try demoBufferAPI(allocator, stdout);
 
     // Demo 2: Style API
     try stdout.writeAll("\n2. Style API: Manual construction → Fluent helpers\n");
     try stdout.writeAll("   v1.x: Style{{ .fg = Color.rgb(...), .bold = true, ... }}\n");
     try stdout.writeAll("   v2.0: Style{{}}.withForeground(.rgb(...)).makeBold()\n");
-    try demoStyleAPI();
+    try demoStyleAPI(stdout);
 
     // Demo 3: Widget Lifecycle
     try stdout.writeAll("\n3. Widget Lifecycle: init() → Direct construction\n");
     try stdout.writeAll("   v1.x: var block = Block.init()\n");
     try stdout.writeAll("   v2.0: const block = Block{{}}\n");
-    try demoWidgetLifecycle(allocator);
+    try demoWidgetLifecycle(stdout);
 
     // Demo 4: Full Example
     try stdout.writeAll("\n4. Full Example: Dashboard rendering\n");
-    try demoFullMigration(allocator);
+    try demoFullMigration(allocator, stdout);
 
     try stdout.writeAll("\n=== Migration Complete ===\n");
     try stdout.writeAll("All v2.0.0 APIs produce identical output with cleaner syntax.\n\n");
+    try stdout.flush();
 }
 
 // Demo 1: Buffer API migration
-fn demoBufferAPI(allocator: std.mem.Allocator) !void {
+fn demoBufferAPI(allocator: std.mem.Allocator, stdout: *std.Io.Writer) !void {
     var buffer = try Buffer.init(allocator, 40, 10);
     defer buffer.deinit();
 
@@ -62,21 +65,20 @@ fn demoBufferAPI(allocator: std.mem.Allocator) !void {
     buffer.set(1, 0, cell);
     buffer.set(2, 0, cell);
 
-    const stdout = std.io.getStdOut().writer();
     try stdout.writeAll("   Output: ");
     for (0..3) |x| {
-        const c = buffer.get(@intCast(x), 0);
+        const c = buffer.get(@intCast(x), 0).?;
         try stdout.print("{u}", .{c.char});
     }
     try stdout.writeAll(" (3 blocks rendered)\n");
 }
 
 // Demo 2: Style API migration
-fn demoStyleAPI() !void {
+fn demoStyleAPI(stdout: *std.Io.Writer) !void {
     // v1.x: Manual construction (still works, but verbose)
     const v1_style = Style{
-        .fg = Color.rgb(255, 0, 0),
-        .bg = Color.rgb(0, 0, 0),
+        .fg = Color.fromRgb(255, 0, 0),
+        .bg = Color.fromRgb(0, 0, 0),
         .bold = true,
         .italic = false,
         .underline = false,
@@ -84,13 +86,10 @@ fn demoStyleAPI() !void {
     };
 
     // v2.0.0: Fluent helpers (recommended)
-    const v2_style = (Style{})
-        .withForeground(.rgb(255, 0, 0))
-        .withBackground(.rgb(0, 0, 0))
-        .makeBold();
+    const v2_style = Style.withColors(Color.fromRgb(255, 0, 0), Color.fromRgb(0, 0, 0))
+        .withBold();
 
     // Both produce identical styles
-    const stdout = std.io.getStdOut().writer();
     try stdout.writeAll("   v1.x style: ");
     try stdout.print("fg={any}, bold={}\n", .{ v1_style.fg, v1_style.bold });
     try stdout.writeAll("   v2.0 style: ");
@@ -98,10 +97,10 @@ fn demoStyleAPI() !void {
     try stdout.writeAll("   Result: Identical (v2.0 is more concise)\n");
 
     // More examples
-    const err_style = (Style{}).withForeground(.red).makeBold();
-    const warn_style = (Style{}).withForeground(.yellow).makeItalic();
-    const ok_style = (Style{}).withForeground(.green);
-    const highlight = (Style{}).withColors(.white, .blue);
+    const err_style = Style.withForeground(.red).withBold();
+    const warn_style = Style.withForeground(.yellow).withItalic();
+    const ok_style = Style.withForeground(.green);
+    const highlight = Style.withColors(.white, .blue);
 
     try stdout.print("   Error style: red + bold = {any}\n", .{err_style});
     try stdout.print("   Warning style: yellow + italic = {any}\n", .{warn_style});
@@ -110,8 +109,7 @@ fn demoStyleAPI() !void {
 }
 
 // Demo 3: Widget lifecycle migration
-fn demoWidgetLifecycle(allocator: std.mem.Allocator) !void {
-    const stdout = std.io.getStdOut().writer();
+fn demoWidgetLifecycle(stdout: *std.Io.Writer) !void {
 
     // v2.0.0: Direct construction for stateless widgets
     const block = Block{}; // No init() needed!
@@ -125,47 +123,44 @@ fn demoWidgetLifecycle(allocator: std.mem.Allocator) !void {
 
     // Method chaining requires parentheses for direct construction
     const configured_block = (Block{})
-        .withTitle("Dashboard")
-        .withBorder(.single);
+        .withTitle("Dashboard", .top_left)
+        .withBorderSet(sailor.tui.symbols.BoxSet.single);
 
     try stdout.print("   Configured block: title='{?s}', border={any}\n", .{
         configured_block.title,
-        configured_block.border,
+        configured_block.border_set,
     });
 
     // Allocating widgets still use init() (unchanged)
-    var tree = try sailor.tui.widgets.Tree.init(allocator);
-    defer tree.deinit();
+    const tree = sailor.tui.widgets.Tree.init(&.{});
 
-    try stdout.writeAll("   Allocating widgets still use init():\n");
-    try stdout.print("     Tree: {any} (requires deinit)\n", .{@TypeOf(tree)});
+    try stdout.writeAll("   Data-carrying widgets still use init():\n");
+    try stdout.print("     Tree: {any} (takes its nodes)\n", .{@TypeOf(tree)});
 }
 
 // Demo 4: Full migration example
-fn demoFullMigration(allocator: std.mem.Allocator) !void {
+fn demoFullMigration(allocator: std.mem.Allocator, stdout: *std.Io.Writer) !void {
     var buffer = try Buffer.init(allocator, 60, 12);
     defer buffer.deinit();
 
     // v2.0.0: Fluent styles
-    const title_style = (Style{})
-        .withForeground(.rgb(100, 200, 255))
-        .makeBold()
-        .makeUnderline();
+    const title_style = Style.withForeground(Color.fromRgb(100, 200, 255))
+        .withBold()
+        .withUnderline();
 
-    const content_style = (Style{})
-        .withForeground(.white);
+    const content_style = Style.withForeground(.white);
 
-    const success_style = (Style{})
-        .withForeground(.green)
-        .makeBold();
+    const success_style = Style.withForeground(.green)
+        .withBold();
 
     // v2.0.0: Direct widget construction
     const header_block = (Block{})
-        .withTitle("Migration Dashboard")
-        .withBorder(.double);
+        .withTitle("Migration Dashboard", .top_left)
+        .withBorderSet(sailor.tui.symbols.BoxSet.double);
 
-    const status_para = (Paragraph{})
-        .withText("Migration: Complete ✓");
+    const status_line = Line.single("Migration: Complete ✓");
+    const status_lines = [_]Line{status_line.asLine()};
+    const status_para = Paragraph.fromLines(&status_lines);
 
     const progress_gauge = (Gauge{})
         .withPercent(100)
@@ -186,7 +181,6 @@ fn demoFullMigration(allocator: std.mem.Allocator) !void {
         buffer.set(@intCast(7 + i), 2, cell);
     }
 
-    const stdout = std.io.getStdOut().writer();
     try stdout.writeAll("   Rendered dashboard:\n");
     try stdout.writeAll("   ═════════════════════════════════════════════════════════\n");
     try stdout.writeAll("   ║ Migration Dashboard                                   ║\n");

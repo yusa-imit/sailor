@@ -16,7 +16,6 @@ const std = @import("std");
 const builtin = @import("builtin");
 const posix = std.posix;
 const os = std.os;
-const io = std.io;
 const assert = std.debug.assert;
 
 // Windows console mode flags (missing from std.os.windows)
@@ -39,8 +38,8 @@ extern "kernel32" fn PeekNamedPipe(
     lpBytesRead: ?*std.os.windows.DWORD,
     lpTotalBytesAvail: ?*std.os.windows.DWORD,
     lpBytesLeftThisMessage: ?*std.os.windows.DWORD,
-) callconv(.winapi) std.os.windows.BOOL;
-extern "kernel32" fn SetStdHandle(nStdHandle: std.os.windows.DWORD, hHandle: std.os.windows.HANDLE) callconv(.winapi) std.os.windows.BOOL;
+) callconv(.winapi) c_int;
+extern "kernel32" fn SetStdHandle(nStdHandle: std.os.windows.DWORD, hHandle: std.os.windows.HANDLE) callconv(.winapi) c_int;
 
 pub const Error = error{
     NotATty,
@@ -57,42 +56,28 @@ pub const Size = struct {
     rows: u16,
 };
 
-/// Check if a file descriptor is a TTY (terminal device).
-/// On Unix: accepts fd integers (0=stdin, 1=stdout, 2=stderr)
-/// On Windows: accepts HANDLE (*anyopaque) or integer (0, 1, 2)
-/// Returns true if the FD is connected to a terminal, false otherwise.
-/// Cross-platform: uses isatty() on Unix, GetConsoleMode() on Windows.
-pub fn isatty(fd: anytype) bool {
-    const FdType = @TypeOf(fd);
-    // Precondition: fd must be a POSIX fd (integer) or a Windows-style handle
-    // (pointer-like) — anything else is a caller misuse of this API.
-    assert(@typeInfo(FdType) == .int or @typeInfo(FdType) == .comptime_int or
-        @typeInfo(FdType) == .pointer);
+/// Check if a file is connected to a TTY (terminal device).
+/// Use `std.Io.File.stdin()/stdout()/stderr()` for the standard streams.
+/// Returns true if the file is a terminal, false otherwise (including for
+/// invalid handles). Propagates `error.Canceled` from the underlying `Io`.
+pub fn isatty(io: std.Io, file: std.Io.File) std.Io.Cancelable!bool {
+    // Precondition: the file handle type is the platform fd/HANDLE type.
+    comptime assert(@TypeOf(file.handle) == posix.fd_t);
+    // Precondition: `io` is a constructed runtime (vtable is never null).
+    assert(@intFromPtr(io.vtable) != 0);
 
-    return switch (builtin.os.tag) {
-        .linux, .macos => posix.isatty(fd),
-        .windows => blk: {
-            const handle: std.os.windows.HANDLE = if (FdType == comptime_int or FdType == i32) blk2: {
-                // Integer fd (0, 1, 2) - convert to standard handle
-                const std_handle: std.os.windows.DWORD = switch (fd) {
-                    0 => std.os.windows.STD_INPUT_HANDLE,
-                    1 => std.os.windows.STD_OUTPUT_HANDLE,
-                    2 => std.os.windows.STD_ERROR_HANDLE,
-                    else => return false,
-                };
-                // Invariant: the switch above only falls through to here for
-                // one of the three known standard stdio slots.
-                assert(fd == 0 or fd == 1 or fd == 2);
-                break :blk2 std.os.windows.GetStdHandle(std_handle) catch return false;
-            } else blk2: {
-                // Already a HANDLE (*anyopaque)
-                break :blk2 @ptrCast(fd);
-            };
-            var mode: std.os.windows.DWORD = undefined;
-            break :blk std.os.windows.kernel32.GetConsoleMode(handle, &mode) != 0;
-        },
-        else => false,
-    };
+    return file.isTty(io);
+}
+
+/// Wrap a raw fd/HANDLE in a blocking `std.Io.File` (no ownership taken).
+fn fileFromFd(fd: posix.fd_t) std.Io.File {
+    return .{ .handle = fd, .flags = .{ .nonblocking = false } };
+}
+
+/// Test helper: builds a raw (possibly invalid) descriptor value on every platform.
+fn testFd(value: i32) posix.fd_t {
+    if (builtin.os.tag == .windows) return @ptrFromInt(@as(usize, @bitCast(@as(isize, value))));
+    return value;
 }
 
 /// Get terminal size in columns and rows.
@@ -151,7 +136,7 @@ fn getSizeWindows() Error!Size {
         return Error.UnsupportedPlatform;
     }
 
-    const win = std.os.windows;
+    const win = @import("term/win32.zig");
     const handle = win.GetStdHandle(win.STD_OUTPUT_HANDLE) catch {
         return Error.TerminalSizeUnavailable;
     };
@@ -193,8 +178,9 @@ pub const RawMode = struct {
     /// Raw mode disables: canonical input, echo, signals, line editing.
     /// Returns RAII guard that automatically restores original mode on deinit.
     /// Returns Error.NotATty if fd is not a terminal.
-    pub fn enter(fd: posix.fd_t) Error!RawMode {
-        if (!isatty(fd)) {
+    /// Propagates `error.Canceled` from the TTY probe.
+    pub fn enter(io: std.Io, fd: posix.fd_t) (Error || std.Io.Cancelable)!RawMode {
+        if (!try isatty(io, fileFromFd(fd))) {
             return Error.NotATty;
         }
 
@@ -254,7 +240,7 @@ pub const RawMode = struct {
             return Error.UnsupportedPlatform;
         }
 
-        const win = std.os.windows;
+        const win = @import("term/win32.zig");
         // On Windows, fd is already a handle (*anyopaque)
         const handle: win.HANDLE = @ptrCast(fd);
 
@@ -294,7 +280,7 @@ pub const RawMode = struct {
     }
 
     fn deinitWindows(self: *RawMode) void {
-        const win = std.os.windows;
+        const win = @import("term/win32.zig");
         // On Windows, fd is already a handle (*anyopaque)
         const handle: win.HANDLE = @ptrCast(self.fd);
         _ = win.kernel32.SetConsoleMode(handle, self.original);
@@ -304,13 +290,13 @@ pub const RawMode = struct {
 /// Bracketed paste mode - prevents command injection and allows detecting paste events
 /// Terminals supporting this mode wrap pasted content with special escape sequences.
 pub const BracketedPaste = struct {
-    writer: std.io.AnyWriter,
+    writer: *std.Io.Writer,
 
     /// Enable bracketed paste mode.
     /// Sends CSI ? 2004 h sequence to the terminal.
     /// Pasted content will be wrapped with ESC[200~ (start) and ESC[201~ (end).
     /// Returns RAII guard that disables on deinit.
-    pub fn enable(writer: std.io.AnyWriter) !BracketedPaste {
+    pub fn enable(writer: *std.Io.Writer) !BracketedPaste {
         try writer.writeAll("\x1b[?2004h");
         return BracketedPaste{ .writer = writer };
     }
@@ -326,13 +312,13 @@ pub const BracketedPaste = struct {
 /// Terminals supporting this mode will batch output until explicitly flushed.
 /// Based on DEC private mode 2026.
 pub const SynchronizedOutput = struct {
-    writer: std.io.AnyWriter,
+    writer: *std.Io.Writer,
 
     /// Begin synchronized output mode (DEC private mode 2026).
     /// Sends CSI ? 2026 h sequence to the terminal.
     /// Terminal batches output until end() is called, eliminating tearing.
     /// Returns guard that automatically ends synchronized mode on deinit.
-    pub fn begin(writer: std.io.AnyWriter) !SynchronizedOutput {
+    pub fn begin(writer: *std.Io.Writer) !SynchronizedOutput {
         try writer.writeAll("\x1b[?2026h");
         return SynchronizedOutput{ .writer = writer };
     }
@@ -349,7 +335,7 @@ pub const SynchronizedOutput = struct {
 /// Format: ESC ] 8 ; ; url ST text ESC ] 8 ; ; ST
 /// where ST = ESC \ (String Terminator).
 /// Use writeHyperlinkWithParams for id/custom parameters.
-pub fn writeHyperlink(writer: std.io.AnyWriter, url: []const u8, text: []const u8) !void {
+pub fn writeHyperlink(writer: *std.Io.Writer, url: []const u8, text: []const u8) !void {
     // Start hyperlink: OSC 8 ; ; url ST
     try writer.writeAll("\x1b]8;;");
     try writer.writeAll(url);
@@ -366,7 +352,7 @@ pub fn writeHyperlink(writer: std.io.AnyWriter, url: []const u8, text: []const u
 /// Format: ESC ] 8 ; params ; url ST text ESC ] 8 ; ; ST.
 /// Common params: "id=xyz" for linking related hyperlinks.
 /// Use empty string for params if not needed.
-pub fn writeHyperlinkWithParams(writer: std.io.AnyWriter, params: []const u8, url: []const u8, text: []const u8) !void {
+pub fn writeHyperlinkWithParams(writer: *std.Io.Writer, params: []const u8, url: []const u8, text: []const u8) !void {
     // Start hyperlink: OSC 8 ; params ; url ST
     try writer.writeAll("\x1b]8;");
     try writer.writeAll(params);
@@ -385,13 +371,13 @@ pub fn writeHyperlinkWithParams(writer: std.io.AnyWriter, params: []const u8, ur
 /// Terminals supporting this mode will send focus in/out events.
 /// Based on DEC private mode 1004.
 pub const FocusTracking = struct {
-    writer: std.io.AnyWriter,
+    writer: *std.Io.Writer,
 
     /// Enable focus tracking (DEC private mode 1004).
     /// Sends CSI ? 1004 h sequence to the terminal.
     /// Terminal will send ESC[I on focus in, ESC[O on focus out.
     /// Returns guard that disables on deinit.
-    pub fn enable(writer: std.io.AnyWriter) !FocusTracking {
+    pub fn enable(writer: *std.Io.Writer) !FocusTracking {
         try writer.writeAll("\x1b[?1004h");
         return FocusTracking{ .writer = writer };
     }
@@ -409,7 +395,7 @@ pub const FocusTracking = struct {
 pub fn isFocusIn(buf: []const u8) bool {
     const marker = "\x1b[I";
     comptime assert(marker.len > 0);
-    const result = std.mem.indexOf(u8, buf, marker) != null;
+    const result = std.mem.find(u8, buf, marker) != null;
     if (result) assert(buf.len >= marker.len);
     return result;
 }
@@ -420,7 +406,7 @@ pub fn isFocusIn(buf: []const u8) bool {
 pub fn isFocusOut(buf: []const u8) bool {
     const marker = "\x1b[O";
     comptime assert(marker.len > 0);
-    const result = std.mem.indexOf(u8, buf, marker) != null;
+    const result = std.mem.find(u8, buf, marker) != null;
     if (result) assert(buf.len >= marker.len);
     return result;
 }
@@ -431,7 +417,7 @@ pub fn isFocusOut(buf: []const u8) bool {
 pub fn isPasteStart(buf: []const u8) bool {
     const marker = "\x1b[200~";
     comptime assert(marker.len > 0);
-    const result = std.mem.indexOf(u8, buf, marker) != null;
+    const result = std.mem.find(u8, buf, marker) != null;
     if (result) assert(buf.len >= marker.len);
     return result;
 }
@@ -442,7 +428,7 @@ pub fn isPasteStart(buf: []const u8) bool {
 pub fn isPasteEnd(buf: []const u8) bool {
     const marker = "\x1b[201~";
     comptime assert(marker.len > 0);
-    const result = std.mem.indexOf(u8, buf, marker) != null;
+    const result = std.mem.find(u8, buf, marker) != null;
     if (result) assert(buf.len >= marker.len);
     return result;
 }
@@ -451,9 +437,9 @@ pub fn isPasteEnd(buf: []const u8) bool {
 /// Returns null if timeout expires, byte value if available.
 /// Cross-platform: uses poll() on Unix, WaitForSingleObject() on Windows.
 /// Use in raw mode for non-blocking input with timeout.
-pub fn readByte(timeout_ms: u32) !?u8 {
+pub fn readByte(io: std.Io, timeout_ms: u32) !?u8 {
     if (builtin.os.tag == .windows) {
-        return readByteWindows(timeout_ms);
+        return readByteWindows(io, timeout_ms);
     } else {
         return readByteUnix(timeout_ms);
     }
@@ -480,8 +466,8 @@ fn readByteUnix(timeout_ms: u32) !?u8 {
     return buf[0];
 }
 
-fn readByteWindows(timeout_ms: u32) !?u8 {
-    const win = std.os.windows;
+fn readByteWindows(io: std.Io, timeout_ms: u32) !?u8 {
+    const win = @import("term/win32.zig");
     const handle = try win.GetStdHandle(win.STD_INPUT_HANDLE);
 
     // WaitForSingleObject only reliably reports data-readiness for console
@@ -491,7 +477,8 @@ fn readByteWindows(timeout_ms: u32) !?u8 {
     // hang forever waiting for input that never arrives. Poll pipe handles
     // with PeekNamedPipe instead, bounded by the same timeout.
     if (GetFileType(handle) == FILE_TYPE_PIPE) {
-        const deadline = std.time.milliTimestamp() + @as(i64, timeout_ms);
+        const start = std.Io.Clock.awake.now(io);
+        const timeout_ns: i96 = @as(i96, timeout_ms) * std.time.ns_per_ms;
         while (true) {
             var bytes_avail: win.DWORD = 0;
             if (PeekNamedPipe(handle, null, 0, null, &bytes_avail, null) == 0) {
@@ -499,8 +486,8 @@ fn readByteWindows(timeout_ms: u32) !?u8 {
                 return null;
             }
             if (bytes_avail > 0) break;
-            if (std.time.milliTimestamp() >= deadline) return null;
-            std.Thread.sleep(1 * std.time.ns_per_ms);
+            if (start.untilNow(io, .awake).toNanoseconds() >= timeout_ns) return null;
+            try io.sleep(.fromMilliseconds(1), .awake);
         }
     } else {
         // Console handles and regular files: WaitForSingleObject correctly
@@ -635,14 +622,14 @@ pub fn buildXtgettcapQuery(writer: anytype, allocator: std.mem.Allocator, capabi
 /// Caller must free result.value if non-null.
 pub fn parseXtgettcapResponse(allocator: std.mem.Allocator, response: []const u8) !XtgettcapResult {
     // Find DCS prefix: ESC P
-    const dcs_start = std.mem.indexOf(u8, response, "\x1bP") orelse return error.InvalidResponse;
+    const dcs_start = std.mem.find(u8, response, "\x1bP") orelse return error.InvalidResponse;
     const after_dcs = dcs_start + 2;
     // Invariant: indexOf only returns an index where the full 2-byte needle
     // fit, so slicing response[after_dcs..] below cannot go out of bounds.
     assert(after_dcs <= response.len);
 
     // Find ST suffix: ESC \
-    const st_start = std.mem.indexOf(u8, response[after_dcs..], "\x1b\\") orelse return error.InvalidResponse;
+    const st_start = std.mem.find(u8, response[after_dcs..], "\x1b\\") orelse return error.InvalidResponse;
     // Invariant: st_start is an index within response[after_dcs..], so the
     // slice below stays within response's own bounds.
     assert(after_dcs + st_start <= response.len);
@@ -666,7 +653,7 @@ pub fn parseXtgettcapResponse(allocator: std.mem.Allocator, response: []const u8
     }
 
     // Parse hex-encoded name and optional value
-    if (std.mem.indexOf(u8, body, "=")) |eq_pos| {
+    if (std.mem.find(u8, body, "=")) |eq_pos| {
         // Invariant: eq_pos was found inside body, so both slices below
         // (0..eq_pos and eq_pos+1..) stay within body's bounds.
         assert(eq_pos < body.len);
@@ -698,6 +685,7 @@ pub fn parseXtgettcapResponse(allocator: std.mem.Allocator, response: []const u8
 /// Not supported on Windows (Unix VT100 feature only).
 pub fn queryTerminalCapability(
     allocator: std.mem.Allocator,
+    io: std.Io,
     fd: posix.fd_t,
     capability_name: []const u8,
     timeout_ms: u32,
@@ -723,23 +711,23 @@ pub fn queryTerminalCapability(
 
     // Do not write to non-TTY fds — doing so in zig's test runner (--listen=-)
     // corrupts the binary test protocol and causes the runner to hang.
-    if (!posix.isatty(fd)) return error.NotATty;
+    if (!try isatty(io, fileFromFd(fd))) return error.NotATty;
 
     // Build and send query
     var query_buf: [256]u8 = undefined;
-    var query_stream = io.fixedBufferStream(&query_buf);
-    try buildXtgettcapQuery(query_stream.writer(), allocator, capability_name);
+    var query_stream: std.Io.Writer = .fixed(&query_buf);
+    try buildXtgettcapQuery(&query_stream, allocator, capability_name);
 
-    const query = query_stream.getWritten();
-    _ = try posix.write(fd, query);
+    const query = query_stream.buffered();
+    try fileFromFd(fd).writeStreamingAll(io, query);
 
     // Read response with timeout
     var response_buf: [1024]u8 = undefined;
     var response_len: usize = 0;
-    const start_time = std.time.milliTimestamp();
+    const start_time = std.Io.Clock.awake.now(io);
 
     while (response_len < response_buf.len) {
-        const elapsed = std.time.milliTimestamp() - start_time;
+        const elapsed = start_time.untilNow(io, .awake).toMilliseconds();
         if (elapsed > timeout_ms) {
             return error.QueryTimeout;
         }
@@ -767,7 +755,7 @@ pub fn queryTerminalCapability(
         response_len += n;
 
         // Check if we have a complete response (ends with ST: ESC \)
-        if (std.mem.indexOf(u8, response_buf[0..response_len], "\x1b\\")) |_| {
+        if (std.mem.find(u8, response_buf[0..response_len], "\x1b\\")) |_| {
             break;
         }
     }
@@ -821,7 +809,7 @@ fn queryTerminalCapabilityMock(allocator: std.mem.Allocator, capability_name: []
                 mock.chunk_index += 1;
 
                 // Check if we have a complete response
-                if (std.mem.indexOf(u8, response_buf[0..response_len], "\x1b\\")) |_| {
+                if (std.mem.find(u8, response_buf[0..response_len], "\x1b\\")) |_| {
                     break;
                 }
             }
@@ -853,11 +841,18 @@ fn queryTerminalCapabilityMock(allocator: std.mem.Allocator, capability_name: []
 /// Returns error only on unexpected failures (not timeout/unsupported).
 pub fn hasCapability(
     allocator: std.mem.Allocator,
+    io: std.Io,
     fd: posix.fd_t,
     capability_name: []const u8,
     timeout_ms: u32,
 ) !bool {
-    const value = queryTerminalCapability(allocator, fd, capability_name, timeout_ms) catch |err| {
+    const value = queryTerminalCapability(
+        allocator,
+        io,
+        fd,
+        capability_name,
+        timeout_ms,
+    ) catch |err| {
         if (err == error.CapabilityNotSupported or err == error.QueryTimeout) {
             return false;
         }
@@ -947,7 +942,7 @@ pub const MockTerminal = struct {
 // Tests
 
 test "isatty with invalid fd" {
-    const result = isatty(9999);
+    const result = try isatty(std.testing.io, fileFromFd(testFd(9999)));
     try std.testing.expect(!result);
 }
 
@@ -970,13 +965,13 @@ test "RawMode.enter on invalid fd fails" {
         @ptrFromInt(0xDEADBEEF) // Invalid handle on Windows
     else
         9999; // Invalid fd on Unix
-    const result = RawMode.enter(invalid_fd);
+    const result = RawMode.enter(std.testing.io, invalid_fd);
     try std.testing.expectError(Error.NotATty, result);
 }
 
 test "readByte with zero timeout" {
     // In non-interactive mode, this should timeout immediately
-    const byte = readByte(0) catch |err| {
+    const byte = readByte(std.testing.io, 0) catch |err| {
         // Allow various errors in CI
         try std.testing.expect(err == error.NotATty or
             err == error.AccessDenied or
@@ -995,7 +990,7 @@ test "readByte on empty pipe stdin returns null instead of blocking" {
     // an open-but-empty pipe (as on CI runners). This reproduces that exact
     // condition with a real pipe and asserts readByte() returns promptly.
     if (builtin.os.tag != .windows) return error.SkipZigTest;
-    const win = std.os.windows;
+    const win = @import("term/win32.zig");
 
     var read_handle: win.HANDLE = undefined;
     var write_handle: win.HANDLE = undefined;
@@ -1012,9 +1007,9 @@ test "readByte on empty pipe stdin returns null instead of blocking" {
     defer _ = SetStdHandle(win.STD_INPUT_HANDLE, original_stdin);
     _ = SetStdHandle(win.STD_INPUT_HANDLE, read_handle);
 
-    const start = std.time.milliTimestamp();
-    const result = try readByte(50);
-    const elapsed = std.time.milliTimestamp() - start;
+    const start = std.Io.Clock.awake.now(std.testing.io);
+    const result = try readByte(std.testing.io, 50);
+    const elapsed = start.untilNow(std.testing.io, .awake).toMilliseconds();
 
     try std.testing.expect(result == null);
     // Bounded well above the 50ms timeout to tolerate CI scheduling jitter,
@@ -1083,21 +1078,21 @@ test "hex decode XTGETTCAP response value" {
 test "build XTGETTCAP query sequence" {
     const allocator = std.testing.allocator;
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // Query for "Sixel"
-    try buildXtgettcapQuery(stream.writer(), allocator, "Sixel");
-    try std.testing.expectEqualStrings("\x1bP+q536978656c\x1b\\", stream.getWritten());
+    try buildXtgettcapQuery(&stream, allocator, "Sixel");
+    try std.testing.expectEqualStrings("\x1bP+q536978656c\x1b\\", stream.buffered());
 
     // Reset and query for "TN"
-    stream.reset();
-    try buildXtgettcapQuery(stream.writer(), allocator, "TN");
-    try std.testing.expectEqualStrings("\x1bP+q544e\x1b\\", stream.getWritten());
+    stream.end = 0;
+    try buildXtgettcapQuery(&stream, allocator, "TN");
+    try std.testing.expectEqualStrings("\x1bP+q544e\x1b\\", stream.buffered());
 
     // Reset and query for "RGB"
-    stream.reset();
-    try buildXtgettcapQuery(stream.writer(), allocator, "RGB");
-    try std.testing.expectEqualStrings("\x1bP+q524742\x1b\\", stream.getWritten());
+    stream.end = 0;
+    try buildXtgettcapQuery(&stream, allocator, "RGB");
+    try std.testing.expectEqualStrings("\x1bP+q524742\x1b\\", stream.buffered());
 }
 
 test "parse XTGETTCAP response - capability supported with value" {
@@ -1193,7 +1188,13 @@ test "queryTerminalCapability - mock successful query" {
     global_mock_terminal = &mock_terminal;
     defer global_mock_terminal = null;
 
-    const value = try queryTerminalCapability(allocator, mock_terminal.fd(), "Sixel", 100);
+    const value = try queryTerminalCapability(
+        allocator,
+        std.testing.io,
+        mock_terminal.fd(),
+        "Sixel",
+        100,
+    );
     defer allocator.free(value);
 
     try std.testing.expectEqualStrings("1", value);
@@ -1207,7 +1208,13 @@ test "queryTerminalCapability - capability not supported" {
     global_mock_terminal = &mock_terminal;
     defer global_mock_terminal = null;
 
-    const result = queryTerminalCapability(allocator, mock_terminal.fd(), "Sixel", 100);
+    const result = queryTerminalCapability(
+        allocator,
+        std.testing.io,
+        mock_terminal.fd(),
+        "Sixel",
+        100,
+    );
     try std.testing.expectError(error.CapabilityNotSupported, result);
 }
 
@@ -1219,7 +1226,13 @@ test "queryTerminalCapability - timeout" {
     global_mock_terminal = &mock_terminal;
     defer global_mock_terminal = null;
 
-    const result = queryTerminalCapability(allocator, mock_terminal.fd(), "Sixel", 50);
+    const result = queryTerminalCapability(
+        allocator,
+        std.testing.io,
+        mock_terminal.fd(),
+        "Sixel",
+        50,
+    );
     try std.testing.expectError(error.QueryTimeout, result);
 }
 
@@ -1229,7 +1242,13 @@ test "hasCapability - returns true for supported capability" {
     global_mock_terminal = &mock_terminal;
     defer global_mock_terminal = null;
 
-    const supported = try hasCapability(std.testing.allocator, mock_terminal.fd(), "Sixel", 100);
+    const supported = try hasCapability(
+        std.testing.allocator,
+        std.testing.io,
+        mock_terminal.fd(),
+        "Sixel",
+        100,
+    );
     try std.testing.expect(supported);
 }
 
@@ -1239,7 +1258,13 @@ test "hasCapability - returns false for unsupported capability" {
     global_mock_terminal = &mock_terminal;
     defer global_mock_terminal = null;
 
-    const supported = try hasCapability(std.testing.allocator, mock_terminal.fd(), "Sixel", 100);
+    const supported = try hasCapability(
+        std.testing.allocator,
+        std.testing.io,
+        mock_terminal.fd(),
+        "Sixel",
+        100,
+    );
     try std.testing.expect(!supported);
 }
 
@@ -1249,7 +1274,13 @@ test "hasCapability - returns false on timeout" {
     global_mock_terminal = &mock_terminal;
     defer global_mock_terminal = null;
 
-    const supported = try hasCapability(std.testing.allocator, mock_terminal.fd(), "Sixel", 50);
+    const supported = try hasCapability(
+        std.testing.allocator,
+        std.testing.io,
+        mock_terminal.fd(),
+        "Sixel",
+        50,
+    );
     try std.testing.expect(!supported);
 }
 
@@ -1265,7 +1296,13 @@ test "queryTerminalCapability - handles partial response reads" {
     global_mock_terminal = &mock_terminal;
     defer global_mock_terminal = null;
 
-    const value = try queryTerminalCapability(allocator, mock_terminal.fd(), "Sixel", 200);
+    const value = try queryTerminalCapability(
+        allocator,
+        std.testing.io,
+        mock_terminal.fd(),
+        "Sixel",
+        200,
+    );
     defer allocator.free(value);
 
     try std.testing.expectEqualStrings("1", value);
@@ -1280,7 +1317,13 @@ test "queryTerminalCapability - handles interleaved terminal output" {
     global_mock_terminal = &mock_terminal;
     defer global_mock_terminal = null;
 
-    const value = try queryTerminalCapability(allocator, mock_terminal.fd(), "Sixel", 200);
+    const value = try queryTerminalCapability(
+        allocator,
+        std.testing.io,
+        mock_terminal.fd(),
+        "Sixel",
+        200,
+    );
     defer allocator.free(value);
 
     try std.testing.expectEqualStrings("1", value);
@@ -1296,7 +1339,7 @@ test "queryTerminalCapability with fd=42 returns NotATty when no mock is set" {
     const allocator = std.testing.allocator;
     try std.testing.expect(global_mock_terminal == null);
 
-    const result = queryTerminalCapability(allocator, 42, "Sixel", 50);
+    const result = queryTerminalCapability(allocator, std.testing.io, 42, "Sixel", 50);
     try std.testing.expectError(error.NotATty, result);
 }
 
@@ -1325,42 +1368,42 @@ test "XTGETTCAP common capabilities" {
 
 test "BracketedPaste.enable writes correct escape sequence" {
     var buf: [64]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    const bp = try BracketedPaste.enable(stream.writer().any());
+    const bp = try BracketedPaste.enable(&stream);
     defer bp.deinit();
 
     // Should write CSI ? 2004 h
-    try std.testing.expectEqualStrings("\x1b[?2004h", stream.getWritten());
+    try std.testing.expectEqualStrings("\x1b[?2004h", stream.buffered());
 }
 
 test "BracketedPaste.deinit writes disable sequence" {
     var buf: [64]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    var bp = try BracketedPaste.enable(stream.writer().any());
+    var bp = try BracketedPaste.enable(&stream);
 
     // Reset buffer to capture only deinit output
-    stream.reset();
+    stream.end = 0;
     bp.deinit();
 
     // Should write CSI ? 2004 l
-    try std.testing.expectEqualStrings("\x1b[?2004l", stream.getWritten());
+    try std.testing.expectEqualStrings("\x1b[?2004l", stream.buffered());
 }
 
 test "BracketedPaste RAII disables on scope exit" {
     var buf: [128]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     {
-        var bp = try BracketedPaste.enable(stream.writer().any());
+        var bp = try BracketedPaste.enable(&stream);
         defer bp.deinit();
     }
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should contain both enable and disable sequences
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?2004h") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?2004l") != null);
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?2004h") != null);
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?2004l") != null);
 }
 
 test "isPasteStart detects paste start sequence" {
@@ -1411,25 +1454,25 @@ test "isPasteStart and isPasteEnd are exact matches" {
 
 test "BracketedPaste multiple enable/disable cycles" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // First cycle
     {
-        var bp = try BracketedPaste.enable(stream.writer().any());
+        var bp = try BracketedPaste.enable(&stream);
         defer bp.deinit();
     }
 
-    const first_written = stream.getWritten();
+    const first_written = stream.buffered();
     try std.testing.expectEqualStrings("\x1b[?2004h\x1b[?2004l", first_written);
 
     // Second cycle
-    stream.reset();
+    stream.end = 0;
     {
-        var bp = try BracketedPaste.enable(stream.writer().any());
+        var bp = try BracketedPaste.enable(&stream);
         defer bp.deinit();
     }
 
-    const second_written = stream.getWritten();
+    const second_written = stream.buffered();
     try std.testing.expectEqualStrings("\x1b[?2004h\x1b[?2004l", second_written);
 }
 
@@ -1437,111 +1480,110 @@ test "BracketedPaste multiple enable/disable cycles" {
 
 test "SynchronizedOutput.begin writes correct escape sequence" {
     var buf: [64]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    const sync = try SynchronizedOutput.begin(stream.writer().any());
+    const sync = try SynchronizedOutput.begin(&stream);
     defer sync.end();
 
     // Should write CSI ? 2026 h
-    try std.testing.expectEqualStrings("\x1b[?2026h", stream.getWritten());
+    try std.testing.expectEqualStrings("\x1b[?2026h", stream.buffered());
 }
 
 test "SynchronizedOutput.end writes flush sequence" {
     var buf: [64]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    var sync = try SynchronizedOutput.begin(stream.writer().any());
+    var sync = try SynchronizedOutput.begin(&stream);
 
     // Reset buffer to capture only end output
-    stream.reset();
+    stream.end = 0;
     sync.end();
 
     // Should write CSI ? 2026 l
-    try std.testing.expectEqualStrings("\x1b[?2026l", stream.getWritten());
+    try std.testing.expectEqualStrings("\x1b[?2026l", stream.buffered());
 }
 
 test "SynchronizedOutput RAII flushes on scope exit" {
     var buf: [128]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     {
-        var sync = try SynchronizedOutput.begin(stream.writer().any());
+        var sync = try SynchronizedOutput.begin(&stream);
         defer sync.end();
     }
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should contain both begin and end sequences
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?2026h") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?2026l") != null);
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?2026h") != null);
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?2026l") != null);
 }
 
 test "SynchronizedOutput prevents tearing during rapid updates" {
     var buf: [512]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     {
-        var sync = try SynchronizedOutput.begin(stream.writer().any());
+        var sync = try SynchronizedOutput.begin(&stream);
         defer sync.end();
 
         // Simulate multiple rapid writes that would normally tear
-        const writer = stream.writer().any();
-        try writer.writeAll("Line 1\n");
-        try writer.writeAll("Line 2\n");
-        try writer.writeAll("Line 3\n");
+        try stream.writeAll("Line 1\n");
+        try stream.writeAll("Line 2\n");
+        try stream.writeAll("Line 3\n");
     }
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should have begin sequence, content, then end sequence
     try std.testing.expect(std.mem.startsWith(u8, written, "\x1b[?2026h"));
     try std.testing.expect(std.mem.endsWith(u8, written, "\x1b[?2026l"));
-    try std.testing.expect(std.mem.indexOf(u8, written, "Line 1\nLine 2\nLine 3\n") != null);
+    try std.testing.expect(std.mem.find(u8, written, "Line 1\nLine 2\nLine 3\n") != null);
 }
 
 test "SynchronizedOutput multiple begin/end cycles" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // First cycle
     {
-        var sync = try SynchronizedOutput.begin(stream.writer().any());
+        var sync = try SynchronizedOutput.begin(&stream);
         defer sync.end();
     }
 
-    const first_written = stream.getWritten();
+    const first_written = stream.buffered();
     try std.testing.expectEqualStrings("\x1b[?2026h\x1b[?2026l", first_written);
 
     // Second cycle
-    stream.reset();
+    stream.end = 0;
     {
-        var sync = try SynchronizedOutput.begin(stream.writer().any());
+        var sync = try SynchronizedOutput.begin(&stream);
         defer sync.end();
     }
 
-    const second_written = stream.getWritten();
+    const second_written = stream.buffered();
     try std.testing.expectEqualStrings("\x1b[?2026h\x1b[?2026l", second_written);
 }
 
 test "SynchronizedOutput nested begin/end is safe" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     {
-        var outer = try SynchronizedOutput.begin(stream.writer().any());
+        var outer = try SynchronizedOutput.begin(&stream);
         defer outer.end();
 
-        try stream.writer().any().writeAll("outer\n");
+        try stream.writeAll("outer\n");
 
         {
-            var inner = try SynchronizedOutput.begin(stream.writer().any());
+            var inner = try SynchronizedOutput.begin(&stream);
             defer inner.end();
 
-            try stream.writer().any().writeAll("inner\n");
+            try stream.writeAll("inner\n");
         }
 
-        try stream.writer().any().writeAll("outer again\n");
+        try stream.writeAll("outer again\n");
     }
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should have multiple begin/end pairs
     const begin_count = std.mem.count(u8, written, "\x1b[?2026h");
     const end_count = std.mem.count(u8, written, "\x1b[?2026l");
@@ -1553,11 +1595,11 @@ test "SynchronizedOutput nested begin/end is safe" {
 
 test "writeHyperlink basic usage" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writeHyperlink(stream.writer().any(), "https://example.com", "Example Link");
+    try writeHyperlink(&stream, "https://example.com", "Example Link");
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should be: OSC 8 ; ; url ST text OSC 8 ; ; ST
     const expected = "\x1b]8;;https://example.com\x1b\\Example Link\x1b]8;;\x1b\\";
     try std.testing.expectEqualStrings(expected, written);
@@ -1565,11 +1607,11 @@ test "writeHyperlink basic usage" {
 
 test "writeHyperlink empty url" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writeHyperlink(stream.writer().any(), "", "Plain text");
+    try writeHyperlink(&stream, "", "Plain text");
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should still wrap with OSC 8 sequences
     const expected = "\x1b]8;;\x1b\\Plain text\x1b]8;;\x1b\\";
     try std.testing.expectEqualStrings(expected, written);
@@ -1577,23 +1619,23 @@ test "writeHyperlink empty url" {
 
 test "writeHyperlink special characters in url" {
     var buf: [512]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const url = "https://example.com/path?query=value&foo=bar#anchor";
-    try writeHyperlink(stream.writer().any(), url, "Complex URL");
+    try writeHyperlink(&stream, url, "Complex URL");
 
-    const written = stream.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, written, url) != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "Complex URL") != null);
+    const written = stream.buffered();
+    try std.testing.expect(std.mem.find(u8, written, url) != null);
+    try std.testing.expect(std.mem.find(u8, written, "Complex URL") != null);
 }
 
 test "writeHyperlinkWithParams adds parameters" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writeHyperlinkWithParams(stream.writer().any(), "id=abc123", "https://example.com", "Link with ID");
+    try writeHyperlinkWithParams(&stream, "id=abc123", "https://example.com", "Link with ID");
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should include params: OSC 8 ; id=abc123 ; url ST text OSC 8 ; ; ST
     const expected = "\x1b]8;id=abc123;https://example.com\x1b\\Link with ID\x1b]8;;\x1b\\";
     try std.testing.expectEqualStrings(expected, written);
@@ -1601,11 +1643,11 @@ test "writeHyperlinkWithParams adds parameters" {
 
 test "writeHyperlinkWithParams empty params" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writeHyperlinkWithParams(stream.writer().any(), "", "https://example.com", "No params");
+    try writeHyperlinkWithParams(&stream, "", "https://example.com", "No params");
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should be same as writeHyperlink: OSC 8 ; ; url ST text OSC 8 ; ; ST
     const expected = "\x1b]8;;https://example.com\x1b\\No params\x1b]8;;\x1b\\";
     try std.testing.expectEqualStrings(expected, written);
@@ -1613,82 +1655,82 @@ test "writeHyperlinkWithParams empty params" {
 
 test "writeHyperlink multiple links in sequence" {
     var buf: [512]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writeHyperlink(stream.writer().any(), "https://first.com", "First");
-    try stream.writer().any().writeAll(" - ");
-    try writeHyperlink(stream.writer().any(), "https://second.com", "Second");
+    try writeHyperlink(&stream, "https://first.com", "First");
+    try stream.writeAll(" - ");
+    try writeHyperlink(&stream, "https://second.com", "Second");
 
-    const written = stream.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, written, "https://first.com") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "First") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "https://second.com") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "Second") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, " - ") != null);
+    const written = stream.buffered();
+    try std.testing.expect(std.mem.find(u8, written, "https://first.com") != null);
+    try std.testing.expect(std.mem.find(u8, written, "First") != null);
+    try std.testing.expect(std.mem.find(u8, written, "https://second.com") != null);
+    try std.testing.expect(std.mem.find(u8, written, "Second") != null);
+    try std.testing.expect(std.mem.find(u8, written, " - ") != null);
 }
 
 test "writeHyperlink unicode text" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writeHyperlink(stream.writer().any(), "https://example.com", "링크 🔗 Link");
+    try writeHyperlink(&stream, "https://example.com", "링크 🔗 Link");
 
-    const written = stream.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, written, "링크 🔗 Link") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "https://example.com") != null);
+    const written = stream.buffered();
+    try std.testing.expect(std.mem.find(u8, written, "링크 🔗 Link") != null);
+    try std.testing.expect(std.mem.find(u8, written, "https://example.com") != null);
 }
 
 test "writeHyperlinkWithParams multiple params" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writeHyperlinkWithParams(stream.writer().any(), "id=x:type=external", "https://example.com", "Multi-param");
+    try writeHyperlinkWithParams(&stream, "id=x:type=external", "https://example.com", "Multi-param");
 
-    const written = stream.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, written, "id=x:type=external") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "https://example.com") != null);
+    const written = stream.buffered();
+    try std.testing.expect(std.mem.find(u8, written, "id=x:type=external") != null);
+    try std.testing.expect(std.mem.find(u8, written, "https://example.com") != null);
 }
 
 // Focus Tracking Tests
 
 test "FocusTracking.enable writes correct escape sequence" {
     var buf: [64]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    const focus = try FocusTracking.enable(stream.writer().any());
+    const focus = try FocusTracking.enable(&stream);
     defer focus.deinit();
 
     // Should write CSI ? 1004 h
-    try std.testing.expectEqualStrings("\x1b[?1004h", stream.getWritten());
+    try std.testing.expectEqualStrings("\x1b[?1004h", stream.buffered());
 }
 
 test "FocusTracking.deinit writes disable sequence" {
     var buf: [64]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    var focus = try FocusTracking.enable(stream.writer().any());
+    var focus = try FocusTracking.enable(&stream);
 
     // Reset buffer to capture only deinit output
-    stream.reset();
+    stream.end = 0;
     focus.deinit();
 
     // Should write CSI ? 1004 l
-    try std.testing.expectEqualStrings("\x1b[?1004l", stream.getWritten());
+    try std.testing.expectEqualStrings("\x1b[?1004l", stream.buffered());
 }
 
 test "FocusTracking RAII disables on scope exit" {
     var buf: [128]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     {
-        var focus = try FocusTracking.enable(stream.writer().any());
+        var focus = try FocusTracking.enable(&stream);
         defer focus.deinit();
     }
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     // Should contain both enable and disable sequences
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?1004h") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?1004l") != null);
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?1004h") != null);
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?1004l") != null);
 }
 
 test "isFocusIn detects focus in event" {
@@ -1741,33 +1783,33 @@ test "isFocusIn and isFocusOut detect sequences in buffers" {
 
 test "FocusTracking multiple enable/disable cycles" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // First cycle
     {
-        var focus = try FocusTracking.enable(stream.writer().any());
+        var focus = try FocusTracking.enable(&stream);
         defer focus.deinit();
     }
 
-    const first_written = stream.getWritten();
+    const first_written = stream.buffered();
     try std.testing.expectEqualStrings("\x1b[?1004h\x1b[?1004l", first_written);
 
     // Second cycle
-    stream.reset();
+    stream.end = 0;
     {
-        var focus = try FocusTracking.enable(stream.writer().any());
+        var focus = try FocusTracking.enable(&stream);
         defer focus.deinit();
     }
 
-    const second_written = stream.getWritten();
+    const second_written = stream.buffered();
     try std.testing.expectEqualStrings("\x1b[?1004h\x1b[?1004l", second_written);
 }
 
 test "FocusTracking with simulated focus events" {
     var enable_buf: [64]u8 = undefined;
-    var enable_stream = std.io.fixedBufferStream(&enable_buf);
+    var enable_stream: std.Io.Writer = .fixed(&enable_buf);
 
-    var focus = try FocusTracking.enable(enable_stream.writer().any());
+    var focus = try FocusTracking.enable(&enable_stream);
     defer focus.deinit();
 
     // Simulate receiving focus events (in real usage, these come from terminal input)
@@ -1870,15 +1912,15 @@ test "parseXtgettcapResponse with capability not supported (0) returns supported
 
 test "isatty with negative fd returns false" {
     // Boundary: a negative fd is never a valid descriptor on any platform.
-    try std.testing.expect(!isatty(@as(i32, -1)));
+    try std.testing.expect(!try isatty(std.testing.io, fileFromFd(testFd(-1))));
 }
 
 test "isatty is idempotent for the same fd" {
     // Postcondition: isatty is a pure query — repeated calls on the same fd
     // must agree (no hidden mutation of process-global state).
     const fd: i32 = 9999;
-    const first = isatty(fd);
-    const second = isatty(fd);
+    const first = try isatty(std.testing.io, fileFromFd(testFd(fd)));
+    const second = try isatty(std.testing.io, fileFromFd(testFd(fd)));
     try std.testing.expectEqual(first, second);
 }
 
@@ -1937,9 +1979,9 @@ test "writeHyperlink output length is exactly escape bytes plus input lengths" {
     };
     var buf: [256]u8 = undefined;
     for (cases) |case| {
-        var stream = std.io.fixedBufferStream(&buf);
-        try writeHyperlink(stream.writer().any(), case.url, case.text);
-        const written = stream.getWritten();
+        var stream: std.Io.Writer = .fixed(&buf);
+        try writeHyperlink(&stream, case.url, case.text);
+        const written = stream.buffered();
         const expected_len = 5 + case.url.len + 2 + case.text.len + 7;
         try std.testing.expectEqual(expected_len, written.len);
         try std.testing.expect(std.mem.startsWith(u8, written, "\x1b]8;;"));
@@ -1958,9 +2000,9 @@ test "writeHyperlinkWithParams output length is exactly escape bytes plus input 
     };
     var buf: [256]u8 = undefined;
     for (cases) |case| {
-        var stream = std.io.fixedBufferStream(&buf);
-        try writeHyperlinkWithParams(stream.writer().any(), case.params, case.url, case.text);
-        const written = stream.getWritten();
+        var stream: std.Io.Writer = .fixed(&buf);
+        try writeHyperlinkWithParams(&stream, case.params, case.url, case.text);
+        const written = stream.buffered();
         const expected_len = 4 + case.params.len + 1 + case.url.len + 2 + case.text.len + 7;
         try std.testing.expectEqual(expected_len, written.len);
         try std.testing.expect(std.mem.startsWith(u8, written, "\x1b]8;"));
@@ -2029,9 +2071,9 @@ test "buildXtgettcapQuery: written length equals DCS+ST literal bytes plus twice
     const names = [_][]const u8{ "", "a", "Sixel", "setrgbb" };
     var buf: [256]u8 = undefined;
     for (names) |name| {
-        var stream = std.io.fixedBufferStream(&buf);
-        try buildXtgettcapQuery(stream.writer(), allocator, name);
-        const written = stream.getWritten();
+        var stream: std.Io.Writer = .fixed(&buf);
+        try buildXtgettcapQuery(&stream, allocator, name);
+        const written = stream.buffered();
         try std.testing.expectEqual(@as(usize, 6) + name.len * 2, written.len);
         try std.testing.expect(std.mem.startsWith(u8, written, "\x1bP+q"));
         try std.testing.expect(std.mem.endsWith(u8, written, "\x1b\\"));
@@ -2058,6 +2100,7 @@ test "hasCapability result depends only on the mock response, not on the capabil
 
     const supported = try hasCapability(
         std.testing.allocator,
+        std.testing.io,
         mock_terminal.fd(),
         "TotallyDifferentName",
         100,
@@ -2129,6 +2172,9 @@ test "MockTerminal.fd differs across different instances on Windows" {
 // ============================================================================
 // Windows-specific exports (comptime guarded)
 // ============================================================================
+
+/// Win32 console bindings missing from Zig 0.16's std (Windows targets only).
+pub const win32 = @import("term/win32.zig");
 
 pub const windows = if (builtin.os.tag == .windows) @import("term/windows.zig") else struct {
     pub fn createPseudoConsole(_: u16, _: u16) !void {

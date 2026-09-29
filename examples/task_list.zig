@@ -10,6 +10,7 @@
 
 const std = @import("std");
 const sailor = @import("sailor");
+const support = @import("support.zig");
 
 const Buffer = sailor.tui.Buffer;
 const Block = sailor.tui.widgets.Block;
@@ -36,10 +37,9 @@ const App = struct {
     selected: usize = 2,
 };
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
     const app = App{};
 
@@ -54,11 +54,12 @@ pub fn main() !void {
 
     const area = Rect{ .x = 0, .y = 0, .width = width, .height = height };
 
-    const chunks = layout.split(.vertical, &.{
+    const chunks = try layout.split(allocator, .vertical, area, &.{
         .{ .length = 3 },
         .{ .min = 8 },
         .{ .length = 8 },
-    }, area);
+    });
+    defer allocator.free(chunks);
 
     // Title
     const title_style = Style{
@@ -79,7 +80,7 @@ pub fn main() !void {
     };
     task_block.render(&buffer, chunks[1]);
 
-    const task_area = task_block.innerArea(chunks[1]);
+    const task_area = task_block.inner(chunks[1]);
 
     // Format task items
     var items_buf: [10][256]u8 = undefined;
@@ -102,7 +103,7 @@ pub fn main() !void {
     };
     info_block.render(&buffer, chunks[2]);
 
-    const info_area = info_block.innerArea(chunks[2]);
+    const info_area = info_block.inner(chunks[2]);
 
     const completed = blk: {
         var count: usize = 0;
@@ -129,15 +130,14 @@ pub fn main() !void {
         app.tasks[app.selected].title,
     });
 
-    var info_para = Paragraph{
-        .text = info_text,
-        .alignment = .left,
-    };
-    info_para.render(&buffer, info_area);
+    support.renderText(&buffer, info_area, info_text, .left, .{});
 
     // Render
-    const stdout = std.io.getStdOut().writer();
-    try buffer.renderTo(stdout);
+    var out_buf: [4096]u8 = undefined;
+    var fw = std.Io.File.stdout().writer(io, &out_buf);
+    const stdout = &fw.interface;
+    try support.renderBuffer(allocator, buffer, stdout);
+    try stdout.flush();
 
     std.debug.print("\n✓ Task list rendered successfully!\n", .{});
 }

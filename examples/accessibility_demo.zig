@@ -15,10 +15,8 @@ const FocusManager = sailor.focus.FocusManager;
 const FocusIndicator = sailor.focus.FocusIndicator;
 const FocusStyle = sailor.focus.FocusStyle;
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
 
     std.debug.print("\n", .{});
     std.debug.print("╔════════════════════════════════════════════════════════════╗\n", .{});

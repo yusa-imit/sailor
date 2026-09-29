@@ -32,22 +32,22 @@ const PasteHandler = sailor.paste.PasteHandler;
 const TerminalDetector = sailor.terminal_detect.TerminalDetector;
 const TerminalCaps = sailor.terminal_caps.TerminalCaps;
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
     // Initialize terminal
     var term = try Terminal.init(allocator);
     defer term.deinit();
 
     // Detect terminal emulator and capabilities
-    const detector = TerminalDetector.detect();
-    const caps = try TerminalCaps.detect(allocator);
+    const detector = TerminalDetector.detect(init.environ_map);
+    const caps = try TerminalCaps.detect(init.environ_map);
     defer caps.deinit();
 
     // App state
     var app = App{
+        .io = io,
         .input_buffer = std.ArrayList(u8).init(allocator),
         .clipboard_buffer = std.ArrayList(u8).init(allocator),
         .status_message = std.ArrayList(u8).init(allocator),
@@ -75,6 +75,7 @@ pub fn main() !void {
 }
 
 const App = struct {
+    io: std.Io,
     input_buffer: std.ArrayList(u8),
     clipboard_buffer: std.ArrayList(u8),
     status_message: std.ArrayList(u8),
@@ -315,8 +316,11 @@ fn copyToClipboard(term: *Terminal, app: *App) !void {
     }
 
     // Write to terminal's clipboard via OSC 52
-    const stdout = std.io.getStdOut().writer();
+    var out_buf: [1024]u8 = undefined;
+    var fw = std.Io.File.stdout().writer(app.io, &out_buf);
+    const stdout = &fw.interface;
     try Clipboard.write(stdout, app.input_buffer.items, app.selection);
+    try stdout.flush();
 
     // Store in local buffer for preview
     app.clipboard_buffer.clearRetainingCapacity();

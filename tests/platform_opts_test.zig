@@ -86,12 +86,12 @@ test "Linux emitAnsi writes raw ANSI sequences without processing" {
     if (builtin.os.tag != .linux) return error.SkipZigTest;
 
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const ansi_code = "\x1b[31m"; // Red foreground
-    try sailor.tui.platform_opts.emitAnsi(stream.writer(), ansi_code);
+    try sailor.tui.platform_opts.emitAnsi(&stream, ansi_code);
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     try testing.expectEqualStrings(ansi_code, written);
 }
 
@@ -99,13 +99,13 @@ test "Linux emitAnsi does not parse or validate ANSI codes" {
     if (builtin.os.tag != .linux) return error.SkipZigTest;
 
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // Invalid sequence should still be written as-is
     const invalid_code = "\x1b[999m";
-    try sailor.tui.platform_opts.emitAnsi(stream.writer(), invalid_code);
+    try sailor.tui.platform_opts.emitAnsi(&stream, invalid_code);
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     try testing.expectEqualStrings(invalid_code, written);
 }
 
@@ -113,37 +113,37 @@ test "Linux emitAnsi writes directly to Writer with minimal overhead" {
     if (builtin.os.tag != .linux) return error.SkipZigTest;
 
     var buf: [512]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const sequences = [_][]const u8{
-        "\x1b[31m",      // Red
+        "\x1b[31m", // Red
         "Hello",
-        "\x1b[0m",       // Reset
-        "\x1b[1;32m",    // Bold green
+        "\x1b[0m", // Reset
+        "\x1b[1;32m", // Bold green
         "World",
-        "\x1b[0m",       // Reset
+        "\x1b[0m", // Reset
     };
 
     for (sequences) |seq| {
-        try sailor.tui.platform_opts.emitAnsi(stream.writer(), seq);
+        try sailor.tui.platform_opts.emitAnsi(&stream, seq);
     }
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     try testing.expect(std.mem.startsWith(u8, written, "\x1b[31m"));
-    try testing.expect(std.mem.indexOf(u8, written, "Hello") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "World") != null);
+    try testing.expect(std.mem.find(u8, written, "Hello") != null);
+    try testing.expect(std.mem.find(u8, written, "World") != null);
 }
 
 test "Linux batch multiple ANSI sequences in single write call" {
     if (builtin.os.tag != .linux) return error.SkipZigTest;
 
     var buf: [1024]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const batch = "\x1b[31m\x1b[1m\x1b[4m"; // Red, Bold, Underline
-    try sailor.tui.platform_opts.emitAnsi(stream.writer(), batch);
+    try sailor.tui.platform_opts.emitAnsi(&stream, batch);
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     try testing.expectEqualStrings(batch, written);
 }
 
@@ -151,13 +151,13 @@ test "Linux SGR sequences are optimized without reparsing" {
     if (builtin.os.tag != .linux) return error.SkipZigTest;
 
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // SGR (Select Graphic Rendition) sequence
     const sgr = "\x1b[31;1;4m"; // Red, bold, underline
-    try sailor.tui.platform_opts.emitAnsi(stream.writer(), sgr);
+    try sailor.tui.platform_opts.emitAnsi(&stream, sgr);
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     try testing.expectEqualStrings(sgr, written);
 }
 
@@ -169,54 +169,65 @@ test "macOS detectMetalSupport checks framework availability" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
 
     const allocator = testing.allocator;
-    const result = try sailor.tui.platform_opts.detectMetalSupport(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    const result = try sailor.tui.platform_opts.detectMetalSupport(allocator, &env);
     defer result.deinit();
 
     // Should return a MetalCapability struct
     _ = result.available; // Just ensure field exists
-    _ = result.version;   // Just ensure field exists
+    _ = result.version; // Just ensure field exists
 }
 
 test "macOS detectMetalSupport queries TERM_PROGRAM environment variable" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
 
     const allocator = testing.allocator;
-    const result = try sailor.tui.platform_opts.detectMetalSupport(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    try env.put("TERM_PROGRAM", "iTerm.app");
+    const result = try sailor.tui.platform_opts.detectMetalSupport(allocator, &env);
     defer result.deinit();
 
-    // TERM_PROGRAM could be iTerm2, Terminal.app, or other
-    // Should return reasonable value (either available or not)
-    try testing.expect(result.available == true or result.available == false);
+    // iTerm2 supports Metal rendering
+    try testing.expect(result.available);
 }
 
 test "macOS detectMetalSupport handles missing environment gracefully" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
 
     const allocator = testing.allocator;
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
 
     // Should not crash or panic when env vars are missing
-    const result = try sailor.tui.platform_opts.detectMetalSupport(allocator);
+    const result = try sailor.tui.platform_opts.detectMetalSupport(allocator, &env);
     defer result.deinit();
+    try testing.expect(!result.available);
 }
 
 test "macOS MetalCapability struct contains version info" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
 
     const allocator = testing.allocator;
-    const result = try sailor.tui.platform_opts.detectMetalSupport(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    const result = try sailor.tui.platform_opts.detectMetalSupport(allocator, &env);
     defer result.deinit();
 
     // Version should be either 0 (not available) or > 0
-    try testing.expect(result.version == 0 or result.version == 1);  // Metal version is 0 or 1
+    try testing.expect(result.version == 0 or result.version == 1); // Metal version is 0 or 1
 }
 
 test "macOS detectMetalSupport returns allocated result that must be freed" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
 
     const allocator = testing.allocator;
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
 
-    const result1 = try sailor.tui.platform_opts.detectMetalSupport(allocator);
-    const result2 = try sailor.tui.platform_opts.detectMetalSupport(allocator);
+    const result1 = try sailor.tui.platform_opts.detectMetalSupport(allocator, &env);
+    const result2 = try sailor.tui.platform_opts.detectMetalSupport(allocator, &env);
 
     // Both calls should succeed
     result1.deinit();
@@ -319,12 +330,7 @@ test "Windows WindowsConsoleBuffer handles buffer overflow gracefully" {
 
     // Should not panic or crash when adding many calls
     for (0..1000) |i| {
-        const result = buf.addCall(.{
-            .set_text_attribute = .{
-                .foreground = @as(u8, @truncate(i % 16)),
-                .background = 0
-            }
-        });
+        const result = buf.addCall(.{ .set_text_attribute = .{ .foreground = @as(u8, @truncate(i % 16)), .background = 0 } });
         if (result) |_| {
             // Success, continue
         } else |err| {
@@ -343,26 +349,26 @@ test "Linux direct ANSI overhead < 5ns per sequence" {
     if (builtin.os.tag != .linux) return error.SkipZigTest;
 
     var buf: [1024]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const sequence = "\x1b[31m";
 
     // Warm up
-    try sailor.tui.platform_opts.emitAnsi(stream.writer(), sequence);
-    _ = stream.getWritten();
+    try sailor.tui.platform_opts.emitAnsi(&stream, sequence);
+    _ = stream.buffered();
 
     // Measure
     const iterations = 1000;
-    const start = std.time.nanoTimestamp();
+    const start = std.Io.Clock.awake.now(testing.io);
 
     for (0..iterations) |_| {
         var reset_buf: [1024]u8 = undefined;
-        var reset_stream = std.io.fixedBufferStream(&reset_buf);
-        try sailor.tui.platform_opts.emitAnsi(reset_stream.writer(), sequence);
-        _ = reset_stream.getWritten();
+        var reset_stream: std.Io.Writer = .fixed(&reset_buf);
+        try sailor.tui.platform_opts.emitAnsi(&reset_stream, sequence);
+        _ = reset_stream.buffered();
     }
 
-    const elapsed = std.time.nanoTimestamp() - start;
+    const elapsed = start.untilNow(testing.io, .awake).toNanoseconds();
     const avg_ns = @as(u64, @intCast(@divTrunc(elapsed, iterations)));
 
     // Allow some flexibility for CI environments
@@ -379,17 +385,12 @@ test "Windows batch API > 50% syscall reduction vs non-batched" {
     var buf = try sailor.tui.platform_opts.WindowsConsoleBuffer.init(allocator, 256);
     defer buf.deinit();
 
-    const batched_start = std.time.nanoTimestamp();
+    const batched_start = std.Io.Clock.awake.now(testing.io);
     for (0..100) |i| {
-        try buf.addCall(.{
-            .set_text_attribute = .{
-                .foreground = @as(u8, @truncate(i % 16)),
-                .background = 0
-            }
-        });
+        try buf.addCall(.{ .set_text_attribute = .{ .foreground = @as(u8, @truncate(i % 16)), .background = 0 } });
     }
     try buf.flush();
-    const batched_elapsed = std.time.nanoTimestamp() - batched_start;
+    const batched_elapsed = batched_start.untilNow(testing.io, .awake).toNanoseconds();
 
     // Non-batched approach would call syscall 100 times
     // Batched approach should be significantly faster

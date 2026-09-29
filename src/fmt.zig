@@ -114,10 +114,8 @@ pub const Table = struct {
 
         // Update column widths
         for (row, 0..) |cell, i| {
-            const width = @min(
-                if (self.config.max_width) |max| @min(cell.len, max) else cell.len,
-                cell.len
-            );
+            const capped = if (self.config.max_width) |max| @min(cell.len, max) else cell.len;
+            const width = @min(capped, cell.len);
             self.widths[i] = @max(self.widths[i], width);
         }
 
@@ -191,7 +189,7 @@ pub const Table = struct {
 
     /// Wrap a cell string into lines based on max_width
     fn wrapCell(self: Self, cell: []const u8) !std.ArrayListUnmanaged([]const u8) {
-        var lines = std.ArrayListUnmanaged([]const u8){};
+        var lines = std.ArrayListUnmanaged([]const u8).empty;
 
         // First split on explicit newlines
         var line_iter = std.mem.splitScalar(u8, cell, '\n');
@@ -214,7 +212,7 @@ pub const Table = struct {
 
     /// Wrap a single line by word boundaries
     fn wrapLine(self: Self, line: []const u8, max_width: usize) !std.ArrayListUnmanaged([]const u8) {
-        var wrapped = std.ArrayListUnmanaged([]const u8){};
+        var wrapped = std.ArrayListUnmanaged([]const u8).empty;
 
         if (line.len <= max_width) {
             try wrapped.append(self.allocator, line);
@@ -523,9 +521,9 @@ pub fn Csv(comptime WriterType: type) type {
             self.first_in_row = false;
 
             const needs_quote = self.config.always_quote or
-                std.mem.indexOfScalar(u8, value, self.config.delimiter) != null or
-                std.mem.indexOfScalar(u8, value, self.config.quote) != null or
-                std.mem.indexOfScalar(u8, value, '\n') != null;
+                std.mem.findScalar(u8, value, self.config.delimiter) != null or
+                std.mem.findScalar(u8, value, self.config.quote) != null or
+                std.mem.findScalar(u8, value, '\n') != null;
 
             if (needs_quote) {
                 try self.writer.writeByte(self.config.quote);
@@ -591,47 +589,47 @@ fn writeJsonString(writer: anytype, s: []const u8) !void {
 test "Table basic" {
     const allocator = std.testing.allocator;
 
-    var table = try Table.init(allocator, &.{"Name", "Age"}, .{ .borders = false });
+    var table = try Table.init(allocator, &.{ "Name", "Age" }, .{ .borders = false });
     defer table.deinit();
 
-    try table.addRow(&.{"Alice", "30"});
-    try table.addRow(&.{"Bob", "25"});
+    try table.addRow(&.{ "Alice", "30" });
+    try table.addRow(&.{ "Bob", "25" });
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "Alice") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "30") != null);
+    const output = buf.written();
+    try std.testing.expect(std.mem.find(u8, output, "Alice") != null);
+    try std.testing.expect(std.mem.find(u8, output, "30") != null);
 }
 
 test "Table with borders" {
     const allocator = std.testing.allocator;
 
-    var table = try Table.init(allocator, &.{"ID", "Name"}, .{});
+    var table = try Table.init(allocator, &.{ "ID", "Name" }, .{});
     defer table.deinit();
 
-    try table.addRow(&.{"1", "Test"});
+    try table.addRow(&.{ "1", "Test" });
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "┌") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "│") != null);
+    const output = buf.written();
+    try std.testing.expect(std.mem.find(u8, output, "┌") != null);
+    try std.testing.expect(std.mem.find(u8, output, "│") != null);
 }
 
 test "JsonArray" {
     const allocator = std.testing.allocator;
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    var arr = try JsonArray(@TypeOf(buf.writer())).init(buf.writer());
+    var arr = try JsonArray(@TypeOf(&buf.writer)).init(&buf.writer);
     try arr.addString("hello");
     try arr.addNumber(42);
     try arr.addBool(true);
@@ -639,32 +637,32 @@ test "JsonArray" {
     try arr.end();
 
     const expected = "[\"hello\",42,true,null]";
-    try std.testing.expectEqualStrings(expected, buf.items);
+    try std.testing.expectEqualStrings(expected, buf.written());
 }
 
 test "JsonObject" {
     const allocator = std.testing.allocator;
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    var obj = try JsonObject(@TypeOf(buf.writer())).init(buf.writer());
+    var obj = try JsonObject(@TypeOf(&buf.writer)).init(&buf.writer);
     try obj.addString("name", "Alice");
     try obj.addNumber("age", 30);
     try obj.addBool("active", true);
     try obj.end();
 
     const expected = "{\"name\":\"Alice\",\"age\":30,\"active\":true}";
-    try std.testing.expectEqualStrings(expected, buf.items);
+    try std.testing.expectEqualStrings(expected, buf.written());
 }
 
 test "Csv basic" {
     const allocator = std.testing.allocator;
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    var csv = Csv(@TypeOf(buf.writer())).init(buf.writer(), .{});
+    var csv = Csv(@TypeOf(&buf.writer)).init(&buf.writer, .{});
     try csv.writeField("Name");
     try csv.writeField("Age");
     try csv.endRow();
@@ -673,43 +671,43 @@ test "Csv basic" {
     try csv.endRow();
 
     const expected = "Name,Age\nAlice,30\n";
-    try std.testing.expectEqualStrings(expected, buf.items);
+    try std.testing.expectEqualStrings(expected, buf.written());
 }
 
 test "Csv quoting" {
     const allocator = std.testing.allocator;
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    var csv = Csv(@TypeOf(buf.writer())).init(buf.writer(), .{});
+    var csv = Csv(@TypeOf(&buf.writer)).init(&buf.writer, .{});
     try csv.writeField("Hello, World");
     try csv.endRow();
 
     const expected = "\"Hello, World\"\n";
-    try std.testing.expectEqualStrings(expected, buf.items);
+    try std.testing.expectEqualStrings(expected, buf.written());
 }
 
 test "JSON string escaping" {
     const allocator = std.testing.allocator;
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try writeJsonString(buf.writer(), "hello\n\"world\"");
+    try writeJsonString(&buf.writer, "hello\n\"world\"");
 
     const expected = "hello\\n\\\"world\\\"";
-    try std.testing.expectEqualStrings(expected, buf.items);
+    try std.testing.expectEqualStrings(expected, buf.written());
 }
 
 test "CSV with semicolon delimiter" {
     const allocator = std.testing.allocator;
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
     const config = CsvConfig{ .delimiter = ';', .quote = '"', .always_quote = false };
-    var csv = Csv(@TypeOf(buf.writer())).init(buf.writer(), config);
+    var csv = Csv(@TypeOf(&buf.writer)).init(&buf.writer, config);
 
     try csv.writeField("Name");
     try csv.writeField("Value");
@@ -720,53 +718,53 @@ test "CSV with semicolon delimiter" {
     try csv.endRow();
 
     const expected = "Name;Value\n\"Item;1\";100\n";
-    try std.testing.expectEqualStrings(expected, buf.items);
+    try std.testing.expectEqualStrings(expected, buf.written());
 }
 
 test "CSV with newlines in fields" {
     const allocator = std.testing.allocator;
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
     const config = CsvConfig{ .delimiter = ',', .quote = '"', .always_quote = false };
-    var csv = Csv(@TypeOf(buf.writer())).init(buf.writer(), config);
+    var csv = Csv(@TypeOf(&buf.writer)).init(&buf.writer, config);
 
     try csv.writeField("First\nLine");
     try csv.writeField("Second");
     try csv.endRow();
 
     const expected = "\"First\nLine\",Second\n";
-    try std.testing.expectEqualStrings(expected, buf.items);
+    try std.testing.expectEqualStrings(expected, buf.written());
 }
 
 test "Table with empty cells" {
     const allocator = std.testing.allocator;
 
-    var table = try Table.init(allocator, &.{"A", "B", "C"}, .{ .borders = false });
+    var table = try Table.init(allocator, &.{ "A", "B", "C" }, .{ .borders = false });
     defer table.deinit();
 
-    try table.addRow(&.{"", "value", ""});
-    try table.addRow(&.{"data", "", "item"});
+    try table.addRow(&.{ "", "value", "" });
+    try table.addRow(&.{ "data", "", "item" });
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const result = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, result, "value") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "data") != null);
-    try std.testing.expect(std.mem.indexOf(u8, result, "item") != null);
+    const result = buf.written();
+    try std.testing.expect(std.mem.find(u8, result, "value") != null);
+    try std.testing.expect(std.mem.find(u8, result, "data") != null);
+    try std.testing.expect(std.mem.find(u8, result, "item") != null);
 }
 
 test "JsonArray nested objects" {
     const allocator = std.testing.allocator;
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    var arr = try JsonArray(@TypeOf(buf.writer())).init(buf.writer());
+    var arr = try JsonArray(@TypeOf(&buf.writer)).init(&buf.writer);
     {
         var obj = try arr.beginObject();
         try obj.addString("name", "Alice");
@@ -782,19 +780,19 @@ test "JsonArray nested objects" {
     try arr.end();
 
     const expected = "[{\"name\":\"Alice\",\"age\":30},{\"name\":\"Bob\",\"age\":25}]";
-    try std.testing.expectEqualStrings(expected, buf.items);
+    try std.testing.expectEqualStrings(expected, buf.written());
 }
 
 test "JSON escaping control characters" {
     const allocator = std.testing.allocator;
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try writeJsonString(buf.writer(), "tab\there\r\nbackslash\\");
+    try writeJsonString(&buf.writer, "tab\there\r\nbackslash\\");
 
     const expected = "tab\\there\\r\\nbackslash\\\\";
-    try std.testing.expectEqualStrings(expected, buf.items);
+    try std.testing.expectEqualStrings(expected, buf.written());
 }
 
 // Padding control tests
@@ -802,24 +800,24 @@ test "JSON escaping control characters" {
 test "Table with custom horizontal padding" {
     const allocator = std.testing.allocator;
 
-    var table = try Table.init(allocator, &.{"Name", "Age"}, .{
+    var table = try Table.init(allocator, &.{ "Name", "Age" }, .{
         .borders = true,
         .padding_left = 2,
         .padding_right = 2,
     });
     defer table.deinit();
 
-    try table.addRow(&.{"Alice", "30"});
+    try table.addRow(&.{ "Alice", "30" });
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Expected: padding adds 2 spaces on each side of cell content
-    try std.testing.expect(std.mem.indexOf(u8, output, "Alice") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "30") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Alice") != null);
+    try std.testing.expect(std.mem.find(u8, output, "30") != null);
 }
 
 test "Table with custom vertical padding" {
@@ -834,35 +832,35 @@ test "Table with custom vertical padding" {
 
     try table.addRow(&.{"Data"});
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // With vertical padding, each row should have blank lines above and below
-    try std.testing.expect(std.mem.indexOf(u8, output, "Data") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Data") != null);
 }
 
 test "Table with asymmetric padding" {
     const allocator = std.testing.allocator;
 
-    var table = try Table.init(allocator, &.{"A", "B"}, .{
+    var table = try Table.init(allocator, &.{ "A", "B" }, .{
         .borders = false,
         .padding_left = 3,
         .padding_right = 1,
     });
     defer table.deinit();
 
-    try table.addRow(&.{"X", "Y"});
+    try table.addRow(&.{ "X", "Y" });
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "X") != null);
+    const output = buf.written();
+    try std.testing.expect(std.mem.find(u8, output, "X") != null);
 }
 
 test "Table with zero padding" {
@@ -879,14 +877,14 @@ test "Table with zero padding" {
 
     try table.addRow(&.{"Test"});
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // With zero padding, content should be adjacent to boundaries
-    try std.testing.expect(std.mem.indexOf(u8, output, "Test") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Test") != null);
 }
 
 test "Table with large padding values" {
@@ -903,13 +901,13 @@ test "Table with large padding values" {
 
     try table.addRow(&.{"A"});
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "A") != null);
+    const output = buf.written();
+    try std.testing.expect(std.mem.find(u8, output, "A") != null);
 }
 
 // Multi-line cell tests
@@ -924,15 +922,15 @@ test "Table with newline in cell" {
 
     try table.addRow(&.{"Line 1\nLine 2"});
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Multi-line cell should preserve newlines
-    try std.testing.expect(std.mem.indexOf(u8, output, "Line 1") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Line 2") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Line 1") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Line 2") != null);
 }
 
 test "Table with cell wrapping on max_width" {
@@ -946,12 +944,12 @@ test "Table with cell wrapping on max_width" {
 
     try table.addRow(&.{"This is a very long text"});
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Content should be wrapped or truncated based on max_width
     try std.testing.expect(output.len > 0);
 }
@@ -959,23 +957,23 @@ test "Table with cell wrapping on max_width" {
 test "Table with mixed single and multi-line cells in same row" {
     const allocator = std.testing.allocator;
 
-    var table = try Table.init(allocator, &.{"Col1", "Col2"}, .{
+    var table = try Table.init(allocator, &.{ "Col1", "Col2" }, .{
         .borders = false,
     });
     defer table.deinit();
 
-    try table.addRow(&.{"Single", "Multi\nLine"});
+    try table.addRow(&.{ "Single", "Multi\nLine" });
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Both types of cells should be present
-    try std.testing.expect(std.mem.indexOf(u8, output, "Single") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Multi") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Line") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Single") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Multi") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Line") != null);
 }
 
 test "Table with multiple newlines in single cell" {
@@ -988,15 +986,15 @@ test "Table with multiple newlines in single cell" {
 
     try table.addRow(&.{"First\nSecond\nThird"});
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "First") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Second") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Third") != null);
+    const output = buf.written();
+    try std.testing.expect(std.mem.find(u8, output, "First") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Second") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Third") != null);
 }
 
 test "Table with empty lines within cell" {
@@ -1009,15 +1007,15 @@ test "Table with empty lines within cell" {
 
     try table.addRow(&.{"Line 1\n\nLine 3"});
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Should handle blank lines within cell content
-    try std.testing.expect(std.mem.indexOf(u8, output, "Line 1") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Line 3") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Line 1") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Line 3") != null);
 }
 
 test "Table with word wrapping at word boundaries" {
@@ -1031,12 +1029,12 @@ test "Table with word wrapping at word boundaries" {
 
     try table.addRow(&.{"The quick brown fox"});
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Word wrap should break at word boundaries, not mid-word
     try std.testing.expect(output.len > 0);
 }
@@ -1052,12 +1050,12 @@ test "Table with very long word exceeding max_width" {
 
     try table.addRow(&.{"verylongword"});
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Should handle long words that can't fit within max_width
     try std.testing.expect(output.len > 0);
 }
@@ -1076,37 +1074,37 @@ test "Table with newlines and padding combined" {
 
     try table.addRow(&.{"Line A\nLine B"});
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Multi-line cells with padding should work together
-    try std.testing.expect(std.mem.indexOf(u8, output, "Line A") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Line B") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Line A") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Line B") != null);
 }
 
 test "Table multi-line with borders and padding" {
     const allocator = std.testing.allocator;
 
-    var table = try Table.init(allocator, &.{"Name", "Desc"}, .{
+    var table = try Table.init(allocator, &.{ "Name", "Desc" }, .{
         .borders = true,
         .padding_left = 1,
         .padding_right = 1,
     });
     defer table.deinit();
 
-    try table.addRow(&.{"Alice", "A\nB"});
+    try table.addRow(&.{ "Alice", "A\nB" });
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "Alice") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "A") != null);
+    const output = buf.written();
+    try std.testing.expect(std.mem.find(u8, output, "Alice") != null);
+    try std.testing.expect(std.mem.find(u8, output, "A") != null);
 }
 
 test "Table alignment with multi-line cells" {
@@ -1120,14 +1118,14 @@ test "Table alignment with multi-line cells" {
 
     try table.addRow(&.{"First\nSecond"});
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Center alignment should work with multi-line content
-    try std.testing.expect(std.mem.indexOf(u8, output, "First") != null);
+    try std.testing.expect(std.mem.find(u8, output, "First") != null);
 }
 
 test "Table left alignment" {
@@ -1143,15 +1141,15 @@ test "Table left alignment" {
     try table.addRow(&.{ "Alice", "30" });
     try table.addRow(&.{ "Bob", "25" });
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Left alignment: text should be at the start with trailing spaces
-    try std.testing.expect(std.mem.indexOf(u8, output, "Alice     ") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "30        ") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Alice     ") != null);
+    try std.testing.expect(std.mem.find(u8, output, "30        ") != null);
 }
 
 test "Table right alignment" {
@@ -1167,15 +1165,15 @@ test "Table right alignment" {
     try table.addRow(&.{ "Alice", "100" });
     try table.addRow(&.{ "Bob", "50" });
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Right alignment: numbers should have leading spaces
-    try std.testing.expect(std.mem.indexOf(u8, output, "       100") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "        50") != null);
+    try std.testing.expect(std.mem.find(u8, output, "       100") != null);
+    try std.testing.expect(std.mem.find(u8, output, "        50") != null);
 }
 
 test "Table center alignment" {
@@ -1191,17 +1189,17 @@ test "Table center alignment" {
     try table.addRow(&.{"OK"});
     try table.addRow(&.{"FAIL"});
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Center alignment: text should have balanced padding
     // "OK" (2 chars) in 12 width: 5 left, 5 right padding
-    try std.testing.expect(std.mem.indexOf(u8, output, "     OK     ") != null);
+    try std.testing.expect(std.mem.find(u8, output, "     OK     ") != null);
     // "FAIL" (4 chars) in 12 width: 4 left, 4 right padding
-    try std.testing.expect(std.mem.indexOf(u8, output, "    FAIL    ") != null);
+    try std.testing.expect(std.mem.find(u8, output, "    FAIL    ") != null);
 }
 
 test "Table mixed alignments" {
@@ -1217,16 +1215,16 @@ test "Table mixed alignments" {
     try table.addRow(&.{ "Alice", "95", "PASS" });
     try table.addRow(&.{ "Bob", "70", "PASS" });
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Should contain all three alignment styles
-    try std.testing.expect(std.mem.indexOf(u8, output, "Alice") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "95") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "PASS") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Alice") != null);
+    try std.testing.expect(std.mem.find(u8, output, "95") != null);
+    try std.testing.expect(std.mem.find(u8, output, "PASS") != null);
 }
 
 test "Table alignment with varying widths" {
@@ -1240,15 +1238,15 @@ test "Table alignment with varying widths" {
 
     try table.addRow(&.{ "A", "B", "C" });
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Each column should adapt to its header width with proper alignment
-    try std.testing.expect(std.mem.indexOf(u8, output, "Short") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Medium Length") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Short") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Medium Length") != null);
     try std.testing.expect(output.len > 0);
 }
 
@@ -1266,15 +1264,15 @@ test "Table alignment with padding" {
 
     try table.addRow(&.{ "A", "B", "C" });
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    try table.render(buf.writer());
+    try table.render(&buf.writer);
 
-    const output = buf.items;
+    const output = buf.written();
     // Padding should not interfere with alignment
     try std.testing.expect(output.len > 0);
-    try std.testing.expect(std.mem.indexOf(u8, output, "A") != null);
+    try std.testing.expect(std.mem.find(u8, output, "A") != null);
 }
 
 // Plain formatter tests
@@ -1282,14 +1280,14 @@ test "Table alignment with padding" {
 test "Plain basic two fields" {
     const allocator = std.testing.allocator;
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    var plain = Plain(@TypeOf(buf.writer())).init(buf.writer());
+    var plain = Plain(@TypeOf(&buf.writer)).init(&buf.writer);
     try plain.writeField("name", "Alice");
     try plain.writeField("age", "30");
 
-    const output = buf.items;
+    const output = buf.written();
     const expected = "name: Alice\nage: 30\n";
     try std.testing.expectEqualStrings(expected, output);
 }
@@ -1297,37 +1295,37 @@ test "Plain basic two fields" {
 test "Plain multiple fields maintain order" {
     const allocator = std.testing.allocator;
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    var plain = Plain(@TypeOf(buf.writer())).init(buf.writer());
+    var plain = Plain(@TypeOf(&buf.writer)).init(&buf.writer);
     try plain.writeField("first", "1");
     try plain.writeField("second", "2");
     try plain.writeField("third", "3");
 
-    const output = buf.items;
+    const output = buf.written();
     // Verify order: "first:" must come before "second:" which must come before "third:"
-    const first_pos = std.mem.indexOf(u8, output, "first:") orelse 0;
-    const second_pos = std.mem.indexOf(u8, output, "second:") orelse 0;
-    const third_pos = std.mem.indexOf(u8, output, "third:") orelse 0;
+    const first_pos = std.mem.find(u8, output, "first:") orelse 0;
+    const second_pos = std.mem.find(u8, output, "second:") orelse 0;
+    const third_pos = std.mem.find(u8, output, "third:") orelse 0;
 
     try std.testing.expect(first_pos < second_pos);
     try std.testing.expect(second_pos < third_pos);
-    try std.testing.expect(std.mem.indexOf(u8, output, "first: 1\n") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "second: 2\n") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "third: 3\n") != null);
+    try std.testing.expect(std.mem.find(u8, output, "first: 1\n") != null);
+    try std.testing.expect(std.mem.find(u8, output, "second: 2\n") != null);
+    try std.testing.expect(std.mem.find(u8, output, "third: 3\n") != null);
 }
 
 test "Plain key with colon character is unescaped" {
     const allocator = std.testing.allocator;
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    var plain = Plain(@TypeOf(buf.writer())).init(buf.writer());
+    var plain = Plain(@TypeOf(&buf.writer)).init(&buf.writer);
     try plain.writeField("key:with:colons", "value");
 
-    const output = buf.items;
+    const output = buf.written();
     // Should write raw key:value format, no escaping for embedded colons
     try std.testing.expectEqualStrings("key:with:colons: value\n", output);
 }
@@ -1335,13 +1333,13 @@ test "Plain key with colon character is unescaped" {
 test "Plain value with newline is unescaped" {
     const allocator = std.testing.allocator;
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    var plain = Plain(@TypeOf(buf.writer())).init(buf.writer());
+    var plain = Plain(@TypeOf(&buf.writer)).init(&buf.writer);
     try plain.writeField("description", "line1\nline2");
 
-    const output = buf.items;
+    const output = buf.written();
     // Newline in value should be written as-is (not escaped)
     try std.testing.expectEqualStrings("description: line1\nline2\n", output);
 }
@@ -1349,13 +1347,13 @@ test "Plain value with newline is unescaped" {
 test "Plain empty key produces colon separator" {
     const allocator = std.testing.allocator;
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    var plain = Plain(@TypeOf(buf.writer())).init(buf.writer());
+    var plain = Plain(@TypeOf(&buf.writer)).init(&buf.writer);
     try plain.writeField("", "value");
 
-    const output = buf.items;
+    const output = buf.written();
     // Empty key still produces ": value\n" format
     try std.testing.expectEqualStrings(": value\n", output);
 }
@@ -1363,13 +1361,13 @@ test "Plain empty key produces colon separator" {
 test "Plain empty value produces valid line" {
     const allocator = std.testing.allocator;
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    var plain = Plain(@TypeOf(buf.writer())).init(buf.writer());
+    var plain = Plain(@TypeOf(&buf.writer)).init(&buf.writer);
     try plain.writeField("key", "");
 
-    const output = buf.items;
+    const output = buf.written();
     // Empty value still produces "key: \n" format
     try std.testing.expectEqualStrings("key: \n", output);
 }
@@ -1377,13 +1375,13 @@ test "Plain empty value produces valid line" {
 test "Plain both key and value empty" {
     const allocator = std.testing.allocator;
 
-    var buf = std.array_list.Managed(u8).init(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
-    var plain = Plain(@TypeOf(buf.writer())).init(buf.writer());
+    var plain = Plain(@TypeOf(&buf.writer)).init(&buf.writer);
     try plain.writeField("", "");
 
-    const output = buf.items;
+    const output = buf.written();
     // Both empty still produces ": \n" format
     try std.testing.expectEqualStrings(": \n", output);
 }

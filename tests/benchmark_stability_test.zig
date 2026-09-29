@@ -72,14 +72,14 @@ fn benchmarkStability(
     var samples: [RUNS]f64 = undefined;
 
     for (&samples) |*sample| {
-        const start = std.time.nanoTimestamp();
+        const start = std.Io.Clock.awake.now(std.testing.io).toNanoseconds();
 
         var i: usize = 0;
         while (i < ITERATIONS_PER_RUN) : (i += 1) {
             try func(allocator);
         }
 
-        const end = std.time.nanoTimestamp();
+        const end = std.Io.Clock.awake.now(std.testing.io).toNanoseconds();
         const elapsed_ns = @as(f64, @floatFromInt(end - start));
         const per_op_ns = elapsed_ns / @as(f64, @floatFromInt(ITERATIONS_PER_RUN));
         sample.* = per_op_ns;

@@ -171,7 +171,7 @@ test "ColorTheme.detectFromTerminal returns valid theme" {
     const allocator = std.testing.allocator;
 
     // Should return either light or dark theme based on terminal
-    const theme = try ColorTheme.detectFromTerminal(allocator);
+    const theme = try ColorTheme.detectFromTerminal(allocator, std.testing.io);
 
     // Theme should have valid semantic colors
     _ = theme.error_fg;
@@ -184,13 +184,14 @@ test "ColorTheme.detectFromTerminal with mock light background" {
 
     // Mock function that returns light background RGB
     const MockTerminal = struct {
-        fn queryBackground() !Color {
+        fn queryBackground(_: std.Io) !Color {
             return Color.fromRgb(250, 250, 250); // Very light background
         }
     };
 
     const theme = try ColorTheme.detectFromTerminalWithQuery(
         allocator,
+        std.testing.io,
         MockTerminal.queryBackground,
     );
 
@@ -214,13 +215,14 @@ test "ColorTheme.detectFromTerminal with mock dark background" {
 
     // Mock function that returns dark background RGB
     const MockTerminal = struct {
-        fn queryBackground() !Color {
+        fn queryBackground(_: std.Io) !Color {
             return Color.fromRgb(20, 20, 20); // Very dark background
         }
     };
 
     const theme = try ColorTheme.detectFromTerminalWithQuery(
         allocator,
+        std.testing.io,
         MockTerminal.queryBackground,
     );
 
@@ -244,13 +246,14 @@ test "ColorTheme.detectFromTerminal handles query failure gracefully" {
 
     // Mock function that fails
     const MockTerminal = struct {
-        fn queryBackground() !Color {
+        fn queryBackground(_: std.Io) !Color {
             return error.TerminalQueryFailed;
         }
     };
 
     const theme = try ColorTheme.detectFromTerminalWithQuery(
         allocator,
+        std.testing.io,
         MockTerminal.queryBackground,
     );
 
@@ -266,12 +269,11 @@ test "ColorTheme.detectFromTerminal handles query failure gracefully" {
 test "ColorTheme.apply writes semantic color to writer" {
     const theme = ColorTheme.dark();
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try theme.apply(writer, .error_fg);
+    try theme.apply(&fbs, .error_fg);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     try std.testing.expect(output.len > 0); // Should write ANSI code
     try std.testing.expect(std.mem.startsWith(u8, output, "\x1b[")); // ANSI escape
 }
@@ -295,11 +297,10 @@ test "ColorTheme.apply supports all semantic names" {
     };
 
     inline for (semantic_names) |name| {
-        var fbs = std.io.fixedBufferStream(&buf);
-        const writer = fbs.writer();
-        try theme.apply(writer, name);
+        var fbs: std.Io.Writer = .fixed(&buf);
+        try theme.apply(&fbs, name);
 
-        const output = fbs.getWritten();
+        const output = fbs.buffered();
         try std.testing.expect(output.len > 0);
     }
 }
@@ -307,18 +308,17 @@ test "ColorTheme.apply supports all semantic names" {
 test "ColorTheme.applyBg writes background color" {
     const theme = ColorTheme.dark();
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try theme.applyBg(writer, .error_fg); // Apply as background
+    try theme.applyBg(&fbs, .error_fg); // Apply as background
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     try std.testing.expect(output.len > 0);
 
     // Should write background ANSI code (48 for truecolor/indexed, 4X for basic, 10X for bright)
-    const has_bg_code = std.mem.indexOf(u8, output, "\x1b[48") != null or
-        std.mem.indexOf(u8, output, "\x1b[4") != null or
-        std.mem.indexOf(u8, output, "\x1b[10") != null;
+    const has_bg_code = std.mem.find(u8, output, "\x1b[48") != null or
+        std.mem.find(u8, output, "\x1b[4") != null or
+        std.mem.find(u8, output, "\x1b[10") != null;
     try std.testing.expect(has_bg_code);
 }
 
@@ -332,13 +332,12 @@ test "ColorTheme.styled creates Style from semantic color" {
 
     // Should be usable with writeStyled
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try sailor.color.writeStyled(writer, style, "error message");
+    try sailor.color.writeStyled(&fbs, style, "error message");
 
-    const output = fbs.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, output, "error message") != null);
+    const output = fbs.buffered();
+    try std.testing.expect(std.mem.find(u8, output, "error message") != null);
 }
 
 // ============================================================================
@@ -443,7 +442,7 @@ test "ColorTheme.detectFromTerminal handles allocation failure" {
     // Use FailingAllocator to test allocation failures
     var failing_allocator = std.testing.FailingAllocator.init(std.testing.allocator, .{ .fail_index = 0 });
 
-    const result = ColorTheme.detectFromTerminal(failing_allocator.allocator());
+    const result = ColorTheme.detectFromTerminal(failing_allocator.allocator(), std.testing.io);
 
     // Should return error on allocation failure
     try std.testing.expectError(error.OutOfMemory, result);
@@ -478,10 +477,9 @@ test "ColorTheme works with ColorLevel.none" {
     // Even with no color support, theme should be applicable
     // (implementation should skip ANSI codes or use ColorLevel)
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try theme.apply(writer, .error_fg);
+    try theme.apply(&fbs, .error_fg);
 
     // Should not panic or error
 }
@@ -501,12 +499,11 @@ test "ColorTheme.apply with default colors" {
     });
 
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try theme.apply(writer, .error_fg);
+    try theme.apply(&fbs, .error_fg);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     // Should write default foreground code
     try std.testing.expectEqualStrings("\x1b[39m", output);
 }
@@ -520,16 +517,16 @@ test "ColorTheme integration with existing semantic helpers" {
 
     // Theme error color should be semantically similar to sailor.color.semantic.err
     var buf1: [128]u8 = undefined;
-    var fbs1 = std.io.fixedBufferStream(&buf1);
-    try theme.apply(fbs1.writer(), .error_fg);
+    var fbs1: std.Io.Writer = .fixed(&buf1);
+    try theme.apply(&fbs1, .error_fg);
 
     var buf2: [128]u8 = undefined;
-    var fbs2 = std.io.fixedBufferStream(&buf2);
-    try sailor.color.semantic.err.fg.writeFg(fbs2.writer());
+    var fbs2: std.Io.Writer = .fixed(&buf2);
+    try sailor.color.semantic.err.fg.writeFg(&fbs2);
 
     // Both should produce red-ish output (not necessarily identical)
-    const theme_out = fbs1.getWritten();
-    const semantic_out = fbs2.getWritten();
+    const theme_out = fbs1.buffered();
+    const semantic_out = fbs2.buffered();
 
     try std.testing.expect(theme_out.len > 0);
     try std.testing.expect(semantic_out.len > 0);
@@ -538,16 +535,15 @@ test "ColorTheme integration with existing semantic helpers" {
 test "ColorTheme writeStyled with theme colors" {
     const theme = ColorTheme.light();
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const style = theme.styled(.success_fg);
-    try sailor.color.writeStyled(writer, style, "Operation succeeded");
+    try sailor.color.writeStyled(&fbs, style, "Operation succeeded");
 
-    const output = fbs.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, output, "Operation succeeded") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "\x1b[") != null); // ANSI code
-    try std.testing.expect(std.mem.indexOf(u8, output, "\x1b[0m") != null); // reset
+    const output = fbs.buffered();
+    try std.testing.expect(std.mem.find(u8, output, "Operation succeeded") != null);
+    try std.testing.expect(std.mem.find(u8, output, "\x1b[") != null); // ANSI code
+    try std.testing.expect(std.mem.find(u8, output, "\x1b[0m") != null); // reset
 }
 
 // ============================================================================

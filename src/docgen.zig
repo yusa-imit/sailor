@@ -17,6 +17,9 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+/// Opening brace of a function body; a named char keeps `{` out of string literals.
+const brace_open_char: u8 = '{';
+
 /// Represents a documentation comment
 pub const Comment = struct {
     /// Raw comment content (without leading //, ///, //!)
@@ -174,9 +177,9 @@ pub const DocGenerator = struct {
             }
 
             // Parse declaration line
-            if (std.mem.indexOf(u8, trimmed, "fn ") != null or
-                std.mem.indexOf(u8, trimmed, "const ") != null or
-                std.mem.indexOf(u8, trimmed, "var ") != null)
+            if (std.mem.find(u8, trimmed, "fn ") != null or
+                std.mem.find(u8, trimmed, "const ") != null or
+                std.mem.find(u8, trimmed, "var ") != null)
             {
                 try self.parseDeclaration(trimmed, pending_comment);
                 if (pending_comment) |pc| {
@@ -188,28 +191,28 @@ pub const DocGenerator = struct {
     }
 
     fn parseDeclaration(self: *Self, line: []const u8, comment: ?[]const u8) !void {
-        const is_public = std.mem.indexOf(u8, line, "pub ") != null;
+        const is_public = std.mem.find(u8, line, "pub ") != null;
 
-        if (std.mem.indexOf(u8, line, "fn ") != null) {
+        if (std.mem.find(u8, line, "fn ") != null) {
             try self.parseFunctionDeclaration(line, comment, is_public);
-        } else if (std.mem.indexOf(u8, line, "struct") != null) {
+        } else if (std.mem.find(u8, line, "struct") != null) {
             // For now, just extract basic struct info
             try self.parseStructDeclaration(line, comment, is_public);
-        } else if (std.mem.indexOf(u8, line, "enum") != null) {
+        } else if (std.mem.find(u8, line, "enum") != null) {
             try self.parseEnumDeclaration(line, comment, is_public);
-        } else if (std.mem.indexOf(u8, line, "union") != null) {
+        } else if (std.mem.find(u8, line, "union") != null) {
             try self.parseUnionDeclaration(line, comment, is_public);
-        } else if (std.mem.indexOf(u8, line, "const ") != null or std.mem.indexOf(u8, line, "var ") != null) {
+        } else if (std.mem.find(u8, line, "const ") != null or std.mem.find(u8, line, "var ") != null) {
             try self.parseConstantDeclaration(line, comment, is_public);
         }
     }
 
     fn parseFunctionDeclaration(self: *Self, line: []const u8, comment: ?[]const u8, is_public: bool) !void {
-        const fn_idx = std.mem.indexOf(u8, line, "fn ") orelse return;
+        const fn_idx = std.mem.find(u8, line, "fn ") orelse return;
         const fn_part = line[fn_idx + 3 ..];
 
         // Extract function name
-        const paren_idx = std.mem.indexOf(u8, fn_part, "(") orelse return;
+        const paren_idx = std.mem.find(u8, fn_part, "(") orelse return;
         const func_name = std.mem.trim(u8, fn_part[0..paren_idx], " \t");
 
         // Find matching closing paren
@@ -238,7 +241,7 @@ pub const DocGenerator = struct {
                 const p = std.mem.trim(u8, param_str, " \t");
                 if (p.len == 0) continue;
 
-                if (std.mem.indexOf(u8, p, ":")) |colon_idx| {
+                if (std.mem.find(u8, p, ":")) |colon_idx| {
                     const param_name = std.mem.trim(u8, p[0..colon_idx], " \t");
                     const param_type = std.mem.trim(u8, p[colon_idx + 1 ..], " \t");
 
@@ -253,7 +256,7 @@ pub const DocGenerator = struct {
         // Extract return type
         const after_paren = fn_part[close_paren_idx..];
         var return_type: []const u8 = "void";
-        if (std.mem.indexOf(u8, after_paren, "{")) |brace_idx| {
+        if (std.mem.findScalar(u8, after_paren, brace_open_char)) |brace_idx| {
             const ret_str = std.mem.trim(u8, after_paren[0..brace_idx], " \t");
             if (ret_str.len > 0) {
                 return_type = ret_str;
@@ -279,32 +282,32 @@ pub const DocGenerator = struct {
 
     fn parseStructDeclaration(self: *Self, line: []const u8, comment: ?[]const u8, is_public: bool) !void {
         // Extract struct name
-        const const_idx = std.mem.indexOf(u8, line, "const ") orelse return;
+        const const_idx = std.mem.find(u8, line, "const ") orelse return;
         const struct_part = line[const_idx + 6 ..];
-        const eq_idx = std.mem.indexOf(u8, struct_part, "=") orelse return;
+        const eq_idx = std.mem.find(u8, struct_part, "=") orelse return;
         _ = std.mem.trim(u8, struct_part[0..eq_idx], " \t");
 
         // For now, create struct declaration without field details (full parsing requires multi-line)
-        var fields = std.ArrayListUnmanaged(StructField){};
+        var fields = std.ArrayListUnmanaged(StructField).empty;
 
         // Try to extract basic field info from same line
-        if (std.mem.indexOf(u8, line, "struct")) |struct_idx| {
+        if (std.mem.find(u8, line, "struct")) |struct_idx| {
             const after_struct = line[struct_idx + 6 ..];
-            if (std.mem.indexOf(u8, after_struct, "{")) |open_brace| {
+            if (std.mem.find(u8, after_struct, "{")) |open_brace| {
                 const brace_content = after_struct[open_brace + 1 ..];
-                if (std.mem.indexOf(u8, brace_content, "}")) |close_brace| {
+                if (std.mem.find(u8, brace_content, "}")) |close_brace| {
                     const field_str = brace_content[0..close_brace];
                     var field_split = std.mem.splitScalar(u8, field_str, ',');
                     while (field_split.next()) |field_decl| {
                         const f = std.mem.trim(u8, field_decl, " \t\r\n");
                         if (f.len == 0) continue;
 
-                        if (std.mem.indexOf(u8, f, ":")) |colon_idx| {
+                        if (std.mem.find(u8, f, ":")) |colon_idx| {
                             const fname = std.mem.trim(u8, f[0..colon_idx], " \t");
                             const ftype_part = f[colon_idx + 1 ..];
                             // Extract type, stop at '=' for default values
                             var ftype = std.mem.trim(u8, ftype_part, " \t;");
-                            if (std.mem.indexOf(u8, ftype, "=")) |eq_pos| {
+                            if (std.mem.find(u8, ftype, "=")) |eq_pos| {
                                 ftype = std.mem.trim(u8, ftype[0..eq_pos], " \t");
                             }
 
@@ -329,20 +332,20 @@ pub const DocGenerator = struct {
     }
 
     fn parseEnumDeclaration(self: *Self, line: []const u8, comment: ?[]const u8, is_public: bool) !void {
-        const const_idx = std.mem.indexOf(u8, line, "const ") orelse return;
+        const const_idx = std.mem.find(u8, line, "const ") orelse return;
         const enum_part = line[const_idx + 6 ..];
-        const eq_idx = std.mem.indexOf(u8, enum_part, "=") orelse return;
+        const eq_idx = std.mem.find(u8, enum_part, "=") orelse return;
         _ = std.mem.trim(u8, enum_part[0..eq_idx], " \t");
 
-        var values = std.ArrayListUnmanaged(EnumValue){};
+        var values = std.ArrayListUnmanaged(EnumValue).empty;
         defer values.deinit(self.allocator);
 
         // Try to extract values from same line
-        if (std.mem.indexOf(u8, line, "enum")) |enum_idx| {
+        if (std.mem.find(u8, line, "enum")) |enum_idx| {
             const after_enum = line[enum_idx + 4 ..];
-            if (std.mem.indexOf(u8, after_enum, "{")) |open_brace| {
+            if (std.mem.find(u8, after_enum, "{")) |open_brace| {
                 const brace_content = after_enum[open_brace + 1 ..];
-                if (std.mem.indexOf(u8, brace_content, "}")) |close_brace| {
+                if (std.mem.find(u8, brace_content, "}")) |close_brace| {
                     const value_str = brace_content[0..close_brace];
                     var value_split = std.mem.splitScalar(u8, value_str, ',');
                     while (value_split.next()) |value_decl| {
@@ -366,27 +369,27 @@ pub const DocGenerator = struct {
     }
 
     fn parseUnionDeclaration(self: *Self, line: []const u8, comment: ?[]const u8, is_public: bool) !void {
-        const const_idx = std.mem.indexOf(u8, line, "const ") orelse return;
+        const const_idx = std.mem.find(u8, line, "const ") orelse return;
         const union_part = line[const_idx + 6 ..];
-        const eq_idx = std.mem.indexOf(u8, union_part, "=") orelse return;
+        const eq_idx = std.mem.find(u8, union_part, "=") orelse return;
         _ = std.mem.trim(u8, union_part[0..eq_idx], " \t");
 
-        var fields = std.ArrayListUnmanaged(StructField){};
+        var fields = std.ArrayListUnmanaged(StructField).empty;
         defer fields.deinit(self.allocator);
 
         // Try to extract fields from same line
-        if (std.mem.indexOf(u8, line, "union")) |union_idx| {
+        if (std.mem.find(u8, line, "union")) |union_idx| {
             const after_union = line[union_idx + 5 ..];
-            if (std.mem.indexOf(u8, after_union, "{")) |open_brace| {
+            if (std.mem.find(u8, after_union, "{")) |open_brace| {
                 const brace_content = after_union[open_brace + 1 ..];
-                if (std.mem.indexOf(u8, brace_content, "}")) |close_brace| {
+                if (std.mem.find(u8, brace_content, "}")) |close_brace| {
                     const field_str = brace_content[0..close_brace];
                     var field_split = std.mem.splitScalar(u8, field_str, ',');
                     while (field_split.next()) |field_decl| {
                         const f = std.mem.trim(u8, field_decl, " \t\r\n");
                         if (f.len == 0) continue;
 
-                        if (std.mem.indexOf(u8, f, ":")) |colon_idx| {
+                        if (std.mem.find(u8, f, ":")) |colon_idx| {
                             const fname = std.mem.trim(u8, f[0..colon_idx], " \t");
                             const ftype_part = f[colon_idx + 1 ..];
                             const ftype = std.mem.trim(u8, ftype_part, " \t");
@@ -410,10 +413,10 @@ pub const DocGenerator = struct {
     }
 
     fn parseConstantDeclaration(self: *Self, line: []const u8, comment: ?[]const u8, is_public: bool) !void {
-        const const_idx = std.mem.indexOf(u8, line, "const ") orelse
-            std.mem.indexOf(u8, line, "var ") orelse return;
+        const const_idx = std.mem.find(u8, line, "const ") orelse
+            std.mem.find(u8, line, "var ") orelse return;
         const const_part = line[const_idx + 6 ..];
-        const eq_idx = std.mem.indexOf(u8, const_part, "=") orelse return;
+        const eq_idx = std.mem.find(u8, const_part, "=") orelse return;
         _ = std.mem.trim(u8, const_part[0..eq_idx], " \t");
 
         try self.declarations.append(self.allocator, Declaration{
@@ -523,25 +526,35 @@ pub const DocGenerator = struct {
     }
 
     /// Parse a directory recursively
-    pub fn parseDirectory(self: *Self, dir_path: []const u8) !void {
-        var dir = std.fs.cwd().openDir(dir_path, .{ .iterate = true }) catch |err| {
+    pub fn parseDirectory(self: *Self, io: std.Io, dir_path: []const u8) !void {
+        var dir = std.Io.Dir.cwd().openDir(io, dir_path, .{ .iterate = true }) catch |err| {
             return err;
         };
-        defer dir.close();
+        defer dir.close(io);
 
-        try self.parseDirectoryRecursive(dir, dir_path);
+        try self.parseDirectoryRecursive(io, dir, dir_path);
     }
 
     /// Recursively parse directory helper
-    fn parseDirectoryRecursive(self: *Self, dir: std.fs.Dir, base_path: []const u8) !void {
+    fn parseDirectoryRecursive(
+        self: *Self,
+        io: std.Io,
+        dir: std.Io.Dir,
+        base_path: []const u8,
+    ) !void {
         var iter = dir.iterate();
-        while (try iter.next()) |entry| {
+        while (try iter.next(io)) |entry| {
             switch (entry.kind) {
                 .file => {
                     // Only process .zig files
                     if (std.mem.endsWith(u8, entry.name, ".zig")) {
                         // Read file contents
-                        const file_contents = try dir.readFileAlloc(self.allocator, entry.name, 1024 * 1024); // 1MB max
+                        const file_contents = try dir.readFileAlloc(
+                            io,
+                            entry.name,
+                            self.allocator,
+                            .limited(1024 * 1024), // 1MB max
+                        );
                         defer self.allocator.free(file_contents);
 
                         // Parse the file
@@ -550,14 +563,14 @@ pub const DocGenerator = struct {
                 },
                 .directory => {
                     // Recursively scan subdirectories
-                    var subdir = try dir.openDir(entry.name, .{ .iterate = true });
-                    defer subdir.close();
+                    var subdir = try dir.openDir(io, entry.name, .{ .iterate = true });
+                    defer subdir.close(io);
 
                     // Construct new base path
-                    var path_buf: [std.fs.max_path_bytes]u8 = undefined;
+                    var path_buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
                     const new_base = try std.fmt.bufPrint(&path_buf, "{s}/{s}", .{ base_path, entry.name });
 
-                    try self.parseDirectoryRecursive(subdir, new_base);
+                    try self.parseDirectoryRecursive(io, subdir, new_base);
                 },
                 else => {}, // Skip symlinks, pipes, etc.
             }
@@ -594,8 +607,8 @@ test "DocGenerator: parse module comment" {
 
     try testing.expect(gen.module_comment != null);
     const comment = gen.module_comment.?;
-    try testing.expect(std.mem.indexOf(u8, comment.content, "This is a module") != null);
-    try testing.expect(std.mem.indexOf(u8, comment.content, "with multiple lines") != null);
+    try testing.expect(std.mem.find(u8, comment.content, "This is a module") != null);
+    try testing.expect(std.mem.find(u8, comment.content, "with multiple lines") != null);
 }
 
 test "DocGenerator: parse public function" {
@@ -794,16 +807,16 @@ test "DocGenerator: generateMarkdown with function" {
     try gen.parseSource(source);
 
     var buf: [4096]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    try gen.generateMarkdown(fbs.writer());
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try gen.generateMarkdown(&fbs);
 
-    const output = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, output, "# Overview") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "Test module") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "fn mul(") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "a: i32") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "b: i32") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "Multiplies two numbers") != null);
+    const output = fbs.buffered();
+    try testing.expect(std.mem.find(u8, output, "# Overview") != null);
+    try testing.expect(std.mem.find(u8, output, "Test module") != null);
+    try testing.expect(std.mem.find(u8, output, "fn mul(") != null);
+    try testing.expect(std.mem.find(u8, output, "a: i32") != null);
+    try testing.expect(std.mem.find(u8, output, "b: i32") != null);
+    try testing.expect(std.mem.find(u8, output, "Multiplies two numbers") != null);
 }
 
 test "DocGenerator: generateMarkdown with struct" {
@@ -819,15 +832,15 @@ test "DocGenerator: generateMarkdown with struct" {
     try gen.parseSource(source);
 
     var buf: [4096]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    try gen.generateMarkdown(fbs.writer());
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try gen.generateMarkdown(&fbs);
 
-    const output = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, output, "## Struct") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "A rectangle") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "### Fields") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "width: u32") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "height: u32") != null);
+    const output = fbs.buffered();
+    try testing.expect(std.mem.find(u8, output, "## Struct") != null);
+    try testing.expect(std.mem.find(u8, output, "A rectangle") != null);
+    try testing.expect(std.mem.find(u8, output, "### Fields") != null);
+    try testing.expect(std.mem.find(u8, output, "width: u32") != null);
+    try testing.expect(std.mem.find(u8, output, "height: u32") != null);
 }
 
 test "DocGenerator: generateMarkdown with enum" {
@@ -843,16 +856,16 @@ test "DocGenerator: generateMarkdown with enum" {
     try gen.parseSource(source);
 
     var buf: [4096]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    try gen.generateMarkdown(fbs.writer());
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try gen.generateMarkdown(&fbs);
 
-    const output = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, output, "## Enum") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "Status enumeration") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "### Values") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "pending") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "active") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "done") != null);
+    const output = fbs.buffered();
+    try testing.expect(std.mem.find(u8, output, "## Enum") != null);
+    try testing.expect(std.mem.find(u8, output, "Status enumeration") != null);
+    try testing.expect(std.mem.find(u8, output, "### Values") != null);
+    try testing.expect(std.mem.find(u8, output, "pending") != null);
+    try testing.expect(std.mem.find(u8, output, "active") != null);
+    try testing.expect(std.mem.find(u8, output, "done") != null);
 }
 
 test "DocGenerator: skip private declarations in markdown" {
@@ -868,12 +881,12 @@ test "DocGenerator: skip private declarations in markdown" {
     try gen.parseSource(source);
 
     var buf: [4096]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    try gen.generateMarkdown(fbs.writer());
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try gen.generateMarkdown(&fbs);
 
-    const output = fbs.getWritten();
-    try testing.expect(std.mem.indexOf(u8, output, "publicFunc") != null);
-    try testing.expect(std.mem.indexOf(u8, output, "privateFunc") == null);
+    const output = fbs.buffered();
+    try testing.expect(std.mem.find(u8, output, "publicFunc") != null);
+    try testing.expect(std.mem.find(u8, output, "privateFunc") == null);
 }
 
 test "DocGenerator: multiple declarations" {
@@ -915,7 +928,7 @@ test "DocGenerator: function with complex return type" {
     const sig = decls[0].signature.?;
     try testing.expectEqualStrings("allocate", sig.name);
     try testing.expectEqual(@as(usize, 1), sig.parameters.len);
-    try testing.expect(std.mem.indexOf(u8, sig.return_type, "![]u8") != null);
+    try testing.expect(std.mem.find(u8, sig.return_type, "![]u8") != null);
 }
 
 test "DocGenerator: struct with default values" {
@@ -949,7 +962,7 @@ test "parseDirectory rejects non-existent path" {
     var gen = try DocGenerator.init(testing.allocator);
     defer gen.deinit();
 
-    const result = gen.parseDirectory("/this/path/does/not/exist/12345/67890");
+    const result = gen.parseDirectory(testing.io, "/this/path/does/not/exist/12345/67890");
     try testing.expectError(error.FileNotFound, result);
 }
 
@@ -957,37 +970,37 @@ test "parseDirectory rejects file path (not a directory)" {
     const testing = std.testing;
 
     // Create a temporary file
-    var tmp_dir = try std.fs.cwd().makeOpenPath("/tmp/docgen_test_error", .{});
-    defer tmp_dir.close();
+    var tmp_dir = try std.Io.Dir.cwd().createDirPathOpen(testing.io, "/tmp/docgen_test_error", .{});
+    defer tmp_dir.close(testing.io);
 
-    const test_file = try tmp_dir.createFile("test_file.txt", .{});
-    defer test_file.close();
+    const test_file = try tmp_dir.createFile(testing.io, "test_file.txt", .{});
+    defer test_file.close(testing.io);
 
-    try test_file.writeAll("dummy content");
+    try test_file.writeStreamingAll(testing.io, "dummy content");
 
     var gen = try DocGenerator.init(testing.allocator);
     defer gen.deinit();
 
     // Try to parse the file as if it were a directory
-    const result = gen.parseDirectory("/tmp/docgen_test_error/test_file.txt");
+    const result = gen.parseDirectory(testing.io, "/tmp/docgen_test_error/test_file.txt");
     try testing.expectError(error.NotDir, result);
 
     // Cleanup
-    try tmp_dir.deleteFile("test_file.txt");
+    try tmp_dir.deleteFile(testing.io, "test_file.txt");
 }
 
 test "parseDirectory succeeds with empty directory" {
     const testing = std.testing;
 
     // Create a temporary empty directory
-    var tmp_dir = try std.fs.cwd().makeOpenPath("/tmp/docgen_test_empty", .{});
-    defer tmp_dir.close();
+    var tmp_dir = try std.Io.Dir.cwd().createDirPathOpen(testing.io, "/tmp/docgen_test_empty", .{});
+    defer tmp_dir.close(testing.io);
 
     var gen = try DocGenerator.init(testing.allocator);
     defer gen.deinit();
 
     // Parse empty directory should not error
-    try gen.parseDirectory("/tmp/docgen_test_empty");
+    try gen.parseDirectory(testing.io, "/tmp/docgen_test_empty");
 
     // No files were parsed, so no declarations
     try testing.expectEqual(@as(usize, 0), gen.getDeclarations().len);
@@ -997,23 +1010,27 @@ test "parseDirectory processes only .zig files" {
     const testing = std.testing;
 
     // Create a temporary directory with mixed files
-    var tmp_dir = try std.fs.cwd().makeOpenPath("/tmp/docgen_test_zig_only", .{});
-    defer tmp_dir.close();
+    var tmp_dir = try std.Io.Dir.cwd().createDirPathOpen(
+        testing.io,
+        "/tmp/docgen_test_zig_only",
+        .{},
+    );
+    defer tmp_dir.close(testing.io);
 
     // Create a .zig file with valid content
-    const zig_file = try tmp_dir.createFile("module.zig", .{});
-    defer zig_file.close();
-    try zig_file.writeAll("pub fn test_func() void {}");
+    const zig_file = try tmp_dir.createFile(testing.io, "module.zig", .{});
+    defer zig_file.close(testing.io);
+    try zig_file.writeStreamingAll(testing.io, "pub fn test_func() void {}");
 
     // Create a non-.zig file (should be ignored)
-    const txt_file = try tmp_dir.createFile("readme.txt", .{});
-    defer txt_file.close();
-    try txt_file.writeAll("This is a readme");
+    const txt_file = try tmp_dir.createFile(testing.io, "readme.txt", .{});
+    defer txt_file.close(testing.io);
+    try txt_file.writeStreamingAll(testing.io, "This is a readme");
 
     var gen = try DocGenerator.init(testing.allocator);
     defer gen.deinit();
 
-    try gen.parseDirectory("/tmp/docgen_test_zig_only");
+    try gen.parseDirectory(testing.io, "/tmp/docgen_test_zig_only");
 
     // Only the .zig file should be parsed
     const decls = gen.getDeclarations();
@@ -1021,35 +1038,39 @@ test "parseDirectory processes only .zig files" {
     try testing.expectEqual(DeclarationType.function, decls[0].type);
 
     // Cleanup
-    try tmp_dir.deleteFile("module.zig");
-    try tmp_dir.deleteFile("readme.txt");
+    try tmp_dir.deleteFile(testing.io, "module.zig");
+    try tmp_dir.deleteFile(testing.io, "readme.txt");
 }
 
 test "parseDirectory processes .zig files in subdirectories" {
     const testing = std.testing;
 
     // Create nested directory structure
-    var tmp_dir = try std.fs.cwd().makeOpenPath("/tmp/docgen_test_nested", .{});
-    defer tmp_dir.close();
+    var tmp_dir = try std.Io.Dir.cwd().createDirPathOpen(
+        testing.io,
+        "/tmp/docgen_test_nested",
+        .{},
+    );
+    defer tmp_dir.close(testing.io);
 
     // Create a .zig file in root
-    const root_zig = try tmp_dir.createFile("root.zig", .{});
-    defer root_zig.close();
-    try root_zig.writeAll("pub fn root_func() void {}");
+    const root_zig = try tmp_dir.createFile(testing.io, "root.zig", .{});
+    defer root_zig.close(testing.io);
+    try root_zig.writeStreamingAll(testing.io, "pub fn root_func() void {}");
 
     // Create subdirectory with .zig file
-    try tmp_dir.makePath("subdir");
-    var subdir = try tmp_dir.openDir("subdir", .{});
-    defer subdir.close();
+    try tmp_dir.createDirPath(testing.io, "subdir");
+    var subdir = try tmp_dir.openDir(testing.io, "subdir", .{});
+    defer subdir.close(testing.io);
 
-    const sub_zig = try subdir.createFile("sub.zig", .{});
-    defer sub_zig.close();
-    try sub_zig.writeAll("pub fn sub_func() void {}");
+    const sub_zig = try subdir.createFile(testing.io, "sub.zig", .{});
+    defer sub_zig.close(testing.io);
+    try sub_zig.writeStreamingAll(testing.io, "pub fn sub_func() void {}");
 
     var gen = try DocGenerator.init(testing.allocator);
     defer gen.deinit();
 
-    try gen.parseDirectory("/tmp/docgen_test_nested");
+    try gen.parseDirectory(testing.io, "/tmp/docgen_test_nested");
 
     // Both files should be parsed (2 functions total)
     const decls = gen.getDeclarations();
@@ -1058,9 +1079,9 @@ test "parseDirectory processes .zig files in subdirectories" {
     try testing.expectEqual(DeclarationType.function, decls[1].type);
 
     // Cleanup
-    try subdir.deleteFile("sub.zig");
-    try tmp_dir.deleteDir("subdir");
-    try tmp_dir.deleteFile("root.zig");
+    try subdir.deleteFile(testing.io, "sub.zig");
+    try tmp_dir.deleteDir(testing.io, "subdir");
+    try tmp_dir.deleteFile(testing.io, "root.zig");
 }
 
 test "parseSource handles empty source gracefully" {

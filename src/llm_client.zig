@@ -37,6 +37,8 @@ pub const LlmError = error{
     // Template errors
     MissingVariable,
     InvalidVariableName,
+    // Cancelation propagated from sleeping between retries
+    Canceled,
 };
 
 // ============================================================================
@@ -103,8 +105,8 @@ pub const RateLimiter = struct {
 
     /// Check if request can proceed and consume tokens.
     /// Resets window if expired.
-    pub fn checkAndConsume(self: *RateLimiter, tokens: u64) !void {
-        const now = std.time.milliTimestamp();
+    pub fn checkAndConsume(self: *RateLimiter, io: std.Io, tokens: u64) !void {
+        const now = std.Io.Clock.real.now(io).toMilliseconds();
 
         // Reset window if expired
         if (now - self.window_start >= WINDOW_MS) {
@@ -128,8 +130,8 @@ pub const RateLimiter = struct {
 
     /// Get milliseconds to wait until window resets.
     /// Returns 0 if under limit.
-    pub fn waitTime(self: RateLimiter) u64 {
-        const now = std.time.milliTimestamp();
+    pub fn waitTime(self: RateLimiter, io: std.Io) u64 {
+        const now = std.Io.Clock.real.now(io).toMilliseconds();
         const elapsed = now - self.window_start;
 
         if (elapsed >= WINDOW_MS) return 0;
@@ -147,7 +149,7 @@ pub const RateLimiter = struct {
 
     /// Calculate exponential backoff delay with jitter.
     /// Delay = min(base * 2^backoff_count, max_delay) + jitter
-    pub fn exponentialBackoff(self: RateLimiter) u64 {
+    pub fn exponentialBackoff(self: RateLimiter, io: std.Io) u64 {
         const base_ms: u64 = 1000; // 1 second
         const max_ms: u64 = 60_000; // 60 seconds
 
@@ -160,7 +162,8 @@ pub const RateLimiter = struct {
 
         // Add jitter (0-25% of delay)
         const jitter = delay / 4;
-        const random_jitter = std.crypto.random.uintAtMost(u64, jitter);
+        const random_source: std.Random.IoSource = .{ .io = io };
+        const random_jitter = random_source.interface().uintAtMost(u64, jitter);
 
         return @min(delay + random_jitter, max_ms);
     }
@@ -177,7 +180,7 @@ pub const PromptTemplate = struct {
     /// Variables are provided as a tuple/struct with field names matching variable names.
     /// Escaped braces {{{{}}}} are rendered as {{}}.
     pub fn render(self: PromptTemplate, allocator: std.mem.Allocator, vars: anytype) ![]u8 {
-        var result = std.ArrayList(u8){};
+        var result = std.ArrayList(u8).empty;
         errdefer result.deinit(allocator);
 
         var i: usize = 0;
@@ -283,6 +286,7 @@ pub const PromptTemplate = struct {
 
 pub const LlmClient = struct {
     allocator: std.mem.Allocator,
+    io: std.Io,
     api_key: []const u8,
     base_url: []const u8,
     timeout_ms: u64 = 30_000,
@@ -305,9 +309,15 @@ pub const LlmClient = struct {
     rate_limiter: ?RateLimiter = null,
     token_budget: ?TokenBudget = null,
 
-    pub fn init(allocator: std.mem.Allocator, api_key: []const u8, base_url: []const u8) !LlmClient {
+    pub fn init(
+        allocator: std.mem.Allocator,
+        io: std.Io,
+        api_key: []const u8,
+        base_url: []const u8,
+    ) !LlmClient {
         return LlmClient{
             .allocator = allocator,
+            .io = io,
             .api_key = api_key,
             .base_url = base_url,
         };
@@ -328,7 +338,7 @@ pub const LlmClient = struct {
         // Check rate limiter
         if (self.rate_limiter) |*limiter| {
             const token_count = TokenBudget.estimate(prompt);
-            try limiter.checkAndConsume(token_count);
+            try limiter.checkAndConsume(self.io, token_count);
         }
 
         // No real HTTP implementation yet. Mock HTTP client injection via anyopaque
@@ -386,7 +396,8 @@ pub const LlmClient = struct {
                     // Open circuit breaker if threshold reached
                     if (self.circuit_breaker_failures >= self.circuit_breaker_threshold) {
                         self.circuit_breaker_open = true;
-                        self.circuit_breaker_opened_at = std.time.milliTimestamp();
+                        const now_ms = std.Io.Clock.real.now(self.io).toMilliseconds();
+                        self.circuit_breaker_opened_at = now_ms;
                     }
 
                     return err;
@@ -394,8 +405,9 @@ pub const LlmClient = struct {
 
                 // Exponential backoff
                 if (self.rate_limiter) |*limiter| {
-                    const delay = limiter.exponentialBackoff();
-                    std.Thread.sleep(delay * std.time.ns_per_ms);
+                    const delay = limiter.exponentialBackoff(self.io);
+                    const delay_ms: i64 = @intCast(delay);
+                    try self.io.sleep(.fromMilliseconds(delay_ms), .awake);
                     limiter.backoff_count += 1;
                 }
             }
@@ -408,7 +420,7 @@ pub const LlmClient = struct {
     pub fn circuitBreakerShouldRetry(self: *LlmClient) bool {
         if (!self.circuit_breaker_open) return true;
 
-        const now = std.time.milliTimestamp();
+        const now = std.Io.Clock.real.now(self.io).toMilliseconds();
         const elapsed = now - self.circuit_breaker_opened_at;
 
         if (elapsed >= self.circuit_breaker_timeout_ms) {
@@ -440,7 +452,7 @@ pub const ResponseStreamWidget = struct {
     pub fn init(allocator: std.mem.Allocator) !ResponseStreamWidget {
         return ResponseStreamWidget{
             .allocator = allocator,
-            .buffer = std.ArrayList(u8){},
+            .buffer = std.ArrayList(u8).empty,
         };
     }
 
@@ -477,7 +489,7 @@ pub const ResponseStreamWidget = struct {
     /// Render widget to buffer.
     pub fn render(self: *ResponseStreamWidget, buf: *sailor.Buffer, area: sailor.Rect) !void {
         // Split text into lines
-        var lines = std.ArrayList([]const u8){};
+        var lines = std.ArrayList([]const u8).empty;
         defer lines.deinit(self.allocator);
 
         if (self.buffer.items.len > 0) {

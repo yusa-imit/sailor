@@ -17,7 +17,7 @@ const Block = @import("block.zig").Block;
 
 /// A single filter tag
 pub const FilterTag = struct {
-    key: []const u8,   // owned (duped), freed on removeTag/clearAll/deinit
+    key: []const u8, // owned (duped), freed on removeTag/clearAll/deinit
     value: []const u8, // owned (duped)
     active: bool,
 };

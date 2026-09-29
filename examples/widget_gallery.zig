@@ -3,7 +3,6 @@
 ///!
 ///! This gallery showcases all available widgets with copy-pasteable code examples.
 ///! Navigate through widgets and view example code for each.
-
 const std = @import("std");
 const sailor = @import("sailor");
 
@@ -139,14 +138,13 @@ const examples = [_]WidgetExample{
     },
 };
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
-    var output: std.ArrayList(u8) = .empty;
-    defer output.deinit(allocator);
-    const stdout = output.writer(allocator);
+    var out_buf: [4096]u8 = undefined;
+    var fw = std.Io.File.stdout().writer(io, &out_buf);
+    const stdout = &fw.interface;
 
     try stdout.writeAll("\n");
     try stdout.writeAll("╔═══════════════════════════════════════════════════════════╗\n");
@@ -170,7 +168,7 @@ pub fn main() !void {
     for (&examples) |*ex| {
         const entry = try category_map.getOrPut(ex.category);
         if (!entry.found_existing) {
-            entry.value_ptr.* = .{};
+            entry.value_ptr.* = .empty;
         }
         try entry.value_ptr.append(allocator, ex);
     }
@@ -205,5 +203,5 @@ pub fn main() !void {
     try stdout.writeAll("\n");
 
     // Write to stdout
-    _ = try std.posix.write(std.posix.STDOUT_FILENO, output.items);
+    try stdout.flush();
 }

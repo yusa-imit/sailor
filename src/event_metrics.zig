@@ -128,7 +128,7 @@ pub const EventMetricsCollector = struct {
         } else {
             // New type data - initialize
             self.type_data = .{
-                .latencies = std.ArrayList(u64){},
+                .latencies = std.ArrayList(u64).empty,
                 .min_ns = latency_ns,
                 .max_ns = latency_ns,
                 .sum_ns = latency_ns,

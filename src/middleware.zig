@@ -36,7 +36,7 @@ pub fn MiddlewareStore(State: type, Action: type) type {
             return Self{
                 .state = initial_state,
                 .reducer = reducer,
-                .listeners = std.ArrayList(Listener){},
+                .listeners = std.ArrayList(Listener).empty,
                 .allocator = allocator,
             };
         }
@@ -94,4 +94,3 @@ pub fn MiddlewareStore(State: type, Action: type) type {
         }
     };
 }
-

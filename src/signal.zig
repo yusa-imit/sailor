@@ -34,7 +34,7 @@ pub fn Signal(T: type) type {
             _ = allocator;
             return Self{
                 .value = initial_value,
-                .subscribers = .{},
+                .subscribers = .empty,
             };
         }
 

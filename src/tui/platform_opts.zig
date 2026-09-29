@@ -95,7 +95,10 @@ pub const MetalCapability = struct {
 
 /// Detect Metal support on macOS by checking environment variables
 /// On non-macOS platforms, returns unavailable
-pub fn detectMetalSupport(allocator: std.mem.Allocator) !MetalCapability {
+pub fn detectMetalSupport(
+    allocator: std.mem.Allocator,
+    environ_map: *const std.process.Environ.Map,
+) !MetalCapability {
     if (!isMacOS()) {
         return MetalCapability{
             .available = false,
@@ -105,13 +108,16 @@ pub fn detectMetalSupport(allocator: std.mem.Allocator) !MetalCapability {
     }
 
     // Check TERM_PROGRAM for iTerm2 or Terminal.app
-    const term_program = std.process.getEnvVarOwned(allocator, "TERM_PROGRAM") catch null;
+    const term_program: ?[]const u8 = if (environ_map.get("TERM_PROGRAM")) |prog|
+        try allocator.dupe(u8, prog)
+    else
+        null;
 
     // On macOS, assume Metal is available for modern terminals
     // iTerm2 and Terminal.app both support Metal rendering
     const available = if (term_program) |prog| blk: {
-        const is_iterm = std.mem.indexOf(u8, prog, "iTerm") != null;
-        const is_terminal = std.mem.indexOf(u8, prog, "Terminal") != null;
+        const is_iterm = std.mem.find(u8, prog, "iTerm") != null;
+        const is_terminal = std.mem.find(u8, prog, "Terminal") != null;
         break :blk is_iterm or is_terminal;
     } else false;
 
@@ -236,12 +242,12 @@ test "isWindows returns correct value" {
 
 test "emitAnsi writes sequence unchanged" {
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const ansi = "\x1b[31m";
-    try emitAnsi(stream.writer(), ansi);
+    try emitAnsi(&stream, ansi);
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
     try testing.expectEqualStrings(ansi, written);
 }
 
@@ -249,7 +255,11 @@ test "detectMetalSupport on macOS" {
     if (!isMacOS()) return error.SkipZigTest;
 
     const allocator = testing.allocator;
-    const result = try detectMetalSupport(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    try env.put("TERM_PROGRAM", "iTerm.app");
+
+    const result = try detectMetalSupport(allocator, &env);
     defer result.deinit();
 
     // Should return a valid capability struct

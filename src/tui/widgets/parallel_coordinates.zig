@@ -40,6 +40,7 @@ const style_mod = @import("../style.zig");
 const Style = style_mod.Style;
 const block_mod = @import("block.zig");
 const Block = block_mod.Block;
+const assert = std.debug.assert;
 
 /// Single axis for parallel coordinates
 pub const PCAxis = struct {
@@ -212,12 +213,10 @@ pub const ParallelCoordinates = struct {
             const is_focused = item_idx == self.focused;
 
             // Check if focused_style is explicitly set
-            const focused_style_is_set = self.focused_style.bold or self.focused_style.dim or
-                self.focused_style.italic or self.focused_style.underline or self.focused_style.blink or
-                self.focused_style.reverse or self.focused_style.strikethrough or
-                self.focused_style.fg != null or self.focused_style.bg != null;
+            const focused_style_is_set = styleIsSet(self.focused_style);
 
-            const item_style = if (is_focused and focused_style_is_set) self.focused_style else item.style;
+            const use_focused = is_focused and focused_style_is_set;
+            const item_style = if (use_focused) self.focused_style else item.style;
 
             // Draw polyline connecting consecutive axes
             for (0..n_axes - 1) |axis_idx| {
@@ -247,12 +246,21 @@ pub const ParallelCoordinates = struct {
                 const y_i1 = axisY(inner, t_i1);
 
                 // Draw line between the two points
-                drawLine(buf, inner, @as(i32, @intCast(x_i)), @as(i32, @intCast(y_i)),
-                         @as(i32, @intCast(x_i1)), @as(i32, @intCast(y_i1)), item_style);
+                drawLine(buf, inner, @as(i32, @intCast(x_i)), @as(i32, @intCast(y_i)), @as(i32, @intCast(x_i1)), @as(i32, @intCast(y_i1)), item_style);
             }
         }
     }
 };
+
+/// True if any attribute or color of `s` is set (an "empty" style has none).
+fn styleIsSet(s: Style) bool {
+    const attrs_set = s.bold or s.dim or s.italic or s.underline or s.blink or s.reverse or
+        s.strikethrough;
+    const is_set = attrs_set or s.fg != null or s.bg != null;
+    assert(is_set or (s.fg == null and s.bg == null));
+    assert(!is_set or attrs_set or s.fg != null or s.bg != null);
+    return is_set;
+}
 
 /// Normalize a value to [0, 1] range given axis min/max
 fn normalizeValue(value: f32, min: f32, max: f32) f32 {
@@ -292,8 +300,7 @@ fn axisY(inner: Rect, t: f32) u16 {
 }
 
 /// Draw a vertical axis line
-fn drawAxis(buf: *Buffer, area: Rect, axis_idx: usize, axes: []const PCAxis,
-            axis_style: Style, label_style: Style, show_labels: bool, show_axis_range: bool) void {
+fn drawAxis(buf: *Buffer, area: Rect, axis_idx: usize, axes: []const PCAxis, axis_style: Style, label_style: Style, show_labels: bool, show_axis_range: bool) void {
     if (axis_idx >= axes.len or area.height == 0) return;
 
     const axis = axes[axis_idx];
@@ -346,7 +353,8 @@ fn drawLine(buf: *Buffer, area: Rect, x0: i32, y0: i32, x1: i32, y1: i32, style_
             const px: u16 = @intCast(x);
             const py: u16 = @intCast(y);
             if (px >= area.x and px < area.x + area.width and
-                py >= area.y and py < area.y + area.height) {
+                py >= area.y and py < area.y + area.height)
+            {
                 buf.set(px, py, Cell.init('·', style_arg));
             }
         }

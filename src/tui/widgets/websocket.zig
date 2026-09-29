@@ -294,29 +294,28 @@ pub const WebSocket = struct {
 
             // Build message line
             var line_buf: [512]u8 = undefined;
-            var stream = std.io.fixedBufferStream(&line_buf);
-            const writer = stream.writer();
+            var stream: std.Io.Writer = .fixed(&line_buf);
 
             // Direction indicator
             if (self.show_direction) {
                 const indicator = if (msg.is_incoming) "<-" else "->";
-                writer.writeAll(indicator) catch {};
-                writer.writeAll(" ") catch {};
+                stream.writeAll(indicator) catch {};
+                stream.writeAll(" ") catch {};
             }
 
             // Timestamp
             if (self.show_timestamps) {
                 var ts_buf: [32]u8 = undefined;
                 const ts = formatTimestamp(msg.timestamp_ms, self.timestamp_format, &ts_buf);
-                writer.writeAll("[") catch {};
-                writer.writeAll(ts) catch {};
-                writer.writeAll("] ") catch {};
+                stream.writeAll("[") catch {};
+                stream.writeAll(ts) catch {};
+                stream.writeAll("] ") catch {};
             }
 
             // Message content
-            writer.writeAll(msg.content) catch {};
+            stream.writeAll(msg.content) catch {};
 
-            const line = stream.getWritten();
+            const line = stream.buffered();
             const msg_style = if (msg.is_incoming)
                 Style{ .fg = .cyan }
             else
@@ -493,12 +492,12 @@ test "WebSocket: render with no messages" {
     // Should show state and "no messages"
     const line0 = try buffer.getLine(0, 40);
     defer allocator.free(line0);
-    try testing.expect(std.mem.indexOf(u8, line0, "Connected") != null);
-    try testing.expect(std.mem.indexOf(u8, line0, "wss://example.com/ws") != null);
+    try testing.expect(std.mem.find(u8, line0, "Connected") != null);
+    try testing.expect(std.mem.find(u8, line0, "wss://example.com/ws") != null);
 
     const line1 = try buffer.getLine(1, 40);
     defer allocator.free(line1);
-    try testing.expect(std.mem.indexOf(u8, line1, "(no messages)") != null);
+    try testing.expect(std.mem.find(u8, line1, "(no messages)") != null);
 }
 
 test "WebSocket: render with messages" {
@@ -520,18 +519,18 @@ test "WebSocket: render with messages" {
     // Line 0: state
     const line0 = try buffer.getLine(0, 40);
     defer allocator.free(line0);
-    try testing.expect(std.mem.indexOf(u8, line0, "Connected") != null);
+    try testing.expect(std.mem.find(u8, line0, "Connected") != null);
 
     // Lines 1-2: messages
     const line1 = try buffer.getLine(1, 40);
     defer allocator.free(line1);
-    try testing.expect(std.mem.indexOf(u8, line1, "->") != null);
-    try testing.expect(std.mem.indexOf(u8, line1, "Hello server") != null);
+    try testing.expect(std.mem.find(u8, line1, "->") != null);
+    try testing.expect(std.mem.find(u8, line1, "Hello server") != null);
 
     const line2 = try buffer.getLine(2, 40);
     defer allocator.free(line2);
-    try testing.expect(std.mem.indexOf(u8, line2, "<-") != null);
-    try testing.expect(std.mem.indexOf(u8, line2, "Hello client") != null);
+    try testing.expect(std.mem.find(u8, line2, "<-") != null);
+    try testing.expect(std.mem.find(u8, line2, "Hello client") != null);
 }
 
 test "WebSocket: render failed state" {
@@ -548,11 +547,11 @@ test "WebSocket: render failed state" {
 
     const line0 = try buffer.getLine(0, 40);
     defer allocator.free(line0);
-    try testing.expect(std.mem.indexOf(u8, line0, "Failed") != null);
+    try testing.expect(std.mem.find(u8, line0, "Failed") != null);
 
     const line1 = try buffer.getLine(1, 40);
     defer allocator.free(line1);
-    try testing.expect(std.mem.indexOf(u8, line1, "Error: Connection refused") != null);
+    try testing.expect(std.mem.find(u8, line1, "Error: Connection refused") != null);
 }
 
 test "WebSocket: render with block border" {
@@ -571,7 +570,7 @@ test "WebSocket: render with block border" {
     // Should have border characters
     const line0 = try buffer.getLine(0, 40);
     defer allocator.free(line0);
-    try testing.expect(std.mem.indexOf(u8, line0, "WebSocket") != null);
+    try testing.expect(std.mem.find(u8, line0, "WebSocket") != null);
 }
 
 test "WebSocket: render with timestamps" {
@@ -592,8 +591,8 @@ test "WebSocket: render with timestamps" {
 
     const line1 = try buffer.getLine(1, 60);
     defer allocator.free(line1);
-    try testing.expect(std.mem.indexOf(u8, line1, "[1705329045000ms]") != null);
-    try testing.expect(std.mem.indexOf(u8, line1, "Test") != null);
+    try testing.expect(std.mem.find(u8, line1, "[1705329045000ms]") != null);
+    try testing.expect(std.mem.find(u8, line1, "Test") != null);
 }
 
 test "WebSocket: render scroll indicator" {
@@ -622,5 +621,5 @@ test "WebSocket: render scroll indicator" {
     // Last line should show scroll indicator
     const last_line = try buffer.getLine(4, 40);
     defer allocator.free(last_line);
-    try testing.expect(std.mem.indexOf(u8, last_line, "[↑10 more]") != null);
+    try testing.expect(std.mem.find(u8, last_line, "[↑10 more]") != null);
 }

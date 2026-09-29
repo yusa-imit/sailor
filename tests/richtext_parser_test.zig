@@ -720,15 +720,14 @@ test "parse: produces lines compatible with rendering" {
 
     // Should be able to render lines to writer
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     for (lines) |line| {
-        try line.render(writer);
+        try line.render(&fbs);
     }
 
     // Should produce some output
-    try testing.expect(fbs.getWritten().len > 0);
+    try testing.expect(fbs.buffered().len > 0);
 }
 
 // ============================================================================

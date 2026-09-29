@@ -18,6 +18,7 @@
 
 const std = @import("std");
 const sailor = @import("sailor");
+const support = @import("support.zig");
 
 const Buffer = sailor.tui.Buffer;
 const Block = sailor.tui.widgets.Block;
@@ -30,10 +31,9 @@ const layout = sailor.tui.layout;
 const Margin = layout.Margin;
 const Padding = layout.Padding;
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
     // Get terminal size
     const term_size = try sailor.term.getSize();
@@ -51,9 +51,9 @@ pub fn main() !void {
     // ======================
     // Header (3 lines) + Content + Footer (1 line)
     const main_constraints = [_]layout.Constraint{
-        .{ .length = 3 },   // Header
-        .{ .min = 20 },     // Content (min height constraint)
-        .{ .length = 1 },   // Footer
+        .{ .length = 3 }, // Header
+        .{ .min = 20 }, // Content (min height constraint)
+        .{ .length = 1 }, // Footer
     };
     const main_chunks = try layout.split(allocator, .vertical, area, &main_constraints);
     defer allocator.free(main_chunks);
@@ -75,11 +75,11 @@ pub fn main() !void {
     // LEVEL 2: Content Layout
     // ======================
     // Left sidebar (min 30 cols) + Main content
-    const content_margin = Margin.all(1);  // 1-cell margin around content
+    const content_margin = Margin.all(1); // 1-cell margin around content
     const content_area = main_chunks[1].withMargin(content_margin);
 
     const content_constraints = [_]layout.Constraint{
-        .{ .min = 30 },     // Sidebar (min width constraint)
+        .{ .min = 30 }, // Sidebar (min width constraint)
         .{ .percentage = 75 }, // Main content (takes remaining space)
     };
     const content_chunks = try layout.split(allocator, .horizontal, content_area, &content_constraints);
@@ -93,10 +93,10 @@ pub fn main() !void {
     const sidebar_area = content_chunks[0].withPadding(sidebar_padding);
 
     const sidebar_constraints = [_]layout.Constraint{
-        .{ .length = 3 },  // CPU gauge
-        .{ .length = 3 },  // Memory gauge
-        .{ .length = 3 },  // Disk gauge
-        .{ .min = 5 },     // Network info (min height)
+        .{ .length = 3 }, // CPU gauge
+        .{ .length = 3 }, // Memory gauge
+        .{ .length = 3 }, // Disk gauge
+        .{ .min = 5 }, // Network info (min height)
     };
     const sidebar_chunks = try layout.split(allocator, .vertical, sidebar_area, &sidebar_constraints);
     defer allocator.free(sidebar_chunks);
@@ -138,8 +138,8 @@ pub fn main() !void {
     // ======================
     // Video preview (top, 16:9 aspect ratio) + Performance charts (bottom, nested grid)
     const main_content_constraints = [_]layout.Constraint{
-        .{ .percentage = 40 },  // Video preview
-        .{ .percentage = 60 },  // Charts grid
+        .{ .percentage = 40 }, // Video preview
+        .{ .percentage = 60 }, // Charts grid
     };
     const main_content_chunks = try layout.split(allocator, .vertical, content_chunks[1], &main_content_constraints);
     defer allocator.free(main_content_chunks);
@@ -247,15 +247,18 @@ pub fn main() !void {
 
     std.debug.print("\n=== Layout Debug Tree ===\n", .{});
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
-    try debugger.print(stream.writer());
-    std.debug.print("{s}\n", .{stream.getWritten()});
+    var stream = std.Io.Writer.fixed(&buf);
+    try debugger.print(&stream);
+    std.debug.print("{s}\n", .{stream.buffered()});
 
     // ======================
     // Render
     // ======================
-    const stdout = std.io.getStdOut().writer();
-    try buffer.renderTo(stdout);
+    var out_buf: [4096]u8 = undefined;
+    var fw = std.Io.File.stdout().writer(io, &out_buf);
+    const stdout = &fw.interface;
+    try support.renderBuffer(allocator, buffer, stdout);
+    try stdout.flush();
 
     std.debug.print("\n✓ Advanced dashboard rendered successfully!\n", .{});
     std.debug.print("\nv1.32.0 Features Demonstrated:\n", .{});

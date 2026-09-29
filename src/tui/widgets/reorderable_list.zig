@@ -36,10 +36,10 @@ const Block = block_mod.Block;
 
 /// ReorderableList widget — list with keyboard drag-and-drop reordering
 pub const ReorderableList = struct {
-    items: []const []const u8,  // source item labels (immutable)
-    order: []usize,              // display order: order[visual_row] = items_index
-    cursor: usize = 0,           // current cursor position (visual row)
-    drag_active: bool = false,   // true while user is dragging an item
+    items: []const []const u8, // source item labels (immutable)
+    order: []usize, // display order: order[visual_row] = items_index
+    cursor: usize = 0, // current cursor position (visual row)
+    drag_active: bool = false, // true while user is dragging an item
 
     cursor_style: Style = .{ .bg = .blue },
     drag_style: Style = .{ .bg = .yellow, .bold = true },

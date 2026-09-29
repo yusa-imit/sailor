@@ -143,22 +143,24 @@ pub const DeveloperConsole = struct {
     recording: ?struct {
         frames: ArrayList([]const u8),
     },
-    mutex: std.Thread.Mutex,
+    io: std.Io,
+    mutex: std.Io.Mutex,
 
     const MAX_HISTORY = 100;
     const MAX_UNDO_STACK = 50;
 
-    pub fn init(allocator: Allocator) !DeveloperConsole {
+    pub fn init(allocator: Allocator, io: std.Io) !DeveloperConsole {
         return DeveloperConsole{
             .allocator = allocator,
+            .io = io,
             .open = false,
-            .widgets = ArrayList(Widget){},
-            .history = ArrayList([]const u8){},
+            .widgets = ArrayList(Widget).empty,
+            .history = ArrayList([]const u8).empty,
             .history_index = null,
-            .undo_stack = ArrayList(MutationSnapshot){},
-            .redo_stack = ArrayList(MutationSnapshot){},
+            .undo_stack = ArrayList(MutationSnapshot).empty,
+            .redo_stack = ArrayList(MutationSnapshot).empty,
             .recording = null,
-            .mutex = std.Thread.Mutex{},
+            .mutex = .init,
         };
     }
 
@@ -220,7 +222,7 @@ pub const DeveloperConsole = struct {
 
         if (should_add) {
             const cmd_copy = try self.allocator.dupe(u8, cmd);
-            try self.history.append(self.allocator,cmd_copy);
+            try self.history.append(self.allocator, cmd_copy);
 
             // Limit history size
             if (self.history.items.len > MAX_HISTORY) {
@@ -282,7 +284,7 @@ pub const DeveloperConsole = struct {
         // Supports: addition, subtraction, multiplication, division
         // Example: "1 + 1" → 2, "5 * 3 + 2" → 17
 
-        var tokens = ArrayList([]const u8){};
+        var tokens = ArrayList([]const u8).empty;
         defer tokens.deinit(self.allocator);
 
         // Tokenize
@@ -366,16 +368,15 @@ pub const DeveloperConsole = struct {
         }
 
         // Format results
-        var result_list = ArrayList(u8){};
-        defer result_list.deinit(self.allocator);
+        var out: std.Io.Writer.Allocating = .init(self.allocator);
+        defer out.deinit();
 
-        const writer = result_list.writer(self.allocator);
-        try writer.print("Found {d} widget(s):\n", .{results.len});
+        try out.writer.print("Found {d} widget(s):\n", .{results.len});
         for (results) |r| {
-            try writer.print("  {s}\n", .{r});
+            try out.writer.print("  {s}\n", .{r});
         }
 
-        return result_list.toOwnedSlice(self.allocator);
+        return out.toOwnedSlice();
     }
 
     fn mutateCommand(self: *DeveloperConsole, rest: []const u8) ![]const u8 {
@@ -387,7 +388,7 @@ pub const DeveloperConsole = struct {
         if (operation.len == 0) return Error.InvalidMutationSyntax;
 
         // Validate syntax before finding widgets
-        const has_equals = std.mem.indexOf(u8, operation, "=") != null;
+        const has_equals = std.mem.find(u8, operation, "=") != null;
 
         if (!has_equals) {
             // If no equals sign, it must be a valid action word (focus, click, etc.)
@@ -402,7 +403,7 @@ pub const DeveloperConsole = struct {
             }
 
             // If it's not a single valid action word, reject
-            if (!is_valid_action or std.mem.indexOf(u8, action, " ") != null) {
+            if (!is_valid_action or std.mem.find(u8, action, " ") != null) {
                 return Error.InvalidMutationSyntax;
             }
         }
@@ -410,8 +411,8 @@ pub const DeveloperConsole = struct {
         // Save current state for undo
         try self.saveSnapshot();
 
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         // Find matching widgets
         const matches = try self.findWidgets(selector);
@@ -419,7 +420,7 @@ pub const DeveloperConsole = struct {
         if (matches.len == 0) return Error.WidgetNotFound;
 
         // Parse operation
-        if (std.mem.indexOf(u8, operation, "=")) |eq_pos| {
+        if (std.mem.find(u8, operation, "=")) |eq_pos| {
             // Property assignment: prop='value' or prop=value
             const prop = std.mem.trim(u8, operation[0..eq_pos], " \t");
             var value = std.mem.trim(u8, operation[eq_pos + 1 ..], " \t");
@@ -477,15 +478,15 @@ pub const DeveloperConsole = struct {
 
         // Save current state
         var snapshot = MutationSnapshot{
-            .widgets = ArrayList(Widget){},
+            .widgets = ArrayList(Widget).empty,
         };
 
         for (self.widgets.items) |*widget| {
             const widget_copy = try widget.dupe(self.allocator);
-            try snapshot.widgets.append(self.allocator,widget_copy);
+            try snapshot.widgets.append(self.allocator, widget_copy);
         }
 
-        try self.undo_stack.append(self.allocator,snapshot);
+        try self.undo_stack.append(self.allocator, snapshot);
 
         // Limit stack size
         if (self.undo_stack.items.len > MAX_UNDO_STACK) {
@@ -501,7 +502,7 @@ pub const DeveloperConsole = struct {
 
         // Save current state to redo stack
         var redo_snapshot = MutationSnapshot{
-            .widgets = ArrayList(Widget){},
+            .widgets = ArrayList(Widget).empty,
         };
         for (self.widgets.items) |*widget| {
             const widget_copy = try widget.dupe(self.allocator);
@@ -546,7 +547,7 @@ pub const DeveloperConsole = struct {
 
         // Save current state to undo stack
         var undo_snapshot = MutationSnapshot{
-            .widgets = ArrayList(Widget){},
+            .widgets = ArrayList(Widget).empty,
         };
         for (self.widgets.items) |*widget| {
             const widget_copy = try widget.dupe(self.allocator);
@@ -640,7 +641,7 @@ pub const DeveloperConsole = struct {
             widget.info.class = try self.allocator.dupe(u8, class);
         }
 
-        try self.widgets.append(self.allocator,widget);
+        try self.widgets.append(self.allocator, widget);
     }
 
     pub fn registerWidgetChild(
@@ -671,18 +672,18 @@ pub const DeveloperConsole = struct {
             widget.info.class = try self.allocator.dupe(u8, class);
         }
 
-        try self.widgets.append(self.allocator,widget);
+        try self.widgets.append(self.allocator, widget);
     }
 
     pub fn query(self: *DeveloperConsole, selector: []const u8, allocator: Allocator) ![]const []const u8 {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         const matches = try self.findWidgets(selector);
         defer self.allocator.free(matches);
         if (matches.len == 0) return Error.NoMatch;
 
-        var results = ArrayList([]const u8){};
+        var results = ArrayList([]const u8).empty;
         errdefer {
             for (results.items) |r| allocator.free(r);
             results.deinit(allocator);
@@ -703,21 +704,21 @@ pub const DeveloperConsole = struct {
                     widget.info.bounds.height,
                 },
             );
-            try results.append(allocator,try allocator.dupe(u8, desc));
+            try results.append(allocator, try allocator.dupe(u8, desc));
         }
 
         return results.toOwnedSlice(allocator);
     }
 
     fn findWidgets(self: *DeveloperConsole, selector: []const u8) ![]usize {
-        var matches = ArrayList(usize){};
+        var matches = ArrayList(usize).empty;
         errdefer matches.deinit(self.allocator);
 
         // Parse selector
         if (selector.len == 0) return matches.toOwnedSlice(self.allocator);
 
         // Handle combinators (descendant and child)
-        if (std.mem.indexOf(u8, selector, " > ")) |pos| {
+        if (std.mem.find(u8, selector, " > ")) |pos| {
             // Child combinator: Type1 > Type2
             const parent_sel = std.mem.trim(u8, selector[0..pos], " \t");
             const child_sel = std.mem.trim(u8, selector[pos + 3 ..], " \t");
@@ -726,13 +727,13 @@ pub const DeveloperConsole = struct {
                 if (widget.parent_type != null and widget.parent_id != null) {
                     if (self.matchesSelector(widget.parent_type.?, widget.parent_id.?, parent_sel)) {
                         if (self.matchesSimpleSelector(widget, child_sel)) {
-                            try matches.append(self.allocator,idx);
+                            try matches.append(self.allocator, idx);
                         }
                     }
                 }
             }
             return matches.toOwnedSlice(self.allocator);
-        } else if (std.mem.indexOf(u8, selector, " ")) |pos| {
+        } else if (std.mem.find(u8, selector, " ")) |pos| {
             // Descendant combinator: Type1 Type2
             const ancestor_sel = std.mem.trim(u8, selector[0..pos], " \t");
             const descendant_sel = std.mem.trim(u8, selector[pos + 1 ..], " \t");
@@ -741,7 +742,7 @@ pub const DeveloperConsole = struct {
                 if (widget.parent_type != null) {
                     if (std.mem.eql(u8, widget.parent_type.?, ancestor_sel)) {
                         if (self.matchesSimpleSelector(widget, descendant_sel)) {
-                            try matches.append(self.allocator,idx);
+                            try matches.append(self.allocator, idx);
                         }
                     }
                 }
@@ -752,7 +753,7 @@ pub const DeveloperConsole = struct {
         // Simple selector
         for (self.widgets.items, 0..) |*widget, idx| {
             if (self.matchesSimpleSelector(widget, selector)) {
-                try matches.append(self.allocator,idx);
+                try matches.append(self.allocator, idx);
             }
         }
 
@@ -787,7 +788,7 @@ pub const DeveloperConsole = struct {
         }
 
         // Attribute selector: Type[attr^='value'] or Type[x<N]
-        if (std.mem.indexOf(u8, selector, "[")) |bracket_pos| {
+        if (std.mem.find(u8, selector, "[")) |bracket_pos| {
             const type_part = selector[0..bracket_pos];
             const attr_part = selector[bracket_pos + 1 ..];
 
@@ -797,11 +798,11 @@ pub const DeveloperConsole = struct {
             }
 
             // Parse attribute condition
-            if (std.mem.indexOf(u8, attr_part, "]")) |end_pos| {
+            if (std.mem.find(u8, attr_part, "]")) |end_pos| {
                 const attr_cond = attr_part[0..end_pos];
 
                 // Prefix match: text^='value'
-                if (std.mem.indexOf(u8, attr_cond, "^='")) |op_pos| {
+                if (std.mem.find(u8, attr_cond, "^='")) |op_pos| {
                     const attr_name = attr_cond[0..op_pos];
                     var value = attr_cond[op_pos + 3 ..];
                     // Strip trailing quote
@@ -818,7 +819,7 @@ pub const DeveloperConsole = struct {
                 }
 
                 // Comparison: x<N, x>N, etc.
-                if (std.mem.indexOf(u8, attr_cond, "<")) |op_pos| {
+                if (std.mem.find(u8, attr_cond, "<")) |op_pos| {
                     const attr_name = attr_cond[0..op_pos];
                     const value = attr_cond[op_pos + 1 ..];
                     const threshold = std.fmt.parseInt(u16, value, 10) catch return false;
@@ -834,7 +835,7 @@ pub const DeveloperConsole = struct {
         }
 
         // Predicate: Type:visible, Type:focused
-        if (std.mem.indexOf(u8, selector, ":")) |colon_pos| {
+        if (std.mem.find(u8, selector, ":")) |colon_pos| {
             const type_part = selector[0..colon_pos];
             const pred_part = selector[colon_pos + 1 ..];
 
@@ -895,14 +896,14 @@ pub const DeveloperConsole = struct {
         }
 
         self.recording = .{
-            .frames = ArrayList([]const u8){},
+            .frames = ArrayList([]const u8).empty,
         };
     }
 
     pub fn captureFrame(self: *DeveloperConsole) !void {
         if (self.recording) |*rec| {
             const frame_data = try self.allocator.dupe(u8, "FRAME_DATA");
-            try rec.frames.append(self.allocator,frame_data);
+            try rec.frames.append(self.allocator, frame_data);
         }
     }
 
@@ -921,7 +922,7 @@ pub const DeveloperConsole = struct {
         // No recording active, return empty
         return Recording{
             .frame_count = 0,
-            .frames = ArrayList([]const u8){},
+            .frames = ArrayList([]const u8).empty,
             .alloc = allocator,
         };
     }
@@ -933,7 +934,7 @@ pub const DeveloperConsole = struct {
 
 test "DeveloperConsole - basic init and deinit" {
     const testing = std.testing;
-    var console = try DeveloperConsole.init(testing.allocator);
+    var console = try DeveloperConsole.init(testing.allocator, testing.io);
     defer console.deinit();
     try testing.expect(!console.isOpen());
 }

@@ -251,13 +251,13 @@ pub const Canvas = struct {
                 if (dot_x + 1 < self.dot_width and self.getDot(dot_x + 1, dot_y)) pattern |= 0x08;
                 // Dot 5
                 if (dot_x + 1 < self.dot_width and dot_y + 1 < self.dot_height and
-                   self.getDot(dot_x + 1, dot_y + 1)) pattern |= 0x10;
+                    self.getDot(dot_x + 1, dot_y + 1)) pattern |= 0x10;
                 // Dot 6
                 if (dot_x + 1 < self.dot_width and dot_y + 2 < self.dot_height and
-                   self.getDot(dot_x + 1, dot_y + 2)) pattern |= 0x20;
+                    self.getDot(dot_x + 1, dot_y + 2)) pattern |= 0x20;
                 // Dot 8
                 if (dot_x + 1 < self.dot_width and dot_y + 3 < self.dot_height and
-                   self.getDot(dot_x + 1, dot_y + 3)) pattern |= 0x80;
+                    self.getDot(dot_x + 1, dot_y + 3)) pattern |= 0x80;
 
                 const char = symbols.Braille.pattern(pattern);
                 try buf.setCell(x, y, char, self.style);

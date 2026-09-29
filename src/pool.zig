@@ -5,7 +5,7 @@
 //!
 //! Usage:
 //! ```zig
-//! var pool = try Pool(MyType).init(allocator, .{
+//! var pool = try Pool(MyType).init(allocator, io, .{
 //!     .capacity = 100,
 //!     .grow_policy = .double,
 //! });
@@ -41,7 +41,8 @@ pub fn Pool(comptime T: type) type {
         allocator: std.mem.Allocator,
         storage: std.ArrayList(T),
         free_stack: std.ArrayList(*T),
-        mutex: std.Thread.Mutex,
+        io: std.Io,
+        mutex: std.Io.Mutex,
 
         /// Total number of objects that can fit without growing
         capacity: usize,
@@ -56,7 +57,7 @@ pub fn Pool(comptime T: type) type {
         grow_policy: GrowPolicy,
 
         /// Initialize a new pool with the given configuration
-        pub fn init(alloc: std.mem.Allocator, config: PoolConfig) !Self {
+        pub fn init(alloc: std.mem.Allocator, io: std.Io, config: PoolConfig) !Self {
             var storage: std.ArrayList(T) = .empty;
             errdefer storage.deinit(alloc);
             try storage.ensureTotalCapacity(alloc, config.capacity);
@@ -69,7 +70,8 @@ pub fn Pool(comptime T: type) type {
                 .allocator = alloc,
                 .storage = storage,
                 .free_stack = free_stack,
-                .mutex = .{},
+                .io = io,
+                .mutex = .init,
                 .capacity = config.capacity,
                 .allocated = 0,
                 .in_use = 0,
@@ -80,8 +82,8 @@ pub fn Pool(comptime T: type) type {
 
         /// Deinitialize the pool and release all resources
         pub fn deinit(self: *Self) void {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.mutex.lockUncancelable(self.io);
+            defer self.mutex.unlock(self.io);
 
             self.storage.deinit(self.allocator);
             self.free_stack.deinit(self.allocator);
@@ -90,8 +92,8 @@ pub fn Pool(comptime T: type) type {
         /// Acquire an object from the pool.
         /// Returns a pointer to an object, either from the free stack or newly allocated.
         pub fn acquire(self: *Self) !*T {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.mutex.lockUncancelable(self.io);
+            defer self.mutex.unlock(self.io);
 
             // Try to get from free stack first
             if (self.free_stack.items.len > 0) {
@@ -100,9 +102,7 @@ pub fn Pool(comptime T: type) type {
 
                 // Update statistics
                 self.in_use += 1;
-                if (self.in_use > self.peak_usage) {
-                    self.peak_usage = self.in_use;
-                }
+                if (self.in_use > self.peak_usage) self.peak_usage = self.in_use;
 
                 return obj;
             }
@@ -120,17 +120,15 @@ pub fn Pool(comptime T: type) type {
 
             // Update statistics
             self.in_use += 1;
-            if (self.in_use > self.peak_usage) {
-                self.peak_usage = self.in_use;
-            }
+            if (self.in_use > self.peak_usage) self.peak_usage = self.in_use;
 
             return obj;
         }
 
         /// Release an object back to the pool for reuse
         pub fn release(self: *Self, obj: *T) void {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.mutex.lockUncancelable(self.io);
+            defer self.mutex.unlock(self.io);
 
             // Add back to free stack
             self.free_stack.append(self.allocator, obj) catch return; // Silently ignore allocation failure
@@ -144,8 +142,8 @@ pub fn Pool(comptime T: type) type {
         /// Reset the pool, clearing all allocated objects.
         /// Preserves capacity but clears all storage.
         pub fn reset(self: *Self) void {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.mutex.lockUncancelable(self.io);
+            defer self.mutex.unlock(self.io);
 
             // Clear both storage and free stack
             self.storage.clearRetainingCapacity();
@@ -177,7 +175,7 @@ const TestObject = struct {
 
 test "pool initialization with double growth policy" {
     const alloc = std.testing.allocator;
-    var pool = try Pool(TestObject).init(alloc, .{
+    var pool = try Pool(TestObject).init(alloc, std.testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -191,7 +189,7 @@ test "pool initialization with double growth policy" {
 
 test "pool initialization with linear growth policy" {
     const alloc = std.testing.allocator;
-    var pool = try Pool(TestObject).init(alloc, .{
+    var pool = try Pool(TestObject).init(alloc, std.testing.io, .{
         .capacity = 5,
         .grow_policy = .{ .linear = 3 },
     });
@@ -205,7 +203,7 @@ test "pool initialization with linear growth policy" {
 
 test "acquire from empty pool allocates new object" {
     const alloc = std.testing.allocator;
-    var pool = try Pool(TestObject).init(alloc, .{
+    var pool = try Pool(TestObject).init(alloc, std.testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -221,7 +219,7 @@ test "acquire from empty pool allocates new object" {
 
 test "release object adds to free stack" {
     const alloc = std.testing.allocator;
-    var pool = try Pool(TestObject).init(alloc, .{
+    var pool = try Pool(TestObject).init(alloc, std.testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -237,7 +235,7 @@ test "release object adds to free stack" {
 
 test "acquire after release reuses object (LIFO)" {
     const alloc = std.testing.allocator;
-    var pool = try Pool(TestObject).init(alloc, .{
+    var pool = try Pool(TestObject).init(alloc, std.testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -254,7 +252,7 @@ test "acquire after release reuses object (LIFO)" {
 
 test "LIFO behavior: last released is first acquired" {
     const alloc = std.testing.allocator;
-    var pool = try Pool(TestObject).init(alloc, .{
+    var pool = try Pool(TestObject).init(alloc, std.testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -278,7 +276,7 @@ test "LIFO behavior: last released is first acquired" {
 
 test "double growth policy: capacity doubles when exceeded" {
     const alloc = std.testing.allocator;
-    var pool = try Pool(TestObject).init(alloc, .{
+    var pool = try Pool(TestObject).init(alloc, std.testing.io, .{
         .capacity = 2,
         .grow_policy = .double,
     });
@@ -296,7 +294,7 @@ test "double growth policy: capacity doubles when exceeded" {
 
 test "linear growth policy: capacity grows by step" {
     const alloc = std.testing.allocator;
-    var pool = try Pool(TestObject).init(alloc, .{
+    var pool = try Pool(TestObject).init(alloc, std.testing.io, .{
         .capacity = 2,
         .grow_policy = .{ .linear = 3 },
     });
@@ -314,7 +312,7 @@ test "linear growth policy: capacity grows by step" {
 
 test "statistics: in_use increases on acquire, decreases on release" {
     const alloc = std.testing.allocator;
-    var pool = try Pool(TestObject).init(alloc, .{
+    var pool = try Pool(TestObject).init(alloc, std.testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -337,7 +335,7 @@ test "statistics: in_use increases on acquire, decreases on release" {
 
 test "statistics: peak_usage tracks maximum concurrent usage" {
     const alloc = std.testing.allocator;
-    var pool = try Pool(TestObject).init(alloc, .{
+    var pool = try Pool(TestObject).init(alloc, std.testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -364,7 +362,7 @@ test "statistics: peak_usage tracks maximum concurrent usage" {
 
 test "statistics: allocated count increases on new object creation" {
     const alloc = std.testing.allocator;
-    var pool = try Pool(TestObject).init(alloc, .{
+    var pool = try Pool(TestObject).init(alloc, std.testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -392,7 +390,7 @@ test "statistics: allocated count increases on new object creation" {
 
 test "reset clears storage and resets counters" {
     const alloc = std.testing.allocator;
-    var pool = try Pool(TestObject).init(alloc, .{
+    var pool = try Pool(TestObject).init(alloc, std.testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -415,7 +413,7 @@ test "reset clears storage and resets counters" {
 
 test "reset preserves capacity" {
     const alloc = std.testing.allocator;
-    var pool = try Pool(TestObject).init(alloc, .{
+    var pool = try Pool(TestObject).init(alloc, std.testing.io, .{
         .capacity = 5,
         .grow_policy = .double,
     });
@@ -435,7 +433,7 @@ test "reset preserves capacity" {
 
 test "acquire many objects with growth" {
     const alloc = std.testing.allocator;
-    var pool = try Pool(TestObject).init(alloc, .{
+    var pool = try Pool(TestObject).init(alloc, std.testing.io, .{
         .capacity = 2,
         .grow_policy = .double,
     });
@@ -461,7 +459,7 @@ test "acquire many objects with growth" {
 
 test "release unbalanced with acquire is safe" {
     const alloc = std.testing.allocator;
-    var pool = try Pool(TestObject).init(alloc, .{
+    var pool = try Pool(TestObject).init(alloc, std.testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });
@@ -480,7 +478,7 @@ test "release unbalanced with acquire is safe" {
 
 test "multiple acquire-release cycles" {
     const alloc = std.testing.allocator;
-    var pool = try Pool(TestObject).init(alloc, .{
+    var pool = try Pool(TestObject).init(alloc, std.testing.io, .{
         .capacity = 5,
         .grow_policy = .double,
     });
@@ -509,7 +507,7 @@ test "multiple acquire-release cycles" {
 
 test "zeroed initialization on new objects" {
     const alloc = std.testing.allocator;
-    var pool = try Pool(TestObject).init(alloc, .{
+    var pool = try Pool(TestObject).init(alloc, std.testing.io, .{
         .capacity = 10,
         .grow_policy = .double,
     });

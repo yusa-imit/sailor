@@ -24,7 +24,7 @@ const sailor = @import("sailor");
 // Example 1: Structured Error Context
 // ============================================================================
 
-fn processFileWithContext(allocator: std.mem.Allocator, path: []const u8) !void {
+fn processFileWithContext(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !void {
     const log = sailor.debug_log.scoped(.sailor);
     log.info("Processing file: {s}", .{path});
 
@@ -35,17 +35,18 @@ fn processFileWithContext(allocator: std.mem.Allocator, path: []const u8) !void 
     try ctx.set("path", path);
 
     // Simulate file processing
-    const file = std.fs.cwd().openFile(path, .{}) catch |err| {
+    const file = std.Io.Dir.cwd().openFile(io, path, .{}) catch |err| {
         try ctx.set("error", @errorName(err));
 
-        var buf: std.ArrayList(u8) = .empty;
-        defer buf.deinit(allocator);
-        try ctx.format(buf.writer(allocator), err);
+        var aw = std.Io.Writer.Allocating.init(allocator);
+        defer aw.deinit();
 
-        std.debug.print("\nError occurred:\n{s}\n", .{buf.items});
+        try ctx.format(&aw.writer, err);
+
+        std.debug.print("\nError occurred:\n{s}\n", .{aw.written()});
         return err;
     };
-    defer file.close();
+    defer file.close(io);
 
     log.info("File opened successfully", .{});
 }
@@ -109,21 +110,26 @@ const RecoveryStrategy = enum {
     fail_fast,
 };
 
-fn processWithRetry(allocator: std.mem.Allocator, path: []const u8, max_retries: usize) !void {
+fn processWithRetry(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    path: []const u8,
+    max_retries: usize,
+) !void {
     const log = sailor.debug_log.scoped(.sailor);
 
     var attempt: usize = 0;
     while (attempt < max_retries) : (attempt += 1) {
         log.info("Attempt {d}/{d} to process: {s}", .{ attempt + 1, max_retries, path });
 
-        processFileWithContext(allocator, path) catch |err| {
+        processFileWithContext(allocator, io, path) catch |err| {
             if (attempt + 1 >= max_retries) {
                 log.err("All retries exhausted: {s}", .{@errorName(err)});
                 return err;
             }
 
             log.warn("Retry {d} failed: {s}, retrying...", .{ attempt + 1, @errorName(err) });
-            std.time.sleep(100 * std.time.ns_per_ms); // 100ms delay
+            try io.sleep(.fromMilliseconds(100), .awake); // 100ms delay
             continue;
         };
 
@@ -132,14 +138,19 @@ fn processWithRetry(allocator: std.mem.Allocator, path: []const u8, max_retries:
     }
 }
 
-fn processWithFallback(allocator: std.mem.Allocator, primary_path: []const u8, fallback_path: []const u8) !void {
+fn processWithFallback(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    primary_path: []const u8,
+    fallback_path: []const u8,
+) !void {
     const log = sailor.debug_log.scoped(.sailor);
 
     log.info("Trying primary path: {s}", .{primary_path});
-    processFileWithContext(allocator, primary_path) catch |err| {
+    processFileWithContext(allocator, io, primary_path) catch |err| {
         log.warn("Primary failed: {s}, trying fallback: {s}", .{ @errorName(err), fallback_path });
 
-        processFileWithContext(allocator, fallback_path) catch |fallback_err| {
+        processFileWithContext(allocator, io, fallback_path) catch |fallback_err| {
             log.err("Fallback also failed: {s}", .{@errorName(fallback_err)});
             return fallback_err;
         };
@@ -155,16 +166,17 @@ fn processWithFallback(allocator: std.mem.Allocator, primary_path: []const u8, f
 // Main
 // ============================================================================
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
+
+    sailor.debug_log.init(init.environ_map);
 
     std.debug.print("=== Sailor Error Handling Demo ===\n\n", .{});
 
     // Example 1: Structured Error Context
     std.debug.print("--- Example 1: Structured Error Context ---\n", .{});
-    processFileWithContext(allocator, "/nonexistent/file.txt") catch |err| {
+    processFileWithContext(allocator, io, "/nonexistent/file.txt") catch |err| {
         std.debug.print("Recovered from error: {s}\n\n", .{@errorName(err)});
     };
 
@@ -181,12 +193,17 @@ pub fn main() !void {
 
     // Example 4: Error Recovery Strategies
     std.debug.print("--- Example 4: Retry Strategy ---\n", .{});
-    processWithRetry(allocator, "/nonexistent/file.txt", 3) catch |err| {
+    processWithRetry(allocator, io, "/nonexistent/file.txt", 3) catch |err| {
         std.debug.print("Final error after retries: {s}\n\n", .{@errorName(err)});
     };
 
     std.debug.print("--- Example 5: Fallback Strategy ---\n", .{});
-    processWithFallback(allocator, "/nonexistent/primary.txt", "/nonexistent/fallback.txt") catch |err| {
+    processWithFallback(
+        allocator,
+        io,
+        "/nonexistent/primary.txt",
+        "/nonexistent/fallback.txt",
+    ) catch |err| {
         std.debug.print("Final error after fallback: {s}\n\n", .{@errorName(err)});
     };
 

@@ -254,7 +254,8 @@ pub const RadarChart = struct {
                 const px: u16 = @intCast(x);
                 const py: u16 = @intCast(y);
                 if (px >= area.x and px < area.x + area.width and
-                    py >= area.y and py < area.y + area.height) {
+                    py >= area.y and py < area.y + area.height)
+                {
                     buf.set(px, py, buffer_mod.Cell.init('·', style_arg));
                 }
             }
@@ -324,6 +325,7 @@ pub const RadarChart = struct {
         while (y_scan <= y_end) : (y_scan += 1) {
             if (y_scan < 0) continue;
             const uy: u16 = @intCast(y_scan);
+            const y_scan_f: f32 = @floatFromInt(y_scan);
             if (uy >= area.y + area.height) break;
 
             // Find x intersections with polygon edges at this scanline
@@ -337,10 +339,9 @@ pub const RadarChart = struct {
                 const x_v0 = vertices[i][0];
                 const x_v1 = vertices[next][0];
 
-                if ((y_v0 <= @as(f32, @floatFromInt(y_scan)) and y_v1 >= @as(f32, @floatFromInt(y_scan))) or
-                    (y_v1 <= @as(f32, @floatFromInt(y_scan)) and y_v0 >= @as(f32, @floatFromInt(y_scan)))) {
+                if ((y_v0 <= y_scan_f and y_v1 >= y_scan_f) or (y_v1 <= y_scan_f and y_v0 >= y_scan_f)) {
                     if (@abs(y_v1 - y_v0) > 0.001) {
-                        const t = (@as(f32, @floatFromInt(y_scan)) - y_v0) / (y_v1 - y_v0);
+                        const t = (y_scan_f - y_v0) / (y_v1 - y_v0);
                         const x_intersect = x_v0 + t * (x_v1 - x_v0);
                         if (int_count < MAX_AXES) {
                             intersections[int_count] = x_intersect;

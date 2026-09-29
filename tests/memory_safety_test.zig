@@ -147,16 +147,15 @@ test "unitialized memory detection pattern" {
 
 test "fixed buffer stream prevents overrun" {
     var buf: [10]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     // Write within bounds
-    try writer.writeAll("hello");
-    try testing.expectEqualStrings("hello", fbs.getWritten());
+    try fbs.writeAll("hello");
+    try testing.expectEqualStrings("hello", fbs.buffered());
 
     // Writing too much returns error
-    const result = writer.writeAll("world!!!");
-    try testing.expectError(error.NoSpaceLeft, result);
+    const result = fbs.writeAll("world!!!");
+    try testing.expectError(error.WriteFailed, result);
 }
 
 test "arraylist automatic resizing" {
@@ -175,15 +174,15 @@ test "arraylist automatic resizing" {
 }
 
 test "string builder memory management" {
-    var list: std.ArrayList(u8) = .empty;
-    defer list.deinit(testing.allocator);
+    var list: std.Io.Writer.Allocating = .init(testing.allocator);
+    defer list.deinit();
 
-    const writer = list.writer(testing.allocator);
+    const writer = &list.writer;
 
     try writer.writeAll("Hello, ");
     try writer.writeAll("sailor!");
 
-    try testing.expectEqualStrings("Hello, sailor!", list.items);
+    try testing.expectEqualStrings("Hello, sailor!", list.written());
 }
 
 test "hash map memory management" {
@@ -207,7 +206,7 @@ test "manual memory management pattern" {
     const buffer = try allocator.create(std.ArrayList(u8));
     defer allocator.destroy(buffer);
 
-    buffer.* = .{};
+    buffer.* = .empty;
     defer buffer.deinit(allocator);
 
     try buffer.append(allocator, 'x');

@@ -35,7 +35,7 @@ pub fn UndoStore(State: type, Action: type) type {
                     reducer,
                 ),
                 .history = history,
-                .redo_history = std.ArrayList(State){},
+                .redo_history = std.ArrayList(State).empty,
                 .allocator = allocator,
                 .history_limit = history_limit,
                 .current_index = 0,

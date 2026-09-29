@@ -17,7 +17,7 @@ test "ParticleSystem renders with normal gravity and positions" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var sys = try ParticleSystem.init(allocator, .confetti);
+    var sys = try ParticleSystem.init(allocator, std.testing.io, .confetti);
     defer sys.deinit();
 
     sys.setGravity(0.1);
@@ -38,7 +38,7 @@ test "ParticleSystem.render() does not panic with direct Particle.init() using e
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var sys = try ParticleSystem.init(allocator, .confetti);
+    var sys = try ParticleSystem.init(allocator, std.testing.io, .confetti);
     defer sys.deinit();
 
     // Create a particle with an extreme positive x value (1e20)
@@ -59,7 +59,7 @@ test "ParticleSystem.render() does not panic with direct Particle.init() using e
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var sys = try ParticleSystem.init(allocator, .confetti);
+    var sys = try ParticleSystem.init(allocator, std.testing.io, .confetti);
     defer sys.deinit();
 
     // Create a particle with an extreme negative x value (-1e20)
@@ -79,7 +79,7 @@ test "ParticleSystem.render() does not panic with direct Particle.init() using e
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var sys = try ParticleSystem.init(allocator, .confetti);
+    var sys = try ParticleSystem.init(allocator, std.testing.io, .confetti);
     defer sys.deinit();
 
     // Create a particle with an extreme positive y value (1e20)
@@ -99,7 +99,7 @@ test "ParticleSystem.render() does not panic with direct Particle.init() using e
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var sys = try ParticleSystem.init(allocator, .confetti);
+    var sys = try ParticleSystem.init(allocator, std.testing.io, .confetti);
     defer sys.deinit();
 
     // Create a particle with an extreme negative y value (-1e20)
@@ -119,7 +119,7 @@ test "ParticleSystem.render() does not panic with extreme gravity accumulation (
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var sys = try ParticleSystem.init(allocator, .confetti);
+    var sys = try ParticleSystem.init(allocator, std.testing.io, .confetti);
     defer sys.deinit();
 
     sys.setGravity(1e30);
@@ -144,7 +144,7 @@ test "ParticleSystem.render() does not panic with extreme gravity accumulation (
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var sys = try ParticleSystem.init(allocator, .confetti);
+    var sys = try ParticleSystem.init(allocator, std.testing.io, .confetti);
     defer sys.deinit();
 
     sys.setGravity(-1e30);
@@ -169,7 +169,7 @@ test "ParticleSystem renders correctly with normal spawn and multiple updates" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var sys = try ParticleSystem.init(allocator, .sparkles);
+    var sys = try ParticleSystem.init(allocator, std.testing.io, .sparkles);
     defer sys.deinit();
 
     sys.setGravity(0.1);
@@ -205,7 +205,7 @@ test "ParticleSystem.render() bounds check prevents out-of-bounds casts" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var sys = try ParticleSystem.init(allocator, .confetti);
+    var sys = try ParticleSystem.init(allocator, std.testing.io, .confetti);
     defer sys.deinit();
 
     // Mix of normal and extreme particles
@@ -238,7 +238,7 @@ test "ParticleSystem.render() does not panic with NaN particle x" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var sys = try ParticleSystem.init(allocator, .confetti);
+    var sys = try ParticleSystem.init(allocator, std.testing.io, .confetti);
     defer sys.deinit();
 
     // Create a particle with NaN x value
@@ -259,7 +259,7 @@ test "ParticleSystem.render() does not panic with NaN particle y" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var sys = try ParticleSystem.init(allocator, .confetti);
+    var sys = try ParticleSystem.init(allocator, std.testing.io, .confetti);
     defer sys.deinit();
 
     // Create a particle with NaN y value
@@ -278,7 +278,7 @@ test "ParticleSystem.render() does not panic with positive infinity particle x" 
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var sys = try ParticleSystem.init(allocator, .confetti);
+    var sys = try ParticleSystem.init(allocator, std.testing.io, .confetti);
     defer sys.deinit();
 
     // Create a particle with +inf x value
@@ -298,7 +298,7 @@ test "ParticleSystem.render() does not panic with positive infinity particle y" 
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var sys = try ParticleSystem.init(allocator, .confetti);
+    var sys = try ParticleSystem.init(allocator, std.testing.io, .confetti);
     defer sys.deinit();
 
     // Create a particle with +inf y value
@@ -317,7 +317,7 @@ test "ParticleSystem.render() does not panic with negative infinity particle x" 
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var sys = try ParticleSystem.init(allocator, .confetti);
+    var sys = try ParticleSystem.init(allocator, std.testing.io, .confetti);
     defer sys.deinit();
 
     // Create a particle with -inf x value
@@ -337,7 +337,7 @@ test "ParticleSystem.render() does not panic with negative infinity particle y" 
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var sys = try ParticleSystem.init(allocator, .confetti);
+    var sys = try ParticleSystem.init(allocator, std.testing.io, .confetti);
     defer sys.deinit();
 
     // Create a particle with -inf y value

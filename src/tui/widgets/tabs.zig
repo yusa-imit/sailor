@@ -310,7 +310,7 @@ test "Tabs.render selected style applied" {
     defer buf.deinit();
 
     const titles = [_][]const u8{ "Tab1", "Tab2" };
-    const selected_style = Style{ .fg = .red, . bold = true };
+    const selected_style = Style{ .fg = .red, .bold = true };
     const normal_style = Style{ .fg = .white };
     const tabs = Tabs.init(&titles)
         .withSelected(1)

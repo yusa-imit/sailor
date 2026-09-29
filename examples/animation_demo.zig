@@ -12,7 +12,9 @@ const sailor = @import("sailor");
 const animation = sailor.tui.animation;
 const Color = sailor.tui.style.Color;
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
+    const io = init.io;
+
     std.debug.print("=== Sailor Animation Demo (v1.24.0) ===\n\n", .{});
 
     // Demonstrate easing functions
@@ -42,7 +44,7 @@ pub fn main() !void {
     var smooth_anim = animation.Animation.init(0.0, 100.0, 1000, animation.easeInOutCubic);
     var color_anim = animation.ColorAnimation.init(red, blue, 1000, animation.easeInOutCubic);
 
-    const start_time = @as(u64, @intCast(std.time.milliTimestamp()));
+    const start_time = @as(u64, @intCast(std.Io.Clock.real.now(io).toMilliseconds()));
     bounce_anim.begin(start_time);
     smooth_anim.begin(start_time);
     color_anim.begin(start_time);
@@ -76,4 +78,3 @@ pub fn main() !void {
     std.debug.print("  ✓ Multiple easing functions\n", .{});
     std.debug.print("  ✓ Time-based animation control\n\n", .{});
 }
-

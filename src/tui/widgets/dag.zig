@@ -212,7 +212,6 @@ pub const DagWidget = struct {
                 }
             }
         }
-
     }
 
     fn renderCell(buf: *Buffer, area: Rect, abs_x: u16, abs_y: u16, char: u21, s: Style) void {

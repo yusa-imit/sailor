@@ -99,17 +99,17 @@ pub const ChunkedBuffer = struct {
             if (y >= render_area.height) break;
 
             // Fetch line content via callback
-            var line_buf = std.ArrayList(u8){};
-            defer line_buf.deinit(allocator);
+            var line_buf: std.Io.Writer.Allocating = .init(allocator);
+            defer line_buf.deinit();
 
-            try callback(line_index, line_buf.writer(allocator));
+            try callback(line_index, &line_buf.writer);
 
             if (self.wrap) {
                 // Wrap mode: render line with wrapping
-                y = try self.renderLineWrapped(buf, render_area, line_buf.items, y, allocator);
+                y = try self.renderLineWrapped(buf, render_area, line_buf.written(), y, allocator);
             } else {
                 // Truncate mode: render single line with horizontal offset
-                try self.renderLineTruncated(buf, render_area, line_buf.items, y);
+                try self.renderLineTruncated(buf, render_area, line_buf.written(), y);
                 y += 1;
             }
         }
@@ -297,12 +297,12 @@ test "ChunkedBuffer.render writes correct line content to buffer" {
     // Verify line 0 contains "Line 0"
     const line0 = buf.getLine(0, 0, 40);
     defer allocator.free(line0);
-    try testing.expect(std.mem.indexOf(u8, line0, "Line 0") != null);
+    try testing.expect(std.mem.find(u8, line0, "Line 0") != null);
 
     // Verify line 2 contains "Line 2"
     const line2 = buf.getLine(2, 0, 40);
     defer allocator.free(line2);
-    try testing.expect(std.mem.indexOf(u8, line2, "Line 2") != null);
+    try testing.expect(std.mem.find(u8, line2, "Line 2") != null);
 }
 
 // ============================================================================
@@ -525,7 +525,7 @@ test "ChunkedBuffer.render with column_offset and wide characters" {
     // Should skip emoji (2 columns) and show X
     const line0 = buf.getLine(0, 0, 40);
     defer allocator.free(line0);
-    try testing.expect(std.mem.indexOf(u8, line0, "X") != null);
+    try testing.expect(std.mem.find(u8, line0, "X") != null);
 }
 
 // 4. Truncation Mode Edge Cases
@@ -573,7 +573,7 @@ test "ChunkedBuffer truncation with line one character too long" {
     defer allocator.free(line0);
     // Should truncate last character
     try testing.expect(std.mem.startsWith(u8, line0, "ABCDEFGHIJ"));
-    try testing.expect(std.mem.indexOf(u8, line0, "K") == null);
+    try testing.expect(std.mem.find(u8, line0, "K") == null);
 }
 
 test "ChunkedBuffer truncation with wide character at boundary" {
@@ -641,7 +641,7 @@ test "ChunkedBuffer truncation with line of only wide characters" {
     const line0 = buf.getLine(0, 0, 6);
     defer allocator.free(line0);
     // Should fit exactly 3 wide chars (6 columns)
-    try testing.expect(std.mem.indexOf(u8, line0, "中") != null);
+    try testing.expect(std.mem.find(u8, line0, "中") != null);
 }
 
 // 5. Wrapping Mode Edge Cases
@@ -727,7 +727,7 @@ test "ChunkedBuffer wrap with wide character at wrap boundary" {
     const line1 = buf.getLine(1, 0, 5);
     defer allocator.free(line1);
     // Wide char should be on second line
-    try testing.expect(std.mem.indexOf(u8, line1, "中") != null);
+    try testing.expect(std.mem.find(u8, line1, "中") != null);
 }
 
 test "ChunkedBuffer wrap with wide character wider than viewport" {
@@ -797,7 +797,7 @@ test "ChunkedBuffer handles CJK characters with correct width" {
 
     const line0 = buf.getLine(0, 0, 10);
     defer allocator.free(line0);
-    try testing.expect(std.mem.indexOf(u8, line0, "你") != null);
+    try testing.expect(std.mem.find(u8, line0, "你") != null);
 }
 
 test "ChunkedBuffer handles emoji with correct width" {
@@ -819,7 +819,7 @@ test "ChunkedBuffer handles emoji with correct width" {
 
     const line0 = buf.getLine(0, 0, 10);
     defer allocator.free(line0);
-    try testing.expect(std.mem.indexOf(u8, line0, "😀") != null);
+    try testing.expect(std.mem.find(u8, line0, "😀") != null);
 }
 
 test "ChunkedBuffer handles mixed ASCII and wide characters" {
@@ -841,8 +841,8 @@ test "ChunkedBuffer handles mixed ASCII and wide characters" {
 
     const line0 = buf.getLine(0, 0, 20);
     defer allocator.free(line0);
-    try testing.expect(std.mem.indexOf(u8, line0, "Hello") != null);
-    try testing.expect(std.mem.indexOf(u8, line0, "世界") != null);
+    try testing.expect(std.mem.find(u8, line0, "Hello") != null);
+    try testing.expect(std.mem.find(u8, line0, "世界") != null);
 }
 
 // 7. Block Integration

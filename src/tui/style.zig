@@ -13,7 +13,7 @@ pub const Color = union(enum) {
     magenta,
     cyan,
     white,
-    gray,     // v2.51.0 — standard gray (alias for bright_black / dim text)
+    gray, // v2.51.0 — standard gray (alias for bright_black / dim text)
     bright_black,
     bright_red,
     bright_green,
@@ -718,105 +718,96 @@ pub const LineBuilder = struct {
 
 test "Color.toFg - basic colors" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const red: Color = .red;
-    try red.toFg(writer);
-    try std.testing.expectEqualStrings("\x1b[31m", fbs.getWritten());
+    try red.toFg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[31m", fbs.buffered());
 
-    fbs.reset();
+    fbs.end = 0;
     const cyan: Color = .bright_cyan;
-    try cyan.toFg(writer);
-    try std.testing.expectEqualStrings("\x1b[96m", fbs.getWritten());
+    try cyan.toFg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[96m", fbs.buffered());
 }
 
 test "Color.toFg - indexed" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const col = Color{ .indexed = 208 };
-    try col.toFg(writer);
-    try std.testing.expectEqualStrings("\x1b[38;5;208m", fbs.getWritten());
+    try col.toFg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[38;5;208m", fbs.buffered());
 }
 
 test "Color.toFg - rgb" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const col = Color{ .rgb = .{ .r = 255, .g = 128, .b = 0 } };
-    try col.toFg(writer);
-    try std.testing.expectEqualStrings("\x1b[38;2;255;128;0m", fbs.getWritten());
+    try col.toFg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[38;2;255;128;0m", fbs.buffered());
 }
 
 test "Color.toBg - basic colors" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const blue: Color = .blue;
-    try blue.toBg(writer);
-    try std.testing.expectEqualStrings("\x1b[44m", fbs.getWritten());
+    try blue.toBg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[44m", fbs.buffered());
 
-    fbs.reset();
+    fbs.end = 0;
     const yellow: Color = .bright_yellow;
-    try yellow.toBg(writer);
-    try std.testing.expectEqualStrings("\x1b[103m", fbs.getWritten());
+    try yellow.toBg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[103m", fbs.buffered());
 }
 
 test "Color.toBg - indexed" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const col = Color{ .indexed = 42 };
-    try col.toBg(writer);
-    try std.testing.expectEqualStrings("\x1b[48;5;42m", fbs.getWritten());
+    try col.toBg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[48;5;42m", fbs.buffered());
 }
 
 test "Color.toBg - rgb" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const col = Color{ .rgb = .{ .r = 0, .g = 255, .b = 127 } };
-    try col.toBg(writer);
-    try std.testing.expectEqualStrings("\x1b[48;2;0;255;127m", fbs.getWritten());
+    try col.toBg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[48;2;0;255;127m", fbs.buffered());
 }
 
 test "Style.apply - colors only" {
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const s = Style{
         .fg = .green,
         .bg = .black,
     };
-    try s.apply(writer);
-    try std.testing.expectEqualStrings("\x1b[32m\x1b[40m", fbs.getWritten());
+    try s.apply(&fbs);
+    try std.testing.expectEqualStrings("\x1b[32m\x1b[40m", fbs.buffered());
 }
 
 test "Style.apply - modifiers only" {
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const s = Style{
         .bold = true,
         .italic = true,
         .underline = true,
     };
-    try s.apply(writer);
-    try std.testing.expectEqualStrings("\x1b[1m\x1b[3m\x1b[4m", fbs.getWritten());
+    try s.apply(&fbs);
+    try std.testing.expectEqualStrings("\x1b[1m\x1b[3m\x1b[4m", fbs.buffered());
 }
 
 test "Style.apply - all features" {
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const s = Style{
         .fg = .red,
@@ -829,18 +820,17 @@ test "Style.apply - all features" {
         .reverse = true,
         .strikethrough = true,
     };
-    try s.apply(writer);
+    try s.apply(&fbs);
     const expected = "\x1b[31m\x1b[47m\x1b[1m\x1b[2m\x1b[3m\x1b[4m\x1b[7m\x1b[5m\x1b[9m";
-    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+    try std.testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 test "Style.reset" {
     var buf: [16]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try Style.reset(writer);
-    try std.testing.expectEqualStrings("\x1b[0m", fbs.getWritten());
+    try Style.reset(&fbs);
+    try std.testing.expectEqualStrings("\x1b[0m", fbs.buffered());
 }
 
 test "Style.merge - colors" {
@@ -890,12 +880,11 @@ test "Span.styled" {
 
 test "Span.render" {
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const span = Span.styled("test", .{ .fg = .red, .bold = true });
-    try span.render(writer);
-    try std.testing.expectEqualStrings("\x1b[31m\x1b[1mtest\x1b[0m", fbs.getWritten());
+    try span.render(&fbs);
+    try std.testing.expectEqualStrings("\x1b[31m\x1b[1mtest\x1b[0m", fbs.buffered());
 }
 
 test "Line - single span" {
@@ -908,20 +897,18 @@ test "Line - single span" {
 
 test "Line.render - single span" {
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const span = Span.raw("hello");
     const spans = [_]Span{span};
     const line = Line{ .spans = &spans };
-    try line.render(writer);
-    try std.testing.expectEqualStrings("hello", fbs.getWritten());
+    try line.render(&fbs);
+    try std.testing.expectEqualStrings("hello", fbs.buffered());
 }
 
 test "Line.render - multiple spans" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const spans = [_]Span{
         Span.styled("Hello", .{ .fg = .red }),
@@ -929,10 +916,10 @@ test "Line.render - multiple spans" {
         Span.styled("world", .{ .fg = .blue, .bold = true }),
     };
     const line = Line{ .spans = &spans };
-    try line.render(writer);
+    try line.render(&fbs);
 
     const expected = "\x1b[31mHello\x1b[0m \x1b[34m\x1b[1mworld\x1b[0m";
-    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+    try std.testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 test "Line.width" {
@@ -1085,22 +1072,20 @@ test "Color.fromRgb - boundary values individual channels" {
 
 test "Color.fromRgb - renders correctly to ANSI foreground" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const c = Color.fromRgb(255, 128, 0);
-    try c.toFg(writer);
-    try std.testing.expectEqualStrings("\x1b[38;2;255;128;0m", fbs.getWritten());
+    try c.toFg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[38;2;255;128;0m", fbs.buffered());
 }
 
 test "Color.fromRgb - renders correctly to ANSI background" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const c = Color.fromRgb(50, 100, 150);
-    try c.toBg(writer);
-    try std.testing.expectEqualStrings("\x1b[48;2;50;100;150m", fbs.getWritten());
+    try c.toBg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[48;2;50;100;150m", fbs.buffered());
 }
 
 test "Color.fromIndexed - basic construction" {
@@ -1135,22 +1120,20 @@ test "Color.fromIndexed - common xterm colors" {
 
 test "Color.fromIndexed - renders correctly to ANSI foreground" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const c = Color.fromIndexed(208);
-    try c.toFg(writer);
-    try std.testing.expectEqualStrings("\x1b[38;5;208m", fbs.getWritten());
+    try c.toFg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[38;5;208m", fbs.buffered());
 }
 
 test "Color.fromIndexed - renders correctly to ANSI background" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const c = Color.fromIndexed(42);
-    try c.toBg(writer);
-    try std.testing.expectEqualStrings("\x1b[48;5;42m", fbs.getWritten());
+    try c.toBg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[48;5;42m", fbs.buffered());
 }
 
 test "Color.fromHex - basic construction" {
@@ -1239,22 +1222,20 @@ test "Color.fromHex - equivalence to fromRgb" {
 
 test "Color.fromHex - renders correctly to ANSI foreground" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const c = Color.fromHex(0xFF8000);
-    try c.toFg(writer);
-    try std.testing.expectEqualStrings("\x1b[38;2;255;128;0m", fbs.getWritten());
+    try c.toFg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[38;2;255;128;0m", fbs.buffered());
 }
 
 test "Color.fromHex - renders correctly to ANSI background" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const c = Color.fromHex(0x326496);
-    try c.toBg(writer);
-    try std.testing.expectEqualStrings("\x1b[48;2;50;100;150m", fbs.getWritten());
+    try c.toBg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[48;2;50;100;150m", fbs.buffered());
 }
 
 test "Color.fromHex - bit extraction correctness" {
@@ -1298,22 +1279,20 @@ test "Color convenience constructors - integration with Style.withColors" {
 
 test "Color convenience constructors - integration with Style rendering" {
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const s = Style.withForeground(Color.fromRgb(255, 128, 0));
-    try s.apply(writer);
-    try std.testing.expectEqualStrings("\x1b[38;2;255;128;0m", fbs.getWritten());
+    try s.apply(&fbs);
+    try std.testing.expectEqualStrings("\x1b[38;2;255;128;0m", fbs.buffered());
 }
 
 test "Color convenience constructors - integration with Span rendering using fromHex" {
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const span = Span.styled("test", Style.withForeground(Color.fromHex(0xFF0000)));
-    try span.render(writer);
-    try std.testing.expectEqualStrings("\x1b[38;2;255;0;0mtest\x1b[0m", fbs.getWritten());
+    try span.render(&fbs);
+    try std.testing.expectEqualStrings("\x1b[38;2;255;0;0mtest\x1b[0m", fbs.buffered());
 }
 
 test "Color convenience constructors - all three methods produce valid Color unions" {
@@ -1323,14 +1302,13 @@ test "Color convenience constructors - all three methods produce valid Color uni
 
     // Test that they can be used in switch (valid Color union variants)
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try c1.toFg(writer);
-    fbs.reset();
-    try c2.toFg(writer);
-    fbs.reset();
-    try c3.toFg(writer);
+    try c1.toFg(&fbs);
+    fbs.end = 0;
+    try c2.toFg(&fbs);
+    fbs.end = 0;
+    try c3.toFg(&fbs);
 }
 
 // ============================================================================
@@ -1402,27 +1380,25 @@ test "Span.colored - other style fields remain default" {
 
 test "Span.colored - renders correctly to ANSI" {
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const span = Span.colored("test", .red);
-    try span.render(writer);
-    try std.testing.expectEqualStrings("\x1b[31mtest\x1b[0m", fbs.getWritten());
+    try span.render(&fbs);
+    try std.testing.expectEqualStrings("\x1b[31mtest\x1b[0m", fbs.buffered());
 }
 
 test "Span.colored - multiple colors render correctly" {
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const red_span = Span.colored("red", .red);
-    try red_span.render(writer);
-    try std.testing.expectEqualStrings("\x1b[31mred\x1b[0m", fbs.getWritten());
+    try red_span.render(&fbs);
+    try std.testing.expectEqualStrings("\x1b[31mred\x1b[0m", fbs.buffered());
 
-    fbs.reset();
+    fbs.end = 0;
     const blue_span = Span.colored("blue", .blue);
-    try blue_span.render(writer);
-    try std.testing.expectEqualStrings("\x1b[34mblue\x1b[0m", fbs.getWritten());
+    try blue_span.render(&fbs);
+    try std.testing.expectEqualStrings("\x1b[34mblue\x1b[0m", fbs.buffered());
 }
 
 // Span.bold() tests
@@ -1456,12 +1432,11 @@ test "Span.bold - other style fields remain default" {
 
 test "Span.bold - renders correctly to ANSI" {
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const span = Span.bold("test");
-    try span.render(writer);
-    try std.testing.expectEqualStrings("\x1b[1mtest\x1b[0m", fbs.getWritten());
+    try span.render(&fbs);
+    try std.testing.expectEqualStrings("\x1b[1mtest\x1b[0m", fbs.buffered());
 }
 
 // Span.italic() tests
@@ -1495,12 +1470,11 @@ test "Span.italic - other style fields remain default" {
 
 test "Span.italic - renders correctly to ANSI" {
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const span = Span.italic("test");
-    try span.render(writer);
-    try std.testing.expectEqualStrings("\x1b[3mtest\x1b[0m", fbs.getWritten());
+    try span.render(&fbs);
+    try std.testing.expectEqualStrings("\x1b[3mtest\x1b[0m", fbs.buffered());
 }
 
 // Span.underline() tests
@@ -1534,12 +1508,11 @@ test "Span.underline - other style fields remain default" {
 
 test "Span.underline - renders correctly to ANSI" {
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const span = Span.underline("test");
-    try span.render(writer);
-    try std.testing.expectEqualStrings("\x1b[4mtest\x1b[0m", fbs.getWritten());
+    try span.render(&fbs);
+    try std.testing.expectEqualStrings("\x1b[4mtest\x1b[0m", fbs.buffered());
 }
 
 // Line.single() tests
@@ -1570,13 +1543,12 @@ test "Line.single - empty content" {
 
 test "Line.single - renders correctly" {
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const single_line = Line.single("hello world");
     const line = single_line.asLine();
-    try line.render(writer);
-    try std.testing.expectEqualStrings("hello world", fbs.getWritten());
+    try line.render(&fbs);
+    try std.testing.expectEqualStrings("hello world", fbs.buffered());
 }
 
 test "Line.single - width calculation" {
@@ -1646,35 +1618,32 @@ test "Line.singleStyled - empty content" {
 
 test "Line.singleStyled - renders correctly with color" {
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const single_line = Line.singleStyled("test", .{ .fg = .red });
     const line = single_line.asLine();
-    try line.render(writer);
-    try std.testing.expectEqualStrings("\x1b[31mtest\x1b[0m", fbs.getWritten());
+    try line.render(&fbs);
+    try std.testing.expectEqualStrings("\x1b[31mtest\x1b[0m", fbs.buffered());
 }
 
 test "Line.singleStyled - renders correctly with bold" {
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const single_line = Line.singleStyled("test", .{ .bold = true });
     const line = single_line.asLine();
-    try line.render(writer);
-    try std.testing.expectEqualStrings("\x1b[1mtest\x1b[0m", fbs.getWritten());
+    try line.render(&fbs);
+    try std.testing.expectEqualStrings("\x1b[1mtest\x1b[0m", fbs.buffered());
 }
 
 test "Line.singleStyled - renders correctly with multiple styles" {
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const single_line = Line.singleStyled("test", .{ .fg = .blue, .bold = true, .underline = true });
     const line = single_line.asLine();
-    try line.render(writer);
-    try std.testing.expectEqualStrings("\x1b[34m\x1b[1m\x1b[4mtest\x1b[0m", fbs.getWritten());
+    try line.render(&fbs);
+    try std.testing.expectEqualStrings("\x1b[34m\x1b[1m\x1b[4mtest\x1b[0m", fbs.buffered());
 }
 
 test "Line.singleStyled - width calculation" {
@@ -1700,12 +1669,11 @@ test "Integration - Span.colored in multi-span Line" {
     const line = Line{ .spans = &spans };
 
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try line.render(writer);
+    try line.render(&fbs);
     const expected = "\x1b[31mHello\x1b[0m \x1b[34mworld\x1b[0m";
-    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+    try std.testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 test "Integration - Span.bold and Span.italic in same Line" {
@@ -1717,12 +1685,11 @@ test "Integration - Span.bold and Span.italic in same Line" {
     const line = Line{ .spans = &spans };
 
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try line.render(writer);
+    try line.render(&fbs);
     const expected = "\x1b[1mBold\x1b[0m and \x1b[3mItalic\x1b[0m";
-    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+    try std.testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 test "Integration - Line.single vs Line.singleStyled comparison" {
@@ -1827,47 +1794,42 @@ test "Color.muted - maps to bright_black (dim gray)" {
 
 test "Color.err - renders correctly to ANSI foreground" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try Color.err.toFg(writer);
-    try std.testing.expectEqualStrings("\x1b[31m", fbs.getWritten());
+    try Color.err.toFg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[31m", fbs.buffered());
 }
 
 test "Color.success - renders correctly to ANSI foreground" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try Color.success.toFg(writer);
-    try std.testing.expectEqualStrings("\x1b[32m", fbs.getWritten());
+    try Color.success.toFg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[32m", fbs.buffered());
 }
 
 test "Color.warning - renders correctly to ANSI foreground" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try Color.warning.toFg(writer);
-    try std.testing.expectEqualStrings("\x1b[33m", fbs.getWritten());
+    try Color.warning.toFg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[33m", fbs.buffered());
 }
 
 test "Color.info - renders correctly to ANSI foreground" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try Color.info.toFg(writer);
-    try std.testing.expectEqualStrings("\x1b[36m", fbs.getWritten());
+    try Color.info.toFg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[36m", fbs.buffered());
 }
 
 test "Color.muted - renders correctly to ANSI foreground" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try Color.muted.toFg(writer);
-    try std.testing.expectEqualStrings("\x1b[90m", fbs.getWritten());
+    try Color.muted.toFg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[90m", fbs.buffered());
 }
 
 test "Color semantic constants - usable in Span.colored" {
@@ -1887,11 +1849,10 @@ test "Color semantic constants - usable in Style.withForeground" {
 
 test "Color semantic constants - usable as background colors" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try Color.err.toBg(writer);
-    try std.testing.expectEqualStrings("\x1b[41m", fbs.getWritten());
+    try Color.err.toBg(&fbs);
+    try std.testing.expectEqualStrings("\x1b[41m", fbs.buffered());
 }
 
 // Semantic Style Constants Tests
@@ -1934,47 +1895,42 @@ test "Style.muted - has bright_black foreground and dim modifier" {
 
 test "Style.err - renders correctly to ANSI" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try Style.err.apply(writer);
-    try std.testing.expectEqualStrings("\x1b[31m", fbs.getWritten());
+    try Style.err.apply(&fbs);
+    try std.testing.expectEqualStrings("\x1b[31m", fbs.buffered());
 }
 
 test "Style.success - renders correctly to ANSI" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try Style.success.apply(writer);
-    try std.testing.expectEqualStrings("\x1b[32m", fbs.getWritten());
+    try Style.success.apply(&fbs);
+    try std.testing.expectEqualStrings("\x1b[32m", fbs.buffered());
 }
 
 test "Style.warning - renders correctly to ANSI" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try Style.warning.apply(writer);
-    try std.testing.expectEqualStrings("\x1b[33m", fbs.getWritten());
+    try Style.warning.apply(&fbs);
+    try std.testing.expectEqualStrings("\x1b[33m", fbs.buffered());
 }
 
 test "Style.info - renders correctly to ANSI" {
     var buf: [32]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try Style.info.apply(writer);
-    try std.testing.expectEqualStrings("\x1b[36m", fbs.getWritten());
+    try Style.info.apply(&fbs);
+    try std.testing.expectEqualStrings("\x1b[36m", fbs.buffered());
 }
 
 test "Style.muted - renders correctly to ANSI with dim modifier" {
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try Style.muted.apply(writer);
-    try std.testing.expectEqualStrings("\x1b[90m\x1b[2m", fbs.getWritten());
+    try Style.muted.apply(&fbs);
+    try std.testing.expectEqualStrings("\x1b[90m\x1b[2m", fbs.buffered());
 }
 
 test "Style.err - usable in Span.styled" {
@@ -2055,22 +2011,20 @@ test "Style.muted.withBold - adds bold to muted style (preserves dim)" {
 
 test "Style.err.withBold - renders with both red and bold" {
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const s = Style.err.withBold();
-    try s.apply(writer);
-    try std.testing.expectEqualStrings("\x1b[31m\x1b[1m", fbs.getWritten());
+    try s.apply(&fbs);
+    try std.testing.expectEqualStrings("\x1b[31m\x1b[1m", fbs.buffered());
 }
 
 test "Style.muted.withBold - renders with color, dim, and bold" {
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const s = Style.muted.withBold();
-    try s.apply(writer);
-    try std.testing.expectEqualStrings("\x1b[90m\x1b[1m\x1b[2m", fbs.getWritten());
+    try s.apply(&fbs);
+    try std.testing.expectEqualStrings("\x1b[90m\x1b[1m\x1b[2m", fbs.buffered());
 }
 
 test "Style.warning.withBold.withUnderline - chain multiple modifiers" {
@@ -2084,32 +2038,29 @@ test "Style.warning.withBold.withUnderline - chain multiple modifiers" {
 
 test "Integration - error message with semantic style" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const span = Span.styled("Error: File not found", Style.err);
-    try span.render(writer);
-    try std.testing.expectEqualStrings("\x1b[31mError: File not found\x1b[0m", fbs.getWritten());
+    try span.render(&fbs);
+    try std.testing.expectEqualStrings("\x1b[31mError: File not found\x1b[0m", fbs.buffered());
 }
 
 test "Integration - success message with bold" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const span = Span.styled("Build succeeded!", Style.success.withBold());
-    try span.render(writer);
-    try std.testing.expectEqualStrings("\x1b[32m\x1b[1mBuild succeeded!\x1b[0m", fbs.getWritten());
+    try span.render(&fbs);
+    try std.testing.expectEqualStrings("\x1b[32m\x1b[1mBuild succeeded!\x1b[0m", fbs.buffered());
 }
 
 test "Integration - warning with underline" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const span = Span.styled("Deprecated API", Style.warning.withUnderline());
-    try span.render(writer);
-    try std.testing.expectEqualStrings("\x1b[33m\x1b[4mDeprecated API\x1b[0m", fbs.getWritten());
+    try span.render(&fbs);
+    try std.testing.expectEqualStrings("\x1b[33m\x1b[4mDeprecated API\x1b[0m", fbs.buffered());
 }
 
 test "Integration - info message in Line" {
@@ -2120,12 +2071,11 @@ test "Integration - info message in Line" {
 
 test "Integration - muted text for secondary information" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const span = Span.styled("(optional)", Style.muted);
-    try span.render(writer);
-    try std.testing.expectEqualStrings("\x1b[90m\x1b[2m(optional)\x1b[0m", fbs.getWritten());
+    try span.render(&fbs);
+    try std.testing.expectEqualStrings("\x1b[90m\x1b[2m(optional)\x1b[0m", fbs.buffered());
 }
 
 test "Integration - mixed semantic styles in one line" {
@@ -2137,12 +2087,11 @@ test "Integration - mixed semantic styles in one line" {
     const line = Line{ .spans = &spans };
 
     var buf: [512]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try line.render(writer);
+    try line.render(&fbs);
     const expected = "\x1b[31m\x1b[1mError: \x1b[0m\x1b[31mBuild failed. \x1b[0m\x1b[90m\x1b[2m(see logs for details)\x1b[0m";
-    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+    try std.testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 test "Integration - semantic colors in multi-color line" {
@@ -2155,12 +2104,11 @@ test "Integration - semantic colors in multi-color line" {
     const line = Line{ .spans = &spans };
 
     var buf: [512]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try line.render(writer);
+    try line.render(&fbs);
     const expected = "\x1b[32mSuccess: \x1b[0m3 passed, \x1b[33m1 warning, \x1b[0m\x1b[31m0 errors\x1b[0m";
-    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+    try std.testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 test "Integration - semantic styles reduce boilerplate" {

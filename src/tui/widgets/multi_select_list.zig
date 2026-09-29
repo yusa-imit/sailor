@@ -36,9 +36,9 @@ const Block = block_mod.Block;
 
 /// MultiSelectList widget - list with multi-selection support
 pub const MultiSelectList = struct {
-    items: []const []const u8,       // source items (immutable)
-    selections: []bool,               // caller-provided selection state, same len as items
-    cursor: usize = 0,               // current cursor position
+    items: []const []const u8, // source items (immutable)
+    selections: []bool, // caller-provided selection state, same len as items
+    cursor: usize = 0, // current cursor position
     cursor_style: Style = .{ .bg = .blue },
     selected_style: Style = .{ .fg = .cyan, .bold = true },
     normal_style: Style = .{},

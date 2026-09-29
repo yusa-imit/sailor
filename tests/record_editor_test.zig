@@ -495,7 +495,7 @@ test "isValid — calls validate function" {
 
     const validator = struct {
         fn validate(_: []const u8, value: []const u8) ValidationResult {
-            return if (std.mem.indexOf(u8, value, "@") != null) .ok else .invalid;
+            return if (std.mem.find(u8, value, "@") != null) .ok else .invalid;
         }
     }.validate;
 
@@ -517,7 +517,7 @@ test "isValid — returns false for invalid values" {
 
     const validator = struct {
         fn validate(_: []const u8, value: []const u8) ValidationResult {
-            return if (std.mem.indexOf(u8, value, "@") != null) .ok else .invalid;
+            return if (std.mem.find(u8, value, "@") != null) .ok else .invalid;
         }
     }.validate;
 
@@ -718,7 +718,7 @@ test "render — invalid field uses error_style" {
 
     const validator = struct {
         fn validate(_: []const u8, value: []const u8) ValidationResult {
-            return if (std.mem.indexOf(u8, value, "@") != null) .ok else .invalid;
+            return if (std.mem.find(u8, value, "@") != null) .ok else .invalid;
         }
     }.validate;
 
@@ -758,7 +758,7 @@ test "withValidate — sets validation function" {
 
     const validator = struct {
         fn validate(_: []const u8, value: []const u8) ValidationResult {
-            return if (std.mem.indexOf(u8, value, "@") != null) .ok else .invalid;
+            return if (std.mem.find(u8, value, "@") != null) .ok else .invalid;
         }
     }.validate;
 

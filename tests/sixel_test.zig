@@ -328,8 +328,8 @@ test "sixel decoder: partial sixel bits (individual pixels)" {
 
     // First pixel is painted red (bit 0 set), pixels 1-5 remain transparent
     try testing.expectEqual(@as(u8, 255), image.pixels[0].r);
-    try testing.expectEqual(@as(u8, 255), image.pixels[0].a);  // Painted pixel is opaque
-    try testing.expectEqual(@as(u8, 0), image.pixels[1].a);    // Unpainted pixels are transparent
+    try testing.expectEqual(@as(u8, 255), image.pixels[0].a); // Painted pixel is opaque
+    try testing.expectEqual(@as(u8, 0), image.pixels[1].a); // Unpainted pixels are transparent
 }
 
 // ============================================================================
@@ -430,15 +430,15 @@ test "sixel decoder: round-trip 2x2 red image (encode then decode)" {
     };
 
     // Encode to Sixel
-    var encoded: std.ArrayList(u8) = .empty;
-    defer encoded.deinit(allocator);
+    var encoded: std.Io.Writer.Allocating = .init(allocator);
+    defer encoded.deinit();
 
     const encoder = SixelEncoder{};
-    try encoder.encode(allocator, original_image, encoded.writer(allocator));
+    try encoder.encode(allocator, original_image, &encoded.writer);
 
     // Decode back
     const decoder = SixelDecoder{};
-    const decoded_image = try decoder.decode(allocator, encoded.items);
+    const decoded_image = try decoder.decode(allocator, encoded.written());
     defer allocator.free(decoded_image.pixels);
 
     // Verify dimensions match
@@ -457,13 +457,13 @@ test "sixel decoder: round-trip single pixel various colors" {
     const allocator = testing.allocator;
 
     const test_colors = [_]SixelImage.Color{
-        .{ .r = 255, .g = 0, .b = 0 },      // Red
-        .{ .r = 0, .g = 255, .b = 0 },      // Green
-        .{ .r = 0, .g = 0, .b = 255 },      // Blue
-        .{ .r = 255, .g = 255, .b = 0 },    // Yellow
-        .{ .r = 255, .g = 0, .b = 255 },    // Magenta
-        .{ .r = 0, .g = 255, .b = 255 },    // Cyan
-        .{ .r = 128, .g = 128, .b = 128 },  // Gray
+        .{ .r = 255, .g = 0, .b = 0 }, // Red
+        .{ .r = 0, .g = 255, .b = 0 }, // Green
+        .{ .r = 0, .g = 0, .b = 255 }, // Blue
+        .{ .r = 255, .g = 255, .b = 0 }, // Yellow
+        .{ .r = 255, .g = 0, .b = 255 }, // Magenta
+        .{ .r = 0, .g = 255, .b = 255 }, // Cyan
+        .{ .r = 128, .g = 128, .b = 128 }, // Gray
     };
 
     for (test_colors) |color| {
@@ -473,14 +473,14 @@ test "sixel decoder: round-trip single pixel various colors" {
             .pixels = &[_]SixelImage.Color{color},
         };
 
-        var encoded: std.ArrayList(u8) = .empty;
-        defer encoded.deinit(allocator);
+        var encoded: std.Io.Writer.Allocating = .init(allocator);
+        defer encoded.deinit();
 
         const encoder = SixelEncoder{};
-        try encoder.encode(allocator, original_image, encoded.writer(allocator));
+        try encoder.encode(allocator, original_image, &encoded.writer);
 
         const decoder = SixelDecoder{};
-        const decoded_image = try decoder.decode(allocator, encoded.items);
+        const decoded_image = try decoder.decode(allocator, encoded.written());
         defer allocator.free(decoded_image.pixels);
 
         try testing.expectEqual(@as(u16, 1), decoded_image.width);
@@ -811,10 +811,10 @@ test "sixel palette: quantize primary colors (8 colors) to 4-color palette" {
 
     // RGB cube corners
     const colors = [_]SixelImage.Color{
-        .{ .r = 0, .g = 0, .b = 0 },     // Black
-        .{ .r = 255, .g = 0, .b = 0 },   // Red
-        .{ .r = 0, .g = 255, .b = 0 },   // Green
-        .{ .r = 0, .g = 0, .b = 255 },   // Blue
+        .{ .r = 0, .g = 0, .b = 0 }, // Black
+        .{ .r = 255, .g = 0, .b = 0 }, // Red
+        .{ .r = 0, .g = 255, .b = 0 }, // Green
+        .{ .r = 0, .g = 0, .b = 255 }, // Blue
         .{ .r = 255, .g = 255, .b = 0 }, // Yellow
         .{ .r = 255, .g = 0, .b = 255 }, // Magenta
         .{ .r = 0, .g = 255, .b = 255 }, // Cyan
@@ -1308,7 +1308,7 @@ test "sixel palette: octree performance: 10000 colors to 256 in <100ms" {
         c.* = randomColor(i + 10000);
     }
 
-    const start = std.time.nanoTimestamp();
+    const start = std.Io.Clock.awake.now(testing.io);
 
     const palette = try sailor.tui.sixel.quantizeColors(
         allocator,
@@ -1317,8 +1317,8 @@ test "sixel palette: octree performance: 10000 colors to 256 in <100ms" {
         .octree,
     );
 
-    const end = std.time.nanoTimestamp();
-    const elapsed_ms = @divTrunc(end - start, 1_000_000);
+    const elapsed_ns = start.untilNow(testing.io, .awake).toNanoseconds();
+    const elapsed_ms = @divTrunc(elapsed_ns, 1_000_000);
 
     try testing.expect(elapsed_ms < 5000); // Should complete in reasonable time (<5s even on slow CI)
     try testing.expect(palette.colors.len <= 256); // Octree may produce fewer colors than max
@@ -1553,9 +1553,9 @@ test "sixel palette: nearest color lookup in palette" {
     const allocator = testing.allocator;
 
     const palette_colors = [_]SixelImage.Color{
-        .{ .r = 255, .g = 0, .b = 0 },   // Red
-        .{ .r = 0, .g = 255, .b = 0 },   // Green
-        .{ .r = 0, .g = 0, .b = 255 },   // Blue
+        .{ .r = 255, .g = 0, .b = 0 }, // Red
+        .{ .r = 0, .g = 255, .b = 0 }, // Green
+        .{ .r = 0, .g = 0, .b = 255 }, // Blue
     };
 
     var palette = sailor.tui.sixel.ColorPalette{
@@ -1587,14 +1587,14 @@ test "sixel palette: distance caching for performance" {
     // Query same color multiple times (cache should speed up)
     const test_color = SixelImage.Color{ .r = 123, .g = 45, .b = 67 };
 
-    const start = std.time.nanoTimestamp();
+    const start = std.Io.Clock.awake.now(testing.io);
 
     for (0..1000) |_| {
         _ = palette.findNearest(test_color);
     }
 
-    const end = std.time.nanoTimestamp();
-    const elapsed_ms = @divTrunc(end - start, 1_000_000);
+    const elapsed_ns = start.untilNow(testing.io, .awake).toNanoseconds();
+    const elapsed_ms = @divTrunc(elapsed_ns, 1_000_000);
 
     // With caching, 1000 lookups should be fast
     try testing.expect(elapsed_ms < 100);
@@ -1679,7 +1679,7 @@ test "sixel palette: handle transparent pixels (skip from palette)" {
 
     const colors = [_]SixelImage.Color{
         .{ .r = 255, .g = 0, .b = 0, .a = 255 }, // Opaque
-        .{ .r = 0, .g = 255, .b = 0, .a = 0 },   // Transparent
+        .{ .r = 0, .g = 255, .b = 0, .a = 0 }, // Transparent
         .{ .r = 0, .g = 0, .b = 255, .a = 255 }, // Opaque
     };
 
@@ -1711,18 +1711,18 @@ test "sixel palette: round-trip: quantize → encode → decode (verify color co
     };
 
     // Encode with quantization to 8 colors
-    var encoded: std.ArrayList(u8) = .empty;
-    defer encoded.deinit(allocator);
+    var encoded: std.Io.Writer.Allocating = .init(allocator);
+    defer encoded.deinit();
 
     const encoder = SixelEncoder{ .max_colors = 8, .quantization = .median_cut };
-    try encoder.encode(allocator, original_image, encoded.writer(allocator));
+    try encoder.encode(allocator, original_image, &encoded.writer);
 
     // Encoded data must be non-empty
-    try testing.expect(encoded.items.len > 0);
+    try testing.expect(encoded.written().len > 0);
 
     // Decode
     const decoder = SixelDecoder{};
-    const decoded_image = try decoder.decode(allocator, encoded.items);
+    const decoded_image = try decoder.decode(allocator, encoded.written());
     defer allocator.free(decoded_image.pixels);
 
     // After quantization to 8 colors, decoded image should have at most 8 distinct colors
@@ -1733,8 +1733,8 @@ test "sixel palette: round-trip: quantize → encode → decode (verify color co
         if (pixel.a == 0) continue; // Skip transparent
         // Pack color into u32 key (discard low bits to account for 0-100 encoding precision)
         const key: u32 = (@as(u32, pixel.r >> 2) << 20) |
-                         (@as(u32, pixel.g >> 2) << 10) |
-                         (@as(u32, pixel.b >> 2));
+            (@as(u32, pixel.g >> 2) << 10) |
+            (@as(u32, pixel.b >> 2));
         try distinct_colors.put(key, {});
     }
 
@@ -1756,7 +1756,7 @@ test "sixel palette: benchmark: 10000 colors to 256 in <50ms (median cut)" {
         c.* = randomColor(i + 20000);
     }
 
-    const start = std.time.nanoTimestamp();
+    const start = std.Io.Clock.awake.now(testing.io);
 
     const palette = try sailor.tui.sixel.quantizeColors(
         allocator,
@@ -1766,8 +1766,8 @@ test "sixel palette: benchmark: 10000 colors to 256 in <50ms (median cut)" {
     );
     defer palette.deinit();
 
-    const end = std.time.nanoTimestamp();
-    const elapsed_ms = @divTrunc(end - start, 1_000_000);
+    const elapsed_ns = start.untilNow(testing.io, .awake).toNanoseconds();
+    const elapsed_ms = @divTrunc(elapsed_ns, 1_000_000);
 
     try testing.expect(elapsed_ms < 2000); // Should complete in reasonable time (<2s even on slow CI)
     try testing.expect(palette.colors.len <= 256);
@@ -3475,13 +3475,13 @@ test "sixel compressor: SixelEncoder.encodeCompressed produces valid sixel" {
         .pixels = &pixels,
     };
 
-    var output: std.ArrayList(u8) = .empty;
-    defer output.deinit(allocator);
+    var output: std.Io.Writer.Allocating = .init(allocator);
+    defer output.deinit();
 
     const encoder = SixelEncoder{};
-    try encoder.encodeCompressed(allocator, image, output.writer(allocator));
+    try encoder.encodeCompressed(allocator, image, &output.writer);
 
-    const compressed_sixel = output.items;
+    const compressed_sixel = output.written();
 
     // Should start with compressed sixel marker (after sixel start)
     try testing.expect(compressed_sixel.len > 0);
@@ -3502,13 +3502,13 @@ test "sixel compressor: compressed output can be decompressed and decoded" {
         .pixels = &pixels,
     };
 
-    var encoded: std.ArrayList(u8) = .empty;
-    defer encoded.deinit(allocator);
+    var encoded: std.Io.Writer.Allocating = .init(allocator);
+    defer encoded.deinit();
 
     const encoder = SixelEncoder{};
-    try encoder.encode(allocator, image, encoded.writer(allocator));
+    try encoder.encode(allocator, image, &encoded.writer);
 
-    const original_sixel = encoded.items;
+    const original_sixel = encoded.written();
 
     // Compress
     const compressed = try SixelCompressor.compress(allocator, original_sixel);
@@ -3537,13 +3537,13 @@ test "sixel compressor: compression achieves significant reduction for typical i
         .pixels = &pixels,
     };
 
-    var encoded: std.ArrayList(u8) = .empty;
-    defer encoded.deinit(allocator);
+    var encoded: std.Io.Writer.Allocating = .init(allocator);
+    defer encoded.deinit();
 
     const encoder = SixelEncoder{};
-    try encoder.encode(allocator, image, encoded.writer(allocator));
+    try encoder.encode(allocator, image, &encoded.writer);
 
-    const original_sixel = encoded.items;
+    const original_sixel = encoded.written();
 
     const compressed = try SixelCompressor.compress(allocator, original_sixel);
     defer allocator.free(compressed);
@@ -3600,10 +3600,13 @@ test "sixel compressor: compression completes in reasonable time (<100ms for 10K
     defer allocator.free(large_input);
     @memset(large_input, '?');
 
-    const start = std.time.microTimestamp();
+    const start = std.Io.Clock.awake.now(testing.io);
     const compressed = try SixelCompressor.compress(allocator, large_input);
     defer allocator.free(compressed);
-    const elapsed_us = std.time.microTimestamp() - start;
+    const elapsed_us: i64 = @intCast(@divTrunc(
+        start.untilNow(testing.io, .awake).toNanoseconds(),
+        1000,
+    ));
     const elapsed_ms = @as(f32, @floatFromInt(elapsed_us)) / 1000.0;
 
     // Should complete in < 100ms
@@ -3618,10 +3621,13 @@ test "sixel compressor: decompression completes in reasonable time (<50ms for 5K
     defer allocator.free(large_compressed);
     @memset(large_compressed, '?');
 
-    const start = std.time.microTimestamp();
+    const start = std.Io.Clock.awake.now(testing.io);
     const decompressed = try SixelCompressor.decompress(allocator, large_compressed);
     defer allocator.free(decompressed);
-    const elapsed_us = std.time.microTimestamp() - start;
+    const elapsed_us: i64 = @intCast(@divTrunc(
+        start.untilNow(testing.io, .awake).toNanoseconds(),
+        1000,
+    ));
     const elapsed_ms = @as(f32, @floatFromInt(elapsed_us)) / 1000.0;
 
     // Should complete in < 50ms

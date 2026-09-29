@@ -315,68 +315,63 @@ test "SpanBuilder: modifier then style (style merges)" {
 
 test "SpanBuilder: render bold text" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     var builder = SpanBuilder.init();
     _ = builder.text("bold").bold();
     const span = builder.build();
 
-    try span.render(writer);
-    try testing.expectEqualStrings("\x1b[1mbold\x1b[0m", fbs.getWritten());
+    try span.render(&fbs);
+    try testing.expectEqualStrings("\x1b[1mbold\x1b[0m", fbs.buffered());
 }
 
 test "SpanBuilder: render colored text" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     var builder = SpanBuilder.init();
     _ = builder.text("red").fg(.red);
     const span = builder.build();
 
-    try span.render(writer);
-    try testing.expectEqualStrings("\x1b[31mred\x1b[0m", fbs.getWritten());
+    try span.render(&fbs);
+    try testing.expectEqualStrings("\x1b[31mred\x1b[0m", fbs.buffered());
 }
 
 test "SpanBuilder: render with background color" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     var builder = SpanBuilder.init();
     _ = builder.text("bg").bg(.blue);
     const span = builder.build();
 
-    try span.render(writer);
-    try testing.expectEqualStrings("\x1b[44mbg\x1b[0m", fbs.getWritten());
+    try span.render(&fbs);
+    try testing.expectEqualStrings("\x1b[44mbg\x1b[0m", fbs.buffered());
 }
 
 test "SpanBuilder: render full styling (color + modifiers)" {
     var buf: [512]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     var builder = SpanBuilder.init();
     _ = builder.text("full").fg(.red).bg(.white).bold().italic().underline();
     const span = builder.build();
 
-    try span.render(writer);
+    try span.render(&fbs);
     const expected = "\x1b[31m\x1b[47m\x1b[1m\x1b[3m\x1b[4mfull\x1b[0m";
-    try testing.expectEqualStrings(expected, fbs.getWritten());
+    try testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 test "SpanBuilder: render unstyled text (no ANSI codes)" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     var builder = SpanBuilder.init();
     _ = builder.text("plain");
     const span = builder.build();
 
-    try span.render(writer);
-    try testing.expectEqualStrings("plain", fbs.getWritten());
+    try span.render(&fbs);
+    try testing.expectEqualStrings("plain", fbs.buffered());
 }
 
 // ============================================================================
@@ -515,8 +510,7 @@ test "LineBuilder: mixed pre-built and raw" {
 
 test "LineBuilder: render single span" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const allocator = testing.allocator;
     var builder = LineBuilder.init(allocator);
@@ -525,14 +519,13 @@ test "LineBuilder: render single span" {
     _ = try builder.raw("hello");
     const line = builder.build();
 
-    try line.render(writer);
-    try testing.expectEqualStrings("hello", fbs.getWritten());
+    try line.render(&fbs);
+    try testing.expectEqualStrings("hello", fbs.buffered());
 }
 
 test "LineBuilder: render multiple spans" {
     var buf: [512]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const allocator = testing.allocator;
     var builder = LineBuilder.init(allocator);
@@ -543,15 +536,14 @@ test "LineBuilder: render multiple spans" {
     _ = try builder.text("world", .{ .fg = .blue, .bold = true });
     const line = builder.build();
 
-    try line.render(writer);
+    try line.render(&fbs);
     const expected = "\x1b[31mHello\x1b[0m \x1b[34m\x1b[1mworld\x1b[0m";
-    try testing.expectEqualStrings(expected, fbs.getWritten());
+    try testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 test "LineBuilder: render complex formatting" {
     var buf: [1024]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const allocator = testing.allocator;
     var builder = LineBuilder.init(allocator);
@@ -562,9 +554,9 @@ test "LineBuilder: render complex formatting" {
     _ = try builder.text("operation failed", .{ .fg = .yellow });
     const line = builder.build();
 
-    try line.render(writer);
+    try line.render(&fbs);
     const expected = "\x1b[31m\x1b[1mError\x1b[0m: \x1b[33moperation failed\x1b[0m";
-    try testing.expectEqualStrings(expected, fbs.getWritten());
+    try testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 // ============================================================================
@@ -654,8 +646,7 @@ test "integration: multiple builders in single line" {
 
 test "integration: render complete styled line" {
     var buf: [512]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const allocator = testing.allocator;
 
@@ -669,10 +660,10 @@ test "integration: render complete styled line" {
     _ = try lb.text("Complete", .{ .fg = .cyan });
 
     const line = lb.build();
-    try line.render(writer);
+    try line.render(&fbs);
 
     const expected = "\x1b[32m\x1b[1mTask\x1b[0m: \x1b[36mComplete\x1b[0m";
-    try testing.expectEqualStrings(expected, fbs.getWritten());
+    try testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 // ============================================================================
@@ -771,15 +762,14 @@ test "SpanBuilder: bright background colors" {
 
 test "SpanBuilder: render bright colors" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     var builder = SpanBuilder.init();
     _ = builder.text("bright").fg(.bright_green);
     const span = builder.build();
 
-    try span.render(writer);
-    try testing.expectEqualStrings("\x1b[92mbright\x1b[0m", fbs.getWritten());
+    try span.render(&fbs);
+    try testing.expectEqualStrings("\x1b[92mbright\x1b[0m", fbs.buffered());
 }
 
 // ============================================================================
@@ -804,16 +794,15 @@ test "SpanBuilder: blink modifier" {
 
 test "SpanBuilder: render reverse and blink" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     var builder = SpanBuilder.init();
     _ = builder.text("effects").reverse().blink();
     const span = builder.build();
 
-    try span.render(writer);
+    try span.render(&fbs);
     const expected = "\x1b[7m\x1b[5meffects\x1b[0m";
-    try testing.expectEqualStrings(expected, fbs.getWritten());
+    try testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 // ============================================================================

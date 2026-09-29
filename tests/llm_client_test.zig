@@ -38,6 +38,7 @@ test "LlmClient - init with valid configuration succeeds" {
 
     const client = try LlmClient.init(
         allocator,
+        testing.io,
         "test-api-key",
         "https://api.anthropic.com/v1/messages",
     );
@@ -62,14 +63,14 @@ test "LlmClient - stream handles SSE response chunks" {
 test "LlmClient - stream handles connection error gracefully" {
     const allocator = testing.allocator;
 
-    var client = try LlmClient.init(allocator, "test-key", "https://invalid-url.com");
+    var client = try LlmClient.init(allocator, testing.io, "test-key", "https://invalid-url.com");
     defer client.deinit();
 
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     // Should return error.ConnectionFailed
-    const result = client.stream("test prompt", fbs.writer());
+    const result = client.stream("test prompt", &fbs);
     try testing.expectError(error.ConnectionFailed, result);
 }
 
@@ -171,10 +172,10 @@ test "RateLimiter - checkAndConsume succeeds within limits" {
         .tokens_per_minute = 1000,
         .current_requests = 0,
         .current_tokens = 0,
-        .window_start = std.time.milliTimestamp(),
+        .window_start = std.Io.Clock.real.now(testing.io).toMilliseconds(),
     };
 
-    try limiter.checkAndConsume(100);
+    try limiter.checkAndConsume(testing.io, 100);
     try testing.expectEqual(@as(u32, 1), limiter.current_requests);
     try testing.expectEqual(@as(u64, 100), limiter.current_tokens);
 }
@@ -185,10 +186,10 @@ test "RateLimiter - checkAndConsume fails when request limit exceeded" {
         .tokens_per_minute = 10000,
         .current_requests = 3,
         .current_tokens = 0,
-        .window_start = std.time.milliTimestamp(),
+        .window_start = std.Io.Clock.real.now(testing.io).toMilliseconds(),
     };
 
-    const result = limiter.checkAndConsume(100);
+    const result = limiter.checkAndConsume(testing.io, 100);
     try testing.expectError(error.RateLimitExceeded, result);
 }
 
@@ -198,11 +199,11 @@ test "RateLimiter - checkAndConsume fails when token limit exceeded" {
         .tokens_per_minute = 1000,
         .current_requests = 0,
         .current_tokens = 900,
-        .window_start = std.time.milliTimestamp(),
+        .window_start = std.Io.Clock.real.now(testing.io).toMilliseconds(),
     };
 
     // Trying to consume 200 tokens when only 100 left in window
-    const result = limiter.checkAndConsume(200);
+    const result = limiter.checkAndConsume(testing.io, 200);
     try testing.expectError(error.RateLimitExceeded, result);
 }
 
@@ -212,10 +213,10 @@ test "RateLimiter - resets counters after time window" {
         .tokens_per_minute = 1000,
         .current_requests = 8,
         .current_tokens = 800,
-        .window_start = std.time.milliTimestamp() - 61_000, // 61 seconds ago
+        .window_start = std.Io.Clock.real.now(testing.io).toMilliseconds() - 61_000, // 61 seconds ago
     };
 
-    try limiter.checkAndConsume(100);
+    try limiter.checkAndConsume(testing.io, 100);
 
     // After window reset, counters should be reset
     try testing.expectEqual(@as(u32, 1), limiter.current_requests);
@@ -228,15 +229,15 @@ test "RateLimiter - waitTime returns zero when under limit" {
         .tokens_per_minute = 1000,
         .current_requests = 3,
         .current_tokens = 300,
-        .window_start = std.time.milliTimestamp(),
+        .window_start = std.Io.Clock.real.now(testing.io).toMilliseconds(),
     };
 
-    const wait = limiter.waitTime();
+    const wait = limiter.waitTime(testing.io);
     try testing.expectEqual(@as(u64, 0), wait);
 }
 
 test "RateLimiter - waitTime returns remaining window time when exceeded" {
-    const now = std.time.milliTimestamp();
+    const now = std.Io.Clock.real.now(testing.io).toMilliseconds();
     const limiter = RateLimiter{
         .requests_per_minute = 10,
         .tokens_per_minute = 1000,
@@ -245,7 +246,7 @@ test "RateLimiter - waitTime returns remaining window time when exceeded" {
         .window_start = now - 30_000, // 30 seconds into window
     };
 
-    const wait = limiter.waitTime();
+    const wait = limiter.waitTime(testing.io);
 
     // Should wait ~30 more seconds for window to reset
     try testing.expect(wait > 25_000);
@@ -258,15 +259,15 @@ test "RateLimiter - exponential backoff increases delay" {
         .tokens_per_minute = 1000,
         .current_requests = 0,
         .current_tokens = 0,
-        .window_start = std.time.milliTimestamp(),
+        .window_start = std.Io.Clock.real.now(testing.io).toMilliseconds(),
         .backoff_count = 0,
     };
 
-    const delay1 = limiter.exponentialBackoff();
+    const delay1 = limiter.exponentialBackoff(testing.io);
     limiter.backoff_count += 1;
-    const delay2 = limiter.exponentialBackoff();
+    const delay2 = limiter.exponentialBackoff(testing.io);
     limiter.backoff_count += 1;
-    const delay3 = limiter.exponentialBackoff();
+    const delay3 = limiter.exponentialBackoff(testing.io);
 
     // Each delay should be larger than the previous
     try testing.expect(delay2 > delay1);
@@ -279,11 +280,11 @@ test "RateLimiter - exponential backoff caps at maximum" {
         .tokens_per_minute = 1000,
         .current_requests = 0,
         .current_tokens = 0,
-        .window_start = std.time.milliTimestamp(),
+        .window_start = std.Io.Clock.real.now(testing.io).toMilliseconds(),
         .backoff_count = 10, // Very high retry count
     };
 
-    const delay = limiter.exponentialBackoff();
+    const delay = limiter.exponentialBackoff(testing.io);
 
     // Should cap at some reasonable maximum (e.g., 60 seconds)
     try testing.expect(delay <= 60_000);
@@ -308,7 +309,7 @@ test "LlmClient - retry does not retry on client error (4xx)" {
 test "LlmClient - circuit breaker opens after consecutive failures" {
     const allocator = testing.allocator;
 
-    var client = try LlmClient.init(allocator, "test-key", "https://example.com");
+    var client = try LlmClient.init(allocator, testing.io, "test-key", "https://example.com");
     defer client.deinit();
     client.circuit_breaker_threshold = 3;
 
@@ -327,27 +328,27 @@ test "LlmClient - circuit breaker opens after consecutive failures" {
     // Fail 3 times to open circuit breaker
     var i: u32 = 0;
     while (i < 3) : (i += 1) {
-        var fbs = std.io.fixedBufferStream(&buf);
-        _ = client.streamWithRetry("test", fbs.writer()) catch {};
+        var fbs: std.Io.Writer = .fixed(&buf);
+        _ = client.streamWithRetry("test", &fbs) catch {};
     }
 
     // Circuit breaker should now be open
     try testing.expect(client.circuit_breaker_open);
 
     // Next request should fail immediately with CircuitBreakerOpen
-    var fbs = std.io.fixedBufferStream(&buf);
-    const result = client.streamWithRetry("test", fbs.writer());
+    var fbs: std.Io.Writer = .fixed(&buf);
+    const result = client.streamWithRetry("test", &fbs);
     try testing.expectError(error.CircuitBreakerOpen, result);
 }
 
 test "LlmClient - circuit breaker half-opens after timeout" {
     const allocator = testing.allocator;
 
-    var client = try LlmClient.init(allocator, "test-key", "https://example.com");
+    var client = try LlmClient.init(allocator, testing.io, "test-key", "https://example.com");
     defer client.deinit();
     client.circuit_breaker_open = true;
     client.circuit_breaker_timeout_ms = 100;
-    client.circuit_breaker_opened_at = std.time.milliTimestamp() - 200; // 200ms ago
+    client.circuit_breaker_opened_at = std.Io.Clock.real.now(testing.io).toMilliseconds() - 200; // 200ms ago
 
     // Should transition to half-open state
     try testing.expect(client.circuitBreakerShouldRetry());
@@ -572,7 +573,7 @@ test "ResponseStreamWidget - auto scroll shows latest content" {
 
     // Should show the last 5 lines (15-19)
     const first_line = widget.getVisibleLine(0);
-    try testing.expect(std.mem.indexOf(u8, first_line, "Line 15") != null);
+    try testing.expect(std.mem.find(u8, first_line, "Line 15") != null);
 }
 
 test "ResponseStreamWidget - loading spinner shows when waiting" {
@@ -639,8 +640,8 @@ test "ResponseStreamWidget - scroll up shows earlier content" {
 
     // Should show earlier content
     const first_line = widget.getVisibleLine(0);
-    try testing.expect(std.mem.indexOf(u8, first_line, "Line 5") != null or
-                       std.mem.indexOf(u8, first_line, "Line 6") != null);
+    try testing.expect(std.mem.find(u8, first_line, "Line 5") != null or
+        std.mem.find(u8, first_line, "Line 6") != null);
 }
 
 test "ResponseStreamWidget - clear resets buffer" {
@@ -761,7 +762,7 @@ test "Integration - Full pipeline with mock HTTP" {
     defer allocator.free(prompt);
 
     // 2. Create client with rate limiter and budget
-    var client = try LlmClient.init(allocator, "test-key", "https://example.com");
+    var client = try LlmClient.init(allocator, testing.io, "test-key", "https://example.com");
     defer client.deinit();
 
     client.rate_limiter = RateLimiter{
@@ -769,7 +770,7 @@ test "Integration - Full pipeline with mock HTTP" {
         .tokens_per_minute = 1000,
         .current_requests = 0,
         .current_tokens = 0,
-        .window_start = std.time.milliTimestamp(),
+        .window_start = std.Io.Clock.real.now(testing.io).toMilliseconds(),
     };
 
     client.token_budget = TokenBudget{

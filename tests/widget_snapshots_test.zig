@@ -52,7 +52,7 @@ test "Block: renders border corners correctly" {
     // Check title appears
     const snapshot = try term.getSnapshot(testing.allocator);
     defer testing.allocator.free(snapshot);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Test") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Test") != null);
 }
 
 test "Block: no borders means title doesn't render" {
@@ -134,7 +134,7 @@ test "Paragraph: renders simple text" {
     const snapshot = try term.getSnapshot(testing.allocator);
     defer testing.allocator.free(snapshot);
 
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Hello, world!") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Hello, world!") != null);
 }
 
 test "Paragraph: renders multiple lines" {
@@ -151,8 +151,8 @@ test "Paragraph: renders multiple lines" {
     const snapshot = try term.getSnapshot(testing.allocator);
     defer testing.allocator.free(snapshot);
 
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Line 1") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Line 2") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Line 1") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Line 2") != null);
 }
 
 test "Paragraph: with block border" {
@@ -176,8 +176,8 @@ test "Paragraph: with block border" {
 
     // Both border and content should appear
     try testing.expectEqual('┌', term.getChar(0, 0).?);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Text") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Content") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Text") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Content") != null);
 }
 
 // ============================================================================
@@ -196,9 +196,9 @@ test "List: renders basic items" {
     const snapshot = try term.getSnapshot(testing.allocator);
     defer testing.allocator.free(snapshot);
 
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Apple") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Banana") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Cherry") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Apple") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Banana") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Cherry") != null);
 }
 
 test "List: selected item gets highlight symbol" {
@@ -216,7 +216,7 @@ test "List: selected item gets highlight symbol" {
     defer testing.allocator.free(snapshot);
 
     // Highlight symbol should appear before selected item
-    try testing.expect(std.mem.indexOf(u8, snapshot, "> Two") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "> Two") != null);
 }
 
 // ============================================================================
@@ -242,10 +242,10 @@ test "Table: renders headers and rows" {
     const snapshot = try term.getSnapshot(testing.allocator);
     defer testing.allocator.free(snapshot);
 
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Name") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Age") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Alice") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Bob") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Name") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Age") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Alice") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Bob") != null);
 }
 
 test "Table: with block border" {
@@ -274,8 +274,8 @@ test "Table: with block border" {
     const snapshot = try term.getSnapshot(testing.allocator);
     defer testing.allocator.free(snapshot);
 
-    try testing.expect(std.mem.indexOf(u8, snapshot, "ID") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Test") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "ID") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Test") != null);
 }
 
 // ============================================================================
@@ -296,7 +296,7 @@ test "Gauge: renders label at different progress levels" {
     defer testing.allocator.free(snapshot);
 
     // Should have label
-    try testing.expect(std.mem.indexOf(u8, snapshot, "50%") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "50%") != null);
 }
 
 test "Gauge: 100% progress renders filled bar" {
@@ -312,8 +312,8 @@ test "Gauge: 100% progress renders filled bar" {
     const snapshot = try term.getSnapshot(testing.allocator);
     defer testing.allocator.free(snapshot);
 
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Done") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "█") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Done") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "█") != null);
 }
 
 // ============================================================================
@@ -391,10 +391,10 @@ test "Integration: multiple widgets in vertical layout" {
     defer testing.allocator.free(snapshot);
 
     // Both widgets should be visible
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Header") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Welcome") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Menu") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Option 1") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Header") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Welcome") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Menu") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Option 1") != null);
 }
 
 test "Integration: side-by-side blocks" {

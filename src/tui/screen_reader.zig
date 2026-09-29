@@ -1,6 +1,5 @@
 //! Terminal screen reader integration for TUI applications.
 const std = @import("std");
-const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
 const accessibility = @import("../accessibility.zig");
 const Role = accessibility.Role;
@@ -34,10 +33,13 @@ pub const ScreenReaderOutput = struct {
     /// Initialize screen reader output with auto-detection.
     /// Detects if a screen reader is active via environment variables.
     /// Default: normal verbosity, auto output mode.
-    pub fn init(allocator: Allocator) ScreenReaderOutput {
+    pub fn init(
+        allocator: Allocator,
+        environ_map: *const std.process.Environ.Map,
+    ) ScreenReaderOutput {
         return .{
             .allocator = allocator,
-            .enabled = detectScreenReader(),
+            .enabled = detectScreenReader(environ_map),
             .verbosity = .normal,
             .output_mode = .auto,
         };
@@ -46,7 +48,7 @@ pub const ScreenReaderOutput = struct {
     /// Detect if a screen reader is active in the terminal.
     /// Checks environment variables: SCREEN_READER, NVDA, JAWS, ORCA, VOICEOVER.
     /// Returns true if any of these are set.
-    pub fn detectScreenReader() bool {
+    pub fn detectScreenReader(environ_map: *const std.process.Environ.Map) bool {
         // Check for screen reader environment variables
         const screen_reader_vars = [_][]const u8{
             "SCREEN_READER", // Generic
@@ -56,18 +58,11 @@ pub const ScreenReaderOutput = struct {
             "VOICEOVER", // VoiceOver on macOS
         };
 
-        // Windows doesn't support std.posix.getenv (env vars are UTF-16)
-        if (builtin.os.tag == .windows) {
-            return false;
-        } else {
-            for (screen_reader_vars) |var_name| {
-                if (std.posix.getenv(var_name)) |_| {
-                    return true;
-                }
-            }
-
-            return false;
+        for (screen_reader_vars) |var_name| {
+            if (environ_map.get(var_name) != null) return true;
         }
+
+        return false;
     }
 
     /// Enable or disable screen reader output.
@@ -252,9 +247,9 @@ pub const Region = struct {
     /// Returns owned slice that caller must free.
     /// Used for screen reader navigation between UI regions.
     pub fn announce(self: Region, allocator: Allocator) ![]const u8 {
-        var buf: std.ArrayList(u8) = .empty;
-        defer buf.deinit(allocator);
-        const writer = buf.writer(allocator);
+        var buf: std.Io.Writer.Allocating = .init(allocator);
+        defer buf.deinit();
+        const writer = &buf.writer;
 
         try writer.print("Region: {s}, ", .{self.name});
         try writer.print("{s}", .{@tagName(self.role)});
@@ -270,14 +265,16 @@ pub const Region = struct {
             }
         }
 
-        return buf.toOwnedSlice(allocator);
+        return buf.toOwnedSlice();
     }
 };
 
 // Tests
 test "ScreenReaderOutput: init" {
     const allocator = std.testing.allocator;
-    const sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    const sr = ScreenReaderOutput.init(allocator, &env);
 
     // Detection should work (true or false is fine)
     try std.testing.expect(sr.enabled == true or sr.enabled == false);
@@ -286,7 +283,9 @@ test "ScreenReaderOutput: init" {
 
 test "ScreenReaderOutput: enable/disable" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
 
     sr.setEnabled(true);
     try std.testing.expect(sr.enabled);
@@ -297,7 +296,9 @@ test "ScreenReaderOutput: enable/disable" {
 
 test "ScreenReaderOutput: set verbosity" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
 
     sr.setVerbosity(.quiet);
     try std.testing.expectEqual(ScreenReaderOutput.Verbosity.quiet, sr.verbosity);
@@ -308,48 +309,54 @@ test "ScreenReaderOutput: set verbosity" {
 
 test "ScreenReaderOutput: announce ARIA text" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announce(writer, "Test message", .polite);
 
-    const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "[polite]") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Test message") != null);
+    const output = buf.written();
+    try std.testing.expect(std.mem.find(u8, output, "[polite]") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Test message") != null);
 }
 
 test "ScreenReaderOutput: announce JSON" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.json);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announce(writer, "Test", .assertive);
 
-    const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "\"type\":\"announce\"") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "\"priority\":\"assertive\"") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "\"message\":\"Test\"") != null);
+    const output = buf.written();
+    try std.testing.expect(std.mem.find(u8, output, "\"type\":\"announce\"") != null);
+    try std.testing.expect(std.mem.find(u8, output, "\"priority\":\"assertive\"") != null);
+    try std.testing.expect(std.mem.find(u8, output, "\"message\":\"Test\"") != null);
 }
 
 test "ScreenReaderOutput: announce widget" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     const metadata = Metadata{
         .role = .button,
@@ -359,124 +366,138 @@ test "ScreenReaderOutput: announce widget" {
 
     try sr.announceWidget(writer, metadata);
 
-    const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "button") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "Submit") != null);
+    const output = buf.written();
+    try std.testing.expect(std.mem.find(u8, output, "button") != null);
+    try std.testing.expect(std.mem.find(u8, output, "Submit") != null);
 }
 
 test "ScreenReaderOutput: announce navigation" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announceNavigation(writer, "Home", "Settings");
 
-    const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "Navigated from Home to Settings") != null);
+    const output = buf.written();
+    try std.testing.expect(std.mem.find(u8, output, "Navigated from Home to Settings") != null);
 }
 
 test "ScreenReaderOutput: announce error" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announceError(writer, "File not found");
 
-    const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "Error: File not found") != null);
-    try std.testing.expect(std.mem.indexOf(u8, output, "[assertive]") != null);
+    const output = buf.written();
+    try std.testing.expect(std.mem.find(u8, output, "Error: File not found") != null);
+    try std.testing.expect(std.mem.find(u8, output, "[assertive]") != null);
 }
 
 test "ScreenReaderOutput: announce success" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announceSuccess(writer, "File saved");
 
-    const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "Success: File saved") != null);
+    const output = buf.written();
+    try std.testing.expect(std.mem.find(u8, output, "Success: File saved") != null);
 }
 
 test "ScreenReaderOutput: announce shortcut" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
     sr.setVerbosity(.normal);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announceShortcut(writer, "Ctrl+S", "save");
 
-    const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "Press Ctrl+S to save") != null);
+    const output = buf.written();
+    try std.testing.expect(std.mem.find(u8, output, "Press Ctrl+S to save") != null);
 }
 
 test "ScreenReaderOutput: quiet mode skips shortcuts" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
     sr.setVerbosity(.quiet);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announceShortcut(writer, "Ctrl+S", "save");
 
-    const output = buf.items;
+    const output = buf.written();
     try std.testing.expectEqual(@as(usize, 0), output.len); // Should be empty
 }
 
 test "ScreenReaderOutput: announce help" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(true);
     sr.setOutputMode(.aria_text);
     sr.setVerbosity(.verbose);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announceHelp(writer, "Use arrow keys to navigate");
 
-    const output = buf.items;
-    try std.testing.expect(std.mem.indexOf(u8, output, "Use arrow keys") != null);
+    const output = buf.written();
+    try std.testing.expect(std.mem.find(u8, output, "Use arrow keys") != null);
 }
 
 test "ScreenReaderOutput: disabled skips announcements" {
     const allocator = std.testing.allocator;
-    var sr = ScreenReaderOutput.init(allocator);
+    var env = std.process.Environ.Map.init(allocator);
+    defer env.deinit();
+    var sr = ScreenReaderOutput.init(allocator, &env);
     sr.setEnabled(false);
     sr.setOutputMode(.aria_text);
 
-    var buf: std.ArrayList(u8) = .empty;
-    defer buf.deinit(allocator);
-    const writer = buf.writer(allocator);
+    var buf: std.Io.Writer.Allocating = .init(allocator);
+    defer buf.deinit();
+    const writer = &buf.writer;
 
     try sr.announce(writer, "Test", .polite);
 
-    const output = buf.items;
+    const output = buf.written();
     try std.testing.expectEqual(@as(usize, 0), output.len); // Should be empty
 }
 
@@ -497,9 +518,9 @@ test "Region: announce" {
     const announcement = try region.announce(allocator);
     defer allocator.free(announcement);
 
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "Region: Main Content") != null);
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "Search") != null);
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "Ctrl+F") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "Region: Main Content") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "Search") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "Ctrl+F") != null);
 }
 
 test "Region: announce without landmarks" {
@@ -513,6 +534,19 @@ test "Region: announce without landmarks" {
     const announcement = try region.announce(allocator);
     defer allocator.free(announcement);
 
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "Region: Sidebar") != null);
-    try std.testing.expect(std.mem.indexOf(u8, announcement, "group") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "Region: Sidebar") != null);
+    try std.testing.expect(std.mem.find(u8, announcement, "group") != null);
+}
+
+test "ScreenReaderOutput: detect reads injected environment" {
+    var env = std.process.Environ.Map.init(std.testing.allocator);
+    defer env.deinit();
+
+    try std.testing.expect(!ScreenReaderOutput.detectScreenReader(&env));
+
+    try env.put("ORCA", "1");
+    try std.testing.expect(ScreenReaderOutput.detectScreenReader(&env));
+
+    const sr = ScreenReaderOutput.init(std.testing.allocator, &env);
+    try std.testing.expect(sr.enabled);
 }

@@ -20,20 +20,20 @@ const testing = std.testing;
 
 test "flamegraph simple parent child hierarchy" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // Record: parent
     //   ├─ child1
     //   └─ child2
     try profiler.beginScope("parent");
-    std.Thread.sleep(200_000); // 0.2ms self time
+    try testing.io.sleep(.fromNanoseconds(200_000), .awake); // 0.2ms self time
     try profiler.beginScope("child1");
-    std.Thread.sleep(100_000); // 0.1ms
+    try testing.io.sleep(.fromNanoseconds(100_000), .awake); // 0.1ms
     try profiler.endScope();
-    std.Thread.sleep(100_000); // 0.1ms self time
+    try testing.io.sleep(.fromNanoseconds(100_000), .awake); // 0.1ms self time
     try profiler.beginScope("child2");
-    std.Thread.sleep(150_000); // 0.15ms
+    try testing.io.sleep(.fromNanoseconds(150_000), .awake); // 0.15ms
     try profiler.endScope();
     try profiler.endScope();
 
@@ -55,16 +55,16 @@ test "flamegraph simple parent child hierarchy" {
 
 test "flamegraph tracks self time correctly" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // Parent with known self and child times
     try profiler.beginScope("parent");
-    std.Thread.sleep(500_000); // 0.5ms self
+    try testing.io.sleep(.fromNanoseconds(500_000), .awake); // 0.5ms self
     try profiler.beginScope("child");
-    std.Thread.sleep(300_000); // 0.3ms child
+    try testing.io.sleep(.fromNanoseconds(300_000), .awake); // 0.3ms child
     try profiler.endScope();
-    std.Thread.sleep(200_000); // 0.2ms self
+    try testing.io.sleep(.fromNanoseconds(200_000), .awake); // 0.2ms self
     try profiler.endScope();
 
     const frames = try profiler.flameGraphData(allocator);
@@ -79,34 +79,26 @@ test "flamegraph tracks self time correctly" {
     const parent = frames[0];
     // Total should be >= some time, self should be < total
     // On Windows, timer resolution may be lower, so just verify ordering
-    try testing.expect(parent.total_time_ns > 0);  // Work was done, time should be recorded
-    try testing.expect(parent.self_time_ns <= parent.total_time_ns);  // Self time <= total time invariant
+    try testing.expect(parent.total_time_ns > 0); // Work was done, time should be recorded
+    try testing.expect(parent.self_time_ns <= parent.total_time_ns); // Self time <= total time invariant
 }
 
 test "flamegraph deep nesting 5 levels" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // Level 1
     try profiler.beginScope("l1");
-    std.Thread.sleep(50_000);
-
-    // Level 2
+    try testing.io.sleep(.fromNanoseconds(50_000), .awake); // Level 2
     try profiler.beginScope("l2");
-    std.Thread.sleep(50_000);
-
-    // Level 3
+    try testing.io.sleep(.fromNanoseconds(50_000), .awake); // Level 3
     try profiler.beginScope("l3");
-    std.Thread.sleep(50_000);
-
-    // Level 4
+    try testing.io.sleep(.fromNanoseconds(50_000), .awake); // Level 4
     try profiler.beginScope("l4");
-    std.Thread.sleep(50_000);
-
-    // Level 5
+    try testing.io.sleep(.fromNanoseconds(50_000), .awake); // Level 5
     try profiler.beginScope("l5");
-    std.Thread.sleep(50_000);
+    try testing.io.sleep(.fromNanoseconds(50_000), .awake);
     try profiler.endScope();
 
     try profiler.endScope();
@@ -137,7 +129,7 @@ test "flamegraph deep nesting 5 levels" {
 
 test "flamegraph 100 sibling widgets" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try profiler.beginScope("root");
@@ -147,7 +139,7 @@ test "flamegraph 100 sibling widgets" {
         var buf: [32]u8 = undefined;
         const name = try std.fmt.bufPrint(&buf, "widget_{d}", .{i});
         try profiler.beginScope(name);
-        std.Thread.sleep(10_000);
+        try testing.io.sleep(.fromNanoseconds(10_000), .awake);
         try profiler.endScope();
     }
 
@@ -168,7 +160,7 @@ test "flamegraph 100 sibling widgets" {
 
 test "flamegraph mixed nesting and siblings" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // root
@@ -183,21 +175,21 @@ test "flamegraph mixed nesting and siblings" {
 
     try profiler.beginScope("parent_a");
     try profiler.beginScope("child_a1");
-    std.Thread.sleep(10_000);
+    try testing.io.sleep(.fromNanoseconds(10_000), .awake);
     try profiler.endScope();
     try profiler.beginScope("child_a2");
-    std.Thread.sleep(10_000);
+    try testing.io.sleep(.fromNanoseconds(10_000), .awake);
     try profiler.endScope();
     try profiler.endScope();
 
     try profiler.beginScope("parent_b");
     try profiler.beginScope("child_b1");
-    std.Thread.sleep(10_000);
+    try testing.io.sleep(.fromNanoseconds(10_000), .awake);
     try profiler.endScope();
     try profiler.endScope();
 
     try profiler.beginScope("parent_c");
-    std.Thread.sleep(10_000);
+    try testing.io.sleep(.fromNanoseconds(10_000), .awake);
     try profiler.endScope();
 
     try profiler.endScope();
@@ -220,14 +212,14 @@ test "flamegraph mixed nesting and siblings" {
 
 test "flamegraph timing accumulates correctly" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try profiler.beginScope("parent");
-    std.Thread.sleep(100_000); // total will be > 100ms
+    try testing.io.sleep(.fromNanoseconds(100_000), .awake); // total will be > 100ms
 
     try profiler.beginScope("child");
-    std.Thread.sleep(100_000);
+    try testing.io.sleep(.fromNanoseconds(100_000), .awake);
     try profiler.endScope();
 
     try profiler.endScope();
@@ -241,7 +233,7 @@ test "flamegraph timing accumulates correctly" {
         allocator.free(frames);
     }
 
-    try testing.expect(frames[0].total_time_ns > 0);  // Work was done, time should be recorded
+    try testing.expect(frames[0].total_time_ns > 0); // Work was done, time should be recorded
     if (frames[0].children.len > 0) {
         try testing.expect(frames[0].children[0].total_time_ns <= frames[0].total_time_ns);
     }
@@ -253,12 +245,12 @@ test "flamegraph timing accumulates correctly" {
 
 test "event propagation records single handler" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     {
         var guard = profiler.startEvent("button_click", 0);
-        std.Thread.sleep(100_000); // 0.1ms
+        try testing.io.sleep(.fromNanoseconds(100_000), .awake); // 0.1ms
         try guard.end();
     }
 
@@ -269,7 +261,7 @@ test "event propagation records single handler" {
 
 test "event propagation tracks queue depth during propagation" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // Simulate event propagation with increasing queue depth
@@ -285,7 +277,7 @@ test "event propagation tracks queue depth during propagation" {
 
 test "event propagation different event types isolation" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // Multiple event types should not interfere
@@ -305,7 +297,7 @@ test "event propagation different event types isolation" {
 
 test "event propagation timing distribution 50 events" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     var i: u64 = 0;
@@ -322,7 +314,7 @@ test "event propagation timing distribution 50 events" {
 
 test "event propagation slow events detection" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 5.0); // 5ms threshold
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 5.0); // 5ms threshold
     defer profiler.deinit();
 
     // Fast events
@@ -343,7 +335,7 @@ test "event propagation slow events detection" {
 
 test "event propagation handler chain timing" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // Simulate handler chain: handler1 -> handler2 -> handler3
@@ -365,22 +357,22 @@ test "event propagation handler chain timing" {
 
 test "constraint solver tracks input constraints" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // Simulate constraint solving: input -> intermediate -> final
     try profiler.beginScope("solve_constraints");
 
     try profiler.beginScope("input_validation");
-    std.Thread.sleep(10_000);
+    try testing.io.sleep(.fromNanoseconds(10_000), .awake);
     try profiler.endScope();
 
     try profiler.beginScope("constraint_propagation");
-    std.Thread.sleep(20_000);
+    try testing.io.sleep(.fromNanoseconds(20_000), .awake);
     try profiler.endScope();
 
     try profiler.beginScope("final_layout");
-    std.Thread.sleep(15_000);
+    try testing.io.sleep(.fromNanoseconds(15_000), .awake);
     try profiler.endScope();
 
     try profiler.endScope();
@@ -402,23 +394,23 @@ test "constraint solver tracks input constraints" {
 
 test "constraint solver iteration tracking" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // Simulate multiple iterations
     // Iteration 1
     try profiler.beginScope("iteration_1");
-    std.Thread.sleep(10 * std.time.ns_per_ms); // 10ms (was 10µs — too short, caused flakiness)
+    try testing.io.sleep(.fromNanoseconds(10 * std.time.ns_per_ms), .awake); // 10ms (was 10µs — too short, caused flakiness)
     try profiler.endScope();
 
     // Iteration 2
     try profiler.beginScope("iteration_2");
-    std.Thread.sleep(8 * std.time.ns_per_ms); // 8ms
+    try testing.io.sleep(.fromNanoseconds(8 * std.time.ns_per_ms), .awake); // 8ms
     try profiler.endScope();
 
     // Iteration 3
     try profiler.beginScope("iteration_3");
-    std.Thread.sleep(5 * std.time.ns_per_ms); // 5ms — Converged, faster
+    try testing.io.sleep(.fromNanoseconds(5 * std.time.ns_per_ms), .awake); // 5ms — Converged, faster
     try profiler.endScope();
 
     const frames = try profiler.flameGraphData(allocator);
@@ -449,7 +441,7 @@ test "constraint solver iteration tracking" {
 
 test "constraint solver complex widget tree" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try profiler.beginScope("root_layout");
@@ -457,21 +449,21 @@ test "constraint solver complex widget tree" {
     // Left panel constraints
     try profiler.beginScope("left_panel");
     try profiler.beginScope("left_width_constraint");
-    std.Thread.sleep(5_000);
+    try testing.io.sleep(.fromNanoseconds(5_000), .awake);
     try profiler.endScope();
     try profiler.endScope();
 
     // Center panel constraints
     try profiler.beginScope("center_panel");
     try profiler.beginScope("center_flex");
-    std.Thread.sleep(8_000);
+    try testing.io.sleep(.fromNanoseconds(8_000), .awake);
     try profiler.endScope();
     try profiler.endScope();
 
     // Right panel constraints
     try profiler.beginScope("right_panel");
     try profiler.beginScope("right_aspect_ratio");
-    std.Thread.sleep(3_000);
+    try testing.io.sleep(.fromNanoseconds(3_000), .awake);
     try profiler.endScope();
     try profiler.endScope();
 
@@ -495,17 +487,17 @@ test "constraint solver complex widget tree" {
 
 test "constraint solver performance degradation detection" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // Baseline: fast solving (increased from 5µs to 10ms for reliability)
     try profiler.beginScope("solve_normal");
-    std.Thread.sleep(10_000_000); // 10ms
+    try testing.io.sleep(.fromNanoseconds(10_000_000), .awake); // 10ms
     try profiler.endScope();
 
     // Degraded: slow solving (10x slower = 100ms)
     try profiler.beginScope("solve_degraded");
-    std.Thread.sleep(100_000_000); // 100ms
+    try testing.io.sleep(.fromNanoseconds(100_000_000), .awake); // 100ms
     try profiler.endScope();
 
     const frames = try profiler.flameGraphData(allocator);
@@ -535,7 +527,7 @@ test "constraint solver performance degradation detection" {
 
 test "memory heatmap records per-widget allocations" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     try tracker.recordAlloc("button", 1024);
@@ -553,7 +545,7 @@ test "memory heatmap records per-widget allocations" {
 
 test "memory heatmap tracks peak usage per-widget" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     // Widget lifecycle: alloc -> peak -> free
@@ -570,7 +562,7 @@ test "memory heatmap tracks peak usage per-widget" {
 
 test "memory heatmap hot spots ranking" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     // Record allocations for different widgets
@@ -591,7 +583,7 @@ test "memory heatmap hot spots ranking" {
 
 test "memory heatmap 1000 widgets allocation tracking" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     var i: u32 = 0;
@@ -614,7 +606,7 @@ test "memory heatmap 1000 widgets allocation tracking" {
 
 test "memory heatmap leak detection" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     // Normal widget
@@ -637,7 +629,7 @@ test "memory heatmap leak detection" {
 
 test "memory heatmap net allocation tracking" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     try tracker.recordAlloc("widget", 10_000);
@@ -651,7 +643,7 @@ test "memory heatmap net allocation tracking" {
 
 test "memory heatmap resize tracking" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     try tracker.recordAlloc("buffer", 1000);
@@ -670,13 +662,13 @@ test "memory heatmap resize tracking" {
 
 test "chrome devtools export flamegraph data structure" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try profiler.beginScope("parent");
-    std.Thread.sleep(100_000);
+    try testing.io.sleep(.fromNanoseconds(100_000), .awake);
     try profiler.beginScope("child");
-    std.Thread.sleep(50_000);
+    try testing.io.sleep(.fromNanoseconds(50_000), .awake);
     try profiler.endScope();
     try profiler.endScope();
 
@@ -698,13 +690,13 @@ test "chrome devtools export flamegraph data structure" {
 
 test "chrome devtools export json serialization flamegraph" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try profiler.beginScope("main");
-    std.Thread.sleep(10_000);
+    try testing.io.sleep(.fromNanoseconds(10_000), .awake);
     try profiler.beginScope("render");
-    std.Thread.sleep(5_000);
+    try testing.io.sleep(.fromNanoseconds(5_000), .awake);
     try profiler.endScope();
     try profiler.endScope();
 
@@ -719,24 +711,23 @@ test "chrome devtools export json serialization flamegraph" {
 
     // Simulate Chrome DevTools JSON export format
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
-    const writer = stream.writer();
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // Write minimal Chrome DevTools trace format
-    try writer.writeAll("[{");
-    try std.fmt.format(writer, "\"name\":\"{s}\",", .{frames[0].name});
-    try std.fmt.format(writer, "\"dur\":{d},", .{frames[0].total_time_ns / 1000}); // Convert to microseconds
-    try writer.writeAll("}]");
+    try stream.writeAll("[{");
+    try stream.print("\"name\":\"{s}\",", .{frames[0].name});
+    try stream.print("\"dur\":{d},", .{frames[0].total_time_ns / 1000}); // Convert to microseconds
+    try stream.writeAll("}]");
 
-    const json_output = stream.getWritten();
+    const json_output = stream.buffered();
     try testing.expect(json_output.len > 0);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"name\"") != null);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"dur\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"name\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"dur\"") != null);
 }
 
 test "chrome devtools export memory allocations" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     try tracker.recordAlloc("widget_a", 1000);
@@ -748,29 +739,28 @@ test "chrome devtools export memory allocations" {
 
     // Simulate Chrome DevTools memory format export
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
-    const writer = stream.writer();
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writer.writeAll("[");
+    try stream.writeAll("[");
     for (hot_spots, 0..) |spot, idx| {
-        if (idx > 0) try writer.writeAll(",");
-        try writer.writeAll("{");
-        try std.fmt.format(writer, "\"location\":\"{s}\",", .{spot.location});
-        try std.fmt.format(writer, "\"bytes\":{d},", .{spot.total_allocated});
-        try std.fmt.format(writer, "\"peak\":{d}", .{spot.peak_allocated});
-        try writer.writeAll("}");
+        if (idx > 0) try stream.writeAll(",");
+        try stream.writeAll("{");
+        try stream.print("\"location\":\"{s}\",", .{spot.location});
+        try stream.print("\"bytes\":{d},", .{spot.total_allocated});
+        try stream.print("\"peak\":{d}", .{spot.peak_allocated});
+        try stream.writeAll("}");
     }
-    try writer.writeAll("]");
+    try stream.writeAll("]");
 
-    const json_output = stream.getWritten();
+    const json_output = stream.buffered();
     try testing.expect(json_output.len > 0);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"location\"") != null);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"bytes\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"location\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"bytes\"") != null);
 }
 
 test "chrome devtools export event latency distribution" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // Record event latencies
@@ -782,28 +772,27 @@ test "chrome devtools export event latency distribution" {
 
     // Simulate Chrome DevTools event latency export
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
-    const writer = stream.writer();
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writer.writeAll("{");
-    try std.fmt.format(writer, "\"event\":\"{s}\",", .{stats.event_type});
-    try std.fmt.format(writer, "\"count\":{d},", .{stats.total_events});
-    try std.fmt.format(writer, "\"avg_us\":{d},", .{stats.avg_latency_ns / 1000});
-    try std.fmt.format(writer, "\"p95_us\":{d},", .{stats.p95_latency_ns / 1000});
-    try std.fmt.format(writer, "\"p99_us\":{d}", .{stats.p99_latency_ns / 1000});
-    try writer.writeAll("}");
+    try stream.writeAll("{");
+    try stream.print("\"event\":\"{s}\",", .{stats.event_type});
+    try stream.print("\"count\":{d},", .{stats.total_events});
+    try stream.print("\"avg_us\":{d},", .{stats.avg_latency_ns / 1000});
+    try stream.print("\"p95_us\":{d},", .{stats.p95_latency_ns / 1000});
+    try stream.print("\"p99_us\":{d}", .{stats.p99_latency_ns / 1000});
+    try stream.writeAll("}");
 
-    const json_output = stream.getWritten();
+    const json_output = stream.buffered();
     try testing.expect(json_output.len > 0);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"event\"") != null);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"avg_us\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"event\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"avg_us\"") != null);
 }
 
 test "chrome devtools export combined profile snapshot" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
-    var tracker = try MemoryTracker.init(allocator);
-    var event_profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
+    var event_profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
 
     defer {
         profiler.deinit();
@@ -813,7 +802,7 @@ test "chrome devtools export combined profile snapshot" {
 
     // Collect data from all profilers
     try profiler.beginScope("frame");
-    std.Thread.sleep(100_000);
+    try testing.io.sleep(.fromNanoseconds(100_000), .awake);
     try profiler.endScope();
 
     try tracker.recordAlloc("render_buffer", 10_000);
@@ -836,42 +825,41 @@ test "chrome devtools export combined profile snapshot" {
 
     // Export combined snapshot
     var buf: [8192]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
-    const writer = stream.writer();
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try writer.writeAll("{\"profile\":{");
-    try writer.writeAll("\"flamegraph\":[");
+    try stream.writeAll("{\"profile\":{");
+    try stream.writeAll("\"flamegraph\":[");
     if (frames.len > 0) {
-        try std.fmt.format(writer, "{{\"name\":\"{s}\",\"dur\":{d}}}", .{
+        try stream.print("{{\"name\":\"{s}\",\"dur\":{d}}}", .{
             frames[0].name,
             frames[0].total_time_ns / 1000,
         });
     }
-    try writer.writeAll("],");
+    try stream.writeAll("],");
 
-    try writer.writeAll("\"memory\":[");
+    try stream.writeAll("\"memory\":[");
     if (hot_spots.len > 0) {
-        try std.fmt.format(writer, "{{\"location\":\"{s}\",\"bytes\":{d}}}", .{
+        try stream.print("{{\"location\":\"{s}\",\"bytes\":{d}}}", .{
             hot_spots[0].location,
             hot_spots[0].total_allocated,
         });
     }
-    try writer.writeAll("],");
+    try stream.writeAll("],");
 
-    try writer.writeAll("\"events\":[");
-    try std.fmt.format(writer, "{{\"type\":\"{s}\",\"latency_us\":{d}}}", .{
+    try stream.writeAll("\"events\":[");
+    try stream.print("{{\"type\":\"{s}\",\"latency_us\":{d}}}", .{
         event_stats.event_type,
         event_stats.avg_latency_ns / 1000,
     });
-    try writer.writeAll("]");
-    try writer.writeAll("}}");
+    try stream.writeAll("]");
+    try stream.writeAll("}}");
 
-    const json_output = stream.getWritten();
+    const json_output = stream.buffered();
     try testing.expect(json_output.len > 0);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"profile\"") != null);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"flamegraph\"") != null);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"memory\"") != null);
-    try testing.expect(std.mem.indexOf(u8, json_output, "\"events\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"profile\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"flamegraph\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"memory\"") != null);
+    try testing.expect(std.mem.find(u8, json_output, "\"events\"") != null);
 }
 
 // ============================================================================
@@ -880,7 +868,7 @@ test "chrome devtools export combined profile snapshot" {
 
 test "empty profiler export returns empty array" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     const frames = try profiler.flameGraphData(allocator);
@@ -891,7 +879,7 @@ test "empty profiler export returns empty array" {
 
 test "memory tracker empty hotspots" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     const hot_spots = try tracker.getHotSpots(allocator, 5);
@@ -902,7 +890,7 @@ test "memory tracker empty hotspots" {
 
 test "event loop profiler stats for nonexistent event" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     const stats = try profiler.getStats("nonexistent");
@@ -912,7 +900,7 @@ test "event loop profiler stats for nonexistent event" {
 
 test "flamegraph unmatched endScope returns error" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     const result = profiler.endScope();
@@ -921,7 +909,7 @@ test "flamegraph unmatched endScope returns error" {
 
 test "memory heatmap get stats for nonexistent location" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     const stats = try tracker.getStats("nonexistent");
@@ -931,7 +919,7 @@ test "memory heatmap get stats for nonexistent location" {
 
 test "profiler concurrent frame operations" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // Frame 1
@@ -952,7 +940,7 @@ test "profiler concurrent frame operations" {
 
 test "memory tracker enable/disable toggling" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     try tracker.recordAlloc("test", 1000);
@@ -977,7 +965,7 @@ test "memory tracker enable/disable toggling" {
 
 test "event loop profiler empty operations" {
     const allocator = testing.allocator;
-    var profiler = try EventLoopProfiler.init(allocator, 16.0);
+    var profiler = try EventLoopProfiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     // These should not panic
@@ -991,11 +979,11 @@ test "event loop profiler empty operations" {
 
 test "profiler reset clears flame graph state" {
     const allocator = testing.allocator;
-    var profiler = try Profiler.init(allocator, 16.0);
+    var profiler = try Profiler.init(allocator, testing.io, 16.0);
     defer profiler.deinit();
 
     try profiler.beginScope("test");
-    std.Thread.sleep(10_000);
+    try testing.io.sleep(.fromNanoseconds(10_000), .awake);
     try profiler.endScope();
 
     profiler.reset();
@@ -1008,7 +996,7 @@ test "profiler reset clears flame graph state" {
 
 test "memory tracker net allocated with over-freed bytes" {
     const allocator = testing.allocator;
-    var tracker = try MemoryTracker.init(allocator);
+    var tracker = try MemoryTracker.init(allocator, testing.io);
     defer tracker.deinit();
 
     try tracker.recordAlloc("widget", 1000);

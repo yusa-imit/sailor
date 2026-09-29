@@ -27,10 +27,10 @@ const Color = @import("../color.zig").Color;
 
 /// Direction for linear gradients
 pub const Direction = enum {
-    horizontal,      // Left to right
-    vertical,        // Top to bottom
-    diagonal_down,   // Top-left to bottom-right
-    diagonal_up,     // Bottom-left to top-right
+    horizontal, // Left to right
+    vertical, // Top to bottom
+    diagonal_down, // Top-left to bottom-right
+    diagonal_up, // Bottom-left to top-right
 
     /// Angle in degrees (0 = horizontal, 90 = vertical, clockwise)
     pub fn angle(self: Direction) f64 {
@@ -45,14 +45,14 @@ pub const Direction = enum {
 
 /// Color interpolation method
 pub const Interpolation = enum {
-    rgb,   // Direct RGB interpolation
-    hsv,   // Convert to HSV, interpolate, convert back (smoother for some cases)
+    rgb, // Direct RGB interpolation
+    hsv, // Convert to HSV, interpolate, convert back (smoother for some cases)
 };
 
 /// A color stop in a gradient (position + color)
 pub const ColorStop = struct {
-    offset: f64,        // Position in gradient (0.0 to 1.0)
-    color: Color,       // Color at this position
+    offset: f64, // Position in gradient (0.0 to 1.0)
+    color: Color, // Color at this position
 
     /// Sort function for color stops by offset
     fn lessThan(_: void, a: ColorStop, b: ColorStop) bool {
@@ -116,13 +116,12 @@ pub const LinearGradient = struct {
 
         return interpolateColor(before.color, after.color, t, self.interpolation);
     }
-
 };
 
 /// Radial gradient configuration (from center outward)
 pub const RadialGradient = struct {
-    center_x: f64 = 0.5,     // Center X (0.0 to 1.0)
-    center_y: f64 = 0.5,     // Center Y (0.0 to 1.0)
+    center_x: f64 = 0.5, // Center X (0.0 to 1.0)
+    center_y: f64 = 0.5, // Center Y (0.0 to 1.0)
     stops: []const ColorStop,
     interpolation: Interpolation = .rgb,
 
@@ -146,15 +145,14 @@ pub const RadialGradient = struct {
 
         return linear.colorAt(position);
     }
-
 };
 
 /// Conic gradient configuration (color transitions by angle)
 pub const ConicGradient = struct {
     stops: []const ColorStop,
-    center_x: f64 = 0.5,           // Center X (0.0 to 1.0)
-    center_y: f64 = 0.5,           // Center Y (0.0 to 1.0)
-    start_angle: f64 = 0.0,        // Starting angle in degrees (0=right, 90=down)
+    center_x: f64 = 0.5, // Center X (0.0 to 1.0)
+    center_y: f64 = 0.5, // Center Y (0.0 to 1.0)
+    start_angle: f64 = 0.0, // Starting angle in degrees (0=right, 90=down)
     interpolation: Interpolation = .rgb,
 
     /// Get color at a specific angle (0..360 degrees)
@@ -388,8 +386,8 @@ test "Direction.angle" {
 
 test "LinearGradient.colorAt - two stops" {
     const stops = [_]ColorStop{
-        .{ .offset = 0.0, .color = Color.fromRgb(255, 0, 0) },   // Red
-        .{ .offset = 1.0, .color = Color.fromRgb(0, 0, 255) },   // Blue
+        .{ .offset = 0.0, .color = Color.fromRgb(255, 0, 0) }, // Red
+        .{ .offset = 1.0, .color = Color.fromRgb(0, 0, 255) }, // Blue
     };
 
     const gradient = LinearGradient{
@@ -417,9 +415,9 @@ test "LinearGradient.colorAt - two stops" {
 
 test "LinearGradient.colorAt - three stops" {
     const stops = [_]ColorStop{
-        .{ .offset = 0.0, .color = Color.fromRgb(255, 0, 0) },   // Red
-        .{ .offset = 0.5, .color = Color.fromRgb(0, 255, 0) },   // Green
-        .{ .offset = 1.0, .color = Color.fromRgb(0, 0, 255) },   // Blue
+        .{ .offset = 0.0, .color = Color.fromRgb(255, 0, 0) }, // Red
+        .{ .offset = 0.5, .color = Color.fromRgb(0, 255, 0) }, // Green
+        .{ .offset = 1.0, .color = Color.fromRgb(0, 0, 255) }, // Blue
     };
 
     const gradient = LinearGradient{
@@ -433,7 +431,10 @@ test "LinearGradient.colorAt - three stops" {
 
     // Between red and green
     const red_green = gradient.colorAt(0.25);
-    const rg_rgb = switch (red_green) { .rgb => |val| val, else => unreachable };
+    const rg_rgb = switch (red_green) {
+        .rgb => |val| val,
+        else => unreachable,
+    };
     try std.testing.expect(rg_rgb.r > 0);
     try std.testing.expect(rg_rgb.g > 0);
     try std.testing.expect(rg_rgb.b == 0);
@@ -459,8 +460,8 @@ test "LinearGradient.colorAt - clamping" {
 
 test "RadialGradient.colorAt - center" {
     const stops = [_]ColorStop{
-        .{ .offset = 0.0, .color = Color.fromRgb(255, 0, 0) },   // Red center
-        .{ .offset = 1.0, .color = Color.fromRgb(0, 0, 255) },   // Blue edge
+        .{ .offset = 0.0, .color = Color.fromRgb(255, 0, 0) }, // Red center
+        .{ .offset = 1.0, .color = Color.fromRgb(0, 0, 255) }, // Blue edge
     };
 
     const gradient = RadialGradient{
@@ -473,7 +474,10 @@ test "RadialGradient.colorAt - center" {
 
     // At edge (corner), should be closer to blue
     const corner = gradient.colorAt(0.0, 0.0);
-    const corner_rgb = switch (corner) { .rgb => |val| val, else => unreachable };
+    const corner_rgb = switch (corner) {
+        .rgb => |val| val,
+        else => unreachable,
+    };
     try std.testing.expect(corner_rgb.b > corner_rgb.r); // More blue than red
 }
 
@@ -569,7 +573,10 @@ test "interpolateRGB - red to blue" {
     const blue = Color.fromRgb(0, 0, 255);
 
     const mid = interpolateRGB(red, blue, 0.5);
-    const mid_rgb = switch (mid) { .rgb => |val| val, else => unreachable };
+    const mid_rgb = switch (mid) {
+        .rgb => |val| val,
+        else => unreachable,
+    };
 
     try std.testing.expectEqual(127, mid_rgb.r); // ~127
     try std.testing.expectEqual(0, mid_rgb.g);
@@ -581,7 +588,10 @@ test "interpolateHSV - red to blue" {
     const blue = Color.fromRgb(0, 0, 255);
 
     const mid = interpolateHSV(red, blue, 0.5);
-    const mid_rgb = switch (mid) { .rgb => |val| val, else => unreachable };
+    const mid_rgb = switch (mid) {
+        .rgb => |val| val,
+        else => unreachable,
+    };
 
     // HSV interpolation should go through magenta (hue ~300)
     try std.testing.expect(mid_rgb.r > 0);
@@ -590,8 +600,8 @@ test "interpolateHSV - red to blue" {
 
 test "ConicGradient.colorAt - angle normalization" {
     const stops = [_]ColorStop{
-        .{ .offset = 0.0, .color = Color.fromRgb(255, 0, 0) },   // Red (0°)
-        .{ .offset = 1.0, .color = Color.fromRgb(0, 0, 255) },   // Blue (360°)
+        .{ .offset = 0.0, .color = Color.fromRgb(255, 0, 0) }, // Red (0°)
+        .{ .offset = 1.0, .color = Color.fromRgb(0, 0, 255) }, // Blue (360°)
     };
 
     const gradient = ConicGradient{
@@ -611,8 +621,8 @@ test "ConicGradient.colorAt - angle normalization" {
 
 test "ConicGradient.colorAtPoint - center" {
     const stops = [_]ColorStop{
-        .{ .offset = 0.0, .color = Color.fromRgb(255, 0, 0) },   // Red
-        .{ .offset = 1.0, .color = Color.fromRgb(0, 0, 255) },   // Blue
+        .{ .offset = 0.0, .color = Color.fromRgb(255, 0, 0) }, // Red
+        .{ .offset = 1.0, .color = Color.fromRgb(0, 0, 255) }, // Blue
     };
 
     const gradient = ConicGradient{
@@ -627,12 +637,18 @@ test "ConicGradient.colorAtPoint - center" {
 
     // Below center maps to 90° → 25% through gradient (red still dominates over blue)
     const center_down = gradient.colorAtPoint(0.5, 0.6);
-    const down_rgb = switch (center_down) { .rgb => |val| val, else => unreachable };
+    const down_rgb = switch (center_down) {
+        .rgb => |val| val,
+        else => unreachable,
+    };
     try std.testing.expect(down_rgb.r > down_rgb.b);
 
     // Above center maps to 270° → 75% through gradient (blue dominates over red)
     const center_up = gradient.colorAtPoint(0.5, 0.4);
-    const up_rgb = switch (center_up) { .rgb => |val| val, else => unreachable };
+    const up_rgb = switch (center_up) {
+        .rgb => |val| val,
+        else => unreachable,
+    };
     try std.testing.expect(up_rgb.b > up_rgb.r);
 }
 

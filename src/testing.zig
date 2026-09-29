@@ -23,6 +23,12 @@ pub const SideBySideComparison = visual_regression.SideBySideComparison;
 pub const compareBuffers = visual_regression.compareBuffers;
 
 test {
-    // Pull in all tests from sub-modules
-    std.testing.refAllDeclsRecursive(@This());
+    // Pull in all tests from sub-modules. `refAllDeclsRecursive` was removed from
+    // std.testing in 0.16; explicitly reference each sub-module (which discovers its
+    // `test` blocks) and then every public declaration of this file.
+    _ = mock_terminal;
+    _ = snapshot;
+    _ = property;
+    _ = visual_regression;
+    std.testing.refAllDecls(@This());
 }

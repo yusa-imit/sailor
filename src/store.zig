@@ -30,7 +30,7 @@ pub fn Store(State: type, Action: type) type {
             return Self{
                 .state = initial_state,
                 .reducer = reducer,
-                .listeners = .{},
+                .listeners = .empty,
                 .allocator = allocator,
             };
         }

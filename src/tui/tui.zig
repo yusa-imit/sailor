@@ -943,7 +943,7 @@ pub const Event = union(enum) {
 // ============================================================================
 
 test "Terminal init and size" {
-    if (!term_mod.isatty(std.posix.STDOUT_FILENO)) return error.SkipZigTest;
+    if (!try term_mod.isatty(std.testing.io, std.Io.File.stdout())) return error.SkipZigTest;
 
     var term = try Terminal.init(std.testing.allocator);
     defer term.deinit();
@@ -954,7 +954,7 @@ test "Terminal init and size" {
 }
 
 test "Terminal clear" {
-    if (!term_mod.isatty(std.posix.STDOUT_FILENO)) return error.SkipZigTest;
+    if (!try term_mod.isatty(std.testing.io, std.Io.File.stdout())) return error.SkipZigTest;
 
     var term = try Terminal.init(std.testing.allocator);
     defer term.deinit();

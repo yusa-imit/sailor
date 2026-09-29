@@ -45,7 +45,7 @@ const MAX_EVENT_LATENCY_P95_NS: u64 = 1_000_000; // 1ms
 const MAX_EVENT_LATENCY_P99_NS: u64 = 5_000_000; // 5ms
 
 test "RenderBudget basic frame tracking" {
-    var budget = RenderBudget.init(60);
+    var budget = RenderBudget.init(std.testing.io, 60);
 
     // First frame should always render
     const should_render1 = budget.startFrame();
@@ -86,7 +86,7 @@ test "LazyBuffer basic dirty tracking" {
 test "EventBatcher coalesces resize events" {
     const allocator = testing.allocator;
 
-    var batcher = EventBatcher.init(allocator, 16);
+    var batcher = EventBatcher.init(allocator, std.testing.io, 16);
     defer batcher.deinit();
 
     // Add multiple resize events (should coalesce to last one)
@@ -141,7 +141,7 @@ test "LazyBuffer dirty rect optimization" {
 test "DebugOverlay basic initialization and rendering" {
     const allocator = testing.allocator;
 
-    var debug = DebugOverlay.init(allocator, DebugMode.all, .top_left);
+    var debug = DebugOverlay.init(allocator, std.testing.io, DebugMode.all, .top_left);
     defer debug.deinit();
 
     // Add a debug rect
@@ -154,7 +154,7 @@ test "DebugOverlay basic initialization and rendering" {
     } });
 
     // Update stats
-    var test_budget = RenderBudget.init(60);
+    var test_budget = RenderBudget.init(std.testing.io, 60);
     debug.updateStats(&test_budget, null);
 
     // Render should not crash
@@ -189,7 +189,7 @@ test "LazyBuffer with actual rendering" {
 test "EventBatcher preserves key events" {
     const allocator = testing.allocator;
 
-    var batcher = EventBatcher.init(allocator, 16);
+    var batcher = EventBatcher.init(allocator, std.testing.io, 16);
     defer batcher.deinit();
 
     // Add multiple key events (should NOT coalesce)
@@ -219,19 +219,19 @@ test "EventBatcher preserves key events" {
 }
 
 test "RenderBudget FPS calculation" {
-    var budget = RenderBudget.init(60);
+    var budget = RenderBudget.init(std.testing.io, 60);
 
     // Start first frame
     _ = budget.startFrame();
 
     // Sleep for a tiny amount to ensure time passes
-    std.Thread.sleep(1_000_000); // 1ms
+    try testing.io.sleep(.fromNanoseconds(1_000_000), .awake); // 1ms
 
     budget.endFrame();
 
     // Start second frame
     _ = budget.startFrame();
-    std.Thread.sleep(1_000_000); // 1ms
+    try testing.io.sleep(.fromNanoseconds(1_000_000), .awake); // 1ms
     budget.endFrame();
 
     // FPS should be calculated (will be low due to sleep, but > 0)
@@ -242,7 +242,7 @@ test "RenderBudget FPS calculation" {
 test "DebugOverlay clears rects" {
     const allocator = testing.allocator;
 
-    var debug = DebugOverlay.init(allocator, DebugMode.layout_rects, .top_left);
+    var debug = DebugOverlay.init(allocator, std.testing.io, DebugMode.layout_rects, .top_left);
     defer debug.deinit();
 
     // Add multiple rects
@@ -261,12 +261,12 @@ test "performance features integration" {
     const allocator = testing.allocator;
 
     // Setup all performance features together
-    var budget = RenderBudget.init(60);
+    var budget = RenderBudget.init(std.testing.io, 60);
     var lazy = try LazyBuffer.init(allocator, 40, 20);
     defer lazy.deinit();
-    var batcher = EventBatcher.init(allocator, 16);
+    var batcher = EventBatcher.init(allocator, std.testing.io, 16);
     defer batcher.deinit();
-    var debug = DebugOverlay.init(allocator, DebugMode.all, .top_right);
+    var debug = DebugOverlay.init(allocator, std.testing.io, DebugMode.all, .top_right);
     defer debug.deinit();
 
     // Simulate a frame
@@ -328,9 +328,9 @@ test "regression - Block widget render performance" {
 
     // Run 100 iterations for stable metrics
     for (0..100) |_| {
-        const start = std.time.nanoTimestamp();
+        const start = std.Io.Clock.awake.now(testing.io).toNanoseconds();
         block.render(&buffer, area);
-        const end = std.time.nanoTimestamp();
+        const end = std.Io.Clock.awake.now(testing.io).toNanoseconds();
         const duration_ns: u64 = @intCast(end - start);
 
         metrics.recordRender(1, "Block", duration_ns);
@@ -350,9 +350,9 @@ test "regression - Event processing latency" {
 
     // Simulate realistic event processing with minimal sleep
     for (0..50) |_| {
-        const start = std.time.nanoTimestamp();
-        std.Thread.sleep(10_000); // 10μs
-        const end = std.time.nanoTimestamp();
+        const start = std.Io.Clock.awake.now(testing.io).toNanoseconds();
+        try testing.io.sleep(.fromNanoseconds(10_000), .awake); // 10μs
+        const end = std.Io.Clock.awake.now(testing.io).toNanoseconds();
 
         const latency_ns: u64 = @intCast(end - start);
         metrics.recordEvent("key_press", latency_ns, 5);
@@ -407,9 +407,9 @@ test "regression - Type aggregation accuracy" {
 
         // 10 renders per widget
         for (0..10) |_| {
-            const start = std.time.nanoTimestamp();
+            const start = std.Io.Clock.awake.now(testing.io).toNanoseconds();
             block.render(&buffer, area);
-            const end = std.time.nanoTimestamp();
+            const end = std.Io.Clock.awake.now(testing.io).toNanoseconds();
             const duration_ns: u64 = @intCast(end - start);
 
             metrics.recordRender(widget_id, "Block", duration_ns);

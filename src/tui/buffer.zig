@@ -578,20 +578,19 @@ test "diff - size mismatch" {
 
 test "renderDiff - simple" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     const ops = [_]DiffOp{
         .{ .x = 0, .y = 0, .cell = Cell.init('A', .{}) },
         .{ .x = 1, .y = 0, .cell = Cell.init('B', .{ .fg = .red }) },
     };
 
-    try renderDiff(&ops, writer);
+    try renderDiff(&ops, &fbs);
 
-    const output = fbs.getWritten();
+    const output = fbs.buffered();
     // Should contain cursor positioning and characters
-    try std.testing.expect(std.mem.indexOf(u8, output, "\x1b[1;1H") != null); // cursor to 1,1
-    try std.testing.expect(std.mem.indexOf(u8, output, "A") != null);
+    try std.testing.expect(std.mem.find(u8, output, "\x1b[1;1H") != null); // cursor to 1,1
+    try std.testing.expect(std.mem.find(u8, output, "A") != null);
 }
 
 test "Buffer.setString - unicode characters" {
@@ -710,12 +709,11 @@ test "diff - stress test with many changes" {
 
     // Verify diff output generates valid ANSI codes
     var buf: [4096]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
-    try renderDiff(ops, writer);
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try renderDiff(ops, &fbs);
 
     // Output should contain cursor movements and color codes
-    try std.testing.expect(fbs.pos > 0);
+    try std.testing.expect(fbs.end > 0);
 }
 
 test "diff - identical buffers produce no operations" {
@@ -751,11 +749,10 @@ test "diff - single cell change" {
 
     // Verify diff output
     var buf: [1024]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
-    try renderDiff(ops, writer);
+    var fbs: std.Io.Writer = .fixed(&buf);
+    try renderDiff(ops, &fbs);
 
-    try std.testing.expect(fbs.pos > 0);
+    try std.testing.expect(fbs.end > 0);
 }
 
 test "Buffer.clone - creates independent copy" {
@@ -795,7 +792,7 @@ test "benchmark setString with realistic workload" {
     const style = Style{ .fg = .white };
 
     // Measure total time for all writes
-    var timer = try std.time.Timer.start();
+    var timer = std.Io.Clock.awake.now(std.testing.io);
 
     var i: usize = 0;
     while (i < num_writes) : (i += 1) {
@@ -809,7 +806,7 @@ test "benchmark setString with realistic workload" {
         }
     }
 
-    const elapsed = timer.read();
+    const elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Verify correctness: first write should be present
     try std.testing.expectEqual(@as(u21, 'T'), buffer.get(0, 0).?.char);
@@ -841,7 +838,7 @@ test "benchmark setString vs fill performance comparison" {
 
     // Benchmark setString: multiple writes
     const num_writes = 50;
-    var timer = try std.time.Timer.start();
+    var timer = std.Io.Clock.awake.now(std.testing.io);
 
     var i: usize = 0;
     while (i < num_writes) : (i += 1) {
@@ -851,10 +848,10 @@ test "benchmark setString vs fill performance comparison" {
         }
     }
 
-    const setstring_elapsed = timer.read();
+    const setstring_elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Benchmark fill: for comparison (similar number of cells written)
-    timer = try std.time.Timer.start();
+    timer = std.Io.Clock.awake.now(std.testing.io);
 
     var j: usize = 0;
     while (j < num_writes) : (j += 1) {
@@ -867,7 +864,7 @@ test "benchmark setString vs fill performance comparison" {
         buffer.fill(area, 'X', style);
     }
 
-    const fill_elapsed = timer.read();
+    const fill_elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Verify data was written
     try std.testing.expect(buffer.get(0, 0) != null);
@@ -876,7 +873,7 @@ test "benchmark setString vs fill performance comparison" {
     std.debug.print("\nbenchmark comparison:\n", .{});
     std.debug.print("  setString: {d} ns ({d} ns/op)\n", .{ setstring_elapsed, setstring_elapsed / num_writes });
     std.debug.print("  fill:      {d} ns ({d} ns/op)\n", .{ fill_elapsed, fill_elapsed / num_writes });
-    std.debug.print("  ratio:     {d:.2}x\n", .{ @as(f64, @floatFromInt(setstring_elapsed)) / @as(f64, @floatFromInt(fill_elapsed)) });
+    std.debug.print("  ratio:     {d:.2}x\n", .{@as(f64, @floatFromInt(setstring_elapsed)) / @as(f64, @floatFromInt(fill_elapsed))});
 }
 
 test "benchmark setString high-frequency updates" {
@@ -890,7 +887,7 @@ test "benchmark setString high-frequency updates" {
     const status_text = "Status: Processing...";
     const style = Style{ .fg = .yellow };
 
-    var timer = try std.time.Timer.start();
+    var timer = std.Io.Clock.awake.now(std.testing.io);
 
     var i: usize = 0;
     while (i < num_updates) : (i += 1) {
@@ -898,7 +895,7 @@ test "benchmark setString high-frequency updates" {
         buffer.setString(0, 23, status_text, style);
     }
 
-    const elapsed = timer.read();
+    const elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Verify correctness
     try std.testing.expectEqual(@as(u21, 'S'), buffer.get(0, 23).?.char);
@@ -932,7 +929,7 @@ test "benchmark set() with 10000 operations" {
     }
 
     // Start measurement
-    var timer = try std.time.Timer.start();
+    var timer = std.Io.Clock.awake.now(std.testing.io);
 
     // Perform 10,000 set operations with pseudo-random positions
     // Using simple LCG to avoid overhead of complex PRNG
@@ -948,7 +945,7 @@ test "benchmark set() with 10000 operations" {
         buffer.set(x, y, .{ .char = char, .style = style });
     }
 
-    const elapsed = timer.read();
+    const elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Verify that data was actually written (prevent optimization dead code)
     try std.testing.expect(buffer.get(0, 0) != null);
@@ -977,7 +974,7 @@ test "benchmark set() comparison: sequential vs random positions" {
     const style = Style{ .fg = .green };
 
     // Test 1: Sequential positions (best cache locality)
-    var timer = try std.time.Timer.start();
+    var timer = std.Io.Clock.awake.now(std.testing.io);
 
     var seq_op: usize = 0;
     while (seq_op < num_ops) : (seq_op += 1) {
@@ -987,10 +984,10 @@ test "benchmark set() comparison: sequential vs random positions" {
         buffer.set(x, y, .{ .char = 'S', .style = style });
     }
 
-    const seq_elapsed = timer.read();
+    const seq_elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Test 2: Random positions (worst cache locality)
-    timer = try std.time.Timer.start();
+    timer = std.Io.Clock.awake.now(std.testing.io);
 
     var seed: u32 = 9999;
     var rand_op: usize = 0;
@@ -1001,7 +998,7 @@ test "benchmark set() comparison: sequential vs random positions" {
         buffer.set(x, y, .{ .char = 'R', .style = style });
     }
 
-    const rand_elapsed = timer.read();
+    const rand_elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Verify operations completed
     try std.testing.expect(buffer.get(0, 0) != null);
@@ -1035,7 +1032,7 @@ test "benchmark set() with style variations" {
     const num_ops = 5_000;
 
     // Test 1: No style (minimal data)
-    var timer = try std.time.Timer.start();
+    var timer = std.Io.Clock.awake.now(std.testing.io);
 
     var op1: usize = 0;
     while (op1 < num_ops) : (op1 += 1) {
@@ -1044,10 +1041,10 @@ test "benchmark set() with style variations" {
         buffer.set(x, y, .{ .char = 'A', .style = .{} });
     }
 
-    const nostyle_elapsed = timer.read();
+    const nostyle_elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Test 2: Complex style (many attributes)
-    timer = try std.time.Timer.start();
+    timer = std.Io.Clock.awake.now(std.testing.io);
 
     var op2: usize = 0;
     while (op2 < num_ops) : (op2 += 1) {
@@ -1065,7 +1062,7 @@ test "benchmark set() with style variations" {
         });
     }
 
-    const styled_elapsed = timer.read();
+    const styled_elapsed: u64 = @intCast(timer.untilNow(std.testing.io, .awake).toNanoseconds());
 
     // Verify operations
     try std.testing.expect(buffer.get(0, 0) != null);
@@ -1221,5 +1218,5 @@ test "Buffer.getLine - with unicode characters" {
     // "Test" = 4 cells, "你" = 2 cells (at position 4), "好" = 2 cells (at position 6)
     // getLine() reads character-by-character from cells, so it should capture the full string
     try std.testing.expect(std.mem.startsWith(u8, line, "Test"));
-    try std.testing.expect(std.mem.indexOf(u8, line, "你") != null);
+    try std.testing.expect(std.mem.find(u8, line, "你") != null);
 }

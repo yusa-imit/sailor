@@ -35,12 +35,11 @@ const Count = struct {
     actual: u32,
 };
 
-pub fn main() !void {
-    var arena_state = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena_state.deinit();
-    const arena = arena_state.allocator();
+pub fn main(init: std.process.Init) !void {
+    const arena = init.arena.allocator();
+    const io = init.io;
 
-    const args = try std.process.argsAlloc(arena);
+    const args = try init.minimal.args.toSlice(arena);
     if (args.len != 5) {
         std.debug.print(
             "usage: tidy <check|generate> <src-dir> <build-zig-path> <baseline-path>\n",
@@ -53,10 +52,10 @@ pub fn main() !void {
         std.process.exit(2);
     };
 
-    const counts = try collectCounts(arena, args[2], args[3]);
+    const counts = try collectCounts(arena, io, args[2], args[3]);
     switch (mode) {
-        .generate => try writeBaseline(arena, args[4], counts),
-        .check => try runCheck(arena, args[4], counts),
+        .generate => try writeBaseline(arena, io, args[4], counts),
+        .check => try runCheck(arena, io, args[4], counts),
     }
 }
 
@@ -83,12 +82,13 @@ fn appendCount(
 /// Computes every check's actual count for one file's text and appends the non-zero ones.
 fn appendFileCounts(
     arena: std.mem.Allocator,
+    io: std.Io,
     counts: *std.ArrayList(Count),
     path: []const u8,
     is_build_script: bool,
 ) !void {
     assert(path.len > 0);
-    const text = try std.fs.cwd().readFileAlloc(arena, path, file_bytes_max);
+    const text = try std.Io.Dir.cwd().readFileAlloc(io, path, arena, .limited(file_bytes_max));
     assert(text.len <= file_bytes_max);
 
     try appendCount(arena, counts, path, "line_length", "-", tidy.countLongLines(text, line_length_max));
@@ -149,6 +149,7 @@ fn joinRelPath(arena: std.mem.Allocator, src_dir: []const u8, sub_path: []const 
 /// returns every non-zero (file, check, name) count found.
 fn collectCounts(
     arena: std.mem.Allocator,
+    io: std.Io,
     src_dir: []const u8,
     build_zig_path: []const u8,
 ) ![]Count {
@@ -156,23 +157,23 @@ fn collectCounts(
     assert(build_zig_path.len > 0);
     var counts: std.ArrayList(Count) = .empty;
 
-    var dir = try std.fs.cwd().openDir(src_dir, .{ .iterate = true });
-    defer dir.close();
+    var dir = try std.Io.Dir.cwd().openDir(io, src_dir, .{ .iterate = true });
+    defer dir.close(io);
 
     var walker = try dir.walk(arena);
     defer walker.deinit();
 
     var files_seen: u32 = 0;
-    while (try walker.next()) |entry| {
+    while (try walker.next(io)) |entry| {
         assert(files_seen < files_max);
         files_seen += 1;
         if (entry.kind != .file) continue;
         if (!std.mem.endsWith(u8, entry.basename, ".zig")) continue;
         const rel_path = try joinRelPath(arena, src_dir, entry.path);
-        try appendFileCounts(arena, &counts, rel_path, false);
+        try appendFileCounts(arena, io, &counts, rel_path, false);
     }
 
-    try appendFileCounts(arena, &counts, build_zig_path, true);
+    try appendFileCounts(arena, io, &counts, build_zig_path, true);
     assert(counts.items.len <= files_seen * 9 + 9); // Bounded: ~9 checks per file at most.
     return counts.toOwnedSlice(arena);
 }
@@ -189,7 +190,12 @@ const baseline_header =
 
 /// Writes `baseline_path` as sorted, pipe-delimited `file|check|name|count` lines, one per
 /// non-zero actual count, so re-generation from an unchanged tree is byte-for-byte stable.
-fn writeBaseline(arena: std.mem.Allocator, baseline_path: []const u8, counts: []const Count) !void {
+fn writeBaseline(
+    arena: std.mem.Allocator,
+    io: std.Io,
+    baseline_path: []const u8,
+    counts: []const Count,
+) !void {
     assert(baseline_path.len > 0);
     const sorted = try arena.dupe(Count, counts);
     std.mem.sort(Count, sorted, {}, lessThanCount);
@@ -201,17 +207,19 @@ fn writeBaseline(arena: std.mem.Allocator, baseline_path: []const u8, counts: []
     }
     assert(buf.items.len >= baseline_header.len);
 
-    var file = try std.fs.cwd().createFile(baseline_path, .{});
-    defer file.close();
-
-    try file.writeAll(buf.items);
+    try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = baseline_path, .data = buf.items });
 }
 
 /// Parses `baseline_path`, compares every actual count against it, and prints one line per
 /// violation to stderr; exits 1 if any violation was found, 0 otherwise.
-fn runCheck(arena: std.mem.Allocator, baseline_path: []const u8, counts: []const Count) !void {
+fn runCheck(
+    arena: std.mem.Allocator,
+    io: std.Io,
+    baseline_path: []const u8,
+    counts: []const Count,
+) !void {
     assert(baseline_path.len > 0);
-    const text = try std.fs.cwd().readFileAlloc(arena, baseline_path, file_bytes_max);
+    const text = try std.Io.Dir.cwd().readFileAlloc(io, baseline_path, arena, .limited(file_bytes_max));
     const entries = try tidy.parseBaseline(arena, text);
 
     var violations: u32 = 0;

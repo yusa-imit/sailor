@@ -36,17 +36,17 @@ const Block = block_mod.Block;
 /// HexViewer widget — displays binary data in hex dump format
 pub const HexViewer = struct {
     data: []const u8,
-    offset: usize = 0,           // byte offset, always aligned to bytes_per_row
-    selected: ?usize = null,     // selected byte index (or null)
-    bytes_per_row: u8 = 16,      // bytes to display per row
-    group_size: u8 = 8,          // bytes per group (extra space between groups)
-    block: ?Block = null,        // optional border
-    address_style: Style = .{},  // style for address column
-    hex_style: Style = .{},      // style for hex bytes
-    ascii_style: Style = .{},    // style for ASCII panel
+    offset: usize = 0, // byte offset, always aligned to bytes_per_row
+    selected: ?usize = null, // selected byte index (or null)
+    bytes_per_row: u8 = 16, // bytes to display per row
+    group_size: u8 = 8, // bytes per group (extra space between groups)
+    block: ?Block = null, // optional border
+    address_style: Style = .{}, // style for address column
+    hex_style: Style = .{}, // style for hex bytes
+    ascii_style: Style = .{}, // style for ASCII panel
     selected_style: Style = .{}, // style for selected byte
-    show_ascii: bool = true,     // show ASCII panel
-    show_address: bool = true,   // show address column
+    show_ascii: bool = true, // show ASCII panel
+    show_address: bool = true, // show address column
 
     /// Create a new HexViewer with data
     pub fn init(data: []const u8) HexViewer {

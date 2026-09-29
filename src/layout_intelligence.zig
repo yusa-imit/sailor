@@ -80,8 +80,8 @@ pub const LayoutAnalyzer = struct {
     pub fn init(allocator: Allocator) LayoutAnalyzer {
         return .{
             .allocator = allocator,
-            .issues = .{},
-            .filtered_cache = .{},
+            .issues = .empty,
+            .filtered_cache = .empty,
         };
     }
 
@@ -133,9 +133,9 @@ pub const LayoutAnalyzer = struct {
                 // Check for common percentage ratios: 25%, 33%, 50%, 66%, 75%
                 // Allow some tolerance for rounding
                 const is_likely_percentage =
-                    (width_ratio > 0.7 and width_ratio < 0.8) or  // ~75%
+                    (width_ratio > 0.7 and width_ratio < 0.8) or // ~75%
                     (width_ratio > 0.45 and width_ratio < 0.55) or // ~50%
-                    (width_ratio > 0.6 and width_ratio < 0.7) or   // ~66%
+                    (width_ratio > 0.6 and width_ratio < 0.7) or // ~66%
                     (height_ratio > 0.7 and height_ratio < 0.8) or
                     (height_ratio > 0.45 and height_ratio < 0.55) or
                     (height_ratio > 0.6 and height_ratio < 0.7);
@@ -145,9 +145,9 @@ pub const LayoutAnalyzer = struct {
                     const parent_width_ratio = @as(f32, @floatFromInt(parent.bounds.width)) / @as(f32, @floatFromInt(grandparent.bounds.width));
                     const parent_height_ratio = @as(f32, @floatFromInt(parent.bounds.height)) / @as(f32, @floatFromInt(grandparent.bounds.height));
                     break :blk (parent_width_ratio > 0.7 and parent_width_ratio < 0.8) or
-                            (parent_width_ratio > 0.45 and parent_width_ratio < 0.55) or
-                            (parent_height_ratio > 0.7 and parent_height_ratio < 0.8) or
-                            (parent_height_ratio > 0.45 and parent_height_ratio < 0.55);
+                        (parent_width_ratio > 0.45 and parent_width_ratio < 0.55) or
+                        (parent_height_ratio > 0.7 and parent_height_ratio < 0.8) or
+                        (parent_height_ratio > 0.45 and parent_height_ratio < 0.55);
                 } else false;
 
                 // Detect nested percentage constraints (depth >= 2 means at least 2 levels deep)
@@ -170,7 +170,7 @@ pub const LayoutAnalyzer = struct {
                 try self.addIssue(.{
                     .severity = .low,
                     .category = .unused_space,
-                    .description = try std.fmt.allocPrint(self.allocator, "Large margins detected (x={d}, y={d})", .{node.bounds.x, node.bounds.y}),
+                    .description = try std.fmt.allocPrint(self.allocator, "Large margins detected (x={d}, y={d})", .{ node.bounds.x, node.bounds.y }),
                     .widget_path = try self.allocator.dupe(u8, path),
                     .suggestion = try self.allocator.dupe(u8, "Reduce margins on small screens to maximize usable space"),
                 });
@@ -235,7 +235,7 @@ pub const LayoutAnalyzer = struct {
         // Recursively analyze children
         for (node.children, 0..) |child, i| {
             var child_path_buf: [256]u8 = undefined;
-            const new_path = try std.fmt.bufPrint(&child_path_buf, "{s}.{s}{d}", .{path, child.name, i});
+            const new_path = try std.fmt.bufPrint(&child_path_buf, "{s}.{s}{d}", .{ path, child.name, i });
             try self.analyzeNode(child, new_path, &child_path_buf);
         }
 
@@ -271,7 +271,10 @@ pub const LayoutAnalyzer = struct {
     /// Get issues filtered by category
     /// Returns a view into the cached filtered results
     /// The returned slice is valid until the next call to this method
-    pub fn getIssuesByCategory(self: *LayoutAnalyzer, category: LayoutIssue.Category) []const LayoutIssue {
+    pub fn getIssuesByCategory(
+        self: *LayoutAnalyzer,
+        category: LayoutIssue.Category,
+    ) []const LayoutIssue {
         // Clear the cache and rebuild with matching issues
         self.filtered_cache.clearRetainingCapacity();
 
@@ -285,7 +288,12 @@ pub const LayoutAnalyzer = struct {
     }
 
     /// Check if layout is responsive for given screen size
-    pub fn checkResponsiveness(self: *LayoutAnalyzer, root: *WidgetNode, screen_width: u16, screen_height: u16) !bool {
+    pub fn checkResponsiveness(
+        self: *LayoutAnalyzer,
+        root: *WidgetNode,
+        screen_width: u16,
+        screen_height: u16,
+    ) !bool {
         _ = self;
 
         // Check if root widget fits within screen
@@ -324,7 +332,12 @@ pub const LayoutAnalyzer = struct {
     }
 
     /// Auto-adjust layout for target screen size
-    pub fn autoAdjust(self: *LayoutAnalyzer, root: *WidgetNode, target_width: u16, target_height: u16) !*WidgetNode {
+    pub fn autoAdjust(
+        self: *LayoutAnalyzer,
+        root: *WidgetNode,
+        target_width: u16,
+        target_height: u16,
+    ) !*WidgetNode {
         _ = self;
 
         // Adjust root bounds to fit target
@@ -374,7 +387,11 @@ pub const ResponsivenessChecker = struct {
     }
 
     /// Check if constraints work across screen sizes
-    pub fn checkConstraints(self: *const ResponsivenessChecker, constraints: []const Constraint, available: u16) bool {
+    pub fn checkConstraints(
+        self: *const ResponsivenessChecker,
+        constraints: []const Constraint,
+        available: u16,
+    ) bool {
         _ = self;
 
         if (constraints.len == 0) return true;
@@ -409,7 +426,11 @@ pub const ResponsivenessChecker = struct {
     }
 
     /// Detect widgets with fixed sizes that may not be responsive
-    pub fn detectFixedSizes(self: *const ResponsivenessChecker, allocator: Allocator, root: *WidgetNode) !ArrayList([]const u8) {
+    pub fn detectFixedSizes(
+        self: *const ResponsivenessChecker,
+        allocator: Allocator,
+        root: *WidgetNode,
+    ) !ArrayList([]const u8) {
         var result: ArrayList([]const u8) = .empty;
 
         try self.detectFixedSizesRecursive(allocator, root, "root", &result);
@@ -417,10 +438,18 @@ pub const ResponsivenessChecker = struct {
         return result;
     }
 
-    fn detectFixedSizesRecursive(self: *const ResponsivenessChecker, allocator: Allocator, node: *WidgetNode, path: []const u8, result: *ArrayList([]const u8)) !void {
+    fn detectFixedSizesRecursive(
+        self: *const ResponsivenessChecker,
+        allocator: Allocator,
+        node: *WidgetNode,
+        path: []const u8,
+        result: *ArrayList([]const u8),
+    ) !void {
 
         // Check if widget has fixed size that exceeds min screen size
-        if (node.bounds.width > self.min_screen_width or node.bounds.height > self.min_screen_height) {
+        if (node.bounds.width > self.min_screen_width or
+            node.bounds.height > self.min_screen_height)
+        {
             const owned_path = try allocator.dupe(u8, path);
             try result.append(allocator, owned_path);
         }
@@ -428,7 +457,11 @@ pub const ResponsivenessChecker = struct {
         // Check children
         var path_buf: [256]u8 = undefined;
         for (node.children, 0..) |child, i| {
-            const new_path = try std.fmt.bufPrint(&path_buf, "{s}.{s}{d}", .{path, child.name, i});
+            const new_path = try std.fmt.bufPrint(
+                &path_buf,
+                "{s}.{s}{d}",
+                .{ path, child.name, i },
+            );
             try self.detectFixedSizesRecursive(allocator, child, new_path, result);
         }
     }
@@ -445,7 +478,11 @@ pub const AccessibilityChecker = struct {
     }
 
     /// Check widget tree for accessibility issues
-    pub fn checkTree(self: *AccessibilityChecker, allocator: Allocator, root: *WidgetNode) ![]const LayoutIssue {
+    pub fn checkTree(
+        self: *AccessibilityChecker,
+        allocator: Allocator,
+        root: *WidgetNode,
+    ) ![]const LayoutIssue {
         _ = self;
 
         var issues: ArrayList(LayoutIssue) = .empty;
@@ -455,7 +492,12 @@ pub const AccessibilityChecker = struct {
         return issues.toOwnedSlice(allocator);
     }
 
-    fn checkNodeAccessibility(allocator: Allocator, node: *WidgetNode, path: []const u8, issues: *ArrayList(LayoutIssue)) !void {
+    fn checkNodeAccessibility(
+        allocator: Allocator,
+        node: *WidgetNode,
+        path: []const u8,
+        issues: *ArrayList(LayoutIssue),
+    ) !void {
 
         // Only check input widgets that DON'T have focus and have a parent
         // Root widgets don't need focus indicators
@@ -496,12 +538,14 @@ pub const AccessibilityChecker = struct {
         // For now, we flag all non-input, non-button widgets that don't have focus
         // Only skip the check if the widget is focused (has accessibility already)
         const should_check_contrast = !isInputWidget(node.name) and
-                                      !isButtonWidget(node.name) and
-                                      !isCustomWidget(node.name) and
-                                      !node.focused and
-                                      node.parent != null; // Skip top-level root if it has focus
+            !isButtonWidget(node.name) and
+            !isCustomWidget(node.name) and
+            !node.focused and
+            node.parent != null; // Skip top-level root if it has focus
 
-        if (should_check_contrast or (std.mem.eql(u8, node.name, "Root") and node.parent == null and !node.focused)) {
+        const is_root_unfocused = std.mem.eql(u8, node.name, "Root") and
+            node.parent == null and !node.focused;
+        if (should_check_contrast or is_root_unfocused) {
             try issues.append(allocator, .{
                 .severity = .low,
                 .category = .poor_accessibility,
@@ -514,7 +558,11 @@ pub const AccessibilityChecker = struct {
         // Check children
         var path_buf: [256]u8 = undefined;
         for (node.children, 0..) |child, i| {
-            const new_path = try std.fmt.bufPrint(&path_buf, "{s}.{s}{d}", .{path, child.name, i});
+            const new_path = try std.fmt.bufPrint(
+                &path_buf,
+                "{s}.{s}{d}",
+                .{ path, child.name, i },
+            );
             try checkNodeAccessibility(allocator, child, new_path, issues);
         }
     }
@@ -524,11 +572,11 @@ pub const AccessibilityChecker = struct {
         _ = self;
 
         // Return suggestions based on widget path
-        if (std.mem.indexOf(u8, widget_path, "input") != null) {
+        if (std.mem.find(u8, widget_path, "input") != null) {
             return "Add focus indicator for keyboard navigation";
-        } else if (std.mem.indexOf(u8, widget_path, "button") != null) {
+        } else if (std.mem.find(u8, widget_path, "button") != null) {
             return "Add keyboard shortcut for accessibility";
-        } else if (std.mem.indexOf(u8, widget_path, "contrast") != null) {
+        } else if (std.mem.find(u8, widget_path, "contrast") != null) {
             return "Increase color contrast to meet WCAG AA standard";
         } else {
             return "Add focus indicator and ensure sufficient color contrast";
@@ -547,7 +595,11 @@ pub const PerformanceAnalyzer = struct {
     }
 
     /// Analyze widget tree for performance issues
-    pub fn analyze(self: *PerformanceAnalyzer, allocator: Allocator, root: *WidgetNode) ![]const LayoutIssue {
+    pub fn analyze(
+        self: *PerformanceAnalyzer,
+        allocator: Allocator,
+        root: *WidgetNode,
+    ) ![]const LayoutIssue {
         _ = self;
 
         var issues: ArrayList(LayoutIssue) = .empty;
@@ -557,7 +609,12 @@ pub const PerformanceAnalyzer = struct {
         return issues.toOwnedSlice(allocator);
     }
 
-    fn analyzeNodePerformance(allocator: Allocator, node: *WidgetNode, path: []const u8, issues: *ArrayList(LayoutIssue)) !void {
+    fn analyzeNodePerformance(
+        allocator: Allocator,
+        node: *WidgetNode,
+        path: []const u8,
+        issues: *ArrayList(LayoutIssue),
+    ) !void {
 
         // Check for deep nesting
         const depth = node.depth();
@@ -565,9 +622,16 @@ pub const PerformanceAnalyzer = struct {
             try issues.append(allocator, .{
                 .severity = if (depth > 10) .high else .medium,
                 .category = .performance_issue,
-                .description = try std.fmt.allocPrint(allocator, "Deep nesting ({d} levels)", .{depth}),
+                .description = try std.fmt.allocPrint(
+                    allocator,
+                    "Deep nesting ({d} levels)",
+                    .{depth},
+                ),
                 .widget_path = try allocator.dupe(u8, path),
-                .suggestion = try allocator.dupe(u8, "Flatten widget hierarchy to improve performance"),
+                .suggestion = try allocator.dupe(
+                    u8,
+                    "Flatten widget hierarchy to improve performance",
+                ),
             });
         }
 
@@ -576,7 +640,11 @@ pub const PerformanceAnalyzer = struct {
             try issues.append(allocator, .{
                 .severity = if (node.memory_bytes > 10_000_000) .high else .medium,
                 .category = .performance_issue,
-                .description = try std.fmt.allocPrint(allocator, "High memory usage ({d} bytes)", .{node.memory_bytes}),
+                .description = try std.fmt.allocPrint(
+                    allocator,
+                    "High memory usage ({d} bytes)",
+                    .{node.memory_bytes},
+                ),
                 .widget_path = try allocator.dupe(u8, path),
                 .suggestion = try allocator.dupe(u8, "Consider lazy loading or pagination"),
             });
@@ -587,7 +655,11 @@ pub const PerformanceAnalyzer = struct {
             try issues.append(allocator, .{
                 .severity = if (node.render_ns > 50_000_000) .high else .medium,
                 .category = .performance_issue,
-                .description = try std.fmt.allocPrint(allocator, "Slow render time ({d}ms)", .{node.render_ns / 1_000_000}),
+                .description = try std.fmt.allocPrint(
+                    allocator,
+                    "Slow render time ({d}ms)",
+                    .{node.render_ns / 1_000_000},
+                ),
                 .widget_path = try allocator.dupe(u8, path),
                 .suggestion = try allocator.dupe(u8, "Optimize rendering or use virtual scrolling"),
             });
@@ -599,7 +671,11 @@ pub const PerformanceAnalyzer = struct {
             try issues.append(allocator, .{
                 .severity = .medium,
                 .category = .performance_issue,
-                .description = try std.fmt.allocPrint(allocator, "Too many widgets ({d} total)", .{widget_count}),
+                .description = try std.fmt.allocPrint(
+                    allocator,
+                    "Too many widgets ({d} total)",
+                    .{widget_count},
+                ),
                 .widget_path = try allocator.dupe(u8, path),
                 .suggestion = try allocator.dupe(u8, "Use virtualization or pagination"),
             });
@@ -608,7 +684,11 @@ pub const PerformanceAnalyzer = struct {
         // Check children
         var path_buf: [256]u8 = undefined;
         for (node.children, 0..) |child, i| {
-            const new_path = try std.fmt.bufPrint(&path_buf, "{s}.{s}{d}", .{path, child.name, i});
+            const new_path = try std.fmt.bufPrint(
+                &path_buf,
+                "{s}.{s}{d}",
+                .{ path, child.name, i },
+            );
             try analyzeNodePerformance(allocator, child, new_path, issues);
         }
     }
@@ -642,25 +722,25 @@ pub const PerformanceAnalyzer = struct {
 // ============================================================================
 
 fn isInputWidget(name: []const u8) bool {
-    return std.mem.indexOf(u8, name, "Input") != null or
-           std.mem.indexOf(u8, name, "input") != null or
-           std.mem.indexOf(u8, name, "TextField") != null;
+    return std.mem.find(u8, name, "Input") != null or
+        std.mem.find(u8, name, "input") != null or
+        std.mem.find(u8, name, "TextField") != null;
 }
 
 fn isButtonWidget(name: []const u8) bool {
-    return std.mem.indexOf(u8, name, "Button") != null or
-           std.mem.indexOf(u8, name, "button") != null;
+    return std.mem.find(u8, name, "Button") != null or
+        std.mem.find(u8, name, "button") != null;
 }
 
 fn isCustomWidget(name: []const u8) bool {
     // Custom widgets typically don't match standard widget names
     const standard = [_][]const u8{
-        "Root", "Panel", "List", "Table", "Text", "Input", "Button",
+        "Root",  "Panel",     "List",  "Table", "Text", "Input", "Button",
         "Block", "Paragraph", "Chart", "Gauge", "Tabs",
     };
 
     for (standard) |std_name| {
-        if (std.mem.indexOf(u8, name, std_name) != null) {
+        if (std.mem.find(u8, name, std_name) != null) {
             return false;
         }
     }

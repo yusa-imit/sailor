@@ -14,6 +14,8 @@ pub const RenderBudget = struct {
     max_debt_ns: u64,
     /// Statistics
     stats: Stats,
+    /// Runtime handle used to read the monotonic clock
+    io: std.Io,
 
     pub const Stats = struct {
         total_frames: u64 = 0,
@@ -59,8 +61,8 @@ pub const RenderBudget = struct {
         }
     };
 
-    /// Initialize with target FPS (default: 60)
-    pub fn init(target_fps: u32) RenderBudget {
+    /// Initialize with target FPS (default: 60); caches `io` for clock reads
+    pub fn init(io: std.Io, target_fps: u32) RenderBudget {
         const target_ns = 1_000_000_000 / @as(u64, target_fps);
         return .{
             .target_frame_ns = target_ns,
@@ -68,12 +70,13 @@ pub const RenderBudget = struct {
             .debt_ns = 0,
             .max_debt_ns = target_ns * 2, // 2 frames of debt before skip
             .stats = .{},
+            .io = io,
         };
     }
 
     /// Start a new frame. Returns true if frame should be rendered, false if should skip.
     pub fn startFrame(self: *RenderBudget) bool {
-        const now = std.time.nanoTimestamp();
+        const now = std.Io.Clock.awake.now(self.io).toNanoseconds();
 
         if (self.last_frame_ns == 0) {
             // First frame, always render
@@ -108,7 +111,7 @@ pub const RenderBudget = struct {
 
     /// End current frame, record stats
     pub fn endFrame(self: *RenderBudget) void {
-        const now = std.time.nanoTimestamp();
+        const now = std.Io.Clock.awake.now(self.io).toNanoseconds();
         const frame_time = @as(u64, @intCast(now)) - self.last_frame_ns;
         self.stats.recordFrame(frame_time);
 
@@ -128,7 +131,7 @@ pub const RenderBudget = struct {
     pub fn remainingBudget(self: RenderBudget) u64 {
         if (self.last_frame_ns == 0) return self.target_frame_ns;
 
-        const now = std.time.nanoTimestamp();
+        const now = std.Io.Clock.awake.now(self.io).toNanoseconds();
         const elapsed = @as(u64, @intCast(now)) - self.last_frame_ns;
 
         if (elapsed >= self.target_frame_ns) return 0;
@@ -143,14 +146,14 @@ pub const RenderBudget = struct {
 };
 
 test "RenderBudget init" {
-    const budget = RenderBudget.init(60);
+    const budget = RenderBudget.init(std.testing.io, 60);
     try std.testing.expectEqual(@as(u64, 16_666_666), budget.target_frame_ns);
     try std.testing.expectEqual(@as(u64, 0), budget.debt_ns);
     try std.testing.expectEqual(@as(u64, 33_333_332), budget.max_debt_ns);
 }
 
 test "RenderBudget first frame always renders" {
-    var budget = RenderBudget.init(60);
+    var budget = RenderBudget.init(std.testing.io, 60);
     try std.testing.expect(budget.startFrame());
 }
 
@@ -183,7 +186,7 @@ test "RenderBudget stats record skip" {
 }
 
 test "RenderBudget isOverBudget" {
-    var budget = RenderBudget.init(60);
+    var budget = RenderBudget.init(std.testing.io, 60);
     try std.testing.expect(!budget.isOverBudget());
 
     budget.debt_ns = 1000;
@@ -191,7 +194,7 @@ test "RenderBudget isOverBudget" {
 }
 
 test "RenderBudget resetStats" {
-    var budget = RenderBudget.init(60);
+    var budget = RenderBudget.init(std.testing.io, 60);
     budget.debt_ns = 5000;
     budget.stats.total_frames = 10;
     budget.stats.skipped_frames = 2;

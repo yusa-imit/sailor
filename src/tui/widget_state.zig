@@ -30,9 +30,9 @@ pub fn StateSnapshot(comptime T: type) type {
         timestamp: i64,
         state: T,
 
-        pub fn now(state: T) @This() {
+        pub fn now(io: std.Io, state: T) @This() {
             return .{
-                .timestamp = std.time.timestamp(),
+                .timestamp = std.Io.Clock.real.now(io).toSeconds(),
                 .state = state,
             };
         }
@@ -110,7 +110,7 @@ test "StateSnapshot: create with timestamp" {
     };
 
     const state = State{ .value = 42, .selected = true };
-    const snapshot = StateSnapshot(State).now(state);
+    const snapshot = StateSnapshot(State).now(std.testing.io, state);
 
     try std.testing.expectEqual(@as(u32, 42), snapshot.state.value);
     try std.testing.expectEqual(true, snapshot.state.selected);

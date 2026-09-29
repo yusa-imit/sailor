@@ -31,7 +31,7 @@ fn validateNotEmpty(value: []const u8) ?[]const u8 {
 }
 
 fn validateEmail(value: []const u8) ?[]const u8 {
-    if (std.mem.indexOfScalar(u8, value, '@') == null) {
+    if (std.mem.findScalar(u8, value, '@') == null) {
         return "Invalid email format";
     }
     return null;
@@ -331,7 +331,7 @@ test "validateAll returns error message from validator" {
     try testing.expect(!valid);
     try testing.expect(form.states[0].error_msg != null);
     if (form.states[0].error_msg) |msg| {
-        try testing.expect(std.mem.indexOf(u8, msg, "3") != null);
+        try testing.expect(std.mem.find(u8, msg, "3") != null);
     }
 }
 

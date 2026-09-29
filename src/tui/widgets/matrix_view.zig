@@ -361,7 +361,7 @@ test "MatrixView.colCount returns max column count across rows" {
     const std_test = @import("std").testing;
     var row1 = [_]f32{ 0.5, 0.75 };
     var row2 = [_]f32{ 0.25, 0.9, 0.1 };
-    var row3 = [_]f32{ 0.2 };
+    var row3 = [_]f32{0.2};
     var data = [_][]const f32{ &row1, &row2, &row3 };
     const mv = MatrixView.init().withData(&data);
     try std_test.expectEqual(@as(usize, 3), mv.colCount());

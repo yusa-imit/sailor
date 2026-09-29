@@ -40,6 +40,8 @@ pub const AdaptiveImageRenderer = struct {
     ///
     /// Args:
     ///   allocator: Memory allocator for temporary buffers
+    ///   environ_map: Environment used for Sixel auto-detection
+    ///   io: I/O context used for the terminal capability query
     ///   pixels_rgb: Raw RGB pixel data (3 bytes per pixel, row-major)
     ///   width: Image width in pixels
     ///   height: Image height in pixels
@@ -52,6 +54,8 @@ pub const AdaptiveImageRenderer = struct {
     ///   Other errors from sixel or ANSI art rendering
     pub fn render(
         allocator: Allocator,
+        environ_map: *const std.process.Environ.Map,
+        io: std.Io,
         pixels_rgb: []const u8,
         width: u32,
         height: u32,
@@ -68,7 +72,7 @@ pub const AdaptiveImageRenderer = struct {
         const use_sixel = switch (options.mode) {
             .force_sixel => true,
             .force_ansi => false,
-            .auto => sixel.detectSixelSupport(),
+            .auto => try sixel.detectSixelSupport(environ_map, io),
         };
 
         if (use_sixel) {

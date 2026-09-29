@@ -417,21 +417,19 @@ test "DoubleClickDetector reset" {
 
 test "enableTracking" {
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try enableTracking(writer, .click);
-    const written = fbs.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?1000h") != null);
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?1006h") != null);
+    try enableTracking(&fbs, .click);
+    const written = fbs.buffered();
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?1000h") != null);
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?1006h") != null);
 }
 
 test "disableTracking" {
     var buf: [128]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try disableTracking(writer);
-    const written = fbs.getWritten();
-    try std.testing.expect(std.mem.indexOf(u8, written, "\x1b[?1000l") != null);
+    try disableTracking(&fbs);
+    const written = fbs.buffered();
+    try std.testing.expect(std.mem.find(u8, written, "\x1b[?1000l") != null);
 }

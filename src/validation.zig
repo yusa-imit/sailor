@@ -140,17 +140,17 @@ pub const Validator = struct {
                     }
 
                     // Check for null bytes
-                    if (std.mem.indexOfScalar(u8, input, 0) != null) {
+                    if (std.mem.findScalar(u8, input, 0) != null) {
                         return .{ .invalid = "Email address cannot contain null bytes" };
                     }
 
                     // Find @ sign
-                    const at_pos = std.mem.indexOfScalar(u8, input, '@') orelse {
+                    const at_pos = std.mem.findScalar(u8, input, '@') orelse {
                         return .{ .invalid = "Email must contain @ sign" };
                     };
 
                     // Check for exactly one @
-                    if (std.mem.indexOfScalarPos(u8, input, at_pos + 1, '@') != null) {
+                    if (std.mem.findScalarPos(u8, input, at_pos + 1, '@') != null) {
                         return .{ .invalid = "Email must contain only one @ sign" };
                     }
 
@@ -168,7 +168,7 @@ pub const Validator = struct {
 
                     // Domain must have at least one dot (basic check)
                     // Note: We allow unicode domains (IDN) like 例え.jp
-                    if (std.mem.indexOfScalar(u8, domain, '.') == null) {
+                    if (std.mem.findScalar(u8, domain, '.') == null) {
                         return .{ .invalid = "Email domain must contain a dot" };
                     }
 
@@ -203,12 +203,12 @@ pub const Validator = struct {
                     }
 
                     // Basic malformed check — no spaces in domain
-                    if (std.mem.indexOfScalar(u8, remainder, ' ') != null) {
+                    if (std.mem.findScalar(u8, remainder, ' ') != null) {
                         return .{ .invalid = "URL cannot contain spaces" };
                     }
 
                     // Check for invalid characters in URL
-                    if (std.mem.indexOfScalar(u8, remainder, '!') != null) {
+                    if (std.mem.findScalar(u8, remainder, '!') != null) {
                         return .{ .invalid = "URL contains invalid characters" };
                     }
 
@@ -278,9 +278,9 @@ pub const Validator = struct {
         }
 
         // Simple validation for common regex syntax errors
-        if (std.mem.indexOf(u8, pattern, "[unclosed") != null or
-            std.mem.indexOfScalar(u8, pattern, '[') != null and
-            std.mem.indexOfScalar(u8, pattern, ']') == null)
+        if (std.mem.find(u8, pattern, "[unclosed") != null or
+            std.mem.findScalar(u8, pattern, '[') != null and
+                std.mem.findScalar(u8, pattern, ']') == null)
         {
             return error.InvalidRegex;
         }
@@ -388,19 +388,26 @@ pub const CombineMode = enum {
 /// Async validator with debouncing
 pub const AsyncValidator = struct {
     allocator: Allocator,
+    io: std.Io,
     validator: Validator,
     debounce_ms: u64,
     thread: ?std.Thread = null,
     result: ValidatorResult = .pending,
-    mutex: std.Thread.Mutex = .{},
+    mutex: std.Io.Mutex = .init,
     pending_value: ?[]const u8 = null,
     last_queue_time: i64 = 0,
 
     /// Initialize async validator
-    pub fn init(allocator: Allocator, validator: Validator, debounce_ms: u64) !*AsyncValidator {
+    pub fn init(
+        allocator: Allocator,
+        io: std.Io,
+        validator: Validator,
+        debounce_ms: u64,
+    ) !*AsyncValidator {
         const self = try allocator.create(AsyncValidator);
         self.* = .{
             .allocator = allocator,
+            .io = io,
             .validator = validator,
             .debounce_ms = debounce_ms,
         };
@@ -420,15 +427,15 @@ pub const AsyncValidator = struct {
 
     /// Queue validation with debouncing
     pub fn queueValidation(self: *AsyncValidator, value: []const u8) !void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         // Store value for validation
         if (self.pending_value) |old| {
             self.allocator.free(old);
         }
         self.pending_value = try self.allocator.dupe(u8, value);
-        self.last_queue_time = std.time.milliTimestamp();
+        self.last_queue_time = self.nowMs();
         self.result = .pending;
 
         // Start validation thread if not running
@@ -437,39 +444,48 @@ pub const AsyncValidator = struct {
         }
     }
 
+    /// Monotonic milliseconds; only differences are meaningful.
+    fn nowMs(self: *const AsyncValidator) i64 {
+        return std.Io.Clock.awake.now(self.io).toMilliseconds();
+    }
+
     fn validationThread(self: *AsyncValidator) void {
         while (true) {
-            // Wait for debounce period
-            std.Thread.sleep(self.debounce_ms * std.time.ns_per_ms);
+            // Wait for debounce period. Cancelation ends the thread with the
+            // result left pending.
+            const debounce_ms: i64 = @intCast(self.debounce_ms);
+            self.io.sleep(.fromMilliseconds(debounce_ms), .awake) catch |err| switch (err) {
+                error.Canceled => break,
+            };
 
-            self.mutex.lock();
+            self.mutex.lockUncancelable(self.io);
             const value = self.pending_value;
             const queue_time = self.last_queue_time;
-            self.mutex.unlock();
+            self.mutex.unlock(self.io);
 
             if (value) |v| {
                 // Check if enough time has passed since last queue
-                const now = std.time.milliTimestamp();
+                const now = self.nowMs();
                 if (now - queue_time >= self.debounce_ms) {
                     // Perform validation
                     const result = self.validator.validate(v);
 
-                    self.mutex.lock();
+                    self.mutex.lockUncancelable(self.io);
                     self.result = result;
                     if (self.pending_value) |old| {
                         self.allocator.free(old);
                     }
                     self.pending_value = null;
-                    self.mutex.unlock();
+                    self.mutex.unlock(self.io);
 
                     break; // Exit thread after validation
                 }
             }
         }
 
-        self.mutex.lock();
+        self.mutex.lockUncancelable(self.io);
         self.thread = null;
-        self.mutex.unlock();
+        self.mutex.unlock(self.io);
     }
 
     /// Get validation result (blocking)
@@ -477,43 +493,43 @@ pub const AsyncValidator = struct {
         // Wait for thread to finish
         if (self.thread) |thread| {
             thread.join();
-            self.mutex.lock();
+            self.mutex.lockUncancelable(self.io);
             self.thread = null;
-            self.mutex.unlock();
+            self.mutex.unlock(self.io);
         }
 
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
         return self.result;
     }
 
     /// Get validation result (non-blocking)
     pub fn getResultNonBlocking(self: *AsyncValidator) ValidatorResult {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
         return self.result;
     }
 
     /// Get validation result with timeout
     pub fn getResultWithTimeout(self: *AsyncValidator, timeout_ms: u64) !ValidatorResult {
-        const start = std.time.milliTimestamp();
+        const start = self.nowMs();
 
         while (true) {
-            self.mutex.lock();
+            self.mutex.lockUncancelable(self.io);
             const result = self.result;
             const has_thread = self.thread != null;
-            self.mutex.unlock();
+            self.mutex.unlock(self.io);
 
             if (result != .pending or !has_thread) {
                 return result;
             }
 
-            const now = std.time.milliTimestamp();
+            const now = self.nowMs();
             if (now - start >= timeout_ms) {
                 return error.ValidationTimeout;
             }
 
-            std.Thread.sleep(10 * std.time.ns_per_ms); // Poll every 10ms
+            try self.io.sleep(.fromMilliseconds(10), .awake); // Poll every 10ms
         }
     }
 };
@@ -616,11 +632,16 @@ test "validator composition empty array" {
 test "async validator basic" {
     const testing = std.testing;
 
-    var async_validator = try AsyncValidator.init(testing.allocator, Validator.email(), 50);
+    var async_validator = try AsyncValidator.init(
+        testing.allocator,
+        testing.io,
+        Validator.email(),
+        50,
+    );
     defer async_validator.deinit();
 
     try async_validator.queueValidation("user@example.com");
-    std.Thread.sleep(100 * std.time.ns_per_ms);
+    try testing.io.sleep(.fromMilliseconds(100), .awake);
 
     const result = try async_validator.getResult();
     try testing.expectEqual(ValidatorResult.valid, result);
@@ -946,7 +967,13 @@ test "combine validators - any mode" {
 test "async validator - timeout" {
     const testing = std.testing;
 
-    var async_validator = try AsyncValidator.init(testing.allocator, Validator.email(), 5000); // 5 second debounce
+    // 5 second debounce
+    var async_validator = try AsyncValidator.init(
+        testing.allocator,
+        testing.io,
+        Validator.email(),
+        5000,
+    );
     defer async_validator.deinit();
 
     try async_validator.queueValidation("user@example.com");
@@ -965,7 +992,12 @@ test "async validator - timeout" {
 test "async validator - non-blocking" {
     const testing = std.testing;
 
-    var async_validator = try AsyncValidator.init(testing.allocator, Validator.email(), 50);
+    var async_validator = try AsyncValidator.init(
+        testing.allocator,
+        testing.io,
+        Validator.email(),
+        50,
+    );
     defer async_validator.deinit();
 
     try async_validator.queueValidation("user@example.com");
@@ -975,7 +1007,7 @@ test "async validator - non-blocking" {
     try testing.expectEqual(ValidatorResult.pending, result1);
 
     // Wait for async validation to complete (debounce_ms * 2 + margin for thread scheduling)
-    std.Thread.sleep(200 * std.time.ns_per_ms);
+    try testing.io.sleep(.fromMilliseconds(200), .awake);
     const result2 = async_validator.getResultNonBlocking();
     try testing.expectEqual(ValidatorResult.valid, result2);
 }
@@ -1012,42 +1044,41 @@ test "ValidatorResult format" {
     const testing = std.testing;
 
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
     // Valid result
     {
-        fbs.reset();
+        fbs.end = 0;
         const result = ValidatorResult.valid;
         switch (result) {
-            .valid => try writer.writeAll("valid"),
-            .invalid => |msg| try writer.print("invalid: {s}", .{msg}),
-            .pending => try writer.writeAll("pending"),
+            .valid => try fbs.writeAll("valid"),
+            .invalid => |msg| try fbs.print("invalid: {s}", .{msg}),
+            .pending => try fbs.writeAll("pending"),
         }
-        try testing.expectEqualStrings("valid", fbs.getWritten());
+        try testing.expectEqualStrings("valid", fbs.buffered());
     }
 
     // Invalid result with message
     {
-        fbs.reset();
+        fbs.end = 0;
         const result = ValidatorResult{ .invalid = "Email must contain @ sign" };
         switch (result) {
-            .valid => try writer.writeAll("valid"),
-            .invalid => |msg| try writer.print("invalid: {s}", .{msg}),
-            .pending => try writer.writeAll("pending"),
+            .valid => try fbs.writeAll("valid"),
+            .invalid => |msg| try fbs.print("invalid: {s}", .{msg}),
+            .pending => try fbs.writeAll("pending"),
         }
-        try testing.expectEqualStrings("invalid: Email must contain @ sign", fbs.getWritten());
+        try testing.expectEqualStrings("invalid: Email must contain @ sign", fbs.buffered());
     }
 
     // Pending result
     {
-        fbs.reset();
+        fbs.end = 0;
         const result = ValidatorResult.pending;
         switch (result) {
-            .valid => try writer.writeAll("valid"),
-            .invalid => |msg| try writer.print("invalid: {s}", .{msg}),
-            .pending => try writer.writeAll("pending"),
+            .valid => try fbs.writeAll("valid"),
+            .invalid => |msg| try fbs.print("invalid: {s}", .{msg}),
+            .pending => try fbs.writeAll("pending"),
         }
-        try testing.expectEqualStrings("pending", fbs.getWritten());
+        try testing.expectEqualStrings("pending", fbs.buffered());
     }
 }

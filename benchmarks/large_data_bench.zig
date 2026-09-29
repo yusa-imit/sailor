@@ -17,15 +17,15 @@ const VIEWPORT_WIDTH: u16 = 120; // Typical terminal width
 
 /// Timer utility for benchmarking
 const Timer = struct {
-    start_time: i128,
+    start_time: std.Io.Timestamp,
 
-    pub fn start() Timer {
-        return .{ .start_time = std.time.nanoTimestamp() };
+    pub fn start(io: std.Io) Timer {
+        return .{ .start_time = std.Io.Clock.awake.now(io) };
     }
 
-    pub fn elapsed(self: Timer) f64 {
-        const end = std.time.nanoTimestamp();
-        const ns = @as(f64, @floatFromInt(end - self.start_time));
+    pub fn elapsed(self: Timer, io: std.Io) f64 {
+        const elapsed_ns = self.start_time.untilNow(io, .awake).toNanoseconds();
+        const ns = @as(f64, @floatFromInt(elapsed_ns));
         return ns / 1_000_000.0; // Convert to milliseconds
     }
 };
@@ -47,14 +47,15 @@ const BenchResult = struct {
 
 /// Run a benchmark and return result
 fn runBench(
+    io: std.Io,
     name: []const u8,
     iterations: usize,
     comptime benchFn: anytype,
     allocator: std.mem.Allocator,
 ) !BenchResult {
-    const timer = Timer.start();
+    const timer = Timer.start(io);
     try benchFn(allocator);
-    const duration = timer.elapsed();
+    const duration = timer.elapsed(io);
     const ops_per_sec = @as(f64, @floatFromInt(iterations)) / (duration / 1000.0);
 
     return BenchResult{
@@ -70,7 +71,7 @@ fn runBench(
 
 fn benchVirtualListRender1M(allocator: std.mem.Allocator) !void {
     var buf = try Buffer.init(allocator, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = VIEWPORT_WIDTH, .height = VIEWPORT_HEIGHT };
 
@@ -87,7 +88,7 @@ fn benchVirtualListRender1M(allocator: std.mem.Allocator) !void {
 
 fn benchVirtualListScroll1M(allocator: std.mem.Allocator) !void {
     var buf = try Buffer.init(allocator, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = VIEWPORT_WIDTH, .height = VIEWPORT_HEIGHT };
 
@@ -111,7 +112,7 @@ fn benchVirtualListScroll1M(allocator: std.mem.Allocator) !void {
 
 fn benchStreamingTableRender1M(allocator: std.mem.Allocator) !void {
     var buf = try Buffer.init(allocator, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = VIEWPORT_WIDTH, .height = VIEWPORT_HEIGHT };
 
@@ -139,7 +140,7 @@ fn benchStreamingTableRender1M(allocator: std.mem.Allocator) !void {
 
 fn benchStreamingTableScroll1M(allocator: std.mem.Allocator) !void {
     var buf = try Buffer.init(allocator, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = VIEWPORT_WIDTH, .height = VIEWPORT_HEIGHT };
 
@@ -174,7 +175,7 @@ fn benchStreamingTableScroll1M(allocator: std.mem.Allocator) !void {
 
 fn benchChunkedBufferRender1M(allocator: std.mem.Allocator) !void {
     var buf = try Buffer.init(allocator, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = VIEWPORT_WIDTH, .height = VIEWPORT_HEIGHT };
 
@@ -191,7 +192,7 @@ fn benchChunkedBufferRender1M(allocator: std.mem.Allocator) !void {
 
 fn benchChunkedBufferScroll1M(allocator: std.mem.Allocator) !void {
     var buf = try Buffer.init(allocator, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = VIEWPORT_WIDTH, .height = VIEWPORT_HEIGHT };
 
@@ -211,7 +212,7 @@ fn benchChunkedBufferScroll1M(allocator: std.mem.Allocator) !void {
 
 fn benchChunkedBufferWrap(allocator: std.mem.Allocator) !void {
     var buf = try Buffer.init(allocator, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = VIEWPORT_WIDTH, .height = VIEWPORT_HEIGHT };
 
@@ -233,7 +234,7 @@ fn benchChunkedBufferWrap(allocator: std.mem.Allocator) !void {
 
 fn benchMemoryUsageVirtualList(allocator: std.mem.Allocator) !void {
     var buf = try Buffer.init(allocator, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = VIEWPORT_WIDTH, .height = VIEWPORT_HEIGHT };
 
@@ -256,10 +257,9 @@ fn benchMemoryUsageVirtualList(allocator: std.mem.Allocator) !void {
 // Main Benchmark Runner
 // ============================================================================
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
     std.debug.print("\n=== Sailor Large Data Benchmarks ===\n", .{});
     std.debug.print("Testing streaming widgets with massive datasets\n\n", .{});
@@ -270,6 +270,7 @@ pub fn main() !void {
     std.debug.print("--- VirtualList (1M items) ---\n", .{});
     {
         const result = try runBench(
+            io,
             "VirtualList: Render 1M items (viewport only)",
             1,
             benchVirtualListRender1M,
@@ -280,6 +281,7 @@ pub fn main() !void {
     }
     {
         const result = try runBench(
+            io,
             "VirtualList: Scroll through 1M items (4 positions)",
             4,
             benchVirtualListScroll1M,
@@ -293,6 +295,7 @@ pub fn main() !void {
     std.debug.print("\n--- StreamingTable (1M rows) ---\n", .{});
     {
         const result = try runBench(
+            io,
             "StreamingTable: Render 1M rows (viewport only)",
             1,
             benchStreamingTableRender1M,
@@ -303,6 +306,7 @@ pub fn main() !void {
     }
     {
         const result = try runBench(
+            io,
             "StreamingTable: Scroll through 1M rows (4 positions)",
             4,
             benchStreamingTableScroll1M,
@@ -316,6 +320,7 @@ pub fn main() !void {
     std.debug.print("\n--- ChunkedBuffer (1M lines, ~100MB text) ---\n", .{});
     {
         const result = try runBench(
+            io,
             "ChunkedBuffer: Render 1M lines (viewport only)",
             1,
             benchChunkedBufferRender1M,
@@ -326,6 +331,7 @@ pub fn main() !void {
     }
     {
         const result = try runBench(
+            io,
             "ChunkedBuffer: Scroll through 1M lines (4 positions)",
             4,
             benchChunkedBufferScroll1M,
@@ -336,6 +342,7 @@ pub fn main() !void {
     }
     {
         const result = try runBench(
+            io,
             "ChunkedBuffer: Render 100K lines with wrapping",
             1,
             benchChunkedBufferWrap,
@@ -349,6 +356,7 @@ pub fn main() !void {
     std.debug.print("\n--- Memory Efficiency ---\n", .{});
     {
         const result = try runBench(
+            io,
             "Memory: 10 VirtualLists × 1M items each",
             10,
             benchMemoryUsageVirtualList,

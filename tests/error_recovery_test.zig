@@ -772,7 +772,7 @@ test "ErrorReporter - async hook execution" {
     const hook = struct {
         fn call(ctx: ?*anyopaque, _: anyerror, _: []const u8) void {
             // Simulate async work
-            std.Thread.sleep(100_000); // 0.1ms
+            testing.io.sleep(.fromNanoseconds(100_000), .awake) catch {}; // 0.1ms
             const flag = @as(*bool, @ptrCast(@alignCast(ctx.?)));
             flag.* = true;
         }
@@ -783,7 +783,7 @@ test "ErrorReporter - async hook execution" {
     reporter.reportAsync(error.TestError, "Test");
 
     // Wait for async completion
-    std.Thread.sleep(200_000); // 0.2ms
+    try testing.io.sleep(.fromNanoseconds(200_000), .awake); // 0.2ms
 
     try testing.expect(received);
 }
@@ -862,21 +862,21 @@ test "ErrorReporter - structured logging to writer" {
     defer reporter.deinit();
 
     var buffer: [1024]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buffer);
+    var stream: std.Io.Writer = .fixed(&buffer);
 
-    try reporter.setLogWriter(stream.writer());
+    try reporter.setLogWriter(&stream);
 
     // Configure JSON format
     try reporter.setFormat(.json);
 
     reporter.report(error.TestError, "Test message");
 
-    const written = stream.getWritten();
+    const written = stream.buffered();
 
     // Verify JSON structure
-    try testing.expect(std.mem.indexOf(u8, written, "\"error\"") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "TestError") != null);
-    try testing.expect(std.mem.indexOf(u8, written, "\"message\"") != null);
+    try testing.expect(std.mem.find(u8, written, "\"error\"") != null);
+    try testing.expect(std.mem.find(u8, written, "TestError") != null);
+    try testing.expect(std.mem.find(u8, written, "\"message\"") != null);
 }
 
 // ============================================================================
@@ -888,7 +888,7 @@ test "GracefulDegradation - fallback to simple text on render failure" {
     var buf = try Buffer.init(allocator, 80, 24);
     defer buf.deinit();
 
-    var degradation = try GracefulDegradation.init(allocator);
+    var degradation = try GracefulDegradation.init(allocator, testing.io);
     defer degradation.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
@@ -916,7 +916,7 @@ test "GracefulDegradation - partial update on widget tree failure" {
     var buf = try Buffer.init(allocator, 80, 24);
     defer buf.deinit();
 
-    var degradation = try GracefulDegradation.init(allocator);
+    var degradation = try GracefulDegradation.init(allocator, testing.io);
     defer degradation.deinit();
 
     // Mock widget tree: root with 3 children
@@ -963,7 +963,7 @@ test "GracefulDegradation - reduced quality mode for performance" {
     var buf = try Buffer.init(allocator, 80, 24);
     defer buf.deinit();
 
-    var degradation = try GracefulDegradation.init(allocator);
+    var degradation = try GracefulDegradation.init(allocator, testing.io);
     defer degradation.deinit();
 
     // Enable reduced quality mode
@@ -986,9 +986,9 @@ test "GracefulDegradation - reduced quality mode for performance" {
 
     const widget = ExpensiveWidget{};
 
-    const start = std.time.nanoTimestamp();
+    const start = std.Io.Clock.awake.now(testing.io);
     try degradation.render(&widget, &buf, area);
-    const elapsed = std.time.nanoTimestamp() - start;
+    const elapsed = start.untilNow(testing.io, .awake).toNanoseconds();
 
     // Low quality should render faster (skip some cells)
     try testing.expect(elapsed < 1_000_000); // < 1ms
@@ -999,7 +999,7 @@ test "GracefulDegradation - error accumulation tracking" {
     var buf = try Buffer.init(allocator, 80, 24);
     defer buf.deinit();
 
-    var degradation = try GracefulDegradation.init(allocator);
+    var degradation = try GracefulDegradation.init(allocator, testing.io);
     defer degradation.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
@@ -1028,7 +1028,7 @@ test "GracefulDegradation - automatic quality reduction on repeated failures" {
     var buf = try Buffer.init(allocator, 80, 24);
     defer buf.deinit();
 
-    var degradation = try GracefulDegradation.init(allocator);
+    var degradation = try GracefulDegradation.init(allocator, testing.io);
     defer degradation.deinit();
 
     // Enable auto-degradation
@@ -1057,7 +1057,7 @@ test "GracefulDegradation - recovery to normal quality after success" {
     var buf = try Buffer.init(allocator, 80, 24);
     defer buf.deinit();
 
-    var degradation = try GracefulDegradation.init(allocator);
+    var degradation = try GracefulDegradation.init(allocator, testing.io);
     defer degradation.deinit();
 
     try degradation.setQualityLevel(.low);
@@ -1089,7 +1089,7 @@ test "GracefulDegradation - skip animation on degraded mode" {
     var buf = try Buffer.init(allocator, 80, 24);
     defer buf.deinit();
 
-    var degradation = try GracefulDegradation.init(allocator);
+    var degradation = try GracefulDegradation.init(allocator, testing.io);
     defer degradation.deinit();
 
     try degradation.setQualityLevel(.low);
@@ -1105,7 +1105,7 @@ test "GracefulDegradation - graceful skip of non-critical widgets" {
     var buf = try Buffer.init(allocator, 80, 24);
     defer buf.deinit();
 
-    var degradation = try GracefulDegradation.init(allocator);
+    var degradation = try GracefulDegradation.init(allocator, testing.io);
     defer degradation.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
@@ -1131,7 +1131,7 @@ test "GracefulDegradation - critical widget always renders" {
     var buf = try Buffer.init(allocator, 80, 24);
     defer buf.deinit();
 
-    var degradation = try GracefulDegradation.init(allocator);
+    var degradation = try GracefulDegradation.init(allocator, testing.io);
     defer degradation.deinit();
 
     try degradation.setQualityLevel(.minimal);
@@ -1159,7 +1159,7 @@ test "GracefulDegradation - performance budget enforcement" {
     var buf = try Buffer.init(allocator, 80, 24);
     defer buf.deinit();
 
-    var degradation = try GracefulDegradation.init(allocator);
+    var degradation = try GracefulDegradation.init(allocator, testing.io);
     defer degradation.deinit();
 
     // Set render budget: 1ms
@@ -1169,7 +1169,7 @@ test "GracefulDegradation - performance budget enforcement" {
 
     const SlowWidget = struct {
         pub fn render(_: @This(), buffer: *Buffer, rect: Rect) !void {
-            std.Thread.sleep(2_000_000); // 2ms (exceeds budget)
+            try testing.io.sleep(.fromNanoseconds(2_000_000), .awake); // 2ms (exceeds budget)
             buffer.setString(rect.x, rect.y, "Slow", .{});
         }
     };
@@ -1187,7 +1187,7 @@ test "GracefulDegradation - performance budget enforcement" {
 
 test "ErrorInjector - inject render failure at specific widget" {
     const allocator = testing.allocator;
-    var injector = try ErrorInjector.init(allocator);
+    var injector = try ErrorInjector.init(allocator, testing.io);
     defer injector.deinit();
 
     // Configure: fail "TargetWidget" on first render
@@ -1216,7 +1216,7 @@ test "ErrorInjector - inject render failure at specific widget" {
 
 test "ErrorInjector - inject failure with probability" {
     const allocator = testing.allocator;
-    var injector = try ErrorInjector.init(allocator);
+    var injector = try ErrorInjector.init(allocator, testing.io);
     defer injector.deinit();
 
     // 50% failure rate
@@ -1256,7 +1256,7 @@ test "ErrorInjector - inject failure with probability" {
 
 test "ErrorInjector - inject delay to simulate slow render" {
     const allocator = testing.allocator;
-    var injector = try ErrorInjector.init(allocator);
+    var injector = try ErrorInjector.init(allocator, testing.io);
     defer injector.deinit();
 
     // Inject 5ms delay
@@ -1275,9 +1275,9 @@ test "ErrorInjector - inject delay to simulate slow render" {
 
     const widget = TestWidget{};
 
-    const start = std.time.nanoTimestamp();
+    const start = std.Io.Clock.awake.now(testing.io);
     try injector.wrapRender("SlowWidget", &widget, &buf, area);
-    const elapsed = std.time.nanoTimestamp() - start;
+    const elapsed = start.untilNow(testing.io, .awake).toNanoseconds();
 
     // Should take at least 5ms
     try testing.expect(elapsed >= 5_000_000);
@@ -1285,7 +1285,7 @@ test "ErrorInjector - inject delay to simulate slow render" {
 
 test "ErrorInjector - inject memory allocation failure" {
     const allocator = testing.allocator;
-    var injector = try ErrorInjector.init(allocator);
+    var injector = try ErrorInjector.init(allocator, testing.io);
     defer injector.deinit();
 
     // Configure: fail allocation on 3rd call
@@ -1308,7 +1308,7 @@ test "ErrorInjector - inject memory allocation failure" {
 
 test "ErrorInjector - inject panic for panic recovery testing" {
     const allocator = testing.allocator;
-    var injector = try ErrorInjector.init(allocator);
+    var injector = try ErrorInjector.init(allocator, testing.io);
     defer injector.deinit();
 
     // Enable panic injection
@@ -1334,7 +1334,7 @@ test "ErrorInjector - inject panic for panic recovery testing" {
 
 test "ErrorInjector - conditional injection based on state" {
     const allocator = testing.allocator;
-    var injector = try ErrorInjector.init(allocator);
+    var injector = try ErrorInjector.init(allocator, testing.io);
     defer injector.deinit();
 
     // Inject error only when condition is met
@@ -1375,7 +1375,7 @@ test "ErrorInjector - conditional injection based on state" {
 
 test "ErrorInjector - multiple injections on same widget" {
     const allocator = testing.allocator;
-    var injector = try ErrorInjector.init(allocator);
+    var injector = try ErrorInjector.init(allocator, testing.io);
     defer injector.deinit();
 
     // Inject delay + error
@@ -1395,9 +1395,9 @@ test "ErrorInjector - multiple injections on same widget" {
 
     const widget = TestWidget{};
 
-    const start = std.time.nanoTimestamp();
+    const start = std.Io.Clock.awake.now(testing.io);
     const result = injector.wrapRender("MultiWidget", &widget, &buf, area);
-    const elapsed = std.time.nanoTimestamp() - start;
+    const elapsed = start.untilNow(testing.io, .awake).toNanoseconds();
 
     // Should fail (error injection)
     try testing.expectError(error.InjectedError, result);
@@ -1408,7 +1408,7 @@ test "ErrorInjector - multiple injections on same widget" {
 
 test "ErrorInjector - reset clears all injections" {
     const allocator = testing.allocator;
-    var injector = try ErrorInjector.init(allocator);
+    var injector = try ErrorInjector.init(allocator, testing.io);
     defer injector.deinit();
 
     try injector.injectErrorAt("Widget1", error.Error1, 1);
@@ -1437,7 +1437,7 @@ test "ErrorInjector - reset clears all injections" {
 
 test "ErrorInjector - statistics tracking" {
     const allocator = testing.allocator;
-    var injector = try ErrorInjector.init(allocator);
+    var injector = try ErrorInjector.init(allocator, testing.io);
     defer injector.deinit();
 
     try injector.injectErrorProbability("TestWidget", error.InjectedError, 0.5);
@@ -1468,10 +1468,10 @@ test "ErrorInjector - statistics tracking" {
 
 test "ErrorInjector - seed-based deterministic injection" {
     const allocator = testing.allocator;
-    var injector1 = try ErrorInjector.init(allocator);
+    var injector1 = try ErrorInjector.init(allocator, testing.io);
     defer injector1.deinit();
 
-    var injector2 = try ErrorInjector.init(allocator);
+    var injector2 = try ErrorInjector.init(allocator, testing.io);
     defer injector2.deinit();
 
     // Same seed should produce same results
@@ -1592,9 +1592,9 @@ test "StateRecovery - snapshot of 200x100 buffer completes in <10ms" {
         }
     }
 
-    const start = std.time.nanoTimestamp();
+    const start = std.Io.Clock.awake.now(testing.io);
     try recovery.captureSnapshot(&buf);
-    const elapsed = std.time.nanoTimestamp() - start;
+    const elapsed = start.untilNow(testing.io, .awake).toNanoseconds();
 
     // Snapshot should be fast (<10ms)
     try testing.expect(elapsed < 10_000_000);
@@ -1635,7 +1635,7 @@ test "GracefulDegradation - stress test 100 mixed widgets" {
     var buf = try Buffer.init(allocator, 200, 100);
     defer buf.deinit();
 
-    var degradation = try GracefulDegradation.init(allocator);
+    var degradation = try GracefulDegradation.init(allocator, testing.io);
     defer degradation.deinit();
 
     const SuccessWidget = struct {
@@ -1675,7 +1675,7 @@ test "GracefulDegradation - stress test 100 mixed widgets" {
 
 test "ErrorInjector - inject errors on 20% of 500 renders" {
     const allocator = testing.allocator;
-    var injector = try ErrorInjector.init(allocator);
+    var injector = try ErrorInjector.init(allocator, testing.io);
     defer injector.deinit();
 
     try injector.setSeed(54321);
@@ -1755,7 +1755,7 @@ test "ErrorRecovery - full integration test" {
     var reporter = try ErrorReporter.init(allocator);
     defer reporter.deinit();
 
-    var degradation = try GracefulDegradation.init(allocator);
+    var degradation = try GracefulDegradation.init(allocator, testing.io);
     defer degradation.deinit();
 
     var error_count: usize = 0;

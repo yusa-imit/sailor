@@ -181,7 +181,7 @@ test "LayoutAnalyzer suggestConstraints for percentage constraints" {
 
     const suggestion = try analyzer.suggestConstraints("root.panel");
     try testing.expect(suggestion != null);
-    try testing.expect(std.mem.indexOf(u8, suggestion.?, "percentage") != null);
+    try testing.expect(std.mem.find(u8, suggestion.?, "percentage") != null);
 }
 
 test "LayoutAnalyzer suggestConstraints for fixed constraints" {
@@ -190,7 +190,7 @@ test "LayoutAnalyzer suggestConstraints for fixed constraints" {
 
     const suggestion = try analyzer.suggestConstraints("root.fixed_panel");
     try testing.expect(suggestion != null);
-    try testing.expect(std.mem.indexOf(u8, suggestion.?, "min/max") != null or std.mem.indexOf(u8, suggestion.?, "percentage") != null);
+    try testing.expect(std.mem.find(u8, suggestion.?, "min/max") != null or std.mem.find(u8, suggestion.?, "percentage") != null);
 }
 
 test "LayoutAnalyzer autoAdjust for small screen reduces widget sizes" {
@@ -508,7 +508,7 @@ test "AccessibilityChecker checkTree with low contrast (detect color issues)" {
     // Should detect low contrast
     var found_contrast_issue = false;
     for (issues) |issue| {
-        if (std.mem.indexOf(u8, issue.description, "contrast") != null) {
+        if (std.mem.find(u8, issue.description, "contrast") != null) {
             found_contrast_issue = true;
             break;
         }
@@ -520,14 +520,14 @@ test "AccessibilityChecker suggestImprovements for focus" {
     var checker = AccessibilityChecker.init();
     const suggestion = try checker.suggestImprovements("root.input");
     try testing.expect(suggestion.len > 0);
-    try testing.expect(std.mem.indexOf(u8, suggestion, "focus") != null);
+    try testing.expect(std.mem.find(u8, suggestion, "focus") != null);
 }
 
 test "AccessibilityChecker suggestImprovements for contrast" {
     var checker = AccessibilityChecker.init();
     const suggestion = try checker.suggestImprovements("root.low_contrast_widget");
     try testing.expect(suggestion.len > 0);
-    try testing.expect(std.mem.indexOf(u8, suggestion, "contrast") != null or std.mem.indexOf(u8, suggestion, "color") != null);
+    try testing.expect(std.mem.find(u8, suggestion, "contrast") != null or std.mem.find(u8, suggestion, "color") != null);
 }
 
 test "AccessibilityChecker checkTree with empty tree returns no issues" {
@@ -581,7 +581,7 @@ test "AccessibilityChecker detects missing keyboard shortcuts" {
     }
     var found_shortcut_issue = false;
     for (issues) |issue| {
-        if (std.mem.indexOf(u8, issue.description, "keyboard") != null) {
+        if (std.mem.find(u8, issue.description, "keyboard") != null) {
             found_shortcut_issue = true;
             break;
         }
@@ -593,7 +593,7 @@ test "AccessibilityChecker suggestImprovements for keyboard navigation" {
     var checker = AccessibilityChecker.init();
     const suggestion = try checker.suggestImprovements("root.button");
     try testing.expect(suggestion.len > 0);
-    try testing.expect(std.mem.indexOf(u8, suggestion, "keyboard") != null or std.mem.indexOf(u8, suggestion, "shortcut") != null);
+    try testing.expect(std.mem.find(u8, suggestion, "keyboard") != null or std.mem.find(u8, suggestion, "shortcut") != null);
 }
 
 test "AccessibilityChecker detects missing ARIA roles" {
@@ -617,7 +617,7 @@ test "AccessibilityChecker detects missing ARIA roles" {
     }
     var found_aria_issue = false;
     for (issues) |issue| {
-        if (std.mem.indexOf(u8, issue.description, "ARIA") != null or std.mem.indexOf(u8, issue.description, "role") != null) {
+        if (std.mem.find(u8, issue.description, "ARIA") != null or std.mem.find(u8, issue.description, "role") != null) {
             found_aria_issue = true;
             break;
         }
@@ -712,7 +712,7 @@ test "PerformanceAnalyzer analyze with too many widgets (>100) detects issue" {
     try testing.expect(issues.len > 0);
     var found_perf_issue = false;
     for (issues) |issue| {
-        if (std.mem.indexOf(u8, issue.description, "widgets") != null) {
+        if (std.mem.find(u8, issue.description, "widgets") != null) {
             found_perf_issue = true;
             break;
         }
@@ -777,7 +777,7 @@ test "PerformanceAnalyzer detects widgets with high memory usage" {
     }
     var found_memory_issue = false;
     for (issues) |issue| {
-        if (std.mem.indexOf(u8, issue.description, "memory") != null) {
+        if (std.mem.find(u8, issue.description, "memory") != null) {
             found_memory_issue = true;
             break;
         }
@@ -805,7 +805,7 @@ test "PerformanceAnalyzer detects slow render times" {
     }
     var found_render_issue = false;
     for (issues) |issue| {
-        if (std.mem.indexOf(u8, issue.description, "render") != null or std.mem.indexOf(u8, issue.description, "slow") != null) {
+        if (std.mem.find(u8, issue.description, "render") != null or std.mem.find(u8, issue.description, "slow") != null) {
             found_render_issue = true;
             break;
         }

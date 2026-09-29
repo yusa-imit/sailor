@@ -34,6 +34,7 @@ const Style = style_mod.Style;
 const Color = style_mod.Color;
 const block_mod = @import("block.zig");
 const Block = block_mod.Block;
+const assert = std.debug.assert;
 
 /// ScatterPlot widget - X-Y coordinate plotting with markers
 pub const ScatterPlot = struct {
@@ -201,7 +202,8 @@ pub const ScatterPlot = struct {
             .width = if (render_area.width > y_axis_width) render_area.width - y_axis_width else 0,
             .height = if (render_area.height > x_axis_height + legend_height)
                 render_area.height - x_axis_height - legend_height
-            else 0,
+            else
+                0,
         };
 
         if (plot_area.width == 0 or plot_area.height == 0) return;
@@ -220,26 +222,20 @@ pub const ScatterPlot = struct {
 
             // Max label (top)
             const max_label = std.fmt.bufPrint(&label_buf, "{d:.1}", .{max_y}) catch "---";
-            const max_x_pos: u16 = if (render_area.x + y_axis_width > @as(u16, @intCast(max_label.len)))
-                render_area.x + y_axis_width - @as(u16, @intCast(max_label.len)) - 1
-            else render_area.x;
+            const max_x_pos = labelStartX(render_area.x, y_axis_width, max_label.len, 1);
             buf.setString(max_x_pos, plot_area.y, max_label, self.axis_style);
 
             // Mid label
             const mid_y = (max_y + min_y) / 2.0;
             const mid_label = std.fmt.bufPrint(&label_buf, "{d:.1}", .{mid_y}) catch "---";
             const mid_y_pos = plot_area.y + plot_area.height / 2;
-            const mid_x_pos = if (render_area.x + y_axis_width > @as(u16, @intCast(mid_label.len)))
-                render_area.x + y_axis_width - @as(u16, @intCast(mid_label.len)) - 1
-            else render_area.x;
+            const mid_x_pos = labelStartX(render_area.x, y_axis_width, mid_label.len, 1);
             buf.setString(mid_x_pos, mid_y_pos, mid_label, self.axis_style);
 
             // Min label (bottom)
             const min_label = std.fmt.bufPrint(&label_buf, "{d:.1}", .{min_y}) catch "---";
             const min_y_pos = plot_area.y + plot_area.height - 1;
-            const min_x_pos = if (render_area.x + y_axis_width > @as(u16, @intCast(min_label.len)))
-                render_area.x + y_axis_width - @as(u16, @intCast(min_label.len)) - 1
-            else render_area.x;
+            const min_x_pos = labelStartX(render_area.x, y_axis_width, min_label.len, 1);
             buf.setString(min_x_pos, min_y_pos, min_label, self.axis_style);
 
             // Y-axis label (vertical text)
@@ -275,9 +271,7 @@ pub const ScatterPlot = struct {
 
             // Max label (right)
             const max_x_label = std.fmt.bufPrint(&label_buf, "{d:.1}", .{max_x}) catch "---";
-            const max_x_pos = if (plot_area.x + plot_area.width > @as(u16, @intCast(max_x_label.len)))
-                plot_area.x + plot_area.width - @as(u16, @intCast(max_x_label.len))
-            else plot_area.x;
+            const max_x_pos = labelStartX(plot_area.x, plot_area.width, max_x_label.len, 0);
             buf.setString(max_x_pos, x_axis_y + 1, max_x_label, self.axis_style);
 
             // X-axis label
@@ -309,9 +303,7 @@ pub const ScatterPlot = struct {
                     screen_y >= plot_area.y and screen_y < plot_area.y + plot_area.height)
                 {
                     // Use first character of marker
-                    const marker_char = if (s.marker.len > 0)
-                        std.unicode.utf8Decode(s.marker) catch '•'
-                    else '•';
+                    const marker_char = markerChar(s.marker);
                     buf.set(screen_x, screen_y, .{ .char = marker_char, .style = s.style });
                 }
             }
@@ -326,9 +318,7 @@ pub const ScatterPlot = struct {
                 if (offset + s.name.len + 4 > render_area.width) break;
 
                 // Draw marker
-                const marker_char = if (s.marker.len > 0)
-                    std.unicode.utf8Decode(s.marker) catch '•'
-                else '•';
+                const marker_char = markerChar(s.marker);
                 buf.set(render_area.x + offset, legend_y, .{ .char = marker_char, .style = s.style });
                 offset += 2;
 
@@ -343,6 +333,26 @@ pub const ScatterPlot = struct {
 // ============================================================================
 // Tests
 // ============================================================================
+
+/// Left edge for a label right-aligned inside [base_x, base_x + width), or base_x if it
+/// does not fit; `gap_cols` columns are kept free after the label.
+fn labelStartX(base_x: u16, width: u16, label_len: usize, gap_cols: u16) u16 {
+    assert(gap_cols <= 1);
+    assert(label_len <= std.math.maxInt(u16));
+    const label_cols: u16 = @intCast(label_len);
+    const right_x = base_x + width;
+    const x_pos = if (right_x > label_cols) right_x - label_cols - gap_cols else base_x;
+    assert(x_pos <= right_x);
+    return x_pos;
+}
+
+/// First code point of a marker string, or '•' if it is empty or not valid UTF-8.
+fn markerChar(marker: []const u8) u21 {
+    const marker_char = if (marker.len > 0) std.unicode.utf8Decode(marker) catch '•' else '•';
+    assert(marker_char <= 0x10FFFF);
+    assert(marker.len > 0 or marker_char == '•');
+    return marker_char;
+}
 
 test "ScatterPlot.init" {
     const series = [_]ScatterPlot.Series{

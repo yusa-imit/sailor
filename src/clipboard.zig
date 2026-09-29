@@ -21,6 +21,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const assert = std.debug.assert;
 
 /// Clipboard selection type
 pub const Selection = enum {
@@ -181,11 +182,116 @@ pub const ClipboardHistory = struct {
     }
 };
 
+/// How `pipeTextToCommand` treats failures of the helper command.
+const PipeOptions = struct {
+    /// Map a missing executable to `error.ClipboardUnavailable` (instead of the raw error).
+    unavailable_on_missing: bool,
+    /// Ignore stdin write errors (a broken pipe means exec failed; wait() reports it).
+    ignore_write_errors: bool,
+};
+
+/// Spawn `argv`, feed it `text` on stdin, close stdin and require exit code 0.
+fn pipeTextToCommand(
+    io: std.Io,
+    argv: []const []const u8,
+    text: []const u8,
+    options: PipeOptions,
+) !void {
+    assert(argv.len > 0);
+    assert(argv[0].len > 0);
+
+    var child = std.process.spawn(io, .{
+        .argv = argv,
+        .stdin = .pipe,
+        .stdout = .ignore,
+        .stderr = .ignore,
+    }) catch |err| {
+        return if (options.unavailable_on_missing and err == error.FileNotFound)
+            error.ClipboardUnavailable
+        else
+            err;
+    };
+
+    const stdin = child.stdin.?;
+    stdin.writeStreamingAll(io, text) catch |err| switch (err) {
+        error.Canceled => {
+            stdin.close(io);
+            child.stdin = null;
+            child.kill(io);
+            return err;
+        },
+        else => if (!options.ignore_write_errors) {
+            stdin.close(io);
+            child.stdin = null;
+            child.kill(io);
+            return err;
+        },
+    };
+    stdin.close(io);
+    child.stdin = null;
+
+    const term = child.wait(io) catch |err| {
+        return if (options.unavailable_on_missing and err == error.FileNotFound)
+            error.ClipboardUnavailable
+        else
+            err;
+    };
+    switch (term) {
+        .exited => |code| if (code != 0) return error.ClipboardWriteFailed,
+        else => return error.ClipboardWriteFailed,
+    }
+}
+
+/// Run `argv` capturing stdout; require exit code 0. Caller owns the returned slice.
+fn runCapture(allocator: std.mem.Allocator, io: std.Io, argv: []const []const u8) ![]u8 {
+    assert(argv.len > 0);
+    assert(argv[0].len > 0);
+
+    const result = try std.process.run(allocator, io, .{ .argv = argv });
+    defer allocator.free(result.stderr);
+
+    switch (result.term) {
+        .exited => |code| if (code != 0) {
+            allocator.free(result.stdout);
+            return error.ClipboardReadFailed;
+        },
+        else => {
+            allocator.free(result.stdout);
+            return error.ClipboardReadFailed;
+        },
+    }
+
+    return result.stdout;
+}
+
+/// True when `which <name>` exits 0. Only `error.Canceled` is propagated;
+/// any other spawn/wait failure means "not available".
+fn commandExists(io: std.Io, name: []const u8) !bool {
+    assert(name.len > 0);
+    assert(std.mem.findScalar(u8, name, ' ') == null);
+
+    var child = std.process.spawn(io, .{
+        .argv = &[_][]const u8{ "which", name },
+        .stdin = .ignore,
+        .stdout = .ignore,
+        .stderr = .ignore,
+    }) catch |err| switch (err) {
+        error.Canceled => return err,
+        else => return false,
+    };
+
+    const term = child.wait(io) catch |err| switch (err) {
+        error.Canceled => return err,
+        else => return false,
+    };
+    return term == .exited and term.exited == 0;
+}
+
 /// System clipboard integration using platform-specific commands
 /// Provides fallback when OSC 52 terminal sequences are not supported
 pub const SystemClipboard = struct {
     /// Check if system clipboard commands are available on this platform
-    pub fn isAvailable() !bool {
+    pub fn isAvailable(io: std.Io) !bool {
         switch (builtin.os.tag) {
             .macos => {
                 // pbcopy/pbpaste are standard on macOS
@@ -193,23 +299,8 @@ pub const SystemClipboard = struct {
             },
             .linux => {
                 // Check for xclip or xsel
-                const result_xclip = std.process.Child.run(.{
-                    .allocator = std.heap.page_allocator,
-                    .argv = &[_][]const u8{ "which", "xclip" },
-                }) catch return false;
-                defer std.heap.page_allocator.free(result_xclip.stdout);
-                defer std.heap.page_allocator.free(result_xclip.stderr);
-
-                if (result_xclip.term == .Exited and result_xclip.term.Exited == 0) return true;
-
-                const result_xsel = std.process.Child.run(.{
-                    .allocator = std.heap.page_allocator,
-                    .argv = &[_][]const u8{ "which", "xsel" },
-                }) catch return false;
-                defer std.heap.page_allocator.free(result_xsel.stdout);
-                defer std.heap.page_allocator.free(result_xsel.stderr);
-
-                return result_xsel.term == .Exited and result_xsel.term.Exited == 0;
+                if (try commandExists(io, "xclip")) return true;
+                return commandExists(io, "xsel");
             },
             .windows => {
                 // PowerShell is standard on modern Windows
@@ -220,43 +311,20 @@ pub const SystemClipboard = struct {
     }
 
     /// Write text to system clipboard
-    pub fn write(allocator: std.mem.Allocator, text: []const u8) !void {
+    pub fn write(allocator: std.mem.Allocator, io: std.Io, text: []const u8) !void {
         switch (builtin.os.tag) {
             .macos => {
-                var child = std.process.Child.init(&[_][]const u8{"pbcopy"}, allocator);
-                child.stdin_behavior = .Pipe;
-                child.stdout_behavior = .Ignore;
-                child.stderr_behavior = .Ignore;
-
-                try child.spawn();
-
-                // Write text to stdin
-                const stdin = child.stdin.?;
-                try stdin.writeAll(text);
-                stdin.close();
-                child.stdin = null;
-
-                const term = try child.wait();
-                switch (term) {
-                    .Exited => |code| if (code != 0) return error.ClipboardWriteFailed,
-                    else => return error.ClipboardWriteFailed,
-                }
+                try pipeTextToCommand(io, &[_][]const u8{"pbcopy"}, text, .{
+                    .unavailable_on_missing = false,
+                    .ignore_write_errors = false,
+                });
             },
             .linux => {
                 // Try xclip first
-                const xclip_result = std.process.Child.run(.{
-                    .allocator = std.heap.page_allocator,
-                    .argv = &[_][]const u8{ "which", "xclip" },
-                }) catch {
-                    return try writeLinuxXsel(allocator, text);
-                };
-                defer std.heap.page_allocator.free(xclip_result.stdout);
-                defer std.heap.page_allocator.free(xclip_result.stderr);
-
-                if (xclip_result.term == .Exited and xclip_result.term.Exited == 0) {
-                    return try writeLinuxXclip(allocator, text);
+                if (try commandExists(io, "xclip")) {
+                    return try writeLinuxXclip(io, text);
                 } else {
-                    return try writeLinuxXsel(allocator, text);
+                    return try writeLinuxXsel(io, text);
                 }
             },
             .windows => {
@@ -264,16 +332,16 @@ pub const SystemClipboard = struct {
                 const ps_cmd = try std.fmt.allocPrint(allocator, "Set-Clipboard -Value '{s}'", .{text});
                 defer allocator.free(ps_cmd);
 
-                var child = std.process.Child.init(&[_][]const u8{ "powershell", "-Command", ps_cmd }, allocator);
-                child.stdin_behavior = .Ignore;
-                child.stdout_behavior = .Ignore;
-                child.stderr_behavior = .Ignore;
-
-                try child.spawn();
-                const term = try child.wait();
+                var child = try std.process.spawn(io, .{
+                    .argv = &[_][]const u8{ "powershell", "-Command", ps_cmd },
+                    .stdin = .ignore,
+                    .stdout = .ignore,
+                    .stderr = .ignore,
+                });
+                const term = try child.wait(io);
 
                 switch (term) {
-                    .Exited => |code| if (code != 0) return error.ClipboardWriteFailed,
+                    .exited => |code| if (code != 0) return error.ClipboardWriteFailed,
                     else => return error.ClipboardWriteFailed,
                 }
             },
@@ -282,66 +350,28 @@ pub const SystemClipboard = struct {
     }
 
     /// Read text from system clipboard (caller must free returned string)
-    pub fn read(allocator: std.mem.Allocator) ![]const u8 {
+    pub fn read(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
         switch (builtin.os.tag) {
-            .macos => {
-                const result = try std.process.Child.run(.{
-                    .allocator = allocator,
-                    .argv = &[_][]const u8{"pbpaste"},
-                });
-                defer allocator.free(result.stderr);
-
-                switch (result.term) {
-                    .Exited => |code| if (code != 0) {
-                        allocator.free(result.stdout);
-                        return error.ClipboardReadFailed;
-                    },
-                    else => {
-                        allocator.free(result.stdout);
-                        return error.ClipboardReadFailed;
-                    },
-                }
-
-                return result.stdout;
-            },
+            .macos => return runCapture(allocator, io, &[_][]const u8{"pbpaste"}),
             .linux => {
                 // Try xclip first
-                const xclip_check = std.process.Child.run(.{
-                    .allocator = std.heap.page_allocator,
-                    .argv = &[_][]const u8{ "which", "xclip" },
-                }) catch {
-                    return try readLinuxXsel(allocator);
-                };
-                defer std.heap.page_allocator.free(xclip_check.stdout);
-                defer std.heap.page_allocator.free(xclip_check.stderr);
-
-                if (xclip_check.term == .Exited and xclip_check.term.Exited == 0) {
-                    return try readLinuxXclip(allocator);
+                if (try commandExists(io, "xclip")) {
+                    return try readLinuxXclip(allocator, io);
                 } else {
-                    return try readLinuxXsel(allocator);
+                    return try readLinuxXsel(allocator, io);
                 }
             },
             .windows => {
-                const result = try std.process.Child.run(.{
-                    .allocator = allocator,
-                    .argv = &[_][]const u8{ "powershell", "-Command", "Get-Clipboard" },
-                });
-                defer allocator.free(result.stderr);
-
-                switch (result.term) {
-                    .Exited => |code| if (code != 0) {
-                        allocator.free(result.stdout);
-                        return error.ClipboardReadFailed;
-                    },
-                    else => {
-                        allocator.free(result.stdout);
-                        return error.ClipboardReadFailed;
-                    },
-                }
+                const stdout = try runCapture(
+                    allocator,
+                    io,
+                    &[_][]const u8{ "powershell", "-Command", "Get-Clipboard" },
+                );
+                defer allocator.free(stdout);
 
                 // Strip exactly one trailing line terminator ("\r\n" if present, else "\n")
                 // PowerShell's Get-Clipboard always appends a trailing newline
-                var trimmed = result.stdout;
+                var trimmed: []const u8 = stdout;
                 if (std.mem.endsWith(u8, trimmed, "\r\n")) {
                     trimmed = trimmed[0 .. trimmed.len - 2];
                 } else if (std.mem.endsWith(u8, trimmed, "\n")) {
@@ -349,111 +379,39 @@ pub const SystemClipboard = struct {
                 }
 
                 // Allocate a copy of the trimmed slice
-                const trimmed_copy = try allocator.dupe(u8, trimmed);
-
-                // Free the original result.stdout
-                allocator.free(result.stdout);
-
-                return trimmed_copy;
+                return try allocator.dupe(u8, trimmed);
             },
             else => return error.ClipboardUnavailable,
         }
     }
 
     // Linux xclip helper
-    fn writeLinuxXclip(allocator: std.mem.Allocator, text: []const u8) !void {
-        var child = std.process.Child.init(&[_][]const u8{ "xclip", "-selection", "clipboard" }, allocator);
-        child.stdin_behavior = .Pipe;
-        child.stdout_behavior = .Ignore;
-        child.stderr_behavior = .Ignore;
-
-        child.spawn() catch |err| {
-            return if (err == error.FileNotFound) error.ClipboardUnavailable else err;
-        };
-
-        const stdin = child.stdin.?;
-        // Ignore write errors — if exec failed the pipe is broken; wait() will surface the real error
-        stdin.writeAll(text) catch {};
-        stdin.close();
-        child.stdin = null;
-
-        // On Linux, exec failure is reported asynchronously via wait() rather than spawn()
-        const term = child.wait() catch |err| {
-            return if (err == error.FileNotFound) error.ClipboardUnavailable else err;
-        };
-        switch (term) {
-            .Exited => |code| if (code != 0) return error.ClipboardWriteFailed,
-            else => return error.ClipboardWriteFailed,
-        }
+    fn writeLinuxXclip(io: std.Io, text: []const u8) !void {
+        // Exec failure surfaces as FileNotFound; ignore write errors on a broken pipe.
+        try pipeTextToCommand(io, &[_][]const u8{ "xclip", "-selection", "clipboard" }, text, .{
+            .unavailable_on_missing = true,
+            .ignore_write_errors = true,
+        });
     }
 
-    fn readLinuxXclip(allocator: std.mem.Allocator) ![]const u8 {
-        const result = try std.process.Child.run(.{
-            .allocator = allocator,
-            .argv = &[_][]const u8{ "xclip", "-selection", "clipboard", "-o" },
-        });
-        defer allocator.free(result.stderr);
-
-        switch (result.term) {
-            .Exited => |code| if (code != 0) {
-                allocator.free(result.stdout);
-                return error.ClipboardReadFailed;
-            },
-            else => {
-                allocator.free(result.stdout);
-                return error.ClipboardReadFailed;
-            },
-        }
-
-        return result.stdout;
+    fn readLinuxXclip(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
+        return runCapture(
+            allocator,
+            io,
+            &[_][]const u8{ "xclip", "-selection", "clipboard", "-o" },
+        );
     }
 
     // Linux xsel helper
-    fn writeLinuxXsel(allocator: std.mem.Allocator, text: []const u8) !void {
-        var child = std.process.Child.init(&[_][]const u8{ "xsel", "--clipboard", "--input" }, allocator);
-        child.stdin_behavior = .Pipe;
-        child.stdout_behavior = .Ignore;
-        child.stderr_behavior = .Ignore;
-
-        child.spawn() catch |err| {
-            return if (err == error.FileNotFound) error.ClipboardUnavailable else err;
-        };
-
-        const stdin = child.stdin.?;
-        // Ignore write errors — if exec failed the pipe is broken; wait() will surface the real error
-        stdin.writeAll(text) catch {};
-        stdin.close();
-        child.stdin = null;
-
-        // On Linux, exec failure is reported asynchronously via wait() rather than spawn()
-        const term = child.wait() catch |err| {
-            return if (err == error.FileNotFound) error.ClipboardUnavailable else err;
-        };
-        switch (term) {
-            .Exited => |code| if (code != 0) return error.ClipboardWriteFailed,
-            else => return error.ClipboardWriteFailed,
-        }
+    fn writeLinuxXsel(io: std.Io, text: []const u8) !void {
+        try pipeTextToCommand(io, &[_][]const u8{ "xsel", "--clipboard", "--input" }, text, .{
+            .unavailable_on_missing = true,
+            .ignore_write_errors = true,
+        });
     }
 
-    fn readLinuxXsel(allocator: std.mem.Allocator) ![]const u8 {
-        const result = try std.process.Child.run(.{
-            .allocator = allocator,
-            .argv = &[_][]const u8{ "xsel", "--clipboard", "--output" },
-        });
-        defer allocator.free(result.stderr);
-
-        switch (result.term) {
-            .Exited => |code| if (code != 0) {
-                allocator.free(result.stdout);
-                return error.ClipboardReadFailed;
-            },
-            else => {
-                allocator.free(result.stdout);
-                return error.ClipboardReadFailed;
-            },
-        }
-
-        return result.stdout;
+    fn readLinuxXsel(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
+        return runCapture(allocator, io, &[_][]const u8{ "xsel", "--clipboard", "--output" });
     }
 };
 
@@ -466,9 +424,9 @@ const testing = std.testing;
 // Test helper: capture output to buffer
 fn captureOutput(comptime func: anytype, args: anytype) ![]const u8 {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
-    try @call(.auto, func, .{stream.writer()} ++ args);
-    return stream.getWritten();
+    var stream: std.Io.Writer = .fixed(&buf);
+    try @call(.auto, func, .{&stream} ++ args);
+    return stream.buffered();
 }
 
 // ============================================================================
@@ -477,11 +435,11 @@ fn captureOutput(comptime func: anytype, args: anytype) ![]const u8 {
 
 test "write simple ASCII text to clipboard" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.write(stream.writer(), "hello", .clipboard);
+    try Clipboard.write(&stream, "hello", .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     const expected = "\x1b]52;c;aGVsbG8=\x07"; // "hello" in base64
 
     try testing.expectEqualStrings(expected, output);
@@ -489,12 +447,12 @@ test "write simple ASCII text to clipboard" {
 
 test "write Unicode and emoji text" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const text = "Hello 世界 🚀";
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     // Base64 of "Hello 世界 🚀"
     const expected = "\x1b]52;c;SGVsbG8g5LiW55WMIPCfmoA=\x07";
 
@@ -503,11 +461,11 @@ test "write Unicode and emoji text" {
 
 test "write empty string to clipboard" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.write(stream.writer(), "", .clipboard);
+    try Clipboard.write(&stream, "", .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     const expected = "\x1b]52;c;\x07"; // Empty base64 section
 
     try testing.expectEqualStrings(expected, output);
@@ -515,19 +473,19 @@ test "write empty string to clipboard" {
 
 test "write to different selections" {
     var buf1: [4096]u8 = undefined;
-    var stream1 = std.io.fixedBufferStream(&buf1);
-    try Clipboard.write(stream1.writer(), "text", .clipboard);
-    try testing.expect(std.mem.indexOf(u8, stream1.getWritten(), ";c;") != null);
+    var stream1: std.Io.Writer = .fixed(&buf1);
+    try Clipboard.write(&stream1, "text", .clipboard);
+    try testing.expect(std.mem.find(u8, stream1.buffered(), ";c;") != null);
 
     var buf2: [4096]u8 = undefined;
-    var stream2 = std.io.fixedBufferStream(&buf2);
-    try Clipboard.write(stream2.writer(), "text", .primary);
-    try testing.expect(std.mem.indexOf(u8, stream2.getWritten(), ";p;") != null);
+    var stream2: std.Io.Writer = .fixed(&buf2);
+    try Clipboard.write(&stream2, "text", .primary);
+    try testing.expect(std.mem.find(u8, stream2.buffered(), ";p;") != null);
 
     var buf3: [4096]u8 = undefined;
-    var stream3 = std.io.fixedBufferStream(&buf3);
-    try Clipboard.write(stream3.writer(), "text", .system);
-    try testing.expect(std.mem.indexOf(u8, stream3.getWritten(), ";s;") != null);
+    var stream3: std.Io.Writer = .fixed(&buf3);
+    try Clipboard.write(&stream3, "text", .system);
+    try testing.expect(std.mem.find(u8, stream3.buffered(), ";s;") != null);
 }
 
 // ============================================================================
@@ -536,18 +494,18 @@ test "write to different selections" {
 
 test "OSC 52 sequence format is correct" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.write(stream.writer(), "test", .clipboard);
+    try Clipboard.write(&stream, "test", .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Must start with ESC ]
     try testing.expectEqual(@as(u8, 0x1b), output[0]);
     try testing.expectEqual(@as(u8, ']'), output[1]);
 
     // Must contain "52;"
-    try testing.expect(std.mem.indexOf(u8, output, "52;") != null);
+    try testing.expect(std.mem.find(u8, output, "52;") != null);
 
     // Must end with BEL (0x07)
     try testing.expectEqual(@as(u8, 0x07), output[output.len - 1]);
@@ -555,14 +513,14 @@ test "OSC 52 sequence format is correct" {
 
 test "base64 encoding is correct" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.write(stream.writer(), "hello", .clipboard);
+    try Clipboard.write(&stream, "hello", .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Extract base64 part (between second semicolon and BEL)
-    const b64_start = std.mem.indexOf(u8, output, ";c;").? + 3;
+    const b64_start = std.mem.find(u8, output, ";c;").? + 3;
     const b64_end = output.len - 1; // Before BEL
     const b64 = output[b64_start..b64_end];
 
@@ -590,11 +548,11 @@ test "selection parameter encoding" {
 
 test "request clipboard read generates correct query" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.requestRead(stream.writer(), .clipboard);
+    try Clipboard.requestRead(&stream, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     const expected = "\x1b]52;c;?\x07";
 
     try testing.expectEqualStrings(expected, output);
@@ -602,14 +560,14 @@ test "request clipboard read generates correct query" {
 
 test "request read from different selections" {
     var buf1: [4096]u8 = undefined;
-    var stream1 = std.io.fixedBufferStream(&buf1);
-    try Clipboard.requestRead(stream1.writer(), .primary);
-    try testing.expectEqualStrings("\x1b]52;p;?\x07", stream1.getWritten());
+    var stream1: std.Io.Writer = .fixed(&buf1);
+    try Clipboard.requestRead(&stream1, .primary);
+    try testing.expectEqualStrings("\x1b]52;p;?\x07", stream1.buffered());
 
     var buf2: [4096]u8 = undefined;
-    var stream2 = std.io.fixedBufferStream(&buf2);
-    try Clipboard.requestRead(stream2.writer(), .system);
-    try testing.expectEqualStrings("\x1b]52;s;?\x07", stream2.getWritten());
+    var stream2: std.Io.Writer = .fixed(&buf2);
+    try Clipboard.requestRead(&stream2, .system);
+    try testing.expectEqualStrings("\x1b]52;s;?\x07", stream2.buffered());
 }
 
 // ============================================================================
@@ -625,11 +583,11 @@ test "write large text (1KB)" {
     @memset(large_text, 'A');
 
     var buf: [8192]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.write(stream.writer(), large_text, .clipboard);
+    try Clipboard.write(&stream, large_text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Must start and end correctly
     try testing.expect(std.mem.startsWith(u8, output, "\x1b]52;c;"));
@@ -647,11 +605,11 @@ test "write very large text (10KB)" {
     @memset(large_text, 'B');
 
     var buf: [20000]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.write(stream.writer(), large_text, .clipboard);
+    try Clipboard.write(&stream, large_text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     try testing.expect(std.mem.startsWith(u8, output, "\x1b]52;c;"));
     try testing.expectEqual(@as(u8, 0x07), output[output.len - 1]);
@@ -659,12 +617,12 @@ test "write very large text (10KB)" {
 
 test "write text with newlines" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const text = "line1\nline2\nline3";
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Base64 of "line1\nline2\nline3"
     const expected = "\x1b]52;c;bGluZTEKbGluZTIKbGluZTM=\x07";
@@ -673,12 +631,12 @@ test "write text with newlines" {
 
 test "write text with carriage returns" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const text = "line1\r\nline2\r\n";
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Must encode correctly
     try testing.expect(std.mem.startsWith(u8, output, "\x1b]52;c;"));
@@ -687,12 +645,12 @@ test "write text with carriage returns" {
 
 test "write text with tabs" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const text = "col1\tcol2\tcol3";
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Base64 of "col1\tcol2\tcol3"
     const expected = "\x1b]52;c;Y29sMQljb2wyCWNvbDM=\x07";
@@ -701,12 +659,12 @@ test "write text with tabs" {
 
 test "write text with null bytes" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const text = "hello\x00world";
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Base64 should encode null byte correctly
     try testing.expect(std.mem.startsWith(u8, output, "\x1b]52;c;"));
@@ -715,13 +673,13 @@ test "write text with null bytes" {
 
 test "write text with all ASCII control characters" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // Include various control chars: NUL, SOH, STX, BEL, BS, TAB, LF, CR, ESC
     const text = "\x00\x01\x02\x07\x08\x09\x0a\x0d\x1b";
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     try testing.expect(std.mem.startsWith(u8, output, "\x1b]52;c;"));
     try testing.expectEqual(@as(u8, 0x07), output[output.len - 1]);
@@ -733,13 +691,13 @@ test "write text with all ASCII control characters" {
 
 test "write invalid UTF-8 sequence" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // Invalid UTF-8: continuation byte without start byte
     const text = "hello\x80world";
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Should encode as-is (base64 doesn't care about UTF-8 validity)
     try testing.expect(std.mem.startsWith(u8, output, "\x1b]52;c;"));
@@ -753,12 +711,12 @@ test "write invalid UTF-8 sequence" {
 test "write handles buffer overflow" {
     // Test that write propagates errors from the underlying writer
     var buf: [10]u8 = undefined; // Too small for OSC sequence
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    const result = Clipboard.write(stream.writer(), "test", .clipboard);
+    const result = Clipboard.write(&stream, "test", .clipboard);
 
     // Should fail because buffer is too small
-    try testing.expectError(error.NoSpaceLeft, result);
+    try testing.expectError(error.WriteFailed, result);
 }
 
 // ============================================================================
@@ -807,12 +765,12 @@ test "base64 padding is correct for various input lengths" {
 
     for (test_cases) |tc| {
         var buf: [4096]u8 = undefined;
-        var stream = std.io.fixedBufferStream(&buf);
+        var stream: std.Io.Writer = .fixed(&buf);
 
-        try Clipboard.write(stream.writer(), tc.input, .clipboard);
+        try Clipboard.write(&stream, tc.input, .clipboard);
 
-        const output = stream.getWritten();
-        const b64_start = std.mem.indexOf(u8, output, ";c;").? + 3;
+        const output = stream.buffered();
+        const b64_start = std.mem.find(u8, output, ";c;").? + 3;
         const b64_end = output.len - 1;
         const b64 = output[b64_start..b64_end];
 
@@ -822,12 +780,12 @@ test "base64 padding is correct for various input lengths" {
 
 test "base64 encoding handles binary data" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const binary_data = [_]u8{ 0x00, 0x01, 0x02, 0x03, 0xFF, 0xFE, 0xFD };
-    try Clipboard.write(stream.writer(), &binary_data, .clipboard);
+    try Clipboard.write(&stream, &binary_data, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     try testing.expect(std.mem.startsWith(u8, output, "\x1b]52;c;"));
     try testing.expectEqual(@as(u8, 0x07), output[output.len - 1]);
@@ -842,18 +800,18 @@ test "base64 encoding handles binary data" {
 
 test "multiple writes to same writer" {
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.write(stream.writer(), "first", .clipboard);
-    const pos1 = stream.pos;
+    try Clipboard.write(&stream, "first", .clipboard);
+    const pos1 = stream.end;
 
-    try Clipboard.write(stream.writer(), "second", .clipboard);
-    const pos2 = stream.pos;
+    try Clipboard.write(&stream, "second", .clipboard);
+    const pos2 = stream.end;
 
     // Both writes should succeed
     try testing.expect(pos2 > pos1);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
 
     // Should contain two complete sequences
     const count = std.mem.count(u8, output, "\x1b]52;");
@@ -873,12 +831,12 @@ test "no memory leaks in write operation" {
     const allocator = gpa.allocator();
 
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     const text = try allocator.dupe(u8, "test");
     defer allocator.free(text);
 
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 }
 
 test "no memory leaks in requestRead operation" {
@@ -889,9 +847,9 @@ test "no memory leaks in requestRead operation" {
     }
 
     var buf: [4096]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
-    try Clipboard.requestRead(stream.writer(), .clipboard);
+    try Clipboard.requestRead(&stream, .clipboard);
 }
 
 // ============================================================================
@@ -901,7 +859,7 @@ test "no memory leaks in requestRead operation" {
 test "write exactly fills buffer" {
     // Test that we can write up to buffer limit
     var buf: [256]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // Calculate text size that will fill buffer (account for OSC overhead)
     // OSC overhead: \x1b]52;c; (7 bytes) + \x07 (1 byte) = 8 bytes
@@ -909,21 +867,21 @@ test "write exactly fills buffer" {
     // Safe size: 150 bytes should encode to ~200 bytes + overhead
     const text = "A" ** 150;
 
-    try Clipboard.write(stream.writer(), text, .clipboard);
+    try Clipboard.write(&stream, text, .clipboard);
 
-    const output = stream.getWritten();
+    const output = stream.buffered();
     try testing.expect(output.len > 0);
 }
 
 test "write exceeds buffer capacity" {
     var buf: [64]u8 = undefined;
-    var stream = std.io.fixedBufferStream(&buf);
+    var stream: std.Io.Writer = .fixed(&buf);
 
     // This should fail because encoded output exceeds 64 bytes
     const text = "A" ** 100;
 
-    const result = Clipboard.write(stream.writer(), text, .clipboard);
-    try testing.expectError(error.NoSpaceLeft, result);
+    const result = Clipboard.write(&stream, text, .clipboard);
+    try testing.expectError(error.WriteFailed, result);
 }
 
 // ============================================================================
@@ -1236,7 +1194,7 @@ test "SystemClipboard.isAvailable checks platform commands on macOS" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
 
     // On macOS, pbcopy/pbpaste should be available
-    const available = try SystemClipboard.isAvailable();
+    const available = try SystemClipboard.isAvailable(testing.io);
     try testing.expect(available);
 }
 
@@ -1244,14 +1202,14 @@ test "SystemClipboard.isAvailable checks xclip/xsel on Linux" {
     if (builtin.os.tag != .linux) return error.SkipZigTest;
 
     // Should check for xclip or xsel (may or may not be installed)
-    const available = try SystemClipboard.isAvailable();
+    const available = try SystemClipboard.isAvailable(testing.io);
     _ = available; // Result depends on system
 }
 
 test "SystemClipboard.isAvailable returns false on unsupported platform" {
     // On exotic platforms without clipboard support
     // This test validates the detection logic exists
-    _ = try SystemClipboard.isAvailable();
+    _ = try SystemClipboard.isAvailable(testing.io);
 }
 
 test "SystemClipboard.write simple text on macOS" {
@@ -1259,7 +1217,7 @@ test "SystemClipboard.write simple text on macOS" {
 
     const allocator = testing.allocator;
 
-    try SystemClipboard.write(allocator, "test clipboard");
+    try SystemClipboard.write(allocator, testing.io, "test clipboard");
 
     // No error means success (actual clipboard write happened)
 }
@@ -1269,7 +1227,7 @@ test "SystemClipboard.write empty string on macOS" {
 
     const allocator = testing.allocator;
 
-    try SystemClipboard.write(allocator, "");
+    try SystemClipboard.write(allocator, testing.io, "");
 
     // Should succeed without error
 }
@@ -1279,7 +1237,7 @@ test "SystemClipboard.write Unicode text on macOS" {
 
     const allocator = testing.allocator;
 
-    try SystemClipboard.write(allocator, "Hello 世界 🚀");
+    try SystemClipboard.write(allocator, testing.io, "Hello 世界 🚀");
 
     // Should handle Unicode correctly
 }
@@ -1290,7 +1248,7 @@ test "SystemClipboard.write multi-line text on macOS" {
     const allocator = testing.allocator;
 
     const text = "line1\nline2\nline3";
-    try SystemClipboard.write(allocator, text);
+    try SystemClipboard.write(allocator, testing.io, text);
 
     // Should preserve newlines
 }
@@ -1304,7 +1262,7 @@ test "SystemClipboard.write large text on macOS" {
     defer allocator.free(large_text);
     @memset(large_text, 'A');
 
-    try SystemClipboard.write(allocator, large_text);
+    try SystemClipboard.write(allocator, testing.io, large_text);
 
     // Should handle large clipboard data
 }
@@ -1313,15 +1271,15 @@ test "SystemClipboard.read on macOS returns allocated string" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
     // Pasteboard requires a live GUI session; skip in non-interactive (--listen=-) mode
     const term_mod = @import("term.zig");
-    if (!term_mod.isatty(std.posix.STDOUT_FILENO)) return error.SkipZigTest;
+    if (!try term_mod.isatty(testing.io, std.Io.File.stdout())) return error.SkipZigTest;
 
     const allocator = testing.allocator;
 
     // First write something known
-    try SystemClipboard.write(allocator, "read test");
+    try SystemClipboard.write(allocator, testing.io, "read test");
 
     // Then read it back
-    const text = try SystemClipboard.read(allocator);
+    const text = try SystemClipboard.read(allocator, testing.io);
     defer allocator.free(text);
 
     try testing.expectEqualStrings("read test", text);
@@ -1331,14 +1289,14 @@ test "SystemClipboard.read returns empty string when clipboard empty on macOS" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
     // Pasteboard requires a live GUI session; skip in non-interactive (--listen=-) mode
     const term_mod = @import("term.zig");
-    if (!term_mod.isatty(std.posix.STDOUT_FILENO)) return error.SkipZigTest;
+    if (!try term_mod.isatty(testing.io, std.Io.File.stdout())) return error.SkipZigTest;
 
     const allocator = testing.allocator;
 
     // Clear clipboard by writing empty string
-    try SystemClipboard.write(allocator, "");
+    try SystemClipboard.write(allocator, testing.io, "");
 
-    const text = try SystemClipboard.read(allocator);
+    const text = try SystemClipboard.read(allocator, testing.io);
     defer allocator.free(text);
 
     try testing.expectEqual(@as(usize, 0), text.len);
@@ -1348,14 +1306,14 @@ test "SystemClipboard.read preserves Unicode on macOS" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
     // Pasteboard requires a live GUI session; skip in non-interactive (--listen=-) mode
     const term_mod = @import("term.zig");
-    if (!term_mod.isatty(std.posix.STDOUT_FILENO)) return error.SkipZigTest;
+    if (!try term_mod.isatty(testing.io, std.Io.File.stdout())) return error.SkipZigTest;
 
     const allocator = testing.allocator;
 
     const original = "Hello 世界 🚀";
-    try SystemClipboard.write(allocator, original);
+    try SystemClipboard.write(allocator, testing.io, original);
 
-    const text = try SystemClipboard.read(allocator);
+    const text = try SystemClipboard.read(allocator, testing.io);
     defer allocator.free(text);
 
     try testing.expectEqualStrings(original, text);
@@ -1365,14 +1323,14 @@ test "SystemClipboard.read preserves newlines on macOS" {
     if (builtin.os.tag != .macos) return error.SkipZigTest;
     // Pasteboard requires a live GUI session; skip in non-interactive (--listen=-) mode
     const term_mod = @import("term.zig");
-    if (!term_mod.isatty(std.posix.STDOUT_FILENO)) return error.SkipZigTest;
+    if (!try term_mod.isatty(testing.io, std.Io.File.stdout())) return error.SkipZigTest;
 
     const allocator = testing.allocator;
 
     const original = "line1\nline2\nline3";
-    try SystemClipboard.write(allocator, original);
+    try SystemClipboard.write(allocator, testing.io, original);
 
-    const text = try SystemClipboard.read(allocator);
+    const text = try SystemClipboard.read(allocator, testing.io);
     defer allocator.free(text);
 
     try testing.expectEqualStrings(original, text);
@@ -1384,10 +1342,10 @@ test "SystemClipboard.write on Linux uses xclip or xsel" {
     const allocator = testing.allocator;
 
     // May fail if neither xclip nor xsel is installed
-    const result = SystemClipboard.write(allocator, "linux test");
+    const result = SystemClipboard.write(allocator, testing.io, "linux test");
 
     // If available, should succeed
-    if (try SystemClipboard.isAvailable()) {
+    if (try SystemClipboard.isAvailable(testing.io)) {
         try result;
     } else {
         try testing.expectError(error.ClipboardUnavailable, result);
@@ -1399,12 +1357,12 @@ test "SystemClipboard.read on Linux uses xclip or xsel" {
 
     const allocator = testing.allocator;
 
-    if (!(try SystemClipboard.isAvailable())) return error.SkipZigTest;
+    if (!(try SystemClipboard.isAvailable(testing.io))) return error.SkipZigTest;
 
     // Write then read
-    try SystemClipboard.write(allocator, "linux read test");
+    try SystemClipboard.write(allocator, testing.io, "linux read test");
 
-    const text = try SystemClipboard.read(allocator);
+    const text = try SystemClipboard.read(allocator, testing.io);
     defer allocator.free(text);
 
     try testing.expectEqualStrings("linux read test", text);
@@ -1415,7 +1373,7 @@ test "SystemClipboard.write on Windows uses PowerShell" {
 
     const allocator = testing.allocator;
 
-    try SystemClipboard.write(allocator, "windows test");
+    try SystemClipboard.write(allocator, testing.io, "windows test");
 
     // Should use Set-Clipboard cmdlet
 }
@@ -1425,9 +1383,9 @@ test "SystemClipboard.read on Windows uses PowerShell" {
 
     const allocator = testing.allocator;
 
-    try SystemClipboard.write(allocator, "windows read test");
+    try SystemClipboard.write(allocator, testing.io, "windows read test");
 
-    const text = try SystemClipboard.read(allocator);
+    const text = try SystemClipboard.read(allocator, testing.io);
     defer allocator.free(text);
 
     try testing.expectEqualStrings("windows read test", text);
@@ -1439,7 +1397,7 @@ test "SystemClipboard.write returns error when command fails" {
     // Implementation should detect when subprocess fails
     // This test validates error propagation
     // (Hard to test without mocking, but validates error path exists)
-    const result = SystemClipboard.write(allocator, "test");
+    const result = SystemClipboard.write(allocator, testing.io, "test");
     if (result) |_| {
         // Success - command worked
     } else |_| {
@@ -1451,7 +1409,7 @@ test "SystemClipboard.read returns error when command fails" {
     const allocator = testing.allocator;
 
     // Should handle command failure gracefully
-    const result = SystemClipboard.read(allocator);
+    const result = SystemClipboard.read(allocator, testing.io);
     if (result) |text| {
         // Success - free the text
         allocator.free(text);
@@ -1473,10 +1431,10 @@ test "SystemClipboard no memory leaks on write" {
         return error.SkipZigTest;
     }
 
-    const available = SystemClipboard.isAvailable() catch return error.SkipZigTest;
+    const available = SystemClipboard.isAvailable(testing.io) catch return error.SkipZigTest;
     if (!available) return error.SkipZigTest;
 
-    try SystemClipboard.write(allocator, "leak test");
+    try SystemClipboard.write(allocator, testing.io, "leak test");
 }
 
 test "SystemClipboard no memory leaks on read" {
@@ -1491,12 +1449,12 @@ test "SystemClipboard no memory leaks on read" {
         return error.SkipZigTest;
     }
 
-    const available = SystemClipboard.isAvailable() catch return error.SkipZigTest;
+    const available = SystemClipboard.isAvailable(testing.io) catch return error.SkipZigTest;
     if (!available) return error.SkipZigTest;
 
-    try SystemClipboard.write(allocator, "leak test read");
+    try SystemClipboard.write(allocator, testing.io, "leak test read");
 
-    const text = try SystemClipboard.read(allocator);
+    const text = try SystemClipboard.read(allocator, testing.io);
     defer allocator.free(text);
 }
 
@@ -1507,9 +1465,9 @@ test "SystemClipboard handles text with special characters" {
 
     // Test shell-sensitive characters
     const text = "test $VAR \"quotes\" 'single' `backticks` $(cmd) & | > <";
-    try SystemClipboard.write(allocator, text);
+    try SystemClipboard.write(allocator, testing.io, text);
 
-    const read_text = try SystemClipboard.read(allocator);
+    const read_text = try SystemClipboard.read(allocator, testing.io);
     defer allocator.free(read_text);
 
     try testing.expectEqualStrings(text, read_text);
@@ -1524,8 +1482,14 @@ test "SystemClipboard returns error on unsupported platform" {
 
     const allocator = testing.allocator;
 
-    try testing.expectError(error.ClipboardUnavailable, SystemClipboard.write(allocator, "test"));
-    try testing.expectError(error.ClipboardUnavailable, SystemClipboard.read(allocator));
+    try testing.expectError(
+        error.ClipboardUnavailable,
+        SystemClipboard.write(allocator, testing.io, "test"),
+    );
+    try testing.expectError(
+        error.ClipboardUnavailable,
+        SystemClipboard.read(allocator, testing.io),
+    );
 }
 
 test "SystemClipboard.isAvailable does not allocate memory" {
@@ -1536,5 +1500,5 @@ test "SystemClipboard.isAvailable does not allocate memory" {
     }
 
     // isAvailable should only check command existence, not allocate
-    _ = try SystemClipboard.isAvailable();
+    _ = try SystemClipboard.isAvailable(testing.io);
 }

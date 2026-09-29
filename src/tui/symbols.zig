@@ -239,7 +239,7 @@ pub const Braille = struct {
 pub const Block = struct {
     /// Horizontal block eighths for fine-grained progress bars
     pub const horizontal_eighth = [_][]const u8{
-        " ",  // 0/8
+        " ", // 0/8
         "▏", // 1/8
         "▎", // 2/8
         "▍", // 3/8
@@ -252,7 +252,7 @@ pub const Block = struct {
 
     /// Vertical block eighths
     pub const vertical_eighth = [_][]const u8{
-        " ",  // 0/8
+        " ", // 0/8
         "▁", // 1/8
         "▂", // 2/8
         "▃", // 3/8
@@ -343,42 +343,38 @@ test "BoxSet.ascii - characters" {
 
 test "BoxSet.drawHorizontal" {
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try BoxSet.single.drawHorizontal(writer, 5);
-    try std.testing.expectEqualStrings("─────", fbs.getWritten());
+    try BoxSet.single.drawHorizontal(&fbs, 5);
+    try std.testing.expectEqualStrings("─────", fbs.buffered());
 }
 
 test "BoxSet.drawVertical" {
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try BoxSet.single.drawVertical(writer, 3);
-    try std.testing.expectEqualStrings("│\n│\n│", fbs.getWritten());
+    try BoxSet.single.drawVertical(&fbs, 3);
+    try std.testing.expectEqualStrings("│\n│\n│", fbs.buffered());
 }
 
 test "BoxSet.drawBox - simple" {
     var buf: [256]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try BoxSet.single.drawBox(writer, 5, 3);
+    try BoxSet.single.drawBox(&fbs, 5, 3);
     const expected =
         \\┌───┐
         \\│   │
         \\└───┘
     ;
-    try std.testing.expectEqualStrings(expected, fbs.getWritten());
+    try std.testing.expectEqualStrings(expected, fbs.buffered());
 }
 
 test "BoxSet.drawBox - too small" {
     var buf: [64]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    const writer = fbs.writer();
+    var fbs: std.Io.Writer = .fixed(&buf);
 
-    try std.testing.expectError(error.BoxTooSmall, BoxSet.single.drawBox(writer, 1, 1));
+    try std.testing.expectError(error.BoxTooSmall, BoxSet.single.drawBox(&fbs, 1, 1));
 }
 
 test "Braille.pattern" {

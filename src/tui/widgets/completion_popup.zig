@@ -120,15 +120,11 @@ pub const CompletionPopup = struct {
         const height = self.calcHeight();
 
         // Calculate popup position (below cursor, with bounds checking)
-        const x: u16 = @intCast(@max(0, @min(
-            @as(i32, cursor_x) + self.position.x,
-            @as(i32, buf.width) - @as(i32, width)
-        )));
+        const x_max: i32 = @as(i32, buf.width) - @as(i32, width);
+        const x: u16 = @intCast(@max(0, @min(@as(i32, cursor_x) + self.position.x, x_max)));
 
-        const y: u16 = @intCast(@max(0, @min(
-            @as(i32, cursor_y) + self.position.y,
-            @as(i32, buf.height) - @as(i32, height)
-        )));
+        const y_max: i32 = @as(i32, buf.height) - @as(i32, height);
+        const y: u16 = @intCast(@max(0, @min(@as(i32, cursor_y) + self.position.y, y_max)));
 
         const area = Rect{ .x = x, .y = y, .width = width, .height = height };
 

@@ -44,7 +44,7 @@ pub const LeakCheckAllocator = struct {
     pub fn init(backing: Allocator) LeakCheckAllocator {
         return .{
             .backing_allocator = backing,
-            .allocations = std.ArrayList(AllocationInfo){},
+            .allocations = std.ArrayList(AllocationInfo).empty,
             .total_allocated = 0,
             .total_freed = 0,
             .peak_memory = 0,
@@ -753,8 +753,8 @@ test "BenchmarkComparison.format outputs readable string" {
     defer testing.allocator.free(formatted);
 
     // Should contain function name and comparison
-    try testing.expect(std.mem.indexOf(u8, formatted, "test_fn") != null);
-    try testing.expect(std.mem.indexOf(u8, formatted, "faster") != null);
+    try testing.expect(std.mem.find(u8, formatted, "test_fn") != null);
+    try testing.expect(std.mem.find(u8, formatted, "faster") != null);
 }
 
 test "runBenchmark executes function multiple times" {

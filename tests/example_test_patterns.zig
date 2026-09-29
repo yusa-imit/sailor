@@ -58,7 +58,7 @@ test "Pattern: Basic widget rendering verification" {
     // Verify content
     const snapshot = try term.getSnapshot(testing.allocator);
     defer testing.allocator.free(snapshot);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Test") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Test") != null);
 }
 
 // ============================================================================
@@ -117,11 +117,11 @@ test "Pattern: Multi-widget dashboard layout" {
     const snapshot = try term.getSnapshot(testing.allocator);
     defer testing.allocator.free(snapshot);
 
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Dashboard") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Tasks") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Progress") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Build") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "75%") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Dashboard") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Tasks") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Progress") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Build") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "75%") != null);
 }
 
 // ============================================================================
@@ -235,14 +235,14 @@ test "Pattern: Table widget with structured data" {
     const snapshot = try term.getSnapshot(testing.allocator);
     defer testing.allocator.free(snapshot);
 
-    try testing.expect(std.mem.indexOf(u8, snapshot, "ID") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Name") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Status") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "ID") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Name") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Status") != null);
 
     // Verify data rows render
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Alice") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Bob") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Charlie") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Alice") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Bob") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Charlie") != null);
 }
 
 // ============================================================================
@@ -272,15 +272,15 @@ test "Pattern: Progressive gauge updates" {
         const snapshot = try term.getSnapshot(testing.allocator);
         defer testing.allocator.free(snapshot);
 
-        try testing.expect(std.mem.indexOf(u8, snapshot, label) != null);
+        try testing.expect(std.mem.find(u8, snapshot, label) != null);
 
         // At 0%, no fill blocks
         if (percent == 0) {
-            try testing.expect(std.mem.indexOf(u8, snapshot, "█") == null);
+            try testing.expect(std.mem.find(u8, snapshot, "█") == null);
         }
         // At 100%, should have fill blocks
         if (percent == 100) {
-            try testing.expect(std.mem.indexOf(u8, snapshot, "█") != null);
+            try testing.expect(std.mem.find(u8, snapshot, "█") != null);
         }
     }
 }
@@ -346,8 +346,8 @@ test "Pattern: Horizontal layout composition" {
     // Verify titles
     const snapshot = try term.getSnapshot(testing.allocator);
     defer testing.allocator.free(snapshot);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Left") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Right") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Left") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Right") != null);
 }
 
 // Example: Testing vertical stack layout
@@ -374,6 +374,6 @@ test "Pattern: Vertical layout composition" {
     // Verify titles
     const snapshot = try term.getSnapshot(testing.allocator);
     defer testing.allocator.free(snapshot);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Top") != null);
-    try testing.expect(std.mem.indexOf(u8, snapshot, "Bottom") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Top") != null);
+    try testing.expect(std.mem.find(u8, snapshot, "Bottom") != null);
 }

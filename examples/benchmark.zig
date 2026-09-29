@@ -35,18 +35,19 @@ const ITERATIONS = 10000;
 
 fn benchmark(
     allocator: std.mem.Allocator,
+    io: std.Io,
     comptime name: []const u8,
     comptime func: fn (std.mem.Allocator) anyerror!void,
 ) !void {
-    const start = std.time.nanoTimestamp();
+    const start = std.Io.Clock.awake.now(io);
 
     var i: usize = 0;
     while (i < ITERATIONS) : (i += 1) {
         try func(allocator);
     }
 
-    const end = std.time.nanoTimestamp();
-    const elapsed = @as(f64, @floatFromInt(end - start)) / 1_000_000.0; // Convert to ms
+    const elapsed_ns = start.untilNow(io, .awake).toNanoseconds();
+    const elapsed = @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000.0; // Convert to ms
     const per_op = elapsed / @as(f64, @floatFromInt(ITERATIONS));
 
     std.debug.print("{s}: {d:.2}ms total, {d:.4}ms per op ({d:.0} ops/sec)\n", .{
@@ -258,10 +259,9 @@ fn benchStatusBarRender(allocator: std.mem.Allocator) !void {
 
 // Skipped: BarChart, LineChart, Calendar, Menu, Dialog (setCell error or API mismatches)
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
     std.debug.print("\nSailor TUI Framework - Performance Benchmarks\n", .{});
     std.debug.print("============================================\n\n", .{});
@@ -269,30 +269,30 @@ pub fn main() !void {
 
     // Core Infrastructure
     std.debug.print("=== Core Infrastructure ===\n", .{});
-    try benchmark(allocator, "Buffer.init (80x24)", benchBufferCreate);
-    try benchmark(allocator, "Buffer.fill", benchBufferFill);
-    try benchmark(allocator, "Buffer.diff", benchBufferDiff);
+    try benchmark(allocator, io, "Buffer.init (80x24)", benchBufferCreate);
+    try benchmark(allocator, io, "Buffer.fill", benchBufferFill);
+    try benchmark(allocator, io, "Buffer.diff", benchBufferDiff);
 
     // Basic Widgets
     std.debug.print("\n=== Basic Widgets ===\n", .{});
-    try benchmark(allocator, "Block.render", benchBlockRender);
-    try benchmark(allocator, "Paragraph.render", benchParagraphRender);
-    try benchmark(allocator, "List.render", benchListRender);
-    try benchmark(allocator, "Input.render", benchInputRender);
-    try benchmark(allocator, "Tabs.render", benchTabsRender);
-    try benchmark(allocator, "StatusBar.render", benchStatusBarRender);
-    try benchmark(allocator, "Gauge.render", benchGaugeRender);
+    try benchmark(allocator, io, "Block.render", benchBlockRender);
+    try benchmark(allocator, io, "Paragraph.render", benchParagraphRender);
+    try benchmark(allocator, io, "List.render", benchListRender);
+    try benchmark(allocator, io, "Input.render", benchInputRender);
+    try benchmark(allocator, io, "Tabs.render", benchTabsRender);
+    try benchmark(allocator, io, "StatusBar.render", benchStatusBarRender);
+    try benchmark(allocator, io, "Gauge.render", benchGaugeRender);
 
     // Advanced Widgets
     std.debug.print("\n=== Advanced Widgets ===\n", .{});
-    try benchmark(allocator, "Table.render", benchTableRender);
+    try benchmark(allocator, io, "Table.render", benchTableRender);
     // Skipped: Tree, TextArea, Menu, Dialog (source file issues)
 
     // Chart Widgets
     std.debug.print("\n=== Chart Widgets ===\n", .{});
-    try benchmark(allocator, "Sparkline.render", benchSparklineRender);
-    // try benchmark(allocator, "BarChart.render", benchBarChartRender); // Skipped: setCell
-    // try benchmark(allocator, "LineChart.render", benchLineChartRender); // Skipped: setCell
+    try benchmark(allocator, io, "Sparkline.render", benchSparklineRender);
+    // try benchmark(allocator, io, "BarChart.render", benchBarChartRender); // Skipped: setCell
+    // try benchmark(allocator, io, "LineChart.render", benchLineChartRender); // Skipped: setCell
 
     std.debug.print("\n✅ Core widget benchmarks complete!\n", .{});
     std.debug.print("📊 Total widgets benchmarked: 12 core widgets\n", .{});
