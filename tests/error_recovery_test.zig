@@ -25,6 +25,33 @@ const ErrorReporter = sailor.ErrorReporter; // Will be implemented
 const GracefulDegradation = sailor.GracefulDegradation; // Will be implemented
 const ErrorInjector = sailor.ErrorInjector; // Will be implemented
 
+/// Deterministic `Io` double for delay-injection tests: `sleep` records the requested
+/// duration and returns at once, so no assertion depends on the host timer granularity
+/// (Windows can wake a sleeper measurably early against the QPC-based awake clock).
+const SleepRecorder = struct {
+    requested_ns_total: i96 = 0,
+    sleep_count: u32 = 0,
+
+    const vtable: std.Io.VTable = blk: {
+        var v = std.Io.failing.vtable.*;
+        v.sleep = record_sleep;
+        break :blk v;
+    };
+
+    fn io(recorder: *SleepRecorder) std.Io {
+        return .{ .userdata = recorder, .vtable = &vtable };
+    }
+
+    fn record_sleep(userdata: ?*anyopaque, timeout: std.Io.Timeout) std.Io.Cancelable!void {
+        const recorder: *SleepRecorder = @ptrCast(@alignCast(userdata.?));
+        switch (timeout) {
+            .duration => |d| recorder.requested_ns_total += d.raw.nanoseconds,
+            .none, .deadline => unreachable, // ErrorInjector only sleeps for a duration.
+        }
+        recorder.sleep_count += 1;
+    }
+};
+
 // ============================================================================
 // FEATURE 1: ERROR BOUNDARY TESTS (10 tests)
 // ============================================================================
@@ -1256,7 +1283,8 @@ test "ErrorInjector - inject failure with probability" {
 
 test "ErrorInjector - inject delay to simulate slow render" {
     const allocator = testing.allocator;
-    var injector = try ErrorInjector.init(allocator, testing.io);
+    var recorder = SleepRecorder{};
+    var injector = try ErrorInjector.init(allocator, recorder.io());
     defer injector.deinit();
 
     // Inject 5ms delay
@@ -1275,12 +1303,11 @@ test "ErrorInjector - inject delay to simulate slow render" {
 
     const widget = TestWidget{};
 
-    const start = std.Io.Clock.awake.now(testing.io);
     try injector.wrapRender("SlowWidget", &widget, &buf, area);
-    const elapsed = start.untilNow(testing.io, .awake).toNanoseconds();
 
-    // Should take at least 5ms
-    try testing.expect(elapsed >= 5_000_000);
+    // Should have requested exactly one 5ms sleep
+    try testing.expectEqual(@as(u32, 1), recorder.sleep_count);
+    try testing.expectEqual(@as(i96, 5_000_000), recorder.requested_ns_total);
 }
 
 test "ErrorInjector - inject memory allocation failure" {
@@ -1375,7 +1402,8 @@ test "ErrorInjector - conditional injection based on state" {
 
 test "ErrorInjector - multiple injections on same widget" {
     const allocator = testing.allocator;
-    var injector = try ErrorInjector.init(allocator, testing.io);
+    var recorder = SleepRecorder{};
+    var injector = try ErrorInjector.init(allocator, recorder.io());
     defer injector.deinit();
 
     // Inject delay + error
@@ -1395,15 +1423,14 @@ test "ErrorInjector - multiple injections on same widget" {
 
     const widget = TestWidget{};
 
-    const start = std.Io.Clock.awake.now(testing.io);
     const result = injector.wrapRender("MultiWidget", &widget, &buf, area);
-    const elapsed = start.untilNow(testing.io, .awake).toNanoseconds();
 
     // Should fail (error injection)
     try testing.expectError(error.InjectedError, result);
 
-    // Should also have delay (at least 1ms)
-    try testing.expect(elapsed >= 1_000_000);
+    // Should also have requested the 1ms delay before failing
+    try testing.expectEqual(@as(u32, 1), recorder.sleep_count);
+    try testing.expectEqual(@as(i96, 1_000_000), recorder.requested_ns_total);
 }
 
 test "ErrorInjector - reset clears all injections" {
