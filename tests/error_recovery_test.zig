@@ -25,25 +25,32 @@ const ErrorReporter = sailor.ErrorReporter; // Will be implemented
 const GracefulDegradation = sailor.GracefulDegradation; // Will be implemented
 const ErrorInjector = sailor.ErrorInjector; // Will be implemented
 
-/// Deterministic `Io` double for delay-injection tests: `sleep` records the requested
-/// duration and returns at once, so no assertion depends on the host timer granularity
-/// (Windows can wake a sleeper measurably early against the QPC-based awake clock).
-const SleepRecorder = struct {
+/// Deterministic `Io` double for delay and budget tests: `sleep` advances a virtual clock
+/// by the requested duration and returns at once, and `now` reads that clock, so no
+/// assertion depends on host timer granularity (Windows can wake a sleeper measurably
+/// early against the QPC-based awake clock).
+const VirtualClock = struct {
     requested_ns_total: i96 = 0,
     sleep_count: u32 = 0,
 
     const vtable: std.Io.VTable = blk: {
         var v = std.Io.failing.vtable.*;
         v.sleep = record_sleep;
+        v.now = read_now;
         break :blk v;
     };
 
-    fn io(recorder: *SleepRecorder) std.Io {
+    fn io(recorder: *VirtualClock) std.Io {
         return .{ .userdata = recorder, .vtable = &vtable };
     }
 
+    fn read_now(userdata: ?*anyopaque, _: std.Io.Clock) std.Io.Timestamp {
+        const clock: *VirtualClock = @ptrCast(@alignCast(userdata.?));
+        return .{ .nanoseconds = clock.requested_ns_total };
+    }
+
     fn record_sleep(userdata: ?*anyopaque, timeout: std.Io.Timeout) std.Io.Cancelable!void {
-        const recorder: *SleepRecorder = @ptrCast(@alignCast(userdata.?));
+        const recorder: *VirtualClock = @ptrCast(@alignCast(userdata.?));
         switch (timeout) {
             .duration => |d| recorder.requested_ns_total += d.raw.nanoseconds,
             .none, .deadline => unreachable, // ErrorInjector only sleeps for a duration.
@@ -1186,7 +1193,8 @@ test "GracefulDegradation - performance budget enforcement" {
     var buf = try Buffer.init(allocator, 80, 24);
     defer buf.deinit();
 
-    var degradation = try GracefulDegradation.init(allocator, testing.io);
+    var clock = VirtualClock{};
+    var degradation = try GracefulDegradation.init(allocator, clock.io());
     defer degradation.deinit();
 
     // Set render budget: 1ms
@@ -1195,13 +1203,15 @@ test "GracefulDegradation - performance budget enforcement" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
 
     const SlowWidget = struct {
-        pub fn render(_: @This(), buffer: *Buffer, rect: Rect) !void {
-            try testing.io.sleep(.fromNanoseconds(2_000_000), .awake); // 2ms (exceeds budget)
+        io: std.Io,
+
+        pub fn render(widget: @This(), buffer: *Buffer, rect: Rect) !void {
+            try widget.io.sleep(.fromNanoseconds(2_000_000), .awake); // 2ms (exceeds budget)
             buffer.setString(rect.x, rect.y, "Slow", .{});
         }
     };
 
-    const widget = SlowWidget{};
+    const widget = SlowWidget{ .io = clock.io() };
     const result = degradation.renderWithBudget(&widget, &buf, area);
 
     // Should timeout and return error
@@ -1283,7 +1293,7 @@ test "ErrorInjector - inject failure with probability" {
 
 test "ErrorInjector - inject delay to simulate slow render" {
     const allocator = testing.allocator;
-    var recorder = SleepRecorder{};
+    var recorder = VirtualClock{};
     var injector = try ErrorInjector.init(allocator, recorder.io());
     defer injector.deinit();
 
@@ -1402,7 +1412,7 @@ test "ErrorInjector - conditional injection based on state" {
 
 test "ErrorInjector - multiple injections on same widget" {
     const allocator = testing.allocator;
-    var recorder = SleepRecorder{};
+    var recorder = VirtualClock{};
     var injector = try ErrorInjector.init(allocator, recorder.io());
     defer injector.deinit();
 
