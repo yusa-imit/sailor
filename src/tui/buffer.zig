@@ -1,5 +1,7 @@
 //! The double-buffered terminal cell grid (`Buffer`) and its diff/render-to-writer logic.
 const std = @import("std");
+const assert = std.debug.assert;
+const maybe = @import("../stdx.zig").maybe;
 const Allocator = std.mem.Allocator;
 const style_mod = @import("style.zig");
 const Style = style_mod.Style;
@@ -61,22 +63,38 @@ pub const Buffer = struct {
         const size = @as(usize, width) * @as(usize, height);
         const cells = try allocator.alloc(Cell, size);
         @memset(cells, Cell{});
+        maybe(size == 0); // Either dimension may be zero: an empty grid is valid.
 
-        return Buffer{
+        const buffer = Buffer{
             .width = width,
             .height = height,
             .cells = cells,
             .allocator = allocator,
         };
+        buffer.check_invariants();
+        return buffer;
     }
 
-    /// Free buffer resources
+    /// Free buffer resources. Precondition: the buffer is live (not already deinitialized);
+    /// the fields are poisoned afterwards.
     pub fn deinit(self: *Buffer) void {
+        self.check_invariants();
         self.allocator.free(self.cells);
+        // Poison in Debug so a double deinit or use-after-free trips `check_invariants`.
+        self.* = undefined;
+    }
+
+    /// Assert the structural invariant: the cell slice covers exactly `width * height` cells.
+    /// Cheap (O(1)); call after every mutation in tests and fuzzers.
+    pub fn check_invariants(self: Buffer) void {
+        const expected = @as(usize, self.width) * @as(usize, self.height);
+        assert(self.cells.len == expected);
     }
 
     /// Get cell at position (returns null if out of bounds)
     pub fn get(self: Buffer, x: u16, y: u16) ?*Cell {
+        maybe(x >= self.width); // Out-of-bounds queries are legitimate: widgets clip lazily.
+        maybe(y >= self.height);
         if (x >= self.width or y >= self.height) return null;
         const index = @as(usize, y) * @as(usize, self.width) + @as(usize, x);
         return &self.cells[index];
@@ -84,13 +102,17 @@ pub const Buffer = struct {
 
     /// Get cell at position (const version)
     pub fn getConst(self: Buffer, x: u16, y: u16) ?Cell {
+        maybe(x >= self.width);
+        maybe(y >= self.height);
         if (x >= self.width or y >= self.height) return null;
         const index = @as(usize, y) * @as(usize, self.width) + @as(usize, x);
         return self.cells[index];
     }
 
-    /// Set cell at position
+    /// Set cell at position. Out-of-bounds writes are ignored (clipping), not errors.
     pub fn set(self: *Buffer, x: u16, y: u16, cell: Cell) void {
+        maybe(x >= self.width);
+        maybe(y >= self.height);
         // Bounds check once, then direct array access (no redundant get() call)
         if (x >= self.width or y >= self.height) return;
         const index = @as(usize, y) * @as(usize, self.width) + @as(usize, x);
@@ -135,13 +157,20 @@ pub const Buffer = struct {
         }
     }
 
-    /// Fill area with character and style
+    /// Fill area with character and style. The area is clipped to the buffer; extents whose
+    /// far edge exceeds `maxInt(u16)` saturate rather than overflow.
     pub fn fill(self: *Buffer, area: Rect, char: u21, cell_style: Style) void {
         const cell = Cell{ .char = char, .style = cell_style };
+        const row_end = @min(self.height, area.y +| area.height);
+        const col_end = @min(self.width, area.x +| area.width);
+        assert(row_end <= self.height);
+        assert(col_end <= self.width);
+        maybe(area.y >= row_end); // Area may lie wholly below the buffer.
+        maybe(area.x >= col_end); // Area may lie wholly right of the buffer.
         var row = area.y;
-        while (row < area.y + area.height and row < self.height) : (row += 1) {
+        while (row < row_end) : (row += 1) {
             var col = area.x;
-            while (col < area.x + area.width and col < self.width) : (col += 1) {
+            while (col < col_end) : (col += 1) {
                 // Direct array access - bounds already checked in loop condition
                 const idx = @as(usize, row) * @as(usize, self.width) + @as(usize, col);
                 self.cells[idx] = cell;
@@ -171,11 +200,14 @@ pub const Buffer = struct {
         self.cells = new_cells;
         self.width = width;
         self.height = height;
+        self.check_invariants();
     }
 
-    /// Clone buffer
+    /// Clone buffer. The caller owns the result and must `deinit` it.
     pub fn clone(self: Buffer) !Buffer {
         const new_buffer = try Buffer.init(self.allocator, self.width, self.height);
+        assert(new_buffer.cells.len == self.cells.len);
+        assert(new_buffer.cells.ptr != self.cells.ptr or self.cells.len == 0);
         @memcpy(new_buffer.cells, self.cells);
         return new_buffer;
     }
@@ -232,6 +264,7 @@ pub fn diff(allocator: Allocator, old: Buffer, new: Buffer) ![]DiffOp {
     if (old.width != new.width or old.height != new.height) {
         return error.BufferSizeMismatch;
     }
+    assert(old.cells.len == new.cells.len);
 
     // Better initial capacity: estimate ~10% of cells might change in typical usage
     const total_cells = @as(usize, old.width) * @as(usize, old.height);
@@ -269,22 +302,27 @@ pub fn diff(allocator: Allocator, old: Buffer, new: Buffer) ![]DiffOp {
         }
     }
 
-    return ops.toOwnedSlice(allocator);
+    const result = try ops.toOwnedSlice(allocator);
+    assert(result.len <= total_cells);
+    return result;
 }
 
-/// Render diff operations to writer with ANSI escape codes
+/// Render diff operations to writer with ANSI escape codes.
+/// Cursor coordinates are widened to `u32`, so any `DiffOp` position is renderable. Code
+/// points that are not valid UTF-8 (surrogates, above U+10FFFF) are written as U+FFFD.
 pub fn renderDiff(diff_ops: []const DiffOp, writer: anytype) !void {
     var current_style: ?Style = null;
-    var current_x: ?u16 = null;
-    var current_y: ?u16 = null;
+    var current_x: ?u32 = null;
+    var current_y: ?u32 = null;
 
+    maybe(diff_ops.len == 0);
     for (diff_ops) |op| {
         // Move cursor if needed
         if (current_x == null or current_y == null or
-            current_x.? != op.x or current_y.? != op.y)
+            current_x.? != @as(u32, op.x) or current_y.? != @as(u32, op.y))
         {
             // ANSI cursor position (1-indexed)
-            try writer.print("\x1b[{d};{d}H", .{ op.y + 1, op.x + 1 });
+            try writer.print("\x1b[{d};{d}H", .{ @as(u32, op.y) + 1, @as(u32, op.x) + 1 });
             current_x = op.x;
             current_y = op.y;
         }
@@ -314,15 +352,21 @@ pub fn renderDiff(diff_ops: []const DiffOp, writer: anytype) !void {
         }
 
         // Write character
-        var buf: [4]u8 = undefined;
-        const len = std.unicode.utf8Encode(op.cell.char, &buf) catch 1;
+        var buf: [4]u8 = @splat(0);
+        const len = std.unicode.utf8Encode(op.cell.char, &buf) catch blk: {
+            // Surrogate or out-of-range code point: substitute U+FFFD rather than emit `buf`.
+            @memcpy(buf[0..3], "\xef\xbf\xbd");
+            break :blk 3;
+        };
+        assert(len >= 1);
+        assert(len <= buf.len);
         if (len == 1 and op.cell.char < 128) {
             try writer.writeByte(@intCast(op.cell.char));
         } else {
             try writer.writeAll(buf[0..len]);
         }
 
-        current_x = op.x + 1; // Advance cursor position
+        current_x = @as(u32, op.x) + 1; // Advance cursor position
     }
 
     // Reset style at end
@@ -1219,4 +1263,241 @@ test "Buffer.getLine - with unicode characters" {
     // getLine() reads character-by-character from cells, so it should capture the full string
     try std.testing.expect(std.mem.startsWith(u8, line, "Test"));
     try std.testing.expect(std.mem.find(u8, line, "你") != null);
+}
+
+// ============================================================================
+// Assertion baseline (plan 001 item 11): contracts, invariants, boundaries
+// ============================================================================
+
+test "Buffer.check_invariants holds after every mutation" {
+    var buffer = try Buffer.init(std.testing.allocator, 6, 3);
+    defer buffer.deinit();
+    buffer.check_invariants();
+
+    buffer.set(1, 1, Cell.char_only('x'));
+    buffer.check_invariants();
+    buffer.setString(0, 0, "hello", .{ .bold = true });
+    buffer.check_invariants();
+    buffer.fill(.{ .x = 2, .y = 1, .width = 3, .height = 2 }, '#', .{});
+    buffer.check_invariants();
+    buffer.clearArea(.{ .x = 0, .y = 0, .width = 2, .height = 2 });
+    buffer.check_invariants();
+    buffer.clear();
+    buffer.check_invariants();
+    try buffer.resize(9, 4);
+    buffer.check_invariants();
+    try std.testing.expectEqual(@as(usize, 36), buffer.cells.len);
+}
+
+test "Buffer.init - empty dimensions yield an empty grid" {
+    var no_width = try Buffer.init(std.testing.allocator, 0, 5);
+    defer no_width.deinit();
+    var no_height = try Buffer.init(std.testing.allocator, 5, 0);
+    defer no_height.deinit();
+
+    no_width.check_invariants();
+    no_height.check_invariants();
+    try std.testing.expectEqual(@as(usize, 0), no_width.cells.len);
+    try std.testing.expectEqual(@as(usize, 0), no_height.cells.len);
+    try std.testing.expect(no_width.get(0, 0) == null);
+    try std.testing.expect(no_height.getConst(0, 0) == null);
+}
+
+test "Buffer.init - one cell and widest single row" {
+    var one = try Buffer.init(std.testing.allocator, 1, 1);
+    defer one.deinit();
+    try std.testing.expectEqual(@as(usize, 1), one.cells.len);
+    try std.testing.expect(one.get(1, 0) == null);
+
+    var wide = try Buffer.init(std.testing.allocator, std.math.maxInt(u16), 1);
+    defer wide.deinit();
+    wide.check_invariants();
+    try std.testing.expect(wide.get(std.math.maxInt(u16) - 1, 0) != null);
+    try std.testing.expect(wide.get(std.math.maxInt(u16), 0) == null); // max + 1 column
+}
+
+test "Buffer.fill - area extents past u16 max are clipped, not overflowed" {
+    var buffer = try Buffer.init(std.testing.allocator, 4, 4);
+    defer buffer.deinit();
+
+    // x + width and y + height both exceed 65535: a valid-but-absurd rect from a caller.
+    buffer.fill(.{ .x = 65530, .y = 65530, .width = 100, .height = 100 }, '#', .{});
+    for (buffer.cells) |cell| try std.testing.expectEqual(@as(u21, ' '), cell.char);
+
+    // Origin inside the buffer, extent saturating: the whole bottom-right 2x2 is filled.
+    buffer.fill(.{ .x = 2, .y = 2, .width = 65535, .height = 65535 }, '#', .{});
+    buffer.check_invariants();
+    try std.testing.expectEqual(@as(u21, '#'), buffer.getChar(3, 3));
+    try std.testing.expectEqual(@as(u21, '#'), buffer.getChar(2, 2));
+    try std.testing.expectEqual(@as(u21, ' '), buffer.getChar(1, 3));
+    try std.testing.expectEqual(@as(u21, ' '), buffer.getChar(3, 1));
+}
+
+test "Buffer.resize - allocation failure leaves the buffer intact" {
+    var failing = std.testing.FailingAllocator.init(std.testing.allocator, .{ .fail_index = 1 });
+    var buffer = try Buffer.init(failing.allocator(), 3, 2);
+    defer buffer.deinit();
+    buffer.set(2, 1, Cell.char_only('z'));
+
+    try std.testing.expectError(error.OutOfMemory, buffer.resize(10, 10));
+    buffer.check_invariants();
+    try std.testing.expectEqual(@as(u16, 3), buffer.width);
+    try std.testing.expectEqual(@as(u21, 'z'), buffer.getChar(2, 1));
+}
+
+test "Buffer.clone - equal content, independent storage" {
+    var original = try Buffer.init(std.testing.allocator, 5, 2);
+    defer original.deinit();
+    original.setString(0, 0, "abc", .{ .italic = true });
+
+    var copy = try original.clone();
+    defer copy.deinit();
+    copy.check_invariants();
+    try std.testing.expect(original.cells.ptr != copy.cells.ptr);
+    for (original.cells, copy.cells) |a, b| try std.testing.expect(a.eql(b));
+
+    copy.set(0, 0, Cell.char_only('Z'));
+    try std.testing.expectEqual(@as(u21, 'a'), original.getChar(0, 0));
+}
+
+test "diff - size mismatch is an error, equal content yields no ops" {
+    const allocator = std.testing.allocator;
+    var base = try Buffer.init(allocator, 3, 3);
+    defer base.deinit();
+    var tall = try Buffer.init(allocator, 3, 4);
+    defer tall.deinit();
+    var narrow = try Buffer.init(allocator, 2, 3);
+    defer narrow.deinit();
+    try std.testing.expectError(error.BufferSizeMismatch, diff(allocator, base, tall));
+    try std.testing.expectError(error.BufferSizeMismatch, diff(allocator, base, narrow));
+
+    base.setString(0, 1, "ab", .{ .bold = true });
+    var same = try base.clone(); // Distinct storage, equal non-default content.
+    defer same.deinit();
+    const ops = try diff(allocator, base, same);
+    defer allocator.free(ops);
+    try std.testing.expectEqual(@as(usize, 0), ops.len);
+}
+
+test "diff - model-based: ops equal the reference's changed cells, then replay matches" {
+    const allocator = std.testing.allocator;
+    const width: u16 = 12;
+    const height: u16 = 5;
+    const Model = struct { char: u21, bold: bool };
+    var model_old = [_]Model{.{ .char = ' ', .bold = false }} ** (12 * 5);
+    var model_new = model_old;
+
+    var prng = std.Random.DefaultPrng.init(0x5a11_0b);
+    const random = prng.random();
+    var old = try Buffer.init(allocator, width, height);
+    defer old.deinit();
+    var new = try Buffer.init(allocator, width, height);
+    defer new.deinit();
+
+    for (0..200) |_| {
+        const x = random.uintLessThan(u16, width + 2); // Includes out-of-bounds writes.
+        const y = random.uintLessThan(u16, height + 2);
+        // Revert-to-default writes make a cell change back; `old` is re-synced below.
+        const revert = random.uintLessThan(u8, 4) == 0;
+        const cell = if (revert) Cell{} else Cell.init(
+            'a' + random.uintLessThan(u21, 26),
+            .{ .bold = random.boolean() },
+        );
+        new.set(x, y, cell);
+        new.check_invariants();
+        if (x < width and y < height) {
+            model_new[@as(usize, y) * width + x] = .{ .char = cell.char, .bold = cell.style.bold };
+        }
+
+        const ops = try diff(allocator, old, new);
+        defer allocator.free(ops);
+
+        var expected_count: usize = 0;
+        for (model_old, model_new) |a, b| {
+            if (a.char != b.char or a.bold != b.bold) expected_count += 1;
+        }
+        try std.testing.expectEqual(expected_count, ops.len);
+        for (ops) |op| {
+            const m = model_new[@as(usize, op.y) * width + op.x];
+            try std.testing.expectEqual(m.char, op.cell.char);
+            try std.testing.expectEqual(m.bold, op.cell.style.bold);
+        }
+
+        if (random.uintLessThan(u8, 5) == 0) { // Sync old with new so diffs start non-blank.
+            @memcpy(old.cells, new.cells);
+            model_old = model_new;
+        }
+    }
+}
+
+test "renderDiff - empty ops write nothing, last row and column render" {
+    var out: [64]u8 = undefined;
+    var empty_writer = std.Io.Writer.fixed(&out);
+    try renderDiff(&.{}, &empty_writer);
+    try std.testing.expectEqual(@as(usize, 0), empty_writer.end);
+
+    const ops = [_]DiffOp{.{ .x = 65534, .y = 65534, .cell = Cell.char_only('q') }};
+    var writer = std.Io.Writer.fixed(&out);
+    try renderDiff(&ops, &writer);
+    try std.testing.expectEqualStrings("\x1b[65535;65535Hq", writer.buffered());
+}
+
+test "Buffer.resize - zero dimensions empty the grid, then regrow" {
+    var buffer = try Buffer.init(std.testing.allocator, 4, 4);
+    defer buffer.deinit();
+    try buffer.resize(0, 4);
+    buffer.check_invariants();
+    try std.testing.expectEqual(@as(usize, 0), buffer.cells.len);
+    try buffer.resize(4, 0);
+    buffer.check_invariants();
+    try buffer.resize(2, 2);
+    try std.testing.expectEqual(@as(usize, 4), buffer.cells.len);
+}
+
+test "Buffer.setString - empty string, x at width, wide char in last column" {
+    var buffer = try Buffer.init(std.testing.allocator, 4, 1);
+    defer buffer.deinit();
+    buffer.setString(0, 0, "", .{});
+    buffer.setString(4, 0, "x", .{}); // x == width: nothing written.
+    buffer.setString(3, 0, "你", .{}); // Wide char needs two cells, only one left.
+    buffer.check_invariants();
+    for (buffer.cells) |cell| try std.testing.expectEqual(@as(u21, ' '), cell.char);
+    buffer.setString(3, 0, "z", .{});
+    try std.testing.expectEqual(@as(u21, 'z'), buffer.getChar(3, 0));
+}
+
+test "renderDiff - style change mid-run resets then re-applies" {
+    var out: [128]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&out);
+    const ops = [_]DiffOp{
+        .{ .x = 0, .y = 0, .cell = Cell.char_only('a') },
+        .{ .x = 1, .y = 0, .cell = Cell.init('b', .{ .bold = true }) },
+        .{ .x = 2, .y = 0, .cell = Cell.char_only('c') },
+    };
+    try renderDiff(&ops, &writer);
+    const rendered = writer.buffered();
+    try std.testing.expect(std.mem.startsWith(u8, rendered, "\x1b[1;1Ha"));
+    try std.testing.expect(std.mem.find(u8, rendered, "b") != null);
+    try std.testing.expect(std.mem.endsWith(u8, rendered, "c")); // Style reset precedes 'c'.
+    try std.testing.expect(std.mem.count(u8, rendered, "\x1b[0m") >= 1);
+}
+
+test "renderDiff - positions at maxInt(u16) render without overflow" {
+    var out: [64]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&out);
+    const ops = [_]DiffOp{.{ .x = 65535, .y = 65535, .cell = Cell.char_only('q') }};
+    try renderDiff(&ops, &writer);
+    try std.testing.expectEqualStrings("\x1b[65536;65536Hq", writer.buffered());
+}
+
+test "renderDiff - unencodable code point renders U+FFFD, never uninitialized bytes" {
+    var out: [64]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&out);
+    // 0xD800 is a surrogate and 0x1FFFFF is past U+10FFFF: neither is encodable as UTF-8.
+    const ops = [_]DiffOp{
+        .{ .x = 0, .y = 0, .cell = Cell.char_only(0xD800) },
+        .{ .x = 1, .y = 0, .cell = Cell.char_only(0x1FFFFF) },
+    };
+    try renderDiff(&ops, &writer);
+    try std.testing.expectEqualStrings("\x1b[1;1H\xef\xbf\xbd\xef\xbf\xbd", writer.buffered());
 }
