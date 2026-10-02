@@ -11,12 +11,7 @@
 
 const std = @import("std");
 const assert = std.debug.assert;
-
-/// A no-op marker for a condition that is legitimately sometimes true and
-/// sometimes false — as opposed to `assert`, which documents *always*.
-fn maybe(ok: bool) void {
-    _ = ok;
-}
+const maybe = @import("stdx.zig").maybe;
 
 /// Flag value type
 pub const FlagType = enum {
