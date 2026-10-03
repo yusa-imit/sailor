@@ -91,7 +91,7 @@ src/tui/iterm2.zig|usize_in_wire_format|-|3
 src/tui/keyboard_nav.zig|line_length|-|4
 src/tui/kitty.zig|line_length|-|3
 src/tui/kitty.zig|usize_in_wire_format|-|8
-src/tui/layout.zig|line_length|-|22
+src/tui/layout.zig|line_length|-|13
 src/tui/layout_cache.zig|line_length|-|3
 src/tui/lazy.zig|line_length|-|1
 src/tui/line_break.zig|function_length|breakLine|135

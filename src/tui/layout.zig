@@ -1,6 +1,28 @@
 //! Constraint-based flexbox layout solver: `Rect`, `Constraint`, and `split()`.
+//!
+//! Invariants: every `Rect` handed to `split()` is addressable (its right and bottom edges
+//! lie within the u16 coordinate space, see `Rect.check_invariants`). All edge arithmetic is
+//! widened to u32 or saturating, so no `Rect` method overflows; `split()` returns exactly one
+//! rectangle per constraint, contiguous along the split axis, and the sizes sum to at most
+//! the available space unless a single `.min` constraint alone exceeds it.
+//!
+//! Allocation: `split()` allocates its result (caller frees) and one scratch slice that it
+//! frees before returning; `LayoutDebugger` allocates only in `splitDebug()`.
 const std = @import("std");
+const stdx = @import("../stdx.zig");
 const Allocator = std.mem.Allocator;
+const assert = std.debug.assert;
+const maybe = stdx.maybe;
+
+/// One past the largest u16 coordinate: the exclusive edge limit of an addressable `Rect`.
+const coordinate_end_max: u32 = @as(u32, std.math.maxInt(u16)) + 1;
+
+/// Upper bound on constraints per `split()`: keeps every u32 size sum below 2^32
+/// (65536 * 65535 < 2^32).
+const split_constraints_max: usize = 1 << 16;
+
+/// Debug trees are flat today; the bound guards the recursive walkers against cycles.
+const debug_depth_max: usize = 64;
 
 /// Rectangle area in terminal coordinates
 pub const Rect = struct {
@@ -9,39 +31,88 @@ pub const Rect = struct {
     width: u16,
     height: u16,
 
+    /// Exclusive right edge, widened so it cannot overflow.
+    fn right_edge(self: Rect) u32 {
+        return @as(u32, self.x) + @as(u32, self.width);
+    }
+
+    /// Exclusive bottom edge, widened so it cannot overflow.
+    fn bottom_edge(self: Rect) u32 {
+        return @as(u32, self.y) + @as(u32, self.height);
+    }
+
+    /// True when every covered cell has a u16 coordinate (edges at most 65536).
+    fn is_addressable(self: Rect) bool {
+        return self.right_edge() <= coordinate_end_max and
+            self.bottom_edge() <= coordinate_end_max;
+    }
+
+    /// Assert that the rectangle lies inside the u16 coordinate space.
+    /// Call after every construction in tests; `split()` asserts it on its `area`.
+    pub fn check_invariants(self: Rect) void {
+        assert(self.right_edge() <= coordinate_end_max);
+        assert(self.bottom_edge() <= coordinate_end_max);
+    }
+
     /// Get area (width × height)
     pub fn area(self: Rect) u32 {
-        return @as(u32, self.width) * @as(u32, self.height);
+        const result = @as(u32, self.width) * @as(u32, self.height);
+        assert((result == 0) == (self.width == 0 or self.height == 0));
+        if (self.width != 0) assert(@divExact(result, self.width) == self.height);
+        return result;
     }
 
-    /// Check if rectangle contains a point
+    /// Check if rectangle contains a point. Edges are exclusive; an empty rectangle
+    /// contains no point.
     pub fn contains(self: Rect, px: u16, py: u16) bool {
-        return px >= self.x and
-            px < self.x + self.width and
+        const hit = px >= self.x and
+            @as(u32, px) < self.right_edge() and
             py >= self.y and
-            py < self.y + self.height;
+            @as(u32, py) < self.bottom_edge();
+        if (hit) assert(self.width > 0);
+        if (hit) assert(self.height > 0);
+        return hit;
     }
 
-    /// Get inner rectangle with margin applied
+    /// Get inner rectangle with margin applied. A margin that consumes either
+    /// dimension yields an empty rectangle at the original origin.
     pub fn inner(self: Rect, margin: u16) Rect {
-        const margin2 = margin * 2;
-        if (self.width <= margin2 or self.height <= margin2) {
-            return .{ .x = self.x, .y = self.y, .width = 0, .height = 0 };
-        }
-        return .{
-            .x = self.x + margin,
-            .y = self.y + margin,
-            .width = self.width - margin2,
-            .height = self.height - margin2,
-        };
+        const margin2 = @as(u32, margin) * 2;
+        const result: Rect = if (self.width <= margin2 or self.height <= margin2)
+            .{ .x = self.x, .y = self.y, .width = 0, .height = 0 }
+        else
+            .{
+                .x = self.x +| margin,
+                .y = self.y +| margin,
+                .width = @intCast(self.width - margin2),
+                .height = @intCast(self.height - margin2),
+            };
+        assert(result.width <= self.width);
+        assert(result.height <= self.height);
+        assert((result.width == 0) == (result.height == 0));
+        assert(result.x >= self.x);
+        return result;
     }
 
-    /// Check if two rectangles intersect
+    /// Check if two rectangles intersect (edges exclusive).
     pub fn intersects(self: Rect, other: Rect) bool {
-        return self.x < other.x + other.width and
-            self.x + self.width > other.x and
-            self.y < other.y + other.height and
-            self.y + self.height > other.y;
+        const hit = spans_overlap(self.x, self.width, other.x, other.width) and
+            spans_overlap(self.y, self.height, other.y, other.height);
+        // A zero-sized rectangle strictly inside another still counts as a hit.
+        maybe(hit and (self.width == 0 or other.width == 0));
+        maybe(hit and self.area() > other.area());
+        return hit;
+    }
+
+    /// One-axis overlap of half-open spans, widened so the span ends cannot overflow.
+    fn spans_overlap(a_start: u16, a_len: u16, b_start: u16, b_len: u16) bool {
+        const a_end = @as(u32, a_start) + @as(u32, a_len);
+        const b_end = @as(u32, b_start) + @as(u32, b_len);
+        const hit = a_start < b_end and a_end > b_start;
+        // Overlap is symmetric: derive it again with the operands swapped.
+        assert(hit == (b_start < a_end and b_end > a_start));
+        if (hit) assert(a_end > b_start);
+        return hit;
     }
 
     /// Get intersection of two rectangles
@@ -50,17 +121,29 @@ pub const Rect = struct {
 
         const x1 = @max(self.x, other.x);
         const y1 = @max(self.y, other.y);
-        const x2 = @min(self.x + self.width, other.x + other.width);
-        const y2 = @min(self.y + self.height, other.y + other.height);
+        const x2 = @min(self.right_edge(), other.right_edge());
+        const y2 = @min(self.bottom_edge(), other.bottom_edge());
+        // Both overlap tests passed, so the extents are non-negative.
+        assert(x2 >= x1);
+        assert(y2 >= y1);
 
-        return Rect{ .x = x1, .y = y1, .width = x2 - x1, .height = y2 - y1 };
+        const result = Rect{
+            .x = x1,
+            .y = y1,
+            .width = @intCast(x2 - x1),
+            .height = @intCast(y2 - y1),
+        };
+        assert(result.width <= @min(self.width, other.width));
+        assert(result.height <= @min(self.height, other.height));
+        return result;
     }
 
     /// Calculate a rectangle with the given aspect ratio that fits within self
     /// Preserves x, y position and maintains the width:height ratio while
     /// fitting the largest possible rectangle within the available bounds.
+    /// A zero ratio component yields an empty rectangle.
     pub fn withAspectRatio(self: Rect, ratio: struct { width: u32, height: u32 }) Rect {
-        // Handle zero ratio safely
+        maybe(ratio.width == 0 or ratio.height == 0);
         if (ratio.width == 0 or ratio.height == 0) {
             return Rect{ .x = self.x, .y = self.y, .width = 0, .height = 0 };
         }
@@ -72,53 +155,56 @@ pub const Rect = struct {
 
         // Try width-constrained first: use full width, calculate height
         const calc_height = (width_u64 * ratio_h) / ratio_w;
-
-        if (calc_height <= height_u64) {
-            // Width-constrained fits: use full width
-            return Rect{ .x = self.x, .y = self.y, .width = self.width, .height = @as(u16, @intCast(calc_height)) };
-        } else {
+        const result: Rect = if (calc_height <= height_u64) .{
+            .x = self.x,
+            .y = self.y,
+            .width = self.width,
+            .height = @intCast(calc_height),
+        } else .{
             // Width-constrained exceeds height: use full height instead
-            const calc_width = (height_u64 * ratio_w) / ratio_h;
-            return Rect{ .x = self.x, .y = self.y, .width = @as(u16, @intCast(@min(calc_width, width_u64))), .height = self.height };
-        }
+            .x = self.x,
+            .y = self.y,
+            .width = @intCast(@min((height_u64 * ratio_w) / ratio_h, width_u64)),
+            .height = self.height,
+        };
+        assert(result.width <= self.width);
+        assert(result.height <= self.height);
+        return result;
     }
 
     /// Apply margin to rectangle, shrinking it inward
     /// Returns a new rectangle with margin applied on all sides
     /// Handles underflow by returning zero dimensions if margin exceeds size
     pub fn withMargin(self: Rect, margin: Margin) Rect {
-        // Calculate total horizontal and vertical margins
-        const horizontal_margin = @as(u32, margin.left) + @as(u32, margin.right);
-        const vertical_margin = @as(u32, margin.top) + @as(u32, margin.bottom);
-
-        // Check for underflow - if margin exceeds dimension, return zero dimension
-        const new_width = if (horizontal_margin >= self.width) 0 else self.width - @as(u16, @intCast(horizontal_margin));
-        const new_height = if (vertical_margin >= self.height) 0 else self.height - @as(u16, @intCast(vertical_margin));
-
-        // Calculate new position (moved inward by margin)
-        const new_x = self.x + margin.left;
-        const new_y = self.y + margin.top;
-
-        return Rect{ .x = new_x, .y = new_y, .width = new_width, .height = new_height };
+        return self.shrink(margin.top, margin.right, margin.bottom, margin.left);
     }
 
     /// Apply padding to rectangle, shrinking it inward
     /// Returns a new rectangle with padding applied on all sides
     /// Handles underflow by returning zero dimensions if padding exceeds size
     pub fn withPadding(self: Rect, padding: Padding) Rect {
-        // Calculate total horizontal and vertical padding
-        const horizontal_padding = @as(u32, padding.left) + @as(u32, padding.right);
-        const vertical_padding = @as(u32, padding.top) + @as(u32, padding.bottom);
+        return self.shrink(padding.top, padding.right, padding.bottom, padding.left);
+    }
 
-        // Check for underflow - if padding exceeds dimension, return zero dimension
-        const new_width = if (horizontal_padding >= self.width) 0 else self.width - @as(u16, @intCast(horizontal_padding));
-        const new_height = if (vertical_padding >= self.height) 0 else self.height - @as(u16, @intCast(vertical_padding));
-
-        // Calculate new position (moved inward by padding)
-        const new_x = self.x + padding.left;
-        const new_y = self.y + padding.top;
-
-        return Rect{ .x = new_x, .y = new_y, .width = new_width, .height = new_height };
+    /// Shared body of `withMargin` and `withPadding`: move each edge inward by its amount.
+    /// The origin saturates at the u16 limit, so an oversized inset yields an empty rectangle
+    /// instead of overflowing.
+    fn shrink(self: Rect, top: u16, right: u16, bottom: u16, left: u16) Rect {
+        const horizontal_total = @as(u32, left) + @as(u32, right);
+        const vertical_total = @as(u32, top) + @as(u32, bottom);
+        const width_new = if (horizontal_total >= self.width) 0 else self.width - horizontal_total;
+        const height_new = if (vertical_total >= self.height) 0 else self.height - vertical_total;
+        const result = Rect{
+            .x = self.x +| left,
+            .y = self.y +| top,
+            .width = @intCast(width_new),
+            .height = @intCast(height_new),
+        };
+        assert(result.width <= self.width);
+        assert(result.height <= self.height);
+        if (result.width > 0) assert(@as(u32, result.width) + horizontal_total == self.width);
+        if (result.height > 0) assert(@as(u32, result.height) + vertical_total == self.height);
+        return result;
     }
 
     /// Create rectangle from size with origin at (0, 0)
@@ -136,7 +222,10 @@ pub const Rect = struct {
     /// This pattern appears 276+ times in tests and widget code. Using `fromSize`
     /// improves readability and reduces boilerplate.
     pub fn fromSize(width: u16, height: u16) Rect {
-        return .{ .x = 0, .y = 0, .width = width, .height = height };
+        const result = Rect{ .x = 0, .y = 0, .width = width, .height = height };
+        assert(result.area() == @as(u32, width) * @as(u32, height));
+        assert(result.is_addressable());
+        return result;
     }
 
     /// Format rectangle for debugging output
@@ -207,30 +296,39 @@ pub const Constraint = union(enum) {
     /// Aspect ratio (width:height)
     aspect_ratio: struct { width: u32, height: u32 },
 
-    /// Calculate actual size for this constraint given available space
+    /// Calculate actual size for this constraint given available space.
+    /// The result never exceeds `available`. Out-of-range payloads are clamped, not
+    /// rejected: a percentage above 100 acts as 100, and a zero ratio denominator or
+    /// aspect component yields 0.
     pub fn apply(self: Constraint, available: u16) u16 {
-        return switch (self) {
+        const result: u16 = switch (self) {
             .length => |fixed_length| @min(fixed_length, available),
             .percentage => |percentage_val| blk: {
+                maybe(percentage_val > 100);
                 const clamped = @min(percentage_val, 100);
                 const size = (@as(u32, available) * clamped) / 100;
-                break :blk @as(u16, @intCast(@min(size, available)));
+                break :blk @intCast(@min(size, available));
             },
             .min => |min_val| @min(min_val, available),
             .max => |max_val| @min(max_val, available),
             .ratio => |ratio_val| blk: {
+                maybe(ratio_val.denom == 0);
                 if (ratio_val.denom == 0) break :blk 0;
                 const size = (@as(u64, available) * ratio_val.num) / ratio_val.denom;
-                break :blk @as(u16, @intCast(@min(size, available)));
+                break :blk @intCast(@min(size, available));
             },
             .aspect_ratio => |aspect_val| blk: {
                 // Aspect ratio applies to one dimension at a time
                 // Return the available space as-is; the caller will use Rect.withAspectRatio()
                 // to compute the actual 2D constraints
+                maybe(aspect_val.width == 0 or aspect_val.height == 0);
                 if (aspect_val.width == 0 or aspect_val.height == 0) break :blk 0;
                 break :blk available;
             },
         };
+        assert(result <= available);
+        if (available == 0) assert(result == 0);
+        return result;
     }
 
     /// Create a fixed-length constraint.
@@ -246,7 +344,10 @@ pub const Constraint = union(enum) {
     ///
     /// **v2.1.0**: Convenience constructor to reduce boilerplate.
     pub fn len(length: u16) Constraint {
-        return .{ .length = length };
+        const result: Constraint = .{ .length = length };
+        assert(result.apply(length) == length);
+        assert(result.apply(0) == 0);
+        return result;
     }
 
     /// Create a percentage constraint.
@@ -264,7 +365,11 @@ pub const Constraint = union(enum) {
     ///
     /// **v2.1.0**: Convenience constructor with automatic clamping.
     pub fn pct(percentage: u8) Constraint {
-        return .{ .percentage = @min(percentage, 100) };
+        maybe(percentage > 100);
+        const result: Constraint = .{ .percentage = @min(percentage, 100) };
+        assert(result.percentage <= 100);
+        assert(result.apply(100) == result.percentage);
+        return result;
     }
 
     /// Create a ratio constraint.
@@ -282,7 +387,11 @@ pub const Constraint = union(enum) {
     ///
     /// **v2.1.0**: Convenience constructor to reduce boilerplate.
     pub fn rat(num: u32, denom: u32) Constraint {
-        return .{ .ratio = .{ .num = num, .denom = denom } };
+        maybe(denom == 0);
+        const result: Constraint = .{ .ratio = .{ .num = num, .denom = denom } };
+        if (denom == 0) assert(result.apply(std.math.maxInt(u16)) == 0);
+        if (num == 0) assert(result.apply(std.math.maxInt(u16)) == 0);
+        return result;
     }
 
     /// Create a minimum-length constraint.
@@ -298,7 +407,10 @@ pub const Constraint = union(enum) {
     ///
     /// **v2.1.0**: Convenience constructor to reduce boilerplate.
     pub fn minimum(min: u16) Constraint {
-        return .{ .min = min };
+        const result: Constraint = .{ .min = min };
+        assert(result.apply(min) == min);
+        assert(result.apply(0) == 0);
+        return result;
     }
 
     /// Create a maximum-length constraint.
@@ -314,7 +426,10 @@ pub const Constraint = union(enum) {
     ///
     /// **v2.1.0**: Convenience constructor to reduce boilerplate.
     pub fn maximum(max: u16) Constraint {
-        return .{ .max = max };
+        const result: Constraint = .{ .max = max };
+        assert(result.apply(max) == max);
+        assert(result.apply(0) == 0);
+        return result;
     }
 
     /// Create an aspect-ratio constraint.
@@ -332,17 +447,30 @@ pub const Constraint = union(enum) {
     ///
     /// **v2.1.0**: Convenience constructor to reduce boilerplate.
     pub fn aspect(width: u32, height: u32) Constraint {
-        return .{ .aspect_ratio = .{ .width = width, .height = height } };
+        maybe(width == 0 or height == 0);
+        const result: Constraint = .{ .aspect_ratio = .{ .width = width, .height = height } };
+        if (width == 0) assert(result.apply(std.math.maxInt(u16)) == 0);
+        if (height == 0) assert(result.apply(std.math.maxInt(u16)) == 0);
+        return result;
     }
 };
 
-/// Split area into multiple chunks based on constraints
+/// Split area into multiple chunks based on constraints.
+///
+/// Preconditions: `area` is addressable (`Rect.check_invariants`) and `constraints.len` is at
+/// most `split_constraints_max`. Postconditions: one rectangle per constraint, contiguous
+/// along `direction`, spanning the full cross axis of `area`. The sizes sum to at most the
+/// available space, except when exactly one `.min` constraint alone exceeds it: that minimum
+/// is honoured in full and every other constraint is squeezed to zero.
+/// The caller owns the returned slice (free it with `allocator`).
 pub fn split(
     allocator: Allocator,
     direction: Direction,
     area: Rect,
     constraints: []const Constraint,
 ) ![]Rect {
+    area.check_invariants();
+    assert(constraints.len <= split_constraints_max);
     if (constraints.len == 0) {
         return &[_]Rect{};
     }
@@ -355,25 +483,6 @@ pub fn split(
         .horizontal => area.width,
         .vertical => area.height,
     };
-
-    // First pass: calculate fixed sizes and collect flexible constraints
-    var fixed_size: u32 = 0;
-    var has_flexible = false;
-
-    for (constraints) |constraint| {
-        switch (constraint) {
-            .length => |len| {
-                fixed_size += @min(len, available);
-            },
-            .percentage, .ratio, .aspect_ratio => {
-                has_flexible = true;
-            },
-            .min, .max => {
-                // Min/max are treated as flexible with bounds
-                has_flexible = true;
-            },
-        }
-    }
 
     // Calculate sizes for each constraint
     const sizes = try allocator.alloc(u16, constraints.len);
@@ -470,7 +579,8 @@ pub fn split(
 
             if (max_total > 0) {
                 const reduction = total_size - available;
-                const scale = @as(f64, @floatFromInt(max_total - @as(u32, @intCast(reduction)))) / @as(f64, @floatFromInt(max_total));
+                const kept: u32 = max_total -| @as(u32, @intCast(reduction));
+                const scale = @as(f64, @floatFromInt(kept)) / @as(f64, @floatFromInt(max_total));
                 total_size = 0;
                 for (constraints, 0..) |constraint, i| {
                     if (constraint == .max) {
@@ -548,6 +658,9 @@ pub fn split(
         }
     }
 
+    // Space can still be over-committed here (mixed min/max or aspect cases): give it back.
+    trim_overshoot(available, constraints, sizes);
+
     // Final: Apply max constraints as upper bounds
     for (constraints, 0..) |constraint, i| {
         if (constraint == .max and sizes[i] > constraint.max) {
@@ -555,17 +668,111 @@ pub fn split(
         }
     }
 
-    // Create rectangles
-    var offset: u16 = 0;
-    for (sizes, 0..) |size, i| {
-        result[i] = switch (direction) {
-            .horizontal => Rect{ .x = area.x + offset, .y = area.y, .width = size, .height = area.height },
-            .vertical => Rect{ .x = area.x, .y = area.y + offset, .width = area.width, .height = size },
+    place_rects(direction, area, sizes, result);
+    assert_split_postconditions(direction, area, constraints, result);
+    return result;
+}
+
+/// Reduce `sizes` until they fit `available`, taking space from the last non-min constraint
+/// first. Minimums are never reduced, so the sum stays above `available` only when a lone
+/// `.min` is larger than the whole span.
+fn trim_overshoot(available: u16, constraints: []const Constraint, sizes: []u16) void {
+    assert(constraints.len == sizes.len);
+    assert(constraints.len > 0);
+
+    var total: u32 = 0;
+    for (sizes) |size| total += size;
+    if (total <= available) return;
+
+    var excess: u32 = total - available;
+    var index: usize = constraints.len;
+    for (0..constraints.len) |_| {
+        if (excess == 0) break;
+        index -= 1;
+        if (constraints[index] == .min) continue;
+        const cut: u16 = @intCast(@min(excess, sizes[index]));
+        sizes[index] -= cut;
+        excess -= cut;
+    }
+    if (excess > 0) {
+        for (constraints, sizes) |constraint, size| {
+            if (constraint != .min) assert(size == 0);
+        }
+    }
+}
+
+/// Lay out `sizes` back to back along `direction`, starting at the area origin. Offsets are
+/// accumulated in u32 and the coordinates saturate, so an over-committed minimum cannot
+/// overflow u16 arithmetic.
+fn place_rects(direction: Direction, area: Rect, sizes: []const u16, result: []Rect) void {
+    assert(sizes.len == result.len);
+    assert(sizes.len <= split_constraints_max);
+
+    var offset: u32 = 0;
+    for (sizes, result) |size, *rect| {
+        const shift: u16 = @intCast(@min(offset, std.math.maxInt(u16)));
+        rect.* = switch (direction) {
+            .horizontal => .{
+                .x = area.x +| shift,
+                .y = area.y,
+                .width = size,
+                .height = area.height,
+            },
+            .vertical => .{
+                .x = area.x,
+                .y = area.y +| shift,
+                .width = area.width,
+                .height = size,
+            },
         };
         offset += size;
     }
+}
 
-    return result;
+/// Check the documented `split()` contract against its output.
+fn assert_split_postconditions(
+    direction: Direction,
+    area: Rect,
+    constraints: []const Constraint,
+    result: []const Rect,
+) void {
+    assert(result.len == constraints.len);
+    const available: u32 = switch (direction) {
+        .horizontal => area.width,
+        .vertical => area.height,
+    };
+    var total: u32 = 0;
+    var min_count: u32 = 0;
+    for (constraints, result, 0..) |constraint, rect, i| {
+        const size: u32 = if (direction == .horizontal) rect.width else rect.height;
+        total += size;
+        if (constraint == .min) min_count += 1;
+        // Cross axis is untouched; the split axis starts where the previous rect ended.
+        switch (direction) {
+            .horizontal => {
+                assert(rect.y == area.y);
+                assert(rect.height == area.height);
+            },
+            .vertical => {
+                assert(rect.x == area.x);
+                assert(rect.width == area.width);
+            },
+        }
+        if (i > 0 and total <= available) {
+            const prev = result[i - 1];
+            if (direction == .horizontal) assert(rect.x == prev.x + prev.width);
+            if (direction == .vertical) assert(rect.y == prev.y + prev.height);
+        }
+    }
+    if (total <= available) {
+        for (result) |rect| {
+            assert(rect.right_edge() <= area.right_edge());
+            assert(rect.bottom_edge() <= area.bottom_edge());
+        }
+    } else {
+        // Over-commit is only the lone-minimum policy.
+        assert(min_count == 1);
+    }
 }
 
 // ============================================================================
@@ -586,25 +793,30 @@ pub const LayoutDebugger = struct {
 
     /// Initialize a new layout debugger
     pub fn init(allocator: Allocator) LayoutDebugger {
-        return .{
+        const debugger = LayoutDebugger{
             .allocator = allocator,
             .nodes = std.ArrayList(DebugNode).empty,
         };
+        assert(debugger.nodes.items.len == 0);
+        assert(debugger.nodes.capacity == 0);
+        return debugger;
     }
 
     /// Clean up all resources
     pub fn deinit(self: *LayoutDebugger) void {
+        assert(self.nodes.items.len <= self.nodes.capacity);
         // Free all children recursively
         for (self.nodes.items) |node| {
-            freeNodeChildren(self.allocator, node);
+            freeNodeChildren(self.allocator, node, 0);
         }
         self.nodes.deinit(self.allocator);
     }
 
-    /// Recursively free node children
-    fn freeNodeChildren(allocator: Allocator, node: DebugNode) void {
+    /// Recursively free node children; `depth` is bounded by `debug_depth_max`.
+    fn freeNodeChildren(allocator: Allocator, node: DebugNode, depth: usize) void {
+        assert(depth < debug_depth_max);
         for (node.children) |child| {
-            freeNodeChildren(allocator, child);
+            freeNodeChildren(allocator, child, depth + 1);
         }
         if (node.children.len > 0) {
             allocator.free(node.children);
@@ -624,6 +836,8 @@ pub const LayoutDebugger = struct {
         const rects = try split(self.allocator, direction, area, constraints);
         defer self.allocator.free(rects);
 
+        assert(rects.len == constraints.len);
+        maybe(rects.len == 0);
         if (rects.len == 0) {
             return &[_]DebugNode{};
         }
@@ -642,12 +856,16 @@ pub const LayoutDebugger = struct {
             try self.nodes.append(self.allocator, node.*);
         }
 
+        assert(nodes.len == rects.len);
+        assert(self.nodes.items.len >= nodes.len);
         return nodes;
     }
 
     /// Print layout tree to writer
     pub fn print(self: *LayoutDebugger, writer: anytype) !void {
+        maybe(self.nodes.items.len == 0);
         for (self.nodes.items, 0..) |node, i| {
+            assert(self.nodes.items.len > 0);
             try printNode(writer, node, 0);
             if (i < self.nodes.items.len - 1) {
                 try writer.writeAll("\n");
@@ -657,6 +875,7 @@ pub const LayoutDebugger = struct {
 
     /// Print a single node with indentation
     fn printNode(writer: anytype, node: DebugNode, depth: usize) !void {
+        assert(depth < debug_depth_max);
         // Print indentation
         var i: usize = 0;
         while (i < depth) : (i += 1) {
@@ -2428,8 +2647,32 @@ test "LayoutDebugger.print nested layout shows hierarchy" {
     try std.testing.expect(output.len > 0);
 }
 
-test "LayoutDebugger with all constraint types (SKIP: exposes split() overflow bug)" {
-    return error.SkipZigTest;
+test "LayoutDebugger with all constraint types" {
+    const allocator = std.testing.allocator;
+    var debugger = LayoutDebugger.init(allocator);
+    defer debugger.deinit();
+
+    // This mix used to overflow u32 arithmetic inside split() (see the regression tests below).
+    const area = Rect{ .x = 0, .y = 0, .width = 9619, .height = 40 };
+    const constraints = [_]Constraint{
+        .{ .max = 13752 },
+        .{ .min = 8 },
+        .{ .percentage = 59 },
+        .{ .ratio = .{ .num = 2, .denom = 5 } },
+        .{ .aspect_ratio = .{ .width = 2, .height = 2 } },
+        .{ .length = 7 },
+    };
+
+    const nodes = try debugger.splitDebug(.horizontal, area, &constraints);
+    defer allocator.free(nodes);
+
+    try std.testing.expectEqual(constraints.len, nodes.len);
+    var total: u32 = 0;
+    for (nodes, constraints) |node, constraint| {
+        try std.testing.expectEqual(constraint, node.constraint);
+        total += node.rect.width;
+    }
+    try std.testing.expect(total <= area.width);
 }
 
 test "LayoutDebugger deeply nested layout (5 levels)" {
@@ -3000,4 +3243,389 @@ test "Padding.symmetric - convenience constructor" {
     try std.testing.expectEqual(@as(u16, 4), padding.right);
     try std.testing.expectEqual(@as(u16, 2), padding.bottom);
     try std.testing.expectEqual(@as(u16, 4), padding.left);
+}
+
+// ============================================================================
+// Assertion baseline: boundaries, regressions, and model-based tests
+// ============================================================================
+
+const u16_max: u16 = std.math.maxInt(u16);
+
+test "Rect.is_addressable - edge at the limit is valid, one past is not" {
+    const at_limit = Rect{ .x = u16_max, .y = u16_max, .width = 1, .height = 1 };
+    at_limit.check_invariants();
+    try std.testing.expect(at_limit.is_addressable());
+
+    const full = Rect{ .x = 0, .y = 0, .width = u16_max, .height = u16_max };
+    full.check_invariants();
+    try std.testing.expect(full.is_addressable());
+
+    // Empty rectangle parked on the last coordinate is still addressable.
+    const empty = Rect{ .x = u16_max, .y = u16_max, .width = 0, .height = 0 };
+    try std.testing.expect(empty.is_addressable());
+
+    const past_x = Rect{ .x = u16_max, .y = 0, .width = 2, .height = 1 };
+    try std.testing.expect(!past_x.is_addressable());
+    const past_y = Rect{ .x = 0, .y = 2, .width = 1, .height = u16_max };
+    try std.testing.expect(!past_y.is_addressable());
+}
+
+test "Rect.area - zero, one, max" {
+    const no_width = Rect{ .x = 0, .y = 0, .width = 0, .height = 9 };
+    const no_height = Rect{ .x = 0, .y = 0, .width = 9, .height = 0 };
+    try std.testing.expectEqual(@as(u32, 0), no_width.area());
+    try std.testing.expectEqual(@as(u32, 0), no_height.area());
+    try std.testing.expectEqual(@as(u32, 1), Rect.fromSize(1, 1).area());
+    // 65535 * 65535 is the largest area and still fits u32.
+    try std.testing.expectEqual(@as(u32, 4294836225), Rect.fromSize(u16_max, u16_max).area());
+}
+
+test "Rect.contains - right and bottom edges at the u16 limit do not overflow" {
+    const corner = Rect{ .x = u16_max, .y = u16_max, .width = 1, .height = 1 };
+    try std.testing.expect(corner.contains(u16_max, u16_max));
+    try std.testing.expect(!corner.contains(u16_max - 1, u16_max));
+    try std.testing.expect(!corner.contains(u16_max, u16_max - 1));
+
+    // Not addressable (x + width > 65536) but must not panic: widened arithmetic.
+    const wide = Rect{ .x = u16_max, .y = 0, .width = u16_max, .height = 3 };
+    try std.testing.expect(wide.contains(u16_max, 2));
+    try std.testing.expect(!wide.contains(u16_max, 3));
+
+    const empty = Rect{ .x = 5, .y = 5, .width = 0, .height = 0 };
+    try std.testing.expect(!empty.contains(5, 5));
+}
+
+test "Rect.inner - margin of half the span, one past, and the u16 maximum" {
+    const full = Rect.fromSize(u16_max, u16_max);
+    // 32767 * 2 = 65534 leaves exactly one cell; the doubled margin overflowed u16 before.
+    const one = full.inner(32767);
+    try std.testing.expectEqual(Rect{ .x = 32767, .y = 32767, .width = 1, .height = 1 }, one);
+    // 32768 * 2 = 65536 > width: empty, anchored at the original origin.
+    const none = full.inner(32768);
+    try std.testing.expectEqual(Rect{ .x = 0, .y = 0, .width = 0, .height = 0 }, none);
+    try std.testing.expectEqual(@as(u32, 0), full.inner(u16_max).area());
+    try std.testing.expectEqual(full, full.inner(0));
+}
+
+test "Rect.withMargin and withPadding - oversized inset saturates the origin" {
+    const rect = Rect{ .x = 100, .y = 100, .width = 10, .height = 10 };
+    // x + left used to overflow u16 here.
+    const margin = rect.withMargin(Margin.all(u16_max));
+    const corner_empty = Rect{ .x = u16_max, .y = u16_max, .width = 0, .height = 0 };
+    try std.testing.expectEqual(corner_empty, margin);
+    margin.check_invariants();
+
+    const padding = rect.withPadding(Padding{ .top = u16_max, .right = 0, .bottom = 0, .left = 7 });
+    try std.testing.expectEqual(Rect{ .x = 107, .y = u16_max, .width = 3, .height = 0 }, padding);
+    padding.check_invariants();
+
+    // Exact consumption (inset == span) is empty, one less leaves one cell.
+    try std.testing.expectEqual(@as(u16, 0), rect.withMargin(Margin.symmetric(0, 5)).width);
+    try std.testing.expectEqual(@as(u16, 2), rect.withMargin(Margin.symmetric(0, 4)).width);
+}
+
+test "Rect.intersects and intersection - rectangles touching the u16 limit" {
+    const corner = Rect{ .x = u16_max, .y = u16_max, .width = 1, .height = 1 };
+    try std.testing.expect(corner.intersects(corner));
+    try std.testing.expectEqual(corner, corner.intersection(corner).?);
+
+    const full = Rect.fromSize(u16_max, u16_max);
+    // The last cell (65535, 65535) lies outside `full` (cells 0..65534).
+    try std.testing.expect(!full.intersects(corner));
+    try std.testing.expect(!corner.intersects(full));
+    try std.testing.expectEqual(@as(?Rect, null), full.intersection(corner));
+
+    const wide = Rect{ .x = u16_max, .y = 0, .width = u16_max, .height = 4 };
+    const overlap = wide.intersection(Rect{ .x = u16_max, .y = 2, .width = 9, .height = 9 }).?;
+    try std.testing.expectEqual(Rect{ .x = u16_max, .y = 2, .width = 9, .height = 2 }, overlap);
+}
+
+test "Rect.intersects - symmetric and empty rectangles" {
+    const a = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    const b = Rect{ .x = 9, .y = 9, .width = 5, .height = 5 };
+    const touching = Rect{ .x = 10, .y = 0, .width = 5, .height = 5 };
+    try std.testing.expect(a.intersects(b));
+    try std.testing.expect(b.intersects(a));
+    try std.testing.expect(!a.intersects(touching));
+    try std.testing.expect(!touching.intersects(a));
+    const cell = Rect{ .x = 9, .y = 9, .width = 1, .height = 1 };
+    try std.testing.expectEqual(cell, a.intersection(b).?);
+}
+
+test "Rect.withAspectRatio - extreme ratios stay inside the source rectangle" {
+    const area = Rect{ .x = 3, .y = 4, .width = 100, .height = 100 };
+    const flat = area.withAspectRatio(.{ .width = std.math.maxInt(u32), .height = 1 });
+    try std.testing.expectEqual(Rect{ .x = 3, .y = 4, .width = 100, .height = 0 }, flat);
+    const tall = area.withAspectRatio(.{ .width = 1, .height = std.math.maxInt(u32) });
+    try std.testing.expectEqual(Rect{ .x = 3, .y = 4, .width = 0, .height = 100 }, tall);
+    const huge = Rect.fromSize(u16_max, u16_max).withAspectRatio(.{ .width = 16, .height = 9 });
+    try std.testing.expectEqual(Rect.fromSize(u16_max, 36863), huge);
+}
+
+test "Constraint.apply - never exceeds available for every variant" {
+    const constraints = [_]Constraint{
+        .{ .length = u16_max },
+        .{ .percentage = 255 },
+        .{ .min = u16_max },
+        .{ .max = u16_max },
+        .{ .ratio = .{ .num = std.math.maxInt(u32), .denom = 1 } },
+        .{ .ratio = .{ .num = 1, .denom = 0 } },
+        .{ .aspect_ratio = .{ .width = 16, .height = 9 } },
+        .{ .aspect_ratio = .{ .width = 0, .height = 9 } },
+    };
+    for (constraints) |constraint| {
+        for ([_]u16{ 0, 1, 99, u16_max }) |available| {
+            try std.testing.expect(constraint.apply(available) <= available);
+        }
+        try std.testing.expectEqual(@as(u16, 0), constraint.apply(0));
+    }
+    const over = Constraint{ .percentage = 255 };
+    try std.testing.expectEqual(u16_max, over.apply(u16_max));
+}
+
+test "Constraint.pct - values above 100 are clamped at construction" {
+    try std.testing.expectEqual(@as(u8, 100), Constraint.pct(101).percentage);
+    try std.testing.expectEqual(@as(u8, 100), Constraint.pct(255).percentage);
+    try std.testing.expectEqual(@as(u8, 99), Constraint.pct(99).percentage);
+}
+
+test "split - mixed min/max whose reduction exceeds the max total used to overflow" {
+    const gpa = std.testing.allocator;
+    const area = Rect{ .x = 0, .y = 0, .width = 9619, .height = 10 };
+    const constraints = [_]Constraint{
+        .{ .max = 13752 },
+        .{ .min = 8 },
+        .{ .percentage = 59 },
+        .{ .ratio = .{ .num = 2, .denom = 5 } },
+        .{ .aspect_ratio = .{ .width = 2, .height = 2 } },
+    };
+
+    const rects = try split(gpa, .horizontal, area, &constraints);
+    defer gpa.free(rects);
+
+    var total: u32 = 0;
+    for (rects) |rect| total += rect.width;
+    try std.testing.expect(total <= area.width);
+    try std.testing.expect(rects[1].width >= 8);
+}
+
+test "split - a lone oversized min is honoured and squeezes the rest to zero" {
+    const gpa = std.testing.allocator;
+    const area = Rect{ .x = 7, .y = 0, .width = 100, .height = 10 };
+    // length + min summed past u16 and overflowed the running offset before.
+    const constraints = [_]Constraint{ .{ .length = 50 }, .{ .min = u16_max } };
+
+    const rects = try split(gpa, .horizontal, area, &constraints);
+    defer gpa.free(rects);
+
+    try std.testing.expectEqual(Rect{ .x = 7, .y = 0, .width = 0, .height = 10 }, rects[0]);
+    try std.testing.expectEqual(Rect{ .x = 7, .y = 0, .width = u16_max, .height = 10 }, rects[1]);
+}
+
+test "split - empty and single constraint boundaries" {
+    const gpa = std.testing.allocator;
+    const area = Rect{ .x = 4, .y = 5, .width = 60, .height = 20 };
+
+    const none = try split(gpa, .vertical, area, &[_]Constraint{});
+    try std.testing.expectEqual(@as(usize, 0), none.len);
+
+    const one = try split(gpa, .vertical, area, &[_]Constraint{.{ .percentage = 100 }});
+    defer gpa.free(one);
+    try std.testing.expectEqual(@as(usize, 1), one.len);
+    try std.testing.expectEqual(area, one[0]);
+
+    const flat = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
+    const pair = [_]Constraint{ .{ .length = 3 }, .{ .min = 2 } };
+    const zero = try split(gpa, .horizontal, flat, &pair);
+    defer gpa.free(zero);
+    try std.testing.expectEqual(@as(usize, 2), zero.len);
+    try std.testing.expectEqual(@as(u16, 0), zero[0].width);
+}
+
+test "split - area flush against the u16 limit places every rect inside it" {
+    const gpa = std.testing.allocator;
+    const area = Rect{ .x = 65000, .y = 65500, .width = 535, .height = 35 };
+    area.check_invariants();
+    const constraints = [_]Constraint{ .{ .length = 500 }, .{ .percentage = 50 }, .{ .min = 1 } };
+
+    const across = try split(gpa, .horizontal, area, &constraints);
+    defer gpa.free(across);
+    const down = try split(gpa, .vertical, area, &constraints);
+    defer gpa.free(down);
+
+    for (across) |rect| {
+        rect.check_invariants();
+        try std.testing.expect(rect.right_edge() <= area.right_edge());
+    }
+    for (down) |rect| {
+        rect.check_invariants();
+        try std.testing.expect(rect.bottom_edge() <= area.bottom_edge());
+    }
+    try std.testing.expectEqual(@as(u16, 65000), across[0].x);
+    var across_total: u32 = 0;
+    for (across) |rect| across_total += rect.width;
+    try std.testing.expectEqual(@as(u32, 535), across_total);
+}
+
+/// Seeded constraint generator biased toward small values so the strategies interact.
+fn random_constraint(random: std.Random) Constraint {
+    const value: u16 = if (random.boolean()) random.uintLessThan(u16, 40) else random.int(u16);
+    return switch (random.uintLessThan(u8, 6)) {
+        0 => .{ .length = value },
+        1 => .{ .percentage = random.uintAtMost(u8, 100) },
+        2 => .{ .min = value },
+        3 => .{ .max = value },
+        4 => .{ .ratio = .{
+            .num = random.uintLessThan(u32, 5),
+            .denom = random.uintLessThan(u32, 6),
+        } },
+        else => .{ .aspect_ratio = .{
+            .width = random.uintLessThan(u32, 5),
+            .height = random.uintLessThan(u32, 5),
+        } },
+    };
+}
+
+/// Addressable random area with a bias toward small and near-limit spans.
+fn random_area(random: std.Random) Rect {
+    const x: u16 = if (random.boolean()) random.uintLessThan(u16, 50) else random.int(u16);
+    const y: u16 = if (random.boolean()) random.uintLessThan(u16, 50) else random.int(u16);
+    const width_cap: u16 = if (random.boolean()) 150 else u16_max - x;
+    const height_cap: u16 = if (random.boolean()) 150 else u16_max - y;
+    const width = random.uintAtMost(u16, @min(width_cap, u16_max - x));
+    const height = random.uintAtMost(u16, @min(height_cap, u16_max - y));
+    return .{ .x = x, .y = y, .width = width, .height = height };
+}
+
+test "split - seeded model: contiguity, bounds, and the lone-minimum overshoot rule" {
+    const gpa = std.testing.allocator;
+    const iterations_max: u32 = 4000;
+    const constraints_max: u32 = 8;
+    var prng = std.Random.DefaultPrng.init(0x5a11_0004);
+    const random = prng.random();
+
+    for (0..iterations_max) |_| {
+        var constraints: [constraints_max]Constraint = undefined;
+        const count = random.intRangeAtMost(u32, 1, constraints_max);
+        for (constraints[0..count]) |*constraint| constraint.* = random_constraint(random);
+        const area = random_area(random);
+        const direction: Direction = if (random.boolean()) .horizontal else .vertical;
+        const available: u16 = if (direction == .horizontal) area.width else area.height;
+
+        const rects = try split(gpa, direction, area, constraints[0..count]);
+        defer gpa.free(rects);
+
+        try std.testing.expectEqual(@as(usize, count), rects.len);
+        var total: u32 = 0;
+        var mins_over: u32 = 0;
+        var cursor: u32 = if (direction == .horizontal) area.x else area.y;
+        for (constraints[0..count], rects) |constraint, rect| {
+            const size: u16 = if (direction == .horizontal) rect.width else rect.height;
+            const start: u32 = if (direction == .horizontal) rect.x else rect.y;
+            total += size;
+            switch (constraint) {
+                .length => |n| try std.testing.expect(size <= n),
+                .max => |n| try std.testing.expect(size <= n),
+                .min => |n| mins_over += @intFromBool(n > available),
+                else => {},
+            }
+            // No gap and no overlap along the split axis while the sizes fit the span.
+            if (total <= available) try std.testing.expectEqual(cursor, start);
+            cursor += size;
+        }
+        if (total > available) {
+            try std.testing.expectEqual(@as(u32, 1), mins_over);
+        } else {
+            for (rects) |rect| {
+                rect.check_invariants();
+                try std.testing.expect(rect.right_edge() <= area.right_edge());
+                try std.testing.expect(rect.bottom_edge() <= area.bottom_edge());
+            }
+        }
+    }
+}
+
+test "split - seeded reference: lengths and percentages match plain arithmetic" {
+    const gpa = std.testing.allocator;
+    const iterations_max: u32 = 2000;
+    const count_max: u32 = 6;
+    var prng = std.Random.DefaultPrng.init(0x5a11_0104);
+    const random = prng.random();
+
+    for (0..iterations_max) |_| {
+        const area = random_area(random);
+        const count = random.intRangeAtMost(u32, 1, count_max);
+        var lengths: [count_max]Constraint = undefined;
+        var percents: [count_max]Constraint = undefined;
+        var length_sum: u32 = 0;
+        var percent_left: u32 = 100;
+        for (0..count) |i| {
+            const length = random.uintAtMost(u16, area.width / @as(u16, @intCast(count)));
+            lengths[i] = .{ .length = length };
+            length_sum += length;
+            const percent: u8 = @intCast(random.uintAtMost(u32, percent_left));
+            percents[i] = .{ .percentage = percent };
+            percent_left -= percent;
+        }
+        try std.testing.expect(length_sum <= area.width);
+
+        const by_length = try split(gpa, .horizontal, area, lengths[0..count]);
+        defer gpa.free(by_length);
+        var x: u32 = area.x;
+        for (lengths[0..count], by_length) |constraint, rect| {
+            try std.testing.expectEqual(x, rect.x);
+            try std.testing.expectEqual(constraint.length, rect.width);
+            x += constraint.length;
+        }
+
+        // Percentages: floor shares, and the remainder lands on the last constraint.
+        const by_percent = try split(gpa, .horizontal, area, percents[0..count]);
+        defer gpa.free(by_percent);
+        var share_sum: u32 = 0;
+        for (percents[0 .. count - 1], by_percent[0 .. count - 1]) |constraint, rect| {
+            const share = @divFloor(@as(u32, area.width) * constraint.percentage, 100);
+            try std.testing.expectEqual(share, rect.width);
+            share_sum += share;
+        }
+        try std.testing.expectEqual(@as(u32, area.width) - share_sum, by_percent[count - 1].width);
+    }
+}
+
+test "LayoutDebugger - empty split stores nothing and print writes nothing" {
+    const gpa = std.testing.allocator;
+    var debugger = LayoutDebugger.init(gpa);
+    defer debugger.deinit();
+
+    const area = Rect.fromSize(10, 10);
+    const nodes = try debugger.splitDebug(.horizontal, area, &[_]Constraint{});
+    try std.testing.expectEqual(@as(usize, 0), nodes.len);
+    try std.testing.expectEqual(@as(usize, 0), debugger.nodes.items.len);
+
+    var buf: [64]u8 = undefined;
+    var stream: std.Io.Writer = .fixed(&buf);
+    try debugger.print(&stream);
+    try std.testing.expectEqual(@as(usize, 0), stream.buffered().len);
+}
+
+test "LayoutDebugger - splitDebug mirrors split and accumulates across calls" {
+    const gpa = std.testing.allocator;
+    var debugger = LayoutDebugger.init(gpa);
+    defer debugger.deinit();
+
+    const area = Rect{ .x = 2, .y = 3, .width = 30, .height = 8 };
+    const constraints = [_]Constraint{ .{ .length = 10 }, .{ .percentage = 100 } };
+    const expected = try split(gpa, .vertical, area, &constraints);
+    defer gpa.free(expected);
+
+    const first = try debugger.splitDebug(.vertical, area, &constraints);
+    defer gpa.free(first);
+    const second = try debugger.splitDebug(.vertical, area, &constraints);
+    defer gpa.free(second);
+
+    try std.testing.expectEqual(@as(usize, 4), debugger.nodes.items.len);
+    for (first, second, expected, constraints) |a, b, rect, constraint| {
+        try std.testing.expectEqual(rect, a.rect);
+        try std.testing.expectEqual(rect, b.rect);
+        try std.testing.expectEqual(constraint, a.constraint);
+    }
 }
