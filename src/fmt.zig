@@ -14,7 +14,8 @@
 //! bounded by `config_extent_max` and cell lengths by `cell_len_max`, which keeps all width
 //! arithmetic far below the integer limits of every target; violations are returned as
 //! `error.InvalidConfig` / `error.CellTooLong`, never asserted, because they come from CLI
-//! flags and user data. The streaming writers assert caller protocol (no value after `end`).
+//! flags and user data. The streaming writers assert caller protocol (no value after `end`,
+//! a valid `CsvConfig`; check user-supplied ones with `csv_config_valid`).
 //!
 //! Allocation: `Table.init` allocates the widths slice and `addRow` grows the row list;
 //! `render` allocates short-lived wrapping scratch and frees it before returning (also on
@@ -674,6 +675,14 @@ pub fn JsonObject(comptime WriterType: type) type {
     };
 }
 
+/// Whether `config` satisfies the `Csv.init` contract; use it to validate user-supplied config.
+pub fn csv_config_valid(config: CsvConfig) bool {
+    if (config.delimiter == config.quote) return false;
+    if (config.delimiter == '\n' or config.delimiter == '\r') return false;
+    if (config.quote == '\n' or config.quote == '\r') return false;
+    return true;
+}
+
 /// CSV writer
 ///
 /// Quotes a field when it contains the delimiter, the quote, `\n` or `\r` (or always, with
@@ -687,11 +696,14 @@ pub fn Csv(comptime WriterType: type) type {
         const Self = @This();
 
         /// Initialize CSV writer. The delimiter and quote must be distinct and neither may be
-        /// `\n` or `\r`; the config is a caller contract.
+        /// `\n` or `\r`: a caller contract. A config that comes from user input (a CLI flag)
+        /// must be checked with `csv_config_valid` first.
         pub fn init(writer: WriterType, config: CsvConfig) Self {
             assert(config.delimiter != config.quote);
-            assert(config.delimiter != '\n' and config.quote != '\n');
-            assert(config.delimiter != '\r' and config.quote != '\r');
+            assert(config.delimiter != '\n');
+            assert(config.quote != '\n');
+            assert(config.delimiter != '\r');
+            assert(config.quote != '\r');
 
             return .{ .writer = writer, .config = config, .first_in_row = true };
         }
@@ -1658,6 +1670,14 @@ test "Table.init rejects an incoherent config with a typed error" {
         .alignments = &.{ .left, .right, .center },
     });
     edge.deinit();
+}
+
+test "csv_config_valid rejects equal and line-break delimiter or quote" {
+    try std.testing.expect(csv_config_valid(.{ .delimiter = ',', .quote = '"' }));
+    try std.testing.expect(csv_config_valid(.{ .delimiter = '\t', .quote = '\'' }));
+    try std.testing.expect(!csv_config_valid(.{ .delimiter = '"', .quote = '"' }));
+    try std.testing.expect(!csv_config_valid(.{ .delimiter = '\n', .quote = '"' }));
+    try std.testing.expect(!csv_config_valid(.{ .delimiter = ',', .quote = '\r' }));
 }
 
 test "Table rejects cells longer than cell_len_max" {
