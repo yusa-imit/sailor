@@ -26,8 +26,6 @@ src/error_context.zig|line_length|-|2
 src/event_metrics.zig|catch_unreachable|-|2
 src/event_metrics.zig|line_length|-|8
 src/eventbus.zig|line_length|-|3
-src/fmt.zig|function_length|renderRow|84
-src/fmt.zig|line_length|-|1
 src/focus.zig|function_length|render|95
 src/focus.zig|line_length|-|4
 src/fuzzy.zig|function_length|match|74

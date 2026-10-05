@@ -8,11 +8,35 @@
 //! - JSON: streaming output, proper escaping
 //! - CSV: configurable delimiter, quoting
 //! - Plain: simple key-value pairs
+//!
+//! Invariants: every `Table` column width covers its header, `min_width` and every cell (capped
+//! by `max_width`), so rendering never truncates (`Table.check_invariants`). Config extents are
+//! bounded by `config_extent_max` and cell lengths by `cell_len_max`, which keeps all width
+//! arithmetic far below the integer limits of every target; violations are returned as
+//! `error.InvalidConfig` / `error.CellTooLong`, never asserted, because they come from CLI
+//! flags and user data. The streaming writers assert caller protocol (no value after `end`,
+//! a valid `CsvConfig`; check user-supplied ones with `csv_config_valid`).
+//!
+//! Allocation: `Table.init` allocates the widths slice and `addRow` grows the row list;
+//! `render` allocates short-lived wrapping scratch and frees it before returning (also on
+//! error). The JSON, CSV and Plain writers never allocate. Cell and header slices are borrowed
+//! and must outlive the table.
 
 const std = @import("std");
+const stdx = @import("stdx.zig");
 const Allocator = std.mem.Allocator;
+const assert = std.debug.assert;
+const maybe = stdx.maybe;
 
 pub const Error = error{} || Allocator.Error;
+
+/// Upper bound on `min_width` and each padding value of a `TableConfig`.
+const config_extent_max: usize = 1 << 20;
+
+/// Upper bound on the byte length of one header or cell. With `config_extent_max` this keeps
+/// `width + 2 + padding_left + padding_right` below 2^31, so it cannot overflow even on 32-bit
+/// targets.
+const cell_len_max: usize = 1 << 30;
 
 /// Output format mode
 pub const Mode = enum {
@@ -37,39 +61,67 @@ pub const TableConfig = struct {
     /// Show header separator (default: true)
     header_separator: bool = true,
 
-    /// Column alignments (null = all left)
+    /// Column alignments (null = all left). When set, it needs one entry per column; extra
+    /// entries are ignored and fewer are rejected by `Table.init` with `error.InvalidConfig`.
     alignments: ?[]const Alignment = null,
 
-    /// Minimum column width (default: 0)
+    /// Minimum column width (default: 0). At most `config_extent_max`.
     min_width: usize = 0,
 
-    /// Maximum column width (default: unlimited)
+    /// Maximum column width (default: unlimited). Must be at least 1 when set.
     max_width: ?usize = null,
 
-    /// Left padding (default: 0)
+    /// Left padding (default: 0). At most `config_extent_max`.
     padding_left: usize = 0,
 
-    /// Right padding (default: 0)
+    /// Right padding (default: 0). At most `config_extent_max`.
     padding_right: usize = 0,
 
-    /// Top padding (default: 0)
+    /// Top padding (default: 0). At most `config_extent_max`.
     padding_top: usize = 0,
 
-    /// Bottom padding (default: 0)
+    /// Bottom padding (default: 0). At most `config_extent_max`.
     padding_bottom: usize = 0,
 };
 
 /// CSV configuration
 pub const CsvConfig = struct {
-    /// Delimiter character (default: ',')
+    /// Delimiter character (default: ','). Must differ from `quote` and not be a line break.
     delimiter: u8 = ',',
 
-    /// Quote character (default: '"')
+    /// Quote character (default: '"'). Must not be a line break.
     quote: u8 = '"',
 
     /// Always quote fields (default: false, quote only when needed)
     always_quote: bool = false,
 };
+
+/// Whether `config` is coherent for a table with `columns` columns.
+fn table_config_valid(columns: usize, config: TableConfig) bool {
+    if (config.max_width) |max_width| {
+        if (max_width == 0) return false;
+    }
+    if (config.alignments) |alignments| {
+        if (alignments.len < columns) return false;
+    }
+    if (config.min_width > config_extent_max) return false;
+    if (config.padding_left > config_extent_max) return false;
+    if (config.padding_right > config_extent_max) return false;
+    if (config.padding_top > config_extent_max) return false;
+    return config.padding_bottom <= config_extent_max;
+}
+
+/// Write `count` copies of byte `' '` in chunks (one `writeAll` per 64 bytes).
+fn write_spaces(writer: anytype, count: usize) !void {
+    const chunk = " " ** 64;
+    var remaining = count;
+    while (remaining > 0) {
+        const step = @min(remaining, chunk.len);
+        try writer.writeAll(chunk[0..step]);
+        remaining -= step;
+    }
+    assert(remaining == 0);
+}
 
 /// Table formatter
 pub const Table = struct {
@@ -81,49 +133,98 @@ pub const Table = struct {
 
     const Self = @This();
 
-    /// Initialize table with headers
+    /// Initialize table with headers.
+    ///
+    /// Returns `error.InvalidConfig` for an incoherent `config` (see `TableConfig`) and
+    /// `error.CellTooLong` for a header longer than `cell_len_max`.
     pub fn init(allocator: Allocator, headers: []const []const u8, config: TableConfig) !Self {
+        maybe(headers.len == 0);
+        if (!table_config_valid(headers.len, config)) return error.InvalidConfig;
+        for (headers) |header| {
+            if (header.len > cell_len_max) return error.CellTooLong;
+        }
+
         const widths = try allocator.alloc(usize, headers.len);
         errdefer allocator.free(widths);
 
         // Initialize widths with header lengths
-        for (headers, 0..) |header, i| {
-            widths[i] = @max(header.len, config.min_width);
+        for (headers, widths) |header, *width| {
+            width.* = @max(header.len, config.min_width);
         }
 
-        return Self{
+        const table: Self = .{
             .allocator = allocator,
             .config = config,
             .headers = headers,
             .rows = .empty,
             .widths = widths,
         };
+        table.check_invariants();
+        assert(table.rows.items.len == 0);
+        return table;
     }
 
     /// Cleanup resources
     pub fn deinit(self: *Self) void {
+        assert(self.widths.len == self.headers.len);
+        maybe(self.rows.items.len == 0);
+
         self.allocator.free(self.widths);
         self.rows.deinit(self.allocator);
+        self.* = undefined;
     }
 
-    /// Add a row
+    /// Assert the table invariants: widths match the headers and cover the headers, the
+    /// minimum width and every row cell (capped by `max_width`). Cost is O(cells).
+    pub fn check_invariants(self: *const Self) void {
+        assert(self.widths.len == self.headers.len);
+        assert(table_config_valid(self.headers.len, self.config));
+
+        const cap = self.config.max_width orelse std.math.maxInt(usize);
+        for (self.headers, self.widths) |header, width| {
+            assert(width >= header.len);
+            assert(width >= self.config.min_width);
+        }
+        for (self.rows.items) |row| {
+            assert(row.len == self.widths.len);
+            for (row, self.widths) |cell, width| {
+                assert(cell.len <= cell_len_max);
+                assert(width >= @min(cell.len, cap));
+            }
+        }
+    }
+
+    /// Add a row.
+    ///
+    /// Returns `error.ColumnCountMismatch` when `row.len` differs from the header count and
+    /// `error.CellTooLong` for a cell longer than `cell_len_max`; the table is unchanged on
+    /// error. The row slice is borrowed and must outlive the table.
     pub fn addRow(self: *Self, row: []const []const u8) !void {
         if (row.len != self.headers.len) {
             return error.ColumnCountMismatch;
         }
+        for (row) |cell| {
+            if (cell.len > cell_len_max) return error.CellTooLong;
+        }
+        assert(row.len == self.widths.len);
+
+        // Reserve first so a failed append leaves the widths untouched.
+        const rows_before = self.rows.items.len;
+        try self.rows.append(self.allocator, row);
 
         // Update column widths
-        for (row, 0..) |cell, i| {
-            const capped = if (self.config.max_width) |max| @min(cell.len, max) else cell.len;
-            const width = @min(capped, cell.len);
-            self.widths[i] = @max(self.widths[i], width);
+        const cap = self.config.max_width orelse std.math.maxInt(usize);
+        for (row, self.widths) |cell, *width| {
+            width.* = @max(width.*, @min(cell.len, cap));
         }
-
-        try self.rows.append(self.allocator, row);
+        assert(self.rows.items.len == rows_before + 1);
     }
 
     /// Render table to writer
     pub fn render(self: Self, writer: anytype) !void {
+        self.check_invariants();
+        maybe(self.rows.items.len == 0);
+
         // Top border
         if (self.config.borders) {
             try self.renderBorder(writer, .top);
@@ -168,6 +269,9 @@ pub const Table = struct {
     };
 
     fn renderBorder(self: Self, writer: anytype, border_type: BorderType) !void {
+        assert(self.widths.len == self.headers.len);
+        maybe(self.config.borders);
+
         const chars: BorderChars = switch (border_type) {
             .top => .{ .left = "┌", .middle = "┬", .right = "┐", .horiz = "─" },
             .middle => .{ .left = "├", .middle = "┼", .right = "┤", .horiz = "─" },
@@ -179,7 +283,7 @@ pub const Table = struct {
             for (0..width + 2 + self.config.padding_left + self.config.padding_right) |_| {
                 try writer.writeAll(chars.horiz);
             }
-            if (i < self.widths.len - 1) {
+            if (i + 1 < self.widths.len) {
                 try writer.writeAll(chars.middle);
             }
         }
@@ -187,9 +291,14 @@ pub const Table = struct {
         try writer.writeByte('\n');
     }
 
-    /// Wrap a cell string into lines based on max_width
+    /// Wrap a cell string into lines based on max_width. The caller owns the result and gets
+    /// at least one line (an empty cell is one empty line).
     fn wrapCell(self: Self, cell: []const u8) !std.ArrayListUnmanaged([]const u8) {
+        assert(cell.len <= cell_len_max);
+        maybe(cell.len == 0);
+
         var lines = std.ArrayListUnmanaged([]const u8).empty;
+        errdefer lines.deinit(self.allocator);
 
         // First split on explicit newlines
         var line_iter = std.mem.splitScalar(u8, cell, '\n');
@@ -207,21 +316,35 @@ pub const Table = struct {
             }
         }
 
+        assert(lines.items.len >= 1);
         return lines;
     }
 
-    /// Wrap a single line by word boundaries
-    fn wrapLine(self: Self, line: []const u8, max_width: usize) !std.ArrayListUnmanaged([]const u8) {
+    /// Wrap a single line by word boundaries. Every piece is at most `max_width` bytes and
+    /// only the single piece of an empty line is empty. `max_width` must be at least 1.
+    fn wrapLine(
+        self: Self,
+        line: []const u8,
+        max_width: usize,
+    ) !std.ArrayListUnmanaged([]const u8) {
+        assert(max_width >= 1);
+        maybe(line.len == 0);
+
         var wrapped = std.ArrayListUnmanaged([]const u8).empty;
+        errdefer wrapped.deinit(self.allocator);
 
         if (line.len <= max_width) {
             try wrapped.append(self.allocator, line);
             return wrapped;
         }
+        // Past the early return `current_pos + max_width` stays below 2 * line.len.
+        assert(line.len <= cell_len_max);
 
         var current_pos: usize = 0;
 
-        while (current_pos < line.len) {
+        // Every pass consumes at least one byte, so `line.len` passes always suffice.
+        for (0..line.len) |_| {
+            if (current_pos >= line.len) break;
             var line_end = @min(current_pos + max_width, line.len);
 
             // If we're not at the end, try to find a word boundary
@@ -248,6 +371,8 @@ pub const Table = struct {
                 }
             }
 
+            assert(line_end > current_pos);
+            assert(line_end - current_pos <= max_width);
             try wrapped.append(self.allocator, line[current_pos..line_end]);
             current_pos = line_end;
 
@@ -257,12 +382,19 @@ pub const Table = struct {
             }
         }
 
+        assert(current_pos >= line.len);
+        assert(wrapped.items.len >= 1);
         return wrapped;
     }
 
     fn renderRow(self: Self, writer: anytype, row: []const []const u8) !void {
-        // Wrap all cells first
-        var wrapped_cells = try self.allocator.alloc(std.ArrayListUnmanaged([]const u8), row.len);
+        assert(row.len == self.widths.len);
+        maybe(row.len == 0);
+
+        // Wrap all cells first. Every list starts empty so the cleanup is safe when a later
+        // `wrapCell` fails.
+        const wrapped_cells = try self.allocator.alloc(std.ArrayListUnmanaged([]const u8), row.len);
+        for (wrapped_cells) |*cell_lines| cell_lines.* = .empty;
         defer {
             for (wrapped_cells) |*cell_lines| {
                 cell_lines.deinit(self.allocator);
@@ -271,91 +403,108 @@ pub const Table = struct {
         }
 
         var max_lines: usize = 1;
-
-        for (row, 0..) |cell, i| {
-            wrapped_cells[i] = try self.wrapCell(cell);
-            max_lines = @max(max_lines, wrapped_cells[i].items.len);
+        for (row, wrapped_cells) |cell, *cell_lines| {
+            cell_lines.* = try self.wrapCell(cell);
+            max_lines = @max(max_lines, cell_lines.items.len);
         }
+        assert(max_lines >= 1);
 
         // Render each line of the row
         for (0..max_lines) |line_idx| {
-            if (self.config.borders) {
-                try writer.writeAll("│ ");
-            }
-
-            for (row, 0..) |_, i| {
-                const alignment = if (self.config.alignments) |aligns|
-                    aligns[i]
-                else
-                    .left;
-
-                const width = self.widths[i];
-
-                // Get the cell line content (or empty if this cell doesn't have this many lines)
-                const cell_line = if (line_idx < wrapped_cells[i].items.len)
-                    wrapped_cells[i].items[line_idx]
-                else
-                    "";
-
-                const cell_len = @min(cell_line.len, width);
-                const cell_pad = width -| cell_len;
-
-                // Apply left padding
-                for (0..self.config.padding_left) |_| {
-                    try writer.writeByte(' ');
-                }
-
-                // Apply alignment
-                switch (alignment) {
-                    .left => {
-                        try writer.writeAll(cell_line[0..cell_len]);
-                        for (0..cell_pad) |_| try writer.writeByte(' ');
-                    },
-                    .right => {
-                        for (0..cell_pad) |_| try writer.writeByte(' ');
-                        try writer.writeAll(cell_line[0..cell_len]);
-                    },
-                    .center => {
-                        const left_pad = cell_pad / 2;
-                        const right_pad = cell_pad - left_pad;
-                        for (0..left_pad) |_| try writer.writeByte(' ');
-                        try writer.writeAll(cell_line[0..cell_len]);
-                        for (0..right_pad) |_| try writer.writeByte(' ');
-                    },
-                }
-
-                // Apply right padding
-                for (0..self.config.padding_right) |_| {
-                    try writer.writeByte(' ');
-                }
-
-                if (i < row.len - 1) {
-                    if (self.config.borders) {
-                        try writer.writeAll(" │ ");
-                    } else {
-                        try writer.writeAll("  ");
-                    }
-                }
-            }
-
-            if (self.config.borders) {
-                try writer.writeAll(" │");
-            }
-            try writer.writeByte('\n');
+            try self.render_line(writer, wrapped_cells, line_idx);
         }
     }
 
+    /// Render output line `line_idx` of a wrapped row: one slot per column, an empty slot
+    /// when the cell has fewer lines.
+    fn render_line(
+        self: Self,
+        writer: anytype,
+        wrapped_cells: []const std.ArrayListUnmanaged([]const u8),
+        line_idx: usize,
+    ) !void {
+        assert(wrapped_cells.len == self.widths.len);
+        maybe(wrapped_cells.len == 0);
+
+        if (self.config.borders) {
+            try writer.writeAll("│ ");
+        }
+
+        for (wrapped_cells, self.widths, 0..) |cell_lines, width, i| {
+            const alignment: Alignment = if (self.config.alignments) |aligns|
+                aligns[i]
+            else
+                .left;
+
+            // Get the cell line content (or empty if this cell doesn't have this many lines)
+            const cell_line = if (line_idx < cell_lines.items.len)
+                cell_lines.items[line_idx]
+            else
+                "";
+            try self.render_cell(writer, cell_line, width, alignment);
+
+            if (i + 1 < wrapped_cells.len) {
+                if (self.config.borders) {
+                    try writer.writeAll(" │ ");
+                } else {
+                    try writer.writeAll("  ");
+                }
+            }
+        }
+
+        if (self.config.borders) {
+            try writer.writeAll(" │");
+        }
+        try writer.writeByte('\n');
+    }
+
+    /// Render one padded, aligned cell line of exactly `width` content bytes. `check_invariants`
+    /// guarantees that `cell_line` fits in `width`.
+    fn render_cell(
+        self: Self,
+        writer: anytype,
+        cell_line: []const u8,
+        width: usize,
+        alignment: Alignment,
+    ) !void {
+        assert(cell_line.len <= width);
+        maybe(cell_line.len == 0);
+
+        const cell_pad = width - cell_line.len;
+        try write_spaces(writer, self.config.padding_left);
+
+        switch (alignment) {
+            .left => {
+                try writer.writeAll(cell_line);
+                try write_spaces(writer, cell_pad);
+            },
+            .right => {
+                try write_spaces(writer, cell_pad);
+                try writer.writeAll(cell_line);
+            },
+            .center => {
+                const left_pad = @divFloor(cell_pad, 2);
+                try write_spaces(writer, left_pad);
+                try writer.writeAll(cell_line);
+                try write_spaces(writer, cell_pad - left_pad);
+            },
+        }
+
+        try write_spaces(writer, self.config.padding_right);
+    }
+
     fn renderBlankRow(self: Self, writer: anytype) !void {
+        assert(self.widths.len == self.headers.len);
+        maybe(self.config.borders);
+
         if (self.config.borders) {
             try writer.writeAll("│ ");
         }
 
         for (self.widths, 0..) |width, i| {
-            for (0..width + self.config.padding_left + self.config.padding_right) |_| {
-                try writer.writeByte(' ');
-            }
+            try write_spaces(writer, width + self.config.padding_left + self.config.padding_right);
 
-            if (i < self.widths.len - 1) {
+            if (i + 1 < self.widths.len) {
                 if (self.config.borders) {
                     try writer.writeAll(" │ ");
                 } else {
@@ -371,135 +520,173 @@ pub const Table = struct {
     }
 };
 
+/// Reject floats that JSON cannot represent (NaN, +/-inf); integers always pass.
+fn json_number_check(value: anytype) error{NonFiniteNumber}!void {
+    switch (@typeInfo(@TypeOf(value))) {
+        .float => {
+            if (!std.math.isFinite(value)) return error.NonFiniteNumber;
+        },
+        else => {},
+    }
+}
+
 /// JSON array writer (streaming)
+///
+/// Protocol: no value may be added after `end`; adding one is a caller bug and asserts.
 pub fn JsonArray(comptime WriterType: type) type {
     return struct {
         writer: WriterType,
         first: bool,
+        ended: bool = false,
 
         const Self = @This();
 
         /// Begin JSON array
         pub fn init(writer: WriterType) !Self {
             try writer.writeAll("[");
-            return .{ .writer = writer, .first = true };
+            return .{ .writer = writer, .first = true, .ended = false };
+        }
+
+        /// Write the element separator and mark the array non-empty.
+        fn begin_value(self: *Self) !void {
+            assert(!self.ended);
+            maybe(self.first);
+
+            if (!self.first) try self.writer.writeByte(',');
+            self.first = false;
         }
 
         /// Add a string value
         pub fn addString(self: *Self, value: []const u8) !void {
-            if (!self.first) try self.writer.writeByte(',');
-            self.first = false;
+            try self.begin_value();
 
             try self.writer.writeByte('"');
             try writeJsonString(self.writer, value);
             try self.writer.writeByte('"');
         }
 
-        /// Add a number value
+        /// Add a number value. Returns `error.NonFiniteNumber` (writing nothing) for NaN or
+        /// infinity, which JSON cannot represent.
         pub fn addNumber(self: *Self, value: anytype) !void {
-            if (!self.first) try self.writer.writeByte(',');
-            self.first = false;
-
+            try json_number_check(value);
+            try self.begin_value();
             try self.writer.print("{d}", .{value});
         }
 
         /// Add a boolean value
         pub fn addBool(self: *Self, value: bool) !void {
-            if (!self.first) try self.writer.writeByte(',');
-            self.first = false;
-
+            try self.begin_value();
             try self.writer.writeAll(if (value) "true" else "false");
         }
 
         /// Add null value
         pub fn addNull(self: *Self) !void {
-            if (!self.first) try self.writer.writeByte(',');
-            self.first = false;
-
+            try self.begin_value();
             try self.writer.writeAll("null");
         }
 
         /// Begin nested object
         pub fn beginObject(self: *Self) !JsonObject(WriterType) {
-            if (!self.first) try self.writer.writeByte(',');
-            self.first = false;
+            try self.begin_value();
 
             return JsonObject(WriterType).init(self.writer);
         }
 
         /// End JSON array
         pub fn end(self: *Self) !void {
+            assert(!self.ended);
+            maybe(self.first);
+
             try self.writer.writeAll("]");
+            self.ended = true;
+            assert(self.ended);
         }
     };
 }
 
 /// JSON object writer (streaming)
+///
+/// Protocol: no field may be added after `end`; adding one is a caller bug and asserts.
 pub fn JsonObject(comptime WriterType: type) type {
     return struct {
         writer: WriterType,
         first: bool,
+        ended: bool = false,
 
         const Self = @This();
 
         /// Begin JSON object
         pub fn init(writer: WriterType) !Self {
             try writer.writeAll("{");
-            return .{ .writer = writer, .first = true };
+            return .{ .writer = writer, .first = true, .ended = false };
         }
 
-        /// Add a string field
-        pub fn addString(self: *Self, key: []const u8, value: []const u8) !void {
-            if (!self.first) try self.writer.writeByte(',');
-            self.first = false;
+        /// Write the field separator and the escaped key up to the colon.
+        fn begin_field(self: *Self, key: []const u8) !void {
+            assert(!self.ended);
+            maybe(key.len == 0);
 
-            try self.writer.writeByte('"');
-            try writeJsonString(self.writer, key);
-            try self.writer.writeAll("\":\"");
-            try writeJsonString(self.writer, value);
-            try self.writer.writeByte('"');
-        }
-
-        /// Add a number field
-        pub fn addNumber(self: *Self, key: []const u8, value: anytype) !void {
             if (!self.first) try self.writer.writeByte(',');
             self.first = false;
 
             try self.writer.writeByte('"');
             try writeJsonString(self.writer, key);
             try self.writer.writeAll("\":");
+        }
+
+        /// Add a string field
+        pub fn addString(self: *Self, key: []const u8, value: []const u8) !void {
+            try self.begin_field(key);
+
+            try self.writer.writeByte('"');
+            try writeJsonString(self.writer, value);
+            try self.writer.writeByte('"');
+        }
+
+        /// Add a number field. Returns `error.NonFiniteNumber` (writing nothing) for NaN or
+        /// infinity, which JSON cannot represent.
+        pub fn addNumber(self: *Self, key: []const u8, value: anytype) !void {
+            try json_number_check(value);
+            try self.begin_field(key);
             try self.writer.print("{d}", .{value});
         }
 
         /// Add a boolean field
         pub fn addBool(self: *Self, key: []const u8, value: bool) !void {
-            if (!self.first) try self.writer.writeByte(',');
-            self.first = false;
-
-            try self.writer.writeByte('"');
-            try writeJsonString(self.writer, key);
-            try self.writer.writeAll("\":");
+            try self.begin_field(key);
             try self.writer.writeAll(if (value) "true" else "false");
         }
 
         /// Add null field
         pub fn addNull(self: *Self, key: []const u8) !void {
-            if (!self.first) try self.writer.writeByte(',');
-            self.first = false;
-
-            try self.writer.writeByte('"');
-            try writeJsonString(self.writer, key);
-            try self.writer.writeAll("\":null");
+            try self.begin_field(key);
+            try self.writer.writeAll("null");
         }
 
         /// End JSON object
         pub fn end(self: *Self) !void {
+            assert(!self.ended);
+            maybe(self.first);
+
             try self.writer.writeAll("}");
+            self.ended = true;
+            assert(self.ended);
         }
     };
 }
 
+/// Whether `config` satisfies the `Csv.init` contract; use it to validate user-supplied config.
+pub fn csv_config_valid(config: CsvConfig) bool {
+    if (config.delimiter == config.quote) return false;
+    if (config.delimiter == '\n' or config.delimiter == '\r') return false;
+    if (config.quote == '\n' or config.quote == '\r') return false;
+    return true;
+}
+
 /// CSV writer
+///
+/// Quotes a field when it contains the delimiter, the quote, `\n` or `\r` (or always, with
+/// `always_quote`); quotes inside a quoted field are doubled.
 pub fn Csv(comptime WriterType: type) type {
     return struct {
         writer: WriterType,
@@ -508,13 +695,24 @@ pub fn Csv(comptime WriterType: type) type {
 
         const Self = @This();
 
-        /// Initialize CSV writer
+        /// Initialize CSV writer. The delimiter and quote must be distinct and neither may be
+        /// `\n` or `\r`: a caller contract. A config that comes from user input (a CLI flag)
+        /// must be checked with `csv_config_valid` first.
         pub fn init(writer: WriterType, config: CsvConfig) Self {
+            assert(config.delimiter != config.quote);
+            assert(config.delimiter != '\n');
+            assert(config.quote != '\n');
+            assert(config.delimiter != '\r');
+            assert(config.quote != '\r');
+
             return .{ .writer = writer, .config = config, .first_in_row = true };
         }
 
         /// Write a field
         pub fn writeField(self: *Self, value: []const u8) !void {
+            maybe(value.len == 0);
+            maybe(self.first_in_row);
+
             if (!self.first_in_row) {
                 try self.writer.writeByte(self.config.delimiter);
             }
@@ -523,7 +721,8 @@ pub fn Csv(comptime WriterType: type) type {
             const needs_quote = self.config.always_quote or
                 std.mem.findScalar(u8, value, self.config.delimiter) != null or
                 std.mem.findScalar(u8, value, self.config.quote) != null or
-                std.mem.findScalar(u8, value, '\n') != null;
+                std.mem.findScalar(u8, value, '\n') != null or
+                std.mem.findScalar(u8, value, '\r') != null;
 
             if (needs_quote) {
                 try self.writer.writeByte(self.config.quote);
@@ -537,12 +736,16 @@ pub fn Csv(comptime WriterType: type) type {
             } else {
                 try self.writer.writeAll(value);
             }
+            assert(!self.first_in_row);
         }
 
         /// End current row
         pub fn endRow(self: *Self) !void {
+            maybe(self.first_in_row);
+
             try self.writer.writeByte('\n');
             self.first_in_row = true;
+            assert(self.first_in_row);
         }
     };
 }
@@ -561,6 +764,9 @@ pub fn Plain(comptime WriterType: type) type {
 
         /// Write a key-value field
         pub fn writeField(self: *Self, key: []const u8, value: []const u8) !void {
+            maybe(key.len == 0);
+            maybe(value.len == 0);
+
             try self.writer.writeAll(key);
             try self.writer.writeAll(": ");
             try self.writer.writeAll(value);
@@ -569,8 +775,9 @@ pub fn Plain(comptime WriterType: type) type {
     };
 }
 
-/// Helper: write JSON-escaped string
+/// Helper: write JSON-escaped string. Every byte below 0x20 leaves as an escape sequence.
 fn writeJsonString(writer: anytype, s: []const u8) !void {
+    maybe(s.len == 0);
     for (s) |c| {
         switch (c) {
             '"' => try writer.writeAll("\\\""),
@@ -1384,4 +1591,581 @@ test "Plain both key and value empty" {
     const output = buf.written();
     // Both empty still produces ": \n" format
     try std.testing.expectEqualStrings(": \n", output);
+}
+
+// Assertion-baseline tests: invariants, boundaries, regressions and models.
+
+/// Test helper: render `table` into an allocating buffer owned by the caller.
+fn render_to_owned(gpa: Allocator, table: Table) ![]u8 {
+    var buf: std.Io.Writer.Allocating = .init(gpa);
+    errdefer buf.deinit();
+
+    try table.render(&buf.writer);
+    return buf.toOwnedSlice();
+}
+
+test "Table.check_invariants holds after init and addRow" {
+    const gpa = std.testing.allocator;
+
+    var table = try Table.init(gpa, &.{ "Name", "N" }, .{ .min_width = 3, .max_width = 5 });
+    defer table.deinit();
+
+    table.check_invariants();
+    try table.addRow(&.{ "Alice Liddell", "7" });
+    try table.addRow(&.{ "", "12345678" });
+    table.check_invariants();
+
+    try std.testing.expectEqual(@as(usize, 5), table.widths[0]);
+    try std.testing.expectEqual(@as(usize, 5), table.widths[1]);
+}
+
+test "Table zero columns and zero rows render without crashing" {
+    const gpa = std.testing.allocator;
+
+    var empty = try Table.init(gpa, &.{}, .{});
+    defer empty.deinit();
+
+    try empty.addRow(&.{});
+    const out_empty = try render_to_owned(gpa, empty);
+    defer gpa.free(out_empty);
+
+    try std.testing.expect(out_empty.len > 0);
+    try std.testing.expectEqual(@as(u8, '\n'), out_empty[out_empty.len - 1]);
+
+    var header_only = try Table.init(gpa, &.{ "A", "B" }, .{ .borders = false });
+    defer header_only.deinit();
+
+    const out_header = try render_to_owned(gpa, header_only);
+    defer gpa.free(out_header);
+
+    try std.testing.expectEqualStrings("A  B\n├───┼───┤\n", out_header);
+}
+
+test "Table.init rejects an incoherent config with a typed error" {
+    const gpa = std.testing.allocator;
+    const headers: []const []const u8 = &.{ "a", "b" };
+
+    try std.testing.expectError(error.InvalidConfig, Table.init(gpa, headers, .{ .max_width = 0 }));
+    try std.testing.expectError(
+        error.InvalidConfig,
+        Table.init(gpa, headers, .{ .alignments = &.{.left} }),
+    );
+    try std.testing.expectError(
+        error.InvalidConfig,
+        Table.init(gpa, headers, .{ .padding_left = std.math.maxInt(usize) }),
+    );
+    try std.testing.expectError(
+        error.InvalidConfig,
+        Table.init(gpa, headers, .{ .min_width = std.math.maxInt(usize) }),
+    );
+    try std.testing.expectError(
+        error.InvalidConfig,
+        Table.init(gpa, headers, .{ .padding_top = std.math.maxInt(usize) }),
+    );
+
+    // Boundary: exactly the limit is accepted, longer alignments are tolerated.
+    var edge = try Table.init(gpa, headers, .{
+        .min_width = config_extent_max,
+        .padding_left = config_extent_max,
+        .alignments = &.{ .left, .right, .center },
+    });
+    edge.deinit();
+}
+
+test "csv_config_valid rejects equal and line-break delimiter or quote" {
+    try std.testing.expect(csv_config_valid(.{ .delimiter = ',', .quote = '"' }));
+    try std.testing.expect(csv_config_valid(.{ .delimiter = '\t', .quote = '\'' }));
+    try std.testing.expect(!csv_config_valid(.{ .delimiter = '"', .quote = '"' }));
+    try std.testing.expect(!csv_config_valid(.{ .delimiter = '\n', .quote = '"' }));
+    try std.testing.expect(!csv_config_valid(.{ .delimiter = ',', .quote = '\r' }));
+}
+
+test "Table rejects cells longer than cell_len_max" {
+    const gpa = std.testing.allocator;
+
+    // A slice that claims more bytes than the limit. The bytes are never read: the length
+    // check happens before any access, which is what this test pins down.
+    var anchor: u8 = 'x';
+    const huge: []const u8 = @as([*]const u8, @ptrCast(&anchor))[0 .. cell_len_max + 1];
+    const huge_row: []const []const u8 = &.{huge};
+
+    try std.testing.expectError(error.CellTooLong, Table.init(gpa, huge_row, .{}));
+
+    var table = try Table.init(gpa, &.{"h"}, .{});
+    defer table.deinit();
+
+    try std.testing.expectError(error.CellTooLong, table.addRow(huge_row));
+    try std.testing.expectEqual(@as(usize, 0), table.rows.items.len);
+    try std.testing.expectError(error.ColumnCountMismatch, table.addRow(&.{ "a", "b" }));
+    try std.testing.expectError(error.ColumnCountMismatch, table.addRow(&.{}));
+    table.check_invariants();
+}
+
+test "Table with max-size config extents renders exact border widths" {
+    const gpa = std.testing.allocator;
+
+    var table = try Table.init(gpa, &.{"h"}, .{
+        .borders = true,
+        .min_width = 1000,
+        .padding_left = 40,
+        .padding_right = 24,
+    });
+    defer table.deinit();
+
+    const out = try render_to_owned(gpa, table);
+    defer gpa.free(out);
+
+    // Top border: corner + (width + 2 + padding) dashes (3 bytes each) + corner + newline.
+    const dashes: usize = 1000 + 2 + 40 + 24;
+    const first_line_end = std.mem.findScalar(u8, out, '\n').?;
+    try std.testing.expectEqual(@as(usize, 3 + dashes * 3 + 3), first_line_end);
+}
+
+/// One init + addRow + render pass over `gpa`; the rendered bytes use `backing`.
+fn table_pass(gpa: Allocator, backing: Allocator) !void {
+    var table = try Table.init(gpa, &.{ "Col A", "Col B" }, .{ .max_width = 5 });
+    defer table.deinit();
+
+    try table.addRow(&.{ "alpha beta gamma", "x\ny\nz" });
+    const out = try render_to_owned(backing, table);
+    backing.free(out);
+}
+
+test "Table render survives allocation failure at every point" {
+    const backing = std.testing.allocator;
+    const fail_index_max: usize = 64;
+
+    var failures: u32 = 0;
+    for (0..fail_index_max) |fail_index| {
+        var failing = std.testing.FailingAllocator.init(backing, .{ .fail_index = fail_index });
+        if (table_pass(failing.allocator(), backing)) {
+            break;
+        } else |err| switch (err) {
+            error.OutOfMemory => failures += 1,
+            error.InvalidConfig, error.CellTooLong => return err,
+            error.ColumnCountMismatch, error.WriteFailed => return err,
+        }
+    }
+    // The sweep must have exercised failure paths, and must have reached a success.
+    try std.testing.expect(failures >= 4);
+    try std.testing.expect(failures < fail_index_max);
+}
+
+test "Table render into a too-small writer returns WriteFailed without leaking" {
+    const gpa = std.testing.allocator;
+
+    var table = try Table.init(gpa, &.{ "Name", "Age" }, .{});
+    defer table.deinit();
+
+    try table.addRow(&.{ "Alice", "30" });
+
+    var small: [16]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&small);
+    try std.testing.expectError(error.WriteFailed, table.render(&writer));
+}
+
+fn model_cell(rng: std.Random, buf: []u8) []const u8 {
+    const len = rng.uintLessThan(usize, buf.len + 1);
+    for (buf[0..len]) |*byte| byte.* = 'a' + rng.uintLessThan(u8, 26);
+    return buf[0..len];
+}
+
+/// Reference renderer for the no-wrap case, built line by line with `std.mem.join`.
+fn model_table(
+    arena: Allocator,
+    headers: []const []const u8,
+    rows: []const []const []const u8,
+    config: TableConfig,
+) ![]const u8 {
+    const widths = try arena.alloc(usize, headers.len);
+    for (widths, headers, 0..) |*width, header, column| {
+        width.* = @max(header.len, config.min_width);
+        for (rows) |row| width.* = @max(width.*, row[column].len);
+    }
+
+    var out: std.ArrayList(u8) = .empty;
+    if (config.borders) {
+        try out.appendSlice(arena, try model_border(arena, widths, config, "┌┬┐"));
+    }
+    for (0..config.padding_top) |_| {
+        try out.appendSlice(arena, try model_blank(arena, widths, config));
+    }
+
+    try out.appendSlice(arena, try model_row(arena, headers, widths, config));
+    if (config.header_separator) {
+        try out.appendSlice(arena, try model_border(arena, widths, config, "├┼┤"));
+    }
+    for (rows) |row| try out.appendSlice(arena, try model_row(arena, row, widths, config));
+    for (0..config.padding_bottom) |_| {
+        try out.appendSlice(arena, try model_blank(arena, widths, config));
+    }
+    if (config.borders) {
+        try out.appendSlice(arena, try model_border(arena, widths, config, "└┴┘"));
+    }
+    return out.items;
+}
+
+fn model_row(
+    arena: Allocator,
+    row: []const []const u8,
+    widths: []const usize,
+    config: TableConfig,
+) ![]const u8 {
+    const cells = try arena.alloc([]const u8, row.len);
+    for (cells, row, widths, 0..) |*cell, text, width, column| {
+        const align_kind: Alignment = if (config.alignments) |a| a[column] else .left;
+        const pad = width - text.len;
+        const left: usize = switch (align_kind) {
+            .left => 0,
+            .right => pad,
+            .center => @divFloor(pad, 2),
+        };
+        cell.* = try std.fmt.allocPrint(arena, "{s}{s}{s}{s}{s}", .{
+            try spaces(arena, config.padding_left),
+            try spaces(arena, left),
+            text,
+            try spaces(arena, pad - left),
+            try spaces(arena, config.padding_right),
+        });
+    }
+    const separator: []const u8 = if (config.borders) " │ " else "  ";
+    const joined = try std.mem.join(arena, separator, cells);
+    const edge_left: []const u8 = if (config.borders) "│ " else "";
+    const edge_right: []const u8 = if (config.borders) " │" else "";
+    return std.fmt.allocPrint(arena, "{s}{s}{s}\n", .{ edge_left, joined, edge_right });
+}
+
+fn spaces(arena: Allocator, count: usize) ![]const u8 {
+    const buf = try arena.alloc(u8, count);
+    @memset(buf, ' ');
+    return buf;
+}
+
+/// `corners` holds three 3-byte glyphs: left, middle, right.
+fn model_border(
+    arena: Allocator,
+    widths: []const usize,
+    config: TableConfig,
+    corners: []const u8,
+) ![]const u8 {
+    const segments = try arena.alloc([]const u8, widths.len);
+    for (segments, widths) |*segment, width| {
+        var dashes: std.ArrayList(u8) = .empty;
+        const count = width + 2 + config.padding_left + config.padding_right;
+        for (0..count) |_| try dashes.appendSlice(arena, "─");
+        segment.* = dashes.items;
+    }
+    const joined = try std.mem.join(arena, corners[3..6], segments);
+    return std.fmt.allocPrint(arena, "{s}{s}{s}\n", .{ corners[0..3], joined, corners[6..9] });
+}
+
+fn model_blank(arena: Allocator, widths: []const usize, config: TableConfig) ![]const u8 {
+    const separator: []const u8 = if (config.borders) " │ " else "  ";
+    const segments = try arena.alloc([]const u8, widths.len);
+    for (segments, widths) |*segment, width| {
+        segment.* = try spaces(arena, width + config.padding_left + config.padding_right);
+    }
+    const joined = try std.mem.join(arena, separator, segments);
+    const edge_left: []const u8 = if (config.borders) "│ " else "";
+    const edge_right: []const u8 = if (config.borders) " │" else "";
+    return std.fmt.allocPrint(arena, "{s}{s}{s}\n", .{ edge_left, joined, edge_right });
+}
+
+test "Table render matches the reference model for seeded random tables" {
+    var prng = std.Random.DefaultPrng.init(0x5a11_0f4d);
+    const rng = prng.random();
+    const iterations_max: u32 = 300;
+
+    for (0..iterations_max) |_| {
+        var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+        defer arena_state.deinit();
+
+        const arena = arena_state.allocator();
+        const columns = rng.uintLessThan(usize, 5);
+        const row_count = rng.uintLessThan(usize, 5);
+        const headers = try arena.alloc([]const u8, columns);
+        for (headers) |*header| header.* = model_cell(rng, try arena.alloc(u8, 6));
+
+        const aligns = try arena.alloc(Alignment, columns);
+        for (aligns) |*kind| kind.* = rng.enumValue(Alignment);
+
+        const config: TableConfig = .{
+            .borders = rng.boolean(),
+            .header_separator = rng.boolean(),
+            .alignments = if (rng.boolean()) aligns else null,
+            .min_width = rng.uintLessThan(usize, 4),
+            .padding_left = rng.uintLessThan(usize, 3),
+            .padding_right = rng.uintLessThan(usize, 3),
+            .padding_top = rng.uintLessThan(usize, 2),
+            .padding_bottom = rng.uintLessThan(usize, 2),
+        };
+
+        var table = try Table.init(std.testing.allocator, headers, config);
+        defer table.deinit();
+
+        const rows = try arena.alloc([]const []const u8, row_count);
+        for (rows) |*row| {
+            const cells = try arena.alloc([]const u8, columns);
+            for (cells) |*cell| cell.* = model_cell(rng, try arena.alloc(u8, 9));
+            row.* = cells;
+            try table.addRow(cells);
+        }
+        table.check_invariants();
+
+        const actual = try render_to_owned(std.testing.allocator, table);
+        defer std.testing.allocator.free(actual);
+
+        const expected = try model_table(arena, headers, rows, config);
+        try std.testing.expectEqualStrings(expected, actual);
+    }
+}
+
+test "Table wrapped output never exceeds the column widths" {
+    var prng = std.Random.DefaultPrng.init(0xfa57_c0de);
+    const rng = prng.random();
+    const alphabet = "ab  cd\nefg ";
+    const iterations_max: u32 = 200;
+
+    for (0..iterations_max) |_| {
+        const gpa = std.testing.allocator;
+        const max_width = rng.intRangeAtMost(usize, 1, 6);
+        var table = try Table.init(gpa, &.{ "H1", "H2" }, .{
+            .borders = false,
+            .header_separator = false,
+            .max_width = max_width,
+        });
+        defer table.deinit();
+
+        var text: [2][24]u8 = undefined;
+        var cells: [2][]const u8 = undefined;
+        for (&cells, &text) |*cell, *bytes| {
+            const len = rng.uintLessThan(usize, bytes.len + 1);
+            for (bytes[0..len]) |*byte| byte.* = alphabet[rng.uintLessThan(usize, alphabet.len)];
+            cell.* = bytes[0..len];
+        }
+        try table.addRow(&cells);
+        table.check_invariants();
+
+        const out = try render_to_owned(gpa, table);
+        defer gpa.free(out);
+
+        // Every output line is two columns plus the two-space separator, never longer.
+        const line_len = table.widths[0] + 2 + table.widths[1];
+        var lines = std.mem.splitScalar(u8, out, '\n');
+        while (lines.next()) |line| {
+            if (line.len == 0) continue;
+            try std.testing.expectEqual(line_len, line.len);
+        }
+    }
+}
+
+test "wrapLine wraps long words and never returns an empty or oversized piece" {
+    const gpa = std.testing.allocator;
+
+    var table = try Table.init(gpa, &.{"h"}, .{ .max_width = 3 });
+    defer table.deinit();
+
+    var pieces = try table.wrapLine("abcdefgh ij", 3);
+    defer pieces.deinit(gpa);
+
+    try std.testing.expectEqual(@as(usize, 4), pieces.items.len);
+    try std.testing.expectEqualStrings("abc", pieces.items[0]);
+    try std.testing.expectEqualStrings("def", pieces.items[1]);
+    try std.testing.expectEqualStrings("gh", pieces.items[2]);
+    try std.testing.expectEqualStrings("ij", pieces.items[3]);
+
+    var single = try table.wrapLine("x", 1);
+    defer single.deinit(gpa);
+
+    try std.testing.expectEqual(@as(usize, 1), single.items.len);
+}
+
+test "JsonArray and JsonObject reject non-finite numbers without writing" {
+    const gpa = std.testing.allocator;
+    var buf: std.Io.Writer.Allocating = .init(gpa);
+    defer buf.deinit();
+
+    const W = @TypeOf(&buf.writer);
+    var arr = try JsonArray(W).init(&buf.writer);
+    try arr.addNumber(@as(f64, 1.5));
+    try std.testing.expectError(error.NonFiniteNumber, arr.addNumber(std.math.nan(f64)));
+    try std.testing.expectError(error.NonFiniteNumber, arr.addNumber(std.math.inf(f64)));
+    try std.testing.expectError(error.NonFiniteNumber, arr.addNumber(-std.math.inf(f32)));
+    try arr.addNumber(std.math.maxInt(u64));
+    try arr.addNumber(std.math.minInt(i64));
+    try arr.end();
+    const expected = "[1.5,18446744073709551615,-9223372036854775808]";
+    try std.testing.expectEqualStrings(expected, buf.written());
+
+    buf.clearRetainingCapacity();
+    var obj = try JsonObject(W).init(&buf.writer);
+    try std.testing.expectError(error.NonFiniteNumber, obj.addNumber("k", std.math.nan(f64)));
+    try obj.addNumber("n", @as(f32, 0.25));
+    try obj.end();
+    try std.testing.expectEqualStrings("{\"n\":0.25}", buf.written());
+}
+
+test "JSON string escaping round-trips through std.json for every ASCII byte" {
+    const gpa = std.testing.allocator;
+
+    var all: [128]u8 = undefined;
+    for (&all, 0..) |*byte, i| byte.* = @intCast(i);
+
+    var buf: std.Io.Writer.Allocating = .init(gpa);
+    defer buf.deinit();
+
+    const W = @TypeOf(&buf.writer);
+    var obj = try JsonObject(W).init(&buf.writer);
+    try obj.addString(&all, &all);
+    try obj.addBool("t", true);
+    try obj.addNull("z");
+    try obj.end();
+
+    for (buf.written()) |byte| try std.testing.expect(byte >= 0x20);
+
+    var parsed = try std.json.parseFromSlice(std.json.Value, gpa, buf.written(), .{});
+    defer parsed.deinit();
+
+    const root = parsed.value.object;
+    try std.testing.expectEqual(@as(usize, 3), root.count());
+    try std.testing.expectEqualStrings(&all, root.get(&all).?.string);
+    try std.testing.expect(root.get("t").?.bool);
+    try std.testing.expect(root.get("z").? == .null);
+}
+
+test "JsonArray with zero elements and a nested empty object is valid JSON" {
+    const gpa = std.testing.allocator;
+
+    var buf: std.Io.Writer.Allocating = .init(gpa);
+    defer buf.deinit();
+
+    const W = @TypeOf(&buf.writer);
+    var empty = try JsonArray(W).init(&buf.writer);
+    try empty.end();
+    try std.testing.expectEqualStrings("[]", buf.written());
+
+    buf.clearRetainingCapacity();
+    var arr = try JsonArray(W).init(&buf.writer);
+    var obj = try arr.beginObject();
+    try obj.end();
+    var second = try arr.beginObject();
+    try second.addString("k", "");
+    try second.end();
+    try arr.end();
+    try std.testing.expectEqualStrings("[{},{\"k\":\"\"}]", buf.written());
+}
+
+/// Reference CSV reader: quoted fields with doubled quotes, rows end at `\n` outside quotes.
+fn model_csv_parse(
+    arena: Allocator,
+    text: []const u8,
+    delimiter: u8,
+    quote: u8,
+) ![]const []const []const u8 {
+    var rows: std.ArrayList([]const []const u8) = .empty;
+    var fields: std.ArrayList([]const u8) = .empty;
+    var field: std.ArrayList(u8) = .empty;
+    var in_quotes = false;
+    var index: usize = 0;
+    while (index < text.len) : (index += 1) {
+        const byte = text[index];
+        if (in_quotes) {
+            if (byte != quote) {
+                try field.append(arena, byte);
+            } else if (index + 1 < text.len and text[index + 1] == quote) {
+                try field.append(arena, quote);
+                index += 1;
+            } else {
+                in_quotes = false;
+            }
+        } else if (byte == quote) {
+            in_quotes = true;
+        } else if (byte == delimiter) {
+            try fields.append(arena, field.items);
+            field = .empty;
+        } else if (byte == '\n') {
+            try fields.append(arena, field.items);
+            field = .empty;
+            try rows.append(arena, fields.items);
+            fields = .empty;
+        } else {
+            try field.append(arena, byte);
+        }
+    }
+    try std.testing.expect(!in_quotes);
+    try std.testing.expectEqual(@as(usize, 0), field.items.len);
+    try std.testing.expectEqual(@as(usize, 0), fields.items.len);
+    return rows.items;
+}
+
+test "Csv output parses back to the written fields for seeded random input" {
+    var prng = std.Random.DefaultPrng.init(0xc5f_0001);
+    const rng = prng.random();
+    const configs = [_]CsvConfig{
+        .{ .delimiter = ',', .quote = '"', .always_quote = false },
+        .{ .delimiter = '\t', .quote = '\'', .always_quote = false },
+        .{ .delimiter = ';', .quote = '"', .always_quote = true },
+    };
+    const iterations_max: u32 = 200;
+
+    for (0..iterations_max) |iteration| {
+        var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+        defer arena_state.deinit();
+
+        const arena = arena_state.allocator();
+        const config = configs[iteration % configs.len];
+        const alphabet = [_]u8{ 'a', 'b', ' ', '\n', '\r', config.delimiter, config.quote };
+        const row_count = 1 + rng.uintLessThan(usize, 4);
+        const column_count = 1 + rng.uintLessThan(usize, 4);
+
+        var buf: std.Io.Writer.Allocating = .init(arena);
+        var csv = Csv(@TypeOf(&buf.writer)).init(&buf.writer, config);
+        const expected = try arena.alloc([]const []const u8, row_count);
+        for (expected) |*row| {
+            const fields = try arena.alloc([]const u8, column_count);
+            for (fields) |*field| {
+                const bytes = try arena.alloc(u8, rng.uintLessThan(usize, 6));
+                for (bytes) |*byte| byte.* = alphabet[rng.uintLessThan(usize, alphabet.len)];
+                field.* = bytes;
+                try csv.writeField(bytes);
+            }
+            row.* = fields;
+            try csv.endRow();
+        }
+
+        const parsed = try model_csv_parse(arena, buf.written(), config.delimiter, config.quote);
+        try std.testing.expectEqual(row_count, parsed.len);
+        for (expected, parsed) |want_row, got_row| {
+            try std.testing.expectEqual(want_row.len, got_row.len);
+            for (want_row, got_row) |want, got| try std.testing.expectEqualStrings(want, got);
+        }
+    }
+}
+
+test "Csv quotes carriage returns, and leaves plain fields bare" {
+    const gpa = std.testing.allocator;
+
+    var buf: std.Io.Writer.Allocating = .init(gpa);
+    defer buf.deinit();
+
+    var csv = Csv(@TypeOf(&buf.writer)).init(&buf.writer, .{
+        .delimiter = ',',
+        .quote = '"',
+        .always_quote = false,
+    });
+    try csv.writeField("a\rb");
+    try csv.writeField("plain");
+    try csv.writeField("");
+    try csv.endRow();
+    try csv.endRow();
+
+    try std.testing.expectEqualStrings("\"a\rb\",plain,\n\n", buf.written());
+}
+
+test "Plain writes to a too-small writer return WriteFailed" {
+    var small: [4]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&small);
+    var plain = Plain(@TypeOf(&writer)).init(&writer);
+
+    try std.testing.expectError(error.WriteFailed, plain.writeField("key", "value"));
 }
