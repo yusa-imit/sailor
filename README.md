@@ -1,102 +1,35 @@
-# sailor 🚢
+# sailor
 
-> A modern Zig TUI framework & CLI toolkit with zero dependencies.
+> A Zig TUI framework and CLI toolkit with zero dependencies.
 
-sailor is a batteries-included library for building terminal applications in Zig. From simple CLI tools with colored output to full-featured TUI applications with complex layouts and widgets — sailor has you covered.
+sailor is a library for building terminal applications in Zig 0.16: a CLI layer (argument parsing,
+styled output, REPL, progress bars, result formatters) and an immediate-mode, ratatui-style TUI
+core (cell buffer, constraint layout solver, themes, input handling) with 140 widget files.
 
-**Key Features:**
-- 🎨 **Rich CLI** - Styled output, progress bars, tables, REPL
-- 🖥️ **Full TUI** - Layout system, 40+ widgets, event handling
-- 🌐 **Network & Async** - HTTP, WebSocket, background tasks, log streaming
-- 🔧 **Modular** - Use only what you need, each module is independent
-- 🌍 **Cross-platform** - Linux, macOS, Windows (x86_64 & ARM64)
-- 🚀 **Zero dependencies** - Only the Zig standard library
-- 📦 **Library-first** - No global state, bring your own allocator
+**What you get:**
 
-## Quick Start
+- **CLI layer**: `term`, `color`, `arg` (flags, subcommands, did-you-mean), `repl` (line editor,
+  history, completion), `progress` (bar, spinner), `fmt` (table, JSON, CSV, plain).
+- **TUI core**: double-buffered diffing renderer, constraint layout, flexbox and grid, theming,
+  sixel/kitty/iterm2 image protocols, async event loop, mouse and gamepad input.
+- **140 widget files**: Block, Paragraph, List, Table, Input, TextArea, Tree, Tabs, Dialog,
+  about 50 chart types, editors, file and hex browsers, kanban, gantt, DAG, timeline, pipeline.
+- **Library discipline**: no global state, you inject the allocator and `std.Io`, all output
+  goes through a caller-supplied `std.Io.Writer`, never straight to stdout.
+- **Zero dependencies**: Zig standard library only.
 
-```zig
-const std = @import("std");
-const sailor = @import("sailor");
+## Requirements
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
-    var terminal = try sailor.tui.Terminal.init(gpa.allocator());
-    defer terminal.deinit();
-
-    try terminal.run(render);
-}
-
-fn render(frame: *sailor.tui.Frame) !void {
-    const block = sailor.tui.widgets.Block.init()
-        .setTitle(sailor.tui.Line.fromString("Hello, sailor!"))
-        .setBorders(sailor.tui.Borders.all);
-
-    const para = sailor.tui.widgets.Paragraph.init(
-        sailor.tui.Line.fromString("Press Ctrl+C to exit")
-    ).setBlock(block);
-
-    frame.renderWidget(para, frame.size());
-}
-```
-
-## Modules
-
-| Module | Description | Version |
-|--------|-------------|---------|
-| **term** | Terminal backend (raw mode, key reading, TTY detection, size) | ✅ v0.1.0 |
-| **color** | Styled output (ANSI codes, 256/truecolor, NO_COLOR support) | ✅ v0.1.0 |
-| **arg** | Argument parser (flags, subcommands, auto-help) | ✅ v0.1.0 |
-| **repl** | Interactive REPL (line editing, history, completion) | ✅ v0.2.0 |
-| **progress** | Progress indicators (bar, spinner, multi-progress) | ✅ v0.2.0 |
-| **fmt** | Result formatting (table, JSON, CSV, plain text) | ✅ v0.2.0 |
-| **tui** | Full-screen TUI framework (layout, widgets, events) | ✅ v0.3.0 |
-
-## Widgets
-
-**Core Widgets** (v0.4.0):
-Block, Paragraph, List, Table, Input, Tabs, StatusBar, Gauge
-
-**Advanced Widgets** (v0.5.0):
-Tree, TextArea, Sparkline, BarChart, LineChart, Canvas, Dialog, Popup, Notification
-
-**Data Visualization** (v1.6.0):
-Heatmap, PieChart, ScatterPlot, Histogram, TimeSeriesChart
-
-**Network & Async** (v1.8.0):
-HttpClient, WebSocket, TaskRunner, LogViewer
-
-See the [Widget Gallery](docs/GUIDE.md#widget-gallery) for examples.
-
-## Documentation
-
-- **[Getting Started Guide](docs/GUIDE.md)** - Tutorials and examples
-- **[API Reference](docs/API.md)** - Complete API documentation
-- **[PRD](docs/PRD.md)** - Design rationale and architecture
+Zig **0.16.0** (`minimum_zig_version` in `build.zig.zon`). CI runs the tests on Linux x86_64,
+macOS ARM64 and Windows x86_64, and cross-compiles six targets on every pull request.
 
 ## Installation
 
-**Requirements:** Zig 0.15.x or later
-
-Add to your `build.zig.zon`:
-
-```zig
-.{
-    .name = "myapp",
-    .version = "0.1.0",
-    .paths = .{""},
-    .dependencies = .{
-        .sailor = .{
-            .path = "../sailor",  // Local development
-            // .url = "https://...",  // Or git URL when published
-        },
-    },
-}
+```bash
+zig fetch --save https://github.com/yusa-imit/sailor/archive/refs/tags/v3.0.0.tar.gz
 ```
 
-Update `build.zig`:
+This writes the dependency with its hash into your `build.zig.zon`. Then in `build.zig`:
 
 ```zig
 const sailor = b.dependency("sailor", .{
@@ -106,156 +39,94 @@ const sailor = b.dependency("sailor", .{
 exe.root_module.addImport("sailor", sailor.module("sailor"));
 ```
 
-See the [installation guide](docs/GUIDE.md#installation) for details.
+## Quick start
 
-## Examples
-
-### CLI with Styled Output
+Widgets are plain structs with `render(self, buf: *Buffer, area: Rect)`. This is the core of
+[`examples/hello.zig`](examples/hello.zig), which also shows how to write the buffer out:
 
 ```zig
+const std = @import("std");
 const sailor = @import("sailor");
 
-pub fn main() !void {
-    const stdout = std.io.getStdOut().writer();
+pub fn main(init: std.process.Init) !void {
+    const gpa = init.gpa;
 
-    try sailor.color.ok(stdout, "✓ Build successful\n");
-    try sailor.color.err(stdout, "✗ Test failed\n");
-    try sailor.color.warn(stdout, "⚠ Deprecated API\n");
+    var buffer = try sailor.tui.Buffer.init(gpa, 40, 5);
+    defer buffer.deinit();
+
+    const area = sailor.tui.Rect{ .x = 0, .y = 0, .width = 40, .height = 5 };
+    var block = sailor.tui.widgets.Block{ .title = "Hello, sailor", .borders = .all };
+    block.render(&buffer, area);
 }
 ```
 
-### Argument Parsing
+`main` takes `std.process.Init` because Zig 0.16 hands the binary its `gpa`, `io` and
+environment there. Anything in sailor that touches the clock, the filesystem or the terminal
+takes an `io: std.Io` argument, first after the receiver; libraries never construct one.
 
-```zig
-var parser = sailor.arg.Parser.init(allocator);
-defer parser.deinit();
+## Modules
 
-parser.addFlag(.{
-    .long = "output",
-    .short = 'o',
-    .type = .string,
-    .description = "Output file path",
-    .required = true,
-});
+| Module | Description |
+|--------|-------------|
+| `term` | Raw mode, key reading, TTY detection, terminal size (POSIX and Windows backends) |
+| `color` | ANSI 16/256/truecolor styling, `NO_COLOR` support |
+| `arg` | Flag and subcommand parser, generated help, did-you-mean suggestions |
+| `repl` | Line editor, history, completion, multi-line validation |
+| `progress` | Progress bar, spinner, multi-progress |
+| `fmt` | Table, JSON, CSV and plain-text result formatters |
+| `tui` | Buffer, layout solver, style, theming, widgets, event loop |
 
-const args = try parser.parse();
-const output = args.flag("output").?;
-```
+Modules are layered `term → color → arg → repl → progress → fmt → tui`; lower layers never
+import higher ones, so `sailor.color` can be used without pulling in `sailor.tui`.
 
-### Progress Bar
+## Documentation
 
-```zig
-var bar = try sailor.progress.Bar.init(allocator, 100);
-defer bar.deinit();
-
-for (0..101) |i| {
-    bar.set(i);
-    try bar.render(std.io.getStdOut().writer());
-    std.time.sleep(20 * std.time.ns_per_ms);
-}
-```
-
-### TUI Application
-
-```zig
-var terminal = try sailor.tui.Terminal.init(allocator);
-defer terminal.deinit();
-
-const app = App{ .counter = 0 };
-
-while (app.running) {
-    try terminal.draw(app, render);
-
-    if (try terminal.pollEvent(100)) |event| {
-        switch (event) {
-            .key => |key| switch (key) {
-                .char => |c| if (c == 'q') app.running = false,
-                .ctrl_c => app.running = false,
-                else => {},
-            },
-            else => {},
-        }
-    }
-}
-```
-
-See [examples/](examples/) for complete applications.
+- [Getting started](docs/getting-started.md) and [guide](docs/GUIDE.md)
+- [API reference](docs/API.md), including the before/after table for the v3.0.0 `io` changes
+- [Product requirements and design](docs/PRD.md)
+- [Changelog](CHANGELOG.md)
+- Runnable programs in [`examples/`](examples/)
 
 ## Development
 
 ```bash
-# Build library
-zig build
-
-# Run tests (720+ tests)
-zig build test
-
-# Run examples
-zig build example -- hello
-zig build example -- counter
-zig build example -- dashboard
-
-# Cross-compile verification
-zig build -Dtarget=x86_64-linux-gnu
-zig build -Dtarget=x86_64-windows-msvc
-zig build -Dtarget=aarch64-macos
+zig build              # library and CLI
+zig build test         # unit tests (about 13.9k) plus the tidy check
+zig fmt --check src build.zig
+zig build example-hello
 ```
 
-## Platform Support
+The `tidy` step enforces the Tiger Style limits (line and function length, `//!` headers,
+no unproven `catch unreachable`) against the ratchet in `tidy_baseline.txt`, which may only
+shrink.
+
+## Platform support
 
 | Platform | x86_64 | ARM64 |
 |----------|--------|-------|
-| **Linux** | ✅ | ✅ |
-| **macOS** | ✅ | ✅ |
-| **Windows** | ✅ | ✅ |
+| Linux | cross-compiled in CI; tests run on x86_64 | cross-compiled in CI |
+| macOS | cross-compiled in CI | tests run in CI |
+| Windows | tests run in CI | cross-compiled in CI |
 
-All platforms are tested in CI on every commit.
+## Design principles
 
-## Features by Version
-
-| Version | Features |
-|---------|----------|
-| **v0.1.0** | Terminal backend, styled output, argument parsing |
-| **v0.2.0** | REPL, progress indicators, table formatting |
-| **v0.3.0** | TUI core (layout, buffer, rendering) |
-| **v0.4.0** | Core widgets (Block, List, Table, Input, Tabs, etc.) |
-| **v0.5.0** | Advanced widgets (Tree, TextArea, Charts, Dialog, etc.) |
-| **v1.0.0** | Polish, theming, animation, comprehensive docs |
-| **v1.1.0** | Accessibility (screen reader hints, focus management, keyboard nav) |
-| **v1.2.0** | Layout & composition (grid layout, scrollable viewport, overlays) |
-| **v1.3.0** | Performance (render budget, lazy rendering, debug overlay) |
-| **v1.4.0** | Advanced input & forms (Select, Checkbox, RadioGroup, Form) |
-| **v1.5.0** | State management (event bus, command pattern, test utilities) |
-| **v1.6.0** | Data visualization (Heatmap, PieChart, ScatterPlot, Histogram, TimeSeries) |
-| **v1.7.0** | Advanced layout (FlexBox, viewport clipping, shadow effects) |
-| **v1.8.0** | Network & async (HttpClient, WebSocket, TaskRunner, LogViewer) |
-
-## Design Principles
-
-- **Library-first** - No global state, you control allocations
-- **Writer-based** - All output via `std.io.Writer`, never direct stdout/stderr
-- **Error-aware** - No panics in library code, explicit error handling
-- **Modular** - Use `sailor.color` without importing `sailor.tui`
-- **Cross-platform** - Platform differences handled internally
-- **Well-tested** - 720+ tests with 100% coverage of public APIs
+- **Immediate mode**: no persistent widget tree; every frame builds, renders and diffs.
+- **Writer-based output**: everything goes through a caller-supplied `std.Io.Writer`.
+- **Typed errors for user data**: malformed input and failed I/O are returned, not asserted;
+  caller contract violations are asserted (Tiger Style).
+- **Explicit allocation**: callers pass the allocator; limits are visible in signatures.
+- **Modular**: use only the layers you need.
 
 ## Inspiration
 
-sailor draws inspiration from:
-- [ratatui](https://github.com/ratatui-org/ratatui) (Rust) - Widget architecture and layout system
-- [bubbletea](https://github.com/charmbracelet/bubbletea) (Go) - Event-driven TUI model
-- [colored](https://github.com/mackwic/colored) (Rust) - ANSI color API design
+- [ratatui](https://github.com/ratatui-org/ratatui) (Rust): widget architecture and layout
+- [bubbletea](https://github.com/charmbracelet/bubbletea) (Go): event-driven TUI model
 
 ## Contributing
 
-Contributions welcome! Please:
-1. Run `zig build test` before submitting
-2. Follow existing code style (see [docs/GUIDE.md](docs/GUIDE.md#best-practices))
+Run `zig build test` and `zig fmt --check src build.zig` before opening a pull request, and
+follow the existing code style.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-Built with ❤️ in Zig. Ship your CLI/TUI apps with **sailor**! 🚢
+MIT, see [LICENSE](LICENSE).
