@@ -4,7 +4,7 @@ All notable changes to sailor. Versions follow semantic versioning; a MAJOR bump
 consumer has to change code. History before v3.0.0 is summarised in
 [`docs/plans/000-inherited.md`](docs/plans/000-inherited.md) and in the git tags.
 
-## [3.0.0] - unreleased
+## [3.0.0] - 2026-10-05
 
 Zig 0.16.0 migration and Tiger Style baseline (plan 001, milestone #19). The before/after table
 for every changed public signature is in [`docs/API.md`](docs/API.md#migrating-to-v300-zig-0160).
