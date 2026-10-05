@@ -1,7 +1,7 @@
 # Sailor — Product Requirements Document
 
 > **sailor**: Zig TUI framework & CLI toolkit
-> Version: 0.1.0 | Language: Zig 0.15.x | License: MIT
+> Version: 3.0.0 | Language: Zig 0.16.0 | License: MIT
 
 ---
 
