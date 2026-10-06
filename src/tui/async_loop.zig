@@ -563,9 +563,9 @@ test "AsyncEventLoop spawn task" {
     var completed = false;
     const callback = struct {
         fn call(result: anyerror!void, user_data: ?*anyopaque) void {
-            _ = result catch unreachable;
             const flag = @as(*bool, @ptrCast(@alignCast(user_data.?)));
-            flag.* = true;
+            // A failed task leaves the flag false, which the test body then rejects.
+            flag.* = if (result) |_| true else |_| false;
         }
     }.call;
 
@@ -685,9 +685,9 @@ test "AsyncEventLoop cleanup tasks" {
 
     const callback = struct {
         fn call(result: anyerror!void, user_data: ?*anyopaque) void {
-            _ = result catch unreachable;
             const flag = @as(*bool, @ptrCast(@alignCast(user_data.?)));
-            flag.* = true;
+            // A failed task leaves the flag false, which the test body then rejects.
+            flag.* = if (result) |_| true else |_| false;
         }
     }.call;
 
@@ -733,9 +733,9 @@ test "AsyncEventLoop task state transitions" {
     var completed = false;
     const callback = struct {
         fn call(result: anyerror!void, user_data: ?*anyopaque) void {
-            _ = result catch unreachable;
             const flag = @as(*bool, @ptrCast(@alignCast(user_data.?)));
-            flag.* = true;
+            // A failed task leaves the flag false, which the test body then rejects.
+            flag.* = if (result) |_| true else |_| false;
         }
     }.call;
 
@@ -792,9 +792,9 @@ test "AsyncEventLoop multiple concurrent tasks" {
 
     const callback = struct {
         fn call(result: anyerror!void, user_data: ?*anyopaque) void {
-            _ = result catch unreachable;
             const flag = @as(*bool, @ptrCast(@alignCast(user_data.?)));
-            flag.* = true;
+            // A failed task leaves the flag false, which the test body then rejects.
+            flag.* = if (result) |_| true else |_| false;
         }
     }.call;
 
@@ -887,9 +887,9 @@ test "AsyncEventLoop dangling pointer safety after array reallocation" {
 
     const callback = struct {
         fn call(result: anyerror!void, user_data: ?*anyopaque) void {
-            _ = result catch unreachable;
             const flag = @as(*bool, @ptrCast(@alignCast(user_data.?)));
-            flag.* = true;
+            // A failed task leaves the flag false, which the test body then rejects.
+            flag.* = if (result) |_| true else |_| false;
         }
     }.call;
 
