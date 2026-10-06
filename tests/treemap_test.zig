@@ -1163,8 +1163,8 @@ test "single item with NaN value does not panic" {
 
     // Render should complete without panic
     tm.render(&buf, area);
-    // If we reach here, no panic occurred
-    try testing.expect(true);
+    // A lone non-finite weight is dropped, so nothing is drawn.
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
 }
 
 test "multi-item with one NaN value does not panic (renderPartition path)" {
@@ -1185,7 +1185,10 @@ test "multi-item with one NaN value does not panic (renderPartition path)" {
 
     // Render should complete without panic
     tm.render(&buf, area);
-    try testing.expect(true);
+    // The finite items still fill the area; only the non-finite one is dropped.
+    try testing.expect(areaHasChar(buf, area, 'A'));
+    try testing.expect(areaHasChar(buf, area, 'C'));
+    try testing.expect(!areaHasChar(buf, area, 'N'));
 }
 
 test "single item with positive infinity does not panic" {
@@ -1203,7 +1206,8 @@ test "single item with positive infinity does not panic" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
 
     tm.render(&buf, area);
-    try testing.expect(true);
+    // A lone non-finite weight is dropped, so nothing is drawn.
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
 }
 
 test "multi-item with positive infinity does not panic (renderPartition path)" {
@@ -1222,7 +1226,10 @@ test "multi-item with positive infinity does not panic (renderPartition path)" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
 
     tm.render(&buf, area);
-    try testing.expect(true);
+    // The finite items still fill the area; only the non-finite one is dropped.
+    try testing.expect(areaHasChar(buf, area, 'A'));
+    try testing.expect(areaHasChar(buf, area, 'C'));
+    try testing.expect(!areaHasChar(buf, area, '+'));
 }
 
 test "single item with negative infinity does not panic" {
@@ -1239,7 +1246,8 @@ test "single item with negative infinity does not panic" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
 
     tm.render(&buf, area);
-    try testing.expect(true);
+    // A lone non-finite weight is dropped, so nothing is drawn.
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
 }
 
 test "multi-item with negative infinity does not panic (renderPartition path)" {
@@ -1258,7 +1266,10 @@ test "multi-item with negative infinity does not panic (renderPartition path)" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
 
     tm.render(&buf, area);
-    try testing.expect(true);
+    // The finite items still fill the area; only the non-finite one is dropped.
+    try testing.expect(areaHasChar(buf, area, 'A'));
+    try testing.expect(areaHasChar(buf, area, 'C'));
+    try testing.expect(!areaHasChar(buf, area, '-'));
 }
 
 test "NaN-poisoned multi-item render produces only valid characters" {
