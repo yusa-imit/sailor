@@ -68,14 +68,22 @@ pub const Treemap = struct {
         return @min(self.items.len, MAX_ITEMS);
     }
 
-    /// Calculate total value of all items (capped at MAX_ITEMS)
+    /// Calculate total weight of all items (capped at MAX_ITEMS). Non-finite and non-positive
+    /// values weigh 0, so one bad item cannot blank the others.
     pub fn totalValue(self: Treemap) f32 {
         var total: f32 = 0.0;
         const n = self.itemCount();
         for (0..n) |i| {
-            total += self.items[i].value;
+            total += itemWeight(self.items[i].value);
         }
         return total;
+    }
+
+    /// Weight an item contributes to the layout: its value if finite and positive, else 0.
+    fn itemWeight(value: f32) f32 {
+        if (!std.math.isFinite(value)) return 0.0;
+        if (value <= 0.0) return 0.0;
+        return value;
     }
 
     /// Set items (builder pattern)
@@ -188,7 +196,7 @@ pub const Treemap = struct {
         const half = items.len / 2;
         var left_total: f32 = 0.0;
         for (0..half) |i| {
-            left_total += items[i].value;
+            left_total += itemWeight(items[i].value);
         }
         const right_total = total - left_total;
 
@@ -263,7 +271,7 @@ pub const Treemap = struct {
             const ki = sorted_items[i];
             const ii = sorted_indices[i];
             var j = i;
-            while (j > 0 and sorted_items[j - 1].value < ki.value) {
+            while (j > 0 and itemWeight(sorted_items[j - 1].value) < itemWeight(ki.value)) {
                 sorted_items[j] = sorted_items[j - 1];
                 sorted_indices[j] = sorted_indices[j - 1];
                 j -= 1;
