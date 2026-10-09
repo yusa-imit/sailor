@@ -226,8 +226,10 @@ pub const ThemeEditor = struct {
 
         // Header
         if (editor_area.height < 3) return;
-        drawClipped(buf, editor_area.x, editor_area.y, "Field", .{ .bold = true }, editor_area.width);
-        drawClipped(buf, editor_area.x +| 20, editor_area.y, "Color", .{ .bold = true }, editor_area.width -| 20);
+        const header_style: Style = .{ .bold = true };
+        drawClipped(buf, editor_area.x, editor_area.y, "Field", header_style, editor_area.width);
+        const color_width = editor_area.width -| 20;
+        drawClipped(buf, editor_area.x +| 20, editor_area.y, "Color", header_style, color_width);
 
         // Field list
         var y = editor_area.y + 2;
@@ -246,7 +248,8 @@ pub const ThemeEditor = struct {
             // Color representation
             const color_str = self.colorToString(field.color_ptr.*);
             const color_style = Style{ .fg = field.color_ptr.*, .bg = style.bg };
-            drawClipped(buf, editor_area.x +| 20, y, color_str, color_style, editor_area.width -| 20);
+            const value_width = editor_area.width -| 20;
+            drawClipped(buf, editor_area.x +| 20, y, color_str, color_style, value_width);
 
             // RGB editing indicators
             if (is_selected and self.editing_color) {
@@ -261,7 +264,8 @@ pub const ThemeEditor = struct {
                         g_marker, rgb.g,
                         b_marker, rgb.b,
                     }) catch "RGB";
-                    drawClipped(buf, editor_area.x +| 45, y, edit_str, .{ .dim = true }, editor_area.width -| 45);
+                    const edit_width = editor_area.width -| 45;
+                    drawClipped(buf, editor_area.x +| 45, y, edit_str, .{ .dim = true }, edit_width);
                 }
             }
 
@@ -327,7 +331,8 @@ pub const ThemeEditor = struct {
             .{ .text = "✗ Error message", .style = self.theme.error_style() },
         };
         for (messages, 0..) |msg, i| {
-            drawClipped(buf, status_area.x, status_area.y + @as(u16, @intCast(i)), msg.text, msg.style, status_area.width);
+            const line_y = status_area.y + @as(u16, @intCast(i));
+            drawClipped(buf, status_area.x, line_y, msg.text, msg.style, status_area.width);
         }
 
         // Sample paragraph

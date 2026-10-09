@@ -8,6 +8,8 @@ const Color = @import("../style.zig").Color;
 const Block = @import("block.zig").Block;
 const drawClipped = @import("text_clip.zig").drawClipped;
 
+const scroll_info_style = Style{ .fg = .yellow, .bold = true };
+
 /// WebSocket connection state
 pub const ConnectionState = enum {
     disconnected,
@@ -179,7 +181,12 @@ pub const WebSocket = struct {
     }
 
     /// Format timestamp
-    fn formatTimestamp(timestamp_ms: u64, now_ms: u64, format: TimestampFormat, buf: []u8) []const u8 {
+    fn formatTimestamp(
+        timestamp_ms: u64,
+        now_ms: u64,
+        format: TimestampFormat,
+        buf: []u8,
+    ) []const u8 {
         const seconds = timestamp_ms / 1000;
         const epoch_seconds = std.time.epoch.EpochSeconds{ .secs = @intCast(seconds) };
         const epoch_day = epoch_seconds.getEpochDay();
@@ -342,7 +349,7 @@ pub const WebSocket = struct {
                 .{self.scroll_offset},
             ) catch "[scroll]";
             defer self.allocator.free(scroll_info);
-            drawClipped(buf, inner.x, last_y, scroll_info, Style{ .fg = .yellow, .bold = true }, inner.width);
+            drawClipped(buf, inner.x, last_y, scroll_info, scroll_info_style, inner.width);
         }
     }
 };

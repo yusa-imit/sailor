@@ -216,8 +216,8 @@ pub fn prevGraphemePos(text: []const u8, pos: usize) usize {
 /// Wrap text to fit within max_width terminal cells,
 /// respecting grapheme cluster boundaries
 pub fn wrapText(allocator: Allocator, text: []const u8, max_width: usize) ![][]const u8 {
-    var lines = std.ArrayList([]const u8).init(allocator);
-    defer lines.deinit();
+    var lines: std.ArrayList([]const u8) = .empty;
+    defer lines.deinit(allocator);
 
     var current_line_start: usize = 0;
     var current_width: usize = 0;
@@ -233,7 +233,7 @@ pub fn wrapText(allocator: Allocator, text: []const u8, max_width: usize) ![][]c
         if (current_width + grapheme_w > max_width) {
             // Line is full
             if (last_break > current_line_start) {
-                try lines.append(text[current_line_start..last_break]);
+                try lines.append(allocator, text[current_line_start..last_break]);
                 current_line_start = last_break;
                 current_width = 0;
                 last_break = current_line_start;
@@ -241,7 +241,7 @@ pub fn wrapText(allocator: Allocator, text: []const u8, max_width: usize) ![][]c
                 iter.pos = pos;
             } else {
                 // Force break at this grapheme
-                try lines.append(text[current_line_start..pos]);
+                try lines.append(allocator, text[current_line_start..pos]);
                 current_line_start = pos;
                 current_width = grapheme_w;
                 last_break = current_line_start;
@@ -257,10 +257,10 @@ pub fn wrapText(allocator: Allocator, text: []const u8, max_width: usize) ![][]c
 
     // Add remaining text
     if (current_line_start < text.len) {
-        try lines.append(text[current_line_start..]);
+        try lines.append(allocator, text[current_line_start..]);
     }
 
-    return lines.toOwnedSlice();
+    return lines.toOwnedSlice(allocator);
 }
 
 /// Check if a grapheme cluster at the given byte position should continue

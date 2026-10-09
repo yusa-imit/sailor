@@ -456,7 +456,7 @@ pub const MultiCursorEditor = struct {
         std.mem.sort(Position, all_positions.items, {}, positionGreaterThan);
 
         // Insert at each position (in reverse order to maintain positions)
-        for (all_positions.items) |*pos| {
+        for (all_positions.items) |pos| {
             if (pos.line >= self.base.lines.items.len) continue;
 
             const old_line = self.base.lines.items[pos.line];
@@ -469,19 +469,24 @@ pub const MultiCursorEditor = struct {
             self.base.allocator.free(old_line);
             self.base.lines.items[pos.line] = new_line;
 
-            // Update all cursor positions after this insertion
-            pos.col += 1;
-            if (pos.line == self.base.cursor.line and pos.col <= self.base.cursor.col + 1) {
-                self.base.cursor.col += 1;
-            }
-            for (self.cursors.items) |*cursor| {
-                if (cursor.pos.line == pos.line and cursor.pos.col < pos.col) {
-                    cursor.pos.col += 1;
-                }
-            }
+            // Cursors at or right of the insertion point move one cell right. Cursors further
+            // right already moved for their own insertion, those to the left are untouched.
+            self.shiftCursorsRight(pos);
         }
 
         try self.pushUndoBatch(lines_before, cursors_before);
+    }
+
+    /// Moves every cursor on `from.line` whose column is at or after `from.col` one cell right.
+    fn shiftCursorsRight(self: *MultiCursorEditor, from: Position) void {
+        if (self.base.cursor.line == from.line and self.base.cursor.col >= from.col) {
+            self.base.cursor.col += 1;
+        }
+        for (self.cursors.items) |*cursor| {
+            if (cursor.pos.line == from.line and cursor.pos.col >= from.col) {
+                cursor.pos.col += 1;
+            }
+        }
     }
 
     /// Delete character before cursor at all positions simultaneously.
@@ -946,6 +951,9 @@ test "multicursor: setLanguage + secondary cursor overlay preserves char, applie
 
     // Set language to enable tokenization (keyword will be styled differently)
     _ = mc.setLanguage(.zig);
+
+    // The base cursor must be elsewhere: addCursor drops a duplicate of the base position.
+    mc.base.cursor = .{ .line = 0, .col = 6 };
 
     // Add secondary cursor at column 0 (on the 'c' of "const")
     // This position will be tokenized as a keyword and get keyword styling (magenta, bold)

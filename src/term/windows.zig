@@ -551,8 +551,8 @@ pub const AnsiSegment = struct {
 };
 
 pub fn parseAnsiSegments(allocator: Allocator, ansi_str: []const u8) !std.ArrayList(AnsiSegment) {
-    var segments = std.ArrayList(AnsiSegment).init(allocator);
-    errdefer segments.deinit();
+    var segments: std.ArrayList(AnsiSegment) = .empty;
+    errdefer segments.deinit(allocator);
 
     var idx: usize = 0;
     var current_attr: u16 = 0x0007; // Default white
@@ -563,7 +563,7 @@ pub fn parseAnsiSegments(allocator: Allocator, ansi_str: []const u8) !std.ArrayL
             // Found escape sequence
             // Save any pending text
             if (idx > text_start) {
-                try segments.append(.{
+                try segments.append(allocator, .{
                     .text = ansi_str[text_start..idx],
                     .attribute = current_attr,
                 });
@@ -589,7 +589,7 @@ pub fn parseAnsiSegments(allocator: Allocator, ansi_str: []const u8) !std.ArrayL
 
     // Add remaining text
     if (text_start < ansi_str.len) {
-        try segments.append(.{
+        try segments.append(allocator, .{
             .text = ansi_str[text_start..],
             .attribute = current_attr,
         });

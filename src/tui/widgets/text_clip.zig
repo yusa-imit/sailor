@@ -40,7 +40,8 @@ test "clipCodepoints truncates by codepoint, not byte" {
     try std.testing.expectEqualStrings("abcdef", clipCodepoints("abcdef", 100));
     try std.testing.expectEqualStrings("", clipCodepoints("abcdef", 0));
     // Each arrow is three bytes but one cell.
-    try std.testing.expectEqualStrings("\u{2191}\u{2191}", clipCodepoints("\u{2191}\u{2191}\u{2191}", 2));
+    const arrows = "\u{2191}\u{2191}\u{2191}";
+    try std.testing.expectEqualStrings("\u{2191}\u{2191}", clipCodepoints(arrows, 2));
     try std.testing.expectEqualStrings("", clipCodepoints("", 4));
 }
 

@@ -41,7 +41,11 @@ pub const StreamingTable = struct {
     /// Callback type for fetching row cells
     /// Takes row index, column index, and writer
     /// Should write cell text to writer
-    pub const CellCallback = *const fn (row_index: usize, col_index: usize, writer: *std.Io.Writer) anyerror!void;
+    pub const CellCallback = *const fn (
+        row_index: usize,
+        col_index: usize,
+        writer: *std.Io.Writer,
+    ) anyerror!void;
 
     /// Create a streaming table with columns and total row count
     pub fn init(columns: []const Column, total: usize) StreamingTable {
@@ -150,7 +154,8 @@ pub const StreamingTable = struct {
                     remaining_width -|= widths_buf[i];
                 },
                 .percentage => |pct| {
-                    const w: u16 = @intCast(@divTrunc(@as(u32, available_width) * @as(u32, pct), 100));
+                    const scaled = @as(u32, available_width) * @as(u32, pct);
+                    const w: u16 = @intCast(@divTrunc(scaled, 100));
                     widths_buf[i] = @min(w, remaining_width);
                     remaining_width -|= widths_buf[i];
                 },
@@ -192,7 +197,8 @@ pub const StreamingTable = struct {
         style: Style,
     ) void {
         const clipped = clipCodepoints(text, width);
-        const text_cells: u16 = @intCast(std.unicode.utf8CountCodepoints(clipped) catch clipped.len);
+        const codepoints = std.unicode.utf8CountCodepoints(clipped) catch clipped.len;
+        const text_cells: u16 = @intCast(codepoints);
         assert(text_cells <= width);
 
         // Paint the whole column first so padding carries the row style.
@@ -283,7 +289,12 @@ pub const StreamingTable = struct {
         gpa: std.mem.Allocator,
     ) !void {
         const Adapter = struct {
-            fn write(source: []const []const []const u8, row: usize, col: usize, w: *std.Io.Writer) anyerror!void {
+            fn write(
+                source: []const []const []const u8,
+                row: usize,
+                col: usize,
+                w: *std.Io.Writer,
+            ) anyerror!void {
                 if (row >= source.len) return;
                 if (col < source[row].len) try w.writeAll(source[row][col]);
             }
@@ -331,7 +342,8 @@ pub const StreamingTable = struct {
         var y: u16 = 1; // Start after header
         for (range.start..range.end) |row_idx| {
             if (y >= render_area.height) break;
-            try self.renderRow(buf, render_area, render_area.y + y, row_idx, widths, context, write, &aw);
+            const row_y = render_area.y + y;
+            try self.renderRow(buf, render_area, row_y, row_idx, widths, context, write, &aw);
             y += 1;
         }
     }

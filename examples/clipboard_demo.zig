@@ -48,17 +48,18 @@ pub fn main(init: std.process.Init) !void {
     // App state
     var app = App{
         .io = io,
-        .input_buffer = std.ArrayList(u8).init(allocator),
-        .clipboard_buffer = std.ArrayList(u8).init(allocator),
-        .status_message = std.ArrayList(u8).init(allocator),
+        .gpa = allocator,
+        .input_buffer = .empty,
+        .clipboard_buffer = .empty,
+        .status_message = .empty,
         .selection = .clipboard,
         .terminal_name = detector.name(),
         .supports_clipboard = caps.clipboard,
         .supports_bracketed_paste = caps.bracketed_paste,
     };
-    defer app.input_buffer.deinit();
-    defer app.clipboard_buffer.deinit();
-    defer app.status_message.deinit();
+    defer app.input_buffer.deinit(app.gpa);
+    defer app.clipboard_buffer.deinit(app.gpa);
+    defer app.status_message.deinit(app.gpa);
 
     // Enable bracketed paste mode
     if (app.supports_bracketed_paste) {
@@ -76,6 +77,7 @@ pub fn main(init: std.process.Init) !void {
 
 const App = struct {
     io: std.Io,
+    gpa: std.mem.Allocator,
     input_buffer: std.ArrayList(u8),
     clipboard_buffer: std.ArrayList(u8),
     status_message: std.ArrayList(u8),
@@ -304,7 +306,7 @@ fn handleKey(term: *Terminal, app: *App, key: anytype) !void {
 
     // Regular character input
     if (std.ascii.isPrint(key.char)) {
-        try app.input_buffer.insert(app.cursor_pos, key.char);
+        try app.input_buffer.insert(app.gpa, app.cursor_pos, key.char);
         app.cursor_pos += 1;
     }
 }
@@ -324,7 +326,7 @@ fn copyToClipboard(term: *Terminal, app: *App) !void {
 
     // Store in local buffer for preview
     app.clipboard_buffer.clearRetainingCapacity();
-    try app.clipboard_buffer.appendSlice(app.input_buffer.items);
+    try app.clipboard_buffer.appendSlice(app.gpa, app.input_buffer.items);
 
     try setStatus(app, "Copied to clipboard");
     _ = term;
@@ -352,20 +354,20 @@ fn pasteFromClipboard(app: *App) !void {
             }
         }.callback);
 
-        try app.input_buffer.appendSlice(app.clipboard_buffer.items);
+        try app.input_buffer.appendSlice(app.gpa, app.clipboard_buffer.items);
         app.cursor_pos = app.input_buffer.items.len;
 
         const status = try std.fmt.allocPrint(
-            app.status_message.allocator,
+            app.gpa,
             "Pasted {d} line(s)",
             .{line_count},
         );
-        defer app.status_message.allocator.free(status);
+        defer app.gpa.free(status);
 
         app.status_message.clearRetainingCapacity();
-        try app.status_message.appendSlice(status);
+        try app.status_message.appendSlice(app.gpa, status);
     } else {
-        try app.input_buffer.appendSlice(app.clipboard_buffer.items);
+        try app.input_buffer.appendSlice(app.gpa, app.clipboard_buffer.items);
         app.cursor_pos = app.input_buffer.items.len;
         try setStatus(app, "Pasted from clipboard");
     }
@@ -380,5 +382,5 @@ fn cutToClipboard(term: *Terminal, app: *App) !void {
 
 fn setStatus(app: *App, message: []const u8) !void {
     app.status_message.clearRetainingCapacity();
-    try app.status_message.appendSlice(message);
+    try app.status_message.appendSlice(app.gpa, message);
 }

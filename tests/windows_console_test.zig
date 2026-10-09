@@ -721,7 +721,7 @@ test "integration: legacy console with ANSI emulation" {
 
     // Parse ANSI and convert to console API calls
     var segments = try sailor.term.windows.parseAnsiSegments(testing.allocator, ansi_str);
-    defer segments.deinit();
+    defer segments.deinit(testing.allocator);
 
     try testing.expect(segments.items.len > 0);
 
