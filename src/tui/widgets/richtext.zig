@@ -149,7 +149,7 @@ pub const RichTextInput = struct {
     pub fn init(allocator: Allocator) RichTextInput {
         return .{
             .allocator = allocator,
-            .text = ArrayList(u8).init(allocator),
+            .text = .empty,
             .cursor = 0,
             .selection = null,
             .emoji_picker_visible = false,
@@ -166,13 +166,13 @@ pub const RichTextInput = struct {
 
     /// Frees resources used by this widget.
     pub fn deinit(self: *RichTextInput) void {
-        self.text.deinit();
+        self.text.deinit(self.allocator);
     }
 
     /// Replaces the entire text content and resets cursor/selection.
     pub fn setText(self: *RichTextInput, text: []const u8) !void {
         self.text.clearRetainingCapacity();
-        try self.text.appendSlice(text);
+        try self.text.appendSlice(self.allocator, text);
         self.cursor = 0;
         self.selection = null;
     }
@@ -192,7 +192,7 @@ pub const RichTextInput = struct {
 
     /// Inserts a single character at the cursor position and advances cursor.
     pub fn insertChar(self: *RichTextInput, ch: u8) !void {
-        try self.text.insert(self.cursor, ch);
+        try self.text.insert(self.allocator, self.cursor, ch);
         self.cursor += 1;
     }
 
@@ -205,7 +205,7 @@ pub const RichTextInput = struct {
 
     /// Inserts a string at the cursor position and advances cursor.
     pub fn insertText(self: *RichTextInput, text: []const u8) !void {
-        try self.text.insertSlice(self.cursor, text);
+        try self.text.insertSlice(self.allocator, self.cursor, text);
         self.cursor += text.len;
     }
 
@@ -284,16 +284,16 @@ pub const RichTextInput = struct {
         if (self.selection) |sel| {
             const norm = sel.normalized();
             // Insert suffix first (to not shift positions)
-            try self.text.insertSlice(norm.end, suffix);
+            try self.text.insertSlice(self.allocator, norm.end, suffix);
             // Then insert prefix
-            try self.text.insertSlice(norm.start, prefix);
+            try self.text.insertSlice(self.allocator, norm.start, prefix);
             // Update cursor position
             self.cursor = norm.end + prefix.len + suffix.len;
             self.selection = null;
         } else {
             // No selection: insert markers at cursor
-            try self.text.insertSlice(self.cursor, prefix);
-            try self.text.insertSlice(self.cursor + prefix.len, suffix);
+            try self.text.insertSlice(self.allocator, self.cursor, prefix);
+            try self.text.insertSlice(self.allocator, self.cursor + prefix.len, suffix);
             self.cursor += prefix.len;
         }
     }
@@ -801,7 +801,7 @@ test "richtext: render basic" {
     try rt.setText("Hello");
 
     var buffer = try Buffer.init(allocator, 40, 10);
-    defer buffer.deinit(allocator);
+    defer buffer.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
     rt.render(&buffer, area);
@@ -842,7 +842,7 @@ test "richtext: builder pattern" {
     var rt = RichTextInput.init(allocator);
     defer rt.deinit();
 
-    const block = (Block{}).setTitle("Rich Text");
+    const block = (Block{}).withTitle("Rich Text", .top_left);
     _ = rt.setBlock(block);
 
     try testing.expect(rt.block != null);

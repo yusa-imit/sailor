@@ -76,7 +76,7 @@ fn benchVirtualListRender1M(allocator: std.mem.Allocator) !void {
     const area = Rect{ .x = 0, .y = 0, .width = VIEWPORT_WIDTH, .height = VIEWPORT_HEIGHT };
 
     const callback = struct {
-        fn itemCallback(index: usize, writer: anytype) !void {
+        fn itemCallback(index: usize, writer: *std.Io.Writer) !void {
             try writer.print("Item {d}", .{index});
         }
     }.itemCallback;
@@ -93,7 +93,7 @@ fn benchVirtualListScroll1M(allocator: std.mem.Allocator) !void {
     const area = Rect{ .x = 0, .y = 0, .width = VIEWPORT_WIDTH, .height = VIEWPORT_HEIGHT };
 
     const callback = struct {
-        fn itemCallback(index: usize, writer: anytype) !void {
+        fn itemCallback(index: usize, writer: *std.Io.Writer) !void {
             try writer.print("Item {d}", .{index});
         }
     }.itemCallback;
@@ -123,7 +123,7 @@ fn benchStreamingTableRender1M(allocator: std.mem.Allocator) !void {
     };
 
     const callback = struct {
-        fn cellCallback(row_index: usize, col_index: usize, writer: anytype) !void {
+        fn cellCallback(row_index: usize, col_index: usize, writer: *std.Io.Writer) !void {
             switch (col_index) {
                 0 => try writer.print("{d}", .{row_index}),
                 1 => try writer.print("Row {d}", .{row_index}),
@@ -151,7 +151,7 @@ fn benchStreamingTableScroll1M(allocator: std.mem.Allocator) !void {
     };
 
     const callback = struct {
-        fn cellCallback(row_index: usize, col_index: usize, writer: anytype) !void {
+        fn cellCallback(row_index: usize, col_index: usize, writer: *std.Io.Writer) !void {
             switch (col_index) {
                 0 => try writer.print("{d}", .{row_index}),
                 1 => try writer.print("Row {d}", .{row_index}),
@@ -239,7 +239,7 @@ fn benchMemoryUsageVirtualList(allocator: std.mem.Allocator) !void {
     const area = Rect{ .x = 0, .y = 0, .width = VIEWPORT_WIDTH, .height = VIEWPORT_HEIGHT };
 
     const callback = struct {
-        fn itemCallback(index: usize, writer: anytype) !void {
+        fn itemCallback(index: usize, writer: *std.Io.Writer) !void {
             try writer.print("Item {d}", .{index});
         }
     }.itemCallback;

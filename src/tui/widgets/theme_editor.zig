@@ -5,8 +5,10 @@ const Buffer = tui.Buffer;
 const Rect = tui.Rect;
 const Style = tui.Style;
 const Color = tui.Color;
-const Constraint = tui.Constraint;
-const Layout = tui.Layout;
+const Span = tui.Span;
+const Line = tui.Line;
+const drawClipped = @import("text_clip.zig").drawClipped;
+const assert = std.debug.assert;
 const Block = @import("block.zig").Block;
 const Paragraph = @import("paragraph.zig").Paragraph;
 const Gauge = @import("gauge.zig").Gauge;
@@ -89,49 +91,43 @@ pub const ThemeEditor = struct {
         self.editing_component = if (self.editing_component == 0) 2 else self.editing_component - 1;
     }
 
+    /// Pointer to the red, green, or blue channel selected by `component` (0, 1, or 2).
+    fn componentPtr(rgb: anytype, component: u2) *u8 {
+        assert(component < 3);
+        return switch (component) {
+            0 => &rgb.r,
+            1 => &rgb.g,
+            2 => &rgb.b,
+            3 => unreachable, // excluded by the assert above
+        };
+    }
+
+    /// Returns the selected field's color as an RGB payload, converting named and indexed
+    /// colors to mid-gray first. Only call while `editing_color` is set.
+    fn selectedRgb(self: *ThemeEditor) *@FieldType(Color, "rgb") {
+        assert(self.editing_color);
+        assert(self.selected_field < 12);
+        const fields = self.getFields();
+        const color_ptr = fields[self.selected_field].color_ptr;
+        if (color_ptr.* != .rgb) {
+            color_ptr.* = .{ .rgb = .{ .r = 128, .g = 128, .b = 128 } };
+        }
+        return &color_ptr.rgb;
+    }
+
     /// Increase selected RGB component value
     pub fn increaseValue(self: *ThemeEditor, delta: u8) void {
         if (!self.editing_color) return;
-        const fields = self.getFields();
-        const color_ptr = fields[self.selected_field].color_ptr;
-
-        switch (color_ptr.*) {
-            .rgb => |*rgb| {
-                const val_ptr = switch (self.editing_component) {
-                    0 => &rgb.r,
-                    1 => &rgb.g,
-                    2 => &rgb.b,
-                };
-                const new_val = @min(255, @as(u16, val_ptr.*) + delta);
-                val_ptr.* = @intCast(new_val);
-            },
-            else => {
-                // Convert to RGB if not already
-                color_ptr.* = .{ .rgb = .{ .r = 128, .g = 128, .b = 128 } };
-            },
-        }
+        const val_ptr = componentPtr(self.selectedRgb(), self.editing_component);
+        const new_val = @min(255, @as(u16, val_ptr.*) + delta);
+        val_ptr.* = @intCast(new_val);
     }
 
     /// Decrease selected RGB component value
     pub fn decreaseValue(self: *ThemeEditor, delta: u8) void {
         if (!self.editing_color) return;
-        const fields = self.getFields();
-        const color_ptr = fields[self.selected_field].color_ptr;
-
-        switch (color_ptr.*) {
-            .rgb => |*rgb| {
-                const val_ptr = switch (self.editing_component) {
-                    0 => &rgb.r,
-                    1 => &rgb.g,
-                    2 => &rgb.b,
-                };
-                const new_val = if (val_ptr.* > delta) val_ptr.* - delta else 0;
-                val_ptr.* = new_val;
-            },
-            else => {
-                color_ptr.* = .{ .rgb = .{ .r = 128, .g = 128, .b = 128 } };
-            },
-        }
+        const val_ptr = componentPtr(self.selectedRgb(), self.editing_component);
+        val_ptr.* = val_ptr.* -| delta;
     }
 
     /// Load predefined theme
@@ -142,11 +138,13 @@ pub const ThemeEditor = struct {
 
     /// Export theme to string (JSON-like format)
     pub fn exportTheme(self: ThemeEditor, allocator: std.mem.Allocator) ![]u8 {
-        var buf = std.ArrayList(u8).init(allocator);
-        const writer = buf.writer();
+        var aw: std.Io.Writer.Allocating = .init(allocator);
+        errdefer aw.deinit();
+        const writer = &aw.writer;
 
         try writer.writeAll("{\n");
-        const fields = @as(*const ThemeEditor, &self).getFields();
+        var scratch = self; // getFields hands out mutable pointers; export only reads them
+        const fields = scratch.getFields();
         for (fields, 0..) |field, i| {
             try writer.print("  \"{s}\": ", .{field.name});
             try colorToJson(writer, field.color_ptr.*);
@@ -155,10 +153,10 @@ pub const ThemeEditor = struct {
         }
         try writer.writeAll("}\n");
 
-        return buf.toOwnedSlice();
+        return aw.toOwnedSlice();
     }
 
-    fn colorToJson(writer: anytype, color: Color) !void {
+    fn colorToJson(writer: *std.Io.Writer, color: Color) !void {
         switch (color) {
             .reset => try writer.writeAll("\"reset\""),
             .black => try writer.writeAll("\"black\""),
@@ -169,6 +167,7 @@ pub const ThemeEditor = struct {
             .magenta => try writer.writeAll("\"magenta\""),
             .cyan => try writer.writeAll("\"cyan\""),
             .white => try writer.writeAll("\"white\""),
+            .gray => try writer.writeAll("\"gray\""),
             .bright_black => try writer.writeAll("\"bright_black\""),
             .bright_red => try writer.writeAll("\"bright_red\""),
             .bright_green => try writer.writeAll("\"bright_green\""),
@@ -192,13 +191,23 @@ pub const ThemeEditor = struct {
 
         if (self.show_preview) {
             // Split: left=editor, right=preview
-            const chunks = Layout.horizontal(&.{
-                Constraint.percentage(60),
-                Constraint.percentage(40),
-            }, inner_area);
+            const editor_width: u16 = @intCast(@divFloor(@as(u32, inner_area.width) * 60, 100));
+            const left = Rect{
+                .x = inner_area.x,
+                .y = inner_area.y,
+                .width = editor_width,
+                .height = inner_area.height,
+            };
+            const right = Rect{
+                .x = inner_area.x + editor_width,
+                .y = inner_area.y,
+                .width = inner_area.width - editor_width,
+                .height = inner_area.height,
+            };
+            assert(left.width + right.width == inner_area.width);
 
-            self.renderEditor(buf, chunks[0]);
-            self.renderPreview(buf, chunks[1]);
+            self.renderEditor(buf, left);
+            self.renderPreview(buf, right);
         } else {
             self.renderEditor(buf, inner_area);
         }
@@ -217,8 +226,10 @@ pub const ThemeEditor = struct {
 
         // Header
         if (editor_area.height < 3) return;
-        buf.setString(editor_area.x, editor_area.y, "Field", .{ .bold = true }, editor_area.width);
-        buf.setString(editor_area.x + 20, editor_area.y, "Color", .{ .bold = true }, editor_area.width -| 20);
+        const header_style: Style = .{ .bold = true };
+        drawClipped(buf, editor_area.x, editor_area.y, "Field", header_style, editor_area.width);
+        const color_width = editor_area.width -| 20;
+        drawClipped(buf, editor_area.x +| 20, editor_area.y, "Color", header_style, color_width);
 
         // Field list
         var y = editor_area.y + 2;
@@ -232,12 +243,13 @@ pub const ThemeEditor = struct {
             const marker = if (is_selected) "▶ " else "  ";
             var name_buf: [32]u8 = undefined;
             const name = std.fmt.bufPrint(&name_buf, "{s}{s}", .{ marker, field.name }) catch field.name;
-            buf.setString(editor_area.x, y, name, style, 20);
+            drawClipped(buf, editor_area.x, y, name, style, 20);
 
             // Color representation
             const color_str = self.colorToString(field.color_ptr.*);
             const color_style = Style{ .fg = field.color_ptr.*, .bg = style.bg };
-            buf.setString(editor_area.x + 20, y, color_str, color_style, editor_area.width -| 20);
+            const value_width = editor_area.width -| 20;
+            drawClipped(buf, editor_area.x +| 20, y, color_str, color_style, value_width);
 
             // RGB editing indicators
             if (is_selected and self.editing_color) {
@@ -247,12 +259,13 @@ pub const ThemeEditor = struct {
                     const r_marker = if (self.editing_component == 0) "►" else " ";
                     const g_marker = if (self.editing_component == 1) "►" else " ";
                     const b_marker = if (self.editing_component == 2) "►" else " ";
-                    const edit_str = std.fmt.bufPrint(&edit_buf, "{s}R:{:3} {s}G:{:3} {s}B:{:3}", .{
+                    const edit_str = std.fmt.bufPrint(&edit_buf, "{s}R:{d:>3} {s}G:{d:>3} {s}B:{d:>3}", .{
                         r_marker, rgb.r,
                         g_marker, rgb.g,
                         b_marker, rgb.b,
                     }) catch "RGB";
-                    buf.setString(editor_area.x + 45, y, edit_str, .{ .dim = true }, editor_area.width -| 45);
+                    const edit_width = editor_area.width -| 45;
+                    drawClipped(buf, editor_area.x +| 45, y, edit_str, .{ .dim = true }, edit_width);
                 }
             }
 
@@ -266,7 +279,7 @@ pub const ThemeEditor = struct {
                 "Tab: component  ↑↓: adjust  Enter: done"
             else
                 "↑↓: navigate  Enter: edit  p: preview  s: save";
-            buf.setString(editor_area.x, help_y, help, .{ .dim = true }, editor_area.width);
+            drawClipped(buf, editor_area.x, help_y, help, .{ .dim = true }, editor_area.width);
         }
     }
 
@@ -281,48 +294,56 @@ pub const ThemeEditor = struct {
 
         if (preview_area.height < 6) return;
 
-        // Split preview into sections
-        const chunks = Layout.vertical(&.{
-            Constraint.length(3), // Gauge
-            Constraint.length(3), // Status messages
-            Constraint.min(0), // Remaining
-        }, preview_area);
+        // Split preview into sections: gauge (3 rows), status messages (3 rows), the rest.
+        const section_rows: u16 = 3;
+        assert(preview_area.height >= 6);
+        const gauge_area = Rect{
+            .x = preview_area.x,
+            .y = preview_area.y,
+            .width = preview_area.width,
+            .height = section_rows,
+        };
+        const status_area = Rect{
+            .x = preview_area.x,
+            .y = preview_area.y + section_rows,
+            .width = preview_area.width,
+            .height = section_rows,
+        };
+        const rest_area = Rect{
+            .x = preview_area.x,
+            .y = preview_area.y + 2 * section_rows,
+            .width = preview_area.width,
+            .height = preview_area.height - 2 * section_rows,
+        };
 
         // Gauge preview
-        if (chunks[0].height >= 1) {
-            var gauge = Gauge{
-                .percent = 65,
-                .label = "Progress",
-                .style = self.theme.primary_style(),
-            };
-            gauge.render(buf, chunks[0]);
-        }
+        const gauge = Gauge{
+            .ratio = 0.65,
+            .label = "Progress",
+            .filled_style = self.theme.primary_style(),
+        };
+        gauge.render(buf, gauge_area);
 
         // Status message previews
-        if (chunks[1].height >= 3) {
-            var y = chunks[1].y;
-            const messages = [_]struct { text: []const u8, style: Style }{
-                .{ .text = "✓ Success message", .style = self.theme.success_style() },
-                .{ .text = "⚠ Warning message", .style = self.theme.warning_style() },
-                .{ .text = "✗ Error message", .style = self.theme.error_style() },
-            };
-            for (messages) |msg| {
-                if (y >= chunks[1].y + chunks[1].height) break;
-                buf.setString(chunks[1].x, y, msg.text, msg.style, chunks[1].width);
-                y += 1;
-            }
+        const messages = [_]struct { text: []const u8, style: Style }{
+            .{ .text = "✓ Success message", .style = self.theme.success_style() },
+            .{ .text = "⚠ Warning message", .style = self.theme.warning_style() },
+            .{ .text = "✗ Error message", .style = self.theme.error_style() },
+        };
+        for (messages, 0..) |msg, i| {
+            const line_y = status_area.y + @as(u16, @intCast(i));
+            drawClipped(buf, status_area.x, line_y, msg.text, msg.style, status_area.width);
         }
 
         // Sample paragraph
-        if (chunks[2].height >= 3) {
+        if (rest_area.height >= 3) {
             const text = "This is sample text using the theme's foreground color. " ++
                 "Primary and secondary accents are shown above. " ++
                 "Muted text appears dimmed.";
-            var para = Paragraph{
-                .text = text,
-                .style = .{ .fg = self.theme.foreground },
-            };
-            para.render(buf, chunks[2]);
+            const spans = [_]Span{Span.styled(text, .{ .fg = self.theme.foreground })};
+            const lines = [_]Line{.{ .spans = &spans }};
+            const para = Paragraph.fromLines(&lines);
+            para.render(buf, rest_area);
         }
     }
 
@@ -338,6 +359,7 @@ pub const ThemeEditor = struct {
             .magenta => "magenta",
             .cyan => "cyan",
             .white => "white",
+            .gray => "gray",
             .bright_black => "bright_black",
             .bright_red => "bright_red",
             .bright_green => "bright_green",
@@ -604,15 +626,15 @@ test "ThemeEditor - color to string" {
 }
 
 test "ThemeEditor - colorToJson" {
-    var buf = std.ArrayList(u8).init(std.testing.allocator);
-    defer buf.deinit();
+    var aw: std.Io.Writer.Allocating = .init(std.testing.allocator);
+    defer aw.deinit();
 
-    try ThemeEditor.colorToJson(buf.writer(), .reset);
-    try std.testing.expectEqualStrings("\"reset\"", buf.items);
+    try ThemeEditor.colorToJson(&aw.writer, .reset);
+    try std.testing.expectEqualStrings("\"reset\"", aw.writer.buffered());
 
-    buf.clearRetainingCapacity();
-    try ThemeEditor.colorToJson(buf.writer(), .{ .rgb = .{ .r = 10, .g = 20, .b = 30 } });
-    try std.testing.expectEqualStrings("{\"rgb\": [10, 20, 30]}", buf.items);
+    aw.clearRetainingCapacity();
+    try ThemeEditor.colorToJson(&aw.writer, .{ .rgb = .{ .r = 10, .g = 20, .b = 30 } });
+    try std.testing.expectEqualStrings("{\"rgb\": [10, 20, 30]}", aw.writer.buffered());
 }
 
 test "ThemeEditor - no crash on small area" {

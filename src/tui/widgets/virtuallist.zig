@@ -9,6 +9,8 @@ const Style = style_mod.Style;
 const Color = style_mod.Color;
 const block_mod = @import("block.zig");
 const Block = block_mod.Block;
+const assert = std.debug.assert;
+const clipCodepoints = @import("text_clip.zig").clipCodepoints;
 
 /// Virtual List widget - efficient rendering for massive item counts
 /// Only renders visible items, supports iterators/callbacks for lazy loading
@@ -30,7 +32,7 @@ pub const VirtualList = struct {
 
     /// Callback type for fetching item text
     /// Takes item index and writes to writer
-    pub const ItemCallback = *const fn (index: usize, writer: anytype) anyerror!void;
+    pub const ItemCallback = *const fn (index: usize, writer: *std.Io.Writer) anyerror!void;
 
     /// Create a virtual list with total item count
     pub fn init(total: usize) VirtualList {
@@ -115,7 +117,46 @@ pub const VirtualList = struct {
     }
 
     /// Render virtual list using callback to fetch items on-demand
-    pub fn render(self: VirtualList, buf: *Buffer, area: Rect, comptime callback: ItemCallback, allocator: std.mem.Allocator) !void {
+    pub fn render(
+        self: VirtualList,
+        buf: *Buffer,
+        area: Rect,
+        callback: ItemCallback,
+        gpa: std.mem.Allocator,
+    ) !void {
+        const Adapter = struct {
+            fn write(cb: ItemCallback, index: usize, writer: *std.Io.Writer) anyerror!void {
+                return cb(index, writer);
+            }
+        };
+        try self.renderWith(buf, area, callback, Adapter.write, gpa);
+    }
+
+    /// Convenience render for slice-based items. Indices past the end of `items` render empty.
+    pub fn renderSlice(
+        self: VirtualList,
+        buf: *Buffer,
+        area: Rect,
+        items: []const []const u8,
+        gpa: std.mem.Allocator,
+    ) !void {
+        const Adapter = struct {
+            fn write(source: []const []const u8, index: usize, writer: *std.Io.Writer) anyerror!void {
+                if (index < source.len) try writer.writeAll(source[index]);
+            }
+        };
+        try self.renderWith(buf, area, items, Adapter.write, gpa);
+    }
+
+    /// Shared render loop: `context` is handed back to `write` for every visible item.
+    fn renderWith(
+        self: VirtualList,
+        buf: *Buffer,
+        area: Rect,
+        context: anytype,
+        comptime write: fn (@TypeOf(context), usize, *std.Io.Writer) anyerror!void,
+        gpa: std.mem.Allocator,
+    ) !void {
         var render_area = area;
 
         // Render block if present
@@ -127,65 +168,38 @@ pub const VirtualList = struct {
         if (render_area.height == 0) return;
 
         const range = self.visibleRange(render_area.height);
+        assert(range.start <= range.end);
+        assert(range.end - range.start <= render_area.height);
+
+        // The highlight column is reserved for every row so selected and plain rows align.
+        const symbol_cells = std.unicode.utf8CountCodepoints(self.highlight_symbol) catch
+            self.highlight_symbol.len;
+        const x: u16 = @intCast(@min(symbol_cells, std.math.maxInt(u16)));
+        const max_width = render_area.width -| x;
+
+        var aw: std.Io.Writer.Allocating = .init(gpa);
+        defer aw.deinit();
 
         // Render only visible items
         var y: u16 = 0;
         for (range.start..range.end) |i| {
-            if (y >= render_area.height) break;
-
             const is_selected = if (self.selected) |sel| sel == i else false;
             const style = if (is_selected) self.selected_style else self.item_style;
 
-            // Render highlight symbol for selected item
-            var x: u16 = 0;
             if (is_selected) {
-                buf.setString(
-                    render_area.x,
-                    render_area.y + y,
-                    self.highlight_symbol,
-                    style,
-                );
-                x = @intCast(self.highlight_symbol.len);
-            } else {
-                // Indent non-selected to align with selected
-                x = @intCast(self.highlight_symbol.len);
+                buf.setString(render_area.x, render_area.y + y, self.highlight_symbol, style);
             }
 
             // Fetch item text via callback and render
-            var item_buf = std.ArrayList(u8).init(allocator);
-            defer item_buf.deinit();
+            aw.clearRetainingCapacity();
+            try write(context, i, &aw.writer);
 
-            try callback(i, item_buf.writer());
-
-            const max_width = if (render_area.width > x) render_area.width - x else 0;
-            const item_text = if (item_buf.items.len > max_width)
-                item_buf.items[0..max_width]
-            else
-                item_buf.items;
-
-            buf.setString(
-                render_area.x + x,
-                render_area.y + y,
-                item_text,
-                style,
-            ) catch {};
+            const written = aw.writer.buffered();
+            const item_text = clipCodepoints(written, max_width);
+            buf.setString(render_area.x +| x, render_area.y + y, item_text, style);
 
             y += 1;
         }
-    }
-
-    /// Convenience render for slice-based items (wraps callback)
-    pub fn renderSlice(self: VirtualList, buf: *Buffer, area: Rect, items: []const []const u8, allocator: std.mem.Allocator) !void {
-        const Ctx = struct {
-            items_ptr: []const []const u8,
-            fn cb(index: usize, writer: anytype) !void {
-                if (index < @This().items_ptr.len) {
-                    try writer.writeAll(@This().items_ptr[index]);
-                }
-            }
-        };
-        Ctx.items_ptr = items;
-        try self.render(buf, area, Ctx.cb, allocator);
     }
 };
 
@@ -237,7 +251,7 @@ test "VirtualList.render calls callback only for visible items" {
     var call_count: usize = 0;
     const Ctx = struct {
         var count: *usize = undefined;
-        fn cb(index: usize, writer: anytype) !void {
+        fn cb(index: usize, writer: *std.Io.Writer) !void {
             count.* += 1;
             try writer.print("Item {}", .{index});
         }
@@ -258,7 +272,7 @@ test "VirtualList.render handles huge item counts efficiently" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
 
     const Ctx = struct {
-        fn cb(index: usize, writer: anytype) !void {
+        fn cb(index: usize, writer: *std.Io.Writer) !void {
             try writer.print("Row {d:10}", .{index});
         }
     };
@@ -320,33 +334,33 @@ test "VirtualList.withBlock builder" {
     const list1 = VirtualList.init(10);
     try testing.expectEqual(@as(?Block, null), list1.block);
 
-    const block = Block.init().withTitle("My List");
+    const block = (Block{}).withTitle("My List", .top_left);
     const list2 = list1.withBlock(block);
     try testing.expect(list2.block != null);
-    try testing.expectEqualStrings("My List", list2.block.?.title);
+    try testing.expectEqualStrings("My List", list2.block.?.title.?);
 }
 
 test "VirtualList.withItemStyle builder" {
     const list1 = VirtualList.init(10);
     try testing.expectEqual(Style{}, list1.item_style);
 
-    const custom_style = Style{ .fg = Color.rgb(255, 0, 0) };
+    const custom_style = Style{ .fg = Color.fromRgb(255, 0, 0) };
     const list2 = list1.withItemStyle(custom_style);
     try testing.expect(list2.item_style.fg != null);
     if (list2.item_style.fg) |fg| {
-        try testing.expectEqual(Color.rgb(255, 0, 0), fg);
+        try testing.expectEqual(Color.fromRgb(255, 0, 0), fg);
     }
 }
 
 test "VirtualList.withSelectedStyle builder" {
     const list1 = VirtualList.init(10);
-    try testing.expectEqual(Style{ .fg = Color.white }, list1.selected_style);
+    try testing.expectEqual(Style{}, list1.selected_style);
 
-    const custom_style = Style{ .fg = Color.rgb(0, 255, 0), .bold = true };
+    const custom_style = Style{ .fg = Color.fromRgb(0, 255, 0), .bold = true };
     const list2 = list1.withSelectedStyle(custom_style);
     try testing.expect(list2.selected_style.fg != null);
     if (list2.selected_style.fg) |fg| {
-        try testing.expectEqual(Color.rgb(0, 255, 0), fg);
+        try testing.expectEqual(Color.fromRgb(0, 255, 0), fg);
     }
     try testing.expect(list2.selected_style.bold);
 }
