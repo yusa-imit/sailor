@@ -269,12 +269,12 @@ test "Gauge.render basic" {
 
     // First half should be filled
     for (0..10) |x| {
-        try std.testing.expectEqual('█', buf.get(x, 0).char);
+        try std.testing.expectEqual(@as(u21, '█'), buf.getChar(@intCast(x), 0));
     }
 
     // Second half should be empty
     for (10..20) |x| {
-        try std.testing.expectEqual(' ', buf.get(x, 0).char);
+        try std.testing.expectEqual(@as(u21, ' '), buf.getChar(@intCast(x), 0));
     }
 }
 
@@ -290,7 +290,7 @@ test "Gauge.render 0% progress" {
 
     // All should be empty
     for (0..10) |x| {
-        try std.testing.expectEqual(' ', buf.get(x, 0).char);
+        try std.testing.expectEqual(@as(u21, ' '), buf.getChar(@intCast(x), 0));
     }
 }
 
@@ -306,7 +306,7 @@ test "Gauge.render 100% progress" {
 
     // All should be filled
     for (0..10) |x| {
-        try std.testing.expectEqual('█', buf.get(x, 0).char);
+        try std.testing.expectEqual(@as(u21, '█'), buf.getChar(@intCast(x), 0));
     }
 }
 
@@ -325,12 +325,12 @@ test "Gauge.render with custom chars" {
 
     // First half should be '='
     for (0..5) |x| {
-        try std.testing.expectEqual('=', buf.get(x, 0).char);
+        try std.testing.expectEqual(@as(u21, '='), buf.getChar(@intCast(x), 0));
     }
 
     // Second half should be '-'
     for (5..10) |x| {
-        try std.testing.expectEqual('-', buf.get(x, 0).char);
+        try std.testing.expectEqual(@as(u21, '-'), buf.getChar(@intCast(x), 0));
     }
 }
 
@@ -347,9 +347,9 @@ test "Gauge.render with label" {
     gauge.render(&buf, area);
 
     // Label should be centered (20 - 3) / 2 = 8
-    try std.testing.expectEqual('5', buf.get(8, 0).char);
-    try std.testing.expectEqual('0', buf.get(9, 0).char);
-    try std.testing.expectEqual('%', buf.get(10, 0).char);
+    try std.testing.expectEqual(@as(u21, '5'), buf.getChar(8, 0));
+    try std.testing.expectEqual(@as(u21, '0'), buf.getChar(9, 0));
+    try std.testing.expectEqual(@as(u21, '%'), buf.getChar(10, 0));
 }
 
 test "Gauge.render with styles" {
@@ -369,10 +369,10 @@ test "Gauge.render with styles" {
     gauge.render(&buf, area);
 
     // Check filled portion style
-    try std.testing.expectEqual(Color.blue, buf.get(0, 0).style.fg);
+    try std.testing.expectEqual(Color.blue, buf.getStyle(0, 0).fg);
 
     // Check empty portion style
-    try std.testing.expectEqual(Color.red, buf.get(5, 0).style.fg);
+    try std.testing.expectEqual(Color.red, buf.getStyle(5, 0).fg);
 }
 
 test "Gauge.render with block" {
@@ -380,7 +380,7 @@ test "Gauge.render with block" {
     var buf = try Buffer.init(allocator, 20, 3);
     defer buf.deinit();
 
-    const blk = (Block{}).withBorders(.all).withTitle("Progress");
+    const blk = (Block{}).withBorders(.all).withTitle("Progress", .top_left);
     const gauge = (Gauge{})
         .withRatio(0.5)
         .withBlock(blk);
@@ -389,12 +389,12 @@ test "Gauge.render with block" {
     gauge.render(&buf, area);
 
     // Block border should be rendered
-    try std.testing.expectEqual('┌', buf.get(0, 0).char);
+    try std.testing.expectEqual(@as(u21, '┌'), buf.getChar(0, 0));
 
     // Gauge should be inside block (at y=1, x=1)
     // Inner width is 18 (20 - 2 for borders)
     // 50% of 18 = 9
-    try std.testing.expectEqual('█', buf.get(1, 1).char);
+    try std.testing.expectEqual(@as(u21, '█'), buf.getChar(1, 1));
 }
 
 test "Gauge.render zero width" {
@@ -425,7 +425,7 @@ test "Gauge.render label too long" {
     // Should not render label (too long)
     // Just check it doesn't crash and gauge is rendered
     for (0..2) |x| {
-        try std.testing.expectEqual('█', buf.get(x, 0).char);
+        try std.testing.expectEqual(@as(u21, '█'), buf.getChar(@intCast(x), 0));
     }
 }
 
@@ -440,11 +440,11 @@ test "Gauge.render fractional progress" {
     gauge.render(&buf, area);
 
     // First 2 should be filled
-    try std.testing.expectEqual('█', buf.get(0, 0).char);
-    try std.testing.expectEqual('█', buf.get(1, 0).char);
+    try std.testing.expectEqual(@as(u21, '█'), buf.getChar(0, 0));
+    try std.testing.expectEqual(@as(u21, '█'), buf.getChar(1, 0));
 
     // Rest should be empty
     for (2..7) |x| {
-        try std.testing.expectEqual(' ', buf.get(x, 0).char);
+        try std.testing.expectEqual(@as(u21, ' '), buf.getChar(@intCast(x), 0));
     }
 }

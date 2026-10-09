@@ -6,7 +6,7 @@ const Buffer = @import("../buffer.zig").Buffer;
 const Style = @import("../style.zig").Style;
 const Color = @import("../style.zig").Color;
 const Block = @import("block.zig").Block;
-const Paragraph = @import("paragraph.zig").Paragraph;
+const drawClipped = @import("text_clip.zig").drawClipped;
 
 /// WebSocket connection state
 pub const ConnectionState = enum {
@@ -53,6 +53,11 @@ pub const WebSocket = struct {
     state: ConnectionState,
     /// Message queue
     messages: std.ArrayList(Message),
+    /// Allocator that owns the message list storage and render scratch strings
+    allocator: Allocator,
+    /// Current time in Unix milliseconds, used by the `.relative` timestamp format.
+    /// The widget has no clock of its own (determinism): callers update it before render.
+    now_ms: u64 = 0,
     /// Maximum messages to retain
     max_messages: usize,
     /// Auto-scroll enabled
@@ -87,7 +92,8 @@ pub const WebSocket = struct {
         return .{
             .url = url,
             .state = .disconnected,
-            .messages = std.ArrayList(Message).init(allocator),
+            .messages = .empty,
+            .allocator = allocator,
             .max_messages = 100,
             .auto_scroll = true,
             .scroll_offset = 0,
@@ -104,7 +110,7 @@ pub const WebSocket = struct {
         for (self.messages.items) |*msg| {
             msg.deinit();
         }
-        self.messages.deinit();
+        self.messages.deinit(self.allocator);
     }
 
     /// Set connection state
@@ -115,7 +121,11 @@ pub const WebSocket = struct {
     /// Add a received message
     pub fn addMessage(self: *WebSocket, allocator: Allocator, content: []const u8, timestamp_ms: u64, is_incoming: bool) !void {
         const msg = try Message.init(allocator, content, timestamp_ms, is_incoming);
-        try self.messages.append(msg);
+        errdefer {
+            var failed = msg;
+            failed.deinit();
+        }
+        try self.messages.append(self.allocator, msg);
 
         // Trim old messages if exceeded max
         while (self.messages.items.len > self.max_messages) {
@@ -169,7 +179,7 @@ pub const WebSocket = struct {
     }
 
     /// Format timestamp
-    fn formatTimestamp(timestamp_ms: u64, format: TimestampFormat, buf: []u8) []const u8 {
+    fn formatTimestamp(timestamp_ms: u64, now_ms: u64, format: TimestampFormat, buf: []u8) []const u8 {
         const seconds = timestamp_ms / 1000;
         const epoch_seconds = std.time.epoch.EpochSeconds{ .secs = @intCast(seconds) };
         const epoch_day = epoch_seconds.getEpochDay();
@@ -197,7 +207,6 @@ pub const WebSocket = struct {
             ) catch "[datetime error]",
             .unix_ms => std.fmt.bufPrint(buf, "{d}ms", .{timestamp_ms}) catch "[unix error]",
             .relative => {
-                const now_ms = @as(u64, @intCast(std.time.milliTimestamp()));
                 const delta_ms = now_ms -| timestamp_ms;
                 const delta_s = delta_ms / 1000;
                 if (delta_s < 60) {
@@ -241,13 +250,13 @@ pub const WebSocket = struct {
 
         // Render state line
         const state_line = std.fmt.allocPrint(
-            self.messages.allocator,
+            self.allocator,
             "[{s}] {s}",
             .{ state_text, self.url },
         ) catch "[state error]";
-        defer self.messages.allocator.free(state_line);
+        defer self.allocator.free(state_line);
 
-        buf.setString(inner.x, y, state_line, state_style, inner.width);
+        drawClipped(buf, inner.x, y, state_line, state_style, inner.width);
         y += 1;
 
         // Render error if failed
@@ -255,12 +264,12 @@ pub const WebSocket = struct {
             if (y >= inner.y + inner.height) return;
             const error_style = Style{ .fg = .red, .bold = true };
             const error_text = std.fmt.allocPrint(
-                self.messages.allocator,
+                self.allocator,
                 "Error: {s}",
                 .{self.error_msg.?},
             ) catch "Error: [format error]";
-            defer self.messages.allocator.free(error_text);
-            buf.setString(inner.x, y, error_text, error_style, inner.width);
+            defer self.allocator.free(error_text);
+            drawClipped(buf, inner.x, y, error_text, error_style, inner.width);
             y += 1;
         }
 
@@ -273,7 +282,7 @@ pub const WebSocket = struct {
             // No messages
             if (y < inner.y + inner.height) {
                 const no_msg = "(no messages)";
-                buf.setString(inner.x, y, no_msg, Style{ .fg = .gray }, inner.width);
+                drawClipped(buf, inner.x, y, no_msg, Style{ .fg = .gray }, inner.width);
             }
             return;
         }
@@ -290,7 +299,7 @@ pub const WebSocket = struct {
             line_idx += 1;
         }) {
             const msg = self.messages.items[msg_idx];
-            const render_y = y + line_idx;
+            const render_y: u16 = y + @as(u16, @intCast(line_idx));
 
             // Build message line
             var line_buf: [512]u8 = undefined;
@@ -306,7 +315,7 @@ pub const WebSocket = struct {
             // Timestamp
             if (self.show_timestamps) {
                 var ts_buf: [32]u8 = undefined;
-                const ts = formatTimestamp(msg.timestamp_ms, self.timestamp_format, &ts_buf);
+                const ts = formatTimestamp(msg.timestamp_ms, self.now_ms, self.timestamp_format, &ts_buf);
                 stream.writeAll("[") catch {};
                 stream.writeAll(ts) catch {};
                 stream.writeAll("] ") catch {};
@@ -321,19 +330,19 @@ pub const WebSocket = struct {
             else
                 Style{ .fg = .magenta };
 
-            buf.setString(inner.x, render_y, line, msg_style, inner.width);
+            drawClipped(buf, inner.x, render_y, line, msg_style, inner.width);
         }
 
         // Render scroll indicator
         if (self.scroll_offset > 0) {
             const last_y = inner.y + inner.height - 1;
             const scroll_info = std.fmt.allocPrint(
-                self.messages.allocator,
+                self.allocator,
                 "[↑{d} more]",
                 .{self.scroll_offset},
             ) catch "[scroll]";
-            defer self.messages.allocator.free(scroll_info);
-            buf.setString(inner.x, last_y, scroll_info, Style{ .fg = .yellow, .bold = true }, inner.width);
+            defer self.allocator.free(scroll_info);
+            drawClipped(buf, inner.x, last_y, scroll_info, Style{ .fg = .yellow, .bold = true }, inner.width);
         }
     }
 };
@@ -459,22 +468,44 @@ test "WebSocket: format timestamp - time_only" {
     var buf: [64]u8 = undefined;
     // 2024-01-15 14:30:45 UTC
     const timestamp_ms = 1705329045000;
-    const result = WebSocket.formatTimestamp(timestamp_ms, .time_only, &buf);
+    const result = WebSocket.formatTimestamp(timestamp_ms, 0, .time_only, &buf);
     try testing.expectEqualStrings("14:30:45", result);
 }
 
 test "WebSocket: format timestamp - datetime" {
     var buf: [64]u8 = undefined;
     const timestamp_ms = 1705329045000;
-    const result = WebSocket.formatTimestamp(timestamp_ms, .datetime, &buf);
+    const result = WebSocket.formatTimestamp(timestamp_ms, 0, .datetime, &buf);
     try testing.expectEqualStrings("2024-01-15 14:30:45", result);
 }
 
 test "WebSocket: format timestamp - unix_ms" {
     var buf: [64]u8 = undefined;
     const timestamp_ms = 1705329045000;
-    const result = WebSocket.formatTimestamp(timestamp_ms, .unix_ms, &buf);
+    const result = WebSocket.formatTimestamp(timestamp_ms, 0, .unix_ms, &buf);
     try testing.expectEqualStrings("1705329045000ms", result);
+}
+
+test "WebSocket: format timestamp - relative uses injected clock" {
+    var buf: [64]u8 = undefined;
+    const sent_ms: u64 = 1_000_000;
+    try testing.expectEqualStrings(
+        "5s ago",
+        WebSocket.formatTimestamp(sent_ms, sent_ms + 5_000, .relative, &buf),
+    );
+    try testing.expectEqualStrings(
+        "3m ago",
+        WebSocket.formatTimestamp(sent_ms, sent_ms + 180_000, .relative, &buf),
+    );
+    try testing.expectEqualStrings(
+        "2h ago",
+        WebSocket.formatTimestamp(sent_ms, sent_ms + 7_200_000, .relative, &buf),
+    );
+    // A timestamp in the future saturates to zero instead of underflowing.
+    try testing.expectEqualStrings(
+        "0s ago",
+        WebSocket.formatTimestamp(sent_ms + 10, sent_ms, .relative, &buf),
+    );
 }
 
 test "WebSocket: render with no messages" {
@@ -490,12 +521,12 @@ test "WebSocket: render with no messages" {
     ws.render(&buffer, area);
 
     // Should show state and "no messages"
-    const line0 = try buffer.getLine(0, 40);
+    const line0 = buffer.getLine(0, 0, 40);
     defer allocator.free(line0);
     try testing.expect(std.mem.find(u8, line0, "Connected") != null);
     try testing.expect(std.mem.find(u8, line0, "wss://example.com/ws") != null);
 
-    const line1 = try buffer.getLine(1, 40);
+    const line1 = buffer.getLine(1, 0, 40);
     defer allocator.free(line1);
     try testing.expect(std.mem.find(u8, line1, "(no messages)") != null);
 }
@@ -517,17 +548,17 @@ test "WebSocket: render with messages" {
     ws.render(&buffer, area);
 
     // Line 0: state
-    const line0 = try buffer.getLine(0, 40);
+    const line0 = buffer.getLine(0, 0, 40);
     defer allocator.free(line0);
     try testing.expect(std.mem.find(u8, line0, "Connected") != null);
 
     // Lines 1-2: messages
-    const line1 = try buffer.getLine(1, 40);
+    const line1 = buffer.getLine(1, 0, 40);
     defer allocator.free(line1);
     try testing.expect(std.mem.find(u8, line1, "->") != null);
     try testing.expect(std.mem.find(u8, line1, "Hello server") != null);
 
-    const line2 = try buffer.getLine(2, 40);
+    const line2 = buffer.getLine(2, 0, 40);
     defer allocator.free(line2);
     try testing.expect(std.mem.find(u8, line2, "<-") != null);
     try testing.expect(std.mem.find(u8, line2, "Hello client") != null);
@@ -545,11 +576,11 @@ test "WebSocket: render failed state" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
     ws.render(&buffer, area);
 
-    const line0 = try buffer.getLine(0, 40);
+    const line0 = buffer.getLine(0, 0, 40);
     defer allocator.free(line0);
     try testing.expect(std.mem.find(u8, line0, "Failed") != null);
 
-    const line1 = try buffer.getLine(1, 40);
+    const line1 = buffer.getLine(1, 0, 40);
     defer allocator.free(line1);
     try testing.expect(std.mem.find(u8, line1, "Error: Connection refused") != null);
 }
@@ -559,7 +590,7 @@ test "WebSocket: render with block border" {
     var ws = WebSocket.init(allocator, "wss://example.com/ws");
     defer ws.deinit();
     ws.setState(.connected);
-    ws.block = (Block{}).title("WebSocket");
+    ws.block = (Block{}).withTitle("WebSocket", .top_left);
 
     var buffer = try Buffer.init(allocator, 40, 10);
     defer buffer.deinit();
@@ -568,7 +599,7 @@ test "WebSocket: render with block border" {
     ws.render(&buffer, area);
 
     // Should have border characters
-    const line0 = try buffer.getLine(0, 40);
+    const line0 = buffer.getLine(0, 0, 40);
     defer allocator.free(line0);
     try testing.expect(std.mem.find(u8, line0, "WebSocket") != null);
 }
@@ -589,7 +620,7 @@ test "WebSocket: render with timestamps" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 10 };
     ws.render(&buffer, area);
 
-    const line1 = try buffer.getLine(1, 60);
+    const line1 = buffer.getLine(1, 0, 60);
     defer allocator.free(line1);
     try testing.expect(std.mem.find(u8, line1, "[1705329045000ms]") != null);
     try testing.expect(std.mem.find(u8, line1, "Test") != null);
@@ -619,7 +650,7 @@ test "WebSocket: render scroll indicator" {
     ws.render(&buffer, area);
 
     // Last line should show scroll indicator
-    const last_line = try buffer.getLine(4, 40);
+    const last_line = buffer.getLine(4, 0, 40);
     defer allocator.free(last_line);
     try testing.expect(std.mem.find(u8, last_line, "[↑10 more]") != null);
 }

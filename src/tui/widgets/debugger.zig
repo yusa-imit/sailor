@@ -14,6 +14,7 @@ pub const WidgetNode = struct {
     area: Rect,
     children: std.ArrayList(WidgetNode),
     metadata: ?[]const u8 = null,
+    allocator: std.mem.Allocator,
 
     /// Initialize a new widget tree node.
     ///
@@ -28,7 +29,8 @@ pub const WidgetNode = struct {
         return .{
             .name = name,
             .area = area,
-            .children = std.ArrayList(WidgetNode).init(allocator),
+            .children = .empty,
+            .allocator = allocator,
         };
     }
 
@@ -40,7 +42,7 @@ pub const WidgetNode = struct {
         for (self.children.items) |*child| {
             child.deinit();
         }
-        self.children.deinit();
+        self.children.deinit(self.allocator);
     }
 
     /// Add a child node to this widget's children list.
@@ -51,7 +53,7 @@ pub const WidgetNode = struct {
     /// Returns:
     ///   Error if allocation fails
     pub fn addChild(self: *WidgetNode, child: WidgetNode) !void {
-        try self.children.append(child);
+        try self.children.append(self.allocator, child);
     }
 };
 
@@ -205,9 +207,9 @@ pub const WidgetDebugger = struct {
 
         // Render widget name
         const style: Style = if (is_selected and self.highlight_selected)
-            .{ .fg = .{ .basic = .black }, .bg = .{ .basic = .white }, .bold = true }
+            .{ .fg = .black, .bg = .white, .bold = true }
         else
-            .{ .fg = .{ .basic = .cyan }, .bold = true };
+            .{ .fg = .cyan, .bold = true };
 
         if (x < area.x + area.width) {
             const max_width = area.x + area.width - x;
@@ -220,7 +222,7 @@ pub const WidgetDebugger = struct {
         if (self.show_dimensions and x + 20 <= area.x + area.width) {
             var dim_buf: [64]u8 = undefined;
             const dim_str = std.fmt.bufPrint(&dim_buf, " [{}x{}]", .{ node.area.width, node.area.height }) catch "";
-            buf.setString(x, y.*, dim_str, .{ .fg = .{ .basic = .yellow } });
+            buf.setString(x, y.*, dim_str, .{ .fg = .yellow });
             x += @intCast(dim_str.len);
         }
 
@@ -228,7 +230,7 @@ pub const WidgetDebugger = struct {
         if (self.show_positions and x + 20 <= area.x + area.width) {
             var pos_buf: [64]u8 = undefined;
             const pos_str = std.fmt.bufPrint(&pos_buf, " @({},{})", .{ node.area.x, node.area.y }) catch "";
-            buf.setString(x, y.*, pos_str, .{ .fg = .{ .basic = .green } });
+            buf.setString(x, y.*, pos_str, .{ .fg = .green });
         }
 
         y.* += 1;
@@ -290,9 +292,9 @@ pub const WidgetDebugger = struct {
 
         // Draw bounds rectangle
         const style: Style = if (is_selected and self.highlight_selected)
-            .{ .fg = .{ .basic = .white }, .bg = .{ .basic = .blue }, .bold = true }
+            .{ .fg = .white, .bg = .blue, .bold = true }
         else
-            .{ .fg = .{ .basic = .cyan } };
+            .{ .fg = .cyan };
 
         // Top border
         var x = display_x;
@@ -457,17 +459,17 @@ test "WidgetDebugger: render tree mode" {
     debugger.setMode(.tree);
 
     var buf = try Buffer.init(allocator, 80, 24);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     try debugger.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });
 
     // Verify border
-    try testing.expectEqual(@as(u21, '┌'), buf.get(0, 0).char);
-    try testing.expectEqual(@as(u21, '┐'), buf.get(79, 0).char);
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(0, 0));
+    try testing.expectEqual(@as(u21, '┐'), buf.getChar(79, 0));
 
     // Verify title
     const title_y = 0;
-    const title = buf.getString(1, title_y, 11);
+    const title = buf.getLine(title_y, 2, 13);
     defer allocator.free(title);
     try testing.expectEqualStrings("Widget Tree", title);
 }
@@ -482,16 +484,16 @@ test "WidgetDebugger: render bounds mode" {
     debugger.setMode(.bounds);
 
     var buf = try Buffer.init(allocator, 80, 24);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     try debugger.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });
 
     // Verify border
-    try testing.expectEqual(@as(u21, '┌'), buf.get(0, 0).char);
-    try testing.expectEqual(@as(u21, '┐'), buf.get(79, 0).char);
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(0, 0));
+    try testing.expectEqual(@as(u21, '┐'), buf.getChar(79, 0));
 
     // Verify title
-    const title = buf.getString(1, 0, 13);
+    const title = buf.getLine(0, 2, 15);
     defer allocator.free(title);
     try testing.expectEqualStrings("Layout Bounds", title);
 }
@@ -506,16 +508,16 @@ test "WidgetDebugger: render both mode" {
     debugger.setMode(.both);
 
     var buf = try Buffer.init(allocator, 80, 24);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     try debugger.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });
 
     // Both views should render (tree on left, bounds on right)
     // Verify left border (tree)
-    try testing.expectEqual(@as(u21, '┌'), buf.get(0, 0).char);
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(0, 0));
 
     // Verify right border (bounds) starts at mid-point
-    try testing.expectEqual(@as(u21, '┌'), buf.get(40, 0).char);
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(40, 0));
 }
 
 test "WidgetDebugger: zero-size area" {
@@ -527,7 +529,7 @@ test "WidgetDebugger: zero-size area" {
     debugger.setTree(root);
 
     var buf = try Buffer.init(allocator, 80, 24);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     // Should not crash with zero-size area
     try debugger.render(&buf, .{ .x = 0, .y = 0, .width = 0, .height = 0 });
@@ -549,13 +551,13 @@ test "WidgetDebugger: highlight selected" {
     debugger.selected_index = 0; // Root selected
 
     var buf = try Buffer.init(allocator, 80, 24);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     try debugger.render(&buf, .{ .x = 0, .y = 0, .width = 40, .height = 24 });
 
     // First widget should be highlighted (tree mode on left side in both mode)
-    const cell = buf.get(1, 1); // Inside border, first widget name position
-    try testing.expect(cell.style.bold);
+    const style = buf.getStyle(1, 1); // Inside border, first widget name position
+    try testing.expect(style.bold);
 }
 
 test "WidgetDebugger: show/hide dimensions and positions" {
@@ -568,7 +570,7 @@ test "WidgetDebugger: show/hide dimensions and positions" {
     debugger.setMode(.tree);
 
     var buf = try Buffer.init(allocator, 80, 24);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     // With dimensions and positions
     debugger.show_dimensions = true;
@@ -579,7 +581,7 @@ test "WidgetDebugger: show/hide dimensions and positions" {
     var found_dimensions = false;
     var x: u16 = 0;
     while (x < 80) : (x += 1) {
-        if (buf.get(x, 1).char == '[') {
+        if (buf.getChar(x, 1) == '[') {
             found_dimensions = true;
             break;
         }
@@ -638,7 +640,7 @@ test "WidgetDebugger: empty tree" {
     defer debugger.deinit();
 
     var buf = try Buffer.init(allocator, 80, 24);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     // Should handle rendering with no tree set
     try debugger.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });

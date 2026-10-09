@@ -1410,4 +1410,13 @@ test {
     _ = @import("widgets/table.zig");
     _ = @import("widgets/tooltip.zig");
     _ = @import("widgets/notification.zig");
+    // Widgets that were once orphaned (never analysed by any test root)
+    _ = @import("widgets/debugger.zig");
+    _ = @import("widgets/streaming_table.zig");
+    _ = @import("widgets/virtuallist.zig");
+    _ = @import("widgets/richtext.zig");
+    _ = @import("widgets/multicursor.zig");
+    _ = @import("widgets/theme_editor.zig");
+    _ = @import("widgets/websocket.zig");
+    _ = @import("widgets/metricspanel.zig");
 }

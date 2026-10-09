@@ -13,6 +13,8 @@ const Alignment = table_mod.Alignment;
 const ColumnWidth = table_mod.ColumnWidth;
 const Column = table_mod.Column;
 const symbols = @import("../symbols.zig");
+const clipCodepoints = @import("text_clip.zig").clipCodepoints;
+const assert = std.debug.assert;
 
 /// Streaming Table widget - efficient table rendering for massive row counts
 /// Only renders visible rows, uses callbacks for lazy row loading
@@ -39,7 +41,7 @@ pub const StreamingTable = struct {
     /// Callback type for fetching row cells
     /// Takes row index, column index, and writer
     /// Should write cell text to writer
-    pub const CellCallback = *const fn (row_index: usize, col_index: usize, writer: anytype) anyerror!void;
+    pub const CellCallback = *const fn (row_index: usize, col_index: usize, writer: *std.Io.Writer) anyerror!void;
 
     /// Create a streaming table with columns and total row count
     pub fn init(columns: []const Column, total: usize) StreamingTable {
@@ -148,7 +150,7 @@ pub const StreamingTable = struct {
                     remaining_width -|= widths_buf[i];
                 },
                 .percentage => |pct| {
-                    const w = (available_width * @as(u16, pct)) / 100;
+                    const w: u16 = @intCast(@divTrunc(@as(u32, available_width) * @as(u32, pct), 100));
                     widths_buf[i] = @min(w, remaining_width);
                     remaining_width -|= widths_buf[i];
                 },
@@ -179,35 +181,52 @@ pub const StreamingTable = struct {
         }
     }
 
+    /// Draw `text` inside a `width`-cell column at (x, y), padded per `alignment`.
+    fn drawCell(
+        buf: *Buffer,
+        x: u16,
+        y: u16,
+        width: u16,
+        text: []const u8,
+        alignment: Alignment,
+        style: Style,
+    ) void {
+        const clipped = clipCodepoints(text, width);
+        const text_cells: u16 = @intCast(std.unicode.utf8CountCodepoints(clipped) catch clipped.len);
+        assert(text_cells <= width);
+
+        // Paint the whole column first so padding carries the row style.
+        var col: u16 = 0;
+        while (col < width) : (col += 1) {
+            buf.set(x +| col, y, .{ .char = ' ', .style = style });
+        }
+
+        const padding = width - text_cells;
+        assert(padding <= width);
+        const left_pad: u16 = switch (alignment) {
+            .left => 0,
+            .right => padding,
+            .center => @divFloor(padding, 2),
+        };
+        buf.setString(x +| left_pad, y, clipped, style);
+    }
+
     /// Render header row
     fn renderHeader(self: StreamingTable, buf: *Buffer, render_area: Rect, widths: []const u16) void {
+        assert(widths.len == self.columns.len);
         var x: u16 = render_area.x;
-        for (self.columns, 0..) |col, i| {
-            if (i >= widths.len) break;
-            const col_width = widths[i];
+        for (self.columns, widths, 0..) |col, col_width, i| {
             if (x >= render_area.x + render_area.width) break;
 
-            // Truncate or pad header text
-            var header_buf: [256]u8 = undefined;
-            const header_text = if (col.title.len > col_width)
-                col.title[0..col_width]
-            else blk: {
-                @memcpy(header_buf[0..col.title.len], col.title);
-                if (col.title.len < col_width) {
-                    @memset(header_buf[col.title.len..col_width], ' ');
-                }
-                break :blk header_buf[0..col_width];
-            };
-
-            buf.setString(x, render_area.y, header_text, self.header_style) catch {};
-            x += col_width;
+            drawCell(buf, x, render_area.y, col_width, col.title, .left, self.header_style);
+            x +|= col_width;
             if (i < self.columns.len - 1) {
-                x += self.column_spacing;
+                x +|= self.column_spacing;
             }
         }
     }
 
-    /// Render a single row using callback
+    /// Render a single row, fetching each cell through `write`.
     fn renderRow(
         self: StreamingTable,
         buf: *Buffer,
@@ -215,62 +234,26 @@ pub const StreamingTable = struct {
         y: u16,
         row_index: usize,
         widths: []const u16,
-        comptime callback: CellCallback,
-        allocator: std.mem.Allocator,
+        context: anytype,
+        comptime write: fn (@TypeOf(context), usize, usize, *std.Io.Writer) anyerror!void,
+        aw: *std.Io.Writer.Allocating,
     ) !void {
+        assert(widths.len == self.columns.len);
         const is_selected = if (self.selected) |sel| sel == row_index else false;
         const style = if (is_selected) self.selected_style else self.row_style;
 
         var x: u16 = render_area.x;
-        for (0..self.columns.len) |col_idx| {
-            if (col_idx >= widths.len) break;
-            const col_width = widths[col_idx];
+        for (self.columns, widths, 0..) |col, col_width, col_idx| {
             if (x >= render_area.x + render_area.width) break;
 
             // Fetch cell text via callback
-            var cell_buf = std.ArrayList(u8).init(allocator);
-            defer cell_buf.deinit();
+            aw.clearRetainingCapacity();
+            try write(context, row_index, col_idx, &aw.writer);
 
-            try callback(row_index, col_idx, cell_buf.writer());
-
-            // Apply column alignment
-            const col = self.columns[col_idx];
-            const cell_text = blk: {
-                if (cell_buf.items.len > col_width) {
-                    // Truncate if too long
-                    break :blk cell_buf.items[0..col_width];
-                } else if (cell_buf.items.len < col_width) {
-                    // Pad to column width based on alignment
-                    const padding_needed = col_width - cell_buf.items.len;
-                    switch (col.alignment) {
-                        .left => {
-                            try cell_buf.appendNTimes(' ', padding_needed);
-                        },
-                        .right => {
-                            try cell_buf.insertSlice(0, &[_]u8{' '} ** 1);
-                            for (1..padding_needed) |_| {
-                                try cell_buf.insert(0, ' ');
-                            }
-                        },
-                        .center => {
-                            const left_pad = padding_needed / 2;
-                            const right_pad = padding_needed - left_pad;
-                            for (0..left_pad) |_| {
-                                try cell_buf.insert(0, ' ');
-                            }
-                            try cell_buf.appendNTimes(' ', right_pad);
-                        },
-                    }
-                    break :blk cell_buf.items;
-                } else {
-                    break :blk cell_buf.items;
-                }
-            };
-
-            buf.setString(x, y, cell_text, style) catch {};
-            x += col_width;
+            drawCell(buf, x, y, col_width, aw.writer.buffered(), col.alignment, style);
+            x +|= col_width;
             if (col_idx < self.columns.len - 1) {
-                x += self.column_spacing;
+                x +|= self.column_spacing;
             }
         }
     }
@@ -280,8 +263,42 @@ pub const StreamingTable = struct {
         self: StreamingTable,
         buf: *Buffer,
         area: Rect,
-        comptime callback: CellCallback,
-        allocator: std.mem.Allocator,
+        callback: CellCallback,
+        gpa: std.mem.Allocator,
+    ) !void {
+        const Adapter = struct {
+            fn write(cb: CellCallback, row: usize, col: usize, w: *std.Io.Writer) anyerror!void {
+                return cb(row, col, w);
+            }
+        };
+        try self.renderWith(buf, area, callback, Adapter.write, gpa);
+    }
+
+    /// Convenience render for slice-based rows. Missing rows or cells render empty.
+    pub fn renderSlice(
+        self: StreamingTable,
+        buf: *Buffer,
+        area: Rect,
+        rows: []const []const []const u8,
+        gpa: std.mem.Allocator,
+    ) !void {
+        const Adapter = struct {
+            fn write(source: []const []const []const u8, row: usize, col: usize, w: *std.Io.Writer) anyerror!void {
+                if (row >= source.len) return;
+                if (col < source[row].len) try w.writeAll(source[row][col]);
+            }
+        };
+        try self.renderWith(buf, area, rows, Adapter.write, gpa);
+    }
+
+    /// Shared render loop: `context` is handed back to `write` for every visible cell.
+    fn renderWith(
+        self: StreamingTable,
+        buf: *Buffer,
+        area: Rect,
+        context: anytype,
+        comptime write: fn (@TypeOf(context), usize, usize, *std.Io.Writer) anyerror!void,
+        gpa: std.mem.Allocator,
     ) !void {
         var render_area = area;
 
@@ -294,8 +311,9 @@ pub const StreamingTable = struct {
         if (render_area.height == 0 or render_area.width == 0) return;
 
         // Calculate column widths
-        var widths_buf: [32]u16 = undefined;
-        if (self.columns.len > widths_buf.len) return error.TooManyColumns;
+        const columns_max = 32;
+        var widths_buf: [columns_max]u16 = undefined;
+        if (self.columns.len > columns_max) return error.TooManyColumns;
         const widths = widths_buf[0..self.columns.len];
         self.calculateColumnWidths(render_area.width, widths);
 
@@ -304,45 +322,18 @@ pub const StreamingTable = struct {
 
         // Calculate visible row range
         const range = self.visibleRange(render_area.height, true);
+        assert(range.start <= range.end);
+
+        var aw: std.Io.Writer.Allocating = .init(gpa);
+        defer aw.deinit();
 
         // Render visible rows
         var y: u16 = 1; // Start after header
         for (range.start..range.end) |row_idx| {
             if (y >= render_area.height) break;
-            try self.renderRow(
-                buf,
-                render_area,
-                render_area.y + y,
-                row_idx,
-                widths,
-                callback,
-                allocator,
-            );
+            try self.renderRow(buf, render_area, render_area.y + y, row_idx, widths, context, write, &aw);
             y += 1;
         }
-    }
-
-    /// Convenience render for slice-based rows (wraps callback)
-    pub fn renderSlice(
-        self: StreamingTable,
-        buf: *Buffer,
-        area: Rect,
-        rows: []const []const []const u8,
-        allocator: std.mem.Allocator,
-    ) !void {
-        const Ctx = struct {
-            rows_ptr: []const []const []const u8,
-            fn cb(row_index: usize, col_index: usize, writer: anytype) !void {
-                if (row_index < @This().rows_ptr.len) {
-                    const row = @This().rows_ptr[row_index];
-                    if (col_index < row.len) {
-                        try writer.writeAll(row[col_index]);
-                    }
-                }
-            }
-        };
-        Ctx.rows_ptr = rows;
-        try self.render(buf, area, Ctx.cb, allocator);
     }
 };
 
@@ -401,7 +392,7 @@ test "StreamingTable.calculateColumnWidths handles percentage" {
         .{ .title = "A", .width = .{ .percentage = 30 } },
         .{ .title = "B", .width = .{ .percentage = 70 } },
     };
-    const table = StreamingTable.init(&cols, 10);
+    const table = StreamingTable.init(&cols, 10).withColumnSpacing(0);
     var widths: [2]u16 = undefined;
 
     table.calculateColumnWidths(100, &widths);
@@ -424,7 +415,7 @@ test "StreamingTable.render calls callback only for visible rows" {
     var call_count: usize = 0;
     const Ctx = struct {
         var count: *usize = undefined;
-        fn cb(row_index: usize, col_index: usize, writer: anytype) !void {
+        fn cb(row_index: usize, col_index: usize, writer: *std.Io.Writer) !void {
             _ = col_index;
             count.* += 1;
             try writer.print("Row {}", .{row_index});
@@ -452,7 +443,7 @@ test "StreamingTable.render handles huge row counts efficiently" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
 
     const Ctx = struct {
-        fn cb(row_index: usize, col_index: usize, writer: anytype) !void {
+        fn cb(row_index: usize, col_index: usize, writer: *std.Io.Writer) !void {
             if (col_index == 0) {
                 try writer.print("{d:10}", .{row_index});
             } else {
@@ -514,7 +505,7 @@ test "StreamingTable.render with alignment left" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 3 };
 
     const Ctx = struct {
-        fn cb(_: usize, _: usize, writer: anytype) !void {
+        fn cb(_: usize, _: usize, writer: *std.Io.Writer) !void {
             try writer.writeAll("Hi");
         }
     };
@@ -540,7 +531,7 @@ test "StreamingTable.render respects column spacing" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 3 };
 
     const Ctx = struct {
-        fn cb(_: usize, col_idx: usize, writer: anytype) !void {
+        fn cb(_: usize, col_idx: usize, writer: *std.Io.Writer) !void {
             if (col_idx == 0) {
                 try writer.writeAll("AAA");
             } else {
@@ -563,7 +554,7 @@ test "StreamingTable.withBlock renders border" {
         .{ .title = "Data", .width = .{ .percentage = 100 } },
     };
 
-    const block = (Block{}).withTitle("Table");
+    const block = (Block{}).withTitle("Table", .top_left);
     var table = StreamingTable.init(&cols, 1).withBlock(block);
     var buf = try Buffer.init(testing.allocator, 20, 5);
     defer buf.deinit();
@@ -571,7 +562,7 @@ test "StreamingTable.withBlock renders border" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
 
     const Ctx = struct {
-        fn cb(_: usize, _: usize, writer: anytype) !void {
+        fn cb(_: usize, _: usize, writer: *std.Io.Writer) !void {
             try writer.writeAll("cell");
         }
     };
@@ -579,11 +570,11 @@ test "StreamingTable.withBlock renders border" {
     try table.render(&buf, area, Ctx.cb, testing.allocator);
 
     // Check top-left corner for block border
-    const top_left = buf.getCell(0, 0);
-    try testing.expectEqual(symbols.border.plain.top_left, top_left.char);
+    const top_left = buf.getConst(0, 0).?;
+    try testing.expectEqual(@as(u21, '┌'), top_left.char);
 
     // Check that content area is inset (header should be inside the border)
-    const header_cell = buf.getCell(1, 1);
+    const header_cell = buf.getConst(1, 1).?;
     try testing.expectEqual('D', header_cell.char); // First character of "Data" header title
 }
 
@@ -600,7 +591,7 @@ test "StreamingTable.withHeaderStyle applies to header row" {
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 3 };
 
     const Ctx = struct {
-        fn cb(_: usize, _: usize, writer: anytype) !void {
+        fn cb(_: usize, _: usize, writer: *std.Io.Writer) !void {
             try writer.writeAll("row");
         }
     };
@@ -608,7 +599,7 @@ test "StreamingTable.withHeaderStyle applies to header row" {
     try table.render(&buf, area, Ctx.cb, testing.allocator);
 
     // Check header cell style (row 0, column 0)
-    const header_cell = buf.getCell(0, 0);
+    const header_cell = buf.getConst(0, 0).?;
     try testing.expectEqual(header_style.fg, header_cell.style.fg);
     try testing.expectEqual(header_style.bold, header_cell.style.bold);
 }
@@ -626,7 +617,7 @@ test "StreamingTable.withRowStyle applies to unselected rows" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 3 };
 
     const Ctx = struct {
-        fn cb(_: usize, _: usize, writer: anytype) !void {
+        fn cb(_: usize, _: usize, writer: *std.Io.Writer) !void {
             try writer.writeAll("X");
         }
     };
@@ -634,7 +625,7 @@ test "StreamingTable.withRowStyle applies to unselected rows" {
     try table.render(&buf, area, Ctx.cb, testing.allocator);
 
     // Check first data row (row 1, after header)
-    const row_cell = buf.getCell(0, 1);
+    const row_cell = buf.getConst(0, 1).?;
     try testing.expectEqual(row_style.fg, row_cell.style.fg);
 }
 
@@ -656,19 +647,19 @@ test "StreamingTable.withSelectedStyle applies to selected row" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
 
     const Ctx = struct {
-        fn cb(_: usize, _: usize, writer: anytype) !void {
+        fn cb(_: usize, _: usize, writer: *std.Io.Writer) !void {
             try writer.writeAll("X");
         }
     };
 
     try table.render(&buf, area, Ctx.cb, testing.allocator);
 
-    // Row 1 (first data row after header) should be selected (row 1 in table = selected)
-    const selected_cell = buf.getCell(0, 1);
+    // Row index 1 is drawn on screen row 2 (screen row 0 is the header, row 0 is at y=1)
+    const selected_cell = buf.getConst(0, 2).?;
     try testing.expectEqual(selected_style.fg, selected_cell.style.fg);
     try testing.expectEqual(selected_style.bold, selected_cell.style.bold);
 
-    // Row 2 should use row_style (unselected)
-    const unselected_cell = buf.getCell(0, 2);
+    // Row index 0 and 2 use row_style (unselected)
+    const unselected_cell = buf.getConst(0, 1).?;
     try testing.expectEqual(row_style.fg, unselected_cell.style.fg);
 }

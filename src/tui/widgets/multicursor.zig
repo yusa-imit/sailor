@@ -8,6 +8,7 @@ const Style = @import("../style.zig").Style;
 const Color = @import("../style.zig").Color;
 const Block = @import("block.zig").Block;
 const editor = @import("editor.zig");
+const syntax = @import("../syntax.zig");
 const Editor = editor.Editor;
 const Position = editor.Position;
 const Selection = editor.Selection;
@@ -97,22 +98,22 @@ pub const MultiCursorEditor = struct {
     pub fn init(allocator: Allocator) MultiCursorEditor {
         return .{
             .base = Editor.init(allocator),
-            .cursors = ArrayList(Cursor).init(allocator),
+            .cursors = .empty,
             .column_mode = false,
             .secondary_cursor_style = Style{ .bg = Color{ .indexed = 240 }, .fg = Color.black },
-            .undo_batches = ArrayList(EditBatch).init(allocator),
-            .redo_batches = ArrayList(EditBatch).init(allocator),
+            .undo_batches = .empty,
+            .redo_batches = .empty,
         };
     }
 
     /// Frees resources associated with this editor instance.
     pub fn deinit(self: *MultiCursorEditor) void {
         for (self.undo_batches.items) |*batch| batch.deinit(self.base.allocator);
-        self.undo_batches.deinit();
+        self.undo_batches.deinit(self.base.allocator);
         for (self.redo_batches.items) |*batch| batch.deinit(self.base.allocator);
-        self.redo_batches.deinit();
+        self.redo_batches.deinit(self.base.allocator);
         self.base.deinit();
-        self.cursors.deinit();
+        self.cursors.deinit(self.base.allocator);
     }
 
     /// Captures the current primary + secondary cursor positions as an owned snapshot.
@@ -190,7 +191,7 @@ pub const MultiCursorEditor = struct {
             if (cursor.pos.line == line and cursor.pos.col == col) return;
         }
 
-        try self.cursors.append(.{
+        try self.cursors.append(self.base.allocator, .{
             .pos = .{ .line = line, .col = col },
             .selection = null,
         });
@@ -289,7 +290,7 @@ pub const MultiCursorEditor = struct {
 
         // Build a set of claimed occurrences
         var claimed = try ArrayList(Selection).initCapacity(self.base.allocator, 1 + self.cursors.items.len);
-        defer claimed.deinit();
+        defer claimed.deinit(self.base.allocator);
 
         claimed.appendAssumeCapacity(current_sel);
         for (self.cursors.items) |cursor| {
@@ -303,7 +304,7 @@ pub const MultiCursorEditor = struct {
 
         if (next_occ) |occ| {
             // Add secondary cursor with current selection
-            try self.cursors.append(.{
+            try self.cursors.append(self.base.allocator, .{
                 .pos = self.base.cursor,
                 .selection = current_sel,
             });
@@ -445,7 +446,7 @@ pub const MultiCursorEditor = struct {
 
         // Sort cursors by position (bottom-to-top, right-to-left) to avoid index shifts
         var all_positions = try ArrayList(Position).initCapacity(self.base.allocator, self.getCursorCount());
-        defer all_positions.deinit();
+        defer all_positions.deinit(self.base.allocator);
 
         all_positions.appendAssumeCapacity(self.base.cursor);
         for (self.cursors.items) |cursor| {
@@ -492,7 +493,7 @@ pub const MultiCursorEditor = struct {
         errdefer self.base.allocator.free(cursors_before);
 
         var all_positions = try ArrayList(Position).initCapacity(self.base.allocator, self.getCursorCount());
-        defer all_positions.deinit();
+        defer all_positions.deinit(self.base.allocator);
 
         all_positions.appendAssumeCapacity(self.base.cursor);
         for (self.cursors.items) |cursor| {
@@ -534,7 +535,7 @@ pub const MultiCursorEditor = struct {
         const cursors_after = try self.snapshotCursors();
         errdefer self.base.allocator.free(cursors_after);
 
-        try self.undo_batches.append(.{
+        try self.undo_batches.append(self.base.allocator, .{
             .lines_before = lines_before,
             .cursors_before = cursors_before,
             .lines_after = lines_after,
@@ -556,7 +557,7 @@ pub const MultiCursorEditor = struct {
         try self.restoreLines(batch.lines_before);
         self.restoreCursors(batch.cursors_before);
 
-        try self.redo_batches.append(batch);
+        try self.redo_batches.append(self.base.allocator, batch);
     }
 
     /// Redoes the last batch undone by `undoAll`, re-applying the whole text buffer
@@ -570,7 +571,7 @@ pub const MultiCursorEditor = struct {
         try self.restoreLines(batch.lines_after);
         self.restoreCursors(batch.cursors_after);
 
-        try self.undo_batches.append(batch);
+        try self.undo_batches.append(self.base.allocator, batch);
     }
 
     /// Move all cursors by the given delta
@@ -639,9 +640,10 @@ pub const MultiCursorEditor = struct {
             const x = text_start_x + @as(u16, @intCast(cursor.pos.col));
 
             if (x < text_start_x + render_area.width) {
-                var cell = buf.get(x, y);
-                cell.style = self.secondary_cursor_style;
-                buf.set(x, y, .{ .char = cell.char, .style = cell.style });
+                // Out-of-bounds positions are clipped: nothing to restyle there.
+                if (buf.getConst(x, y)) |cell| {
+                    buf.set(x, y, .{ .char = cell.char, .style = self.secondary_cursor_style });
+                }
             }
         }
     }
@@ -841,7 +843,7 @@ test "multicursor: builder pattern" {
     var mc = MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
-    const block = (Block{}).setTitle("Multi-Cursor");
+    const block = (Block{}).withTitle("Multi-Cursor", .top_left);
     _ = mc.setBlock(block).setColumnMode(true);
 
     try testing.expect(mc.base.block != null);
@@ -857,7 +859,7 @@ test "multicursor: render basic" {
     try mc.addCursor(.{ .line = 1, .col = 0 });
 
     var buffer = try Buffer.init(allocator, 40, 10);
-    defer buffer.deinit(allocator);
+    defer buffer.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
     mc.render(&buffer, area);
@@ -906,7 +908,7 @@ test "multicursor: setLanguage sets base language and returns self for chaining"
     try testing.expectEqual(@as(*MultiCursorEditor, &mc), result);
 
     // Base language should be set to .zig
-    try testing.expectEqual(@as(editor.Language, .zig), mc.base.language);
+    try testing.expectEqual(@as(syntax.Language, .zig), mc.base.language);
 }
 
 test "multicursor: setLanguage enables syntax highlighting on render" {
@@ -922,16 +924,16 @@ test "multicursor: setLanguage enables syntax highlighting on render" {
     _ = mc.setLanguage(.zig);
 
     var buffer = try Buffer.init(allocator, 40, 10);
-    defer buffer.deinit(allocator);
+    defer buffer.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
 
     // Render should not panic when language is set
     mc.render(&buffer, area);
 
-    // Verify buffer has content
-    const cell = buffer.get(0, 0);
-    try testing.expectEqual(@as(u8, 'c'), cell.char);
+    // Gutter is " 1 " (3 cells for a one-line buffer), so the text starts at x = 3
+    const cell = buffer.getConst(3, 0).?;
+    try testing.expectEqual(@as(u21, 'c'), cell.char);
 }
 
 test "multicursor: setLanguage + secondary cursor overlay preserves char, applies cursor style" {
@@ -951,16 +953,16 @@ test "multicursor: setLanguage + secondary cursor overlay preserves char, applie
     try mc.addCursor(.{ .line = 0, .col = 0 });
 
     var buffer = try Buffer.init(allocator, 40, 10);
-    defer buffer.deinit(allocator);
+    defer buffer.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
     mc.render(&buffer, area);
 
-    // Get the cell at the secondary cursor position (0, 0)
-    const cell = buffer.get(0, 0);
+    // Get the cell at the secondary cursor position (column 0 sits after the 3-cell gutter)
+    const cell = buffer.getConst(3, 0).?;
 
     // The character must still be 'c' (not corrupted by styling)
-    try testing.expectEqual(@as(u8, 'c'), cell.char);
+    try testing.expectEqual(@as(u21, 'c'), cell.char);
 
     // The style should be secondary_cursor_style (proving overlay won over token style)
     // secondary_cursor_style is: Style{ .bg = Color{ .indexed = 240 }, .fg = Color.black }
@@ -1172,25 +1174,25 @@ test "multicursor: multiple sequential insertCharAll followed by multiple undoAl
 
     // First batch: insert 'x'
     try mc.insertCharAll('x');
-    try testing.expectEqualStrings("axbxc", mc.base.lines.items[0]);
+    try testing.expectEqualStrings("xaxbc", mc.base.lines.items[0]);
 
     // Second batch: insert 'y'
     try mc.insertCharAll('y');
-    try testing.expectEqualStrings("ayxbyxc", mc.base.lines.items[0]);
+    try testing.expectEqualStrings("xyaxybc", mc.base.lines.items[0]);
 
     // Third batch: insert 'z'
     try mc.insertCharAll('z');
-    try testing.expectEqualStrings("azyxbzyxc", mc.base.lines.items[0]);
+    try testing.expectEqualStrings("xyzaxyzbc", mc.base.lines.items[0]);
 
     // Now undo batches one at a time, checking intermediate states
 
     // First undoAll: should remove only the 'z' batch
     try mc.undoAll();
-    try testing.expectEqualStrings("ayxbyxc", mc.base.lines.items[0]);
+    try testing.expectEqualStrings("xyaxybc", mc.base.lines.items[0]);
 
     // Second undoAll: should remove only the 'y' batch
     try mc.undoAll();
-    try testing.expectEqualStrings("axbxc", mc.base.lines.items[0]);
+    try testing.expectEqualStrings("xaxbc", mc.base.lines.items[0]);
 
     // Third undoAll: should remove the 'x' batch
     try mc.undoAll();
@@ -1843,9 +1845,3 @@ pub const MultiCursor = struct {
         }
     }
 };
-
-test "CONTROL: deliberate compile error probe" {
-    var mc = MultiCursorEditor.init(std.testing.allocator);
-    defer mc.deinit();
-    mc.thisMethodDoesNotExistAtAll();
-}

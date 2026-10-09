@@ -446,7 +446,7 @@ pub const Editor = struct {
         if (text_width == 0) return;
 
         // Tokenize all visible lines if language is set
-        var tokens_by_line = std.ArrayList([]syntax.Token).empty;
+        var tokens_by_line = std.ArrayList([]const syntax.Token).empty;
         defer {
             for (tokens_by_line.items) |tokens| {
                 self.allocator.free(tokens);
@@ -733,7 +733,7 @@ test "editor setBlock" {
     var editor = Editor.init(allocator);
     defer editor.deinit();
 
-    const block = (Block{}).setTitle("Editor");
+    const block = (Block{}).withTitle("Editor", .top_left);
     _ = editor.setBlock(block);
     try testing.expect(editor.block != null);
 }
@@ -760,9 +760,11 @@ test "editor render basic" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
     editor.render(&buffer, area);
 
-    // Check line numbers are rendered
-    const first_line_num = buffer.getChar(0, 0);
-    try testing.expect(first_line_num == '1');
+    // Line numbers are right-aligned in a gutter of (digits + 1) cells: " 1" then a space.
+    try testing.expectEqual(@as(u21, ' '), buffer.getChar(0, 0));
+    try testing.expectEqual(@as(u21, '1'), buffer.getChar(1, 0));
+    try testing.expectEqual(@as(u21, ' '), buffer.getChar(2, 0));
+    try testing.expectEqual(@as(u21, 'h'), buffer.getChar(3, 0));
 }
 
 test "editor render with syntax highlighting" {

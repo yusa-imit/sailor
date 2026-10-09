@@ -28,7 +28,7 @@
 //!     },
 //! });
 //!
-//! panel.render(buf, area);
+//! panel.render(&buf, area);
 //! ```
 
 const std = @import("std");
@@ -90,19 +90,19 @@ pub const MetricsPanel = struct {
     /// Create a new metrics panel
     pub fn init(allocator: std.mem.Allocator) MetricsPanel {
         return .{
-            .metrics = std.ArrayList(Metric).init(allocator),
+            .metrics = .empty,
             .allocator = allocator,
         };
     }
 
     /// Free resources
     pub fn deinit(self: *MetricsPanel) void {
-        self.metrics.deinit();
+        self.metrics.deinit(self.allocator);
     }
 
     /// Add a metric to the panel
     pub fn addMetric(self: *MetricsPanel, metric: Metric) !void {
-        try self.metrics.append(metric);
+        try self.metrics.append(self.allocator, metric);
     }
 
     /// Update a metric's value by name
@@ -312,10 +312,10 @@ pub const MetricsPanel = struct {
         _ = self;
         if (history.len == 0 or width == 0) return;
 
-        // Find max value for scaling
-        var max_val: f64 = history[0];
+        // Find max finite value for scaling; +inf must not turn every ratio into NaN.
+        var max_val: f64 = 0;
         for (history) |val| {
-            if (val > max_val) max_val = val;
+            if (std.math.isFinite(val) and val > max_val) max_val = val;
         }
 
         // Sparkline characters (8 levels)
@@ -337,10 +337,12 @@ pub const MetricsPanel = struct {
             x += 1;
         }) {
             const val = history[i];
-            const bar_idx: usize = if (max_val > 0) blk: {
-                const raw_idx = val / max_val * @as(f64, @floatFromInt(bar_count - 1));
-                const max_idx = @as(f64, @floatFromInt(bar_count - 1));
-                const safe_idx = if (std.math.isNan(raw_idx)) 0.0 else std.math.clamp(raw_idx, 0.0, max_idx);
+            const top_idx = bar_count - 1;
+            const bar_idx: usize = if (val == std.math.inf(f64))
+                top_idx
+            else if (max_val > 0 and std.math.isFinite(val)) blk: {
+                const raw_idx = val / max_val * @as(f64, @floatFromInt(top_idx));
+                const safe_idx = std.math.clamp(raw_idx, 0.0, @as(f64, @floatFromInt(top_idx)));
                 break :blk @as(usize, @intFromFloat(safe_idx));
             } else 0;
 
@@ -601,7 +603,7 @@ test "MetricsPanel.render empty panel" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-    panel.render(buf, area);
+    panel.render(&buf, area);
 
     // Should not crash with empty panel
 }
@@ -620,7 +622,7 @@ test "MetricsPanel.render single metric" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
-    panel.render(buf, area);
+    panel.render(&buf, area);
 
     // Should render without crashing
 }
@@ -637,7 +639,7 @@ test "MetricsPanel.render multiple metrics vertical" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 15 };
-    panel.render(buf, area);
+    panel.render(&buf, area);
 
     // Should render all metrics vertically
 }
@@ -654,7 +656,7 @@ test "MetricsPanel.render multiple metrics horizontal" {
 
     const updated = panel.withLayout(.horizontal);
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 5 };
-    updated.render(buf, area);
+    updated.render(&buf, area);
 
     // Should render all metrics horizontally
 }
@@ -665,14 +667,14 @@ test "MetricsPanel.render with block" {
 
     try panel.addMetric(.{ .name = "CPU", .value = 50.0 });
 
-    const blk = (Block{}).withBorders(.all).withTitle("Metrics");
+    const blk = (Block{}).withBorders(.all).withTitle("Metrics", .top_left);
     const updated = panel.withBlock(blk);
 
     var buf = try Buffer.init(std.testing.allocator, 30, 10);
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
-    updated.render(buf, area);
+    updated.render(&buf, area);
 
     // Should render both block and metrics
 }
@@ -687,7 +689,7 @@ test "MetricsPanel.render zero width area" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 10 };
-    panel.render(buf, area);
+    panel.render(&buf, area);
 
     // Should not crash with zero width
 }
@@ -702,7 +704,7 @@ test "MetricsPanel.render zero height area" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 0 };
-    panel.render(buf, area);
+    panel.render(&buf, area);
 
     // Should not crash with zero height
 }
@@ -721,7 +723,7 @@ test "MetricsPanel.render negative values" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
-    panel.render(buf, area);
+    panel.render(&buf, area);
 
     // Should handle negative values without crashing
 }
@@ -740,7 +742,7 @@ test "MetricsPanel.render value exceeds max" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
-    panel.render(buf, area);
+    panel.render(&buf, area);
 
     // Should handle overflow gracefully (likely show as critical)
     const status = MetricsPanel.evaluateThreshold(panel.metrics.items[0]);
@@ -764,7 +766,7 @@ test "MetricsPanel.render with sparklines enabled" {
 
     const updated = panel.withSparklines(true);
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
-    updated.render(buf, area);
+    updated.render(&buf, area);
 
     // Should render metric with sparkline visualization
 }
@@ -783,7 +785,7 @@ test "MetricsPanel.render grid layout 4 metrics" {
 
     const updated = panel.withLayout(.grid);
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
-    updated.render(buf, area);
+    updated.render(&buf, area);
 
     // Should render metrics in grid layout (2x2 or similar)
 }
@@ -806,7 +808,7 @@ test "MetricsPanel.render custom thresholds applied" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
-    panel.render(buf, area);
+    panel.render(&buf, area);
 
     // Value of 50% should be critical with these thresholds
     const status = MetricsPanel.evaluateThreshold(panel.metrics.items[0]);
@@ -827,7 +829,7 @@ test "MetricsPanel.render counter type large value" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
-    panel.render(buf, area);
+    panel.render(&buf, area);
 
     // Should render large counter values without crashing
 }
@@ -846,7 +848,7 @@ test "MetricsPanel.render rate type decimal precision" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
-    panel.render(buf, area);
+    panel.render(&buf, area);
 
     // Should handle decimal precision for rate metrics
 }
@@ -869,7 +871,7 @@ test "MetricsPanel.render many metrics overflow" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
-    panel.render(buf, area);
+    panel.render(&buf, area);
 
     // Should handle overflow gracefully (truncate or scroll)
 }
@@ -891,7 +893,7 @@ test "MetricsPanel memory safety" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
-    panel.render(buf, area);
+    panel.render(&buf, area);
 
     // Should not leak memory
 }
@@ -915,7 +917,7 @@ test "MetricsPanel.renderSparkline clamps negative infinity in history to the lo
     const updated = panel.withSparklines(true);
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
 
-    updated.render(buf, area);
+    updated.render(&buf, area);
 
     const row = area.y + 2;
     try std.testing.expectEqual(@as(u21, '█'), buf.get(area.x, row).?.char);
@@ -941,7 +943,7 @@ test "MetricsPanel.renderSparkline clamps positive infinity in history to the hi
     const updated = panel.withSparklines(true);
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
 
-    updated.render(buf, area);
+    updated.render(&buf, area);
 
     const row = area.y + 2;
     try std.testing.expectEqual(@as(u21, '█'), buf.get(area.x, row).?.char);
