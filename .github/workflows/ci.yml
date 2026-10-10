@@ -55,8 +55,15 @@ jobs:
             Remove-Item -Path zig-out -Recurse -Force -ErrorAction SilentlyContinue
           }
 
+      - name: Check formatting
+        if: matrix.os == 'Linux'
+        run: zig fmt --check src build.zig build_support examples benchmarks scripts
+
       - name: Build
         run: zig build
+
+      - name: Build all examples and benchmarks
+        run: zig build build-all
 
       - name: Run Tests
         run: zig build test
