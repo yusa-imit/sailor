@@ -1884,6 +1884,69 @@ pub fn build(b: *std.Build) void {
     core_coverage_audit_tests.root_module.addImport("sailor", sailor_module_for_tests);
     test_step.dependOn(&b.addRunArtifact(core_coverage_audit_tests).step);
 
+    // Compile-only aggregate that CI runs, so an example or benchmark that stops building fails
+    // the build instead of rotting unnoticed (plan 002 item 2).
+    const build_all_step = b.step("build-all", "Compile every example and benchmark");
+    add_benchmarks(b, sailor_module, target, optimize, build_all_step);
+
+    // Example applications
+    const examples = [_]struct {
+        name: []const u8,
+        source: []const u8,
+        description: []const u8,
+    }{
+        .{ .name = "hello", .source = "examples/hello.zig", .description = "Build and run hello example" },
+        .{ .name = "counter", .source = "examples/counter.zig", .description = "Build and run counter example" },
+        .{ .name = "dashboard", .source = "examples/dashboard.zig", .description = "Build and run dashboard example" },
+        .{ .name = "dashboard-advanced", .source = "examples/dashboard_advanced.zig", .description = "Build and run advanced dashboard (v1.32.0 features: nested grids, aspect ratios, margins, debugging)" },
+        .{ .name = "task_list", .source = "examples/task_list.zig", .description = "Build and run task list example" },
+        .{ .name = "layout_showcase", .source = "examples/layout_showcase.zig", .description = "Build and run layout showcase (v1.2.0 features)" },
+        .{ .name = "widget_gallery", .source = "examples/widget_gallery.zig", .description = "Interactive widget gallery with code examples (v1.18.0)" },
+        .{ .name = "plugin_demo", .source = "examples/plugin_demo.zig", .description = "Plugin architecture demo — custom widgets & composition (v1.23.0)" },
+        .{ .name = "animation_demo", .source = "examples/animation_demo.zig", .description = "Animation & transitions demo — easing functions, timers, color animation (v1.24.0)" },
+        .{ .name = "form_demo", .source = "examples/form_demo.zig", .description = "Form & validation demo — registration/login with validators (v1.25.0)" },
+        .{ .name = "error_handling", .source = "examples/error_handling_demo.zig", .description = "Error handling demo — structured errors, debug logging, recovery strategies (v1.30.0)" },
+        .{ .name = "profile_demo", .source = "examples/profile_demo.zig", .description = "Profiling demo — render profiler, memory tracker, event loop profiler, widget metrics (v1.31.0)" },
+        .{ .name = "accessibility_demo", .source = "examples/accessibility_demo.zig", .description = "Accessibility demo — tab navigation, focus management, disabled widgets, keyboard navigation (v1.35.0)" },
+        .{ .name = "metrics_dashboard", .source = "examples/metrics_dashboard.zig", .description = "Performance metrics dashboard — render/memory/event monitoring, 3 layout modes (v1.36.0)" },
+        .{ .name = "migration_demo", .source = "examples/migration_demo.zig", .description = "Migration demo — v1.x to v2.0.0 API side-by-side comparison (v1.37.0)" },
+        .{ .name = "gallery", .source = "examples/gallery.zig", .description = "Static widget gallery" },
+        .{
+            .name = "clipboard_demo",
+            .source = "examples/clipboard_demo.zig",
+            .description = "Clipboard demo — OSC 52 copy, paste splitting, history",
+        },
+    };
+
+    inline for (examples) |example| {
+        const exe = b.addExecutable(.{
+            .name = example.name,
+            .root_module = b.createModule(.{
+                .root_source_file = b.path(example.source),
+                .target = target,
+                .optimize = optimize,
+            }),
+        });
+
+        exe.root_module.addImport("sailor", sailor_module);
+
+        const install = b.addInstallArtifact(exe, .{});
+        const step_name = b.fmt("example-{s}", .{example.name});
+        const step = b.step(step_name, example.description);
+        step.dependOn(&install.step);
+        build_all_step.dependOn(&install.step);
+    }
+}
+
+/// Benchmark executables: `benchmark` and `bench-large-data` build and run on their own steps,
+/// and both are compiled (not run) by `build_all_step`.
+fn add_benchmarks(
+    b: *std.Build,
+    sailor_module: *std.Build.Module,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    build_all_step: *std.Build.Step,
+) void {
     // Benchmark executable
     const bench_exe = b.addExecutable(.{
         .name = "benchmark",
@@ -1917,51 +1980,16 @@ pub fn build(b: *std.Build) void {
     large_data_bench_exe.root_module.addImport("sailor", sailor_module);
 
     const large_data_bench_install = b.addInstallArtifact(large_data_bench_exe, .{});
-    const large_data_bench_step = b.step("bench-large-data", "Run large data streaming benchmarks (1M items)");
+    const large_data_bench_step = b.step(
+        "bench-large-data",
+        "Run large data streaming benchmarks (1M items)",
+    );
     large_data_bench_step.dependOn(&large_data_bench_install.step);
 
     const large_data_bench_run = b.addRunArtifact(large_data_bench_exe);
     large_data_bench_run.step.dependOn(&large_data_bench_install.step);
     large_data_bench_step.dependOn(&large_data_bench_run.step);
 
-    // Example applications
-    const examples = [_]struct {
-        name: []const u8,
-        source: []const u8,
-        description: []const u8,
-    }{
-        .{ .name = "hello", .source = "examples/hello.zig", .description = "Build and run hello example" },
-        .{ .name = "counter", .source = "examples/counter.zig", .description = "Build and run counter example" },
-        .{ .name = "dashboard", .source = "examples/dashboard.zig", .description = "Build and run dashboard example" },
-        .{ .name = "dashboard-advanced", .source = "examples/dashboard_advanced.zig", .description = "Build and run advanced dashboard (v1.32.0 features: nested grids, aspect ratios, margins, debugging)" },
-        .{ .name = "task_list", .source = "examples/task_list.zig", .description = "Build and run task list example" },
-        .{ .name = "layout_showcase", .source = "examples/layout_showcase.zig", .description = "Build and run layout showcase (v1.2.0 features)" },
-        .{ .name = "widget_gallery", .source = "examples/widget_gallery.zig", .description = "Interactive widget gallery with code examples (v1.18.0)" },
-        .{ .name = "plugin_demo", .source = "examples/plugin_demo.zig", .description = "Plugin architecture demo — custom widgets & composition (v1.23.0)" },
-        .{ .name = "animation_demo", .source = "examples/animation_demo.zig", .description = "Animation & transitions demo — easing functions, timers, color animation (v1.24.0)" },
-        .{ .name = "form_demo", .source = "examples/form_demo.zig", .description = "Form & validation demo — registration/login with validators (v1.25.0)" },
-        .{ .name = "error_handling", .source = "examples/error_handling_demo.zig", .description = "Error handling demo — structured errors, debug logging, recovery strategies (v1.30.0)" },
-        .{ .name = "profile_demo", .source = "examples/profile_demo.zig", .description = "Profiling demo — render profiler, memory tracker, event loop profiler, widget metrics (v1.31.0)" },
-        .{ .name = "accessibility_demo", .source = "examples/accessibility_demo.zig", .description = "Accessibility demo — tab navigation, focus management, disabled widgets, keyboard navigation (v1.35.0)" },
-        .{ .name = "metrics_dashboard", .source = "examples/metrics_dashboard.zig", .description = "Performance metrics dashboard — render/memory/event monitoring, 3 layout modes (v1.36.0)" },
-        .{ .name = "migration_demo", .source = "examples/migration_demo.zig", .description = "Migration demo — v1.x to v2.0.0 API side-by-side comparison (v1.37.0)" },
-    };
-
-    inline for (examples) |example| {
-        const exe = b.addExecutable(.{
-            .name = example.name,
-            .root_module = b.createModule(.{
-                .root_source_file = b.path(example.source),
-                .target = target,
-                .optimize = optimize,
-            }),
-        });
-
-        exe.root_module.addImport("sailor", sailor_module);
-
-        const install = b.addInstallArtifact(exe, .{});
-        const step_name = b.fmt("example-{s}", .{example.name});
-        const step = b.step(step_name, example.description);
-        step.dependOn(&install.step);
-    }
+    build_all_step.dependOn(&bench_install.step);
+    build_all_step.dependOn(&large_data_bench_install.step);
 }

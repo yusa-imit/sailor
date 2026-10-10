@@ -22,16 +22,17 @@ onto v3.0.0 now, so a clean tree is cheapest to land before they start filing is
 All items are `blocked_by: none`. Each item is one cycle and one PR. Order is the order of
 risk, lowest first.
 
-- [ ] **Unbuilt-code sweep.** Replace the removed `ArrayList(T).init(allocator)` form with
+- [x] **Unbuilt-code sweep.** Replace the removed `ArrayList(T).init(allocator)` form with
       `.empty` plus per-call allocator in the nine files above. Add each widget to a test root
       so it is analysed (the orphan bug seen three times before), and fix whatever else 0.16
       breaks in them. *Verify:* `zig build`, `zig build bench-large-data` and
       `examples/clipboard_demo.zig` compile; each newly analysed widget has a test that fails
       before the fix; `grep -rn 'ArrayList([^)]*)\.init(' src examples benchmarks` is empty.
-- [ ] **CI builds everything.** Add a CI step that compiles all examples and benchmark targets
+- [x] **CI builds everything.** Add a CI step that compiles all examples and benchmark targets
       (compile only, not run) so the orphan class cannot return; add `zig fmt --check src
       build.zig tests examples benchmarks` to the Linux job. *Verify:* the step fails on a
-      deliberately reverted file in the PR branch before it is fixed.
+      deliberately reverted file in the PR branch before it is fixed. (`tests` joins the fmt
+      check when item 3 makes it clean.)
 - [ ] **`zig fmt` on `tests/`, `examples/`, `benchmarks/`.** One mechanical PR, no logic
       changes; confirm the diff is whitespace only by comparing `zig ast-check` output or test
       counts before and after. *Verify:* `zig fmt --check` over the whole repo is empty.
