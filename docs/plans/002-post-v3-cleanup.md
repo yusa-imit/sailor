@@ -33,7 +33,7 @@ risk, lowest first.
       build.zig tests examples benchmarks` to the Linux job. *Verify:* the step fails on a
       deliberately reverted file in the PR branch before it is fixed. (`tests` joins the fmt
       check when item 3 makes it clean.)
-- [ ] **`zig fmt` on `tests/`, `examples/`, `benchmarks/`.** One mechanical PR, no logic
+- [x] **`zig fmt` on `tests/`, `examples/`, `benchmarks/`.** One mechanical PR, no logic
       changes; confirm the diff is whitespace only by comparing `zig ast-check` output or test
       counts before and after. *Verify:* `zig fmt --check` over the whole repo is empty.
 - [ ] **`terminal.zig` `AnsiParseState` wiring.** The doc comment promises that the widget

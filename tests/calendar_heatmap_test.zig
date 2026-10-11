@@ -290,10 +290,10 @@ test "col/row mapping: start_date=Jan 1 (Sunday), first_day=0 (Sunday)" {
     for (0..7) |i| {
         vals[i] = @as(f32, @floatFromInt(i + 1));
     }
-    const start = Date.init(1970, 1, 1);  // epoch, known weekday
+    const start = Date.init(1970, 1, 1); // epoch, known weekday
     const hm = CalendarHeatmap.init(start)
         .withValues(&vals)
-        .withFirstDayOfWeek(0);  // Sunday
+        .withFirstDayOfWeek(0); // Sunday
 
     // We don't verify exact layout without the implementation,
     // but verify that grid is correctly bounded
@@ -303,7 +303,7 @@ test "col/row mapping: start_date=Jan 1 (Sunday), first_day=0 (Sunday)" {
     hm.render(&buf, area);
 
     // Grid should render without crash; heatmap should occupy some cells
-    try testing.expect(countNonEmptyCells(buf, area) > 0);  // render succeeded
+    try testing.expect(countNonEmptyCells(buf, area) > 0); // render succeeded
 }
 
 test "col/row mapping: first_day_of_week=1 (Monday) shifts offset" {
@@ -317,7 +317,7 @@ test "col/row mapping: first_day_of_week=1 (Monday) shifts offset" {
     const start = Date.init(1970, 1, 1);
     const hm = CalendarHeatmap.init(start)
         .withValues(&vals)
-        .withFirstDayOfWeek(1);  // Monday
+        .withFirstDayOfWeek(1); // Monday
 
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
@@ -334,7 +334,7 @@ test "col/row mapping: entries wrap to next week column after 7 rows" {
     for (0..8) |i| {
         vals[i] = @as(f32, @floatFromInt(i + 1));
     }
-    const start = Date.init(1970, 1, 5);  // Some known date
+    const start = Date.init(1970, 1, 5); // Some known date
     const hm = CalendarHeatmap.init(start)
         .withValues(&vals)
         .withFirstDayOfWeek(0);
@@ -444,7 +444,7 @@ test "intensity: max_val <= min_val (degenerate case, no divide-by-zero)" {
     const hm = CalendarHeatmap.init(start)
         .withValues(&vals)
         .withMinVal(5.0)
-        .withMaxVal(5.0);  // min == max
+        .withMaxVal(5.0); // min == max
 
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
@@ -466,7 +466,7 @@ test "intensity: auto-detected max_val from values when max_val==null" {
     const hm = CalendarHeatmap.init(start)
         .withValues(&vals)
         .withMinVal(0)
-        .withMaxVal(null);  // auto-detect
+        .withMaxVal(null); // auto-detect
 
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
@@ -528,7 +528,7 @@ test "month labels show=false omits month abbreviations" {
     const start = Date.init(2024, 1, 1);
     const hm = CalendarHeatmap.init(start)
         .withValues(&vals)
-        .withShowMonthLabels(false);  // disabled
+        .withShowMonthLabels(false); // disabled
 
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
@@ -546,7 +546,7 @@ test "month labels placed at column of first entry in new month" {
     for (0..20) |i| {
         vals[i] = @as(f32, @floatFromInt(i + 1));
     }
-    const start = Date.init(2024, 1, 28);  // near month boundary
+    const start = Date.init(2024, 1, 28); // near month boundary
     const hm = CalendarHeatmap.init(start)
         .withValues(&vals)
         .withShowMonthLabels(true);
@@ -572,7 +572,7 @@ test "weekday labels show=true renders labels on Mon/Wed/Fri rows only (GitHub c
     const hm = CalendarHeatmap.init(start)
         .withValues(&vals)
         .withShowWeekdayLabels(true)
-        .withFirstDayOfWeek(0);  // Sunday
+        .withFirstDayOfWeek(0); // Sunday
 
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
@@ -591,7 +591,7 @@ test "weekday labels show=false omits weekday label gutter" {
     const start = Date.init(2024, 1, 1);
     const hm = CalendarHeatmap.init(start)
         .withValues(&vals)
-        .withShowWeekdayLabels(false);  // disabled
+        .withShowWeekdayLabels(false); // disabled
 
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
@@ -611,7 +611,7 @@ test "weekday labels with first_day_of_week=1 (Monday) maps Mon/Wed/Fri correctl
     const hm = CalendarHeatmap.init(start)
         .withValues(&vals)
         .withShowWeekdayLabels(true)
-        .withFirstDayOfWeek(1);  // Monday
+        .withFirstDayOfWeek(1); // Monday
 
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
@@ -648,7 +648,7 @@ test "focused=valid_index renders that cell with focused_style" {
     const start = Date.init(2024, 1, 1);
     const hm = CalendarHeatmap.init(start)
         .withValues(&vals)
-        .withFocused(2)  // focus entry index 2
+        .withFocused(2) // focus entry index 2
         .withFocusedStyle(.{ .reverse = true });
 
     var buf = try Buffer.init(testing.allocator, 80, 24);
@@ -665,7 +665,7 @@ test "focused=out_of_bounds does not crash" {
     const start = Date.init(2024, 1, 1);
     const hm = CalendarHeatmap.init(start)
         .withValues(&vals)
-        .withFocused(1000)  // out of bounds
+        .withFocused(1000) // out of bounds
         .withFocusedStyle(.{ .bold = true });
 
     var buf = try Buffer.init(testing.allocator, 80, 24);
@@ -689,7 +689,7 @@ test "render with Block renders frame border around heatmap" {
     const start = Date.init(2024, 1, 1);
     const hm = CalendarHeatmap.init(start)
         .withValues(&vals)
-        .withBlock(.{});  // default block
+        .withBlock(.{}); // default block
 
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
@@ -698,11 +698,11 @@ test "render with Block renders frame border around heatmap" {
 
     // Block border should render — check for border characters
     const has_border = countChar(buf, area, '─') > 0 or
-                       countChar(buf, area, '│') > 0 or
-                       countChar(buf, area, '┌') > 0 or
-                       countChar(buf, area, '┐') > 0 or
-                       countChar(buf, area, '└') > 0 or
-                       countChar(buf, area, '┘') > 0;
+        countChar(buf, area, '│') > 0 or
+        countChar(buf, area, '┌') > 0 or
+        countChar(buf, area, '┐') > 0 or
+        countChar(buf, area, '└') > 0 or
+        countChar(buf, area, '┘') > 0;
     try testing.expect(has_border);
 }
 
@@ -714,7 +714,7 @@ test "render without Block renders heatmap without frame" {
     const start = Date.init(2024, 1, 1);
     const hm = CalendarHeatmap.init(start)
         .withValues(&vals)
-        .withBlock(null);  // no block
+        .withBlock(null); // no block
 
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
@@ -870,7 +870,7 @@ test "render full year of activity data (365 entries) with block and labels" {
         .withValues(&vals)
         .withShowMonthLabels(true)
         .withShowWeekdayLabels(true)
-        .withFocused(182)  // mid-year
+        .withFocused(182) // mid-year
         .withFocusedStyle(.{ .reverse = true })
         .withBlock(.{});
 

@@ -754,11 +754,7 @@ test "render with single section does not crash" {
 
 test "render collapsed section shows only header" {
     var sections = [_]AccordionSection{
-        .{
-            .title = "Title",
-            .content_lines = &.{ "Line 1", "Line 2" },
-            .expanded = false
-        },
+        .{ .title = "Title", .content_lines = &.{ "Line 1", "Line 2" }, .expanded = false },
     };
     var acc = Accordion.init(&sections);
 
@@ -781,11 +777,7 @@ test "render collapsed section shows only header" {
 
 test "render expanded section shows header and content" {
     var sections = [_]AccordionSection{
-        .{
-            .title = "Title",
-            .content_lines = &.{ "Line 1", "Line 2" },
-            .expanded = true
-        },
+        .{ .title = "Title", .content_lines = &.{ "Line 1", "Line 2" }, .expanded = true },
     };
     var acc = Accordion.init(&sections);
 

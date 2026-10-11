@@ -335,7 +335,7 @@ test "CandlestickChart.render with degenerate candle (all OHLC identical)" {
     chart.render(&buf, area);
     // Should not crash; may produce minimal or no content due to degenerate scaling
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);  // Degenerate: identical OHLC still renders a centered doji marker
+    try testing.expect(non_empty > 0); // Degenerate: identical OHLC still renders a centered doji marker
 }
 
 // ============================================================================
@@ -880,14 +880,12 @@ test "CandlestickChart.render changing focused index applies style to different 
         while (x < area.x + area.width) : (x += 1) {
             if (buf1.getConst(x, y)) |cell| {
                 if ((cell.char == '█' or cell.char == '│') and cell.style.bold) {
-                    if (x < candle0_end) buf1_candle0_bold += 1
-                    else buf1_candle1_bold += 1;
+                    if (x < candle0_end) buf1_candle0_bold += 1 else buf1_candle1_bold += 1;
                 }
             }
             if (buf2.getConst(x, y)) |cell| {
                 if ((cell.char == '█' or cell.char == '│') and cell.style.bold) {
-                    if (x < candle1_start) buf2_candle0_bold += 1
-                    else buf2_candle1_bold += 1;
+                    if (x < candle1_start) buf2_candle0_bold += 1 else buf2_candle1_bold += 1;
                 }
             }
         }
@@ -1102,7 +1100,7 @@ test "CandlestickChart.render with all identical OHLC (high==low==open==close)" 
     chart.render(&buf, area);
     // Should not crash; may produce minimal content due to degenerate scaling
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);  // Degenerate: no price variation still renders centered doji markers
+    try testing.expect(non_empty > 0); // Degenerate: no price variation still renders centered doji markers
 }
 
 test "CandlestickChart.render multiple candles all with identical OHLC" {
@@ -1116,7 +1114,7 @@ test "CandlestickChart.render multiple candles all with identical OHLC" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
     chart.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);  // Degenerate: each centered doji marker renders even with identical OHLC
+    try testing.expect(non_empty > 0); // Degenerate: each centered doji marker renders even with identical OHLC
 }
 
 test "CandlestickChart.render with negative and positive prices" {
@@ -1138,7 +1136,7 @@ test "CandlestickChart.render single candle with n=1 does not divide by zero" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     chart.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);  // Single valid candle should render
+    try testing.expect(non_empty > 0); // Single valid candle should render
 }
 
 // ============================================================================
@@ -1153,7 +1151,7 @@ test "CandlestickChart.render minimal height (3 rows) without label row" {
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 3 };
     chart.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);  // Valid candle should render even in constrained height
+    try testing.expect(non_empty > 0); // Valid candle should render even in constrained height
 }
 
 test "CandlestickChart.render very narrow width" {
@@ -1164,7 +1162,7 @@ test "CandlestickChart.render very narrow width" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 15 };
     chart.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);  // Valid candle should render even at narrow width
+    try testing.expect(non_empty > 0); // Valid candle should render even at narrow width
 }
 
 test "CandlestickChart.render tiny area (8x6) does not crash" {
@@ -1283,9 +1281,7 @@ test "CandlestickChart.render with out-of-range open price does not crash" {
     // This is a realistic scenario with bad financial data feed
     // Global scale is derived from low/high (90-110), but open is -1,000,000
     // Without clamping in valueToRow.calc, this would overflow when cast to u16
-    var candles = [_]Candle{
-        .{ .open = -1_000_000.0, .high = 110.0, .low = 90.0, .close = 100.0 }
-    };
+    var candles = [_]Candle{.{ .open = -1_000_000.0, .high = 110.0, .low = 90.0, .close = 100.0 }};
     const chart = CandlestickChart.init().withCandles(&candles);
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };
 
@@ -1295,5 +1291,5 @@ test "CandlestickChart.render with out-of-range open price does not crash" {
 
     // Render completed without panic — verify some content was produced
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty > 0);  // Valid high/low range should render despite malformed open
+    try testing.expect(non_empty > 0); // Valid high/low range should render despite malformed open
 }

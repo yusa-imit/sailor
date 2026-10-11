@@ -383,7 +383,7 @@ test "moveCursorUp from position 1 goes to 0" {
     _ = cb.setQuery("");
     cb.moveCursorDown(); // 0
     cb.moveCursorDown(); // 1
-    cb.moveCursorUp();   // 0
+    cb.moveCursorUp(); // 0
     try testing.expectEqualStrings("a", cb.selectedCommand().?.name);
 }
 

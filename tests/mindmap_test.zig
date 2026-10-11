@@ -51,7 +51,8 @@ fn findInArea(buf: Buffer, area: Rect, text: []const u8) bool {
 
             while (cp_idx < cp_count) : (cp_idx += 1) {
                 if (cy >= area.y + area.height or cy >= buf.height or
-                    cx >= area.x + area.width or cx >= buf.width) {
+                    cx >= area.x + area.width or cx >= buf.width)
+                {
                     matched = false;
                     break;
                 }
@@ -406,7 +407,7 @@ test "render root node has box characters (corners)" {
 
     // Node box must have all four corners when width >= 2 and height >= 1
     const has_corners = areaHasChar(buf, area, '┌') or areaHasChar(buf, area, '┐') or
-                        areaHasChar(buf, area, '└') or areaHasChar(buf, area, '┘');
+        areaHasChar(buf, area, '└') or areaHasChar(buf, area, '┘');
     try testing.expect(has_corners);
 }
 
@@ -510,7 +511,7 @@ test "render right branch label visible" {
     mm.render(&buf, area);
 
     try testing.expect(findInArea(buf, area, "Root") or findInArea(buf, area, "Branch") or
-                       countNonEmptyCells(buf, area) > 0);
+        countNonEmptyCells(buf, area) > 0);
 }
 
 // ============================================================================

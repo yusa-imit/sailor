@@ -811,7 +811,6 @@ test "SpanBuilder: render reverse and blink" {
 
 test "LineBuilder: raw propagates allocator error" {
     var failing_allocator = std.testing.FailingAllocator.init(testing.allocator, .{ .fail_index = 0 });
-    
 
     var builder = LineBuilder.init(failing_allocator.allocator());
     defer builder.deinit();
@@ -821,7 +820,6 @@ test "LineBuilder: raw propagates allocator error" {
 
 test "LineBuilder: text propagates allocator error" {
     var failing_allocator = std.testing.FailingAllocator.init(testing.allocator, .{ .fail_index = 0 });
-    
 
     var builder = LineBuilder.init(failing_allocator.allocator());
     defer builder.deinit();
@@ -831,7 +829,6 @@ test "LineBuilder: text propagates allocator error" {
 
 test "LineBuilder: span propagates allocator error" {
     var failing_allocator = std.testing.FailingAllocator.init(testing.allocator, .{ .fail_index = 0 });
-    
 
     var builder = LineBuilder.init(failing_allocator.allocator());
     defer builder.deinit();

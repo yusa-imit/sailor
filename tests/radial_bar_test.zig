@@ -798,9 +798,7 @@ test "RadialBar.render block with title renders correctly" {
 test "RadialBar.render arc with custom style differs from arc_style" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
-    var arcs = [_]RadialArc{
-        .{ .label = "CPU", .value = @as(f32, 0.5), .style = Style{ .bold = true } }
-    };
+    var arcs = [_]RadialArc{.{ .label = "CPU", .value = @as(f32, 0.5), .style = Style{ .bold = true } }};
     const rb = RadialBar.init().withArcs(&arcs).withArcStyle(Style{ .dim = true });
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     rb.render(&buf, area);
@@ -826,9 +824,7 @@ test "RadialBar.render multiple arcs with different per-arc styles" {
 test "RadialBar.render arc with custom style applies correctly" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
-    var arcs = [_]RadialArc{
-        .{ .label = "CPU", .value = @as(f32, 0.5), .style = Style{ .italic = true } }
-    };
+    var arcs = [_]RadialArc{.{ .label = "CPU", .value = @as(f32, 0.5), .style = Style{ .italic = true } }};
     const rb = RadialBar.init().withArcs(&arcs);
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     rb.render(&buf, area);
@@ -839,9 +835,7 @@ test "RadialBar.render arc with custom style applies correctly" {
 test "RadialBar.render arc with empty custom style uses arc_style" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
-    var arcs = [_]RadialArc{
-        .{ .label = "CPU", .value = @as(f32, 0.5), .style = Style{} }
-    };
+    var arcs = [_]RadialArc{.{ .label = "CPU", .value = @as(f32, 0.5), .style = Style{} }};
     const rb = RadialBar.init().withArcs(&arcs).withArcStyle(Style{ .bold = true });
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     rb.render(&buf, area);

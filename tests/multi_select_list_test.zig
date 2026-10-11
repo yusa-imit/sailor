@@ -471,9 +471,9 @@ test "render multiple items on separate rows" {
 // ============================================================================
 
 test "single item list cursor stays at 0" {
-    var selections = [_]bool{ false };
+    var selections = [_]bool{false};
     var list = MultiSelectList{
-        .items = &[_][]const u8{ "Only" },
+        .items = &[_][]const u8{"Only"},
         .selections = &selections,
         .cursor = 0,
     };
@@ -496,9 +496,9 @@ test "cursor at last position stays at last position on moveCursorDown" {
 }
 
 test "multiple toggleCursor calls alternate selection state" {
-    var selections = [_]bool{ false };
+    var selections = [_]bool{false};
     var list = MultiSelectList{
-        .items = &[_][]const u8{ "Item" },
+        .items = &[_][]const u8{"Item"},
         .selections = &selections,
         .cursor = 0,
     };
@@ -524,10 +524,10 @@ test "cursor position independent of selection state" {
 }
 
 test "render with block does not crash" {
-    var selections = [_]bool{ false };
+    var selections = [_]bool{false};
     const block = sailor.tui.widgets.Block{};
     var list = MultiSelectList{
-        .items = &[_][]const u8{ "Item" },
+        .items = &[_][]const u8{"Item"},
         .selections = &selections,
         .block = block,
     };
@@ -558,9 +558,9 @@ test "countSelected with one item selected" {
 }
 
 test "render with custom styles does not crash" {
-    var selections = [_]bool{ false };
+    var selections = [_]bool{false};
     var list = MultiSelectList{
-        .items = &[_][]const u8{ "Item" },
+        .items = &[_][]const u8{"Item"},
         .selections = &selections,
         .cursor_style = .{ .fg = .blue, .bold = true },
         .selected_style = .{ .fg = .cyan },

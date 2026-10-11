@@ -846,8 +846,8 @@ test "FilterBar render 2 active tags render both pills in sequence" {
     var fb = FilterBar.init(allocator);
     defer fb.deinit();
 
-    try fb.addTag("type", "bug");       // "[type:bug]" = 10 chars
-    try fb.addTag("priority", "high");  // "[priority:high]" = 15 chars
+    try fb.addTag("type", "bug"); // "[type:bug]" = 10 chars
+    try fb.addTag("priority", "high"); // "[priority:high]" = 15 chars
 
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 10 };
     fb.render(&buf, area);
@@ -1109,7 +1109,7 @@ test "FilterBar render with full configuration: active tag uses active_style fg"
     fb.placeholder = "Set filters...";
 
     try fb.addTag("category", "feature"); // index 0
-    try fb.addTag("assigned", "me");      // index 1
+    try fb.addTag("assigned", "me"); // index 1
     fb.toggleTag(0); // make "category" inactive
 
     const area = Rect{ .x = 0, .y = 0, .width = 120, .height = 5 };

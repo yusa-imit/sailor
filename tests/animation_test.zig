@@ -385,7 +385,7 @@ test "Value type - Color channel interpolation" {
         .rgb => |c| {
             try testing.expectEqual(@as(u8, 127), c.r); // Red fading
             try testing.expectEqual(@as(u8, 127), c.g); // Green appearing
-            try testing.expectEqual(@as(u8, 0), c.b);   // Blue unchanged
+            try testing.expectEqual(@as(u8, 0), c.b); // Blue unchanged
         },
         else => return error.ExpectedRgbColor,
     }

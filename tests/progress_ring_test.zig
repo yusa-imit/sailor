@@ -381,8 +381,8 @@ test "ProgressRing value=1.0 draws filled_char on ring cells" {
     // All ring cells have value≤1.0, so all get filled_char
     try testing.expectEqual(@as(u21, '█'), buf.getChar(10, 0)); // angle≈0.009
     try testing.expectEqual(@as(u21, '█'), buf.getChar(18, 4)); // angle≈0.231
-    try testing.expectEqual(@as(u21, '█'), buf.getChar(1, 4));  // angle≈0.769
-    try testing.expectEqual(@as(u21, '█'), buf.getChar(9, 0));  // angle≈0.991
+    try testing.expectEqual(@as(u21, '█'), buf.getChar(1, 4)); // angle≈0.769
+    try testing.expectEqual(@as(u21, '█'), buf.getChar(9, 0)); // angle≈0.991
 }
 
 test "ProgressRing value=0.0 draws empty_char on all ring cells" {
@@ -394,8 +394,8 @@ test "ProgressRing value=0.0 draws empty_char on all ring cells" {
     // angle > 0.0 for all ring cells, so all get empty_char
     try testing.expectEqual(@as(u21, '░'), buf.getChar(10, 0)); // angle≈0.009 > 0.0
     try testing.expectEqual(@as(u21, '░'), buf.getChar(18, 4)); // angle≈0.231 > 0.0
-    try testing.expectEqual(@as(u21, '░'), buf.getChar(1, 4));  // angle≈0.769 > 0.0
-    try testing.expectEqual(@as(u21, '░'), buf.getChar(9, 0));  // angle≈0.991 > 0.0
+    try testing.expectEqual(@as(u21, '░'), buf.getChar(1, 4)); // angle≈0.769 > 0.0
+    try testing.expectEqual(@as(u21, '░'), buf.getChar(9, 0)); // angle≈0.991 > 0.0
 }
 
 test "ProgressRing value=0.5 fills clockwise first half of ring" {

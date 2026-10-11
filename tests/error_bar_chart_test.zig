@@ -1181,9 +1181,7 @@ test "ErrorBarChart.render very small range (near-degenerate) does not crash" {
 test "ErrorBarChart.render long label is truncated to fit label column" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
-    var items = [_]ErrorBarItem{
-        .{ .label = "VeryLongLabelThatShouldBeTruncatedForDisplay", .value = 0.5, .err_low = 0.1, .err_high = 0.1 }
-    };
+    var items = [_]ErrorBarItem{.{ .label = "VeryLongLabelThatShouldBeTruncatedForDisplay", .value = 0.5, .err_low = 0.1, .err_high = 0.1 }};
     const chart = ErrorBarChart.init().withItems(&items);
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     chart.render(&buf, area);

@@ -254,8 +254,8 @@ test "IncrementalLayout: frame advancement with new constraints adds cache entry
     defer inc_layout.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
-    const constraints1 = [_]Constraint{.{ .length = 25 }, .{ .length = 75 }};
-    const constraints2 = [_]Constraint{.{ .length = 40 }, .{ .length = 60 }};
+    const constraints1 = [_]Constraint{ .{ .length = 25 }, .{ .length = 75 } };
+    const constraints2 = [_]Constraint{ .{ .length = 40 }, .{ .length = 60 } };
 
     // Frame 0: First split with constraints1
     const result1 = try inc_layout.split(.horizontal, area, &constraints1);
@@ -289,7 +289,7 @@ test "IncrementalLayout: no memory leaks with repeated splits" {
     defer inc_layout.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
-    const constraints = [_]Constraint{.{ .percentage = 50 }, .{ .percentage = 50 }};
+    const constraints = [_]Constraint{ .{ .percentage = 50 }, .{ .percentage = 50 } };
 
     // Perform 100 identical splits — cache should grow only once
     for (0..100) |_| {
@@ -480,7 +480,7 @@ test "IncrementalLayout: cache hit counter verification" {
     defer inc_layout.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
-    const constraints = [_]Constraint{.{ .percentage = 50 }, .{ .percentage = 50 }};
+    const constraints = [_]Constraint{ .{ .percentage = 50 }, .{ .percentage = 50 } };
 
     // Perform multiple identical splits
     for (0..10) |i| {

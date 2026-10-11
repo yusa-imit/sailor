@@ -169,7 +169,7 @@ test "MatrixView.colCount returns 1 for single column" {
 test "MatrixView.colCount returns max column count across rows" {
     var row1 = [_]f32{ 0.5, 0.75 };
     var row2 = [_]f32{ 0.25, 0.9, 0.1 };
-    var row3 = [_]f32{ 0.2 };
+    var row3 = [_]f32{0.2};
     var data = [_][]const f32{ &row1, &row2, &row3 };
     const mv = MatrixView.init().withData(&data);
     // max is 3 columns from row2
@@ -647,8 +647,8 @@ test "MatrixView.render col headers appear in first row" {
 test "MatrixView.render col headers centered in cell_width" {
     var buf = try Buffer.init(testing.allocator, 50, 20);
     defer buf.deinit();
-    var row = [_]f32{ 0.5 };
-    var headers = [_][]const u8{ "Header" };
+    var row = [_]f32{0.5};
+    var headers = [_][]const u8{"Header"};
     var data = [_][]const f32{&row};
     const mv = MatrixView.init().withData(&data).withColHeaders(&headers).withCellWidth(10);
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };
@@ -658,8 +658,8 @@ test "MatrixView.render col headers centered in cell_width" {
 test "MatrixView.render col headers truncated if too long" {
     var buf = try Buffer.init(testing.allocator, 30, 15);
     defer buf.deinit();
-    var row = [_]f32{ 0.5 };
-    var headers = [_][]const u8{ "VeryLongHeaderNameThatShouldBeTruncated" };
+    var row = [_]f32{0.5};
+    var headers = [_][]const u8{"VeryLongHeaderNameThatShouldBeTruncated"};
     var data = [_][]const f32{&row};
     const mv = MatrixView.init().withData(&data).withColHeaders(&headers).withCellWidth(5);
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 15 };
@@ -700,8 +700,8 @@ test "MatrixView.render with row_headers renders header column" {
 test "MatrixView.render row headers appear in left column" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
-    var row1 = [_]f32{ 0.5 };
-    var row2 = [_]f32{ 0.75 };
+    var row1 = [_]f32{0.5};
+    var row2 = [_]f32{0.75};
     var headers = [_][]const u8{ "R1", "R2" };
     var data = [_][]const f32{ &row1, &row2 };
     const mv = MatrixView.init().withData(&data).withRowHeaders(&headers);
@@ -716,7 +716,7 @@ test "MatrixView.render row headers left aligned in column" {
     var buf = try Buffer.init(testing.allocator, 30, 20);
     defer buf.deinit();
     var row1 = [_]f32{ 0.5, 0.75 };
-    var headers = [_][]const u8{ "Header" };
+    var headers = [_][]const u8{"Header"};
     var data = [_][]const f32{&row1};
     const mv = MatrixView.init().withData(&data).withRowHeaders(&headers);
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 20 };
@@ -726,8 +726,8 @@ test "MatrixView.render row headers left aligned in column" {
 test "MatrixView.render row headers truncated if too long" {
     var buf = try Buffer.init(testing.allocator, 30, 15);
     defer buf.deinit();
-    var row = [_]f32{ 0.5 };
-    var headers = [_][]const u8{ "VeryLongRowHeaderNameThatExceedCapacity" };
+    var row = [_]f32{0.5};
+    var headers = [_][]const u8{"VeryLongRowHeaderNameThatExceedCapacity"};
     var data = [_][]const f32{&row};
     const mv = MatrixView.init().withData(&data).withRowHeaders(&headers);
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 15 };
@@ -738,8 +738,8 @@ test "MatrixView.render row headers with header_style applied" {
     var buf = try Buffer.init(testing.allocator, 30, 15);
     defer buf.deinit();
     const header_style = Style{ .italic = true };
-    var row = [_]f32{ 0.5 };
-    var headers = [_][]const u8{ "Hdr" };
+    var row = [_]f32{0.5};
+    var headers = [_][]const u8{"Hdr"};
     var data = [_][]const f32{&row};
     const mv = MatrixView.init()
         .withData(&data)
@@ -1006,7 +1006,7 @@ test "MatrixView.render block too large for data still renders safely" {
     var buf = try Buffer.init(testing.allocator, 10, 8);
     defer buf.deinit();
     const block = Block{ .padding_left = 3, .padding_right = 3, .padding_top = 2, .padding_bottom = 2 };
-    var row = [_]f32{ 0.5 };
+    var row = [_]f32{0.5};
     var data = [_][]const f32{&row};
     const mv = MatrixView.init().withData(&data).withBlock(block);
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 8 };
@@ -1215,7 +1215,7 @@ test "MatrixView.render with mixed header and value rendering" {
     defer buf.deinit();
     var row = [_]f32{ 0.1, 0.5, 0.9 };
     var col_headers = [_][]const u8{ "A", "B", "C" };
-    var row_headers = [_][]const u8{ "X" };
+    var row_headers = [_][]const u8{"X"};
     var data = [_][]const f32{&row};
     const mv = MatrixView.init()
         .withData(&data)
@@ -1256,7 +1256,7 @@ test "MatrixView.render ragged matrix (unequal row lengths)" {
     defer buf.deinit();
     var row1 = [_]f32{ 0.5, 0.75 };
     var row2 = [_]f32{ 0.25, 0.9, 0.1 };
-    var row3 = [_]f32{ 0.3 };
+    var row3 = [_]f32{0.3};
     var data = [_][]const f32{ &row1, &row2, &row3 };
     const mv = MatrixView.init().withData(&data);
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };

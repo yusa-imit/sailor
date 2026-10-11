@@ -613,10 +613,10 @@ test "AnimatedBorder pulse renders four corners" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     border.render(&buf, area);
 
-    try testing.expect(buf.get(0, 0) != null);   // top-left
-    try testing.expect(buf.get(0, 9) != null);   // top-right
-    try testing.expect(buf.get(9, 0) != null);   // bottom-left
-    try testing.expect(buf.get(9, 9) != null);   // bottom-right
+    try testing.expect(buf.get(0, 0) != null); // top-left
+    try testing.expect(buf.get(0, 9) != null); // top-right
+    try testing.expect(buf.get(9, 0) != null); // bottom-left
+    try testing.expect(buf.get(9, 9) != null); // bottom-right
 }
 
 test "AnimatedBorder pulse with high speed changes less frequently" {

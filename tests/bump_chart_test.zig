@@ -651,9 +651,9 @@ test "single segment improvement vs flat vs worsening" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
 
-    var ranks_imp = [_]u32{ 3, 1 };   // improvement
-    var ranks_flat = [_]u32{ 2, 2 };  // flat
-    var ranks_wor = [_]u32{ 1, 3 };   // worsening
+    var ranks_imp = [_]u32{ 3, 1 }; // improvement
+    var ranks_flat = [_]u32{ 2, 2 }; // flat
+    var ranks_wor = [_]u32{ 1, 3 }; // worsening
     var series = [_]BumpSeries{
         .{ .label = "Imp", .ranks = &ranks_imp },
         .{ .label = "Flat", .ranks = &ranks_flat },
@@ -970,7 +970,7 @@ test "series and timepoints both exceed limits cap independently" {
     }
 
     const chart = BumpChart.init().withSeries(&series);
-    try testing.expectEqual(@as(usize, 8), chart.seriesCount());  // capped at 8
+    try testing.expectEqual(@as(usize, 8), chart.seriesCount()); // capped at 8
     try testing.expectEqual(@as(usize, 16), chart.timepointCount()); // capped at 16
 
     const area = Rect{ .x = 0, .y = 0, .width = 120, .height = 35 };
@@ -1073,11 +1073,11 @@ test "render with Block renders frame around content" {
 
     // Block border must render — at least one border glyph
     const has_border = countChar(buf, area, '─') > 0 or
-                       countChar(buf, area, '│') > 0 or
-                       countChar(buf, area, '┌') > 0 or
-                       countChar(buf, area, '┐') > 0 or
-                       countChar(buf, area, '└') > 0 or
-                       countChar(buf, area, '┘') > 0;
+        countChar(buf, area, '│') > 0 or
+        countChar(buf, area, '┌') > 0 or
+        countChar(buf, area, '┐') > 0 or
+        countChar(buf, area, '└') > 0 or
+        countChar(buf, area, '┘') > 0;
     try testing.expect(has_border);
 }
 
@@ -1114,9 +1114,9 @@ test "series with different ranks.len do not crash" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
 
-    var ranks_a = [_]u32{1};              // 1 timepoint
-    var ranks_b = [_]u32{ 2, 3, 4, 5 };  // 4 timepoints
-    var ranks_c = [_]u32{ 3, 3 };         // 2 timepoints
+    var ranks_a = [_]u32{1}; // 1 timepoint
+    var ranks_b = [_]u32{ 2, 3, 4, 5 }; // 4 timepoints
+    var ranks_c = [_]u32{ 3, 3 }; // 2 timepoints
     var series = [_]BumpSeries{
         .{ .label = "A", .ranks = &ranks_a },
         .{ .label = "B", .ranks = &ranks_b },
@@ -1144,9 +1144,9 @@ test "render ragged series with early termination and late start" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
 
-    var ranks_a = [_]u32{ 1, 2, 3, 4, 5, 6 };  // full length
-    var ranks_b = [_]u32{ 2 };                   // short
-    var ranks_c = [_]u32{ 3, 3, 3 };             // medium
+    var ranks_a = [_]u32{ 1, 2, 3, 4, 5, 6 }; // full length
+    var ranks_b = [_]u32{2}; // short
+    var ranks_c = [_]u32{ 3, 3, 3 }; // medium
     var series = [_]BumpSeries{
         .{ .label = "A", .ranks = &ranks_a },
         .{ .label = "B", .ranks = &ranks_b },
@@ -1215,10 +1215,10 @@ test "render sports league rankings over seasons" {
     defer buf.deinit();
 
     // Simulating sports league standings: teams' ranks across 4 seasons
-    var team_a = [_]u32{ 1, 2, 3, 2 };      // declining then recovering
-    var team_b = [_]u32{ 3, 1, 2, 1 };      // volatile but strong
-    var team_c = [_]u32{ 2, 3, 1, 3 };      // improving then declining
-    var team_d = [_]u32{ 4, 4, 4, 4 };      // consistently last
+    var team_a = [_]u32{ 1, 2, 3, 2 }; // declining then recovering
+    var team_b = [_]u32{ 3, 1, 2, 1 }; // volatile but strong
+    var team_c = [_]u32{ 2, 3, 1, 3 }; // improving then declining
+    var team_d = [_]u32{ 4, 4, 4, 4 }; // consistently last
 
     var series = [_]BumpSeries{
         .{ .label = "Team A", .ranks = &team_a, .style = .{ .bold = true } },

@@ -73,10 +73,10 @@ test "moveDown — cursor moves to next row" {
 }
 
 test "moveDown — cursor stays at last row" {
-    var headers = [_][]const u8{ "Col1" };
+    var headers = [_][]const u8{"Col1"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "A1" },
-        &[_][]const u8{ "B1" },
+        &[_][]const u8{"A1"},
+        &[_][]const u8{"B1"},
     };
     var table = EditableTable{
         .headers = &headers,
@@ -88,11 +88,11 @@ test "moveDown — cursor stays at last row" {
 }
 
 test "moveDown — multiple times visits all rows" {
-    var headers = [_][]const u8{ "Col1" };
+    var headers = [_][]const u8{"Col1"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "A" },
-        &[_][]const u8{ "B" },
-        &[_][]const u8{ "C" },
+        &[_][]const u8{"A"},
+        &[_][]const u8{"B"},
+        &[_][]const u8{"C"},
     };
     var table = EditableTable{
         .headers = &headers,
@@ -111,10 +111,10 @@ test "moveDown — multiple times visits all rows" {
 // ============================================================================
 
 test "moveUp — cursor moves to previous row" {
-    var headers = [_][]const u8{ "Col1" };
+    var headers = [_][]const u8{"Col1"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "A" },
-        &[_][]const u8{ "B" },
+        &[_][]const u8{"A"},
+        &[_][]const u8{"B"},
     };
     var table = EditableTable{
         .headers = &headers,
@@ -126,10 +126,10 @@ test "moveUp — cursor moves to previous row" {
 }
 
 test "moveUp — cursor stays at first row" {
-    var headers = [_][]const u8{ "Col1" };
+    var headers = [_][]const u8{"Col1"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "A" },
-        &[_][]const u8{ "B" },
+        &[_][]const u8{"A"},
+        &[_][]const u8{"B"},
     };
     var table = EditableTable{
         .headers = &headers,
@@ -141,11 +141,11 @@ test "moveUp — cursor stays at first row" {
 }
 
 test "moveUp then moveDown returns to start" {
-    var headers = [_][]const u8{ "Col1" };
+    var headers = [_][]const u8{"Col1"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "A" },
-        &[_][]const u8{ "B" },
-        &[_][]const u8{ "C" },
+        &[_][]const u8{"A"},
+        &[_][]const u8{"B"},
+        &[_][]const u8{"C"},
     };
     var table = EditableTable{
         .headers = &headers,
@@ -235,9 +235,9 @@ test "moveLeft — cursor stays at first column" {
 // ============================================================================
 
 test "startEdit — enters edit mode" {
-    var headers = [_][]const u8{ "Name" };
+    var headers = [_][]const u8{"Name"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "Alice" },
+        &[_][]const u8{"Alice"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -251,9 +251,9 @@ test "startEdit — enters edit mode" {
 }
 
 test "startEdit — copies cell text to edit buffer" {
-    var headers = [_][]const u8{ "Name" };
+    var headers = [_][]const u8{"Name"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "Alice" },
+        &[_][]const u8{"Alice"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -290,9 +290,9 @@ test "startEdit — clears previous edit buffer" {
 // ============================================================================
 
 test "insertChar — appends character to edit buffer" {
-    var headers = [_][]const u8{ "Name" };
+    var headers = [_][]const u8{"Name"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "" },
+        &[_][]const u8{""},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -306,9 +306,9 @@ test "insertChar — appends character to edit buffer" {
 }
 
 test "insertChar — multiple chars build up string" {
-    var headers = [_][]const u8{ "Name" };
+    var headers = [_][]const u8{"Name"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "" },
+        &[_][]const u8{""},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -326,9 +326,9 @@ test "insertChar — multiple chars build up string" {
 }
 
 test "insertChar — respects buffer length limit" {
-    var headers = [_][]const u8{ "Name" };
+    var headers = [_][]const u8{"Name"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "" },
+        &[_][]const u8{""},
     };
     var edit_buf = [_]u8{0} ** 5;
     var table = EditableTable{
@@ -352,9 +352,9 @@ test "insertChar — respects buffer length limit" {
 // ============================================================================
 
 test "deleteChar — removes last character from edit buffer" {
-    var headers = [_][]const u8{ "Name" };
+    var headers = [_][]const u8{"Name"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "Alice" },
+        &[_][]const u8{"Alice"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -368,9 +368,9 @@ test "deleteChar — removes last character from edit buffer" {
 }
 
 test "deleteChar — multiple times empties buffer" {
-    var headers = [_][]const u8{ "Name" };
+    var headers = [_][]const u8{"Name"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "Hi" },
+        &[_][]const u8{"Hi"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -385,9 +385,9 @@ test "deleteChar — multiple times empties buffer" {
 }
 
 test "deleteChar — on empty buffer is safe" {
-    var headers = [_][]const u8{ "Name" };
+    var headers = [_][]const u8{"Name"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "" },
+        &[_][]const u8{""},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -405,9 +405,9 @@ test "deleteChar — on empty buffer is safe" {
 // ============================================================================
 
 test "confirmEdit — exits edit mode" {
-    var headers = [_][]const u8{ "Name" };
+    var headers = [_][]const u8{"Name"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "Alice" },
+        &[_][]const u8{"Alice"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -422,9 +422,9 @@ test "confirmEdit — exits edit mode" {
 }
 
 test "confirmEdit — when not editing is safe" {
-    var headers = [_][]const u8{ "Name" };
+    var headers = [_][]const u8{"Name"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "Alice" },
+        &[_][]const u8{"Alice"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -441,9 +441,9 @@ test "confirmEdit — when not editing is safe" {
 // ============================================================================
 
 test "cancelEdit — exits edit mode" {
-    var headers = [_][]const u8{ "Name" };
+    var headers = [_][]const u8{"Name"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "Alice" },
+        &[_][]const u8{"Alice"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -457,9 +457,9 @@ test "cancelEdit — exits edit mode" {
 }
 
 test "cancelEdit — when not editing is safe" {
-    var headers = [_][]const u8{ "Name" };
+    var headers = [_][]const u8{"Name"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "Alice" },
+        &[_][]const u8{"Alice"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -506,7 +506,7 @@ test "currentCell — different positions" {
 }
 
 test "currentCell — null when no rows" {
-    var headers = [_][]const u8{ "Name" };
+    var headers = [_][]const u8{"Name"};
     var table = EditableTable{
         .headers = &headers,
         .rows = &.{},
@@ -520,9 +520,9 @@ test "currentCell — null when no rows" {
 // ============================================================================
 
 test "editText — returns empty string when not editing" {
-    var headers = [_][]const u8{ "Name" };
+    var headers = [_][]const u8{"Name"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "Alice" },
+        &[_][]const u8{"Alice"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -535,9 +535,9 @@ test "editText — returns empty string when not editing" {
 }
 
 test "editText — returns current edit content when editing" {
-    var headers = [_][]const u8{ "Name" };
+    var headers = [_][]const u8{"Name"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "Alice" },
+        &[_][]const u8{"Alice"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -556,9 +556,9 @@ test "editText — returns current edit content when editing" {
 // ============================================================================
 
 test "render — zero area is safe" {
-    var headers = [_][]const u8{ "Col1" };
+    var headers = [_][]const u8{"Col1"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "A1" },
+        &[_][]const u8{"A1"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -572,9 +572,9 @@ test "render — zero area is safe" {
 }
 
 test "render — zero height is safe" {
-    var headers = [_][]const u8{ "Col1" };
+    var headers = [_][]const u8{"Col1"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "A1" },
+        &[_][]const u8{"A1"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -588,7 +588,7 @@ test "render — zero height is safe" {
 }
 
 test "render — empty rows is safe" {
-    var headers = [_][]const u8{ "Col1" };
+    var headers = [_][]const u8{"Col1"};
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
         .headers = &headers,
@@ -602,7 +602,7 @@ test "render — empty rows is safe" {
 
 test "render — empty headers is safe" {
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "A1" },
+        &[_][]const u8{"A1"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -620,9 +620,9 @@ test "render — empty headers is safe" {
 // ============================================================================
 
 test "render — selected row uses selected_style" {
-    var headers = [_][]const u8{ "Col1" };
+    var headers = [_][]const u8{"Col1"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "A1" },
+        &[_][]const u8{"A1"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -641,9 +641,9 @@ test "render — selected row uses selected_style" {
 }
 
 test "render — editing cell uses editing_style" {
-    var headers = [_][]const u8{ "Col1" };
+    var headers = [_][]const u8{"Col1"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "A1" },
+        &[_][]const u8{"A1"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -663,9 +663,9 @@ test "render — editing cell uses editing_style" {
 }
 
 test "render — header row uses header_style" {
-    var headers = [_][]const u8{ "Col1" };
+    var headers = [_][]const u8{"Col1"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "A1" },
+        &[_][]const u8{"A1"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -684,11 +684,11 @@ test "render — header row uses header_style" {
 // ============================================================================
 
 test "render — scroll_top hides top rows" {
-    var headers = [_][]const u8{ "Col1" };
+    var headers = [_][]const u8{"Col1"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "A1" },
-        &[_][]const u8{ "B1" },
-        &[_][]const u8{ "C1" },
+        &[_][]const u8{"A1"},
+        &[_][]const u8{"B1"},
+        &[_][]const u8{"C1"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -703,9 +703,9 @@ test "render — scroll_top hides top rows" {
 }
 
 test "render — scroll past all content is safe" {
-    var headers = [_][]const u8{ "Col1" };
+    var headers = [_][]const u8{"Col1"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "A1" },
+        &[_][]const u8{"A1"},
     };
     var edit_buf = [_]u8{0} ** 256;
     var table = EditableTable{
@@ -724,9 +724,9 @@ test "render — scroll past all content is safe" {
 // ============================================================================
 
 test "withBlock — sets block wrapper" {
-    var headers = [_][]const u8{ "Col1" };
+    var headers = [_][]const u8{"Col1"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "A1" },
+        &[_][]const u8{"A1"},
     };
     const block = Block{ .borders = .all, .title = "Table" };
     var table = EditableTable{
@@ -739,9 +739,9 @@ test "withBlock — sets block wrapper" {
 }
 
 test "withScroll — sets scroll position" {
-    var headers = [_][]const u8{ "Col1" };
+    var headers = [_][]const u8{"Col1"};
     var rows = [_][]const []const u8{
-        &[_][]const u8{ "A1" },
+        &[_][]const u8{"A1"},
     };
     var table = EditableTable{
         .headers = &headers,

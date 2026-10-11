@@ -37,7 +37,9 @@ test "ScreenResult.reset is reset" {
 test "ScreenResult.push carries a ScreenHandle" {
     const NopScreen = struct {
         pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .cont;
+        }
         pub fn onEnter(_: *@This()) void {}
         pub fn onLeave(_: *@This()) void {}
     };
@@ -50,7 +52,9 @@ test "ScreenResult.push carries a ScreenHandle" {
 test "ScreenResult.replace carries a ScreenHandle" {
     const NopScreen = struct {
         pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .cont;
+        }
         pub fn onEnter(_: *@This()) void {}
         pub fn onLeave(_: *@This()) void {}
     };
@@ -68,8 +72,12 @@ test "ScreenHandle.onEnter calls concrete onEnter" {
     const TrackScreen = struct {
         entered: u32 = 0,
         pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
-        pub fn onEnter(self: *@This()) void { self.entered += 1; }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .cont;
+        }
+        pub fn onEnter(self: *@This()) void {
+            self.entered += 1;
+        }
         pub fn onLeave(_: *@This()) void {}
     };
     var s = TrackScreen{};
@@ -84,9 +92,13 @@ test "ScreenHandle.onLeave calls concrete onLeave" {
     const TrackScreen = struct {
         left: u32 = 0,
         pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .cont;
+        }
         pub fn onEnter(_: *@This()) void {}
-        pub fn onLeave(self: *@This()) void { self.left += 1; }
+        pub fn onLeave(self: *@This()) void {
+            self.left += 1;
+        }
     };
     var s = TrackScreen{};
     const h = ScreenHandle.init(TrackScreen, &s);
@@ -97,7 +109,9 @@ test "ScreenHandle.onLeave calls concrete onLeave" {
 test "ScreenHandle.handleEvent returns the screen result" {
     const PopScreen = struct {
         pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .pop; }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .pop;
+        }
         pub fn onEnter(_: *@This()) void {}
         pub fn onLeave(_: *@This()) void {}
     };
@@ -115,7 +129,9 @@ test "ScreenHandle.render calls concrete render" {
             _ = area;
             self.rendered = true;
         }
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .cont;
+        }
         pub fn onEnter(_: *@This()) void {}
         pub fn onLeave(_: *@This()) void {}
     };
@@ -154,15 +170,23 @@ test "ScreenHandle wraps different screen types independently" {
     const ScreenA = struct {
         val: u32 = 10,
         pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
-        pub fn onEnter(self: *@This()) void { self.val += 1; }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .cont;
+        }
+        pub fn onEnter(self: *@This()) void {
+            self.val += 1;
+        }
         pub fn onLeave(_: *@This()) void {}
     };
     const ScreenB = struct {
         val: u32 = 20,
         pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .pop; }
-        pub fn onEnter(self: *@This()) void { self.val += 2; }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .pop;
+        }
+        pub fn onEnter(self: *@This()) void {
+            self.val += 2;
+        }
         pub fn onLeave(_: *@This()) void {}
     };
 
@@ -194,9 +218,15 @@ test "onEnter followed by onLeave tracks order" {
     const OrderedScreen = struct {
         log_ptr: *std.ArrayList([]const u8),
         pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
-        pub fn onEnter(self: *@This()) void { self.log_ptr.append(testing.allocator, "enter") catch {}; }
-        pub fn onLeave(self: *@This()) void { self.log_ptr.append(testing.allocator, "leave") catch {}; }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .cont;
+        }
+        pub fn onEnter(self: *@This()) void {
+            self.log_ptr.append(testing.allocator, "enter") catch {};
+        }
+        pub fn onLeave(self: *@This()) void {
+            self.log_ptr.append(testing.allocator, "leave") catch {};
+        }
     };
 
     var s = OrderedScreen{ .log_ptr = &log };

@@ -520,13 +520,7 @@ test "Gauge render with NaN ratio renders identically to ratio 0.0" {
 
     // Assert all cells match (both should be empty)
     for (0..10) |x| {
-        try testing.expectEqual(
-            buf_zero.get(@intCast(x), 0).?.char,
-            buf_nan.get(@intCast(x), 0).?.char
-        );
-        try testing.expectEqual(
-            buf_zero.get(@intCast(x), 0).?.style.fg,
-            buf_nan.get(@intCast(x), 0).?.style.fg
-        );
+        try testing.expectEqual(buf_zero.get(@intCast(x), 0).?.char, buf_nan.get(@intCast(x), 0).?.char);
+        try testing.expectEqual(buf_zero.get(@intCast(x), 0).?.style.fg, buf_nan.get(@intCast(x), 0).?.style.fg);
     }
 }

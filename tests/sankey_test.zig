@@ -201,7 +201,7 @@ test "SankeyDiagram.flowCount caps at MAX_FLOWS (64)" {
 
 test "SankeyDiagram.withNodes stores nodes immutably" {
     var nodes1 = [_]SankeyNode{.{ .label = "A", .column = 0 }};
-    var nodes2 = [_]SankeyNode{.{ .label = "B", .column = 1 }, .{ .label = "C", .column = 1 }};
+    var nodes2 = [_]SankeyNode{ .{ .label = "B", .column = 1 }, .{ .label = "C", .column = 1 } };
     const sk1 = SankeyDiagram.init().withNodes(&nodes1);
     const sk2 = sk1.withNodes(&nodes2);
     try testing.expectEqual(@as(usize, 1), sk1.nodeCount());
@@ -210,7 +210,7 @@ test "SankeyDiagram.withNodes stores nodes immutably" {
 
 test "SankeyDiagram.withFlows stores flows immutably" {
     var flows1 = [_]SankeyFlow{.{ .source = 0, .target = 1, .value = 5.0 }};
-    var flows2 = [_]SankeyFlow{.{ .source = 0, .target = 1, .value = 3.0 }, .{ .source = 1, .target = 2, .value = 2.0 }};
+    var flows2 = [_]SankeyFlow{ .{ .source = 0, .target = 1, .value = 3.0 }, .{ .source = 1, .target = 2, .value = 2.0 } };
     const sk1 = SankeyDiagram.init().withFlows(&flows1);
     const sk2 = sk1.withFlows(&flows2);
     try testing.expectEqual(@as(usize, 1), sk1.flowCount());

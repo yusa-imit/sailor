@@ -52,7 +52,8 @@ fn findInArea(buf: Buffer, area: Rect, text: []const u8) bool {
 
             while (cp_idx < cp_count) : (cp_idx += 1) {
                 if (cy >= area.y + area.height or cy >= buf.height or
-                    cx >= area.x + area.width or cx >= buf.width) {
+                    cx >= area.x + area.width or cx >= buf.width)
+                {
                     matched = false;
                     break;
                 }
@@ -92,8 +93,14 @@ fn rowContains(buf: Buffer, row: u16, text: []const u8) bool {
         var col = i;
 
         while (j < cp_len and col < buf.width) : (j += 1) {
-            const cell = buf.getConst(col, row) orelse { matched = false; break; };
-            if (cell.char != cps[j]) { matched = false; break; }
+            const cell = buf.getConst(col, row) orelse {
+                matched = false;
+                break;
+            };
+            if (cell.char != cps[j]) {
+                matched = false;
+                break;
+            }
             col += 1;
         }
 
@@ -974,8 +981,8 @@ test "with Block border renders frame around content" {
 
     // Check for border characters
     try testing.expect(areaHasChar(buf, area, '─') or
-                       areaHasChar(buf, area, '│') or
-                       areaHasChar(buf, area, '┌'));
+        areaHasChar(buf, area, '│') or
+        areaHasChar(buf, area, '┌'));
 }
 
 test "block inner area smaller than outer area" {

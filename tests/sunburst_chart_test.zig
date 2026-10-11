@@ -1159,9 +1159,7 @@ test "SunburstChart.render with label_style applies to labels" {
 test "SunburstChart.render node.style takes precedence over arc_style" {
     var buf = try Buffer.init(testing.allocator, 50, 25);
     defer buf.deinit();
-    var nodes = [_]SunburstNode{
-        .{ .label = "A", .value = @as(f32, 50.0), .style = Style{ .italic = true } }
-    };
+    var nodes = [_]SunburstNode{.{ .label = "A", .value = @as(f32, 50.0), .style = Style{ .italic = true } }};
     const sc = SunburstChart.init()
         .withNodes(&nodes)
         .withArcStyle(Style{ .bold = true });
@@ -1312,9 +1310,7 @@ test "SunburstChart.render single child that is 100% of parent's value" {
     var buf = try Buffer.init(testing.allocator, 50, 25);
     defer buf.deinit();
     var children = [_]SunburstNode{.{ .label = "OnlyChild", .value = @as(f32, 100.0) }};
-    var nodes = [_]SunburstNode{
-        .{ .label = "Parent", .value = @as(f32, 100.0), .children = &children }
-    };
+    var nodes = [_]SunburstNode{.{ .label = "Parent", .value = @as(f32, 100.0), .children = &children }};
     const sc = SunburstChart.init().withNodes(&nodes);
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 25 };
     sc.render(&buf, area);
@@ -1329,9 +1325,7 @@ test "SunburstChart.render many small children (all near-zero but positive)" {
     for (0..8) |i| {
         children[i] = .{ .label = "Small", .value = @as(f32, 0.001) };
     }
-    var nodes = [_]SunburstNode{
-        .{ .label = "Parent", .value = @as(f32, 1.0), .children = &children }
-    };
+    var nodes = [_]SunburstNode{.{ .label = "Parent", .value = @as(f32, 1.0), .children = &children }};
     const sc = SunburstChart.init().withNodes(&nodes);
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 30 };
     sc.render(&buf, area);

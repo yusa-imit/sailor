@@ -624,7 +624,7 @@ test "Autocomplete.render with block draws border" {
     const block = (Block{}).withTitle("Autocomplete", .top_left);
     _ = ac.setBlock(block);
 
-    try ac.setSuggestions(&.{ "hello" });
+    try ac.setSuggestions(&.{"hello"});
 
     var buf = try Buffer.init(allocator, 20, 10);
     defer buf.deinit();

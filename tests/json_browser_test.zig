@@ -158,7 +158,7 @@ test "moveDown — skips collapsed children" {
         .{ .kind = .object_open, .depth = 0 },
         .{ .kind = .object_open, .key = "inner", .depth = 1, .collapsed = true },
         .{ .kind = .string, .key = "x", .value = "\"hi\"", .depth = 2 }, // hidden
-        .{ .kind = .object_close, .depth = 1 },                          // hidden
+        .{ .kind = .object_close, .depth = 1 }, // hidden
         .{ .kind = .number, .key = "n", .value = "42", .depth = 1 },
         .{ .kind = .object_close, .depth = 0 },
     };
@@ -176,7 +176,7 @@ test "moveUp — skips collapsed children" {
         .{ .kind = .object_open, .depth = 0 },
         .{ .kind = .object_open, .key = "inner", .depth = 1, .collapsed = true },
         .{ .kind = .string, .key = "x", .value = "\"hi\"", .depth = 2 }, // hidden
-        .{ .kind = .object_close, .depth = 1 },                          // hidden
+        .{ .kind = .object_close, .depth = 1 }, // hidden
         .{ .kind = .number, .key = "n", .value = "42", .depth = 1 },
         .{ .kind = .object_close, .depth = 0 },
     };
@@ -193,11 +193,11 @@ test "moveDown — deeply nested collapse skips all descendants" {
     // Object with nested object, inner collapsed
     var nodes = [_]Node{
         .{ .kind = .object_open, .depth = 0, .collapsed = true }, // cursor starts here
-        .{ .kind = .object_open, .key = "a", .depth = 1 },        // hidden
+        .{ .kind = .object_open, .key = "a", .depth = 1 }, // hidden
         .{ .kind = .number, .key = "b", .value = "1", .depth = 2 }, // hidden
-        .{ .kind = .object_close, .depth = 1 },                    // hidden
-        .{ .kind = .object_close, .depth = 0 },                    // hidden (matching close)
-        .{ .kind = .number, .value = "99", .depth = 0 },           // visible sibling
+        .{ .kind = .object_close, .depth = 1 }, // hidden
+        .{ .kind = .object_close, .depth = 0 }, // hidden (matching close)
+        .{ .kind = .number, .value = "99", .depth = 0 }, // visible sibling
     };
     var b = JsonBrowser{ .nodes = &nodes };
     b.moveDown();
@@ -233,7 +233,7 @@ test "render — empty node list is safe" {
 }
 
 test "render — zero width is safe" {
-    var nodes = [_]Node{ .{ .kind = .number, .value = "1", .depth = 0 } };
+    var nodes = [_]Node{.{ .kind = .number, .value = "1", .depth = 0 }};
     var b = JsonBrowser{ .nodes = &nodes };
     var buf = try makeBuffer(testing.allocator, 10, 5);
     defer buf.deinit();
@@ -241,7 +241,7 @@ test "render — zero width is safe" {
 }
 
 test "render — zero height is safe" {
-    var nodes = [_]Node{ .{ .kind = .number, .value = "1", .depth = 0 } };
+    var nodes = [_]Node{.{ .kind = .number, .value = "1", .depth = 0 }};
     var b = JsonBrowser{ .nodes = &nodes };
     var buf = try makeBuffer(testing.allocator, 10, 5);
     defer buf.deinit();
@@ -438,8 +438,8 @@ test "render — sibling after collapsed object is visible" {
         .{ .kind = .object_open, .depth = 0 },
         .{ .kind = .object_open, .key = "a", .depth = 1, .collapsed = true },
         .{ .kind = .string, .key = "x", .value = "\"v\"", .depth = 2 }, // hidden
-        .{ .kind = .object_close, .depth = 1 },                          // hidden
-        .{ .kind = .number, .key = "b", .value = "99", .depth = 1 },    // visible
+        .{ .kind = .object_close, .depth = 1 }, // hidden
+        .{ .kind = .number, .key = "b", .value = "99", .depth = 1 }, // visible
         .{ .kind = .object_close, .depth = 0 },
     };
     var b = JsonBrowser{ .nodes = &nodes };

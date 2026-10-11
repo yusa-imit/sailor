@@ -706,7 +706,7 @@ test "RangeSlider render narrow area width=3 renders at least one char" {
     rs.render(&buf, area);
     // Should render at least one track character
     try testing.expect(rowHasChar(buf, 0, '◄') or rowHasChar(buf, 0, '►') or
-                       rowHasChar(buf, 0, '─') or rowHasChar(buf, 0, '═'));
+        rowHasChar(buf, 0, '─') or rowHasChar(buf, 0, '═'));
 }
 
 // ============================================================================
@@ -814,13 +814,7 @@ test "RangeSlider with NaN low value renders identically to low = min" {
 
     // Assert all cells match
     for (0..80) |x| {
-        try testing.expectEqual(
-            buf_min.get(@intCast(x), 0).?.char,
-            buf_nan.get(@intCast(x), 0).?.char
-        );
-        try testing.expectEqual(
-            buf_min.get(@intCast(x), 0).?.style.fg,
-            buf_nan.get(@intCast(x), 0).?.style.fg
-        );
+        try testing.expectEqual(buf_min.get(@intCast(x), 0).?.char, buf_nan.get(@intCast(x), 0).?.char);
+        try testing.expectEqual(buf_min.get(@intCast(x), 0).?.style.fg, buf_nan.get(@intCast(x), 0).?.style.fg);
     }
 }

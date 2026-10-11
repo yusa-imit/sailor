@@ -81,13 +81,13 @@ test "ColorSwatch init defaults columns to 4" {
 }
 
 test "ColorSwatch init defaults swatch_width to 3" {
-    const colors = [_]Color{ .red };
+    const colors = [_]Color{.red};
     const cs = ColorSwatch.init(&colors);
     try testing.expectEqual(@as(u16, 3), cs.swatch_width);
 }
 
 test "ColorSwatch init defaults show_labels to false" {
-    const colors = [_]Color{ .red };
+    const colors = [_]Color{.red};
     const cs = ColorSwatch.init(&colors);
     try testing.expect(!cs.show_labels);
 }
@@ -137,7 +137,7 @@ test "ColorSwatch selectNext on empty colors does not crash" {
 }
 
 test "ColorSwatch selectNext with single color stays at 0" {
-    var cs = ColorSwatch.init(&[_]Color{ .red });
+    var cs = ColorSwatch.init(&[_]Color{.red});
     cs.selectNext();
     try testing.expectEqual(@as(usize, 0), cs.selected);
 }
@@ -167,7 +167,7 @@ test "ColorSwatch selectPrev on empty colors does not crash" {
 }
 
 test "ColorSwatch selectPrev with single color stays at 0" {
-    var cs = ColorSwatch.init(&[_]Color{ .red });
+    var cs = ColorSwatch.init(&[_]Color{.red});
     cs.selectPrev();
     try testing.expectEqual(@as(usize, 0), cs.selected);
 }
@@ -308,7 +308,7 @@ test "ColorSwatch selectUp with columns=4 from 5 goes to 1" {
 // ============================================================================
 
 test "ColorSwatch withColors returns new instance with colors" {
-    const cs1 = ColorSwatch.init(&[_]Color{ .red });
+    const cs1 = ColorSwatch.init(&[_]Color{.red});
     const colors2 = [_]Color{ .green, .blue };
     const cs2 = cs1.withColors(&colors2);
     try testing.expectEqual(@as(usize, 2), cs2.colors.len);
@@ -322,59 +322,59 @@ test "ColorSwatch withSelected returns new instance with selected index" {
 }
 
 test "ColorSwatch withColumns returns new instance with columns" {
-    const cs1 = ColorSwatch.init(&[_]Color{ .red });
+    const cs1 = ColorSwatch.init(&[_]Color{.red});
     const cs2 = cs1.withColumns(6);
     try testing.expectEqual(@as(u16, 6), cs2.columns);
 }
 
 test "ColorSwatch withSwatchWidth returns new instance with swatch_width" {
-    const cs1 = ColorSwatch.init(&[_]Color{ .red });
+    const cs1 = ColorSwatch.init(&[_]Color{.red});
     const cs2 = cs1.withSwatchWidth(5);
     try testing.expectEqual(@as(u16, 5), cs2.swatch_width);
 }
 
 test "ColorSwatch withSwatchHeight returns new instance with swatch_height" {
-    const cs1 = ColorSwatch.init(&[_]Color{ .red });
+    const cs1 = ColorSwatch.init(&[_]Color{.red});
     const cs2 = cs1.withSwatchHeight(2);
     try testing.expectEqual(@as(u16, 2), cs2.swatch_height);
 }
 
 test "ColorSwatch withShowLabels returns new instance with show_labels" {
-    const cs1 = ColorSwatch.init(&[_]Color{ .red });
+    const cs1 = ColorSwatch.init(&[_]Color{.red});
     const cs2 = cs1.withShowLabels(true);
     try testing.expect(cs2.show_labels);
 }
 
 test "ColorSwatch withStyle returns new instance with style" {
-    const cs1 = ColorSwatch.init(&[_]Color{ .red });
+    const cs1 = ColorSwatch.init(&[_]Color{.red});
     const style = Style{ .bold = true };
     const cs2 = cs1.withStyle(style);
     try testing.expect(cs2.style.bold);
 }
 
 test "ColorSwatch withSelectedStyle returns new instance with selected_style" {
-    const cs1 = ColorSwatch.init(&[_]Color{ .red });
+    const cs1 = ColorSwatch.init(&[_]Color{.red});
     const style = Style{ .fg = .yellow };
     const cs2 = cs1.withSelectedStyle(style);
     try testing.expect(std.meta.eql(cs2.selected_style.fg, Color.yellow));
 }
 
 test "ColorSwatch withLabelStyle returns new instance with label_style" {
-    const cs1 = ColorSwatch.init(&[_]Color{ .red });
+    const cs1 = ColorSwatch.init(&[_]Color{.red});
     const style = Style{ .fg = .cyan };
     const cs2 = cs1.withLabelStyle(style);
     try testing.expect(std.meta.eql(cs2.label_style.fg, Color.cyan));
 }
 
 test "ColorSwatch withLabels returns new instance with labels" {
-    const cs1 = ColorSwatch.init(&[_]Color{ .red });
-    const labels = [_][]const u8{ "Red" };
+    const cs1 = ColorSwatch.init(&[_]Color{.red});
+    const labels = [_][]const u8{"Red"};
     const cs2 = cs1.withLabels(&labels);
     try testing.expectEqual(@as(usize, 1), cs2.labels.len);
 }
 
 test "ColorSwatch withBlock returns new instance with block set" {
-    const cs1 = ColorSwatch.init(&[_]Color{ .red });
+    const cs1 = ColorSwatch.init(&[_]Color{.red});
     const block = Block{};
     const cs2 = cs1.withBlock(block);
     try testing.expect(cs2.block != null);
@@ -387,7 +387,7 @@ test "ColorSwatch withBlock returns new instance with block set" {
 test "ColorSwatch render with zero width area does not crash" {
     var buf = try makeBuffer(10, 5);
     defer buf.deinit();
-    const cs = ColorSwatch.init(&[_]Color{ .red });
+    const cs = ColorSwatch.init(&[_]Color{.red});
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 5 };
     cs.render(&buf, area);
 }
@@ -395,7 +395,7 @@ test "ColorSwatch render with zero width area does not crash" {
 test "ColorSwatch render with zero height area does not crash" {
     var buf = try makeBuffer(10, 5);
     defer buf.deinit();
-    const cs = ColorSwatch.init(&[_]Color{ .red });
+    const cs = ColorSwatch.init(&[_]Color{.red});
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 0 };
     cs.render(&buf, area);
 }
@@ -419,7 +419,7 @@ test "ColorSwatch render with empty colors does not crash" {
 test "ColorSwatch render single color fills with correct background" {
     var buf = try makeBuffer(10, 5);
     defer buf.deinit();
-    const cs = ColorSwatch.init(&[_]Color{ .red }).withSwatchWidth(3).withSwatchHeight(1);
+    const cs = ColorSwatch.init(&[_]Color{.red}).withSwatchWidth(3).withSwatchHeight(1);
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     cs.render(&buf, area);
 
@@ -493,7 +493,7 @@ test "ColorSwatch render non-selected cell does not have marker" {
 test "ColorSwatch render cell background fills full width and height" {
     var buf = try makeBuffer(10, 5);
     defer buf.deinit();
-    const cs = ColorSwatch.init(&[_]Color{ .red }).withSwatchWidth(4).withSwatchHeight(2);
+    const cs = ColorSwatch.init(&[_]Color{.red}).withSwatchWidth(4).withSwatchHeight(2);
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
     cs.render(&buf, area);
 
@@ -509,8 +509,8 @@ test "ColorSwatch render cell background fills full width and height" {
 test "ColorSwatch render with show_labels=false has no label text" {
     var buf = try makeBuffer(10, 10);
     defer buf.deinit();
-    const colors = [_]Color{ .red };
-    const labels = [_][]const u8{ "Red" };
+    const colors = [_]Color{.red};
+    const labels = [_][]const u8{"Red"};
     const cs = ColorSwatch.init(&colors).withLabels(&labels).withShowLabels(false);
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
     cs.render(&buf, area);
@@ -527,8 +527,8 @@ test "ColorSwatch render with show_labels=false has no label text" {
 test "ColorSwatch render with show_labels=true and labels renders text" {
     var buf = try makeBuffer(20, 10);
     defer buf.deinit();
-    const colors = [_]Color{ .red };
-    const labels = [_][]const u8{ "RED" };
+    const colors = [_]Color{.red};
+    const labels = [_][]const u8{"RED"};
     const cs = ColorSwatch.init(&colors)
         .withLabels(&labels)
         .withShowLabels(true)
@@ -544,8 +544,8 @@ test "ColorSwatch render with show_labels=true and labels renders text" {
 test "ColorSwatch render with show_labels=true and empty labels does not crash" {
     var buf = try makeBuffer(10, 10);
     defer buf.deinit();
-    const colors = [_]Color{ .red };
-    const labels = [_][]const u8{ "" };
+    const colors = [_]Color{.red};
+    const labels = [_][]const u8{""};
     const cs = ColorSwatch.init(&colors)
         .withLabels(&labels)
         .withShowLabels(true);
@@ -556,8 +556,8 @@ test "ColorSwatch render with show_labels=true and empty labels does not crash" 
 test "ColorSwatch render with narrow area and labels does not crash" {
     var buf = try makeBuffer(5, 10);
     defer buf.deinit();
-    const colors = [_]Color{ .red };
-    const labels = [_][]const u8{ "RED" };
+    const colors = [_]Color{.red};
+    const labels = [_][]const u8{"RED"};
     const cs = ColorSwatch.init(&colors)
         .withLabels(&labels)
         .withShowLabels(true)
@@ -573,7 +573,7 @@ test "ColorSwatch render with narrow area and labels does not crash" {
 test "ColorSwatch render with block renders border" {
     var buf = try makeBuffer(10, 10);
     defer buf.deinit();
-    const colors = [_]Color{ .red };
+    const colors = [_]Color{.red};
     const block = Block{};
     const cs = ColorSwatch.init(&colors).withBlock(block);
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
@@ -589,7 +589,7 @@ test "ColorSwatch render with block renders border" {
 test "ColorSwatch render with block and small area does not crash" {
     var buf = try makeBuffer(6, 6);
     defer buf.deinit();
-    const colors = [_]Color{ .red };
+    const colors = [_]Color{.red};
     const block = Block{};
     const cs = ColorSwatch.init(&colors).withBlock(block);
     const area = Rect{ .x = 0, .y = 0, .width = 6, .height = 6 };
@@ -615,7 +615,7 @@ test "ColorSwatch render with swatch_width=1 single column" {
 test "ColorSwatch render with area exactly one swatch" {
     var buf = try makeBuffer(3, 1);
     defer buf.deinit();
-    const cs = ColorSwatch.init(&[_]Color{ .red }).withSwatchWidth(3).withSwatchHeight(1);
+    const cs = ColorSwatch.init(&[_]Color{.red}).withSwatchWidth(3).withSwatchHeight(1);
     const area = Rect{ .x = 0, .y = 0, .width = 3, .height = 1 };
     cs.render(&buf, area);
 
@@ -626,7 +626,7 @@ test "ColorSwatch render with area exactly one swatch" {
 test "ColorSwatch render with very small area" {
     var buf = try makeBuffer(2, 2);
     defer buf.deinit();
-    const cs = ColorSwatch.init(&[_]Color{ .red }).withSwatchWidth(2);
+    const cs = ColorSwatch.init(&[_]Color{.red}).withSwatchWidth(2);
     const area = Rect{ .x = 0, .y = 0, .width = 2, .height = 2 };
     cs.render(&buf, area);
 }
@@ -659,9 +659,9 @@ test "ColorSwatch builder chaining withColors and withSelected" {
 
 test "ColorSwatch selectRight followed by selectNext" {
     var cs = ColorSwatch.init(&[_]Color{ .red, .green, .blue, .yellow, .magenta }).withColumns(2);
-    cs.selectRight();  // 0 -> 1
+    cs.selectRight(); // 0 -> 1
     try testing.expectEqual(@as(usize, 1), cs.selected);
-    cs.selectNext();   // 1 -> 2
+    cs.selectNext(); // 1 -> 2
     try testing.expectEqual(@as(usize, 2), cs.selected);
 }
 
@@ -703,7 +703,7 @@ test "ColorSwatch multi-row grid with 8 colors, columns=4" {
 
 test "ColorSwatch selectDown at edge of partial last row" {
     var cs = ColorSwatch.init(&[_]Color{ .red, .green, .blue, .yellow, .magenta, .cyan }).withColumns(4);
-    cs.selected = 2;  // Row 0, col 2
-    cs.selectDown();  // 2 + 4 = 6 >= len(6), clamps to last index 5
+    cs.selected = 2; // Row 0, col 2
+    cs.selectDown(); // 2 + 4 = 6 >= len(6), clamps to last index 5
     try testing.expectEqual(@as(usize, 5), cs.selected);
 }

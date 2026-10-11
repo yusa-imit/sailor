@@ -172,9 +172,9 @@ test "Pager.scrollDown clamps at bottom of content" {
 
     pager.scrollDown(10);
     pager.scrollDown(10);
-    pager.scrollDown(10);  // Try to go past end
+    pager.scrollDown(10); // Try to go past end
 
-    try testing.expectEqual(@as(usize, 2), pager.scroll_y);  // Clamped to line count
+    try testing.expectEqual(@as(usize, 2), pager.scroll_y); // Clamped to line count
 }
 
 test "Pager.scrollDown on empty lines is no-op" {
@@ -227,8 +227,8 @@ test "Pager.scrollRight clamps at maximum line width" {
     const lines = &[_][]const u8{"short"};
     var pager = Pager.init(lines);
 
-    pager.scrollRight(100);  // Try to go past end
-    try testing.expectEqual(@as(usize, 5), pager.scroll_x);  // Clamped to line width
+    pager.scrollRight(100); // Try to go past end
+    try testing.expectEqual(@as(usize, 5), pager.scroll_x); // Clamped to line width
 }
 
 test "Pager.scrollLeft retreats horizontal offset" {
@@ -244,7 +244,7 @@ test "Pager.scrollLeft clamps at zero" {
     const lines = &[_][]const u8{"test"};
     var pager = Pager.init(lines);
 
-    pager.scrollLeft(10);  // Try to go before start
+    pager.scrollLeft(10); // Try to go before start
     try testing.expectEqual(@as(usize, 0), pager.scroll_x);
 }
 
@@ -258,7 +258,7 @@ test "Pager.pageDown moves down by area height" {
     };
     var pager = Pager.init(lines);
 
-    pager.pageDown(5);  // Move down by 5
+    pager.pageDown(5); // Move down by 5
     try testing.expectEqual(@as(usize, 5), pager.scroll_y);
 }
 
@@ -266,8 +266,8 @@ test "Pager.pageDown clamps at bottom" {
     const lines = &[_][]const u8{ "L1", "L2", "L3" };
     var pager = Pager.init(lines);
 
-    pager.pageDown(100);  // Try to move past end
-    try testing.expectEqual(@as(usize, 3), pager.scroll_y);  // Clamped
+    pager.pageDown(100); // Try to move past end
+    try testing.expectEqual(@as(usize, 3), pager.scroll_y); // Clamped
 }
 
 test "Pager.pageUp moves up by area height" {
@@ -277,7 +277,7 @@ test "Pager.pageUp moves up by area height" {
     var pager = Pager.init(lines);
     pager.scroll_y = 8;
 
-    pager.pageUp(5);  // Move up by 5
+    pager.pageUp(5); // Move up by 5
     try testing.expectEqual(@as(usize, 3), pager.scroll_y);
 }
 
@@ -285,7 +285,7 @@ test "Pager.pageUp clamps at zero" {
     const lines = &[_][]const u8{ "L1", "L2", "L3" };
     var pager = Pager.init(lines);
 
-    pager.pageUp(100);  // Try to move before start
+    pager.pageUp(100); // Try to move before start
     try testing.expectEqual(@as(usize, 0), pager.scroll_y);
 }
 
@@ -333,8 +333,8 @@ test "Pager.goToLine clamps within bounds" {
     const lines = &[_][]const u8{ "L1", "L2", "L3" };
     var pager = Pager.init(lines);
 
-    pager.goToLine(10);  // Out of bounds
-    try testing.expectEqual(@as(usize, 3), pager.scroll_y);  // Clamped
+    pager.goToLine(10); // Out of bounds
+    try testing.expectEqual(@as(usize, 3), pager.scroll_y); // Clamped
 }
 
 test "Pager.goToLine on empty lines is no-op" {
@@ -451,7 +451,7 @@ test "Pager.render respects scroll_y offset" {
 
     const lines = &[_][]const u8{ "Line1", "Line2", "Line3" };
     var pager = Pager.init(lines);
-    pager.scroll_y = 1;  // Start from Line2
+    pager.scroll_y = 1; // Start from Line2
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
     pager.render(&buf, area);
@@ -539,7 +539,7 @@ test "Pager.render without line numbers flag omits prefix" {
     defer buf.deinit();
 
     const lines = &[_][]const u8{"Content"};
-    const pager = Pager.init(lines);  // No withLineNumbers
+    const pager = Pager.init(lines); // No withLineNumbers
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
 
     pager.render(&buf, area);
@@ -625,7 +625,7 @@ test "Pager.render respects case sensitivity for search" {
     const pager = Pager.init(lines)
         .withSearchQuery("find")
         .withHighlightStyle(.{ .bold = true })
-        .withCaseSensitive(true);  // Case sensitive
+        .withCaseSensitive(true); // Case sensitive
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
     pager.render(&buf, area);
@@ -650,7 +650,7 @@ test "Pager.render case-insensitive search matches" {
     const pager = Pager.init(lines)
         .withSearchQuery("find")
         .withHighlightStyle(.{ .bold = true })
-        .withCaseSensitive(false);  // Case insensitive
+        .withCaseSensitive(false); // Case insensitive
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
     pager.render(&buf, area);
