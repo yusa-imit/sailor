@@ -313,7 +313,7 @@ test "fiveNumberSummary computes correct IQR" {
     var values = [_]f32{ 1.0, 2.0, 3.0, 4.0, 5.0 };
     const fns = fiveNumberSummary(&values);
 
-    const iqr = fns.q3 - fns.q1;  // 4.0 - 2.0 = 2.0
+    const iqr = fns.q3 - fns.q1; // 4.0 - 2.0 = 2.0
     try testing.expectEqual(@as(f32, 2.0), iqr);
 }
 
@@ -870,14 +870,12 @@ test "BoxPlot.render changing focused index applies style to different series" {
         while (x < area.x + area.width) : (x += 1) {
             if (buf1.getConst(x, y)) |cell| {
                 if ((cell.char == '█' or cell.char == '│' or cell.char == '─' or cell.char == '━') and cell.style.bold) {
-                    if (x < series0_band_end) buf1_series0_bold += 1
-                    else buf1_series1_bold += 1;
+                    if (x < series0_band_end) buf1_series0_bold += 1 else buf1_series1_bold += 1;
                 }
             }
             if (buf2.getConst(x, y)) |cell| {
                 if ((cell.char == '█' or cell.char == '│' or cell.char == '─' or cell.char == '━') and cell.style.bold) {
-                    if (x < series0_band_end) buf2_series0_bold += 1
-                    else buf2_series1_bold += 1;
+                    if (x < series0_band_end) buf2_series0_bold += 1 else buf2_series1_bold += 1;
                 }
             }
         }
@@ -1227,7 +1225,7 @@ test "BoxPlot.render does not exceed buffer bounds" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
     bp.render(&buf, area);
     const non_empty = countNonEmptyCells(buf, area);
-    try testing.expect(non_empty <= 3200);  // 80*40 max
+    try testing.expect(non_empty <= 3200); // 80*40 max
 }
 
 test "BoxPlot.render with buffer offset does not write outside area" {

@@ -296,8 +296,8 @@ test "grandTotal with zero columns returns 0" {
 }
 
 test "grandTotal sums columnTotal across all columns" {
-    var segs1 = [_]MosaicSegment{.{ .value = 10 }, .{ .value = 20 }};
-    var segs2 = [_]MosaicSegment{.{ .value = 30 }, .{ .value = 40 }};
+    var segs1 = [_]MosaicSegment{ .{ .value = 10 }, .{ .value = 20 } };
+    var segs2 = [_]MosaicSegment{ .{ .value = 30 }, .{ .value = 40 } };
     var cols = [_]MosaicColumn{
         .{ .segments = &segs1 },
         .{ .segments = &segs2 },
@@ -495,8 +495,8 @@ test "render multiple columns produces content" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
 
-    var segs1 = [_]MosaicSegment{.{ .value = 30 }, .{ .value = 20 }};
-    var segs2 = [_]MosaicSegment{.{ .value = 40 }, .{ .value = 10 }};
+    var segs1 = [_]MosaicSegment{ .{ .value = 30 }, .{ .value = 20 } };
+    var segs2 = [_]MosaicSegment{ .{ .value = 40 }, .{ .value = 10 } };
     var cols = [_]MosaicColumn{
         .{ .label = "C1", .segments = &segs1 },
         .{ .label = "C2", .segments = &segs2 },
@@ -513,8 +513,8 @@ test "render three columns with varying segment counts" {
     defer buf.deinit();
 
     var segs1 = [_]MosaicSegment{.{ .value = 10 }};
-    var segs2 = [_]MosaicSegment{.{ .value = 20 }, .{ .value = 30 }};
-    var segs3 = [_]MosaicSegment{.{ .value = 15 }, .{ .value = 25 }, .{ .value = 10 }};
+    var segs2 = [_]MosaicSegment{ .{ .value = 20 }, .{ .value = 30 } };
+    var segs3 = [_]MosaicSegment{ .{ .value = 15 }, .{ .value = 25 }, .{ .value = 10 } };
     var cols = [_]MosaicColumn{
         .{ .segments = &segs1 },
         .{ .segments = &segs2 },
@@ -609,17 +609,17 @@ test "three equal-value columns render roughly equal-width" {
     plot.render(&buf, area);
     // Verify all three columns render at correct x-boundaries
     // Check middle of each column at y=5
-    const cell_c1 = getCell(buf, area, 15, 5);  // x=15, middle of [0,30)
-    const cell_c2 = getCell(buf, area, 45, 5);  // x=45, middle of [30,60)
-    const cell_c3 = getCell(buf, area, 75, 5);  // x=75, middle of [60,90)
+    const cell_c1 = getCell(buf, area, 15, 5); // x=15, middle of [0,30)
+    const cell_c2 = getCell(buf, area, 45, 5); // x=45, middle of [30,60)
+    const cell_c3 = getCell(buf, area, 75, 5); // x=75, middle of [60,90)
     try testing.expect(cell_c1 != null and cell_c1.?.char != ' ');
     try testing.expect(cell_c2 != null and cell_c2.?.char != ' ');
     try testing.expect(cell_c3 != null and cell_c3.?.char != ' ');
     // Verify boundaries at expected transitions
-    const boundary_1 = getCell(buf, area, 29, 5);  // x=29, end of C1
-    const boundary_2 = getCell(buf, area, 30, 5);  // x=30, start of C2
-    const boundary_3 = getCell(buf, area, 59, 5);  // x=59, end of C2
-    const boundary_4 = getCell(buf, area, 60, 5);  // x=60, start of C3
+    const boundary_1 = getCell(buf, area, 29, 5); // x=29, end of C1
+    const boundary_2 = getCell(buf, area, 30, 5); // x=30, start of C2
+    const boundary_3 = getCell(buf, area, 59, 5); // x=59, end of C2
+    const boundary_4 = getCell(buf, area, 60, 5); // x=60, start of C3
     try testing.expect(boundary_1 != null and boundary_1.?.char != ' ');
     try testing.expect(boundary_2 != null and boundary_2.?.char != ' ');
     try testing.expect(boundary_3 != null and boundary_3.?.char != ' ');
@@ -647,8 +647,8 @@ test "very unequal column values render proportionally" {
 
     plot.render(&buf, area);
     // Verify narrow C1 (width=10) at x=[0,10) and wide C2 (width=90) at x=[10,100)
-    const cell_c1 = getCell(buf, area, 5, 5);   // x=5, middle of [0,10)
-    const cell_c2 = getCell(buf, area, 55, 5);  // x=55, middle of [10,100)
+    const cell_c1 = getCell(buf, area, 5, 5); // x=5, middle of [0,10)
+    const cell_c2 = getCell(buf, area, 55, 5); // x=55, middle of [10,100)
     try testing.expect(cell_c1 != null and cell_c1.?.char != ' ');
     try testing.expect(cell_c2 != null and cell_c2.?.char != ' ');
     // Verify boundary at x=10
@@ -687,16 +687,16 @@ test "segment heights within column are proportional to values" {
     // Verify segment heights by checking cells at boundaries
     // Column x is at [0,60), check middle at x=30
     // S1 should be at y=[1,3), S2 at y=[3,8), S3 at y=[8,15)
-    const cell_s1 = getCell(buf, area, 30, 2);   // y=2, middle of S1 [1,3)
-    const cell_s2 = getCell(buf, area, 30, 5);   // y=5, middle of S2 [3,8)
-    const cell_s3 = getCell(buf, area, 30, 11);  // y=11, middle of S3 [8,15)
+    const cell_s1 = getCell(buf, area, 30, 2); // y=2, middle of S1 [1,3)
+    const cell_s2 = getCell(buf, area, 30, 5); // y=5, middle of S2 [3,8)
+    const cell_s3 = getCell(buf, area, 30, 11); // y=11, middle of S3 [8,15)
     try testing.expect(cell_s1 != null and cell_s1.?.char != ' ');
     try testing.expect(cell_s2 != null and cell_s2.?.char != ' ');
     try testing.expect(cell_s3 != null and cell_s3.?.char != ' ');
     // Verify segment boundaries
-    const boundary_s1_end = getCell(buf, area, 30, 2);  // y=2, end of S1
+    const boundary_s1_end = getCell(buf, area, 30, 2); // y=2, end of S1
     const boundary_s2_start = getCell(buf, area, 30, 3); // y=3, start of S2
-    const boundary_s2_end = getCell(buf, area, 30, 7);  // y=7, end of S2
+    const boundary_s2_end = getCell(buf, area, 30, 7); // y=7, end of S2
     const boundary_s3_start = getCell(buf, area, 30, 8); // y=8, start of S3
     try testing.expect(boundary_s1_end != null and boundary_s1_end.?.char != ' ');
     try testing.expect(boundary_s2_start != null and boundary_s2_start.?.char != ' ');
@@ -728,16 +728,16 @@ test "equal-value segments render equal heights" {
     plot.render(&buf, area);
     // Verify segments render with roughly equal heights
     // Check middle of each segment at x=30
-    const cell_s1 = getCell(buf, area, 30, 3);   // y=3, middle of S1 [1,5)
-    const cell_s2 = getCell(buf, area, 30, 7);   // y=7, middle of S2 [5,10)
-    const cell_s3 = getCell(buf, area, 30, 12);  // y=12, middle of S3 [10,15)
+    const cell_s1 = getCell(buf, area, 30, 3); // y=3, middle of S1 [1,5)
+    const cell_s2 = getCell(buf, area, 30, 7); // y=7, middle of S2 [5,10)
+    const cell_s3 = getCell(buf, area, 30, 12); // y=12, middle of S3 [10,15)
     try testing.expect(cell_s1 != null and cell_s1.?.char != ' ');
     try testing.expect(cell_s2 != null and cell_s2.?.char != ' ');
     try testing.expect(cell_s3 != null and cell_s3.?.char != ' ');
     // Verify segment boundaries to ensure heights are proportionally correct
-    const boundary_s1_end = getCell(buf, area, 30, 4);   // y=4, end of S1
+    const boundary_s1_end = getCell(buf, area, 30, 4); // y=4, end of S1
     const boundary_s2_start = getCell(buf, area, 30, 5); // y=5, start of S2
-    const boundary_s2_end = getCell(buf, area, 30, 9);   // y=9, end of S2
+    const boundary_s2_end = getCell(buf, area, 30, 9); // y=9, end of S2
     const boundary_s3_start = getCell(buf, area, 30, 10); // y=10, start of S3
     try testing.expect(boundary_s1_end != null and boundary_s1_end.?.char != ' ');
     try testing.expect(boundary_s2_start != null and boundary_s2_start.?.char != ' ');
@@ -763,8 +763,8 @@ test "single large segment fills most of column height" {
     plot.render(&buf, area);
     // Verify segment fills most/all of the plot area height
     // Check that segment content spans from y=1 (after header) to y=14
-    const cell_top = getCell(buf, area, 30, 1);     // y=1, top of segment
-    const cell_mid = getCell(buf, area, 30, 7);     // y=7, middle
+    const cell_top = getCell(buf, area, 30, 1); // y=1, top of segment
+    const cell_mid = getCell(buf, area, 30, 7); // y=7, middle
     const cell_bottom = getCell(buf, area, 30, 14); // y=14, near bottom
     try testing.expect(cell_top != null and cell_top.?.char != ' ');
     try testing.expect(cell_mid != null and cell_mid.?.char != ' ');
@@ -1149,11 +1149,11 @@ test "render with Block renders frame around content" {
 
     // Block border should render — at least one border glyph
     const has_border = countChar(buf, area, '─') > 0 or
-                       countChar(buf, area, '│') > 0 or
-                       countChar(buf, area, '┌') > 0 or
-                       countChar(buf, area, '┐') > 0 or
-                       countChar(buf, area, '└') > 0 or
-                       countChar(buf, area, '┘') > 0;
+        countChar(buf, area, '│') > 0 or
+        countChar(buf, area, '┌') > 0 or
+        countChar(buf, area, '┐') > 0 or
+        countChar(buf, area, '└') > 0 or
+        countChar(buf, area, '┘') > 0;
     try testing.expect(has_border);
 }
 

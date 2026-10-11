@@ -57,7 +57,7 @@ jobs:
 
       - name: Check formatting
         if: matrix.os == 'Linux'
-        run: zig fmt --check src build.zig build_support examples benchmarks scripts
+        run: zig fmt --check src build.zig build_support examples benchmarks scripts tests
 
       - name: Build
         run: zig build

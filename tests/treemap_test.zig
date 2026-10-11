@@ -76,7 +76,8 @@ fn findTextInArea(buf: Buffer, area: Rect, text: []const u8) bool {
 
             while (text_idx < text.len) : (text_idx += 1) {
                 if (cy >= area.y + area.height or cy >= buf.height or
-                    cx >= area.x + area.width or cx >= buf.width) {
+                    cx >= area.x + area.width or cx >= buf.width)
+                {
                     matched = false;
                     break;
                 }

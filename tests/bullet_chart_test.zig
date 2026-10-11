@@ -547,9 +547,7 @@ test "BulletChart.render with value far above max_value does not crash" {
 
     // Malformed bullet: value (1,000,000) far exceeds max_value (1.0)
     // Without clamping, this would produce out-of-bounds column indices
-    var bullets = [_]Bullet{
-        .{ .label = "Huge", .value = 1_000_000.0, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Huge", .value = 1_000_000.0, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(1.0);
@@ -567,9 +565,7 @@ test "BulletChart.render with target far above max_value does not crash" {
     var buf = try Buffer.init(testing.allocator, 50, 20);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "T", .value = 0.5, .target = 999_999.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "T", .value = 0.5, .target = 999_999.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(1.0);
@@ -583,9 +579,7 @@ test "BulletChart.render with negative value does not crash" {
     var buf = try Buffer.init(testing.allocator, 50, 20);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "Neg", .value = -100.0, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Neg", .value = -100.0, .target = 1.0 }};
     const chart = BulletChart.init().withBullets(&bullets);
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };
 
@@ -598,9 +592,7 @@ test "BulletChart.render with ranges boundary far outside max_value does not cra
     defer buf.deinit();
 
     var ranges = [_]f32{ 0.5, 999_999.0 };
-    var bullets = [_]Bullet{
-        .{ .label = "R", .value = 0.5, .target = 1.0, .ranges = &ranges }
-    };
+    var bullets = [_]Bullet{.{ .label = "R", .value = 0.5, .target = 1.0, .ranges = &ranges }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(1.0);
@@ -614,9 +606,7 @@ test "BulletChart.render with max_value zero does not crash" {
     var buf = try Buffer.init(testing.allocator, 50, 20);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "Z", .value = 0.5, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Z", .value = 0.5, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(0.0);
@@ -630,9 +620,7 @@ test "BulletChart.render with max_value negative does not crash" {
     var buf = try Buffer.init(testing.allocator, 50, 20);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "N", .value = 0.5, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "N", .value = 0.5, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(-1.0);
@@ -651,9 +639,7 @@ test "BulletChart.render with single range boundary renders background band" {
     defer buf.deinit();
 
     var ranges = [_]f32{0.5};
-    var bullets = [_]Bullet{
-        .{ .label = "R", .value = 0.3, .target = 1.0, .ranges = &ranges }
-    };
+    var bullets = [_]Bullet{.{ .label = "R", .value = 0.3, .target = 1.0, .ranges = &ranges }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(1.0)
@@ -672,9 +658,7 @@ test "BulletChart.render with multiple range boundaries" {
     defer buf.deinit();
 
     var ranges = [_]f32{ 0.3, 0.6, 0.9 };
-    var bullets = [_]Bullet{
-        .{ .label = "R", .value = 0.5, .target = 1.0, .ranges = &ranges }
-    };
+    var bullets = [_]Bullet{.{ .label = "R", .value = 0.5, .target = 1.0, .ranges = &ranges }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(1.0)
@@ -691,9 +675,7 @@ test "BulletChart.render with empty ranges renders bar without band chars" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "E", .value = 0.5, .target = 1.0, .ranges = &.{} }
-    };
+    var bullets = [_]Bullet{.{ .label = "E", .value = 0.5, .target = 1.0, .ranges = &.{} }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withShowLabels(false);
@@ -712,9 +694,7 @@ test "BulletChart.render range boundaries in ascending order" {
 
     // Ranges must be ascending for meaningful band rendering
     var ranges = [_]f32{ 0.2, 0.5, 0.8 };
-    var bullets = [_]Bullet{
-        .{ .label = "A", .value = 0.6, .target = 1.0, .ranges = &ranges }
-    };
+    var bullets = [_]Bullet{.{ .label = "A", .value = 0.6, .target = 1.0, .ranges = &ranges }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(1.0);
@@ -729,9 +709,7 @@ test "BulletChart.render with range covering full width" {
     defer buf.deinit();
 
     var ranges = [_]f32{1.0};
-    var bullets = [_]Bullet{
-        .{ .label = "F", .value = 0.5, .target = 1.0, .ranges = &ranges }
-    };
+    var bullets = [_]Bullet{.{ .label = "F", .value = 0.5, .target = 1.0, .ranges = &ranges }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(1.0);
@@ -747,9 +725,7 @@ test "BulletChart.render with range at 0.0 boundary" {
     defer buf.deinit();
 
     var ranges = [_]f32{0.0};
-    var bullets = [_]Bullet{
-        .{ .label = "Z", .value = 0.5, .target = 1.0, .ranges = &ranges }
-    };
+    var bullets = [_]Bullet{.{ .label = "Z", .value = 0.5, .target = 1.0, .ranges = &ranges }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(1.0);
@@ -763,9 +739,7 @@ test "BulletChart.render with many ranges (more than 3 band chars)" {
     defer buf.deinit();
 
     var ranges = [_]f32{ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 };
-    var bullets = [_]Bullet{
-        .{ .label = "M", .value = 0.5, .target = 1.0, .ranges = &ranges }
-    };
+    var bullets = [_]Bullet{.{ .label = "M", .value = 0.5, .target = 1.0, .ranges = &ranges }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(1.0);
@@ -783,9 +757,7 @@ test "BulletChart.render value bar at 0% occupies minimal space" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "Zero", .value = 0.0, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Zero", .value = 0.0, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withShowLabels(false);
@@ -799,9 +771,7 @@ test "BulletChart.render value bar at 50% occupies half width" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "Half", .value = 0.5, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Half", .value = 0.5, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(1.0)
@@ -818,9 +788,7 @@ test "BulletChart.render value bar at 100% fills full width" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "Full", .value = 1.0, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Full", .value = 1.0, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(1.0)
@@ -837,9 +805,7 @@ test "BulletChart.render value bar with custom max_value scales correctly" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "Scale", .value = 50.0, .target = 100.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Scale", .value = 50.0, .target = 100.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(100.0)
@@ -857,9 +823,7 @@ test "BulletChart.render value bar uses bar_style when set" {
     defer buf.deinit();
 
     const bar_style = Style{ .bold = true };
-    var bullets = [_]Bullet{
-        .{ .label = "Styled", .value = 0.5, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Styled", .value = 0.5, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withBarStyle(bar_style)
@@ -877,9 +841,7 @@ test "BulletChart.render value bar overlay on range bands" {
     defer buf.deinit();
 
     var ranges = [_]f32{ 0.3, 0.7 };
-    var bullets = [_]Bullet{
-        .{ .label = "Overlay", .value = 0.5, .target = 1.0, .ranges = &ranges }
-    };
+    var bullets = [_]Bullet{.{ .label = "Overlay", .value = 0.5, .target = 1.0, .ranges = &ranges }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(1.0)
@@ -900,9 +862,7 @@ test "BulletChart.render target tick at 0% position" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "T0", .value = 0.5, .target = 0.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "T0", .value = 0.5, .target = 0.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withShowLabels(false);
@@ -916,9 +876,7 @@ test "BulletChart.render target tick at 50% position" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "T50", .value = 0.3, .target = 0.5 }
-    };
+    var bullets = [_]Bullet{.{ .label = "T50", .value = 0.3, .target = 0.5 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withShowLabels(false);
@@ -934,9 +892,7 @@ test "BulletChart.render target tick at 100% position" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "T100", .value = 0.8, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "T100", .value = 0.8, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withShowLabels(false);
@@ -952,9 +908,7 @@ test "BulletChart.render target tick with custom max_value" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "Scale", .value = 50.0, .target = 100.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Scale", .value = 50.0, .target = 100.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(100.0)
@@ -969,9 +923,7 @@ test "BulletChart.render target tick uses target_style when set" {
     defer buf.deinit();
 
     const target_style = Style{ .bold = true };
-    var bullets = [_]Bullet{
-        .{ .label = "Styled", .value = 0.3, .target = 0.7 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Styled", .value = 0.3, .target = 0.7 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withTargetStyle(target_style)
@@ -985,9 +937,7 @@ test "BulletChart.render target tick drawn over value bar" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "Over", .value = 0.4, .target = 0.5 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Over", .value = 0.4, .target = 0.5 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withShowLabels(false);
@@ -1062,9 +1012,7 @@ test "BulletChart.render focused_style with default values does not override bar
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "A", .value = 0.5, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "A", .value = 0.5, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withFocused(0)
@@ -1078,9 +1026,7 @@ test "BulletChart.render focused_style only overrides when explicitly set" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "A", .value = 0.5, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "A", .value = 0.5, .target = 1.0 }};
     const explicit_focused = Style{ .bold = true };
     const chart = BulletChart.init()
         .withBullets(&bullets)
@@ -1123,9 +1069,7 @@ test "BulletChart.render with show_labels=true displays labels" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "Revenue", .value = 0.5, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Revenue", .value = 0.5, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withShowLabels(true);
@@ -1141,9 +1085,7 @@ test "BulletChart.render with show_labels=false hides labels" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "Revenue", .value = 0.5, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Revenue", .value = 0.5, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withShowLabels(false);
@@ -1159,9 +1101,7 @@ test "BulletChart.render show_labels reserves left column space" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "VeryLongLabelName", .value = 0.5, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "VeryLongLabelName", .value = 0.5, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withShowLabels(true);
@@ -1177,9 +1117,7 @@ test "BulletChart.render label_style applies to labels" {
     defer buf.deinit();
 
     const label_style = Style{ .bold = true };
-    var bullets = [_]Bullet{
-        .{ .label = "Revenue", .value = 0.5, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Revenue", .value = 0.5, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withShowLabels(true)
@@ -1197,9 +1135,7 @@ test "BulletChart.render with show_values=false omits value text" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "A", .value = 0.5, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "A", .value = 0.5, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withShowValues(false);
@@ -1215,9 +1151,7 @@ test "BulletChart.render with show_values=true appends value/target text" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "A", .value = 75.0, .target = 100.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "A", .value = 75.0, .target = 100.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(100.0)
@@ -1235,9 +1169,7 @@ test "BulletChart.render show_values with zero values formats correctly" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "Z", .value = 0.0, .target = 0.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Z", .value = 0.0, .target = 0.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withShowValues(true)
@@ -1251,9 +1183,7 @@ test "BulletChart.render show_values with max values formats correctly" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "Max", .value = 100.0, .target = 100.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "Max", .value = 100.0, .target = 100.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(100.0)
@@ -1273,9 +1203,7 @@ test "BulletChart.render with block border renders frame" {
     defer buf.deinit();
 
     const blk = Block{};
-    var bullets = [_]Bullet{
-        .{ .label = "A", .value = 0.5, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "A", .value = 0.5, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withBlock(blk);
@@ -1291,9 +1219,7 @@ test "BulletChart.render with null block renders content in full area" {
     var buf = try Buffer.init(testing.allocator, 60, 10);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{
-        .{ .label = "A", .value = 0.5, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "A", .value = 0.5, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withBlock(null);
@@ -1310,9 +1236,7 @@ test "BulletChart.render block with inner area smaller than content clips gracef
     defer buf.deinit();
 
     const blk = Block{};
-    var bullets = [_]Bullet{
-        .{ .label = "VeryLongLabel", .value = 0.5, .target = 1.0 }
-    };
+    var bullets = [_]Bullet{.{ .label = "VeryLongLabel", .value = 0.5, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withBlock(blk);

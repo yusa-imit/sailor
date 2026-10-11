@@ -1023,11 +1023,11 @@ test "render with Block renders frame around content" {
 
     // Block border must render — at least one border glyph must be present
     const has_border = countChar(buf, area, '─') > 0 or
-                       countChar(buf, area, '│') > 0 or
-                       countChar(buf, area, '┌') > 0 or
-                       countChar(buf, area, '┐') > 0 or
-                       countChar(buf, area, '└') > 0 or
-                       countChar(buf, area, '┘') > 0;
+        countChar(buf, area, '│') > 0 or
+        countChar(buf, area, '┌') > 0 or
+        countChar(buf, area, '┐') > 0 or
+        countChar(buf, area, '└') > 0 or
+        countChar(buf, area, '┘') > 0;
     try testing.expect(has_border);
 }
 

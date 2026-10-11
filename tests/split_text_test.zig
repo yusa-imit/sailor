@@ -108,7 +108,7 @@ test "SplitText section_count capped at MAX_SECTIONS" {
     for (0..100) |i| {
         if (text_len + 7 > text_buf.len) break;
         if (i > 0) {
-            @memcpy(text_buf[text_len..text_len+5], "\n---\n");
+            @memcpy(text_buf[text_len .. text_len + 5], "\n---\n");
             text_len += 5;
         }
         text_buf[text_len] = 'a';

@@ -830,9 +830,9 @@ test "StatusGrid.render after navigation shows cursor at new position" {
 
 test "StatusGrid grid 3×3 full render with navigation between cells" {
     var cells = [_]StatusCell{
-        .{ .label = "TL", .status = .ok },     .{ .label = "TM", .status = .warn },   .{ .label = "TR", .status = .error_ },
+        .{ .label = "TL", .status = .ok },      .{ .label = "TM", .status = .warn },   .{ .label = "TR", .status = .error_ },
         .{ .label = "ML", .status = .unknown }, .{ .label = "MM", .status = .ok },     .{ .label = "MR", .status = .warn },
-        .{ .label = "BL", .status = .warn },   .{ .label = "BM", .status = .error_ },  .{ .label = "BR", .status = .ok },
+        .{ .label = "BL", .status = .warn },    .{ .label = "BM", .status = .error_ }, .{ .label = "BR", .status = .ok },
     };
     var grid = StatusGrid.init(&cells, 3, 3);
     var buf = try Buffer.init(testing.allocator, 60, 30);

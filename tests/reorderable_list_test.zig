@@ -579,8 +579,8 @@ test "render zero-area does not crash" {
 // ============================================================================
 
 test "single item moves clamp gracefully" {
-    const items = [_][]const u8{ "Only" };
-    var order = [_]usize{ 0 };
+    const items = [_][]const u8{"Only"};
+    var order = [_]usize{0};
 
     var list = ReorderableList{
         .items = &items,

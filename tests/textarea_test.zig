@@ -377,7 +377,7 @@ test "TextArea handles very large offset" {
     var buffer = try Buffer.init(allocator, 30, 10);
     defer buffer.deinit();
 
-    const lines = [_][]const u8{"line1", "line2"};
+    const lines = [_][]const u8{ "line1", "line2" };
 
     // Offset beyond all content
     const textarea = TextArea.init(&lines).withOffset(1000, 1000);

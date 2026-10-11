@@ -291,7 +291,7 @@ test "widgets with deinit have allocator field or justification" {
     // If a widget has deinit(), it should have an allocator field
     // (or document why it doesn't)
 
-    inline for (.{ Editor }) |Widget| {
+    inline for (.{Editor}) |Widget| {
         const has_deinit = @hasDecl(Widget, "deinit");
         const has_allocator_field = @hasField(Widget, "allocator");
 

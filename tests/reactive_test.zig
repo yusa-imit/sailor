@@ -1088,13 +1088,7 @@ test "ReactiveGauge with NaN signal value renders identically to 0.0 signal" {
 
     // Assert all cells match
     for (0..20) |x| {
-        try testing.expectEqual(
-            buf_zero.get(@intCast(x), 0).?.char,
-            buf_nan.get(@intCast(x), 0).?.char
-        );
-        try testing.expectEqual(
-            buf_zero.get(@intCast(x), 0).?.style.fg,
-            buf_nan.get(@intCast(x), 0).?.style.fg
-        );
+        try testing.expectEqual(buf_zero.get(@intCast(x), 0).?.char, buf_nan.get(@intCast(x), 0).?.char);
+        try testing.expectEqual(buf_zero.get(@intCast(x), 0).?.style.fg, buf_nan.get(@intCast(x), 0).?.style.fg);
     }
 }

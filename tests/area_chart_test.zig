@@ -890,9 +890,9 @@ test "render with Block renders frame around content" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 15 };
     chart.render(&buf, area);
     const has_border = countChar(buf, area, '─') > 0 or
-                       countChar(buf, area, '│') > 0 or
-                       countChar(buf, area, '┌') > 0 or
-                       countChar(buf, area, '┐') > 0;
+        countChar(buf, area, '│') > 0 or
+        countChar(buf, area, '┌') > 0 or
+        countChar(buf, area, '┐') > 0;
     try testing.expect(has_border or countNonEmptyCells(buf, area) > 0);
 }
 

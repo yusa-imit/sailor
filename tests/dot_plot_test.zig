@@ -68,7 +68,8 @@ fn findTextInArea(buf: Buffer, area: Rect, text: []const u8) bool {
 
             while (text_idx < text.len) : (text_idx += 1) {
                 if (cy >= area.y + area.height or cy >= buf.height or
-                    cx >= area.x + area.width or cx >= buf.width) {
+                    cx >= area.x + area.width or cx >= buf.width)
+                {
                     matched = false;
                     break;
                 }
@@ -1132,9 +1133,7 @@ test "DotPlot.render line characters use line_style" {
 test "DotPlot.render label is truncated to fit label column" {
     var buf = try Buffer.init(testing.allocator, 40, 20);
     defer buf.deinit();
-    var items = [_]DotPlotItem{
-        .{ .label = "VeryLongLabelThatShouldBeTruncated", .value = 0.5 }
-    };
+    var items = [_]DotPlotItem{.{ .label = "VeryLongLabelThatShouldBeTruncated", .value = 0.5 }};
     const dp = DotPlot.init().withItems(&items);
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     dp.render(&buf, area);
@@ -1416,9 +1415,7 @@ test "DotPlot.render extremely large item.value with show_values=true does not p
     // CRITICAL REGRESSION: drawValueLabel() at line 282 casts raw item.value to i32 without clamping.
     // Values outside i32 range (~±2.147e9) cause panic: "integer part of floating point value out of bounds"
     // This test locks in the fix: extremely large values must be handled gracefully (clamped before cast).
-    var items = [_]DotPlotItem{
-        .{ .label = "VeryLarge", .value = 3_000_000_000.0 }
-    };
+    var items = [_]DotPlotItem{.{ .label = "VeryLarge", .value = 3_000_000_000.0 }};
     const dp = DotPlot.init()
         .withItems(&items)
         .withXMin(0.0)

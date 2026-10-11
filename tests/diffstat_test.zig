@@ -591,7 +591,8 @@ test "DiffStat render binary file shows Bin text" {
             // Check for "Bin" pattern
             if (x + 2 < 50 and
                 buf.get(@as(u16, @intCast(x + 1)), 0).?.char == 'i' and
-                buf.get(@as(u16, @intCast(x + 2)), 0).?.char == 'n') {
+                buf.get(@as(u16, @intCast(x + 2)), 0).?.char == 'n')
+            {
                 found_bin = true;
                 break;
             }
@@ -623,7 +624,8 @@ test "DiffStat render binary file with binary style" {
         if (buf.get(@as(u16, @intCast(x)), 0).?.char == 'B') {
             if (x + 2 < 50 and
                 buf.get(@as(u16, @intCast(x + 1)), 0).?.char == 'i' and
-                buf.get(@as(u16, @intCast(x + 2)), 0).?.char == 'n') {
+                buf.get(@as(u16, @intCast(x + 2)), 0).?.char == 'n')
+            {
                 try testing.expectEqual(Color.yellow, buf.get(@as(u16, @intCast(x)), 0).?.style.fg);
                 break;
             }
@@ -659,7 +661,8 @@ test "DiffStat render binary file no insertion/deletion bar" {
         if (buf.get(@as(u16, @intCast(x)), 0).?.char == 'B') {
             if (x + 2 < 50 and
                 buf.get(@as(u16, @intCast(x + 1)), 0).?.char == 'i' and
-                buf.get(@as(u16, @intCast(x + 2)), 0).?.char == 'n') {
+                buf.get(@as(u16, @intCast(x + 2)), 0).?.char == 'n')
+            {
                 found_bin = true;
             }
         }
@@ -1014,7 +1017,8 @@ test "DiffStat render includes insertion count" {
     for (0..70) |x| {
         if (buf.get(@as(u16, @intCast(x)), 0).?.char == '+' and x + 2 < 70) {
             if (buf.get(@as(u16, @intCast(x + 1)), 0).?.char == '4' and
-                buf.get(@as(u16, @intCast(x + 2)), 0).?.char == '2') {
+                buf.get(@as(u16, @intCast(x + 2)), 0).?.char == '2')
+            {
                 found_plus_42 = true;
                 break;
             }
@@ -1044,7 +1048,8 @@ test "DiffStat render includes deletion count" {
     for (0..70) |x| {
         if (buf.get(@as(u16, @intCast(x)), 0).?.char == '-' and x + 2 < 70) {
             if (buf.get(@as(u16, @intCast(x + 1)), 0).?.char == '1' and
-                buf.get(@as(u16, @intCast(x + 2)), 0).?.char == '7') {
+                buf.get(@as(u16, @intCast(x + 2)), 0).?.char == '7')
+            {
                 found_minus_17 = true;
                 break;
             }

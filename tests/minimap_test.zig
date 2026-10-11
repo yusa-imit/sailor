@@ -818,7 +818,7 @@ test "MiniMap style on empty rows uses correct style based on viewport" {
     defer buf.deinit();
 
     var widget = MiniMap.init();
-    const lines = [_][]const u8{"", "", "", ""};
+    const lines = [_][]const u8{ "", "", "", "" };
     widget = widget
         .withLines(&lines)
         .withViewportTop(1)

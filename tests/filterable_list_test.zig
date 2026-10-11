@@ -199,7 +199,7 @@ test "typeChar multiple characters builds filter string" {
 test "typeChar caps at filter_buf capacity" {
     var filter_buf: [4]u8 = undefined;
     var list = FilterableList{
-        .items = &[_][]const u8{ "apple" },
+        .items = &[_][]const u8{"apple"},
         .filter_buf = &filter_buf,
     };
     list.typeChar('a');
@@ -213,7 +213,7 @@ test "typeChar caps at filter_buf capacity" {
 test "typeChar with uppercase and lowercase" {
     var filter_buf: [32]u8 = undefined;
     var list = FilterableList{
-        .items = &[_][]const u8{ "apple" },
+        .items = &[_][]const u8{"apple"},
         .filter_buf = &filter_buf,
     };
     list.typeChar('A');
@@ -230,7 +230,7 @@ test "typeChar with uppercase and lowercase" {
 test "backspace removes last character" {
     var filter_buf: [32]u8 = undefined;
     var list = FilterableList{
-        .items = &[_][]const u8{ "apple" },
+        .items = &[_][]const u8{"apple"},
         .filter_buf = &filter_buf,
     };
     list.typeChar('a');
@@ -242,7 +242,7 @@ test "backspace removes last character" {
 test "backspace on empty filter does nothing" {
     var filter_buf: [32]u8 = undefined;
     var list = FilterableList{
-        .items = &[_][]const u8{ "apple" },
+        .items = &[_][]const u8{"apple"},
         .filter_buf = &filter_buf,
     };
     list.backspace();
@@ -252,7 +252,7 @@ test "backspace on empty filter does nothing" {
 test "backspace multiple times" {
     var filter_buf: [32]u8 = undefined;
     var list = FilterableList{
-        .items = &[_][]const u8{ "apple" },
+        .items = &[_][]const u8{"apple"},
         .filter_buf = &filter_buf,
     };
     list.typeChar('a');
@@ -267,7 +267,7 @@ test "backspace multiple times" {
 test "backspace to empty removes all characters" {
     var filter_buf: [32]u8 = undefined;
     var list = FilterableList{
-        .items = &[_][]const u8{ "apple" },
+        .items = &[_][]const u8{"apple"},
         .filter_buf = &filter_buf,
     };
     list.typeChar('a');
@@ -282,7 +282,7 @@ test "backspace to empty removes all characters" {
 test "clearFilter resets filter_len to 0" {
     var filter_buf: [32]u8 = undefined;
     var list = FilterableList{
-        .items = &[_][]const u8{ "apple" },
+        .items = &[_][]const u8{"apple"},
         .filter_buf = &filter_buf,
     };
     list.typeChar('a');
@@ -294,7 +294,7 @@ test "clearFilter resets filter_len to 0" {
 test "clearFilter on already empty filter does nothing" {
     var filter_buf: [32]u8 = undefined;
     var list = FilterableList{
-        .items = &[_][]const u8{ "apple" },
+        .items = &[_][]const u8{"apple"},
         .filter_buf = &filter_buf,
     };
     list.clearFilter();
@@ -308,7 +308,7 @@ test "clearFilter on already empty filter does nothing" {
 test "getFilter returns current filter string" {
     var filter_buf: [32]u8 = undefined;
     var list = FilterableList{
-        .items = &[_][]const u8{ "apple" },
+        .items = &[_][]const u8{"apple"},
         .filter_buf = &filter_buf,
     };
     list.typeChar('a');
@@ -320,7 +320,7 @@ test "getFilter returns current filter string" {
 test "getFilter returns empty string when no filter" {
     var filter_buf: [32]u8 = undefined;
     const list = FilterableList{
-        .items = &[_][]const u8{ "apple" },
+        .items = &[_][]const u8{"apple"},
         .filter_buf = &filter_buf,
     };
     const filter = list.getFilter();
@@ -330,7 +330,7 @@ test "getFilter returns empty string when no filter" {
 test "getFilter after backspace reflects new length" {
     var filter_buf: [32]u8 = undefined;
     var list = FilterableList{
-        .items = &[_][]const u8{ "apple" },
+        .items = &[_][]const u8{"apple"},
         .filter_buf = &filter_buf,
     };
     list.typeChar('a');
@@ -666,7 +666,7 @@ test "render applies normal_style to non-cursor items" {
 test "render applies filter_style to filter line" {
     var filter_buf: [32]u8 = undefined;
     var list = FilterableList{
-        .items = &[_][]const u8{ "apple" },
+        .items = &[_][]const u8{"apple"},
         .filter_buf = &filter_buf,
         .filter_style = .{ .bold = true },
     };
@@ -686,7 +686,7 @@ test "render with block wrapper does not crash" {
     var filter_buf: [32]u8 = undefined;
     const block = sailor.tui.widgets.Block{};
     var list = FilterableList{
-        .items = &[_][]const u8{ "apple" },
+        .items = &[_][]const u8{"apple"},
         .filter_buf = &filter_buf,
         .block = block,
     };

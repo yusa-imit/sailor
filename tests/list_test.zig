@@ -51,7 +51,7 @@ test "List.withOffset sets scroll offset" {
 }
 
 test "List.withBlock sets block border" {
-    const items = &[_][]const u8{ "Item" };
+    const items = &[_][]const u8{"Item"};
     const block = Block{};
     const list = List.init(items).withBlock(block);
 
@@ -59,7 +59,7 @@ test "List.withBlock sets block border" {
 }
 
 test "List.withItemStyle sets unselected item style" {
-    const items = &[_][]const u8{ "A" };
+    const items = &[_][]const u8{"A"};
     const style = Style{ .bold = true };
     const list = List.init(items).withItemStyle(style);
 
@@ -67,7 +67,7 @@ test "List.withItemStyle sets unselected item style" {
 }
 
 test "List.withSelectedStyle sets selected item style" {
-    const items = &[_][]const u8{ "A" };
+    const items = &[_][]const u8{"A"};
     const style = Style{ .fg = Color.cyan };
     const list = List.init(items).withSelectedStyle(style);
 
@@ -75,7 +75,7 @@ test "List.withSelectedStyle sets selected item style" {
 }
 
 test "List.withHighlightSymbol sets highlight symbol" {
-    const items = &[_][]const u8{ "A" };
+    const items = &[_][]const u8{"A"};
     const list = List.init(items).withHighlightSymbol("* ");
 
     try testing.expectEqualStrings("* ", list.highlight_symbol);

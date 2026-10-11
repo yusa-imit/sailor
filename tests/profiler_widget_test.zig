@@ -471,7 +471,7 @@ test "PerformanceProfiler.renderFrameTimes extremely large frame_time_ms with sh
     // Values that result in products > u64::MAX (~1.8e19) cause panic: "integer part of floating point value out of bounds"
     // This test locks in the fix: extremely large frame times must be clamped before cast.
     const frame = FrameStats{
-        .frame_time_ms = 1e18,  // 1e18 * 100 = 1e20 > u64::MAX
+        .frame_time_ms = 1e18, // 1e18 * 100 = 1e20 > u64::MAX
         .render_time_ms = 1.0,
         .event_time_ms = 1.0,
         .timestamp = 0,
@@ -499,7 +499,7 @@ test "PerformanceProfiler.renderFrameTimes near-zero target_fps with show_sparkl
     // then casts target_ms * 2.0 * 100.0 to u64 without clamping.
     // Extremely small target_fps values make target_ms huge, causing overflow when multiplied.
     // This test locks in the fix: target_fps must be clamped or the sparkline.max calculation must be guarded.
-    profiler.target_fps = 1e-20;  // target_ms = 1000 / 1e-20 = 1e23, then * 2 * 100 = 2e25 > u64::MAX
+    profiler.target_fps = 1e-20; // target_ms = 1000 / 1e-20 = 1e23, then * 2 * 100 = 2e25 > u64::MAX
 
     // Add a normal frame to trigger the calculation
     const frame = FrameStats{

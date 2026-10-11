@@ -18,7 +18,9 @@ const Allocator = std.mem.Allocator;
 // Minimal no-op screen for basic navigation tests
 const NopScreen = struct {
     pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-    pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
+    pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+        return .cont;
+    }
     pub fn onEnter(_: *@This()) void {}
     pub fn onLeave(_: *@This()) void {}
 };
@@ -31,7 +33,9 @@ const LogScreen = struct {
     alloc: Allocator,
 
     pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-    pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
+    pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+        return .cont;
+    }
     pub fn onEnter(self: *@This()) void {
         self.log_ptr.append(self.alloc, 'E') catch {};
         self.log_ptr.append(self.alloc, self.id) catch {};
@@ -71,8 +75,12 @@ test "ScreenRouter.reset calls onEnter on new screen" {
     const EnterTrack = struct {
         entered_ptr: *u32,
         pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
-        pub fn onEnter(self: *@This()) void { self.entered_ptr.* += 1; }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .cont;
+        }
+        pub fn onEnter(self: *@This()) void {
+            self.entered_ptr.* += 1;
+        }
         pub fn onLeave(_: *@This()) void {}
     };
     var s = EnterTrack{ .entered_ptr = &entered };
@@ -205,8 +213,12 @@ test "ScreenRouter.pop when depth 1 does not call onEnter on anything" {
     const EnterTrack = struct {
         entered_ptr: *u32,
         pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
-        pub fn onEnter(self: *@This()) void { self.entered_ptr.* += 1; }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .cont;
+        }
+        pub fn onEnter(self: *@This()) void {
+            self.entered_ptr.* += 1;
+        }
         pub fn onLeave(_: *@This()) void {}
     };
     var s = EnterTrack{ .entered_ptr = &entered };
@@ -266,7 +278,9 @@ test "ScreenRouter.replace on empty stack pushes the new screen" {
 test "ScreenRouter.dispatch cont does not change depth" {
     const ContScreen = struct {
         pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .cont;
+        }
         pub fn onEnter(_: *@This()) void {}
         pub fn onLeave(_: *@This()) void {}
     };
@@ -281,7 +295,9 @@ test "ScreenRouter.dispatch cont does not change depth" {
 test "ScreenRouter.dispatch pop reduces depth" {
     const PopScreen = struct {
         pub fn render(_: *@This(), _: *Buffer, _: Rect) void {}
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .pop; }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .pop;
+        }
         pub fn onEnter(_: *@This()) void {}
         pub fn onLeave(_: *@This()) void {}
     };
@@ -365,8 +381,12 @@ test "ScreenRouter.render calls top screen render" {
     var rendered: bool = false;
     const RenderScreen = struct {
         rendered_ptr: *bool,
-        pub fn render(self: *@This(), _: *Buffer, _: Rect) void { self.rendered_ptr.* = true; }
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
+        pub fn render(self: *@This(), _: *Buffer, _: Rect) void {
+            self.rendered_ptr.* = true;
+        }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .cont;
+        }
         pub fn onEnter(_: *@This()) void {}
         pub fn onLeave(_: *@This()) void {}
     };
@@ -397,15 +417,23 @@ test "ScreenRouter.render only calls top screen, not screens below" {
 
     const BottomScreen = struct {
         rendered_ptr: *bool,
-        pub fn render(self: *@This(), _: *Buffer, _: Rect) void { self.rendered_ptr.* = true; }
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
+        pub fn render(self: *@This(), _: *Buffer, _: Rect) void {
+            self.rendered_ptr.* = true;
+        }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .cont;
+        }
         pub fn onEnter(_: *@This()) void {}
         pub fn onLeave(_: *@This()) void {}
     };
     const TopScreen = struct {
         rendered_ptr: *bool,
-        pub fn render(self: *@This(), _: *Buffer, _: Rect) void { self.rendered_ptr.* = true; }
-        pub fn handleEvent(_: *@This(), _: Event) ScreenResult { return .cont; }
+        pub fn render(self: *@This(), _: *Buffer, _: Rect) void {
+            self.rendered_ptr.* = true;
+        }
+        pub fn handleEvent(_: *@This(), _: Event) ScreenResult {
+            return .cont;
+        }
         pub fn onEnter(_: *@This()) void {}
         pub fn onLeave(_: *@This()) void {}
     };

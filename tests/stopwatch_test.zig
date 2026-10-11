@@ -43,8 +43,14 @@ fn rowContains(buf: Buffer, row: u16, text: []const u8) bool {
         var col = i;
 
         while (j < cp_len and col < buf.width) : (j += 1) {
-            const cell = buf.getConst(col, row) orelse { matched = false; break; };
-            if (cell.char != cps[j]) { matched = false; break; }
+            const cell = buf.getConst(col, row) orelse {
+                matched = false;
+                break;
+            };
+            if (cell.char != cps[j]) {
+                matched = false;
+                break;
+            }
             col += 1;
         }
 
@@ -797,7 +803,8 @@ test "render with block renders border" {
         if (buf.getConst(col, 0)) |cell| {
             // Look for common border chars
             if (cell.char == '─' or cell.char == '│' or cell.char == '┌' or
-                cell.char == '┐' or cell.char == '└' or cell.char == '┘') {
+                cell.char == '┐' or cell.char == '└' or cell.char == '┘')
+            {
                 found_border = true;
                 break;
             }

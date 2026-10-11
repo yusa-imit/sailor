@@ -51,7 +51,8 @@ fn findInArea(buf: Buffer, area: Rect, text: []const u8) bool {
 
             while (cp_idx < cp_count) : (cp_idx += 1) {
                 if (cy >= area.y + area.height or cy >= buf.height or
-                    cx >= area.x + area.width or cx >= buf.width) {
+                    cx >= area.x + area.width or cx >= buf.width)
+                {
                     matched = false;
                     break;
                 }
@@ -421,7 +422,7 @@ test "render with two axes produces content" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     rc.render(&buf, area);
 
-    try testing.expect(countNonEmptyCells(buf, area) > 0);  // Test name asserts content production
+    try testing.expect(countNonEmptyCells(buf, area) > 0); // Test name asserts content production
 }
 
 test "render with 2 axes and 1 series shows polygon" {
@@ -485,8 +486,8 @@ test "render with six axes" {
     defer buf.deinit();
 
     var axes = [_][]const u8{
-        "Speed",    "Power",  "Skill",
-        "Defense",  "Magic",  "Stamina",
+        "Speed",   "Power", "Skill",
+        "Defense", "Magic", "Stamina",
     };
     const rc = RadarChart.init().withAxes(&axes);
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 24 };
@@ -822,7 +823,7 @@ test "render with Block renders frame" {
 
     // Block border must render with box-drawing characters
     const has_border = areaHasChar(buf, area, '─') or areaHasChar(buf, area, '│') or
-                       areaHasChar(buf, area, '┌');
+        areaHasChar(buf, area, '┌');
     try testing.expect(has_border);
 }
 
@@ -857,7 +858,7 @@ test "render with block in offset area" {
     const area = Rect{ .x = 10, .y = 5, .width = 50, .height = 20 };
     rc.render(&buf, area);
 
-    try testing.expect(countNonEmptyCells(buf, area) > 0);  // Series with block should render polygon
+    try testing.expect(countNonEmptyCells(buf, area) > 0); // Series with block should render polygon
 }
 
 test "render block in tiny area does not crash" {
@@ -888,7 +889,7 @@ test "render axis labels visible in large area" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     rc.render(&buf, area);
 
-    try testing.expect(countNonEmptyCells(buf, area) > 0);  // Axes should render labels and grid
+    try testing.expect(countNonEmptyCells(buf, area) > 0); // Axes should render labels and grid
 }
 
 test "render axis with short label" {
@@ -900,7 +901,7 @@ test "render axis with short label" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
     rc.render(&buf, area);
 
-    try testing.expect(countNonEmptyCells(buf, area) > 0);  // Short labels should render on axes
+    try testing.expect(countNonEmptyCells(buf, area) > 0); // Short labels should render on axes
 }
 
 test "render axis with long label" {
@@ -912,7 +913,7 @@ test "render axis with long label" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     rc.render(&buf, area);
 
-    try testing.expect(countNonEmptyCells(buf, area) > 0);  // Long labels should still render on axes
+    try testing.expect(countNonEmptyCells(buf, area) > 0); // Long labels should still render on axes
 }
 
 test "render with unicode axis labels" {
@@ -924,7 +925,7 @@ test "render with unicode axis labels" {
     const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 24 };
     rc.render(&buf, area);
 
-    try testing.expect(countNonEmptyCells(buf, area) > 0);  // Unicode labels should render on axes
+    try testing.expect(countNonEmptyCells(buf, area) > 0); // Unicode labels should render on axes
 }
 
 test "render axis labels clipped to buffer bounds" {
@@ -976,7 +977,7 @@ test "render in offset area with large offset" {
     const area = Rect{ .x = 30, .y = 10, .width = 60, .height = 20 };
     rc.render(&buf, area);
 
-    try testing.expect(countNonEmptyCells(buf, area) > 0);  // Series in offset area should render polygon
+    try testing.expect(countNonEmptyCells(buf, area) > 0); // Series in offset area should render polygon
 }
 
 test "render single-char axis labels" {
@@ -988,7 +989,7 @@ test "render single-char axis labels" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 20 };
     rc.render(&buf, area);
 
-    try testing.expect(countNonEmptyCells(buf, area) > 0);  // Single-char labels should render on axes
+    try testing.expect(countNonEmptyCells(buf, area) > 0); // Single-char labels should render on axes
 }
 
 test "render with axis_style applied" {
@@ -1002,7 +1003,7 @@ test "render with axis_style applied" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 24 };
     rc.render(&buf, area);
 
-    try testing.expect(countNonEmptyCells(buf, area) > 0);  // Styled axes should render
+    try testing.expect(countNonEmptyCells(buf, area) > 0); // Styled axes should render
 }
 
 // ============================================================================

@@ -50,9 +50,7 @@ fn validateMinLength3(value: []const u8) ?[]const u8 {
 
 test "Form with single field initializes correctly" {
     var states = [_]FieldState{FieldState{}};
-    const fields = [_]FormField{
-        .{ .id = "name", .label = "Name", .placeholder = "" }
-    };
+    const fields = [_]FormField{.{ .id = "name", .label = "Name", .placeholder = "" }};
     const form = Form{
         .fields = &fields,
         .states = &states,
@@ -63,9 +61,7 @@ test "Form with single field initializes correctly" {
 
 test "Form default focused_idx is zero" {
     var states = [_]FieldState{FieldState{}};
-    const fields = [_]FormField{
-        .{ .id = "name", .label = "Name" }
-    };
+    const fields = [_]FormField{.{ .id = "name", .label = "Name" }};
     const form = Form{
         .fields = &fields,
         .states = &states,
@@ -75,9 +71,7 @@ test "Form default focused_idx is zero" {
 
 test "Form default label_width is 12" {
     var states = [_]FieldState{FieldState{}};
-    const fields = [_]FormField{
-        .{ .id = "name", .label = "Name" }
-    };
+    const fields = [_]FormField{.{ .id = "name", .label = "Name" }};
     const form = Form{
         .fields = &fields,
         .states = &states,
@@ -87,9 +81,7 @@ test "Form default label_width is 12" {
 
 test "Form default show_errors is true" {
     var states = [_]FieldState{FieldState{}};
-    const fields = [_]FormField{
-        .{ .id = "name", .label = "Name" }
-    };
+    const fields = [_]FormField{.{ .id = "name", .label = "Name" }};
     const form = Form{
         .fields = &fields,
         .states = &states,
@@ -181,7 +173,7 @@ test "focusField sets focus to named field" {
 }
 
 test "focusField returns false for unknown field id" {
-    var states = [_]FieldState{ FieldState{} };
+    var states = [_]FieldState{FieldState{}};
     const fields = [_]FormField{
         .{ .id = "name", .label = "Name" },
     };
@@ -275,10 +267,8 @@ test "focusPrev skips non-focusable fields" {
 // ============================================================================
 
 test "validateAll sets error_msg for required empty field" {
-    var states = [_]FieldState{ FieldState{} };
-    const fields = [_]FormField{
-        .{ .id = "name", .label = "Name", .required = true }
-    };
+    var states = [_]FieldState{FieldState{}};
+    const fields = [_]FormField{.{ .id = "name", .label = "Name", .required = true }};
     var form = Form{
         .fields = &fields,
         .states = &states,
@@ -289,12 +279,8 @@ test "validateAll sets error_msg for required empty field" {
 }
 
 test "validateAll clears error for required non-empty field" {
-    var states = [_]FieldState{
-        .{ .value = "John", .error_msg = "Previous error" }
-    };
-    const fields = [_]FormField{
-        .{ .id = "name", .label = "Name", .required = true }
-    };
+    var states = [_]FieldState{.{ .value = "John", .error_msg = "Previous error" }};
+    const fields = [_]FormField{.{ .id = "name", .label = "Name", .required = true }};
     var form = Form{
         .fields = &fields,
         .states = &states,
@@ -305,10 +291,8 @@ test "validateAll clears error for required non-empty field" {
 }
 
 test "validateAll calls custom validator" {
-    var states = [_]FieldState{ .{ .value = "invalid.email" } };
-    const fields = [_]FormField{
-        .{ .id = "email", .label = "Email", .validate = validateEmail }
-    };
+    var states = [_]FieldState{.{ .value = "invalid.email" }};
+    const fields = [_]FormField{.{ .id = "email", .label = "Email", .validate = validateEmail }};
     var form = Form{
         .fields = &fields,
         .states = &states,
@@ -319,10 +303,8 @@ test "validateAll calls custom validator" {
 }
 
 test "validateAll returns error message from validator" {
-    var states = [_]FieldState{ .{ .value = "ab" } };
-    const fields = [_]FormField{
-        .{ .id = "code", .label = "Code", .validate = validateMinLength3 }
-    };
+    var states = [_]FieldState{.{ .value = "ab" }};
+    const fields = [_]FormField{.{ .id = "code", .label = "Code", .validate = validateMinLength3 }};
     var form = Form{
         .fields = &fields,
         .states = &states,
@@ -336,12 +318,8 @@ test "validateAll returns error message from validator" {
 }
 
 test "validateAll clears error when validator returns null" {
-    var states = [_]FieldState{
-        .{ .value = "john@example.com", .error_msg = "Previous error" }
-    };
-    const fields = [_]FormField{
-        .{ .id = "email", .label = "Email", .validate = validateEmail }
-    };
+    var states = [_]FieldState{.{ .value = "john@example.com", .error_msg = "Previous error" }};
+    const fields = [_]FormField{.{ .id = "email", .label = "Email", .validate = validateEmail }};
     var form = Form{
         .fields = &fields,
         .states = &states,
@@ -432,12 +410,8 @@ test "isValid returns true for empty form" {
 }
 
 test "isValid returns true after validateAll clears errors" {
-    var states = [_]FieldState{
-        .{ .value = "John", .error_msg = null }
-    };
-    const fields = [_]FormField{
-        .{ .id = "name", .label = "Name", .required = true }
-    };
+    var states = [_]FieldState{.{ .value = "John", .error_msg = null }};
+    const fields = [_]FormField{.{ .id = "name", .label = "Name", .required = true }};
     var form = Form{
         .fields = &fields,
         .states = &states,
@@ -451,10 +425,8 @@ test "isValid returns true after validateAll clears errors" {
 // ============================================================================
 
 test "render on zero-area does not crash" {
-    var states = [_]FieldState{ FieldState{} };
-    const fields = [_]FormField{
-        .{ .id = "name", .label = "Name" }
-    };
+    var states = [_]FieldState{FieldState{}};
+    const fields = [_]FormField{.{ .id = "name", .label = "Name" }};
     const form = Form{
         .fields = &fields,
         .states = &states,
@@ -468,10 +440,8 @@ test "render on zero-area does not crash" {
 }
 
 test "render on zero-height area does not crash" {
-    var states = [_]FieldState{ FieldState{} };
-    const fields = [_]FormField{
-        .{ .id = "name", .label = "Name" }
-    };
+    var states = [_]FieldState{FieldState{}};
+    const fields = [_]FormField{.{ .id = "name", .label = "Name" }};
     const form = Form{
         .fields = &fields,
         .states = &states,
@@ -485,10 +455,8 @@ test "render on zero-height area does not crash" {
 }
 
 test "render single field writes label text to buffer" {
-    var states = [_]FieldState{ FieldState{} };
-    const fields = [_]FormField{
-        .{ .id = "name", .label = "Name" }
-    };
+    var states = [_]FieldState{FieldState{}};
+    const fields = [_]FormField{.{ .id = "name", .label = "Name" }};
     const form = Form{
         .fields = &fields,
         .states = &states,
@@ -505,10 +473,8 @@ test "render single field writes label text to buffer" {
 }
 
 test "render sets value text in buffer" {
-    var states = [_]FieldState{ .{ .value = "John" } };
-    const fields = [_]FormField{
-        .{ .id = "name", .label = "Name", .placeholder = "" }
-    };
+    var states = [_]FieldState{.{ .value = "John" }};
+    const fields = [_]FormField{.{ .id = "name", .label = "Name", .placeholder = "" }};
     const form = Form{
         .fields = &fields,
         .states = &states,
@@ -549,12 +515,8 @@ test "render focused field is at focused_idx position" {
 }
 
 test "render error message when show_errors true and error_msg set" {
-    var states = [_]FieldState{
-        .{ .value = "invalid", .error_msg = "Bad value" }
-    };
-    const fields = [_]FormField{
-        .{ .id = "email", .label = "Email" }
-    };
+    var states = [_]FieldState{.{ .value = "invalid", .error_msg = "Bad value" }};
+    const fields = [_]FormField{.{ .id = "email", .label = "Email" }};
     const form = Form{
         .fields = &fields,
         .states = &states,
@@ -577,10 +539,8 @@ test "render error message when show_errors true and error_msg set" {
 // ============================================================================
 
 test "focusNext on single focusable field stays at 0" {
-    var states = [_]FieldState{ FieldState{} };
-    const fields = [_]FormField{
-        .{ .id = "only", .label = "Only", .focusable = true }
-    };
+    var states = [_]FieldState{FieldState{}};
+    const fields = [_]FormField{.{ .id = "only", .label = "Only", .focusable = true }};
     var form = Form{
         .fields = &fields,
         .states = &states,
@@ -591,10 +551,8 @@ test "focusNext on single focusable field stays at 0" {
 }
 
 test "focusPrev on single focusable field stays at 0" {
-    var states = [_]FieldState{ FieldState{} };
-    const fields = [_]FormField{
-        .{ .id = "only", .label = "Only", .focusable = true }
-    };
+    var states = [_]FieldState{FieldState{}};
+    const fields = [_]FormField{.{ .id = "only", .label = "Only", .focusable = true }};
     var form = Form{
         .fields = &fields,
         .states = &states,
@@ -776,10 +734,8 @@ test "focusField returns true and updates focus correctly" {
 test "validateAll with required field and custom validator" {
     // Value is non-empty (passes required check) but has no '@' (fails validateEmail)
     // This verifies that when both constraints are set, the custom validator still runs
-    var states = [_]FieldState{ .{ .value = "noemail" } };
-    const fields = [_]FormField{
-        .{ .id = "email", .label = "Email", .required = true, .validate = validateEmail }
-    };
+    var states = [_]FieldState{.{ .value = "noemail" }};
+    const fields = [_]FormField{.{ .id = "email", .label = "Email", .required = true, .validate = validateEmail }};
     var form = Form{
         .fields = &fields,
         .states = &states,

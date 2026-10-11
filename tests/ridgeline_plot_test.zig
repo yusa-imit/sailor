@@ -547,9 +547,9 @@ test "single large bin renders at full height" {
     plot.render(&buf, area);
     // Should contain block glyphs (▁▂▃▄▅▆▇█)
     const has_blocks = countChar(buf, area, '█') > 0 or
-                       countChar(buf, area, '▁') > 0 or
-                       countChar(buf, area, '▂') > 0 or
-                       countChar(buf, area, '▃') > 0;
+        countChar(buf, area, '▁') > 0 or
+        countChar(buf, area, '▂') > 0 or
+        countChar(buf, area, '▃') > 0;
     try testing.expect(has_blocks);
 }
 
@@ -947,7 +947,7 @@ test "negative values in series clamp safely without overflow" {
 
     plot.render(&buf, area);
     // Should not crash or overflow
-    try testing.expect(countNonEmptyCells(buf, area) > 0);  // Valid positive values should render ridge
+    try testing.expect(countNonEmptyCells(buf, area) > 0); // Valid positive values should render ridge
 }
 
 test "all-negative values do not crash" {
@@ -1022,11 +1022,11 @@ test "render with Block renders frame around content" {
 
     // Block border should render — at least one border glyph
     const has_border = countChar(buf, area, '─') > 0 or
-                       countChar(buf, area, '│') > 0 or
-                       countChar(buf, area, '┌') > 0 or
-                       countChar(buf, area, '┐') > 0 or
-                       countChar(buf, area, '└') > 0 or
-                       countChar(buf, area, '┘') > 0;
+        countChar(buf, area, '│') > 0 or
+        countChar(buf, area, '┌') > 0 or
+        countChar(buf, area, '┐') > 0 or
+        countChar(buf, area, '└') > 0 or
+        countChar(buf, area, '┘') > 0;
     try testing.expect(has_border);
 }
 

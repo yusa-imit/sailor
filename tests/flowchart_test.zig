@@ -53,7 +53,8 @@ fn findInArea(buf: Buffer, area: Rect, text: []const u8) bool {
 
             while (cp_idx < cp_count) : (cp_idx += 1) {
                 if (cy >= area.y + area.height or cy >= buf.height or
-                    cx >= area.x + area.width or cx >= buf.width) {
+                    cx >= area.x + area.width or cx >= buf.width)
+                {
                     matched = false;
                     break;
                 }
@@ -760,8 +761,8 @@ test "render with Block renders frame around content" {
 
     // Block border should render (box drawing chars) — verify the border is actually present
     const has_border = areaHasChar(buf, area, '─') or
-                       areaHasChar(buf, area, '│') or
-                       areaHasChar(buf, area, '┌');
+        areaHasChar(buf, area, '│') or
+        areaHasChar(buf, area, '┌');
     try testing.expect(has_border);
 }
 
