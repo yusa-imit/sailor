@@ -450,6 +450,38 @@ test "overflow protection - sum overflow" {
     try std.testing.expect(stats.avg_ns >= large_val - 1 and stats.avg_ns <= large_val + 1);
 }
 
+// ============================================================================
+// NO ALLOCATION AFTER RECORDING
+// ============================================================================
+
+test "stats queries and resetEvent allocate nothing once events are recorded" {
+    var failing = std.testing.FailingAllocator.init(std.testing.allocator, .{});
+    var collector = EventMetricsCollector.init(failing.allocator());
+    defer collector.deinit();
+
+    collector.recordEvent("key", 30, 1);
+    collector.recordEvent("key", 10, 2);
+    collector.recordEvent("key", 20, 3);
+    collector.recordEvent("mouse", 100, 7);
+
+    // From here on every allocation fails; the queries must not need one.
+    failing.fail_index = failing.alloc_index;
+
+    const key = collector.getEventStats("key") orelse return error.StatsNotFound;
+    try std.testing.expectEqual(@as(usize, 3), key.count);
+    try std.testing.expectEqual(@as(u64, 20), key.p50_ns);
+
+    const all = collector.getTypeStats() orelse return error.StatsNotFound;
+    try std.testing.expectEqual(@as(usize, 4), all.count);
+    try std.testing.expectEqual(@as(u64, 100), all.max_ns);
+
+    collector.resetEvent("mouse");
+    const rest = collector.getTypeStats() orelse return error.StatsNotFound;
+    try std.testing.expectEqual(@as(usize, 3), rest.count);
+    try std.testing.expectEqual(@as(u64, 30), rest.max_ns);
+    try std.testing.expectEqual(@as(u32, 3), rest.queue_depth_max);
+}
+
 test "average calculation correctness" {
     var collector = EventMetricsCollector.init(std.testing.allocator);
     defer collector.deinit();
