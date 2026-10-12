@@ -146,12 +146,12 @@ pub const MetricsCollector = struct {
 
     pub fn getStats(self: *MetricsCollector, widget_id: u32) ?WidgetStats {
         const widget_data = self.widgets.get(widget_id) orelse return null;
-        return self.calculateStats(widget_data.durations.items, widget_data.min_ns, widget_data.max_ns, widget_data.sum_ns);
+        return calculateStats(widget_data.durations.items, widget_data.min_ns, widget_data.max_ns, widget_data.sum_ns);
     }
 
     pub fn getTypeStats(self: *MetricsCollector, widget_type: []const u8) ?TypeStats {
         const type_data = self.types.get(widget_type) orelse return null;
-        const base_stats = self.calculateStats(type_data.durations.items, type_data.min_ns, type_data.max_ns, type_data.sum_ns);
+        const base_stats = calculateStats(type_data.durations.items, type_data.min_ns, type_data.max_ns, type_data.sum_ns);
         return .{
             .min_ns = base_stats.min_ns,
             .max_ns = base_stats.max_ns,
@@ -164,7 +164,9 @@ pub const MetricsCollector = struct {
         };
     }
 
-    fn calculateStats(self: *MetricsCollector, durations: []const u64, min_ns: u64, max_ns: u64, sum_ns: u64) WidgetStats {
+    /// Sorts `durations` in place: the order of recorded samples is never observable, and sorting
+    /// in place keeps stats queries allocation free.
+    fn calculateStats(durations: []u64, min_ns: u64, max_ns: u64, sum_ns: u64) WidgetStats {
         const count = durations.len;
         if (count == 0) {
             return .{
@@ -180,20 +182,16 @@ pub const MetricsCollector = struct {
 
         const avg_ns = sum_ns / count;
 
-        // Calculate percentiles - need to sort a copy
-        var sorted = std.ArrayList(u64).empty;
-        defer sorted.deinit(self.allocator);
-        sorted.appendSlice(self.allocator, durations) catch unreachable;
-        std.mem.sort(u64, sorted.items, {}, std.sort.asc(u64));
+        std.mem.sort(u64, durations, {}, std.sort.asc(u64));
 
         return .{
             .min_ns = min_ns,
             .max_ns = max_ns,
             .avg_ns = avg_ns,
             .count = count,
-            .p50_ns = percentile(sorted.items, 50),
-            .p95_ns = percentile(sorted.items, 95),
-            .p99_ns = percentile(sorted.items, 99),
+            .p50_ns = percentile(durations, 50),
+            .p95_ns = percentile(durations, 95),
+            .p99_ns = percentile(durations, 99),
         };
     }
 
@@ -241,7 +239,9 @@ pub const MetricsCollector = struct {
             return;
         }
 
-        // Rebuild durations from remaining widgets
+        // Rebuild durations from remaining widgets. Every remaining duration was appended to
+        // this list when it was recorded, so the retained capacity already holds all of them.
+        const capacity = type_data.durations.capacity;
         type_data.durations.clearRetainingCapacity();
         type_data.sum_ns = 0;
         type_data.min_ns = std.math.maxInt(u64);
@@ -252,7 +252,8 @@ pub const MetricsCollector = struct {
             if (self.widgets.get(widget_id_ptr.*)) |widget_data| {
                 if (std.mem.eql(u8, widget_data.widget_type, widget_type)) {
                     for (widget_data.durations.items) |duration| {
-                        type_data.durations.append(self.allocator, duration) catch unreachable;
+                        std.debug.assert(type_data.durations.items.len < capacity);
+                        type_data.durations.appendAssumeCapacity(duration);
                         type_data.min_ns = @min(type_data.min_ns, duration);
                         type_data.max_ns = @max(type_data.max_ns, duration);
                         type_data.sum_ns = std.math.add(u64, type_data.sum_ns, duration) catch std.math.maxInt(u64);
@@ -280,6 +281,33 @@ fn percentile(sorted: []const u64, p: u8) u64 {
 test "MetricsCollector init and deinit" {
     var collector = MetricsCollector.init(std.testing.allocator);
     defer collector.deinit();
+}
+
+test "stats queries and resetWidget allocate nothing once renders are recorded" {
+    var failing = std.testing.FailingAllocator.init(std.testing.allocator, .{});
+    var collector = MetricsCollector.init(failing.allocator());
+    defer collector.deinit();
+
+    collector.recordRender(1, "Button", 30);
+    collector.recordRender(1, "Button", 10);
+    collector.recordRender(1, "Button", 20);
+    collector.recordRender(2, "Button", 100);
+
+    // From here on every allocation fails; the queries must not need one.
+    failing.fail_index = failing.alloc_index;
+
+    const widget = collector.getStats(1) orelse return error.StatsNotFound;
+    try std.testing.expectEqual(@as(u64, 3), widget.count);
+    try std.testing.expectEqual(@as(u64, 20), widget.p50_ns);
+
+    const all = collector.getTypeStats("Button") orelse return error.StatsNotFound;
+    try std.testing.expectEqual(@as(u64, 4), all.count);
+    try std.testing.expectEqual(@as(u64, 100), all.max_ns);
+
+    collector.resetWidget(2);
+    const rest = collector.getTypeStats("Button") orelse return error.StatsNotFound;
+    try std.testing.expectEqual(@as(u64, 3), rest.count);
+    try std.testing.expectEqual(@as(u64, 30), rest.max_ns);
 }
 
 test "record single render - stats should have min==max==avg" {

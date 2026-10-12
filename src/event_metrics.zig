@@ -140,12 +140,12 @@ pub const EventMetricsCollector = struct {
 
     pub fn getEventStats(self: *EventMetricsCollector, event_type: []const u8) ?EventStats {
         const event_data = self.events.get(event_type) orelse return null;
-        return self.calculateEventStats(event_data.latencies.items, event_data.min_ns, event_data.max_ns, event_data.sum_ns, event_data.queue_depth_max);
+        return calculateEventStats(event_data.latencies.items, event_data.min_ns, event_data.max_ns, event_data.sum_ns, event_data.queue_depth_max);
     }
 
     pub fn getTypeStats(self: *EventMetricsCollector) ?TypeStats {
         const type_data = self.type_data orelse return null;
-        const base_stats = self.calculateEventStats(type_data.latencies.items, type_data.min_ns, type_data.max_ns, type_data.sum_ns, type_data.queue_depth_max);
+        const base_stats = calculateEventStats(type_data.latencies.items, type_data.min_ns, type_data.max_ns, type_data.sum_ns, type_data.queue_depth_max);
         return .{
             .min_ns = base_stats.min_ns,
             .max_ns = base_stats.max_ns,
@@ -158,7 +158,9 @@ pub const EventMetricsCollector = struct {
         };
     }
 
-    fn calculateEventStats(self: *EventMetricsCollector, latencies: []const u64, min_ns: u64, max_ns: u64, sum_ns: u64, queue_depth_max: u32) EventStats {
+    /// Sorts `latencies` in place: the order of recorded samples is never observable, and sorting
+    /// in place keeps stats queries allocation free.
+    fn calculateEventStats(latencies: []u64, min_ns: u64, max_ns: u64, sum_ns: u64, queue_depth_max: u32) EventStats {
         const count = latencies.len;
         if (count == 0) {
             return .{
@@ -175,20 +177,16 @@ pub const EventMetricsCollector = struct {
 
         const avg_ns = sum_ns / count;
 
-        // Calculate percentiles - need to sort a copy
-        var sorted = std.ArrayList(u64).empty;
-        defer sorted.deinit(self.allocator);
-        sorted.appendSlice(self.allocator, latencies) catch unreachable;
-        std.mem.sort(u64, sorted.items, {}, std.sort.asc(u64));
+        std.mem.sort(u64, latencies, {}, std.sort.asc(u64));
 
         return .{
             .min_ns = min_ns,
             .max_ns = max_ns,
             .avg_ns = avg_ns,
             .count = count,
-            .p50_ns = percentile(sorted.items, 50),
-            .p95_ns = percentile(sorted.items, 95),
-            .p99_ns = percentile(sorted.items, 99),
+            .p50_ns = percentile(latencies, 50),
+            .p95_ns = percentile(latencies, 95),
+            .p99_ns = percentile(latencies, 99),
             .queue_depth_max = queue_depth_max,
         };
     }
@@ -228,29 +226,26 @@ pub const EventMetricsCollector = struct {
             return;
         }
 
-        // Free existing type data
-        if (self.type_data) |*type_data| {
-            type_data.deinit(self.allocator);
-        }
-
-        // Rebuild from scratch
-        self.type_data = .{
-            .latencies = std.ArrayList(u64).empty,
-            .min_ns = std.math.maxInt(u64),
-            .max_ns = 0,
-            .sum_ns = 0,
-            .queue_depth_max = 0,
-        };
+        // Rebuild in place. Every remaining latency was appended to this list when it was
+        // recorded, so the retained capacity already holds all of them and nothing allocates.
+        const type_data = &self.type_data.?;
+        const capacity = type_data.latencies.capacity;
+        type_data.latencies.clearRetainingCapacity();
+        type_data.min_ns = std.math.maxInt(u64);
+        type_data.max_ns = 0;
+        type_data.sum_ns = 0;
+        type_data.queue_depth_max = 0;
 
         var event_it = self.events.valueIterator();
         while (event_it.next()) |event_data| {
             for (event_data.latencies.items) |latency| {
-                self.type_data.?.latencies.append(self.allocator, latency) catch unreachable;
-                self.type_data.?.min_ns = @min(self.type_data.?.min_ns, latency);
-                self.type_data.?.max_ns = @max(self.type_data.?.max_ns, latency);
-                self.type_data.?.sum_ns = std.math.add(u64, self.type_data.?.sum_ns, latency) catch std.math.maxInt(u64);
+                std.debug.assert(type_data.latencies.items.len < capacity);
+                type_data.latencies.appendAssumeCapacity(latency);
+                type_data.min_ns = @min(type_data.min_ns, latency);
+                type_data.max_ns = @max(type_data.max_ns, latency);
+                type_data.sum_ns = std.math.add(u64, type_data.sum_ns, latency) catch std.math.maxInt(u64);
             }
-            self.type_data.?.queue_depth_max = @max(self.type_data.?.queue_depth_max, event_data.queue_depth_max);
+            type_data.queue_depth_max = @max(type_data.queue_depth_max, event_data.queue_depth_max);
         }
     }
 };
