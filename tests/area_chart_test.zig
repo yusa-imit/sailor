@@ -587,7 +587,7 @@ test "custom fill_char renders with specified character" {
         .withFillChar('▓');
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 15 };
     chart.render(&buf, area);
-    try testing.expect(areaHasChar(buf, area, '▓') or countNonEmptyCells(buf, area) > 0);
+    try testing.expect(areaHasChar(buf, area, '▓'));
 }
 
 test "custom line_char renders with specified character" {
