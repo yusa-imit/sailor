@@ -36,7 +36,7 @@ risk, lowest first.
 - [x] **`zig fmt` on `tests/`, `examples/`, `benchmarks/`.** One mechanical PR, no logic
       changes; confirm the diff is whitespace only by comparing `zig ast-check` output or test
       counts before and after. *Verify:* `zig fmt --check` over the whole repo is empty.
-- [ ] **`terminal.zig` `AnsiParseState` wiring.** The doc comment promises that the widget
+- [x] **`terminal.zig` `AnsiParseState` wiring.** The doc comment promises that the widget
       interprets ANSI sequences; `ansi_state` is a field that `render()` never consults.
       Wire parsing into the write path, with invalid and truncated sequences handled as
       returned data errors, never asserted. *Verify:* RED tests render colored output through

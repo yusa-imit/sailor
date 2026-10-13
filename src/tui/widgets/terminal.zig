@@ -1,10 +1,12 @@
 //! Terminal widget for embedding shell sessions with scrollback and ANSI support.
 const std = @import("std");
+const assert = std.debug.assert;
 const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;
 const Style = @import("../style.zig").Style;
 const Color = @import("../style.zig").Color;
 const Block = @import("block.zig").Block;
+const UnicodeWidth = @import("../../unicode.zig").UnicodeWidth;
 
 /// Terminal widget for embedding shell sessions with scrollback and ANSI support
 pub const TerminalWidget = struct {
@@ -176,6 +178,61 @@ pub const TerminalWidget = struct {
         return self.lines.items[start..end];
     }
 
+    /// Draw one scrollback line, interpreting ANSI escape sequences.
+    ///
+    /// SGR sequences (`ESC [ ... m`) update a copy of `ansi_state`, which also seeds every line;
+    /// all other CSI sequences are consumed and ignored. A malformed sequence never draws its
+    /// bytes: a truncated one ends the line, an invalid one is skipped. Text is clipped to
+    /// `inner_area`. Precondition: `y` lies inside `inner_area`.
+    fn renderLine(
+        self: TerminalWidget,
+        buf: *Buffer,
+        inner_area: Rect,
+        y: u16,
+        line: []const u8,
+    ) void {
+        assert(y >= inner_area.y);
+        assert(y - inner_area.y < inner_area.height);
+
+        var state = self.ansi_state;
+        const x_end: u32 = @as(u32, inner_area.x) + inner_area.width;
+        var x: u32 = inner_area.x;
+        var i: usize = 0;
+        while (i < line.len and x < x_end) {
+            if (line[i] == 0x1b) {
+                const len = AnsiParseState.escapeLength(line[i..]) catch |err| switch (err) {
+                    error.TruncatedSequence => return,
+                    error.InvalidSequence => {
+                        i += 1;
+                        continue;
+                    },
+                };
+                if (line[i + len - 1] == 'm') {
+                    state.applySgr(line[i + 2 .. i + len - 1]) catch |err| switch (err) {
+                        // applySgr is atomic: an invalid sequence leaves the style as it was.
+                        error.InvalidParameter => {},
+                    };
+                }
+                i += len;
+                continue;
+            }
+
+            const char_len = std.unicode.utf8ByteSequenceLength(line[i]) catch 1;
+            if (i + char_len > line.len) return;
+            const codepoint = if (char_len == 1)
+                @as(u21, line[i])
+            else
+                std.unicode.utf8Decode(line[i .. i + char_len]) catch @as(u21, line[i]);
+            i += char_len;
+
+            const char_width = UnicodeWidth.charWidth(codepoint);
+            if (char_width == 0) continue;
+            if (char_width == 2 and x + 1 >= x_end) return;
+            buf.set(@intCast(x), y, .{ .char = codepoint, .style = state.style(self.text_style) });
+            x += char_width;
+        }
+    }
+
     /// Render terminal to buffer
     pub fn render(self: TerminalWidget, buf: *Buffer, area: Rect) void {
         if (area.width == 0 or area.height == 0) return;
@@ -195,7 +252,7 @@ pub const TerminalWidget = struct {
         for (visible, 0..) |line, idx| {
             if (idx >= inner_area.height) break;
             const y = inner_area.y + @as(u16, @intCast(idx));
-            buf.setString(inner_area.x, y, line, self.text_style);
+            self.renderLine(buf, inner_area, y, line);
         }
 
         // Fill remaining rows with spaces
@@ -220,31 +277,103 @@ pub const AnsiParseState = struct {
     underline: bool = false,
     reverse: bool = false,
 
-    /// Parse ANSI escape sequence
+    /// Leniently apply one SGR parameter list; malformed input is ignored.
+    ///
+    /// Kept for callers that feed already-split parameters. Use `applySgr` to learn about
+    /// malformed input.
     pub fn parseSequence(self: *AnsiParseState, seq: []const u8) void {
         if (seq.len < 1) return;
+        self.applySgr(seq) catch |err| switch (err) {
+            // Documented as lenient; `applySgr` leaves the state untouched on this error.
+            error.InvalidParameter => {},
+        };
+    }
 
-        // Basic patterns: [attr, [31m (red foreground), [1m (bold), etc.
-        if (std.mem.eql(u8, seq, "1")) {
-            self.bold = true;
-        } else if (std.mem.eql(u8, seq, "2")) {
-            self.dim = true;
-        } else if (std.mem.eql(u8, seq, "3")) {
-            self.italic = true;
-        } else if (std.mem.eql(u8, seq, "4")) {
-            self.underline = true;
-        } else if (std.mem.eql(u8, seq, "7")) {
-            self.reverse = true;
-        } else if (std.mem.eql(u8, seq, "0")) {
-            // Reset all
-            self.bold = false;
-            self.dim = false;
-            self.italic = false;
-            self.underline = false;
-            self.reverse = false;
-            self.foreground = null;
-            self.background = null;
+    /// Apply an SGR parameter list (the bytes between `ESC [` and `m`, e.g. `"1;31"`).
+    ///
+    /// An empty list means reset, as on a terminal. Supports attributes 0-4, 7, 22-24, 27,
+    /// the 8 and 16 color ranges, 39/49 and extended colors (`38;5;n`, `38;2;r;g;b`, and
+    /// the `48` forms). Unknown but well-formed codes are ignored. The state changes only
+    /// if the whole list is valid.
+    pub fn applySgr(self: *AnsiParseState, params: []const u8) SgrError!void {
+        if (params.len > sgr_params_len_max) return error.InvalidParameter;
+
+        var next = self.*;
+        var fields = std.mem.splitScalar(u8, params, ';');
+        while (fields.next()) |field| {
+            const code = try parseSgrField(field);
+            switch (code) {
+                0 => next.resetAttributes(),
+                1 => next.bold = true,
+                2 => next.dim = true,
+                3 => next.italic = true,
+                4 => next.underline = true,
+                7 => next.reverse = true,
+                22 => {
+                    next.bold = false;
+                    next.dim = false;
+                },
+                23 => next.italic = false,
+                24 => next.underline = false,
+                27 => next.reverse = false,
+                30...37 => next.foreground = basicColor(code - 30, false),
+                38 => next.foreground = try parseExtendedColor(&fields),
+                39 => next.foreground = null,
+                40...47 => next.background = basicColor(code - 40, false),
+                48 => next.background = try parseExtendedColor(&fields),
+                49 => next.background = null,
+                90...97 => next.foreground = basicColor(code - 90, true),
+                100...107 => next.background = basicColor(code - 100, true),
+                else => {},
+            }
         }
+        self.* = next;
+    }
+
+    /// Length in bytes of the escape sequence at the start of `input`.
+    ///
+    /// Only CSI sequences (`ESC [ params final`) are recognised. `TruncatedSequence` means
+    /// `input` ended before the final byte; `InvalidSequence` means the bytes cannot start a
+    /// sequence (not `[`, a stray control byte, or longer than `sequence_len_max`).
+    /// Precondition: `input` starts with ESC.
+    pub fn escapeLength(input: []const u8) EscapeError!u32 {
+        assert(input.len > 0);
+        assert(input[0] == 0x1b);
+
+        if (input.len < 2) return error.TruncatedSequence;
+        if (input[1] != '[') return error.InvalidSequence;
+        for (input[2..], 2..) |byte, index| {
+            if (index >= sequence_len_max) return error.InvalidSequence;
+            switch (byte) {
+                0x20...0x3f => {},
+                0x40...0x7e => return @intCast(index + 1),
+                else => return error.InvalidSequence,
+            }
+        }
+        return error.TruncatedSequence;
+    }
+
+    /// The cell style for text drawn in this state, layered over `base`.
+    pub fn style(self: AnsiParseState, base: Style) Style {
+        var result = base;
+        if (self.foreground) |color| result.fg = color;
+        if (self.background) |color| result.bg = color;
+        if (self.bold) result.bold = true;
+        if (self.dim) result.dim = true;
+        if (self.italic) result.italic = true;
+        if (self.underline) result.underline = true;
+        if (self.reverse) result.reverse = true;
+        return result;
+    }
+
+    fn resetAttributes(self: *AnsiParseState) void {
+        self.foreground = null;
+        self.background = null;
+        self.bold = false;
+        self.dim = false;
+        self.italic = false;
+        self.underline = false;
+        self.reverse = false;
     }
 
     /// Reset ANSI state to defaults
@@ -260,6 +389,52 @@ pub const AnsiParseState = struct {
         self.reverse = false;
     }
 };
+
+/// Longest SGR parameter list `AnsiParseState.applySgr` accepts, in bytes.
+const sgr_params_len_max = 256;
+
+/// Longest escape sequence `AnsiParseState.escapeLength` accepts, in bytes.
+const sequence_len_max = 64;
+
+/// Why `AnsiParseState.escapeLength` found no complete sequence.
+pub const EscapeError = error{ TruncatedSequence, InvalidSequence };
+
+/// Why `AnsiParseState.applySgr` rejected a parameter list.
+pub const SgrError = error{InvalidParameter};
+
+fn parseSgrField(field: []const u8) SgrError!u8 {
+    if (field.len == 0) return 0;
+    return std.fmt.parseInt(u8, field, 10) catch |err| switch (err) {
+        error.Overflow, error.InvalidCharacter => error.InvalidParameter,
+    };
+}
+
+fn basicColor(index: u8, bright: bool) Color {
+    assert(index < 8);
+    const colors = [8]Color{ .black, .red, .green, .yellow, .blue, .magenta, .cyan, .white };
+    const bright_colors = [8]Color{
+        .bright_black, .bright_red,     .bright_green, .bright_yellow,
+        .bright_blue,  .bright_magenta, .bright_cyan,  .bright_white,
+    };
+    return if (bright) bright_colors[index] else colors[index];
+}
+
+fn parseExtendedColor(fields: *std.mem.SplitIterator(u8, .scalar)) SgrError!Color {
+    const mode = try parseSgrField(fields.next() orelse return error.InvalidParameter);
+    switch (mode) {
+        5 => {
+            const index = try parseSgrField(fields.next() orelse return error.InvalidParameter);
+            return Color{ .indexed = index };
+        },
+        2 => {
+            const r = try parseSgrField(fields.next() orelse return error.InvalidParameter);
+            const g = try parseSgrField(fields.next() orelse return error.InvalidParameter);
+            const b = try parseSgrField(fields.next() orelse return error.InvalidParameter);
+            return Color{ .rgb = .{ .r = r, .g = g, .b = b } };
+        },
+        else => return error.InvalidParameter,
+    }
+}
 
 // Tests
 const testing = std.testing;

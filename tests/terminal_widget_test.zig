@@ -12,6 +12,143 @@ const testing = std.testing;
 // Tests
 // ============================================================================
 
+const Color = sailor.tui.style.Color;
+
+fn expectCell(buf: *const Buffer, x: u16, y: u16, char: u21, style: Style) !void {
+    const cell = buf.get(x, y) orelse return error.OutOfBounds;
+    try testing.expectEqual(char, cell.char);
+    try testing.expectEqual(style, cell.style);
+}
+
+fn renderLines(lines: []const []const u8, area: Rect, buf: *Buffer, seed: AnsiParseState) !void {
+    var term = try TerminalWidget.init(testing.allocator);
+    defer term.deinit();
+    term.ansi_state = seed;
+    for (lines) |line| try term.addLine(line);
+    term.render(buf, area);
+}
+
+test "render interprets SGR colors and never draws the escape bytes" {
+    var buf = try Buffer.init(testing.allocator, 20, 3);
+    defer buf.deinit();
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 3 };
+    try renderLines(&.{"\x1b[31mred\x1b[0m ok"}, area, &buf, .{});
+
+    try expectCell(&buf, 0, 0, 'r', .{ .fg = .red });
+    try expectCell(&buf, 1, 0, 'e', .{ .fg = .red });
+    try expectCell(&buf, 2, 0, 'd', .{ .fg = .red });
+    try expectCell(&buf, 3, 0, ' ', .{});
+    try expectCell(&buf, 4, 0, 'o', .{});
+    try expectCell(&buf, 5, 0, 'k', .{});
+}
+
+test "render combines attributes, background, 256-color and truecolor" {
+    var buf = try Buffer.init(testing.allocator, 20, 3);
+    defer buf.deinit();
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 3 };
+    const lines = [_][]const u8{
+        "\x1b[1;4;44mA\x1b[22;24mB\x1b[49m",
+        "\x1b[38;5;208mC\x1b[38;2;1;2;3;48;5;9mD\x1b[39;7mE",
+        "\x1b[92mF\x1b[105mG",
+    };
+    try renderLines(&lines, area, &buf, .{});
+
+    try expectCell(&buf, 0, 0, 'A', .{ .bold = true, .underline = true, .bg = .blue });
+    try expectCell(&buf, 1, 0, 'B', .{ .bg = .blue });
+    try expectCell(&buf, 0, 1, 'C', .{ .fg = Color{ .indexed = 208 } });
+    const truecolor = Color{ .rgb = .{ .r = 1, .g = 2, .b = 3 } };
+    try expectCell(&buf, 1, 1, 'D', .{ .fg = truecolor, .bg = Color{ .indexed = 9 } });
+    try expectCell(&buf, 2, 1, 'E', .{ .bg = Color{ .indexed = 9 }, .reverse = true });
+    try expectCell(&buf, 0, 2, 'F', .{ .fg = .bright_green });
+    try expectCell(&buf, 1, 2, 'G', .{ .fg = .bright_green, .bg = .bright_magenta });
+}
+
+test "render keeps UTF-8 text after a sequence intact" {
+    var buf = try Buffer.init(testing.allocator, 20, 1);
+    defer buf.deinit();
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
+    try renderLines(&.{"\x1b[32m\xc3\xa9\xe4\xb8\xadx"}, area, &buf, .{});
+
+    try expectCell(&buf, 0, 0, 0xe9, .{ .fg = .green });
+    try expectCell(&buf, 1, 0, 0x4e2d, .{ .fg = .green });
+    try expectCell(&buf, 3, 0, 'x', .{ .fg = .green });
+}
+
+test "render starts every line from the widget ansi_state, not from the previous line" {
+    var buf = try Buffer.init(testing.allocator, 20, 3);
+    defer buf.deinit();
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 3 };
+    const seed = AnsiParseState{ .foreground = .cyan };
+    try renderLines(&.{ "\x1b[31mred", "plain" }, area, &buf, seed);
+
+    try expectCell(&buf, 0, 0, 'r', .{ .fg = .red });
+    try expectCell(&buf, 0, 1, 'p', .{ .fg = .cyan });
+}
+
+test "render drops a truncated sequence and keeps the text before it" {
+    var buf = try Buffer.init(testing.allocator, 20, 3);
+    defer buf.deinit();
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 3 };
+    try renderLines(&.{ "ab\x1b[3", "cd\x1b" }, area, &buf, .{});
+
+    try expectCell(&buf, 1, 0, 'b', .{});
+    try expectCell(&buf, 2, 0, ' ', .{});
+    try expectCell(&buf, 3, 0, ' ', .{});
+    try expectCell(&buf, 1, 1, 'd', .{});
+    try expectCell(&buf, 2, 1, ' ', .{});
+}
+
+test "render ignores an invalid SGR and non-SGR sequences but keeps drawing" {
+    var buf = try Buffer.init(testing.allocator, 20, 3);
+    defer buf.deinit();
+    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 3 };
+    try renderLines(&.{ "\x1b[31m\x1b[999mX", "\x1b[2Ky\x1bz" }, area, &buf, .{});
+
+    try expectCell(&buf, 0, 0, 'X', .{ .fg = .red });
+    try expectCell(&buf, 0, 1, 'y', .{});
+    try expectCell(&buf, 1, 1, 'z', .{});
+}
+
+test "render clips colored text to the inner area" {
+    var buf = try Buffer.init(testing.allocator, 20, 3);
+    defer buf.deinit();
+    const area = Rect{ .x = 2, .y = 0, .width = 3, .height = 3 };
+    try renderLines(&.{"\x1b[31mabcdef"}, area, &buf, .{});
+
+    try expectCell(&buf, 2, 0, 'a', .{ .fg = .red });
+    try expectCell(&buf, 4, 0, 'c', .{ .fg = .red });
+    try expectCell(&buf, 5, 0, ' ', .{});
+}
+
+test "applySgr treats an empty parameter list as reset" {
+    var state = AnsiParseState{ .bold = true, .foreground = .red };
+    try state.applySgr("");
+    try testing.expectEqual(AnsiParseState{}, state);
+}
+
+test "applySgr rejects bad parameters and leaves the state untouched" {
+    var state = AnsiParseState{ .italic = true };
+    const before = state;
+    try testing.expectError(error.InvalidParameter, state.applySgr("1;999"));
+    try testing.expectError(error.InvalidParameter, state.applySgr("1;x"));
+    try testing.expectError(error.InvalidParameter, state.applySgr("38;5"));
+    try testing.expectError(error.InvalidParameter, state.applySgr("38;5;256"));
+    try testing.expectError(error.InvalidParameter, state.applySgr("38;2;1;2"));
+    try testing.expectError(error.InvalidParameter, state.applySgr("38;9;1"));
+    try testing.expectEqual(before, state);
+}
+
+test "escapeLength measures CSI sequences and reports data errors" {
+    try testing.expectEqual(@as(u32, 5), try AnsiParseState.escapeLength("\x1b[31mabc"));
+    try testing.expectEqual(@as(u32, 3), try AnsiParseState.escapeLength("\x1b[m"));
+    try testing.expectEqual(@as(u32, 4), try AnsiParseState.escapeLength("\x1b[2K"));
+    try testing.expectError(error.TruncatedSequence, AnsiParseState.escapeLength("\x1b"));
+    try testing.expectError(error.TruncatedSequence, AnsiParseState.escapeLength("\x1b["));
+    try testing.expectError(error.TruncatedSequence, AnsiParseState.escapeLength("\x1b[31"));
+    try testing.expectError(error.InvalidSequence, AnsiParseState.escapeLength("\x1bz"));
+    try testing.expectError(error.InvalidSequence, AnsiParseState.escapeLength("\x1b[3\x01m"));
+}
+
 test "Terminal widget init and deinit" {
     var term = try TerminalWidget.init(testing.allocator);
     defer term.deinit();
