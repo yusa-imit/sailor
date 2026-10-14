@@ -9,7 +9,9 @@
 //! - Horizontal scrolling for long lines
 //! - Line number display (1-indexed with right-alignment)
 //! - Search highlighting with case-sensitive/insensitive matching
-//! - Soft wrapping for content exceeding available width
+//! - Soft wrapping for content exceeding available width (splits at the column count,
+//!   not at word boundaries; `scroll_y` counts logical lines; a search match that straddles
+//!   a wrap point is not highlighted)
 //! - Block wrapper support for borders and padding
 //! - Fluent builder API
 //!
@@ -33,6 +35,8 @@ const style_mod = @import("../style.zig");
 const Style = style_mod.Style;
 const block_mod = @import("block.zig");
 const Block = block_mod.Block;
+const assert = std.debug.assert;
+const maybe = @import("../../stdx.zig").maybe;
 
 /// Pager widget - scrollable text content with search and line numbers
 pub const Pager = struct {
@@ -48,7 +52,7 @@ pub const Pager = struct {
     /// Whether to display line numbers
     line_numbers: bool = false,
 
-    /// Whether to wrap long lines (not implemented in render, but stored)
+    /// Whether to wrap long lines onto further rows instead of cutting them (ignores `scroll_x`)
     wrap: bool = false,
 
     /// Text style for content
@@ -205,63 +209,19 @@ pub const Pager = struct {
         // Calculate line number width
         const line_num_width: u16 = if (self.line_numbers) 7 else 0;
 
-        // Content width after line numbers
-        const content_width: u16 = if (inner_area.width > line_num_width)
-            inner_area.width - line_num_width
-        else {
-            // Not enough space for line numbers
+        // Not enough space for line numbers plus at least one content column
+        if (inner_area.width <= line_num_width) {
             if (self.block) |block| {
                 block.render(buf, area);
             }
             return;
-        };
+        }
 
-        // Render each visible line
+        // Render each visible line; a wrapped line may take several rows.
         var row: u16 = 0;
-        while (row < inner_area.height) : (row += 1) {
-            const line_idx = self.scroll_y + row;
-
-            if (line_idx >= self.lines.len) break;
-
-            const line = self.lines[line_idx];
-
-            // Render line number prefix
-            if (self.line_numbers) {
-                var num_buf: [7]u8 = undefined;
-                const num_str = std.fmt.bufPrint(
-                    &num_buf,
-                    "{d:>4} | ",
-                    .{line_idx + 1},
-                ) catch "";
-
-                const num_x = inner_area.x;
-                const num_y = inner_area.y + row;
-                buf.setString(num_x, num_y, num_str, self.style);
-            }
-
-            // Render line content with horizontal scroll
-            const start_idx = @min(self.scroll_x, line.len);
-            const visible_line = line[start_idx..];
-            const truncated = visible_line[0..@min(visible_line.len, content_width)];
-
-            const content_x = inner_area.x + line_num_width;
-            const content_y = inner_area.y + row;
-
-            // Render line with search highlighting if query exists
-            if (self.search_query.len > 0) {
-                renderLineWithHighlight(
-                    buf,
-                    truncated,
-                    content_x,
-                    content_y,
-                    self.style,
-                    self.highlight_style,
-                    self.search_query,
-                    self.case_sensitive,
-                );
-            } else {
-                buf.setString(content_x, content_y, truncated, self.style);
-            }
+        var line_idx = self.scroll_y;
+        while (row < inner_area.height and line_idx < self.lines.len) : (line_idx += 1) {
+            row += self.renderLine(buf, inner_area, line_num_width, line_idx, row);
         }
 
         // Render block borders and title
@@ -269,7 +229,91 @@ pub const Pager = struct {
             block.render(buf, area);
         }
     }
+
+    /// Render logical line `line_idx` starting at `row` of `inner_area` and return the number of
+    /// rows used (at least one, never past the area height). Without `wrap` the line is cut at
+    /// the area width after `scroll_x`; with `wrap` it continues on the next rows and `scroll_x`
+    /// does not apply.
+    fn renderLine(
+        self: Pager,
+        buf: *Buffer,
+        inner_area: Rect,
+        line_num_width: u16,
+        line_idx: usize,
+        row: u16,
+    ) u16 {
+        assert(row < inner_area.height);
+        assert(line_idx < self.lines.len);
+        const content_width = inner_area.width - line_num_width;
+        const line = self.lines[line_idx];
+        const content_x = inner_area.x + line_num_width;
+
+        if (self.line_numbers) {
+            var num_buf: [7]u8 = undefined;
+            const num_str = std.fmt.bufPrint(&num_buf, "{d:>4} | ", .{line_idx + 1}) catch "";
+            buf.setString(inner_area.x, inner_area.y + row, num_str, self.style);
+        }
+
+        if (!self.wrap) {
+            const visible_line = line[@min(self.scroll_x, line.len)..];
+            const truncated = visible_line[0..@min(visible_line.len, content_width)];
+            self.renderRow(buf, truncated, content_x, inner_area.y + row);
+            return 1;
+        }
+
+        var rows_used: u16 = 0;
+        var offset: usize = 0;
+        for (0..rows_max) |_| {
+            const chunk_len = wrapChunkLen(line[offset..], content_width);
+            maybe(chunk_len == 0);
+            const chunk = line[offset..][0..chunk_len];
+            self.renderRow(buf, chunk, content_x, inner_area.y + row + rows_used);
+            offset += chunk_len;
+            rows_used += 1;
+            if (offset >= line.len or row + rows_used >= inner_area.height) break;
+        }
+        assert(rows_used >= 1);
+        assert(row + rows_used <= inner_area.height);
+        return rows_used;
+    }
+
+    /// Draw one row of already cut text, with search highlighting when a query is set.
+    fn renderRow(self: Pager, buf: *Buffer, text: []const u8, x: u16, y: u16) void {
+        if (self.search_query.len == 0) {
+            buf.setString(x, y, text, self.style);
+            return;
+        }
+        renderLineWithHighlight(
+            buf,
+            text,
+            x,
+            y,
+            self.style,
+            self.highlight_style,
+            self.search_query,
+            self.case_sensitive,
+        );
+    }
 };
+
+/// Upper bound on the rows one logical line may occupy (u16 area height).
+const rows_max: usize = std.math.maxInt(u16);
+
+/// Length in bytes of the longest prefix of `text` that fits `width_columns` columns, one column
+/// per code point (the same cell model `Buffer.setString` uses). Never splits a code point.
+/// Precondition: `width_columns > 0`.
+fn wrapChunkLen(text: []const u8, width_columns: u16) usize {
+    assert(width_columns > 0);
+    var byte_idx: usize = 0;
+    var columns: u16 = 0;
+    while (byte_idx < text.len and columns < width_columns) : (columns += 1) {
+        const seq_len = std.unicode.utf8ByteSequenceLength(text[byte_idx]) catch 1;
+        byte_idx = @min(byte_idx + seq_len, text.len);
+    }
+    assert(byte_idx <= text.len);
+    assert(columns <= width_columns);
+    return byte_idx;
+}
 
 /// Render a line with search highlighting
 fn renderLineWithHighlight(

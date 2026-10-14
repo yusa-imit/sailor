@@ -41,7 +41,7 @@ risk, lowest first.
       Wire parsing into the write path, with invalid and truncated sequences handled as
       returned data errors, never asserted. *Verify:* RED tests render colored output through
       the widget and read the cell styles back.
-- [ ] **`pager.zig` soft-wrap.** Implement the documented soft-wrap or correct the doc comment
+- [x] **`pager.zig` soft-wrap.** Implement the documented soft-wrap or correct the doc comment
       if the architect pass in the PR concludes wrapping belongs to `paragraph`. *Verify:*
       wrapped and unwrapped renders differ in a test for a line wider than the area; width
       boundaries 0, 1, exact fit, fit + 1.
