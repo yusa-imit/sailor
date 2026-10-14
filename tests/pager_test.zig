@@ -691,20 +691,174 @@ test "Pager.render with block draws border" {
 // RENDER WITH WRAP TESTS
 // ============================================================================
 
-test "Pager.render with wrap flag renders long lines" {
-    const allocator = testing.allocator;
-    var buf = try Buffer.init(allocator, 20, 10);
+/// Read row `y` of `buf` into `out` (one byte per ASCII cell, '?' for anything else).
+fn readRow(buf: *const Buffer, y: u16, out: []u8) []const u8 {
+    for (out, 0..) |*byte, x| {
+        const char = buf.getChar(@intCast(x), y);
+        byte.* = if (char < 128) @intCast(char) else '?';
+    }
+    return out;
+}
+
+fn expectRow(buf: *const Buffer, y: u16, expected: []const u8) !void {
+    var row: [32]u8 = undefined;
+    try testing.expect(expected.len <= row.len);
+    try testing.expectEqualStrings(expected, readRow(buf, y, row[0..expected.len]));
+}
+
+fn renderWrapped(buf: *Buffer, pager: Pager, width: u16, height: u16) void {
+    pager.render(buf, Rect{ .x = 0, .y = 0, .width = width, .height = height });
+}
+
+test "Pager.render with wrap splits a line wider than the area onto more rows" {
+    var buf = try Buffer.init(testing.allocator, 4, 4);
     defer buf.deinit();
 
-    const lines = &[_][]const u8{"very long line that exceeds width"};
-    const pager = Pager.init(lines).withWrap();
+    const lines = &[_][]const u8{"abcdefghij"};
+    renderWrapped(&buf, Pager.init(lines).withWrap(), 4, 4);
 
-    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-    pager.render(&buf, area);
+    try expectRow(&buf, 0, "abcd");
+    try expectRow(&buf, 1, "efgh");
+    try expectRow(&buf, 2, "ij  ");
+    try expectRow(&buf, 3, "    ");
+}
 
-    // Should render without crash; content may wrap to multiple rows
-    const cell = buf.getConst(0, 0);
-    try testing.expect(cell != null);
+test "Pager.render without wrap truncates the same line to one row" {
+    var buf = try Buffer.init(testing.allocator, 4, 4);
+    defer buf.deinit();
+
+    const lines = &[_][]const u8{"abcdefghij"};
+    renderWrapped(&buf, Pager.init(lines), 4, 4);
+
+    try expectRow(&buf, 0, "abcd");
+    try expectRow(&buf, 1, "    ");
+}
+
+test "Pager.render with wrap at width boundaries 1, exact fit and fit plus one" {
+    var one = try Buffer.init(testing.allocator, 1, 4);
+    defer one.deinit();
+    const abc = &[_][]const u8{"abc"};
+    renderWrapped(&one, Pager.init(abc).withWrap(), 1, 4);
+    try expectRow(&one, 0, "a");
+    try expectRow(&one, 1, "b");
+    try expectRow(&one, 2, "c");
+    try expectRow(&one, 3, " ");
+
+    var exact = try Buffer.init(testing.allocator, 4, 3);
+    defer exact.deinit();
+    const fit = &[_][]const u8{"abcd"};
+    renderWrapped(&exact, Pager.init(fit).withWrap(), 4, 3);
+    try expectRow(&exact, 0, "abcd");
+    try expectRow(&exact, 1, "    ");
+
+    var over = try Buffer.init(testing.allocator, 4, 3);
+    defer over.deinit();
+    const spill = &[_][]const u8{"abcde"};
+    renderWrapped(&over, Pager.init(spill).withWrap(), 4, 3);
+    try expectRow(&over, 0, "abcd");
+    try expectRow(&over, 1, "e   ");
+}
+
+test "Pager.render with wrap and zero width or height draws nothing" {
+    var buf = try Buffer.init(testing.allocator, 4, 4);
+    defer buf.deinit();
+
+    const lines = &[_][]const u8{"abcdefgh"};
+    renderWrapped(&buf, Pager.init(lines).withWrap(), 0, 4);
+    renderWrapped(&buf, Pager.init(lines).withWrap(), 4, 0);
+
+    try expectRow(&buf, 0, "    ");
+    try expectRow(&buf, 1, "    ");
+}
+
+test "Pager.render with wrap stops at the area height and leaves later lines out" {
+    var buf = try Buffer.init(testing.allocator, 4, 2);
+    defer buf.deinit();
+
+    const lines = &[_][]const u8{ "abcdefgh", "zz" };
+    renderWrapped(&buf, Pager.init(lines).withWrap(), 4, 2);
+
+    try expectRow(&buf, 0, "abcd");
+    try expectRow(&buf, 1, "efgh");
+}
+
+test "Pager.render with wrap starts at scroll_y in logical lines" {
+    var buf = try Buffer.init(testing.allocator, 4, 3);
+    defer buf.deinit();
+
+    const lines = &[_][]const u8{ "abcdefgh", "xy", "klmnopqr" };
+    var pager = Pager.init(lines).withWrap();
+    pager.scroll_y = 1;
+    renderWrapped(&buf, pager, 4, 3);
+
+    try expectRow(&buf, 0, "xy  ");
+    try expectRow(&buf, 1, "klmn");
+    try expectRow(&buf, 2, "opqr");
+}
+
+test "Pager.render with wrap gives an empty line one row" {
+    var buf = try Buffer.init(testing.allocator, 4, 3);
+    defer buf.deinit();
+
+    const lines = &[_][]const u8{ "", "ab" };
+    renderWrapped(&buf, Pager.init(lines).withWrap(), 4, 3);
+
+    try expectRow(&buf, 0, "    ");
+    try expectRow(&buf, 1, "ab  ");
+}
+
+test "Pager.render with wrap ignores scroll_x" {
+    var buf = try Buffer.init(testing.allocator, 4, 3);
+    defer buf.deinit();
+
+    const lines = &[_][]const u8{"abcdef"};
+    var pager = Pager.init(lines).withWrap();
+    pager.scroll_x = 2;
+    renderWrapped(&buf, pager, 4, 3);
+
+    try expectRow(&buf, 0, "abcd");
+    try expectRow(&buf, 1, "ef  ");
+}
+
+test "Pager.render with wrap numbers only the first row of a logical line" {
+    var buf = try Buffer.init(testing.allocator, 11, 3);
+    defer buf.deinit();
+
+    const lines = &[_][]const u8{ "abcdefgh", "xy" };
+    renderWrapped(&buf, Pager.init(lines).withWrap().withLineNumbers(), 11, 3);
+
+    try expectRow(&buf, 0, "   1 | abcd");
+    try expectRow(&buf, 1, "       efgh");
+    try expectRow(&buf, 2, "   2 | xy  ");
+}
+
+test "Pager.render with wrap counts multibyte characters as one column" {
+    var buf = try Buffer.init(testing.allocator, 2, 3);
+    defer buf.deinit();
+
+    const lines = &[_][]const u8{"\u{e9}\u{e9}\u{e9}\u{e9}\u{e9}"};
+    renderWrapped(&buf, Pager.init(lines).withWrap(), 2, 3);
+
+    for ([_]u16{ 0, 1 }) |y| {
+        try testing.expectEqual(@as(u21, 0xe9), buf.getChar(0, y));
+        try testing.expectEqual(@as(u21, 0xe9), buf.getChar(1, y));
+    }
+    try testing.expectEqual(@as(u21, 0xe9), buf.getChar(0, 2));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(1, 2));
+}
+
+test "Pager.render with wrap highlights a match on a continuation row" {
+    var buf = try Buffer.init(testing.allocator, 4, 3);
+    defer buf.deinit();
+
+    const lines = &[_][]const u8{"abcdefgh"};
+    const pager = Pager.init(lines).withWrap().withSearchQuery("ef").withHighlightStyle(.{ .reverse = true });
+    renderWrapped(&buf, pager, 4, 3);
+
+    try testing.expect(!buf.getConst(0, 0).?.style.reverse);
+    try testing.expect(buf.getConst(0, 1).?.style.reverse);
+    try testing.expect(buf.getConst(1, 1).?.style.reverse);
+    try testing.expect(!buf.getConst(2, 1).?.style.reverse);
 }
 
 // ============================================================================
