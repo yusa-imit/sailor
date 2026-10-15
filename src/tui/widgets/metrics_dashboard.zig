@@ -5,12 +5,19 @@
 //! processing statistics from three separate metrics collectors.
 //!
 //! ## Features
-//! - Three layout modes: vertical, horizontal, grid
-//! - Real-time metrics from render, memory, and event collectors
+//! - Three layout modes: vertical (three stacked sections), horizontal (three columns), grid
+//!   (render and memory on the top row, event across the bottom row)
+//! - Metrics from render, memory, and event collectors, read on every `render` call and
+//!   aggregated over all widget types (memory peak is the sum of the per-type peaks)
 //! - Automatic unit formatting (ns/μs/ms for time, B/KB/MB for memory)
-//! - Color-coded warnings for performance thresholds
-//! - Optional graph visualization
-//! - Graceful handling of empty metrics and small areas
+//! - Color-coded warnings: P95 yellow and P99 red above 10 ms (render and event sections)
+//! - "No data" for a collector with nothing recorded; sections too small to hold a header,
+//!   separator and one row (under 20 columns or 2 rows) are skipped
+//!
+//! ## Not implemented
+//! - Graphs: `show_graphs` is stored and reserved for sparklines; it does not change the output.
+//! - Refresh pacing: `update_interval_ms` is stored for the caller's redraw loop; `render`
+//!   always draws the current numbers and never reads a clock.
 //!
 //! ## Usage
 //! ```zig
@@ -86,12 +93,12 @@ pub const MetricsDashboard = struct {
         self.layout_mode = mode;
     }
 
-    /// Set the update interval in milliseconds
+    /// Store the refresh interval (ms) for the caller's redraw loop; `render` ignores it.
     pub fn setUpdateInterval(self: *MetricsDashboard, interval_ms: u64) void {
         self.update_interval_ms = interval_ms;
     }
 
-    /// Enable or disable graph visualization
+    /// Reserved for sparkline graphs, which are not implemented: has no effect on `render`.
     pub fn setShowGraphs(self: *MetricsDashboard, show: bool) void {
         self.show_graphs = show;
     }
@@ -150,6 +157,57 @@ pub const MetricsDashboard = struct {
         try self.renderEventMetrics(buf, event_area);
     }
 
+    /// Render statistics over every widget type the collector has seen, or null when nothing was
+    /// recorded. Percentiles come from the merged samples, so this allocates `sample_count`
+    /// u64 for the duration of the call.
+    fn aggregateRender(self: *const MetricsDashboard) !?RenderAggregate {
+        var sample_count: usize = 0;
+        var type_iterator = self.render_metrics.types.valueIterator();
+        while (type_iterator.next()) |type_data| sample_count += type_data.durations.items.len;
+        if (sample_count == 0) return null;
+
+        var samples = try std.ArrayList(u64).initCapacity(self.allocator, sample_count);
+        defer samples.deinit(self.allocator);
+
+        var aggregate = RenderAggregate{ .widget_count = 0, .avg_ns = 0, .p95_ns = 0, .p99_ns = 0 };
+        var sum_ns: u64 = 0;
+        type_iterator = self.render_metrics.types.valueIterator();
+        while (type_iterator.next()) |type_data| {
+            samples.appendSliceAssumeCapacity(type_data.durations.items);
+            sum_ns = std.math.add(u64, sum_ns, type_data.sum_ns) catch std.math.maxInt(u64);
+            aggregate.widget_count += @intCast(type_data.widget_ids.count());
+        }
+        std.debug.assert(samples.items.len == sample_count);
+
+        std.mem.sort(u64, samples.items, {}, std.sort.asc(u64));
+        aggregate.avg_ns = sum_ns / sample_count;
+        aggregate.p95_ns = percentile(samples.items, 95);
+        aggregate.p99_ns = percentile(samples.items, 99);
+        return aggregate;
+    }
+
+    /// Memory statistics summed over every widget type, or null when nothing was recorded.
+    /// `peak_bytes` is the sum of the per-type peaks: an upper bound of the true overall peak.
+    fn aggregateMemory(self: *const MetricsDashboard) ?MemoryAggregate {
+        var aggregate = MemoryAggregate{
+            .peak_bytes = 0,
+            .current_bytes = 0,
+            .total_allocs = 0,
+            .total_frees = 0,
+        };
+        var type_count: usize = 0;
+        var type_iterator = self.memory_metrics.types.valueIterator();
+        while (type_iterator.next()) |type_data| {
+            type_count += 1;
+            aggregate.peak_bytes +|= type_data.peak_bytes;
+            aggregate.current_bytes +|= type_data.current_bytes;
+            aggregate.total_allocs +|= type_data.total_allocs;
+            aggregate.total_frees +|= type_data.total_frees;
+        }
+        if (type_count == 0) return null;
+        return aggregate;
+    }
+
     fn renderRenderMetrics(self: *const MetricsDashboard, buf: *Buffer, area: Rect) !void {
         if (area.width < 20 or area.height < 2) return;
 
@@ -165,8 +223,8 @@ pub const MetricsDashboard = struct {
             }
         }
 
-        // Get aggregated type stats (all widgets)
-        const maybe_stats = self.render_metrics.getTypeStats("");
+        // Aggregate over every recorded widget type
+        const maybe_stats = try self.aggregateRender();
         if (maybe_stats == null) {
             // No data yet
             if (area.height > 2) {
@@ -221,8 +279,6 @@ pub const MetricsDashboard = struct {
             buf.setString(area.x, y, label, p99_style);
             y += 1;
         }
-
-        _ = self.show_graphs; // Future: render sparklines
     }
 
     fn renderMemoryMetrics(self: *const MetricsDashboard, buf: *Buffer, area: Rect) !void {
@@ -240,8 +296,8 @@ pub const MetricsDashboard = struct {
             }
         }
 
-        // Get aggregated type stats
-        const maybe_stats = self.memory_metrics.getTypeStats("");
+        // Aggregate over every recorded widget type
+        const maybe_stats = self.aggregateMemory();
         if (maybe_stats == null) {
             if (area.height > 2) {
                 buf.setString(area.x, area.y + 2, "No data", .{ .fg = .bright_black });
@@ -357,6 +413,28 @@ pub const MetricsDashboard = struct {
         }
     }
 };
+
+const RenderAggregate = struct {
+    widget_count: u32,
+    avg_ns: u64,
+    p95_ns: u64,
+    p99_ns: u64,
+};
+
+const MemoryAggregate = struct {
+    peak_bytes: usize,
+    current_bytes: usize,
+    total_allocs: u64,
+    total_frees: u64,
+};
+
+/// Nearest-rank percentile over ascending `sorted`; the same formula as `render_metrics`.
+fn percentile(sorted: []const u64, percent: u8) u64 {
+    std.debug.assert(sorted.len > 0);
+    std.debug.assert(percent <= 100);
+    const index = (@as(u64, percent) * (sorted.len - 1)) / 100;
+    return sorted[@intCast(index)];
+}
 
 /// Format time in nanoseconds to human-readable string
 fn formatTime(allocator: std.mem.Allocator, ns: u64) ![]const u8 {

@@ -626,126 +626,6 @@ test "MetricsDashboard render with empty metrics" {
     // Should render empty state without crashing
 }
 
-test "MetricsDashboard render with graphs enabled" {
-    const allocator = testing.allocator;
-    var buffer = try Buffer.init(allocator, 100, 50);
-    defer buffer.deinit();
-
-    var render_collector = render_metrics.MetricsCollector.init(allocator);
-    defer render_collector.deinit();
-    render_collector.recordRender(1, "Button", 1000);
-
-    var memory_collector = memory_metrics.MemoryMetricsCollector.init(allocator);
-    defer memory_collector.deinit();
-
-    var event_collector = event_metrics.EventMetricsCollector.init(allocator);
-    defer event_collector.deinit();
-
-    var dashboard = try MetricsDashboard.init(
-        allocator,
-        &render_collector,
-        &memory_collector,
-        &event_collector,
-    );
-    defer dashboard.deinit();
-
-    dashboard.setShowGraphs(true);
-    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
-    try dashboard.render(&buffer, area);
-}
-
-test "MetricsDashboard render with graphs disabled" {
-    const allocator = testing.allocator;
-    var buffer = try Buffer.init(allocator, 80, 30);
-    defer buffer.deinit();
-
-    var render_collector = render_metrics.MetricsCollector.init(allocator);
-    defer render_collector.deinit();
-    render_collector.recordRender(1, "Button", 1000);
-
-    var memory_collector = memory_metrics.MemoryMetricsCollector.init(allocator);
-    defer memory_collector.deinit();
-
-    var event_collector = event_metrics.EventMetricsCollector.init(allocator);
-    defer event_collector.deinit();
-
-    var dashboard = try MetricsDashboard.init(
-        allocator,
-        &render_collector,
-        &memory_collector,
-        &event_collector,
-    );
-    defer dashboard.deinit();
-
-    dashboard.setShowGraphs(false);
-    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 30 };
-    try dashboard.render(&buffer, area);
-}
-
-test "MetricsDashboard render output contains metric labels" {
-    const allocator = testing.allocator;
-    var buffer = try Buffer.init(allocator, 80, 40);
-    defer buffer.deinit();
-
-    var render_collector = render_metrics.MetricsCollector.init(allocator);
-    defer render_collector.deinit();
-    render_collector.recordRender(1, "Button", 1200);
-
-    var memory_collector = memory_metrics.MemoryMetricsCollector.init(allocator);
-    defer memory_collector.deinit();
-    memory_collector.recordAlloc(1, "Button", 2048);
-
-    var event_collector = event_metrics.EventMetricsCollector.init(allocator);
-    defer event_collector.deinit();
-    event_collector.recordEvent("key_press", 1000, 1);
-
-    var dashboard = try MetricsDashboard.init(
-        allocator,
-        &render_collector,
-        &memory_collector,
-        &event_collector,
-    );
-    defer dashboard.deinit();
-
-    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
-    try dashboard.render(&buffer, area);
-
-    // Output should contain section headers and metric labels
-    // This will fail until implementation exists
-}
-
-test "MetricsDashboard render output contains metric values" {
-    const allocator = testing.allocator;
-    var buffer = try Buffer.init(allocator, 80, 40);
-    defer buffer.deinit();
-
-    var render_collector = render_metrics.MetricsCollector.init(allocator);
-    defer render_collector.deinit();
-    render_collector.recordRender(1, "Button", 1200);
-
-    var memory_collector = memory_metrics.MemoryMetricsCollector.init(allocator);
-    defer memory_collector.deinit();
-    memory_collector.recordAlloc(1, "Button", 2048);
-
-    var event_collector = event_metrics.EventMetricsCollector.init(allocator);
-    defer event_collector.deinit();
-    event_collector.recordEvent("key_press", 1000, 1);
-
-    var dashboard = try MetricsDashboard.init(
-        allocator,
-        &render_collector,
-        &memory_collector,
-        &event_collector,
-    );
-    defer dashboard.deinit();
-
-    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
-    try dashboard.render(&buffer, area);
-
-    // Output should contain formatted metric values
-    // This will fail until implementation exists
-}
-
 // ============================================================================
 // BOUNDARY CONDITIONS
 // ============================================================================
@@ -1038,97 +918,6 @@ test "MetricsDashboard render includes metric labels for event metrics" {
     // Should contain labels like "P95 Latency:", "Queue Depth:"
 }
 
-test "MetricsDashboard formats time values appropriately" {
-    const allocator = testing.allocator;
-    var buffer = try Buffer.init(allocator, 80, 40);
-    defer buffer.deinit();
-
-    var render_collector = render_metrics.MetricsCollector.init(allocator);
-    defer render_collector.deinit();
-    render_collector.recordRender(1, "Button", 1200); // 1200 ns = 1.2 μs
-    render_collector.recordRender(1, "Button", 500000); // 500 μs = 0.5 ms
-
-    var memory_collector = memory_metrics.MemoryMetricsCollector.init(allocator);
-    defer memory_collector.deinit();
-
-    var event_collector = event_metrics.EventMetricsCollector.init(allocator);
-    defer event_collector.deinit();
-
-    var dashboard = try MetricsDashboard.init(
-        allocator,
-        &render_collector,
-        &memory_collector,
-        &event_collector,
-    );
-    defer dashboard.deinit();
-
-    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
-    try dashboard.render(&buffer, area);
-
-    // Should format as ns, μs, ms appropriately
-}
-
-test "MetricsDashboard formats memory values appropriately" {
-    const allocator = testing.allocator;
-    var buffer = try Buffer.init(allocator, 80, 40);
-    defer buffer.deinit();
-
-    var render_collector = render_metrics.MetricsCollector.init(allocator);
-    defer render_collector.deinit();
-
-    var memory_collector = memory_metrics.MemoryMetricsCollector.init(allocator);
-    defer memory_collector.deinit();
-    memory_collector.recordAlloc(1, "Button", 512); // 512 B
-    memory_collector.recordAlloc(2, "Label", 2048); // 2 KB
-    memory_collector.recordAlloc(3, "Table", 1048576); // 1 MB
-
-    var event_collector = event_metrics.EventMetricsCollector.init(allocator);
-    defer event_collector.deinit();
-
-    var dashboard = try MetricsDashboard.init(
-        allocator,
-        &render_collector,
-        &memory_collector,
-        &event_collector,
-    );
-    defer dashboard.deinit();
-
-    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
-    try dashboard.render(&buffer, area);
-
-    // Should format as B, KB, MB appropriately
-}
-
-test "MetricsDashboard uses colors for warning thresholds" {
-    const allocator = testing.allocator;
-    var buffer = try Buffer.init(allocator, 80, 40);
-    defer buffer.deinit();
-
-    var render_collector = render_metrics.MetricsCollector.init(allocator);
-    defer render_collector.deinit();
-    // Record slow render times that should trigger warning colors
-    render_collector.recordRender(1, "Button", 16000000); // 16 ms (> 1 frame at 60 FPS)
-
-    var memory_collector = memory_metrics.MemoryMetricsCollector.init(allocator);
-    defer memory_collector.deinit();
-
-    var event_collector = event_metrics.EventMetricsCollector.init(allocator);
-    defer event_collector.deinit();
-
-    var dashboard = try MetricsDashboard.init(
-        allocator,
-        &render_collector,
-        &memory_collector,
-        &event_collector,
-    );
-    defer dashboard.deinit();
-
-    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
-    try dashboard.render(&buffer, area);
-
-    // Should use warning colors (yellow/red) for slow metrics
-}
-
 test "MetricsDashboard layout alignment labels and values" {
     const allocator = testing.allocator;
     var buffer = try Buffer.init(allocator, 80, 40);
@@ -1248,61 +1037,218 @@ test "MetricsDashboard render with very large metric values" {
     // Should handle overflow protection
 }
 
-test "MetricsDashboard render with update_interval zero" {
-    const allocator = testing.allocator;
-    var buffer = try Buffer.init(allocator, 80, 40);
-    defer buffer.deinit();
+// ============================================================================
+// PROMISED BEHAVIOR READ BACK FROM THE BUFFER (plan 002 item 6)
+// ============================================================================
 
-    var render_collector = render_metrics.MetricsCollector.init(allocator);
-    defer render_collector.deinit();
+const Collectors = struct {
+    render: render_metrics.MetricsCollector,
+    memory: memory_metrics.MemoryMetricsCollector,
+    event: event_metrics.EventMetricsCollector,
 
-    var memory_collector = memory_metrics.MemoryMetricsCollector.init(allocator);
-    defer memory_collector.deinit();
+    fn init(target: *Collectors, gpa: std.mem.Allocator) void {
+        target.render = render_metrics.MetricsCollector.init(gpa);
+        target.memory = memory_metrics.MemoryMetricsCollector.init(gpa);
+        target.event = event_metrics.EventMetricsCollector.init(gpa);
+    }
 
-    var event_collector = event_metrics.EventMetricsCollector.init(allocator);
-    defer event_collector.deinit();
+    fn deinit(self: *Collectors) void {
+        self.render.deinit();
+        self.memory.deinit();
+        self.event.deinit();
+    }
+};
 
-    var dashboard = try MetricsDashboard.init(
-        allocator,
-        &render_collector,
-        &memory_collector,
-        &event_collector,
-    );
-    defer dashboard.deinit();
-
-    dashboard.setUpdateInterval(0);
-    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 40 };
-    try dashboard.render(&buffer, area);
-
-    // Should handle zero interval without issues
+/// Finds the first row at or after `from_row` whose text contains `needle`.
+fn findRow(buf: *const Buffer, from_row: u16, needle: []const u8) !?u16 {
+    var text: [256]u8 = undefined;
+    var y: u16 = from_row;
+    while (y < buf.height) : (y += 1) {
+        var len: usize = 0;
+        var x: u16 = 0;
+        while (x < buf.width) : (x += 1) {
+            const cell = buf.getConst(x, y).?;
+            len += try std.unicode.utf8Encode(cell.char, text[len..]);
+        }
+        if (std.mem.indexOf(u8, text[0..len], needle) != null) return y;
+    }
+    return null;
 }
 
-test "MetricsDashboard render with show_graphs but no historical data" {
-    const allocator = testing.allocator;
-    var buffer = try Buffer.init(allocator, 100, 50);
-    defer buffer.deinit();
+fn expectRow(buf: *const Buffer, from_row: u16, needle: []const u8) !u16 {
+    const row = try findRow(buf, from_row, needle);
+    if (row == null) {
+        std.debug.print("row containing \"{s}\" not found from row {d}\n", .{ needle, from_row });
+        return error.RowNotFound;
+    }
+    return row.?;
+}
 
-    var render_collector = render_metrics.MetricsCollector.init(allocator);
-    defer render_collector.deinit();
-    render_collector.recordRender(1, "Button", 1000); // Only one data point
-
-    var memory_collector = memory_metrics.MemoryMetricsCollector.init(allocator);
-    defer memory_collector.deinit();
-
-    var event_collector = event_metrics.EventMetricsCollector.init(allocator);
-    defer event_collector.deinit();
-
+fn renderVertical(gpa: std.mem.Allocator, collectors: *Collectors, buffer: *Buffer) !void {
     var dashboard = try MetricsDashboard.init(
-        allocator,
-        &render_collector,
-        &memory_collector,
-        &event_collector,
+        gpa,
+        &collectors.render,
+        &collectors.memory,
+        &collectors.event,
     );
     defer dashboard.deinit();
 
-    dashboard.setShowGraphs(true);
-    const area = Rect{ .x = 0, .y = 0, .width = 100, .height = 50 };
-    try dashboard.render(&buffer, area);
+    try dashboard.render(buffer, Rect{ .x = 0, .y = 0, .width = buffer.width, .height = buffer.height });
+}
 
-    // Should handle gracefully - maybe show empty graph or skip
+test "MetricsDashboard render section aggregates every widget type" {
+    var collectors: Collectors = undefined;
+    collectors.init(testing.allocator);
+    defer collectors.deinit();
+    collectors.render.recordRender(1, "Button", 1000);
+    collectors.render.recordRender(2, "Label", 3000);
+    var buffer = try Buffer.init(testing.allocator, 80, 30);
+    defer buffer.deinit();
+
+    try renderVertical(testing.allocator, &collectors, &buffer);
+
+    const header = try expectRow(&buffer, 0, "Render Metrics");
+    // The memory and event sections are empty, so "No data" may only appear below this section.
+    if (try findRow(&buffer, header, "No data")) |row| try testing.expect(row >= header + 10);
+    const widgets_row = try expectRow(&buffer, header, "Widgets: 2");
+    try testing.expect(widgets_row < header + 10);
+    _ = try expectRow(&buffer, header, "Avg: 2.00" ++ "\u{3bc}s");
+}
+
+test "MetricsDashboard memory section aggregates every widget type" {
+    var collectors: Collectors = undefined;
+    collectors.init(testing.allocator);
+    defer collectors.deinit();
+    collectors.memory.recordAlloc(1, "Button", 512);
+    collectors.memory.recordAlloc(2, "Label", 2048);
+    collectors.memory.recordFree(1, "Button", 512);
+    var buffer = try Buffer.init(testing.allocator, 80, 30);
+    defer buffer.deinit();
+
+    try renderVertical(testing.allocator, &collectors, &buffer);
+
+    const header = try expectRow(&buffer, 0, "Memory Metrics");
+    _ = try expectRow(&buffer, header, "Peak: 2.50KB");
+    _ = try expectRow(&buffer, header, "Current: 2.00KB");
+    _ = try expectRow(&buffer, header, "Allocs: 2");
+    _ = try expectRow(&buffer, header, "Frees: 1");
+}
+
+test "MetricsDashboard empty collectors show No data in every section" {
+    var collectors: Collectors = undefined;
+    collectors.init(testing.allocator);
+    defer collectors.deinit();
+    var buffer = try Buffer.init(testing.allocator, 80, 30);
+    defer buffer.deinit();
+
+    try renderVertical(testing.allocator, &collectors, &buffer);
+
+    const render_row = try expectRow(&buffer, 0, "Render Metrics");
+    const no_data_render = try expectRow(&buffer, render_row, "No data");
+    const memory_row = try expectRow(&buffer, no_data_render, "Memory Metrics");
+    const no_data_memory = try expectRow(&buffer, memory_row, "No data");
+    const event_row = try expectRow(&buffer, no_data_memory, "Event Metrics");
+    _ = try expectRow(&buffer, event_row, "No data");
+}
+
+test "MetricsDashboard time units step through ns, us and ms" {
+    const Case = struct { ns: u64, text: []const u8 };
+    const cases = [_]Case{
+        .{ .ns = 999, .text = "Avg: 999ns" },
+        .{ .ns = 1000, .text = "Avg: 1.00\u{3bc}s" },
+        .{ .ns = 999_999, .text = "Avg: 1000.00\u{3bc}s" },
+        .{ .ns = 1_000_000, .text = "Avg: 1.00ms" },
+    };
+    for (cases) |case| {
+        var collectors: Collectors = undefined;
+        collectors.init(testing.allocator);
+        defer collectors.deinit();
+        collectors.render.recordRender(1, "Button", case.ns);
+        var buffer = try Buffer.init(testing.allocator, 80, 30);
+        defer buffer.deinit();
+
+        try renderVertical(testing.allocator, &collectors, &buffer);
+
+        _ = try expectRow(&buffer, 0, case.text);
+    }
+}
+
+test "MetricsDashboard memory units step through B, KB and MB" {
+    const Case = struct { bytes: usize, text: []const u8 };
+    const cases = [_]Case{
+        .{ .bytes = 1023, .text = "Peak: 1023B" },
+        .{ .bytes = 1024, .text = "Peak: 1.00KB" },
+        .{ .bytes = 1024 * 1024, .text = "Peak: 1.00MB" },
+    };
+    for (cases) |case| {
+        var collectors: Collectors = undefined;
+        collectors.init(testing.allocator);
+        defer collectors.deinit();
+        collectors.memory.recordAlloc(1, "Button", case.bytes);
+        var buffer = try Buffer.init(testing.allocator, 80, 30);
+        defer buffer.deinit();
+
+        try renderVertical(testing.allocator, &collectors, &buffer);
+
+        _ = try expectRow(&buffer, 0, case.text);
+    }
+}
+
+test "MetricsDashboard warns on render and event percentiles above 10ms" {
+    const Case = struct { ns: u64, p95: ?Color, p99: ?Color };
+    const cases = [_]Case{
+        .{ .ns = 10_000_000, .p95 = null, .p99 = null },
+        .{ .ns = 10_000_001, .p95 = .yellow, .p99 = .red },
+    };
+    for (cases) |case| {
+        var collectors: Collectors = undefined;
+        collectors.init(testing.allocator);
+        defer collectors.deinit();
+        collectors.render.recordRender(1, "Button", case.ns);
+        collectors.event.recordEvent("key_press", case.ns, 1);
+        var buffer = try Buffer.init(testing.allocator, 80, 30);
+        defer buffer.deinit();
+
+        try renderVertical(testing.allocator, &collectors, &buffer);
+
+        var from: u16 = 0;
+        for ([_][]const u8{ "Render Metrics", "Event Metrics" }) |section| {
+            const header = try expectRow(&buffer, from, section);
+            const p95_row = try expectRow(&buffer, header, "P95:");
+            const p99_row = try expectRow(&buffer, header, "P99:");
+            try testing.expectEqual(case.p95, buffer.getConst(0, p95_row).?.style.fg);
+            try testing.expectEqual(case.p99, buffer.getConst(0, p99_row).?.style.fg);
+            try testing.expect(p99_row < header + 10); // Inside its own 10-row section.
+            from = header + 1;
+        }
+    }
+}
+
+test "MetricsDashboard show_graphs is reserved and does not change the output" {
+    var collectors: Collectors = undefined;
+    collectors.init(testing.allocator);
+    defer collectors.deinit();
+    collectors.render.recordRender(1, "Button", 1000);
+    var shown = try Buffer.init(testing.allocator, 80, 30);
+    defer shown.deinit();
+    var hidden = try Buffer.init(testing.allocator, 80, 30);
+    defer hidden.deinit();
+
+    var dashboard = try MetricsDashboard.init(
+        testing.allocator,
+        &collectors.render,
+        &collectors.memory,
+        &collectors.event,
+    );
+    defer dashboard.deinit();
+    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 30 };
+    dashboard.setShowGraphs(true);
+    try dashboard.render(&shown, area);
+    dashboard.setShowGraphs(false);
+    try dashboard.render(&hidden, area);
+
+    for (shown.cells, hidden.cells) |a, b| {
+        try testing.expectEqual(a.char, b.char);
+        try testing.expectEqual(a.style, b.style);
+    }
 }
