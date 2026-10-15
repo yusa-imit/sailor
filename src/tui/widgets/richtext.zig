@@ -14,10 +14,13 @@ const Block = @import("block.zig").Block;
 ///
 /// Features:
 /// - Inline text formatting (bold, italic, underline, strikethrough)
-/// - Emoji picker with search and categories
-/// - Live markdown preview rendering
-/// - Format toolbar with keybindings (Ctrl+B, Ctrl+I, Ctrl+U)
-/// - Selection-based formatting
+/// - Emoji picker with categories (browse with the `emojiCategory*`/`emojiSelect*` methods)
+/// - Markdown preview pane that renders `**bold**`, `*italic*`, `~~strike~~` and `<u>underline</u>`
+/// - Format toolbar that lists the Ctrl+B, Ctrl+I, Ctrl+U shortcuts
+/// - Selection-based formatting (`applyBold`, `applyItalic`, `applyUnderline`, ...)
+///
+/// Not implemented: emoji search, and key handling. The toolbar is a label only; map your key
+/// events to the `apply*` methods yourself.
 ///
 /// Example:
 /// ```zig
@@ -472,85 +475,69 @@ pub const RichTextInput = struct {
         }
     }
 
+    /// Draws the preview label, then the text with the markers the `apply*` methods insert
+    /// (`**bold**`, `*italic*`, `~~strike~~`, `<u>underline</u>`) consumed and turned into styles.
+    /// A marker toggles its style, so markers nest; an unterminated marker styles the rest of the
+    /// text. Text wraps at the area width and stops at the bottom edge.
     fn renderPreview(self: *const RichTextInput, buf: *Buffer, area: Rect) void {
         if (area.height < 1) return;
 
-        // Simple markdown preview: render formatted text
         const preview_label = "Preview:";
-        var x: u16 = area.x;
         const label_style = Style{ .fg = Color.cyan, .bold = true };
-        for (preview_label) |ch| {
-            if (x >= area.x + area.width) break;
-            buf.set(x, area.y, .{ .char = ch, .style = label_style });
-            x += 1;
+        for (preview_label, 0..) |ch, offset| {
+            if (offset >= area.width) break;
+            const label_x = area.x + @as(u16, @intCast(offset));
+            buf.set(label_x, area.y, .{ .char = ch, .style = label_style });
         }
 
-        // Render formatted text (simplified markdown rendering)
+        var style = Style{};
+        var x: u16 = area.x;
         var y: u16 = area.y + 1;
-        x = area.x;
-
         var i: usize = 0;
-        while (i < self.text.items.len) {
-            if (y >= area.y + area.height) break;
-
-            // Check for **bold**
-            if (i + 4 < self.text.items.len and
-                self.text.items[i] == '*' and self.text.items[i + 1] == '*')
-            {
-                i += 2; // Skip **
-                const bold_style = Style{ .bold = true };
-                while (i < self.text.items.len) {
-                    if (i + 1 < self.text.items.len and
-                        self.text.items[i] == '*' and self.text.items[i + 1] == '*')
-                    {
-                        i += 2; // Skip closing **
-                        break;
-                    }
-                    if (x >= area.x + area.width) {
-                        x = area.x;
-                        y += 1;
-                        if (y >= area.y + area.height) break;
-                    }
-                    buf.set(x, y, .{ .char = self.text.items[i], .style = bold_style });
-                    x += 1;
-                    i += 1;
-                }
+        for (0..self.text.items.len) |_| {
+            if (i >= self.text.items.len) break;
+            if (previewMarker(self.text.items[i..])) |marker| {
+                toggleMarker(&style, marker.kind);
+                i += marker.len;
                 continue;
             }
-
-            // Check for *italic*
-            if (i + 2 < self.text.items.len and self.text.items[i] == '*') {
-                i += 1; // Skip *
-                const italic_style = Style{ .italic = true };
-                while (i < self.text.items.len) {
-                    if (self.text.items[i] == '*') {
-                        i += 1; // Skip closing *
-                        break;
-                    }
-                    if (x >= area.x + area.width) {
-                        x = area.x;
-                        y += 1;
-                        if (y >= area.y + area.height) break;
-                    }
-                    buf.set(x, y, .{ .char = self.text.items[i], .style = italic_style });
-                    x += 1;
-                    i += 1;
-                }
-                continue;
-            }
-
-            // Regular character
             if (x >= area.x + area.width) {
                 x = area.x;
                 y += 1;
-                if (y >= area.y + area.height) break;
             }
-            buf.set(x, y, .{ .char = self.text.items[i], .style = Style{} });
+            if (y >= area.y + area.height) break;
+            buf.set(x, y, .{ .char = self.text.items[i], .style = style });
             x += 1;
             i += 1;
         }
     }
 };
+
+const PreviewMarker = struct {
+    kind: enum { bold, italic, strikethrough, underline_open, underline_close },
+    len: usize,
+};
+
+/// Returns the preview marker that `rest` starts with, longest match first (`**` before `*`).
+fn previewMarker(rest: []const u8) ?PreviewMarker {
+    std.debug.assert(rest.len > 0);
+    if (std.mem.startsWith(u8, rest, "**")) return .{ .kind = .bold, .len = 2 };
+    if (std.mem.startsWith(u8, rest, "~~")) return .{ .kind = .strikethrough, .len = 2 };
+    if (std.mem.startsWith(u8, rest, "<u>")) return .{ .kind = .underline_open, .len = 3 };
+    if (std.mem.startsWith(u8, rest, "</u>")) return .{ .kind = .underline_close, .len = 4 };
+    if (rest[0] == '*') return .{ .kind = .italic, .len = 1 };
+    return null;
+}
+
+fn toggleMarker(style: *Style, kind: @FieldType(PreviewMarker, "kind")) void {
+    switch (kind) {
+        .bold => style.bold = !style.bold,
+        .italic => style.italic = !style.italic,
+        .strikethrough => style.strikethrough = !style.strikethrough,
+        .underline_open => style.underline = true,
+        .underline_close => style.underline = false,
+    }
+}
 
 // ============================================================================
 // Tests
