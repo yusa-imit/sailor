@@ -1136,3 +1136,102 @@ test "richtext: render truncates to area width" {
     const ch = buffer.getChar(9, 0);
     try testing.expect(ch != 0);
 }
+
+// ============================================================================
+// RichTextInput markdown preview: every marker the apply* methods insert
+// ============================================================================
+
+const RichTextInput = sailor.tui.widgets.RichTextInput;
+
+/// Renders `source` through the preview pane of a 40x10 widget and returns the buffer; the preview
+/// label sits on row 5 and the text starts on row 6.
+fn renderPreview(gpa: std.mem.Allocator, source: []const u8) !Buffer {
+    var rich = RichTextInput.init(gpa);
+    defer rich.deinit();
+
+    try rich.setText(source);
+    rich.togglePreview();
+    var buffer = try Buffer.init(gpa, 40, 10);
+    errdefer buffer.deinit();
+
+    rich.render(&buffer, Rect{ .x = 0, .y = 0, .width = 40, .height = 10 });
+    return buffer;
+}
+
+fn expectPreviewRow(buffer: *const Buffer, expected: []const u8) !void {
+    for (expected, 0..) |char, x| {
+        const cell = buffer.getConst(@intCast(x), 6).?;
+        try testing.expectEqual(@as(u21, char), cell.char);
+    }
+    const after = buffer.getConst(@intCast(expected.len), 6).?;
+    try testing.expectEqual(@as(u21, ' '), after.char);
+}
+
+test "richtext preview: bold markers are consumed and style the text" {
+    var buffer = try renderPreview(testing.allocator, "a **bc** d");
+    defer buffer.deinit();
+
+    try expectPreviewRow(&buffer, "a bc d");
+    try testing.expect(!buffer.getConst(0, 6).?.style.bold);
+    try testing.expect(buffer.getConst(2, 6).?.style.bold);
+    try testing.expect(buffer.getConst(3, 6).?.style.bold);
+    try testing.expect(!buffer.getConst(5, 6).?.style.bold);
+}
+
+test "richtext preview: italic markers are consumed and style the text" {
+    var buffer = try renderPreview(testing.allocator, "a *bc* d");
+    defer buffer.deinit();
+
+    try expectPreviewRow(&buffer, "a bc d");
+    try testing.expect(buffer.getConst(2, 6).?.style.italic);
+    try testing.expect(!buffer.getConst(5, 6).?.style.italic);
+}
+
+test "richtext preview: strikethrough markers are consumed and style the text" {
+    var buffer = try renderPreview(testing.allocator, "a ~~bc~~ d");
+    defer buffer.deinit();
+
+    try expectPreviewRow(&buffer, "a bc d");
+    try testing.expect(!buffer.getConst(0, 6).?.style.strikethrough);
+    try testing.expect(buffer.getConst(2, 6).?.style.strikethrough);
+    try testing.expect(buffer.getConst(3, 6).?.style.strikethrough);
+    try testing.expect(!buffer.getConst(5, 6).?.style.strikethrough);
+}
+
+test "richtext preview: underline tags are consumed and style the text" {
+    var buffer = try renderPreview(testing.allocator, "a <u>bc</u> d");
+    defer buffer.deinit();
+
+    try expectPreviewRow(&buffer, "a bc d");
+    try testing.expect(!buffer.getConst(0, 6).?.style.underline);
+    try testing.expect(buffer.getConst(2, 6).?.style.underline);
+    try testing.expect(buffer.getConst(3, 6).?.style.underline);
+    try testing.expect(!buffer.getConst(5, 6).?.style.underline);
+}
+
+test "richtext preview: applyStrikethrough output previews as struck text" {
+    var rich = RichTextInput.init(testing.allocator);
+    defer rich.deinit();
+
+    try rich.setText("xyz");
+    rich.setSelection(0, 3);
+    try rich.applyStrikethrough();
+    rich.togglePreview();
+    var buffer = try Buffer.init(testing.allocator, 40, 10);
+    defer buffer.deinit();
+
+    rich.render(&buffer, Rect{ .x = 0, .y = 0, .width = 40, .height = 10 });
+
+    try expectPreviewRow(&buffer, "xyz");
+    try testing.expect(buffer.getConst(1, 6).?.style.strikethrough);
+}
+
+test "richtext preview: nested markers combine styles" {
+    var buffer = try renderPreview(testing.allocator, "**a ~~b~~**");
+    defer buffer.deinit();
+
+    try expectPreviewRow(&buffer, "a b");
+    try testing.expect(buffer.getConst(2, 6).?.style.bold);
+    try testing.expect(buffer.getConst(2, 6).?.style.strikethrough);
+    try testing.expect(!buffer.getConst(0, 6).?.style.strikethrough);
+}
