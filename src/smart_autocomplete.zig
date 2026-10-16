@@ -36,12 +36,24 @@ pub const LocalSource = struct {
     allocator: std.mem.Allocator,
     items: [][]const u8,
 
-    pub fn init(allocator: std.mem.Allocator, items: []const []const u8) LocalSource {
+    /// Copies `items` into memory owned by the source; free it with `deinit`. Returns
+    /// `error.OutOfMemory` if any copy fails, after freeing the copies already made.
+    pub fn init(
+        allocator: std.mem.Allocator,
+        items: []const []const u8,
+    ) error{OutOfMemory}!LocalSource {
         // Copy items to owned memory
-        var owned_items = allocator.alloc([]const u8, items.len) catch unreachable;
+        const owned_items = try allocator.alloc([]const u8, items.len);
+        errdefer allocator.free(owned_items);
+
+        var copied_count: usize = 0;
+        errdefer for (owned_items[0..copied_count]) |item| allocator.free(item);
+
         for (items, 0..) |item, i| {
-            owned_items[i] = allocator.dupe(u8, item) catch unreachable;
+            owned_items[i] = try allocator.dupe(u8, item);
+            copied_count += 1;
         }
+        std.debug.assert(copied_count == items.len);
         return .{
             .allocator = allocator,
             .items = owned_items,
@@ -299,7 +311,8 @@ test "SmartAutocomplete - Suggestion creation" {
 }
 
 test "SmartAutocomplete - LocalSource with prefix matching" {
-    var local_source = LocalSource.init(testing.allocator, &[_][]const u8{ "function", "for", "foreach" });
+    const words = [_][]const u8{ "function", "for", "foreach" };
+    var local_source = try LocalSource.init(testing.allocator, &words);
     defer local_source.deinit();
 
     const context: CompletionContext = .{
@@ -312,6 +325,28 @@ test "SmartAutocomplete - LocalSource with prefix matching" {
     defer testing.allocator.free(suggestions);
 
     try testing.expect(suggestions.len >= 2); // "for" and "foreach" match
+}
+
+test "SmartAutocomplete - LocalSource.init reports every allocation failure and leaks nothing" {
+    const words = [_][]const u8{ "function", "for", "foreach" };
+    // One allocation for the slice plus one per word.
+    const allocation_count: usize = 1 + words.len;
+
+    for (0..allocation_count) |fail_index| {
+        const options: testing.FailingAllocator.Config = .{ .fail_index = fail_index };
+        var failing = testing.FailingAllocator.init(testing.allocator, options);
+        try testing.expectError(error.OutOfMemory, LocalSource.init(failing.allocator(), &words));
+        try testing.expect(failing.has_induced_failure);
+    }
+
+    const roomy_options: testing.FailingAllocator.Config = .{ .fail_index = allocation_count };
+    var roomy = testing.FailingAllocator.init(testing.allocator, roomy_options);
+    var source = try LocalSource.init(roomy.allocator(), &words);
+    defer source.deinit();
+
+    try testing.expect(!roomy.has_induced_failure);
+    try testing.expectEqual(words.len, source.items.len);
+    try testing.expectEqualStrings("foreach", source.items[2]);
 }
 
 test "SmartAutocomplete - PatternSource learning" {

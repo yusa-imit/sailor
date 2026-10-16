@@ -29,7 +29,7 @@ fn isWordChar(c: u8) bool {
 ///
 /// Example:
 /// ```zig
-/// var multi = MultiCursorEditor.init(allocator);
+/// var multi = try MultiCursorEditor.init(allocator);
 /// defer multi.deinit();
 ///
 /// try multi.setText("line 1\nline 2\nline 3");
@@ -95,9 +95,10 @@ pub const MultiCursorEditor = struct {
 
     /// Initializes a MultiCursorEditor with default values.
     /// The returned instance must be freed with `.deinit()`.
-    pub fn init(allocator: Allocator) MultiCursorEditor {
+    /// Returns `error.OutOfMemory` if the underlying editor cannot allocate its first line.
+    pub fn init(allocator: Allocator) error{OutOfMemory}!MultiCursorEditor {
         return .{
-            .base = Editor.init(allocator),
+            .base = try Editor.init(allocator),
             .cursors = .empty,
             .column_mode = false,
             .secondary_cursor_style = Style{ .bg = Color{ .indexed = 240 }, .fg = Color.black },
@@ -662,15 +663,21 @@ const testing = std.testing;
 
 test "multicursor: init and deinit" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try testing.expectEqual(@as(usize, 1), mc.getCursorCount());
 }
 
+test "multicursor: init reports allocation failure" {
+    var failing = testing.FailingAllocator.init(testing.allocator, .{ .fail_index = 0 });
+    try testing.expectError(error.OutOfMemory, MultiCursorEditor.init(failing.allocator()));
+    try testing.expect(failing.has_induced_failure);
+}
+
 test "multicursor: setText" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("line 1\nline 2\nline 3");
@@ -679,7 +686,7 @@ test "multicursor: setText" {
 
 test "multicursor: addCursor" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("line 1\nline 2\nline 3");
@@ -693,7 +700,7 @@ test "multicursor: addCursor" {
 
 test "multicursor: addCursor no duplicates" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("line 1");
@@ -713,7 +720,7 @@ test "multicursor: addCursor no duplicates" {
 
 test "multicursor: removeCursor" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("line 1\nline 2\nline 3");
@@ -728,7 +735,7 @@ test "multicursor: removeCursor" {
 
 test "multicursor: clearCursors" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("line 1\nline 2");
@@ -740,7 +747,7 @@ test "multicursor: clearCursors" {
 
 test "multicursor: addColumnCursors" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("line 1\nline 2\nline 3\nline 4");
@@ -754,7 +761,7 @@ test "multicursor: addColumnCursors" {
 
 test "multicursor: insertCharAll" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("aaa\nbbb\nccc");
@@ -771,7 +778,7 @@ test "multicursor: insertCharAll" {
 
 test "multicursor: deleteCharAll" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("xaaa\nxbbb\nxccc");
@@ -788,7 +795,7 @@ test "multicursor: deleteCharAll" {
 
 test "multicursor: moveAllCursors down" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("line 1\nline 2\nline 3");
@@ -803,7 +810,7 @@ test "multicursor: moveAllCursors down" {
 
 test "multicursor: moveAllCursors right" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("hello\nworld");
@@ -818,7 +825,7 @@ test "multicursor: moveAllCursors right" {
 
 test "multicursor: moveAllCursors boundary" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("short\nline");
@@ -836,7 +843,7 @@ test "multicursor: moveAllCursors boundary" {
 
 test "multicursor: setColumnMode" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     _ = mc.setColumnMode(true);
@@ -845,7 +852,7 @@ test "multicursor: setColumnMode" {
 
 test "multicursor: builder pattern" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     const block = (Block{}).withTitle("Multi-Cursor", .top_left);
@@ -857,7 +864,7 @@ test "multicursor: builder pattern" {
 
 test "multicursor: render basic" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("hello\nworld");
@@ -874,7 +881,7 @@ test "multicursor: render basic" {
 
 test "multicursor: insertCharAll maintains order" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("abc");
@@ -889,7 +896,7 @@ test "multicursor: insertCharAll maintains order" {
 
 test "multicursor: getText preserves content" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     const original = "line 1\nline 2\nline 3";
@@ -903,7 +910,7 @@ test "multicursor: getText preserves content" {
 
 test "multicursor: setLanguage sets base language and returns self for chaining" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("const x = 1;");
@@ -918,7 +925,7 @@ test "multicursor: setLanguage sets base language and returns self for chaining"
 
 test "multicursor: setLanguage enables syntax highlighting on render" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     // Text containing a Zig keyword
@@ -943,7 +950,7 @@ test "multicursor: setLanguage enables syntax highlighting on render" {
 
 test "multicursor: setLanguage + secondary cursor overlay preserves char, applies cursor style" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     // Text with Zig keyword "const" (5 chars)
@@ -984,7 +991,7 @@ test "multicursor: setLanguage + secondary cursor overlay preserves char, applie
 
 test "multicursor: undoAll after insertCharAll restores all edited lines and cursor positions" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     // Set up initial text with two cursors
@@ -1027,7 +1034,7 @@ test "multicursor: undoAll after insertCharAll restores all edited lines and cur
 
 test "multicursor: undoAll after deleteCharAll restores deleted characters" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     // Set up initial text with deletable chars
@@ -1060,7 +1067,7 @@ test "multicursor: undoAll after deleteCharAll restores deleted characters" {
 
 test "multicursor: redoAll after undoAll re-applies the batch (round-trip)" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     // Set up initial text
@@ -1096,7 +1103,7 @@ test "multicursor: redoAll after undoAll re-applies the batch (round-trip)" {
 
 test "multicursor: undoAll is a no-op when there's no batch to undo (fresh editor)" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("hello");
@@ -1112,7 +1119,7 @@ test "multicursor: undoAll is a no-op when there's no batch to undo (fresh edito
 
 test "multicursor: undoAll is a no-op when all batches have been undone" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("hello");
@@ -1132,7 +1139,7 @@ test "multicursor: undoAll is a no-op when all batches have been undone" {
 
 test "multicursor: redoAll is a no-op when there's no batch to redo" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("hello");
@@ -1147,7 +1154,7 @@ test "multicursor: redoAll is a no-op when there's no batch to redo" {
 
 test "multicursor: new insertCharAll after undoAll clears redo history (mirrors Editor behavior)" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("hello");
@@ -1173,7 +1180,7 @@ test "multicursor: new insertCharAll after undoAll clears redo history (mirrors 
 
 test "multicursor: multiple sequential insertCharAll followed by multiple undoAll calls undo one batch at a time" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("abc");
@@ -1217,7 +1224,7 @@ test "multicursor: multiple sequential insertCharAll followed by multiple undoAl
 
 test "addCursorAtNextOccurrence: first call mid-word selects the word, cursor count unchanged" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("hello world");
@@ -1238,7 +1245,7 @@ test "addCursorAtNextOccurrence: first call mid-word selects the word, cursor co
 
 test "addCursorAtNextOccurrence: cursor on non-word char with no word to left is no-op" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("  hello");
@@ -1254,7 +1261,7 @@ test "addCursorAtNextOccurrence: cursor on non-word char with no word to left is
 
 test "addCursorAtNextOccurrence: second call adds cursor at second occurrence" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("hello world hello");
@@ -1284,7 +1291,7 @@ test "addCursorAtNextOccurrence: second call adds cursor at second occurrence" {
 
 test "addCursorAtNextOccurrence: third call on word with 3 occurrences" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("cat dog cat mouse cat");
@@ -1309,7 +1316,7 @@ test "addCursorAtNextOccurrence: third call on word with 3 occurrences" {
 
 test "addCursorAtNextOccurrence: unique word with no second occurrence is no-op" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("unique word here");
@@ -1333,7 +1340,7 @@ test "addCursorAtNextOccurrence: unique word with no second occurrence is no-op"
 
 test "addCursorAtNextOccurrence: wraparound finds occurrence before anchor" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("foo bar foo");
@@ -1357,7 +1364,7 @@ test "addCursorAtNextOccurrence: wraparound finds occurrence before anchor" {
 
 test "addCursorAtNextOccurrence: multi-line selection is no-op" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("hello\nworld");
@@ -1378,7 +1385,7 @@ test "addCursorAtNextOccurrence: multi-line selection is no-op" {
 
 test "addCursorAtNextOccurrence: skips already-claimed occurrences" {
     const allocator = testing.allocator;
-    var mc = MultiCursorEditor.init(allocator);
+    var mc = try MultiCursorEditor.init(allocator);
     defer mc.deinit();
 
     try mc.setText("cat dog cat");

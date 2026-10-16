@@ -91,10 +91,14 @@ pub const Editor = struct {
 
     /// Initializes a new editor with a single empty line.
     /// The returned instance must be freed with `.deinit()`.
-    pub fn init(allocator: std.mem.Allocator) Editor {
+    /// Returns `error.OutOfMemory` if the allocator cannot hold the initial line; nothing is
+    /// left allocated in that case.
+    pub fn init(allocator: std.mem.Allocator) error{OutOfMemory}!Editor {
         var lines = std.ArrayList([]const u8).empty;
+        errdefer lines.deinit(allocator);
         // Start with one empty line
-        lines.append(allocator, "") catch unreachable;
+        try lines.append(allocator, "");
+        std.debug.assert(lines.items.len == 1);
 
         return .{
             .lines = lines,
@@ -559,7 +563,7 @@ const testing = std.testing;
 
 test "editor init and deinit" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     try testing.expect(editor.lines.items.len == 1);
@@ -569,7 +573,7 @@ test "editor init and deinit" {
 
 test "editor setText and getText" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     const text = "line 1\nline 2\nline 3";
@@ -587,7 +591,7 @@ test "editor setText and getText" {
 
 test "editor insertChar" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     try editor.setText("hello");
@@ -601,7 +605,7 @@ test "editor insertChar" {
 
 test "editor deleteChar" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     try editor.setText("hello!");
@@ -615,7 +619,7 @@ test "editor deleteChar" {
 
 test "editor insertNewline" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     try editor.setText("hello world");
@@ -631,7 +635,7 @@ test "editor insertNewline" {
 
 test "editor undo insert" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     try editor.setText("hello");
@@ -647,7 +651,7 @@ test "editor undo insert" {
 
 test "editor undo delete" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     try editor.setText("hello!");
@@ -663,7 +667,7 @@ test "editor undo delete" {
 
 test "editor redo" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     try editor.setText("hello");
@@ -679,7 +683,7 @@ test "editor redo" {
 
 test "editor moveCursor" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     try editor.setText("line 1\nline 2");
@@ -699,7 +703,7 @@ test "editor moveCursor" {
 
 test "editor selection" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     try editor.setText("hello world");
@@ -721,7 +725,7 @@ test "editor selection" {
 
 test "editor setLanguage" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     _ = editor.setLanguage(.zig);
@@ -730,7 +734,7 @@ test "editor setLanguage" {
 
 test "editor setBlock" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     const block = (Block{}).withTitle("Editor", .top_left);
@@ -740,7 +744,7 @@ test "editor setBlock" {
 
 test "editor setShowLineNumbers" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     _ = editor.setShowLineNumbers(false);
@@ -749,7 +753,7 @@ test "editor setShowLineNumbers" {
 
 test "editor render basic" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     try editor.setText("hello\nworld");
@@ -769,7 +773,7 @@ test "editor render basic" {
 
 test "editor render with syntax highlighting" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     try editor.setText("const x = 42;");
@@ -787,7 +791,7 @@ test "editor render with syntax highlighting" {
 
 test "editor render with selection" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     try editor.setText("hello world");
@@ -807,7 +811,7 @@ test "editor render with selection" {
 
 test "editor render with cursor" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     try editor.setText("hello");

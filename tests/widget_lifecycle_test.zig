@@ -119,7 +119,7 @@ test "allocating widgets have init with allocator and deinit" {
     const allocator = testing.allocator;
 
     // Editor should take allocator and have deinit
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     // Should have both init() and deinit()
@@ -139,7 +139,7 @@ test "allocating widgets properly free memory in deinit" {
     const allocator = testing.allocator;
 
     // Test Editor lifecycle - should not leak
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     // Add some content that requires allocation
@@ -159,7 +159,7 @@ test "allocating widgets handle multiple lifecycle rounds" {
     // Multiple init/deinit cycles should not leak
     var i: usize = 0;
     while (i < 10) : (i += 1) {
-        var editor = Editor.init(allocator);
+        var editor = try Editor.init(allocator);
         try editor.setText("Test content");
         editor.deinit();
     }
@@ -168,21 +168,17 @@ test "allocating widgets handle multiple lifecycle rounds" {
 test "allocating widgets cleanup on init error" {
     const allocator = testing.allocator;
 
-    // This test verifies error handling during init
-    // If init fails partway through, it should clean up partial allocations
+    // The first allocation (the initial empty line) fails: init reports it as a typed error and
+    // leaves nothing behind for the testing allocator to flag as a leak.
+    var fail_allocator = testing.FailingAllocator.init(allocator, .{ .fail_index = 0 });
+    try testing.expectError(error.OutOfMemory, Editor.init(fail_allocator.allocator()));
+    try testing.expect(fail_allocator.has_induced_failure);
 
-    // Create a failing allocator that fails after N allocations
-    var fail_allocator = testing.FailingAllocator.init(allocator, .{ .fail_index = 2 });
-    const failing = fail_allocator.allocator();
-
-    // Editor.init should handle allocation failures gracefully
-    const result = Editor.init(failing);
-
-    // Even if init succeeds with partial allocations, deinit must work
-    if (@TypeOf(result) == Editor) {
-        var editor = result;
-        editor.deinit();
-    }
+    // With room for the one allocation init needs, init succeeds and deinit frees it.
+    var roomy_allocator = testing.FailingAllocator.init(allocator, .{ .fail_index = 1 });
+    var editor = try Editor.init(roomy_allocator.allocator());
+    editor.deinit();
+    try testing.expect(!roomy_allocator.has_induced_failure);
 }
 
 test "data-driven widgets handle empty data" {
@@ -223,7 +219,7 @@ test "allocating widgets are NOT copyable without allocator" {
     // (This test documents the expected behavior)
 
     const allocator = testing.allocator;
-    var editor1 = Editor.init(allocator);
+    var editor1 = try Editor.init(allocator);
     defer editor1.deinit();
 
     // This would be DANGEROUS - double free
@@ -254,7 +250,7 @@ test "widget builder pattern preserves lifecycle safety" {
 test "allocating widgets deinit is idempotent safe" {
     const allocator = testing.allocator;
 
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     editor.deinit();
 
     // Second deinit should not crash (though not recommended)
@@ -340,7 +336,7 @@ test "comprehensive widget audit" {
 
 test "allocating widgets handle setText with empty string" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     try editor.setText("");
@@ -351,7 +347,7 @@ test "allocating widgets handle setText with empty string" {
 
 test "allocating widgets handle setText with long text" {
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     const long_text = try allocator.alloc(u8, 10_000);
@@ -417,7 +413,7 @@ test "allocating widgets support clone operation" {
     // to avoid accidental shallow copies
 
     const allocator = testing.allocator;
-    var editor1 = Editor.init(allocator);
+    var editor1 = try Editor.init(allocator);
     defer editor1.deinit();
 
     try editor1.setText("Original content");
@@ -433,7 +429,7 @@ test "widget deinit handles null/uninitialized fields safely" {
     // Deinit should be defensive and handle partially initialized state
 
     const allocator = testing.allocator;
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
 
     // Even with minimal setup, deinit should work
     editor.deinit();
@@ -445,7 +441,7 @@ test "no memory leaks in nested widget composition" {
     // Complex widgets may compose other widgets
     // Ensure no leaks in the composition chain
 
-    var editor = Editor.init(allocator);
+    var editor = try Editor.init(allocator);
     defer editor.deinit();
 
     // Editor internally uses ArrayList for lines and undo stack

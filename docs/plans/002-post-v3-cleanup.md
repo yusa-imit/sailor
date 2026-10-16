@@ -45,12 +45,12 @@ risk, lowest first.
       if the architect pass in the PR concludes wrapping belongs to `paragraph`. *Verify:*
       wrapped and unwrapped renders differ in a test for a line wider than the area; width
       boundaries 0, 1, exact fit, fit + 1.
-- [ ] **`metrics_dashboard.zig` and `richtext.zig` scope decision.** Per widget, list each
+- [x] **`metrics_dashboard.zig` and `richtext.zig` scope decision.** Per widget, list each
       behavior the doc comment promises, then either wire it up or edit the doc comment, and
       record which in the PR body. The two widgets may split into two PRs if the first
       consumes the cycle. *Verify:* each promised behavior is covered by a test or no longer
       promised.
-- [ ] **Typed errors for the four non-provable `catch unreachable` sites**
+- [x] **Typed errors for the four non-provable `catch unreachable` sites**
       (`event_metrics` 181, 248; `render_metrics` 186, 255; `smart_autocomplete` 41, 43;
       `editor` 97). The caller-supplied allocator can fail, so the functions return
       `error{OutOfMemory}` instead of claiming a proof. *Verify:* failing-allocator tests
