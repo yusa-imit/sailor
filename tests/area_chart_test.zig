@@ -889,11 +889,10 @@ test "render with Block renders frame around content" {
         .withBlock(.{});
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 15 };
     chart.render(&buf, area);
-    const has_border = countChar(buf, area, '─') > 0 or
-        countChar(buf, area, '│') > 0 or
-        countChar(buf, area, '┌') > 0 or
-        countChar(buf, area, '┐') > 0;
-    try testing.expect(has_border or countNonEmptyCells(buf, area) > 0);
+    try testing.expectEqual(@as(u21, '┌'), cellAtPos(buf, 0, 0).?.char);
+    try testing.expectEqual(@as(u21, '┐'), cellAtPos(buf, 39, 0).?.char);
+    try testing.expectEqual(@as(u21, '└'), cellAtPos(buf, 0, 14).?.char);
+    try testing.expectEqual(@as(u21, '┘'), cellAtPos(buf, 39, 14).?.char);
 }
 
 test "render with block in offset area" {
@@ -906,7 +905,11 @@ test "render with block in offset area" {
         .withBlock(.{});
     const area = Rect{ .x = 10, .y = 5, .width = 50, .height = 20 };
     chart.render(&buf, area);
-    try testing.expect(countNonEmptyCells(buf, area) > 0);
+    try testing.expectEqual(@as(u21, '┌'), cellAtPos(buf, 10, 5).?.char);
+    try testing.expectEqual(@as(u21, '┘'), cellAtPos(buf, 59, 24).?.char);
+    // Nothing is drawn outside the offset area.
+    try testing.expectEqual(@as(u21, ' '), cellAtPos(buf, 9, 5).?.char);
+    try testing.expectEqual(@as(u21, ' '), cellAtPos(buf, 60, 24).?.char);
 }
 
 test "render block in tiny area does not crash" {
