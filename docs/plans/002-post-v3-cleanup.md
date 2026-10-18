@@ -55,7 +55,7 @@ risk, lowest first.
       `editor` 97). The caller-supplied allocator can fail, so the functions return
       `error{OutOfMemory}` instead of claiming a proof. *Verify:* failing-allocator tests
       provoke each error; the tidy baseline shrinks accordingly.
-- [ ] **Release v3.1.0** once the items above are checked (see Version impact).
+- [x] **Release v3.1.0** once the items above are checked (see Version impact).
 
 ## Out of scope
 

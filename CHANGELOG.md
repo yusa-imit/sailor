@@ -4,6 +4,37 @@ All notable changes to sailor. Versions follow semantic versioning; a MAJOR bump
 consumer has to change code. History before v3.0.0 is summarised in
 [`docs/plans/000-inherited.md`](docs/plans/000-inherited.md) and in the git tags.
 
+## [3.1.0] - 2026-10-18
+
+Post-v3 cleanup (plan 002, milestone #51): widgets whose doc comments promised behavior that
+`render()` never delivered now deliver it, and every example and benchmark builds again.
+
+### Changed
+
+- `Editor.init`, `MultiCursorEditor.init` and `LocalSource.init` return `error{OutOfMemory}!T`
+  instead of panicking on allocation failure. Callers need `try`. No kingdom consumer uses
+  these widgets.
+
+### Added
+
+- `TerminalWidget.render` interprets ANSI CSI/SGR sequences (attributes, 8/16/256/truecolor)
+  through the new `AnsiParseState`; style does not carry across scrollback lines.
+- `Pager.withWrap()` soft-wraps long lines at the column count. Line numbers appear on the
+  first row only and `scroll_y` counts logical lines.
+- `richtext` preview renders `~~strikethrough~~` and `<u>underline</u>`.
+- `zig build build-all` compiles every example and benchmark; CI runs it on all three
+  operating systems, plus `zig fmt --check` over `src`, `tests`, `build.zig` and `examples`.
+
+### Fixed
+
+- `metrics_dashboard` render and memory sections always showed "No data"; they now aggregate
+  over all event types.
+- Metrics stats queries and type-stats rebuilds no longer allocate.
+- `Treemap` no longer blanks when an item is NaN or +Inf; non-finite items are dropped.
+- Eight widgets, `grapheme.wrapText`, `term/windows.parseAnsiSegments`, `clipboard_demo` and
+  `large_data_bench` still used the removed `ArrayList.init` and did not build on Zig 0.16.
+- `MultiCursorEditor.insertCharAll` shifted cursors incorrectly.
+
 ## [3.0.0] - 2026-10-05
 
 Zig 0.16.0 migration and Tiger Style baseline (plan 001, milestone #19). The before/after table

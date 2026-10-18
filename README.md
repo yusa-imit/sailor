@@ -26,7 +26,7 @@ macOS ARM64 and Windows x86_64, and cross-compiles six targets on every pull req
 ## Installation
 
 ```bash
-zig fetch --save https://github.com/yusa-imit/sailor/archive/refs/tags/v3.0.0.tar.gz
+zig fetch --save https://github.com/yusa-imit/sailor/archive/refs/tags/v3.1.0.tar.gz
 ```
 
 This writes the dependency with its hash into your `build.zig.zon`. Then in `build.zig`:
