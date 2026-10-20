@@ -1,6 +1,7 @@
 //! Multi-cursor editing support layered on top of the Editor widget.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const assert = std.debug.assert;
 const ArrayList = std.ArrayList;
 const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;
@@ -490,6 +491,21 @@ pub const MultiCursorEditor = struct {
         }
     }
 
+    /// Moves every cursor on `from.line` whose column is at or after `from.col` one cell left,
+    /// after the byte before `from.col` was deleted. Cursors further right already moved for their
+    /// own deletion, those to the left are untouched.
+    fn shiftCursorsLeft(self: *MultiCursorEditor, from: Position) void {
+        assert(from.col > 0);
+        if (self.base.cursor.line == from.line and self.base.cursor.col >= from.col) {
+            self.base.cursor.col -= 1;
+        }
+        for (self.cursors.items) |*cursor| {
+            if (cursor.pos.line == from.line and cursor.pos.col >= from.col) {
+                cursor.pos.col -= 1;
+            }
+        }
+    }
+
     /// Delete character before cursor at all positions simultaneously.
     /// Records a single undo batch covering all cursors, restorable via `undoAll`.
     pub fn deleteCharAll(self: *MultiCursorEditor) !void {
@@ -508,10 +524,13 @@ pub const MultiCursorEditor = struct {
 
         std.mem.sort(Position, all_positions.items, {}, positionGreaterThan);
 
-        for (all_positions.items) |*pos| {
+        for (all_positions.items, 0..) |pos, index| {
             if (pos.line >= self.base.lines.items.len or pos.col == 0) continue;
+            // Cursors that moved onto each other share one deletion; the second must not repeat it.
+            if (index > 0 and std.meta.eql(all_positions.items[index - 1], pos)) continue;
 
             const old_line = self.base.lines.items[pos.line];
+            assert(pos.col <= old_line.len);
             const new_line = try self.base.allocator.alloc(u8, old_line.len - 1);
 
             @memcpy(new_line[0 .. pos.col - 1], old_line[0 .. pos.col - 1]);
@@ -520,13 +539,7 @@ pub const MultiCursorEditor = struct {
             self.base.allocator.free(old_line);
             self.base.lines.items[pos.line] = new_line;
 
-            pos.col -= 1;
-        }
-
-        // Update cursor positions
-        self.base.cursor.col = @max(0, self.base.cursor.col -| 1);
-        for (self.cursors.items) |*cursor| {
-            cursor.pos.col = @max(0, cursor.pos.col -| 1);
+            self.shiftCursorsLeft(pos);
         }
 
         try self.pushUndoBatch(lines_before, cursors_before);
@@ -791,6 +804,157 @@ test "multicursor: deleteCharAll" {
     try testing.expectEqualStrings("aaa", mc.base.lines.items[0]);
     try testing.expectEqualStrings("bbb", mc.base.lines.items[1]);
     try testing.expectEqualStrings("ccc", mc.base.lines.items[2]);
+}
+
+test "multicursor: deleteCharAll two cursors on one line shift by deletions before them" {
+    const allocator = testing.allocator;
+    var mc = try MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("abcdefgh");
+    mc.base.cursor = .{ .line = 0, .col = 3 };
+    try mc.addCursor(.{ .line = 0, .col = 5 });
+
+    try mc.deleteCharAll();
+
+    // Deletes 'c' (index 2) and 'e' (index 4): the cursors land before 'd' and 'f'.
+    try testing.expectEqualStrings("abdfgh", mc.base.lines.items[0]);
+    try testing.expectEqual(@as(usize, 2), mc.base.cursor.col);
+    try testing.expectEqual(@as(usize, 3), mc.cursors.items[0].pos.col);
+}
+
+test "multicursor: deleteCharAll cursor at column zero stays and deletes nothing" {
+    const allocator = testing.allocator;
+    var mc = try MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("abcd");
+    mc.base.cursor = .{ .line = 0, .col = 0 };
+    try mc.addCursor(.{ .line = 0, .col = 3 });
+
+    try mc.deleteCharAll();
+
+    try testing.expectEqualStrings("abd", mc.base.lines.items[0]);
+    try testing.expectEqual(@as(usize, 0), mc.base.cursor.col);
+    try testing.expectEqual(@as(usize, 2), mc.cursors.items[0].pos.col);
+}
+
+test "multicursor: deleteCharAll cursors on different lines move independently" {
+    const allocator = testing.allocator;
+    var mc = try MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("abcd\nefgh");
+    mc.base.cursor = .{ .line = 0, .col = 4 };
+    try mc.addCursor(.{ .line = 1, .col = 2 });
+    try mc.addCursor(.{ .line = 1, .col = 4 });
+
+    try mc.deleteCharAll();
+
+    try testing.expectEqualStrings("abc", mc.base.lines.items[0]);
+    try testing.expectEqualStrings("eg", mc.base.lines.items[1]);
+    try testing.expectEqual(@as(usize, 3), mc.base.cursor.col);
+    try testing.expectEqual(@as(usize, 1), mc.cursors.items[0].pos.col);
+    try testing.expectEqual(@as(usize, 2), mc.cursors.items[1].pos.col);
+}
+
+test "multicursor: deleteCharAll with two cursors on the same cell deletes once" {
+    const allocator = testing.allocator;
+    var mc = try MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("abcdef");
+    mc.base.cursor = .{ .line = 0, .col = 4 };
+    try mc.addCursor(.{ .line = 0, .col = 2 });
+    // Cursor movement can collapse two cursors onto one cell; `addCursor` would reject this.
+    mc.cursors.items[0].pos.col = 4;
+
+    try mc.deleteCharAll();
+
+    try testing.expectEqualStrings("abcef", mc.base.lines.items[0]);
+    try testing.expectEqual(@as(usize, 3), mc.base.cursor.col);
+    try testing.expectEqual(@as(usize, 3), mc.cursors.items[0].pos.col);
+}
+
+test "multicursor: undoAll after same-line deleteCharAll restores text and cursors" {
+    const allocator = testing.allocator;
+    var mc = try MultiCursorEditor.init(allocator);
+    defer mc.deinit();
+
+    try mc.setText("abcdefgh");
+    mc.base.cursor = .{ .line = 0, .col = 3 };
+    try mc.addCursor(.{ .line = 0, .col = 5 });
+
+    try mc.deleteCharAll();
+    try mc.undoAll();
+
+    try testing.expectEqualStrings("abcdefgh", mc.base.lines.items[0]);
+    try testing.expectEqual(@as(usize, 3), mc.base.cursor.col);
+    try testing.expectEqual(@as(usize, 5), mc.cursors.items[0].pos.col);
+}
+
+/// Reference for `deleteCharAll`: removes the byte before every distinct cursor column (column 0
+/// deletes nothing) and moves a cursor left by the number of deletions at or before its column.
+fn expectDeleteCharAllMatchesReference(
+    gpa: Allocator,
+    text: []const u8,
+    cols: []const usize,
+) !void {
+    var mc = try MultiCursorEditor.init(gpa);
+    defer mc.deinit();
+
+    try mc.setText(text);
+    mc.base.cursor = .{ .line = 0, .col = cols[0] };
+    for (cols[1..]) |col| try mc.addCursor(.{ .line = 0, .col = col });
+    try testing.expectEqual(cols.len, mc.getCursorCount());
+
+    var expected_text: [64]u8 = undefined;
+    var expected_len: usize = 0;
+    for (text, 0..) |byte, index| {
+        var deleted = false;
+        for (cols) |col| {
+            if (col >= 1 and col - 1 == index) deleted = true;
+        }
+        if (!deleted) {
+            expected_text[expected_len] = byte;
+            expected_len += 1;
+        }
+    }
+
+    try mc.deleteCharAll();
+
+    try testing.expectEqualStrings(expected_text[0..expected_len], mc.base.lines.items[0]);
+    for (cols, 0..) |col, index| {
+        var shift: usize = 0;
+        for (cols) |other| {
+            if (other >= 1 and other <= col) shift += 1;
+        }
+        const actual = if (index == 0) mc.base.cursor.col else mc.cursors.items[index - 1].pos.col;
+        try testing.expectEqual(col - shift, actual);
+    }
+}
+
+test "multicursor: deleteCharAll matches single-cursor reference for seeded cursor sets" {
+    const text = "0123456789abcdef";
+    var prng = std.Random.DefaultPrng.init(0x5a11_0c);
+    const random = prng.random();
+
+    for (0..200) |_| {
+        var cols: [8]usize = undefined;
+        var cols_len: usize = 0;
+        const wanted = random.intRangeAtMost(usize, 1, cols.len);
+        for (0..wanted) |_| {
+            const col = random.intRangeAtMost(usize, 0, text.len);
+            var seen = false;
+            for (cols[0..cols_len]) |existing| {
+                if (existing == col) seen = true;
+            }
+            if (seen) continue;
+            cols[cols_len] = col;
+            cols_len += 1;
+        }
+        try expectDeleteCharAllMatchesReference(testing.allocator, text, cols[0..cols_len]);
+    }
 }
 
 test "multicursor: moveAllCursors down" {
