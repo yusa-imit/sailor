@@ -25,6 +25,7 @@ const style_mod = @import("../style.zig");
 const Style = style_mod.Style;
 const Color = style_mod.Color;
 const block_mod = @import("block.zig");
+const line_iter_mod = @import("../line_iter.zig");
 const Block = block_mod.Block;
 
 /// LineChart widget - line chart with axes and multiple series
@@ -289,35 +290,17 @@ pub const LineChart = struct {
 
     /// Draw a line between two points using Bresenham's algorithm
     fn drawLine(buf: *Buffer, area_x: u16, area_y: u16, x0: usize, y0: usize, x1: usize, y1: usize, line_style: Style) void {
-        const dx_signed = @as(i32, @intCast(x1)) - @as(i32, @intCast(x0));
-        const dy_signed = @as(i32, @intCast(y1)) - @as(i32, @intCast(y0));
-        const dx = @abs(dx_signed);
-        const dy = @abs(dy_signed);
-        const sx: i32 = if (dx_signed > 0) 1 else -1;
-        const sy: i32 = if (dy_signed > 0) 1 else -1;
-
-        var err = dx - dy;
-        var x = @as(i32, @intCast(x0));
-        var y = @as(i32, @intCast(y0));
-
-        while (true) {
-            // Plot point
-            if (x >= 0 and y >= 0) {
-                const px = area_x + @as(u16, @intCast(x));
-                const py = area_y + @as(u16, @intCast(y));
+        var line = line_iter_mod.LineIter.init(
+            @intCast(x0),
+            @intCast(y0),
+            @intCast(x1),
+            @intCast(y1),
+        );
+        while (line.next()) |point| {
+            if (point.x >= 0 and point.y >= 0) {
+                const px = area_x + @as(u16, @intCast(point.x));
+                const py = area_y + @as(u16, @intCast(point.y));
                 buf.setCell(px, py, '·', line_style);
-            }
-
-            if (x == @as(i32, @intCast(x1)) and y == @as(i32, @intCast(y1))) break;
-
-            const e2 = 2 * err;
-            if (e2 > -dy) {
-                err -= dy;
-                x += sx;
-            }
-            if (e2 < dx) {
-                err += dx;
-                y += sy;
             }
         }
     }

@@ -4,6 +4,7 @@ const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;
 const Style = @import("../style.zig").Style;
 const symbols = @import("../symbols.zig");
+const line_iter_mod = @import("../line_iter.zig");
 
 /// Canvas widget for freeform drawing using Braille dots (2x4 per cell)
 /// Provides pixel-like precision for custom visualizations
@@ -112,32 +113,10 @@ pub const Canvas = struct {
 
     /// Draw a line from (x0, y0) to (x1, y1) using Bresenham's algorithm
     pub fn drawLine(self: *Canvas, x0: u16, y0: u16, x1: u16, y1: u16) void {
-        const dx = if (x1 > x0) x1 - x0 else x0 - x1;
-        const dy = if (y1 > y0) y1 - y0 else y0 - y1;
-        const sx: i32 = if (x0 < x1) 1 else -1;
-        const sy: i32 = if (y0 < y1) 1 else -1;
-
-        var err: i32 = @as(i32, dx) - @as(i32, dy);
-        var x: i32 = @intCast(x0);
-        var y: i32 = @intCast(y0);
-        const x1_i: i32 = @intCast(x1);
-        const y1_i: i32 = @intCast(y1);
-
-        while (true) {
-            if (x >= 0 and y >= 0) {
-                self.setDot(@intCast(x), @intCast(y));
-            }
-
-            if (x == x1_i and y == y1_i) break;
-
-            const e2 = err * 2;
-            if (e2 > -@as(i32, dy)) {
-                err -= @as(i32, dy);
-                x += sx;
-            }
-            if (e2 < @as(i32, dx)) {
-                err += @as(i32, dx);
-                y += sy;
+        var line = line_iter_mod.LineIter.init(x0, y0, x1, y1);
+        while (line.next()) |point| {
+            if (point.x >= 0 and point.y >= 0) {
+                self.setDot(@intCast(point.x), @intCast(point.y));
             }
         }
     }
