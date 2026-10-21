@@ -22,13 +22,13 @@ consumers porting their shells to `tui` will reach for `Paragraph` first.
 All items are `blocked_by: none`. Each item is one cycle and one PR. Bug first, then bounds,
 then tests, then the paragraph work, which needs its ADR merged before code.
 
-- [ ] **`deleteCharAll` cursor shift.** Each cursor moves left by the number of deletions at or
+- [x] **`deleteCharAll` cursor shift.** Each cursor moves left by the number of deletions at or
       before it on its line (not a flat 1); col 0 stays. Assert col <= line length: `addCursor`
       clamps on entry, so that is an invariant, not user data.
       *Verify:* RED tests for two cursors on one line (cols 3, 5 -> 2, 3), col 0, cursors on
       different lines, undo restores; a seeded model test applies the same random cursor sets
       to a single-cursor reference and compares text and cursors after each step.
-- [ ] **One bounded line rasterizer.** Six Bresenham loops (`canvas` 126, `linechart` 303,
+- [x] **One bounded line rasterizer.** Six Bresenham loops (`canvas` 126, `linechart` 303,
       `radar_chart` 251, `parallel_coordinates` 350, `slope_chart` 400, `chord_diagram` 251)
       stop only on hitting the endpoint exactly; correct today, enforced by nothing. Add one
       helper (`src/tui/line_iter.zig`) that yields at most `max(|dx|,|dy|) + 1` points and

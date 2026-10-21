@@ -39,6 +39,7 @@ const Rect = layout_mod.Rect;
 const style_mod = @import("../style.zig");
 const Style = style_mod.Style;
 const block_mod = @import("block.zig");
+const line_iter_mod = @import("../line_iter.zig");
 const Block = block_mod.Block;
 
 pub const ChordDiagram = struct {
@@ -241,32 +242,17 @@ pub const ChordDiagram = struct {
 
     /// Bresenham line drawing
     fn drawLine(buf: *Buffer, area: Rect, x0: i32, y0: i32, x1: i32, y1: i32, s: Style) void {
-        const dx = @abs(x1 - x0);
-        const dy = @abs(y1 - y0);
-        const sx: i32 = if (x1 > x0) 1 else -1;
-        const sy: i32 = if (y1 > y0) 1 else -1;
-        var err: i32 = @as(i32, @intCast(dx)) - @as(i32, @intCast(dy));
-        var x = x0;
-        var y = y0;
-        while (true) {
-            if (x >= 0 and y >= 0) {
-                const px: u16 = @intCast(x);
-                const py: u16 = @intCast(y);
+        var line = line_iter_mod.LineIter.init(x0, y0, x1, y1);
+        while (line.next()) |point| {
+            // Bounds check before plotting
+            if (point.x >= 0 and point.y >= 0) {
+                const px: u16 = @intCast(point.x);
+                const py: u16 = @intCast(point.y);
                 if (px >= area.x and px < area.x + area.width and
                     py >= area.y and py < area.y + area.height)
                 {
                     buf.set(px, py, Cell.init('·', s));
                 }
-            }
-            if (x == x1 and y == y1) break;
-            const e2 = 2 * err;
-            if (e2 > -@as(i32, @intCast(dy))) {
-                err -= @as(i32, @intCast(dy));
-                x += sx;
-            }
-            if (e2 < @as(i32, @intCast(dx))) {
-                err += @as(i32, @intCast(dx));
-                y += sy;
             }
         }
     }
