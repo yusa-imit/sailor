@@ -735,9 +735,8 @@ test "SunburstChart.render focused=0 applies focused_style to that branch" {
 
     // When focused=0: node A gets focused_style (bold), so should have bold cells
     try testing.expect(bold_count_focused_0 > 0);
-    // When focused=1: node B gets focused_style (bold), so focused_0 render should have fewer bold than focused_1
-    // (this is a weaker assertion but verifies that changing focus changes styling)
-    try testing.expect(bold_count_focused_0 > 0 or bold_count_focused_1 > 0);
+    // When focused=1: node B (70% of the ring) gets focused_style, so it styles more cells than A (30%).
+    try testing.expect(bold_count_focused_1 > bold_count_focused_0);
 }
 
 test "SunburstChart.render focused=1 applies style to different branch" {
@@ -788,10 +787,10 @@ test "SunburstChart.render focused=1 applies style to different branch" {
         }
     }
 
-    // When focused=0: node A gets focused_style (italic), so should have some italic cells
-    // When focused=1: node B gets focused_style (italic), so should have some italic cells
-    // At least one of them should have italic cells due to the sunburst rendering
-    try testing.expect(italic_count_focused_0 > 0 or italic_count_focused_1 > 0);
+    // Each focus index styles its own branch: both renders have italic cells, and B (70% of the
+    // ring) covers more cells than A (30%).
+    try testing.expect(italic_count_focused_0 > 0);
+    try testing.expect(italic_count_focused_1 > italic_count_focused_0);
 }
 
 test "SunburstChart.render focused out of range does not crash" {

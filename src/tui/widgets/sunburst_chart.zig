@@ -277,7 +277,7 @@ fn resolveNode(
 
     // Partition span among siblings based on their positive values
     var cursor = span_start;
-    for (nodes) |*node| {
+    for (nodes, 0..) |*node, sibling_index| {
         const node_span_size = if (node.value > 0) (node.value / total) * (span_end - span_start) else 0.0;
         const node_span_end = cursor + node_span_size;
 
@@ -294,7 +294,7 @@ fn resolveNode(
                 return .{
                     .found = true,
                     .node = node,
-                    .top_level_ancestor_idx = top_level_idx,
+                    .top_level_ancestor_idx = if (depth == 0) sibling_index else top_level_idx,
                 };
             } else if (node.children.len == 0) {
                 // Tree doesn't extend to the desired depth
@@ -308,7 +308,7 @@ fn resolveNode(
                     node.children,
                     cursor,
                     node_span_end,
-                    top_level_idx,
+                    if (depth == 0) sibling_index else top_level_idx,
                 );
             }
         }
