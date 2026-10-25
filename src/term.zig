@@ -479,7 +479,9 @@ fn readByteWindows(io: std.Io, timeout_ms: u32) !?u8 {
     if (GetFileType(handle) == FILE_TYPE_PIPE) {
         const start = std.Io.Clock.awake.now(io);
         const timeout_ns: i96 = @as(i96, timeout_ms) * std.time.ns_per_ms;
-        while (true) {
+        // The clock ends the wait; the cap does too if the clock never advances.
+        const polls_max: u64 = @as(u64, timeout_ms) + 2;
+        for (0..polls_max) |_| {
             var bytes_avail: win.DWORD = 0;
             if (PeekNamedPipe(handle, null, 0, null, &bytes_avail, null) == 0) {
                 // Broken/closed pipe (e.g. write end closed) — treat as EOF.
@@ -488,7 +490,7 @@ fn readByteWindows(io: std.Io, timeout_ms: u32) !?u8 {
             if (bytes_avail > 0) break;
             if (start.untilNow(io, .awake).toNanoseconds() >= timeout_ns) return null;
             try io.sleep(.fromMilliseconds(1), .awake);
-        }
+        } else return null;
     } else {
         // Console handles and regular files: WaitForSingleObject correctly
         // reports readiness (files are always immediately signaled).

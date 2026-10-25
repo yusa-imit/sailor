@@ -4,6 +4,24 @@ All notable changes to sailor. Versions follow semantic versioning; a MAJOR bump
 consumer has to change code. History before v3.0.0 is summarised in
 [`docs/plans/000-inherited.md`](docs/plans/000-inherited.md) and in the git tags.
 
+## [Unreleased]
+
+### Fixed
+
+- `MultiCursorEditor.deleteCharAll` moves each cursor left by the deletions at or before it on
+  its line, not by a flat 1.
+- `Sunburst.withFocused(n)` for `n >= 1` styled nothing; it now selects the matching top-level
+  branch.
+
+### Changed
+
+- Canvas, line chart, radar chart, parallel coordinates, slope chart and chord diagram draw
+  lines through one bounded `LineIter`.
+- `FocusManager.focusPrev`, `Workspace.focusNext`/`focusPrev`, `AsyncValidator.getResultWithTimeout`
+  and the Windows pipe poll in `term` stop after a fixed number of steps. A clock that never
+  advances can no longer hang them; `getResultWithTimeout` returns `error.ValidationTimeout`.
+- `zig build tidy` rejects a `while (true)` without a `top-level loop:` proof comment.
+
 ## [3.1.0] - 2026-10-18
 
 Post-v3 cleanup (plan 002, milestone #51): widgets whose doc comments promised behavior that

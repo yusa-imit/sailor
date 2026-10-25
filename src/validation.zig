@@ -450,6 +450,7 @@ pub const AsyncValidator = struct {
     }
 
     fn validationThread(self: *AsyncValidator) void {
+        // top-level loop: the worker ends on debounce completion or io cancelation.
         while (true) {
             // Wait for debounce period. Cancelation ends the thread with the
             // result left pending.
@@ -514,7 +515,10 @@ pub const AsyncValidator = struct {
     pub fn getResultWithTimeout(self: *AsyncValidator, timeout_ms: u64) !ValidatorResult {
         const start = self.nowMs();
 
-        while (true) {
+        // The clock bounds the wait; the poll cap also ends it if the clock never advances.
+        const poll_ms: u32 = 10;
+        const polls_max: u64 = timeout_ms / poll_ms + 2;
+        for (0..polls_max) |_| {
             self.mutex.lockUncancelable(self.io);
             const result = self.result;
             const has_thread = self.thread != null;
@@ -529,8 +533,9 @@ pub const AsyncValidator = struct {
                 return error.ValidationTimeout;
             }
 
-            try self.io.sleep(.fromMilliseconds(10), .awake); // Poll every 10ms
+            try self.io.sleep(.fromMilliseconds(poll_ms), .awake);
         }
+        return error.ValidationTimeout;
     }
 };
 
@@ -987,6 +992,62 @@ test "async validator - timeout" {
     // If we got here, the timeout didn't work
     _ = result;
     try testing.expect(false);
+}
+
+/// `Io` double whose clock never advances and whose `sleep` returns at once.
+const FrozenClock = struct {
+    sleep_count: u32 = 0,
+
+    const vtable: std.Io.VTable = blk: {
+        var v = std.Io.failing.vtable.*;
+        v.sleep = sleep_counted;
+        v.now = now_frozen;
+        break :blk v;
+    };
+
+    fn io(clock: *FrozenClock) std.Io {
+        return .{ .userdata = clock, .vtable = &vtable };
+    }
+
+    fn now_frozen(_: ?*anyopaque, _: std.Io.Clock) std.Io.Timestamp {
+        return .{ .nanoseconds = 0 };
+    }
+
+    fn sleep_counted(userdata: ?*anyopaque, _: std.Io.Timeout) std.Io.Cancelable!void {
+        const clock: *FrozenClock = @ptrCast(@alignCast(userdata.?));
+        clock.sleep_count += 1;
+    }
+};
+
+fn blockUntilReleased(released: *std.atomic.Value(bool)) void {
+    while (!released.load(.acquire)) std.Thread.yield() catch {};
+}
+
+test "async validator - frozen clock still times out" {
+    const testing = std.testing;
+
+    var clock = FrozenClock{};
+    var async_validator = try AsyncValidator.init(
+        testing.allocator,
+        clock.io(),
+        Validator.email(),
+        5000,
+    );
+    defer async_validator.deinit();
+
+    // A live thread and a pending result keep the wait loop polling.
+    var released = std.atomic.Value(bool).init(false);
+    async_validator.thread = try std.Thread.spawn(.{}, blockUntilReleased, .{&released});
+    defer {
+        released.store(true, .release);
+        async_validator.thread.?.join();
+        async_validator.thread = null;
+    }
+
+    try testing.expectError(error.ValidationTimeout, async_validator.getResultWithTimeout(100));
+    // timeout_ms / 10 + 2 polls, each one sleep, and no more.
+    try testing.expectEqual(@as(u32, 12), clock.sleep_count);
+    try testing.expectEqual(ValidatorResult.pending, async_validator.getResultNonBlocking());
 }
 
 test "async validator - non-blocking" {

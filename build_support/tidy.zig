@@ -10,7 +10,7 @@ pub const Violation = struct {
     file: []const u8,
     check: []const u8, // e.g. "line_length", "function_length", "missing_header",
     // "catch_unreachable", "panic", "debug_print", "time_usage", "crypto_random",
-    // "usize_in_wire_format"
+    // "usize_in_wire_format", "unbounded_while"
     name: []const u8, // function name for function_length; "-" for file-level checks
     actual: u32,
     baseline: u32,
@@ -107,6 +107,32 @@ pub fn countLiveOccurrences(text: []const u8, needle: []const u8) u32 {
     }
     assert(live <= lines_seen_max);
     return live;
+}
+
+/// Counts live `while (true)` lines that carry no `top-level loop:` proof comment, either
+/// on the same line or on the line directly above. Loops elsewhere must iterate `for
+/// (0..iterations_max)` (Tiger Style 1.7); a top-level event loop asserts non-termination
+/// in the comment instead.
+pub fn countUnboundedWhile(text: []const u8) u32 {
+    const needle = "while (true)";
+    const proof = "top-level loop:";
+    var violations: u32 = 0;
+    var previous: []const u8 = "";
+    var lines = std.mem.splitScalar(u8, text, '\n');
+    var lines_seen_max: u32 = 0;
+    while (lines.next()) |line| {
+        assert(lines_seen_max < std.math.maxInt(u32));
+        lines_seen_max += 1;
+        defer previous = line;
+        if (std.mem.indexOf(u8, line, needle) == null) continue;
+        if (std.mem.startsWith(u8, std.mem.trim(u8, line, " \t\r"), "//")) continue;
+        if (std.mem.indexOf(u8, line, proof) != null) continue;
+        const above = std.mem.trim(u8, previous, " \t\r");
+        if (std.mem.startsWith(u8, above, "//") and std.mem.indexOf(u8, above, proof) != null) continue;
+        violations += 1;
+    }
+    assert(violations <= lines_seen_max);
+    return violations;
 }
 
 /// Counts struct-field declarations of the exact form `usize` type (patterns like
@@ -399,6 +425,52 @@ test "countLiveOccurrences: std.crypto.random usage detection follows the same l
         \\
     ;
     try testing.expectEqual(@as(u32, 1), countLiveOccurrences(text, "std.crypto.random"));
+}
+
+test "countUnboundedWhile: bare while (true) is one violation" {
+    const text = "while (true) {\n    step();\n}\n";
+    try testing.expectEqual(@as(u32, 1), countUnboundedWhile(text));
+}
+
+test "countUnboundedWhile: top-level loop comment on the previous line is accepted" {
+    const text =
+        \\// top-level loop: ends on EOF.
+        \\while (true) {
+        \\}
+        \\
+    ;
+    try testing.expectEqual(@as(u32, 0), countUnboundedWhile(text));
+}
+
+test "countUnboundedWhile: top-level loop comment on the same line is accepted" {
+    const text = "while (true) { // top-level loop: ends on cancel.\n}\n";
+    try testing.expectEqual(@as(u32, 0), countUnboundedWhile(text));
+}
+
+test "countUnboundedWhile: a different comment two lines up does not count" {
+    const text =
+        \\// top-level loop: stale proof for another statement.
+        \\const x = 1;
+        \\while (true) {
+        \\}
+        \\
+    ;
+    try testing.expectEqual(@as(u32, 1), countUnboundedWhile(text));
+}
+
+test "countUnboundedWhile: while (true) only inside a comment is not live" {
+    const text = "// the old while (true) loop is gone\nconst x = 1;\n";
+    try testing.expectEqual(@as(u32, 0), countUnboundedWhile(text));
+}
+
+test "countUnboundedWhile: a conditioned while is not flagged" {
+    const text = "while (idx > 0) {\n    idx -= 1;\n}\n";
+    try testing.expectEqual(@as(u32, 0), countUnboundedWhile(text));
+}
+
+test "countUnboundedWhile: two bare loops count both" {
+    const text = "while (true) {}\nwhile (true) {}\n";
+    try testing.expectEqual(@as(u32, 2), countUnboundedWhile(text));
 }
 
 test "countUsizeFields: trailing-comma usize field is one violation" {

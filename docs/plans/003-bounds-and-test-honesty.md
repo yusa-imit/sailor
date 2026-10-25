@@ -36,7 +36,7 @@ then tests, then the paragraph work, which needs its ADR merged before code.
       *Verify:* helper tests for length 0, horizontal, vertical, 45°, steep, reversed, far
       off-screen endpoints; the six widgets' existing tests stay green unchanged;
       `grep -n 'while (true)'` on the six files is empty.
-- [ ] **Remaining seven `while (true)` and a tidy guard.** `focus.zig:336` and
+- [x] **Remaining seven `while (true)` and a tidy guard.** `focus.zig:336` and
       `workspace.zig:194,211` walk an array: rewrite as `for (0..len)`. `term.zig:482` (Windows
       pipe poll) and `validation.zig:517` are bounded only by the wall clock: add a poll cap of
       `timeout_ms / poll_ms + 2` so a clock that never advances cannot hang them.

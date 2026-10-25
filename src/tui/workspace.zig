@@ -189,15 +189,15 @@ pub const Workspace = struct {
         if (self.panes.len <= 1) return;
 
         const start_idx = self.focus_idx;
-        var idx = (self.focus_idx + 1) % self.panes.len;
+        var idx = start_idx;
 
-        while (true) {
+        // Visit every other pane once; a full loop with no focusable pane changes nothing.
+        for (0..self.panes.len - 1) |_| {
+            idx = (idx + 1) % self.panes.len;
             if (self.panes[idx].focusable) {
                 self.focus_idx = idx;
                 return;
             }
-            idx = (idx + 1) % self.panes.len;
-            if (idx == start_idx) return; // Full loop, no focusable found
         }
     }
 
@@ -206,15 +206,15 @@ pub const Workspace = struct {
         if (self.panes.len <= 1) return;
 
         const start_idx = self.focus_idx;
-        var idx = if (self.focus_idx == 0) self.panes.len - 1 else self.focus_idx - 1;
+        var idx = start_idx;
 
-        while (true) {
+        // Visit every other pane once; a full loop with no focusable pane changes nothing.
+        for (0..self.panes.len - 1) |_| {
+            idx = if (idx == 0) self.panes.len - 1 else idx - 1;
             if (self.panes[idx].focusable) {
                 self.focus_idx = idx;
                 return;
             }
-            idx = if (idx == 0) self.panes.len - 1 else idx - 1;
-            if (idx == start_idx) return; // Full loop, no focusable found
         }
     }
 
