@@ -332,14 +332,13 @@ pub const FocusManager = struct {
             if (id == current_id) {
                 // Search backward for previous enabled widget
                 if (i > 0) {
-                    var prev_idx = i - 1;
-                    while (true) {
+                    var prev_idx: usize = i;
+                    while (prev_idx > 0) {
+                        prev_idx -= 1;
                         if (!self.isDisabled(self.order.items[prev_idx])) {
                             self.focused_id = self.order.items[prev_idx];
                             return;
                         }
-                        if (prev_idx == 0) break;
-                        prev_idx -= 1;
                     }
                 }
                 // Wrap around if enabled

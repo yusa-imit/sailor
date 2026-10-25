@@ -237,6 +237,7 @@ pub const Repl = struct {
 
         // Read loop
         var key_buf: [16]u8 = undefined;
+        // top-level loop: ends on a completed line, EOF, or a read error.
         while (true) {
             const stdin = std.Io.File.stdin();
             const n = stdin.readStreaming(self.io, &.{&key_buf}) catch |err| switch (err) {

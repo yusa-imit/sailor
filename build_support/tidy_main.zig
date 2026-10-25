@@ -122,6 +122,7 @@ fn appendFileCounts(
         tidy.countLiveOccurrences(text, "std.crypto.random"),
     );
     try appendCount(arena, counts, path, "panic", "-", tidy.countUnprovenPanic(text));
+    try appendCount(arena, counts, path, "unbounded_while", "-", tidy.countUnboundedWhile(text));
 
     if (isWireFormatFile(path)) {
         try appendCount(arena, counts, path, "usize_in_wire_format", "-", tidy.countUsizeFields(text));
@@ -174,7 +175,7 @@ fn collectCounts(
     }
 
     try appendFileCounts(arena, io, &counts, build_zig_path, true);
-    assert(counts.items.len <= files_seen * 9 + 9); // Bounded: ~9 checks per file at most.
+    assert(counts.items.len <= files_seen * 10 + 10); // Bounded: ~10 checks per file at most.
     return counts.toOwnedSlice(arena);
 }
 
