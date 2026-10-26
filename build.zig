@@ -744,6 +744,7 @@ pub fn build(b: *std.Build) void {
     const tidy_run = b.addRunArtifact(tidy_exe);
     tidy_run.addArg("check");
     tidy_run.addArg("src");
+    tidy_run.addArg("tests");
     tidy_run.addArg("build.zig");
     tidy_run.addArg("tidy_baseline.txt");
 

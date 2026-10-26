@@ -21,6 +21,8 @@ consumer has to change code. History before v3.0.0 is summarised in
   and the Windows pipe poll in `term` stop after a fixed number of steps. A clock that never
   advances can no longer hang them; `getResultWithTimeout` returns `error.ValidationTimeout`.
 - `zig build tidy` rejects a `while (true)` without a `top-level loop:` proof comment.
+- `zig build tidy` also walks `tests/` and ratchets `assertion_free_test`: test blocks with no
+  `expect*`, `assert*` or invariant check may not grow past the per-file baseline.
 
 ## [3.1.0] - 2026-10-18
 
