@@ -46,7 +46,7 @@ then tests, then the paragraph work, which needs its ADR merged before code.
       two PRs (sites, then check). *Verify:* tidy unit tests (bare vs commented); a frozen-clock
       `Io` double (`VirtualClock` pattern, `error_recovery_test.zig`) makes
       `getResultWithTimeout` return `error.ValidationTimeout`; Windows CI green for `term.zig`.
-- [ ] **Tidy `assertion_free_test` ratchet.** Extend the tidy walk to `tests/` for this one
+- [x] **Tidy `assertion_free_test` ratchet.** Extend the tidy walk to `tests/` for this one
       check: count `test` blocks whose body has no `expect`, `assert`, or listed helper
       (`expectCell`-style names, documented in `tidy.zig`), recorded per file in the baseline.
       Why: the debt is too large for one plan, so first stop it growing. *Verify:* tidy tests

@@ -135,6 +135,112 @@ pub fn countUnboundedWhile(text: []const u8) u32 {
     return violations;
 }
 
+const TestScan = struct {
+    /// Index one past the closing brace of the test body (or `text.len` if unterminated).
+    end: usize,
+    has_assertion: bool,
+};
+
+/// True for an identifier that asserts: `expect` or `expectXxx` (not `expected`), anything
+/// starting with `assert`, or a `checkInvariants`/`check_invariants` call. Other helper
+/// names are not recognised; such tests are held by the baseline until they assert directly.
+fn isAssertionIdent(ident: []const u8) bool {
+    assert(ident.len > 0);
+    if (std.mem.startsWith(u8, ident, "assert")) return true;
+    if (std.mem.eql(u8, ident, "checkInvariants")) return true;
+    if (std.mem.eql(u8, ident, "check_invariants")) return true;
+    if (!std.mem.startsWith(u8, ident, "expect")) return false;
+    if (ident.len == "expect".len) return true;
+    const next = ident["expect".len];
+    return std.ascii.isUpper(next) or next == '_';
+}
+
+/// Index one past the end of a quoted literal starting at `start` (the opening quote), honoring
+/// backslash escapes; stops at a newline because Zig string and char literals cannot span lines.
+fn skipQuoted(text: []const u8, start: usize, quote: u8) usize {
+    assert(text[start] == quote);
+    var i = start + 1;
+    while (i < text.len) {
+        const c = text[i];
+        if (c == '\\') {
+            i += 2;
+        } else if (c == quote) {
+            return i + 1;
+        } else if (c == '\n') {
+            return i;
+        } else {
+            i += 1;
+        }
+    }
+    return text.len;
+}
+
+/// Index of the newline ending the line that contains `from`, or `text.len`.
+fn lineEnd(text: []const u8, from: usize) usize {
+    assert(from <= text.len);
+    return std.mem.indexOfScalarPos(u8, text, from, '\n') orelse text.len;
+}
+
+/// Scans the brace-delimited body opening at `open`, skipping comments, string, char, and
+/// multiline-string literals, and reports where it ends and whether it names an assertion.
+fn scanTestBody(text: []const u8, open: usize) TestScan {
+    assert(text[open] == '{');
+    var depth: u32 = 0;
+    var has_assertion = false;
+    var i = open;
+    while (i < text.len) {
+        const c = text[i];
+        const next: u8 = if (i + 1 < text.len) text[i + 1] else 0;
+        switch (c) {
+            '{' => {
+                depth += 1;
+                i += 1;
+            },
+            '}' => {
+                depth -= 1;
+                i += 1;
+                if (depth == 0) return .{ .end = i, .has_assertion = has_assertion };
+            },
+            '"', '\'' => i = skipQuoted(text, i, c),
+            '/' => i = if (next == '/') lineEnd(text, i) else i + 1,
+            '\\' => i = if (next == '\\') lineEnd(text, i) else i + 1,
+            'a'...'z', 'A'...'Z', '_' => {
+                var end = i + 1;
+                while (end < text.len and isIdentChar(text[end])) : (end += 1) {}
+                if (isAssertionIdent(text[i..end])) has_assertion = true;
+                i = end;
+            },
+            else => i += 1,
+        }
+    }
+    return .{ .end = text.len, .has_assertion = has_assertion };
+}
+
+/// Counts `test` blocks whose body names no assertion (`expect*`, `assert*`, invariant check),
+/// the tests `testing.md` forbids as "does not crash" only. Heuristic: assertions made through
+/// differently named helpers are not seen, so those tests sit in the baseline.
+pub fn countAssertionFreeTests(text: []const u8) u32 {
+    var violations: u32 = 0;
+    var tests_seen: u32 = 0;
+    var line_start: usize = 0;
+    while (line_start < text.len) {
+        const end = lineEnd(text, line_start);
+        const line = std.mem.trimEnd(u8, text[line_start..end], " \t\r");
+        const is_decl = std.mem.startsWith(u8, std.mem.trimStart(u8, line, " \t"), "test ");
+        if (!is_decl or !std.mem.endsWith(u8, line, "{")) {
+            line_start = end + 1;
+            continue;
+        }
+        const scan = scanTestBody(text, line_start + line.len - 1);
+        tests_seen += 1;
+        if (!scan.has_assertion) violations += 1;
+        assert(scan.end > line_start);
+        line_start = lineEnd(text, scan.end) + 1;
+    }
+    assert(violations <= tests_seen);
+    return violations;
+}
+
 /// Counts struct-field declarations of the exact form `usize` type (patterns like
 /// ": usize,", ": usize;", ": usize\n" at end of line) anywhere in `text`. Used only
 /// against known serialization/wire-format files.
@@ -471,6 +577,127 @@ test "countUnboundedWhile: a conditioned while is not flagged" {
 test "countUnboundedWhile: two bare loops count both" {
     const text = "while (true) {}\nwhile (true) {}\n";
     try testing.expectEqual(@as(u32, 2), countUnboundedWhile(text));
+}
+
+test "countAssertionFreeTests: a test with expectEqual is clean" {
+    const text = "test \"a\" {\n    try testing.expectEqual(@as(u32, 1), f());\n}\n";
+    try testing.expectEqual(@as(u32, 0), countAssertionFreeTests(text));
+}
+
+test "countAssertionFreeTests: a test that only calls code is one violation" {
+    const text = "test \"does not crash\" {\n    render(&buf, area);\n}\n";
+    try testing.expectEqual(@as(u32, 1), countAssertionFreeTests(text));
+}
+
+test "countAssertionFreeTests: two assertion-free tests count both" {
+    const text = "test \"a\" {\n    f();\n}\n\ntest \"b\" {\n    g();\n}\n";
+    try testing.expectEqual(@as(u32, 2), countAssertionFreeTests(text));
+}
+
+test "countAssertionFreeTests: braces inside strings do not end the body" {
+    const text =
+        \\test "a" {
+        \\    const s = "}{";
+        \\    try testing.expect(s.len == 2);
+        \\}
+        \\
+        \\test "b" {
+        \\    const s = "}";
+        \\    _ = s;
+        \\}
+        \\
+    ;
+    try testing.expectEqual(@as(u32, 1), countAssertionFreeTests(text));
+}
+
+test "countAssertionFreeTests: a brace char literal does not end the body" {
+    const text =
+        \\test "a" {
+        \\    const c = '{';
+        \\    try testing.expectEqual('{', c);
+        \\}
+        \\
+        \\test "b" {
+        \\    const c = '}';
+        \\    _ = c;
+        \\}
+        \\
+    ;
+    try testing.expectEqual(@as(u32, 1), countAssertionFreeTests(text));
+}
+
+test "countAssertionFreeTests: multiline string braces are skipped" {
+    const text =
+        \\test "a" {
+        \\    const s =
+        \\        \\}}}
+        \\    ;
+        \\    _ = s;
+        \\}
+        \\
+        \\test "b" {
+        \\    try testing.expect(true);
+        \\}
+        \\
+    ;
+    try testing.expectEqual(@as(u32, 1), countAssertionFreeTests(text));
+}
+
+test "countAssertionFreeTests: a comment or string naming expect is not an assertion" {
+    const text =
+        \\test "a" {
+        \\    // try testing.expect(x);
+        \\    f();
+        \\}
+        \\
+        \\test "b" {
+        \\    f("expectEqual");
+        \\}
+        \\
+    ;
+    try testing.expectEqual(@as(u32, 2), countAssertionFreeTests(text));
+}
+
+test "countAssertionFreeTests: a variable named expected is not an assertion" {
+    const text = "test \"a\" {\n    const expected = 3;\n    f(expected);\n}\n";
+    try testing.expectEqual(@as(u32, 1), countAssertionFreeTests(text));
+}
+
+test "countAssertionFreeTests: expect-style helpers and assert count" {
+    const text =
+        \\test "a" {
+        \\    try expectCell(&buf, 0, 0, "x");
+        \\}
+        \\
+        \\test "b" {
+        \\    assert(f());
+        \\}
+        \\
+        \\test "c" {
+        \\    list.check_invariants();
+        \\}
+        \\
+    ;
+    try testing.expectEqual(@as(u32, 0), countAssertionFreeTests(text));
+}
+
+test "countAssertionFreeTests: an assertion in a nested block counts" {
+    const text =
+        \\test "a" {
+        \\    for (items) |item| {
+        \\        if (item > 0) {
+        \\            try testing.expect(item < 9);
+        \\        }
+        \\    }
+        \\}
+        \\
+    ;
+    try testing.expectEqual(@as(u32, 0), countAssertionFreeTests(text));
+}
+
+test "countAssertionFreeTests: functions that are not tests are ignored" {
+    const text = "fn helper() void {\n    f();\n}\n";
+    try testing.expectEqual(@as(u32, 0), countAssertionFreeTests(text));
 }
 
 test "countUsizeFields: trailing-comma usize field is one violation" {

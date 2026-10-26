@@ -1,5 +1,6 @@
 //! CLI entry point for the Tiger Style tidy checker. Walks `<src-dir>` plus the single
-//! `<build-zig-path>` file, computes violation counts using `tidy.zig`'s pure functions, and
+//! `<build-zig-path>` file, and `<tests-dir>` for the `assertion_free_test` check alone,
+//! computes violation counts using `tidy.zig`'s pure functions, and
 //! either writes a fresh `<baseline-path>` (`generate`) or fails when any actual count exceeds
 //! its recorded baseline entry (`check`). This is a thin CLI shell, not a library: it allocates
 //! from one arena for the whole process lifetime and exits via `std.process.exit`.
@@ -40,9 +41,9 @@ pub fn main(init: std.process.Init) !void {
     const io = init.io;
 
     const args = try init.minimal.args.toSlice(arena);
-    if (args.len != 5) {
+    if (args.len != 6) {
         std.debug.print(
-            "usage: tidy <check|generate> <src-dir> <build-zig-path> <baseline-path>\n",
+            "usage: tidy <check|generate> <src-dir> <tests-dir> <build-zig> <baseline-path>\n",
             .{},
         );
         std.process.exit(2);
@@ -52,10 +53,10 @@ pub fn main(init: std.process.Init) !void {
         std.process.exit(2);
     };
 
-    const counts = try collectCounts(arena, io, args[2], args[3]);
+    const counts = try collectCounts(arena, io, args[2], args[3], args[4]);
     switch (mode) {
-        .generate => try writeBaseline(arena, io, args[4], counts),
-        .check => try runCheck(arena, io, args[4], counts),
+        .generate => try writeBaseline(arena, io, args[5], counts),
+        .check => try runCheck(arena, io, args[5], counts),
     }
 }
 
@@ -146,12 +147,42 @@ fn joinRelPath(arena: std.mem.Allocator, src_dir: []const u8, sub_path: []const 
     return joined;
 }
 
+/// Walks `tests_dir` recursively for `.zig` files and appends each one's `assertion_free_test`
+/// count; no other check applies to test roots. Returns the number of directory entries seen.
+fn appendTestCounts(
+    arena: std.mem.Allocator,
+    io: std.Io,
+    counts: *std.ArrayList(Count),
+    tests_dir: []const u8,
+) !u32 {
+    assert(tests_dir.len > 0);
+    var dir = try std.Io.Dir.cwd().openDir(io, tests_dir, .{ .iterate = true });
+    defer dir.close(io);
+
+    var walker = try dir.walk(arena);
+    defer walker.deinit();
+
+    var files_seen: u32 = 0;
+    while (try walker.next(io)) |entry| {
+        assert(files_seen < files_max);
+        files_seen += 1;
+        if (entry.kind != .file) continue;
+        if (!std.mem.endsWith(u8, entry.basename, ".zig")) continue;
+        const rel_path = try joinRelPath(arena, tests_dir, entry.path);
+        const text = try std.Io.Dir.cwd().readFileAlloc(io, rel_path, arena, .limited(file_bytes_max));
+        const free = tidy.countAssertionFreeTests(text);
+        try appendCount(arena, counts, rel_path, "assertion_free_test", "-", free);
+    }
+    return files_seen;
+}
+
 /// Walks `src_dir` recursively for `.zig` files, plus the single `build_zig_path` file, and
-/// returns every non-zero (file, check, name) count found.
+/// `tests_dir` for assertion-free tests, and returns every non-zero (file, check, name) count.
 fn collectCounts(
     arena: std.mem.Allocator,
     io: std.Io,
     src_dir: []const u8,
+    tests_dir: []const u8,
     build_zig_path: []const u8,
 ) ![]Count {
     assert(src_dir.len > 0);
@@ -175,6 +206,7 @@ fn collectCounts(
     }
 
     try appendFileCounts(arena, io, &counts, build_zig_path, true);
+    files_seen += try appendTestCounts(arena, io, &counts, tests_dir);
     assert(counts.items.len <= files_seen * 10 + 10); // Bounded: ~10 checks per file at most.
     return counts.toOwnedSlice(arena);
 }
