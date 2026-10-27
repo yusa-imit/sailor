@@ -232,10 +232,13 @@ pub const BulletChart = struct {
 
             // Compute bar area (after label column)
             const bar_x = inner.x + @as(u16, @intCast(label_width));
-            const bar_width = if (inner.x + inner.width > bar_x)
+            const bar_width_full: u16 = if (inner.x + inner.width > bar_x)
                 inner.x + inner.width - bar_x
             else
                 0;
+            const value_text = formatValue(bullet.value, bullet.target);
+            const text_reserve = valueTextReserve(self.show_values, bar_width_full, value_text);
+            const bar_width: u16 = bar_width_full - text_reserve;
 
             // Render label if enabled
             if (self.show_labels and label_width > 0) {
@@ -297,12 +300,9 @@ pub const BulletChart = struct {
             }
 
             // ========== Render value text if enabled ==========
-            if (self.show_values) {
-                const value_text = formatValue(bullet.value, bullet.target);
-                const text_x = bar_x + @as(u16, @intCast(bar_width)) + 1;
-                if (text_x < inner.x + inner.width) {
-                    renderValueText(buf, text_x, bullet_y, inner.x + inner.width, value_text, self.label_style);
-                }
+            if (text_reserve > 0) {
+                const text_x = bar_x + bar_width + 1;
+                renderValueText(buf, text_x, bullet_y, inner.x + inner.width, value_text, self.label_style);
             }
         }
     }
@@ -335,6 +335,16 @@ fn formatValue(value: f32, target: f32) [32]u8 {
         output[i] = 0;
     }
     return output;
+}
+
+/// Cells to reserve on the right for "VALUE/TARGET" text plus one gap cell. Zero when
+/// `show_values` is off, or when the bar would not keep at least one cell: the text is dropped
+/// rather than the bar.
+fn valueTextReserve(show_values: bool, bar_width_full: u16, value_buf: [32]u8) u16 {
+    if (!show_values) return 0;
+    var len: u16 = 0;
+    while (len < 32 and value_buf[len] != 0) : (len += 1) {}
+    return if (bar_width_full > len + 1) len + 1 else 0;
 }
 
 /// Render formatted value text in the value area

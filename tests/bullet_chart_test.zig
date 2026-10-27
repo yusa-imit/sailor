@@ -18,6 +18,7 @@ const testing = std.testing;
 const sailor = @import("sailor");
 
 const Buffer = sailor.tui.buffer.Buffer;
+const Cell = sailor.tui.buffer.Cell;
 const Rect = sailor.tui.layout.Rect;
 const Style = sailor.tui.style.Style;
 const Block = sailor.tui.widgets.Block;
@@ -79,6 +80,48 @@ fn findCharInRow(buf: Buffer, y: u16, area: Rect, target_char: u21) ?u16 {
 /// Approximate float equality check
 fn floatEq(a: f32, b: f32, epsilon: f32) bool {
     return @abs(a - b) < epsilon;
+}
+
+/// Count cells that differ from a freshly initialised (blank, unstyled) cell
+fn countTouched(buf: Buffer) usize {
+    var count: usize = 0;
+    for (buf.cells) |cell| {
+        if (!cell.eql(Cell{})) count += 1;
+    }
+    return count;
+}
+
+/// Count cells whose style has bold set
+fn countBold(buf: Buffer) usize {
+    var count: usize = 0;
+    for (buf.cells) |cell| {
+        if (cell.style.bold) count += 1;
+    }
+    return count;
+}
+
+/// Assert the character at (x, y)
+fn expectCharAt(buf: Buffer, x: u16, y: u16, expected: u21) !void {
+    try testing.expectEqual(expected, buf.getChar(x, y));
+}
+
+/// Assert `text` (ASCII) is written starting at (x, y)
+fn expectText(buf: Buffer, x: u16, y: u16, text: []const u8) !void {
+    for (text, 0..) |c, i| {
+        try expectCharAt(buf, x + @as(u16, @intCast(i)), y, c);
+    }
+}
+
+/// Assert cells x0..x1 (exclusive) of row y all hold `expected`
+fn expectRun(buf: Buffer, y: u16, x0: u16, x1: u16, expected: u21) !void {
+    var x = x0;
+    while (x < x1) : (x += 1) try expectCharAt(buf, x, y, expected);
+}
+
+/// Assert two equally sized buffers hold identical cells (char and style)
+fn expectSameCells(a: Buffer, b: Buffer) !void {
+    try testing.expectEqual(a.cells.len, b.cells.len);
+    for (a.cells, b.cells) |ca, cb| try testing.expect(ca.eql(cb));
 }
 
 // ============================================================================
@@ -313,7 +356,7 @@ test "BulletChart.withBlock sets block" {
 // Group 6: Render Zero/Minimal Area (3 tests)
 // ============================================================================
 
-test "BulletChart.render with zero width does not crash" {
+test "BulletChart.render with zero width writes no cell" {
     var buf = try Buffer.init(testing.allocator, 10, 10);
     defer buf.deinit();
 
@@ -322,10 +365,14 @@ test "BulletChart.render with zero width does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 10 };
 
     chart.render(&buf, area);
-    // No crash is success
+    try testing.expectEqual(@as(usize, 0), countTouched(buf));
+
+    // Control: the same chart with a non-zero width does draw.
+    chart.render(&buf, .{ .x = 0, .y = 0, .width = 10, .height = 10 });
+    try testing.expect(countTouched(buf) > 0);
 }
 
-test "BulletChart.render with zero height does not crash" {
+test "BulletChart.render with zero height writes no cell" {
     var buf = try Buffer.init(testing.allocator, 10, 10);
     defer buf.deinit();
 
@@ -334,10 +381,14 @@ test "BulletChart.render with zero height does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 0 };
 
     chart.render(&buf, area);
-    // No crash is success
+    try testing.expectEqual(@as(usize, 0), countTouched(buf));
+
+    // Control: the same chart with a non-zero height does draw.
+    chart.render(&buf, .{ .x = 0, .y = 0, .width = 10, .height = 10 });
+    try testing.expect(countTouched(buf) > 0);
 }
 
-test "BulletChart.render with 1x1 area does not crash" {
+test "BulletChart.render with 1x1 area draws only the first label character" {
     var buf = try Buffer.init(testing.allocator, 10, 10);
     defer buf.deinit();
 
@@ -346,7 +397,10 @@ test "BulletChart.render with 1x1 area does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 1, .height = 1 };
 
     chart.render(&buf, area);
-    // No crash is success
+
+    // The label column takes the whole width, leaving no bar columns.
+    try expectCharAt(buf, 0, 0, 'A');
+    try testing.expectEqual(@as(usize, 1), countTouched(buf));
 }
 
 // ============================================================================
@@ -402,7 +456,7 @@ test "BulletChart.render with single bullet renders on first row" {
     try testing.expect(non_empty > 0);
 }
 
-test "BulletChart.render single bullet value 0 does not crash" {
+test "BulletChart.render single bullet value 0 draws label but no value bar" {
     var buf = try Buffer.init(testing.allocator, 40, 5);
     defer buf.deinit();
 
@@ -411,10 +465,12 @@ test "BulletChart.render single bullet value 0 does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 5 };
 
     chart.render(&buf, area);
-    // No crash is success
+
+    try expectText(buf, 0, 0, "Zero");
+    try testing.expectEqual(@as(usize, 0), countChar(buf, area, '█'));
 }
 
-test "BulletChart.render single bullet value equals target does not crash" {
+test "BulletChart.render single bullet value equals target puts tick at bar end" {
     var buf = try Buffer.init(testing.allocator, 40, 5);
     defer buf.deinit();
 
@@ -423,10 +479,16 @@ test "BulletChart.render single bullet value equals target does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 5 };
 
     chart.render(&buf, area);
-    // No crash is success
+
+    // Label column is 10 wide, bar is 30 wide: value 0.5 fills 15 columns (x 10..24)
+    // and the tick sits on the first column past the bar (x 25).
+    try expectRun(buf, 0, 10, 25, '█');
+    try expectCharAt(buf, 25, 0, '│');
+    try testing.expectEqual(@as(usize, 15), countChar(buf, area, '█'));
+    try testing.expectEqual(@as(usize, 1), countChar(buf, area, '│'));
 }
 
-test "BulletChart.render single bullet at max_value does not crash" {
+test "BulletChart.render single bullet at max_value fills the whole bar" {
     var buf = try Buffer.init(testing.allocator, 40, 5);
     defer buf.deinit();
 
@@ -437,7 +499,10 @@ test "BulletChart.render single bullet at max_value does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 5 };
 
     chart.render(&buf, area);
-    // No crash is success
+
+    // Bar spans x 10..39 and is filled to its last column, no further.
+    try expectRun(buf, 0, 10, 40, '█');
+    try testing.expectEqual(@as(usize, 30), countChar(buf, area, '█'));
 }
 
 test "BulletChart.render single bullet with empty ranges renders bar" {
@@ -518,8 +583,9 @@ test "BulletChart.render respects MAX_BULLETS cap at 32" {
     try testing.expectEqual(@as(usize, 32), chart.bulletCount());
 }
 
-test "BulletChart.render with more bullets than height clips gracefully" {
-    var buf = try Buffer.init(testing.allocator, 40, 5);
+test "BulletChart.render with more bullets than height renders only the rows that fit" {
+    // Buffer is taller than the area so a write past the area would be visible.
+    var buf = try Buffer.init(testing.allocator, 40, 10);
     defer buf.deinit();
 
     var bullets: [10]Bullet = undefined;
@@ -534,7 +600,17 @@ test "BulletChart.render with more bullets than height clips gracefully" {
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 5 };
 
     chart.render(&buf, area);
-    // Should not crash, render only what fits
+
+    // Rows 0..4 each carry a label and a 15-column value bar (x 10..24).
+    for (0..5) |row| {
+        const y: u16 = @intCast(row);
+        try expectCharAt(buf, 0, y, 'B');
+        try expectRun(buf, y, 10, 25, '█');
+    }
+    // Rows 5..9 lie outside the area and stay untouched.
+    const below = Rect{ .x = 0, .y = 5, .width = 40, .height = 5 };
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, below));
+    try testing.expectEqual(@as(usize, 5 * 16), countNonEmptyCells(buf, area));
 }
 
 // ============================================================================
@@ -561,7 +637,7 @@ test "BulletChart.render with value far above max_value does not crash" {
     try testing.expect(non_empty > 0);
 }
 
-test "BulletChart.render with target far above max_value does not crash" {
+test "BulletChart.render with target far above max_value keeps the tick inside the bar" {
     var buf = try Buffer.init(testing.allocator, 50, 20);
     defer buf.deinit();
 
@@ -572,10 +648,20 @@ test "BulletChart.render with target far above max_value does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };
 
     chart.render(&buf, area);
-    // No crash is success
+
+    // The huge target is clamped to max_value, so it cannot widen the value bar:
+    // bar is 40 wide (x 10..49), value 0.5 fills exactly 20 columns (x 10..29).
+    try expectRun(buf, 0, 10, 30, '█');
+    try testing.expectEqual(@as(usize, 20), countChar(buf, area, '█'));
+    // Any tick that is drawn lies inside the bar, never in the label column.
+    const label_col = Rect{ .x = 0, .y = 0, .width = 10, .height = 20 };
+    try testing.expectEqual(@as(usize, 0), countChar(buf, label_col, '│'));
+    // Nothing is drawn below the single bullet row.
+    const below = Rect{ .x = 0, .y = 1, .width = 50, .height = 19 };
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, below));
 }
 
-test "BulletChart.render with negative value does not crash" {
+test "BulletChart.render with negative value clamps to an empty bar" {
     var buf = try Buffer.init(testing.allocator, 50, 20);
     defer buf.deinit();
 
@@ -584,10 +670,12 @@ test "BulletChart.render with negative value does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };
 
     chart.render(&buf, area);
-    // No crash is success
+
+    try expectText(buf, 0, 0, "Neg");
+    try testing.expectEqual(@as(usize, 0), countChar(buf, area, '█'));
 }
 
-test "BulletChart.render with ranges boundary far outside max_value does not crash" {
+test "BulletChart.render with ranges boundary far outside max_value clamps to full bar" {
     var buf = try Buffer.init(testing.allocator, 50, 20);
     defer buf.deinit();
 
@@ -599,12 +687,20 @@ test "BulletChart.render with ranges boundary far outside max_value does not cra
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };
 
     chart.render(&buf, area);
-    // No crash is success
+
+    // Bar is 40 wide (x 10..49). First band (x 10..29) is covered by the value bar;
+    // the second boundary clamps to 1.0, so its band spans x 30..49 and no further.
+    try expectRun(buf, 0, 10, 30, '█');
+    try expectRun(buf, 0, 30, 50, '▒');
+    try testing.expectEqual(@as(usize, 20), countChar(buf, area, '▒'));
+    try testing.expectEqual(@as(usize, 0), countChar(buf, area, '░'));
 }
 
-test "BulletChart.render with max_value zero does not crash" {
+test "BulletChart.render with max_value zero scales as if max_value were 1.0" {
     var buf = try Buffer.init(testing.allocator, 50, 20);
     defer buf.deinit();
+    var reference = try Buffer.init(testing.allocator, 50, 20);
+    defer reference.deinit();
 
     var bullets = [_]Bullet{.{ .label = "Z", .value = 0.5, .target = 1.0 }};
     const chart = BulletChart.init()
@@ -613,12 +709,19 @@ test "BulletChart.render with max_value zero does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };
 
     chart.render(&buf, area);
-    // No crash is success
+    chart.withMaxValue(1.0).render(&reference, area);
+
+    // Value 0.5 of a 40-wide bar: 20 columns, x 10..29.
+    try expectRun(buf, 0, 10, 30, '█');
+    try testing.expectEqual(@as(usize, 20), countChar(buf, area, '█'));
+    try expectSameCells(buf, reference);
 }
 
-test "BulletChart.render with max_value negative does not crash" {
+test "BulletChart.render with max_value negative scales as if max_value were 1.0" {
     var buf = try Buffer.init(testing.allocator, 50, 20);
     defer buf.deinit();
+    var reference = try Buffer.init(testing.allocator, 50, 20);
+    defer reference.deinit();
 
     var bullets = [_]Bullet{.{ .label = "N", .value = 0.5, .target = 1.0 }};
     const chart = BulletChart.init()
@@ -627,7 +730,11 @@ test "BulletChart.render with max_value negative does not crash" {
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 20 };
 
     chart.render(&buf, area);
-    // No crash is success
+    chart.withMaxValue(1.0).render(&reference, area);
+
+    try expectRun(buf, 0, 10, 30, '█');
+    try testing.expectEqual(@as(usize, 20), countChar(buf, area, '█'));
+    try expectSameCells(buf, reference);
 }
 
 // ============================================================================
@@ -688,20 +795,28 @@ test "BulletChart.render with empty ranges renders bar without band chars" {
     try testing.expect(non_empty > 0);
 }
 
-test "BulletChart.render range boundaries in ascending order" {
+test "BulletChart.render range boundaries in ascending order shade light to dark" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    // Ranges must be ascending for meaningful band rendering
+    // Ascending ranges; value 0 so the value bar does not cover the bands.
     var ranges = [_]f32{ 0.2, 0.5, 0.8 };
-    var bullets = [_]Bullet{.{ .label = "A", .value = 0.6, .target = 1.0, .ranges = &ranges }};
+    var bullets = [_]Bullet{.{ .label = "A", .value = 0.0, .target = 1.0, .ranges = &ranges }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(1.0);
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 5 };
 
     chart.render(&buf, area);
-    // Should not crash even if ranges not strictly in order
+
+    // Bar is 50 wide (x 10..59): 0.2 -> 10 cols, 0.5 -> 25, 0.8 -> 40.
+    try expectRun(buf, 0, 10, 20, '░');
+    try expectRun(buf, 0, 20, 35, '▒');
+    try expectRun(buf, 0, 35, 50, '▓');
+    // Past the last boundary the bar stays blank.
+    try expectRun(buf, 0, 50, 60, ' ');
+    try testing.expect(findCharInRow(buf, 0, area, '░').? < findCharInRow(buf, 0, area, '▒').?);
+    try testing.expect(findCharInRow(buf, 0, area, '▒').? < findCharInRow(buf, 0, area, '▓').?);
 }
 
 test "BulletChart.render with range covering full width" {
@@ -720,7 +835,7 @@ test "BulletChart.render with range covering full width" {
     try testing.expect(non_empty > 0);
 }
 
-test "BulletChart.render with range at 0.0 boundary" {
+test "BulletChart.render with range at 0.0 boundary draws no zero-width band" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
@@ -732,28 +847,47 @@ test "BulletChart.render with range at 0.0 boundary" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 5 };
 
     chart.render(&buf, area);
+
+    try testing.expectEqual(@as(usize, 0), countChar(buf, area, '░'));
+    try testing.expectEqual(@as(usize, 0), countChar(buf, area, '▒'));
+    try testing.expectEqual(@as(usize, 0), countChar(buf, area, '▓'));
+    // The value bar is unaffected: 0.5 of 50 columns, x 10..34.
+    try expectRun(buf, 0, 10, 35, '█');
+    try testing.expectEqual(@as(usize, 25), countChar(buf, area, '█'));
 }
 
-test "BulletChart.render with many ranges (more than 3 band chars)" {
+test "BulletChart.render with many ranges cycles through the three band chars" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
+    // Value 0 keeps the bands visible. Nine boundaries at every tenth of a 50-wide bar
+    // give nine 5-column bands starting at x 10.
     var ranges = [_]f32{ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 };
-    var bullets = [_]Bullet{.{ .label = "M", .value = 0.5, .target = 1.0, .ranges = &ranges }};
+    var bullets = [_]Bullet{.{ .label = "M", .value = 0.0, .target = 1.0, .ranges = &ranges }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(1.0);
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 5 };
 
     chart.render(&buf, area);
-    // Should cycle band chars if more than 3 ranges
+
+    const band_chars = [_]u21{ '░', '▒', '▓' };
+    for (0..9) |band| {
+        const x0: u16 = 10 + @as(u16, @intCast(band)) * 5;
+        try expectRun(buf, 0, x0, x0 + 5, band_chars[band % 3]);
+    }
+    // Past the ninth boundary (0.9) the bar stays blank.
+    try expectRun(buf, 0, 55, 60, ' ');
+    try testing.expectEqual(@as(usize, 15), countChar(buf, area, '░'));
+    try testing.expectEqual(@as(usize, 15), countChar(buf, area, '▒'));
+    try testing.expectEqual(@as(usize, 15), countChar(buf, area, '▓'));
 }
 
 // ============================================================================
 // Group 12: Value Bar Rendering (6 tests)
 // ============================================================================
 
-test "BulletChart.render value bar at 0% occupies minimal space" {
+test "BulletChart.render value bar at 0% draws no bar cell" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
@@ -764,7 +898,10 @@ test "BulletChart.render value bar at 0% occupies minimal space" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 5 };
 
     chart.render(&buf, area);
-    // Should not crash; bar may be invisible at 0%
+
+    try testing.expectEqual(@as(usize, 0), countChar(buf, area, '█'));
+    // With labels off the label text must not leak into the bar either.
+    try testing.expectEqual(@as(usize, 0), countChar(buf, area, 'Z'));
 }
 
 test "BulletChart.render value bar at 50% occupies half width" {
@@ -869,7 +1006,12 @@ test "BulletChart.render target tick at 0% position" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 5 };
 
     chart.render(&buf, area);
-    // Target tick should be rendered, even at boundary
+
+    // Target tick lands on the first bar column, drawn over the value bar (x 0..29).
+    try expectCharAt(buf, 0, 0, '│');
+    try expectRun(buf, 0, 1, 30, '█');
+    try testing.expectEqual(@as(usize, 1), countChar(buf, area, '│'));
+    try testing.expectEqual(@as(usize, 29), countChar(buf, area, '█'));
 }
 
 test "BulletChart.render target tick at 50% position" {
@@ -908,7 +1050,9 @@ test "BulletChart.render target tick with custom max_value" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{.{ .label = "Scale", .value = 50.0, .target = 100.0 }};
+    // Target 50 of max 100 is the middle of the 60-wide bar. Without scaling by
+    // max_value the target would clamp to the end of the bar instead.
+    var bullets = [_]Bullet{.{ .label = "Scale", .value = 20.0, .target = 50.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withMaxValue(100.0)
@@ -916,13 +1060,19 @@ test "BulletChart.render target tick with custom max_value" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 5 };
 
     chart.render(&buf, area);
+
+    try expectCharAt(buf, 30, 0, '│');
+    try testing.expectEqual(@as(usize, 1), countChar(buf, area, '│'));
+    // Value 20 of 100 fills 12 columns (x 0..11).
+    try expectRun(buf, 0, 0, 12, '█');
+    try testing.expectEqual(@as(usize, 12), countChar(buf, area, '█'));
 }
 
 test "BulletChart.render target tick uses target_style when set" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    const target_style = Style{ .bold = true };
+    const target_style = Style{ .fg = .red, .bold = true };
     var bullets = [_]Bullet{.{ .label = "Styled", .value = 0.3, .target = 0.7 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
@@ -931,20 +1081,33 @@ test "BulletChart.render target tick uses target_style when set" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 5 };
 
     chart.render(&buf, area);
+
+    // Tick at 0.7 of 60 columns lands on x 42 and carries exactly target_style.
+    const tick_x = findCharInRow(buf, 0, area, '│').?;
+    try testing.expectEqual(@as(u16, 42), tick_x);
+    try testing.expect(buf.getConst(tick_x, 0).?.eql(Cell.init('│', target_style)));
+    // The value bar (default bar_style) must not pick up target_style.
+    try testing.expect(buf.getConst(0, 0).?.eql(Cell.init('█', .{})));
+    try testing.expectEqual(@as(usize, 1), countBold(buf));
 }
 
 test "BulletChart.render target tick drawn over value bar" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{.{ .label = "Over", .value = 0.4, .target = 0.5 }};
+    // Value 0.8 fills x 0..47, so the tick at 0.5 (x 30) lands inside the bar.
+    var bullets = [_]Bullet{.{ .label = "Over", .value = 0.8, .target = 0.5 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withShowLabels(false);
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 5 };
 
     chart.render(&buf, area);
-    // Target tick should be visible even if value extends to that column
+
+    try expectRun(buf, 0, 0, 30, '█');
+    try expectCharAt(buf, 30, 0, '│');
+    try expectRun(buf, 0, 31, 48, '█');
+    try testing.expectEqual(@as(usize, 47), countChar(buf, area, '█'));
 }
 
 // ============================================================================
@@ -991,7 +1154,7 @@ test "BulletChart.render focused index 0 highlights first bullet" {
     try testing.expect(non_empty > 0);
 }
 
-test "BulletChart.render focused index out of bounds does not crash" {
+test "BulletChart.render focused index out of bounds highlights no row" {
     var buf = try Buffer.init(testing.allocator, 60, 10);
     defer buf.deinit();
 
@@ -1001,11 +1164,21 @@ test "BulletChart.render focused index out of bounds does not crash" {
     };
     const chart = BulletChart.init()
         .withBullets(&bullets)
-        .withFocused(999);
+        .withFocused(999)
+        .withFocusedStyle(Style{ .bold = true });
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 10 };
 
     chart.render(&buf, area);
-    // Should render without crash, focused styling may not apply
+
+    // Both rows still render (bar is 50 wide: 25 and 35 columns).
+    try expectCharAt(buf, 0, 0, 'A');
+    try expectCharAt(buf, 0, 1, 'B');
+    const row0 = Rect{ .x = 0, .y = 0, .width = 60, .height = 1 };
+    const row1 = Rect{ .x = 0, .y = 1, .width = 60, .height = 1 };
+    try testing.expectEqual(@as(usize, 25), countChar(buf, row0, '█'));
+    try testing.expectEqual(@as(usize, 35), countChar(buf, row1, '█'));
+    // No bullet matches index 999, so focused_style is applied nowhere.
+    try testing.expectEqual(@as(usize, 0), countBold(buf));
 }
 
 test "BulletChart.render focused_style with default values does not override bar_style" {
@@ -1013,20 +1186,31 @@ test "BulletChart.render focused_style with default values does not override bar
     defer buf.deinit();
 
     var bullets = [_]Bullet{.{ .label = "A", .value = 0.5, .target = 1.0 }};
+    const bar_style = Style{ .bold = true };
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withFocused(0)
-        .withBarStyle(Style{ .bold = true });
+        .withBarStyle(bar_style);
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 5 };
 
     chart.render(&buf, area);
+
+    // The bar keeps bar_style; the unset focused_style leaves the label unstyled.
+    try testing.expect(buf.getConst(10, 0).?.eql(Cell.init('█', bar_style)));
+    try testing.expect(buf.getConst(34, 0).?.eql(Cell.init('█', bar_style)));
+    try testing.expect(buf.getConst(0, 0).?.eql(Cell.init('A', .{})));
+    // Exactly the 25 bar cells are bold.
+    try testing.expectEqual(@as(usize, 25), countBold(buf));
 }
 
 test "BulletChart.render focused_style only overrides when explicitly set" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    var bullets = [_]Bullet{.{ .label = "A", .value = 0.5, .target = 1.0 }};
+    var bullets = [_]Bullet{
+        .{ .label = "A", .value = 0.5, .target = 1.0 },
+        .{ .label = "B", .value = 0.5, .target = 1.0 },
+    };
     const explicit_focused = Style{ .bold = true };
     const chart = BulletChart.init()
         .withBullets(&bullets)
@@ -1036,12 +1220,18 @@ test "BulletChart.render focused_style only overrides when explicitly set" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 5 };
 
     chart.render(&buf, area);
+
+    // Focused label cell, including its padding, takes the explicit focused_style.
+    try testing.expect(buf.getConst(0, 0).?.eql(Cell.init('A', explicit_focused)));
+    try testing.expect(buf.getConst(9, 0).?.eql(Cell.init(' ', explicit_focused)));
+    // The focused bar and the unfocused row keep their own styles.
+    try testing.expect(buf.getConst(10, 0).?.eql(Cell.init('█', .{})));
+    try testing.expect(buf.getConst(0, 1).?.eql(Cell.init('B', .{})));
+    // Only the 10 label-column cells of the focused row are bold.
+    try testing.expectEqual(@as(usize, 10), countBold(buf));
 }
 
 test "BulletChart.render multiple bullets with different focused indices" {
-    var buf = try Buffer.init(testing.allocator, 60, 10);
-    defer buf.deinit();
-
     var bullets = [_]Bullet{
         .{ .label = "A", .value = 0.3, .target = 1.0 },
         .{ .label = "B", .value = 0.6, .target = 1.0 },
@@ -1054,10 +1244,20 @@ test "BulletChart.render multiple bullets with different focused indices" {
 
         const chart = BulletChart.init()
             .withBullets(&bullets)
-            .withFocused(i);
+            .withFocused(i)
+            .withFocusedStyle(Style{ .bold = true });
         const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 10 };
 
         chart.render(&buf2, area);
+
+        // Exactly one row (the focused one) is bold, across its 10-cell label column.
+        for (0..3) |row| {
+            const y: u16 = @intCast(row);
+            try testing.expectEqual(row == i, buf2.getStyle(0, y).bold);
+            try testing.expectEqual(row == i, buf2.getStyle(9, y).bold);
+            try testing.expect(!buf2.getStyle(10, y).bold);
+        }
+        try testing.expectEqual(@as(usize, 10), countBold(buf2));
     }
 }
 
@@ -1109,14 +1309,18 @@ test "BulletChart.render show_labels reserves left column space" {
 
     chart.render(&buf, area);
 
-    // Label area should be reserved, bar starts after it
+    // The 17-char label sets the label column width, so the bar starts at x 17
+    // and spans 43 columns; value 0.5 fills 21 of them (x 17..37).
+    try expectText(buf, 0, 0, "VeryLongLabelName");
+    try expectRun(buf, 0, 17, 38, '█');
+    try testing.expectEqual(@as(usize, 21), countChar(buf, area, '█'));
 }
 
 test "BulletChart.render label_style applies to labels" {
     var buf = try Buffer.init(testing.allocator, 60, 5);
     defer buf.deinit();
 
-    const label_style = Style{ .bold = true };
+    const label_style = Style{ .fg = .cyan, .bold = true };
     var bullets = [_]Bullet{.{ .label = "Revenue", .value = 0.5, .target = 1.0 }};
     const chart = BulletChart.init()
         .withBullets(&bullets)
@@ -1125,6 +1329,17 @@ test "BulletChart.render label_style applies to labels" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 5 };
 
     chart.render(&buf, area);
+
+    // Every label character and the padding up to the bar carry label_style.
+    const label = "Revenue";
+    for (label, 0..) |c, i| {
+        const x: u16 = @intCast(i);
+        try testing.expect(buf.getConst(x, 0).?.eql(Cell.init(c, label_style)));
+    }
+    try testing.expect(buf.getConst(9, 0).?.eql(Cell.init(' ', label_style)));
+    // The bar is not a label and keeps the unstyled bar_style.
+    try testing.expect(buf.getConst(10, 0).?.eql(Cell.init('█', .{})));
+    try testing.expectEqual(@as(usize, 10), countBold(buf));
 }
 
 // ============================================================================
@@ -1177,6 +1392,12 @@ test "BulletChart.render show_values with zero values formats correctly" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 5 };
 
     chart.render(&buf, area);
+
+    // "0.0/0.0" (7 cells) plus a gap is reserved on the right: bar is x0..52, text at x53.
+    try expectText(buf, 53, 0, "0.0/0.0");
+    try expectCharAt(buf, 52, 0, ' ');
+    try expectCharAt(buf, 0, 0, '│');
+    try testing.expectEqual(@as(usize, 8), countNonEmptyCells(buf, area));
 }
 
 test "BulletChart.render show_values with max values formats correctly" {
@@ -1192,6 +1413,31 @@ test "BulletChart.render show_values with max values formats correctly" {
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 5 };
 
     chart.render(&buf, area);
+
+    // "100.0/100.0" (11 cells) plus a gap is reserved: the full bar is x0..48, text at x49.
+    try expectRun(buf, 0, 0, 48, '█');
+    try expectCharAt(buf, 48, 0, ' ');
+    try expectText(buf, 49, 0, "100.0/100.0");
+    try testing.expectEqual(@as(usize, 59), countNonEmptyCells(buf, area));
+}
+
+test "BulletChart.render show_values drops the text when the bar would vanish" {
+    var buf = try Buffer.init(testing.allocator, 8, 1);
+    defer buf.deinit();
+
+    var bullets = [_]Bullet{.{ .label = "Z", .value = 1.0, .target = 1.0 }};
+    const chart = BulletChart.init()
+        .withBullets(&bullets)
+        .withMaxValue(1.0)
+        .withShowValues(true)
+        .withShowLabels(false);
+    const area = Rect{ .x = 0, .y = 0, .width = 7, .height = 1 };
+
+    chart.render(&buf, area);
+
+    // "1.0/1.0" is 7 cells: no room for text plus a bar, so the bar keeps the whole width.
+    try expectRun(buf, 0, 0, 7, '█');
+    try expectCharAt(buf, 7, 0, ' ');
 }
 
 // ============================================================================
@@ -1231,7 +1477,8 @@ test "BulletChart.render with null block renders content in full area" {
     try testing.expect(non_empty > 0);
 }
 
-test "BulletChart.render block with inner area smaller than content clips gracefully" {
+test "BulletChart.render block with inner area smaller than content clips to the inner area" {
+    // Buffer is larger than the area so writes outside the area would be visible.
     var buf = try Buffer.init(testing.allocator, 20, 8);
     defer buf.deinit();
 
@@ -1240,10 +1487,21 @@ test "BulletChart.render block with inner area smaller than content clips gracef
     const chart = BulletChart.init()
         .withBullets(&bullets)
         .withBlock(blk);
-    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 8 };
+    // Inner area is 10x2 at (1,1): narrower than the 13-char label.
+    const area = Rect{ .x = 0, .y = 0, .width = 12, .height = 4 };
 
     chart.render(&buf, area);
-    // Should clip gracefully, no crash
+
+    // Label is truncated to the 10 inner columns and leaves no room for a bar.
+    try expectText(buf, 1, 1, "VeryLongLa");
+    try testing.expectEqual(@as(usize, 0), countChar(buf, area, '█'));
+    // The right border column (x 11) was not overwritten by the label.
+    try expectCharAt(buf, 11, 1, '│');
+    // Nothing leaks right of or below the area.
+    const right = Rect{ .x = 12, .y = 0, .width = 8, .height = 8 };
+    const below = Rect{ .x = 0, .y = 4, .width = 20, .height = 4 };
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, right));
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, below));
 }
 
 // ============================================================================

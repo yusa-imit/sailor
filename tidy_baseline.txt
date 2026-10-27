@@ -328,11 +328,9 @@ tests/activity_feed_test.zig|assertion_free_test|-|21
 tests/advanced_widgets_test.zig|assertion_free_test|-|6
 tests/ansi_art_test.zig|assertion_free_test|-|2
 tests/app_shell_test.zig|assertion_free_test|-|3
-tests/area_chart_test.zig|assertion_free_test|-|14
 tests/box_plot_test.zig|assertion_free_test|-|2
 tests/breadcrumb_test.zig|assertion_free_test|-|20
 tests/bubble_chart_test.zig|assertion_free_test|-|6
-tests/bullet_chart_test.zig|assertion_free_test|-|29
 tests/bump_chart_test.zig|assertion_free_test|-|14
 tests/calendar_heatmap_test.zig|assertion_free_test|-|4
 tests/calendar_test.zig|assertion_free_test|-|10
