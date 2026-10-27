@@ -87,6 +87,61 @@ fn floatEq(a: f32, b: f32, epsilon: f32) bool {
     return @abs(a - b) < epsilon;
 }
 
+/// Expect the character at (x, y) to equal `want`.
+fn expectCharAt(buf: Buffer, x: u16, y: u16, want: u21) !void {
+    const cell = cellAtPos(buf, x, y) orelse return error.OutOfBounds;
+    try testing.expectEqual(want, cell.char);
+}
+
+/// Expect every cell outside `area` to be an untouched default cell.
+fn expectBlankOutside(buf: Buffer, area: Rect) !void {
+    var y: u16 = 0;
+    while (y < buf.height) : (y += 1) {
+        var x: u16 = 0;
+        while (x < buf.width) : (x += 1) {
+            const inside = x >= area.x and x < area.x + area.width and
+                y >= area.y and y < area.y + area.height;
+            if (inside) continue;
+            try testing.expect(buf.getConst(x, y).?.eql(.{}));
+        }
+    }
+}
+
+/// Expect two equally sized buffers to hold identical cells (char and style).
+fn expectBuffersEqual(a: Buffer, b: Buffer) !void {
+    try testing.expectEqual(a.width, b.width);
+    try testing.expectEqual(a.height, b.height);
+    for (a.cells, b.cells) |ca, cb| {
+        try testing.expect(ca.eql(cb));
+    }
+}
+
+/// Render `[1, bad, 3]` and expect the non-finite point to be drawn as a baseline
+/// value of 0 while the finite points are plotted, nothing outside the area.
+fn expectNonFiniteDrawnAsZero(bad: f32) !void {
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
+    var ref = try Buffer.init(testing.allocator, 80, 24);
+    defer ref.deinit();
+    var vals = [_]f32{ 1.0, bad, 3.0 };
+    var zero_vals = [_]f32{ 1.0, 0.0, 3.0 };
+    var series = [_]AreaSeries{.{ .label = "Bad", .values = &vals }};
+    var zero_series = [_]AreaSeries{.{ .label = "Bad", .values = &zero_vals }};
+    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 15 };
+    AreaChart.init().withSeries(&series).render(&buf, area);
+    AreaChart.init().withSeries(&zero_series).render(&ref, area);
+    try expectBuffersEqual(buf, ref);
+    // Scale 0..3 over 15 rows: 1.0 reaches row 10, 3.0 reaches row 0, baseline is row 14.
+    try expectCharAt(buf, 0, 10, '▀');
+    try expectCharAt(buf, 0, 14, '█');
+    try expectCharAt(buf, 29, 14, '▀');
+    try expectCharAt(buf, 29, 13, ' ');
+    try expectCharAt(buf, 59, 0, '▀');
+    try expectCharAt(buf, 59, 14, '█');
+    try testing.expectEqual(@as(usize, 5 + 1 + 15), countNonEmptyCells(buf, area));
+    try expectBlankOutside(buf, area);
+}
+
 // ============================================================================
 // Group 1: Init and Defaults (6 tests)
 // ============================================================================
@@ -270,28 +325,50 @@ test "withStyle does not modify original" {
 // Group 6: Render — Zero/Minimal Area (3 tests)
 // ============================================================================
 
-test "render with 0x0 area does not crash" {
+test "render with 0x0 area leaves every buffer cell untouched" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
-    const chart = AreaChart.init();
+    var vals = [_]f32{ 1.0, 2.0, 3.0 };
+    var series = [_]AreaSeries{.{ .label = "A", .values = &vals }};
+    const chart = AreaChart.init().withSeries(&series).withBlock(.{});
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
     chart.render(&buf, area);
+    try expectBlankOutside(buf, area);
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, .{
+        .x = 0,
+        .y = 0,
+        .width = 80,
+        .height = 24,
+    }));
 }
 
-test "render with 1x1 area does not crash" {
+test "render with 1x1 area draws only the line char at that one cell" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
-    const chart = AreaChart.init();
+    var vals = [_]f32{ 1.0, 2.0 };
+    var series = [_]AreaSeries{.{ .label = "A", .values = &vals }};
+    const chart = AreaChart.init().withSeries(&series);
     const area = Rect{ .x = 0, .y = 0, .width = 1, .height = 1 };
     chart.render(&buf, area);
+    // A single row collapses baseline and value onto row 0, so only the boundary char shows.
+    try expectCharAt(buf, 0, 0, '▀');
+    try expectBlankOutside(buf, area);
 }
 
-test "render with 2x2 area does not crash" {
+test "render with 2x2 area plots each point at its exact scaled cell" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
-    const chart = AreaChart.init();
+    var vals = [_]f32{ 1.0, 2.0 };
+    var series = [_]AreaSeries{.{ .label = "A", .values = &vals }};
+    const chart = AreaChart.init().withSeries(&series);
     const area = Rect{ .x = 0, .y = 0, .width = 2, .height = 2 };
     chart.render(&buf, area);
+    // Scale 0..2 over 2 rows: 1.0 stays on the baseline row, 2.0 reaches the top row.
+    try expectCharAt(buf, 0, 0, ' ');
+    try expectCharAt(buf, 0, 1, '▀');
+    try expectCharAt(buf, 1, 0, '▀');
+    try expectCharAt(buf, 1, 1, '█');
+    try expectBlankOutside(buf, area);
 }
 
 // ============================================================================
@@ -307,12 +384,19 @@ test "render with zero series produces no content" {
     try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, area));
 }
 
-test "render with zero series and Block does not crash" {
+test "render with zero series and Block draws the frame and an empty interior" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
     const chart = AreaChart.init().withBlock(.{});
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 20 };
     chart.render(&buf, area);
+    try expectCharAt(buf, 0, 0, '┌');
+    try expectCharAt(buf, 39, 0, '┐');
+    try expectCharAt(buf, 0, 19, '└');
+    try expectCharAt(buf, 39, 19, '┘');
+    const inner = Rect{ .x = 1, .y = 1, .width = 38, .height = 18 };
+    try testing.expectEqual(@as(usize, 0), countNonEmptyCells(buf, inner));
+    try expectBlankOutside(buf, area);
 }
 
 // ============================================================================
@@ -330,7 +414,7 @@ test "render single series with positive values produces content" {
     try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
-test "render single series with single point does not crash" {
+test "render single series with single point fills one centered column to the top" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
     var vals = [_]f32{5.0};
@@ -338,9 +422,14 @@ test "render single series with single point does not crash" {
     const chart = AreaChart.init().withSeries(&series);
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 15 };
     chart.render(&buf, area);
+    // A lone point sits at width / 2 and spans from the top row down to the baseline row.
+    try expectCharAt(buf, 30, 0, '▀');
+    for (1..15) |row| try expectCharAt(buf, 30, @intCast(row), '█');
+    try testing.expectEqual(@as(usize, 15), countNonEmptyCells(buf, area));
+    try expectBlankOutside(buf, area);
 }
 
-test "render single series with all-zero values does not crash" {
+test "render single series with all-zero values draws only a mid-height baseline" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
     var vals = [_]f32{ 0.0, 0.0, 0.0 };
@@ -348,9 +437,15 @@ test "render single series with all-zero values does not crash" {
     const chart = AreaChart.init().withSeries(&series);
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 15 };
     chart.render(&buf, area);
+    // A degenerate 0..0 scale puts the baseline at height / 2 and nothing is filled.
+    try expectCharAt(buf, 0, 7, '▀');
+    try expectCharAt(buf, 29, 7, '▀');
+    try expectCharAt(buf, 59, 7, '▀');
+    try testing.expectEqual(@as(usize, 3), countNonEmptyCells(buf, area));
+    try expectBlankOutside(buf, area);
 }
 
-test "render single series with empty values does not crash" {
+test "render single series with empty values writes no cell" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
     var vals: [0]f32 = undefined;
@@ -358,6 +453,7 @@ test "render single series with empty values does not crash" {
     const chart = AreaChart.init().withSeries(&series);
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 15 };
     chart.render(&buf, area);
+    try expectBlankOutside(buf, .{ .x = 0, .y = 0, .width = 0, .height = 0 });
 }
 
 test "render single series fill from baseline to value" {
@@ -708,16 +804,26 @@ test "focused=null skips focused styling" {
     try testing.expect(countNonEmptyCells(buf, area) > 0);
 }
 
-test "focused index beyond series count does not crash" {
+test "focused index beyond series count renders identically to unfocused" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
+    var ref = try Buffer.init(testing.allocator, 80, 24);
+    defer ref.deinit();
     var vals = [_]f32{ 1.0, 2.0 };
     var series = [_]AreaSeries{.{ .label = "A", .values = &vals }};
+    const focus_style = Style{ .bold = true };
     const chart = AreaChart.init()
         .withSeries(&series)
+        .withFocusedStyle(focus_style)
         .withFocused(100);
+    const unfocused = chart.withFocused(null);
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 15 };
     chart.render(&buf, area);
+    unfocused.render(&ref, area);
+    try expectBuffersEqual(buf, ref);
+    // Content exists and no cell picked up the focused style.
+    try testing.expect(countNonEmptyCells(buf, area) > 0);
+    for (buf.cells) |cell| try testing.expect(!cell.style.bold);
 }
 
 test "focused toggle preserves immutability" {
@@ -782,7 +888,7 @@ test "exactly MAX_SERIES=8 renders without capping" {
 // Group 16: Negative and Out-of-Range Values (5 tests)
 // ============================================================================
 
-test "negative values do not crash (auto scale includes 0)" {
+test "negative values fill downward from the baseline (auto scale includes 0)" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
     var vals = [_]f32{ -5.0, 0.0, 5.0 };
@@ -790,9 +896,20 @@ test "negative values do not crash (auto scale includes 0)" {
     const chart = AreaChart.init().withSeries(&series);
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 15 };
     chart.render(&buf, area);
+    // Scale -5..5 over 15 rows puts the baseline at row 7, -5 at row 14 and 5 at row 0.
+    try expectCharAt(buf, 0, 6, ' ');
+    try expectCharAt(buf, 0, 7, '█');
+    try expectCharAt(buf, 0, 13, '█');
+    try expectCharAt(buf, 0, 14, '▀');
+    try expectCharAt(buf, 29, 7, '▀');
+    try expectCharAt(buf, 59, 0, '▀');
+    try expectCharAt(buf, 59, 7, '█');
+    try expectCharAt(buf, 59, 8, ' ');
+    try testing.expectEqual(@as(usize, 8 + 1 + 8), countNonEmptyCells(buf, area));
+    try expectBlankOutside(buf, area);
 }
 
-test "all-negative values do not crash" {
+test "all-negative values hang from a baseline pinned to the top row" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
     var vals = [_]f32{ -10.0, -5.0, -1.0 };
@@ -800,6 +917,15 @@ test "all-negative values do not crash" {
     const chart = AreaChart.init().withSeries(&series);
     const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 15 };
     chart.render(&buf, area);
+    // Scale -10..0 puts the baseline at row 0; -10 reaches row 14, -5 row 7, -1 row 2.
+    try expectCharAt(buf, 0, 0, '█');
+    try expectCharAt(buf, 0, 14, '▀');
+    try expectCharAt(buf, 29, 7, '▀');
+    try expectCharAt(buf, 29, 8, ' ');
+    try expectCharAt(buf, 59, 2, '▀');
+    try expectCharAt(buf, 59, 3, ' ');
+    try testing.expectEqual(@as(usize, 15 + 8 + 3), countNonEmptyCells(buf, area));
+    try expectBlankOutside(buf, area);
 }
 
 test "very large positive values do not crash" {
@@ -842,37 +968,16 @@ test "baseline always at y=0 for scale computation" {
 // Group 17: NaN and Infinity Guards (No-Panic Regression) (3 tests)
 // ============================================================================
 
-test "NaN values do not crash (guard like LineChart.scaleY)" {
-    var buf = try Buffer.init(testing.allocator, 80, 24);
-    defer buf.deinit();
-    const nan = std.math.nan(f32);
-    var vals = [_]f32{ 1.0, nan, 3.0 };
-    var series = [_]AreaSeries{.{ .label = "WithNaN", .values = &vals }};
-    const chart = AreaChart.init().withSeries(&series);
-    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 15 };
-    chart.render(&buf, area);
+test "NaN value is drawn as zero while finite points stay plotted" {
+    try expectNonFiniteDrawnAsZero(std.math.nan(f32));
 }
 
-test "Infinity values do not crash (guard against non-finite)" {
-    var buf = try Buffer.init(testing.allocator, 80, 24);
-    defer buf.deinit();
-    const inf = std.math.inf(f32);
-    var vals = [_]f32{ 1.0, inf, 3.0 };
-    var series = [_]AreaSeries{.{ .label = "WithInf", .values = &vals }};
-    const chart = AreaChart.init().withSeries(&series);
-    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 15 };
-    chart.render(&buf, area);
+test "Infinity value is drawn as zero while finite points stay plotted" {
+    try expectNonFiniteDrawnAsZero(std.math.inf(f32));
 }
 
-test "negative Infinity does not crash" {
-    var buf = try Buffer.init(testing.allocator, 80, 24);
-    defer buf.deinit();
-    const neg_inf = -std.math.inf(f32);
-    var vals = [_]f32{ 1.0, neg_inf, 3.0 };
-    var series = [_]AreaSeries{.{ .label = "NegInf", .values = &vals }};
-    const chart = AreaChart.init().withSeries(&series);
-    const area = Rect{ .x = 0, .y = 0, .width = 60, .height = 15 };
-    chart.render(&buf, area);
+test "negative Infinity value is drawn as zero while finite points stay plotted" {
+    try expectNonFiniteDrawnAsZero(-std.math.inf(f32));
 }
 
 // ============================================================================
@@ -912,7 +1017,7 @@ test "render with block in offset area" {
     try testing.expectEqual(@as(u21, ' '), cellAtPos(buf, 60, 24).?.char);
 }
 
-test "render block in tiny area does not crash" {
+test "render block in 3x3 area keeps the frame and plots into the 1x1 interior" {
     var buf = try Buffer.init(testing.allocator, 80, 24);
     defer buf.deinit();
     var vals = [_]f32{ 1.0, 2.0 };
@@ -922,6 +1027,30 @@ test "render block in tiny area does not crash" {
         .withBlock(.{});
     const area = Rect{ .x = 0, .y = 0, .width = 3, .height = 3 };
     chart.render(&buf, area);
+    try expectCharAt(buf, 0, 0, '┌');
+    try expectCharAt(buf, 2, 0, '┐');
+    try expectCharAt(buf, 0, 2, '└');
+    try expectCharAt(buf, 2, 2, '┘');
+    // The single interior cell collapses baseline and value onto one row: line char only.
+    try expectCharAt(buf, 1, 1, '▀');
+    try expectBlankOutside(buf, area);
+}
+
+test "render block in 2x2 area leaves no interior to plot into" {
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
+    var vals = [_]f32{ 1.0, 2.0 };
+    var series = [_]AreaSeries{.{ .label = "A", .values = &vals }};
+    const chart = AreaChart.init()
+        .withSeries(&series)
+        .withBlock(.{});
+    const area = Rect{ .x = 0, .y = 0, .width = 2, .height = 2 };
+    chart.render(&buf, area);
+    try expectCharAt(buf, 0, 0, '┌');
+    try expectCharAt(buf, 1, 0, '┐');
+    try expectCharAt(buf, 0, 1, '└');
+    try expectCharAt(buf, 1, 1, '┘');
+    try expectBlankOutside(buf, area);
 }
 
 // ============================================================================

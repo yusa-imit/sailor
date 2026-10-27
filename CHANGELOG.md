@@ -12,6 +12,9 @@ consumer has to change code. History before v3.0.0 is summarised in
   its line, not by a flat 1.
 - `Sunburst.withFocused(n)` for `n >= 1` styled nothing; it now selects the matching top-level
   branch.
+- `BulletChart` with `show_values` drew no value text (the text column started past the right
+  edge); it now reserves the right-hand cells for `VALUE/TARGET` and shortens the bar. When the
+  area is too narrow to keep a bar cell, the text is dropped.
 
 ### Changed
 

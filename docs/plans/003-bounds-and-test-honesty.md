@@ -52,7 +52,7 @@ then tests, then the paragraph work, which needs its ADR merged before code.
       Why: the debt is too large for one plan, so first stop it growing. *Verify:* tidy tests
       on fixtures (asserting, assertion-free, braces inside strings); a scratch test file with
       an assertion-free test fails `zig build tidy`.
-- [ ] **Honest tests, round 1: `area_chart_test`, `bullet_chart_test`.** Each assertion-free
+- [x] **Honest tests, round 1: `area_chart_test`, `bullet_chart_test`.** Each assertion-free
       test gains the assertion its guard exists for (NaN/Inf: finite points still plotted, no
       cell written outside the area; tiny area: border corners present or area left blank per
       the doc comment); exact duplicates are deleted. *Verify:* both files reach 0 in the
