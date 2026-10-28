@@ -57,7 +57,7 @@ then tests, then the paragraph work, which needs its ADR merged before code.
       cell written outside the area; tiny area: border corners present or area left blank per
       the doc comment); exact duplicates are deleted. *Verify:* both files reach 0 in the
       `assertion_free_test` baseline; one guard per file reverted locally makes a test fail.
-- [ ] **ADR 0001: paragraph wrap and bidi** (`docs/adr/0001-paragraph-wrap-and-bidi.md`,
+- [x] **ADR 0001: paragraph wrap and bidi** (`docs/adr/0001-paragraph-wrap-and-bidi.md`,
       architect pass, opus). Decide: no allocation in `render()` while `Bidi.reorder`
       allocates (bounded stack scratch and its overflow fallback vs caller scratch); code
       points and display width via `unicode.zig` instead of bytes; whether `scroll` counts
