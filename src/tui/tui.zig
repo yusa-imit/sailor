@@ -1420,4 +1420,15 @@ test {
     _ = @import("widgets/theme_editor.zig");
     _ = @import("widgets/websocket.zig");
     _ = @import("widgets/metricspanel.zig");
+    _ = @import("widgets/dialog.zig");
+    _ = @import("widgets/timeline.zig");
+    _ = @import("widgets/scrollbar.zig");
+    _ = @import("widgets/keymap.zig");
+    _ = @import("widgets/filter_bar.zig");
+    _ = @import("widgets/filebrowser.zig");
+    _ = @import("widgets/debug.zig");
+    _ = @import("widgets/command_palette.zig");
+    _ = @import("widgets/command_bar.zig");
+    _ = @import("widgets/color_picker.zig");
+    _ = @import("widgets/breadcrumb.zig");
 }
