@@ -1420,4 +1420,5 @@ test {
     _ = @import("widgets/theme_editor.zig");
     _ = @import("widgets/websocket.zig");
     _ = @import("widgets/metricspanel.zig");
+    _ = @import("widgets/dialog.zig");
 }
