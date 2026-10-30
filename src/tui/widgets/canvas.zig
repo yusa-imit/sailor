@@ -2,7 +2,9 @@
 const std = @import("std");
 const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;
-const Style = @import("../style.zig").Style;
+const style_mod = @import("../style.zig");
+const Style = style_mod.Style;
+const Color = style_mod.Color;
 const symbols = @import("../symbols.zig");
 const line_iter_mod = @import("../line_iter.zig");
 
@@ -239,234 +241,467 @@ pub const Canvas = struct {
                     self.getDot(dot_x + 1, dot_y + 3)) pattern |= 0x80;
 
                 const char = symbols.Braille.pattern(pattern);
-                try buf.setCell(x, y, char, self.style);
+                buf.set(x, y, .{ .char = char, .style = self.style });
             }
         }
     }
 };
 
 // Tests
-test "Canvas.init and deinit" {
+
+/// Reference Braille bit for the dot at (dx, dy) inside one 2x4 cell.
+fn brailleBit(dx: usize, dy: usize) u8 {
+    const table = [2][4]u8{
+        .{ 0x01, 0x02, 0x04, 0x40 },
+        .{ 0x08, 0x10, 0x20, 0x80 },
+    };
+    return table[dx][dy];
+}
+
+/// Reference model: the Braille pattern a cell must show, computed from `getDot` alone.
+fn expectedPattern(canvas: Canvas, col: u16, row: u16) u8 {
+    var pattern: u8 = 0;
+    for (0..2) |dx| {
+        for (0..4) |dy| {
+            const x: u16 = col * 2 + @as(u16, @intCast(dx));
+            const y: u16 = row * 4 + @as(u16, @intCast(dy));
+            if (canvas.getDot(x, y)) pattern |= brailleBit(dx, dy);
+        }
+    }
+    return pattern;
+}
+
+fn countSet(canvas: Canvas) usize {
+    var n: usize = 0;
+    for (canvas.dots) |d| {
+        if (d) n += 1;
+    }
+    return n;
+}
+
+test "canvas: init allocates 2x4 dots per cell, all clear" {
     const allocator = std.testing.allocator;
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
 
     var canvas = try Canvas.init(allocator, area);
     defer canvas.deinit();
 
-    try std.testing.expectEqual(20, canvas.dot_width); // 10 * 2
-    try std.testing.expectEqual(20, canvas.dot_height); // 5 * 4
-    try std.testing.expectEqual(400, canvas.dots.len); // 20 * 20
+    try std.testing.expectEqual(@as(u16, 20), canvas.dot_width);
+    try std.testing.expectEqual(@as(u16, 20), canvas.dot_height);
+    try std.testing.expectEqual(@as(usize, 400), canvas.dots.len);
+    try std.testing.expectEqual(@as(usize, 0), countSet(canvas));
 }
 
-test "Canvas.setDot and getDot" {
+test "canvas: zero-sized area yields an empty canvas that ignores every dot" {
     const allocator = std.testing.allocator;
-    const area = Rect{ .x = 0, .y = 0, .width = 5, .height = 5 };
-
-    var canvas = try Canvas.init(allocator, area);
+    var canvas = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 0, .height = 3 });
     defer canvas.deinit();
 
-    try std.testing.expectEqual(false, canvas.getDot(0, 0));
+    try std.testing.expectEqual(@as(usize, 0), canvas.dots.len);
     canvas.setDot(0, 0);
-    try std.testing.expectEqual(true, canvas.getDot(0, 0));
-
-    canvas.setDot(5, 5);
-    try std.testing.expectEqual(true, canvas.getDot(5, 5));
+    try std.testing.expect(!canvas.getDot(0, 0));
 }
 
-test "Canvas.clear" {
+test "canvas: setDot sets exactly one dot and out-of-bounds writes are ignored" {
     const allocator = std.testing.allocator;
-    const area = Rect{ .x = 0, .y = 0, .width = 5, .height = 5 };
+    var canvas = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 5, .height = 5 });
+    defer canvas.deinit();
 
-    var canvas = try Canvas.init(allocator, area);
+    try std.testing.expect(!canvas.getDot(3, 7));
+    canvas.setDot(3, 7);
+    try std.testing.expect(canvas.getDot(3, 7));
+    try std.testing.expect(!canvas.getDot(2, 7));
+    try std.testing.expect(!canvas.getDot(3, 6));
+
+    // Valid range is x < 10, y < 20.
+    canvas.setDot(10, 0);
+    canvas.setDot(0, 20);
+    canvas.setDot(std.math.maxInt(u16), std.math.maxInt(u16));
+    try std.testing.expect(!canvas.getDot(10, 0));
+    try std.testing.expect(!canvas.getDot(0, 20));
+    try std.testing.expectEqual(@as(usize, 1), countSet(canvas));
+}
+
+test "canvas: clear resets every dot" {
+    const allocator = std.testing.allocator;
+    var canvas = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 5, .height = 5 });
     defer canvas.deinit();
 
     canvas.setDot(0, 0);
     canvas.setDot(1, 1);
-    canvas.setDot(2, 2);
-    try std.testing.expectEqual(true, canvas.getDot(1, 1));
-
+    canvas.setDot(9, 19);
+    try std.testing.expectEqual(@as(usize, 3), countSet(canvas));
     canvas.clear();
-    try std.testing.expectEqual(false, canvas.getDot(0, 0));
-    try std.testing.expectEqual(false, canvas.getDot(1, 1));
-    try std.testing.expectEqual(false, canvas.getDot(2, 2));
+
+    try std.testing.expectEqual(@as(usize, 0), countSet(canvas));
 }
 
-test "Canvas.drawLine horizontal" {
+test "canvas: clearDot erases one dot and leaves the others" {
     const allocator = std.testing.allocator;
-    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
+    var canvas = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 5, .height = 5 });
+    defer canvas.deinit();
 
-    var canvas = try Canvas.init(allocator, area);
+    canvas.setDot(2, 3);
+    canvas.setDot(4, 4);
+    canvas.clearDot(2, 3);
+
+    try std.testing.expect(!canvas.getDot(2, 3));
+    try std.testing.expect(canvas.getDot(4, 4));
+
+    // Out-of-bounds clear is a no-op.
+    canvas.clearDot(100, 100);
+    try std.testing.expect(canvas.getDot(4, 4));
+    try std.testing.expectEqual(@as(usize, 1), countSet(canvas));
+}
+
+test "canvas: drawLine horizontal sets exactly the inclusive span" {
+    const allocator = std.testing.allocator;
+    var canvas = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 10, .height = 5 });
     defer canvas.deinit();
 
     canvas.drawLine(0, 0, 5, 0);
 
-    try std.testing.expectEqual(true, canvas.getDot(0, 0));
-    try std.testing.expectEqual(true, canvas.getDot(2, 0));
-    try std.testing.expectEqual(true, canvas.getDot(5, 0));
-    try std.testing.expectEqual(false, canvas.getDot(0, 1));
+    var x: u16 = 0;
+    while (x < canvas.dot_width) : (x += 1) {
+        try std.testing.expectEqual(x <= 5, canvas.getDot(x, 0));
+        try std.testing.expect(!canvas.getDot(x, 1));
+    }
 }
 
-test "Canvas.drawLine vertical" {
+test "canvas: drawLine vertical sets exactly the inclusive span" {
     const allocator = std.testing.allocator;
-    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
-
-    var canvas = try Canvas.init(allocator, area);
+    var canvas = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 10, .height = 5 });
     defer canvas.deinit();
 
     canvas.drawLine(0, 0, 0, 5);
 
-    try std.testing.expectEqual(true, canvas.getDot(0, 0));
-    try std.testing.expectEqual(true, canvas.getDot(0, 2));
-    try std.testing.expectEqual(true, canvas.getDot(0, 5));
-    try std.testing.expectEqual(false, canvas.getDot(1, 0));
+    var y: u16 = 0;
+    while (y < canvas.dot_height) : (y += 1) {
+        try std.testing.expectEqual(y <= 5, canvas.getDot(0, y));
+        try std.testing.expect(!canvas.getDot(1, y));
+    }
 }
 
-test "Canvas.drawLine diagonal" {
+test "canvas: drawLine diagonal sets exactly the diagonal dots" {
     const allocator = std.testing.allocator;
-    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
-
-    var canvas = try Canvas.init(allocator, area);
+    var canvas = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 10, .height = 10 });
     defer canvas.deinit();
 
     canvas.drawLine(0, 0, 5, 5);
 
-    try std.testing.expectEqual(true, canvas.getDot(0, 0));
-    try std.testing.expectEqual(true, canvas.getDot(2, 2));
-    try std.testing.expectEqual(true, canvas.getDot(5, 5));
+    var y: u16 = 0;
+    while (y < 8) : (y += 1) {
+        var x: u16 = 0;
+        while (x < 8) : (x += 1) {
+            try std.testing.expectEqual(x == y and x <= 5, canvas.getDot(x, y));
+        }
+    }
 }
 
-test "Canvas.drawRect" {
+test "canvas: drawLine reversed direction draws the same dots" {
     const allocator = std.testing.allocator;
-    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    var fwd = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 6, .height = 4 });
+    defer fwd.deinit();
+    var rev = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 6, .height = 4 });
+    defer rev.deinit();
 
-    var canvas = try Canvas.init(allocator, area);
+    fwd.drawLine(0, 0, 9, 0);
+    rev.drawLine(9, 0, 0, 0);
+
+    try std.testing.expectEqualSlices(bool, fwd.dots, rev.dots);
+    try std.testing.expect(fwd.getDot(0, 0));
+    try std.testing.expect(fwd.getDot(9, 0));
+    try std.testing.expectEqual(@as(usize, 10), countSet(fwd));
+}
+
+test "canvas: drawLine partly off canvas clips without wrapping" {
+    const allocator = std.testing.allocator;
+    var canvas = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 2, .height = 2 });
+    defer canvas.deinit();
+
+    // Canvas is 4x8 dots; the line runs far past the right edge.
+    canvas.drawLine(0, 0, 30, 0);
+
+    var x: u16 = 0;
+    while (x < 4) : (x += 1) try std.testing.expect(canvas.getDot(x, 0));
+    try std.testing.expectEqual(@as(usize, 4), countSet(canvas));
+}
+
+test "canvas: drawRect draws only the outline" {
+    const allocator = std.testing.allocator;
+    var canvas = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 10, .height = 10 });
     defer canvas.deinit();
 
     canvas.drawRect(2, 2, 5, 4);
 
-    // Top edge
-    try std.testing.expectEqual(true, canvas.getDot(2, 2));
-    try std.testing.expectEqual(true, canvas.getDot(6, 2));
-
-    // Bottom edge
-    try std.testing.expectEqual(true, canvas.getDot(2, 5));
-    try std.testing.expectEqual(true, canvas.getDot(6, 5));
-
-    // Left edge
-    try std.testing.expectEqual(true, canvas.getDot(2, 3));
-
-    // Right edge
-    try std.testing.expectEqual(true, canvas.getDot(6, 3));
-
-    // Interior should be empty
-    try std.testing.expectEqual(false, canvas.getDot(3, 3));
+    var y: u16 = 0;
+    while (y < 12) : (y += 1) {
+        var x: u16 = 0;
+        while (x < 12) : (x += 1) {
+            const in_box = x >= 2 and x <= 6 and y >= 2 and y <= 5;
+            const on_edge = in_box and (x == 2 or x == 6 or y == 2 or y == 5);
+            try std.testing.expectEqual(on_edge, canvas.getDot(x, y));
+        }
+    }
 }
 
-test "Canvas.fillRect" {
+test "canvas: drawRect with zero width or height draws nothing" {
     const allocator = std.testing.allocator;
-    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
+    var canvas = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 5, .height = 5 });
+    defer canvas.deinit();
 
-    var canvas = try Canvas.init(allocator, area);
+    canvas.drawRect(1, 1, 0, 3);
+    canvas.drawRect(1, 1, 3, 0);
+
+    try std.testing.expectEqual(@as(usize, 0), countSet(canvas));
+}
+
+test "canvas: drawRect of width 1 is a vertical line" {
+    const allocator = std.testing.allocator;
+    var canvas = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 5, .height = 5 });
+    defer canvas.deinit();
+
+    canvas.drawRect(3, 2, 1, 4);
+
+    var y: u16 = 0;
+    while (y < 10) : (y += 1) {
+        try std.testing.expectEqual(y >= 2 and y <= 5, canvas.getDot(3, y));
+        try std.testing.expect(!canvas.getDot(2, y));
+        try std.testing.expect(!canvas.getDot(4, y));
+    }
+}
+
+test "canvas: fillRect sets exactly the filled block" {
+    const allocator = std.testing.allocator;
+    var canvas = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 10, .height = 10 });
     defer canvas.deinit();
 
     canvas.fillRect(2, 2, 3, 3);
 
-    // All interior points should be set
-    try std.testing.expectEqual(true, canvas.getDot(2, 2));
-    try std.testing.expectEqual(true, canvas.getDot(3, 3));
-    try std.testing.expectEqual(true, canvas.getDot(4, 4));
-
-    // Outside should not be set
-    try std.testing.expectEqual(false, canvas.getDot(1, 2));
-    try std.testing.expectEqual(false, canvas.getDot(5, 2));
+    var y: u16 = 0;
+    while (y < 8) : (y += 1) {
+        var x: u16 = 0;
+        while (x < 8) : (x += 1) {
+            const inside = x >= 2 and x <= 4 and y >= 2 and y <= 4;
+            try std.testing.expectEqual(inside, canvas.getDot(x, y));
+        }
+    }
 }
 
-test "Canvas.drawCircle" {
+test "canvas: drawCircle radius 0 is a single dot" {
     const allocator = std.testing.allocator;
-    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 20 };
+    var canvas = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 5, .height = 5 });
+    defer canvas.deinit();
 
-    var canvas = try Canvas.init(allocator, area);
+    canvas.drawCircle(4, 6, 0);
+
+    try std.testing.expectEqual(@as(usize, 1), countSet(canvas));
+    try std.testing.expect(canvas.getDot(4, 6));
+}
+
+test "canvas: drawCircle is a symmetric outline with an empty center" {
+    const allocator = std.testing.allocator;
+    var canvas = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 20, .height = 20 });
     defer canvas.deinit();
 
     canvas.drawCircle(20, 20, 10);
 
-    // Check some points on the circle
-    try std.testing.expectEqual(true, canvas.getDot(20, 10)); // top
-    try std.testing.expectEqual(true, canvas.getDot(20, 30)); // bottom
-    try std.testing.expectEqual(true, canvas.getDot(10, 20)); // left
-    try std.testing.expectEqual(true, canvas.getDot(30, 20)); // right
+    // Cardinal points at distance == radius.
+    try std.testing.expect(canvas.getDot(20, 10));
+    try std.testing.expect(canvas.getDot(20, 30));
+    try std.testing.expect(canvas.getDot(10, 20));
+    try std.testing.expect(canvas.getDot(30, 20));
 
-    // Center should not be set (outline only)
-    try std.testing.expectEqual(false, canvas.getDot(20, 20));
+    // Interior and exterior are empty.
+    try std.testing.expect(!canvas.getDot(20, 20));
+    try std.testing.expect(!canvas.getDot(20, 25));
+    try std.testing.expect(!canvas.getDot(20, 9));
+
+    // Every set dot sits within one dot of the radius and is mirrored about the center.
+    try std.testing.expect(countSet(canvas) > 0);
+    var y: u16 = 0;
+    while (y < canvas.dot_height) : (y += 1) {
+        var x: u16 = 0;
+        while (x < canvas.dot_width) : (x += 1) {
+            if (!canvas.getDot(x, y)) continue;
+            const dx: f32 = @as(f32, @floatFromInt(x)) - 20.0;
+            const dy: f32 = @as(f32, @floatFromInt(y)) - 20.0;
+            const dist = @sqrt(dx * dx + dy * dy);
+            try std.testing.expect(@abs(dist - 10.0) <= 1.0);
+            try std.testing.expect(canvas.getDot(40 - x, y));
+            try std.testing.expect(canvas.getDot(x, 40 - y));
+        }
+    }
 }
 
-test "Canvas.render" {
+test "canvas: drawCircle near the origin clips negative coordinates" {
+    const allocator = std.testing.allocator;
+    var canvas = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 5, .height = 5 });
+    defer canvas.deinit();
+
+    canvas.drawCircle(0, 0, 4);
+
+    // Only the first quadrant survives: cardinal points on the axes.
+    try std.testing.expect(canvas.getDot(4, 0));
+    try std.testing.expect(canvas.getDot(0, 4));
+    try std.testing.expect(!canvas.getDot(0, 0));
+}
+
+test "canvas: render maps dots 1 and 4 of a cell to Braille 0x2809" {
     const allocator = std.testing.allocator;
     const area = Rect{ .x = 0, .y = 0, .width = 5, .height = 3 };
 
     var canvas = try Canvas.init(allocator, area);
     defer canvas.deinit();
+    canvas.setDot(0, 0);
+    canvas.setDot(1, 0);
 
-    // Draw some dots
-    canvas.setDot(0, 0); // Top-left of cell (0,0) - Braille dot 1
-    canvas.setDot(1, 0); // Top-right of cell (0,0) - Braille dot 4
-
-    var buf = try Buffer.init(allocator, area);
+    var buf = try Buffer.init(allocator, 5, 3);
     defer buf.deinit();
-
     try canvas.render(&buf, area);
 
-    // Cell (0,0) should have Braille pattern with dots 1 and 4 set
-    // Pattern: 0x01 | 0x08 = 0x09
-    const cell = buf.getCell(0, 0);
-    try std.testing.expectEqual(symbols.Braille.pattern(0x09), cell.char);
+    try std.testing.expectEqual(@as(u21, 0x2809), buf.getConst(0, 0).?.char);
+    // Every other cell is the empty Braille glyph.
+    for (0..3) |row| {
+        for (0..5) |col| {
+            if (row == 0 and col == 0) continue;
+            const cell = buf.getConst(@intCast(col), @intCast(row)).?;
+            try std.testing.expectEqual(@as(u21, 0x2800), cell.char);
+        }
+    }
 }
 
-test "Canvas.render complex pattern" {
+test "canvas: render maps each of the eight dots to its Braille bit" {
+    const allocator = std.testing.allocator;
+    const area = Rect{ .x = 0, .y = 0, .width = 1, .height = 1 };
+
+    // Standard Braille numbering: dots 1-3 and 7 in the left column, 4-6 and 8 in the right.
+    const cases = [_]struct { dx: u16, dy: u16, bit: u8 }{
+        .{ .dx = 0, .dy = 0, .bit = 0x01 },
+        .{ .dx = 0, .dy = 1, .bit = 0x02 },
+        .{ .dx = 0, .dy = 2, .bit = 0x04 },
+        .{ .dx = 1, .dy = 0, .bit = 0x08 },
+        .{ .dx = 1, .dy = 1, .bit = 0x10 },
+        .{ .dx = 1, .dy = 2, .bit = 0x20 },
+        .{ .dx = 0, .dy = 3, .bit = 0x40 },
+        .{ .dx = 1, .dy = 3, .bit = 0x80 },
+    };
+    for (cases) |c| {
+        var canvas = try Canvas.init(allocator, area);
+        defer canvas.deinit();
+        canvas.setDot(c.dx, c.dy);
+
+        var buf = try Buffer.init(allocator, 1, 1);
+        defer buf.deinit();
+        try canvas.render(&buf, area);
+
+        try std.testing.expectEqual(@as(u21, 0x2800) + c.bit, buf.getConst(0, 0).?.char);
+    }
+}
+
+test "canvas: render of a fully filled canvas is the full Braille glyph" {
+    const allocator = std.testing.allocator;
+    const area = Rect{ .x = 0, .y = 0, .width = 2, .height = 2 };
+
+    var canvas = try Canvas.init(allocator, area);
+    defer canvas.deinit();
+    canvas.fillRect(0, 0, 4, 8);
+
+    var buf = try Buffer.init(allocator, 2, 2);
+    defer buf.deinit();
+    try canvas.render(&buf, area);
+
+    try std.testing.expectEqual(@as(usize, 4), buf.cells.len);
+    for (buf.cells) |cell| try std.testing.expectEqual(@as(u21, 0x28FF), cell.char);
+}
+
+test "canvas: render of a diagonal line matches the reference per-cell pattern" {
     const allocator = std.testing.allocator;
     const area = Rect{ .x = 0, .y = 0, .width = 3, .height = 2 };
 
     var canvas = try Canvas.init(allocator, area);
     defer canvas.deinit();
-
-    // Draw a diagonal line
     canvas.drawLine(0, 0, 5, 7);
 
-    var buf = try Buffer.init(allocator, area);
+    var buf = try Buffer.init(allocator, 3, 2);
     defer buf.deinit();
-
     try canvas.render(&buf, area);
 
-    // At least the start and end points should be visible
-    const cell_start = buf.getCell(0, 0);
-    const cell_end = buf.getCell(2, 1);
-
-    // Both cells should have non-empty Braille patterns
-    try std.testing.expect(cell_start.char != symbols.Braille.pattern(0));
-    try std.testing.expect(cell_end.char != symbols.Braille.pattern(0));
+    var nonempty: usize = 0;
+    for (0..2) |row| {
+        for (0..3) |col| {
+            const want = expectedPattern(canvas, @intCast(col), @intCast(row));
+            const got = buf.getConst(@intCast(col), @intCast(row)).?.char;
+            try std.testing.expectEqual(@as(u21, 0x2800) + want, got);
+            if (want != 0) nonempty += 1;
+        }
+    }
+    // The line starts in cell (0,0) with dot 1 and ends in cell (2,1) with dot 8.
+    try std.testing.expect(buf.getConst(0, 0).?.char & 0x01 != 0);
+    try std.testing.expect(buf.getConst(2, 1).?.char & 0x80 != 0);
+    try std.testing.expect(nonempty >= 2);
 }
 
-test "Canvas.clearDot erases single dot, not full canvas" {
+test "canvas: render honors area offset, style, and clips to the buffer" {
     const allocator = std.testing.allocator;
-    const area = Rect{ .x = 0, .y = 0, .width = 5, .height = 5 };
+    const area = Rect{ .x = 2, .y = 1, .width = 2, .height = 1 };
 
     var canvas = try Canvas.init(allocator, area);
     defer canvas.deinit();
+    canvas.style = .{ .fg = .red, .bold = true };
+    canvas.setDot(0, 0);
 
-    // Set two distinct dots
-    canvas.setDot(2, 3);
-    canvas.setDot(4, 4);
+    var buf = try Buffer.init(allocator, 6, 3);
+    defer buf.deinit();
+    try canvas.render(&buf, area);
 
-    // Verify both are set
-    try std.testing.expectEqual(true, canvas.getDot(2, 3));
-    try std.testing.expectEqual(true, canvas.getDot(4, 4));
+    const hit = buf.getConst(2, 1).?;
+    try std.testing.expectEqual(@as(u21, 0x2801), hit.char);
+    try std.testing.expect(std.meta.eql(hit.style.fg, @as(?Color, .red)));
+    try std.testing.expect(hit.style.bold);
+    // Second cell of the area is empty Braille but still carries the style.
+    const second = buf.getConst(3, 1).?;
+    try std.testing.expectEqual(@as(u21, 0x2800), second.char);
+    try std.testing.expect(std.meta.eql(second.style.fg, @as(?Color, .red)));
+    // Cells outside the area are untouched.
+    try std.testing.expectEqual(@as(u21, ' '), buf.getConst(1, 1).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.getConst(4, 1).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.getConst(2, 0).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.getConst(2, 2).?.char);
 
-    // Clear only the first dot
-    canvas.clearDot(2, 3);
+    // A buffer smaller than the area clips silently.
+    var small = try Buffer.init(allocator, 1, 1);
+    defer small.deinit();
+    try canvas.render(&small, area);
+    try std.testing.expectEqual(@as(u21, ' '), small.getConst(0, 0).?.char);
+}
 
-    // First dot should be cleared (single-dot erase, not full clear)
-    try std.testing.expectEqual(false, canvas.getDot(2, 3));
+test "canvas: render into a zero-sized area leaves the buffer untouched" {
+    const allocator = std.testing.allocator;
+    var canvas = try Canvas.init(allocator, Rect{ .x = 0, .y = 0, .width = 2, .height = 2 });
+    defer canvas.deinit();
+    canvas.fillRect(0, 0, 4, 8);
 
-    // Second dot should still be set (proves it's not a full clear)
-    try std.testing.expectEqual(true, canvas.getDot(4, 4));
+    var buf = try Buffer.init(allocator, 2, 2);
+    defer buf.deinit();
+    try canvas.render(&buf, Rect{ .x = 0, .y = 0, .width = 0, .height = 2 });
+    try canvas.render(&buf, Rect{ .x = 0, .y = 0, .width = 2, .height = 0 });
+
+    for (buf.cells) |cell| try std.testing.expectEqual(@as(u21, ' '), cell.char);
+}
+
+test "canvas: render after clear returns every cell to empty Braille" {
+    const allocator = std.testing.allocator;
+    const area = Rect{ .x = 0, .y = 0, .width = 2, .height = 2 };
+
+    var canvas = try Canvas.init(allocator, area);
+    defer canvas.deinit();
+    canvas.fillRect(0, 0, 4, 8);
+    canvas.clear();
+
+    var buf = try Buffer.init(allocator, 2, 2);
+    defer buf.deinit();
+    try canvas.render(&buf, area);
+
+    for (buf.cells) |cell| try std.testing.expectEqual(@as(u21, 0x2800), cell.char);
 }

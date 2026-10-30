@@ -157,238 +157,325 @@ pub const StatusBar = struct {
 
 // Tests
 
-test "StatusBar.init" {
+const bar_bg: Style = .{ .bg = .bright_black };
+
+/// Assert that row `y` of `buf` reads exactly `expected` (ASCII only) over `expected.len` cells.
+fn expectRow(buf: Buffer, y: u16, expected: []const u8) !void {
+    try std.testing.expect(expected.len <= buf.width);
+    for (expected, 0..) |c, x| {
+        const cell = buf.getConst(@intCast(x), y).?;
+        try std.testing.expectEqual(@as(u21, c), cell.char);
+    }
+}
+
+/// Assert that every cell of row `y` in columns [x0, x1) carries exactly style `want`.
+fn expectRowStyle(buf: Buffer, y: u16, x0: u16, x1: u16, want: Style) !void {
+    var x = x0;
+    while (x < x1) : (x += 1) {
+        const cell = buf.getConst(x, y).?;
+        try std.testing.expect(Cell.eql(cell, .{ .char = cell.char, .style = want }));
+    }
+}
+
+const Cell = buffer_mod.Cell;
+
+test "statusbar: init is empty with a bright-black background" {
     const bar = StatusBar.init();
 
-    try std.testing.expectEqual(0, bar.left.len);
-    try std.testing.expectEqual(0, bar.center.len);
-    try std.testing.expectEqual(0, bar.right.len);
-    try std.testing.expectEqual(Color{ .basic = .bright_black }, bar.style.bg);
+    try std.testing.expectEqual(@as(usize, 0), bar.left.len);
+    try std.testing.expectEqual(@as(usize, 0), bar.center.len);
+    try std.testing.expectEqual(@as(usize, 0), bar.right.len);
+    try std.testing.expectEqual(@as(?Color, .bright_black), bar.style.bg);
+    try std.testing.expectEqual(@as(?Color, null), bar.style.fg);
 }
 
-test "StatusBar.withLeft" {
-    const spans = [_]Span{
-        Span{ .content = "Left", .style = .{} },
-    };
-    const bar = StatusBar.init().withLeft(&spans);
+test "statusbar: builders set one section each and leave the others untouched" {
+    const l = [_]Span{Span.raw("Left")};
+    const c = [_]Span{Span.raw("Center")};
+    const r = [_]Span{Span.raw("Right")};
+    const custom: Style = .{ .bg = .blue };
 
-    try std.testing.expectEqual(1, bar.left.len);
-    try std.testing.expectEqualStrings("Left", bar.left[0].content);
+    const left_only = StatusBar.init().withLeft(&l);
+    try std.testing.expectEqualStrings("Left", left_only.left[0].content);
+    try std.testing.expectEqual(@as(usize, 0), left_only.center.len);
+    try std.testing.expectEqual(@as(usize, 0), left_only.right.len);
+
+    const center_only = StatusBar.init().withCenter(&c);
+    try std.testing.expectEqualStrings("Center", center_only.center[0].content);
+    try std.testing.expectEqual(@as(usize, 0), center_only.left.len);
+
+    const right_only = StatusBar.init().withRight(&r);
+    try std.testing.expectEqualStrings("Right", right_only.right[0].content);
+    try std.testing.expectEqual(@as(usize, 0), right_only.left.len);
+
+    const styled = StatusBar.init().withLeft(&l).withStyle(custom);
+    try std.testing.expectEqual(@as(?Color, .blue), styled.style.bg);
+    try std.testing.expectEqual(@as(usize, 1), styled.left.len);
 }
 
-test "StatusBar.withCenter" {
-    const spans = [_]Span{
-        Span{ .content = "Center", .style = .{} },
-    };
-    const bar = StatusBar.init().withCenter(&spans);
+test "statusbar: spansWidth sums span lengths and is zero for no spans" {
+    const spans = [_]Span{ Span.raw("Hello"), Span.raw(" "), Span.raw("World") };
+    try std.testing.expectEqual(@as(usize, 11), StatusBar.spansWidth(&spans));
 
-    try std.testing.expectEqual(1, bar.center.len);
-    try std.testing.expectEqualStrings("Center", bar.center[0].content);
+    const none = [_]Span{};
+    try std.testing.expectEqual(@as(usize, 0), StatusBar.spansWidth(&none));
 }
 
-test "StatusBar.withRight" {
-    const spans = [_]Span{
-        Span{ .content = "Right", .style = .{} },
-    };
-    const bar = StatusBar.init().withRight(&spans);
+test "statusbar: empty bar fills the whole width with the background and nothing else" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 12, 2);
+    defer buf.deinit();
 
-    try std.testing.expectEqual(1, bar.right.len);
-    try std.testing.expectEqualStrings("Right", bar.right[0].content);
+    StatusBar.init().render(&buf, .{ .x = 0, .y = 0, .width = 12, .height = 1 });
+
+    buf.check_invariants();
+    try expectRow(buf, 0, " " ** 12);
+    try expectRowStyle(buf, 0, 0, 12, bar_bg);
+    // Row 1 is outside the bar and keeps the default cell.
+    for (0..12) |x| {
+        try std.testing.expect(buf.getConst(@intCast(x), 1).?.eql(Cell{}));
+    }
 }
 
-test "StatusBar.withStyle" {
-    const custom_style = Style{ .bg = .{ .basic = .blue } };
-    const bar = StatusBar.init().withStyle(custom_style);
-
-    try std.testing.expectEqual(Color{ .basic = .blue }, bar.style.bg);
-}
-
-test "StatusBar.spansWidth" {
-    const spans = [_]Span{
-        Span{ .content = "Hello", .style = .{} },
-        Span{ .content = " ", .style = .{} },
-        Span{ .content = "World", .style = .{} },
-    };
-
-    const width = StatusBar.spansWidth(&spans);
-    try std.testing.expectEqual(11, width); // 5 + 1 + 5
-}
-
-test "StatusBar.spansWidth empty" {
-    const spans = [_]Span{};
-    const width = StatusBar.spansWidth(&spans);
-    try std.testing.expectEqual(0, width);
-}
-
-test "StatusBar.render basic" {
+test "statusbar: left span renders at the left edge over a filled background" {
     const allocator = std.testing.allocator;
     var buf = try Buffer.init(allocator, 30, 1);
     defer buf.deinit();
 
-    const left_spans = [_]Span{Span{ .content = "Left", .style = .{} }};
-    const bar = StatusBar.init().withLeft(&left_spans);
+    const left = [_]Span{Span.raw("Left")};
+    StatusBar.init().withLeft(&left).render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 1 });
 
-    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
-    bar.render(&buf, area);
-
-    // Check left content
-    try std.testing.expectEqual('L', buf.get(0, 0).char);
-    try std.testing.expectEqual('e', buf.get(1, 0).char);
-    try std.testing.expectEqual('f', buf.get(2, 0).char);
-    try std.testing.expectEqual('t', buf.get(3, 0).char);
-
-    // Check background is filled
-    try std.testing.expectEqual(' ', buf.get(4, 0).char);
-    try std.testing.expectEqual(Color{ .basic = .bright_black }, buf.get(4, 0).style.bg);
+    try expectRow(buf, 0, "Left" ++ " " ** 26);
+    // The span has no bg of its own, so it inherits the bar background.
+    try expectRowStyle(buf, 0, 0, 30, bar_bg);
 }
 
-test "StatusBar.render with left and right" {
+test "statusbar: right span is flush with the right edge" {
     const allocator = std.testing.allocator;
     var buf = try Buffer.init(allocator, 30, 1);
     defer buf.deinit();
 
-    const left_spans = [_]Span{Span{ .content = "Left", .style = .{} }};
-    const right_spans = [_]Span{Span{ .content = "Right", .style = .{} }};
-    const bar = StatusBar.init().withLeft(&left_spans).withRight(&right_spans);
+    const left = [_]Span{Span.raw("Left")};
+    const right = [_]Span{Span.raw("Right")};
+    const bar = StatusBar.init().withLeft(&left).withRight(&right);
+    bar.render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 1 });
 
-    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
-    bar.render(&buf, area);
-
-    // Check left
-    try std.testing.expectEqual('L', buf.get(0, 0).char);
-
-    // Check right (30 - 5 = 25)
-    try std.testing.expectEqual('R', buf.get(25, 0).char);
-    try std.testing.expectEqual('i', buf.get(26, 0).char);
-    try std.testing.expectEqual('g', buf.get(27, 0).char);
-    try std.testing.expectEqual('h', buf.get(28, 0).char);
-    try std.testing.expectEqual('t', buf.get(29, 0).char);
+    try expectRow(buf, 0, "Left" ++ " " ** 21 ++ "Right");
 }
 
-test "StatusBar.render with center" {
+test "statusbar: center span sits in the middle of the free space" {
     const allocator = std.testing.allocator;
     var buf = try Buffer.init(allocator, 30, 1);
     defer buf.deinit();
 
-    const center_spans = [_]Span{Span{ .content = "Center", .style = .{} }};
-    const bar = StatusBar.init().withCenter(&center_spans);
+    const center = [_]Span{Span.raw("Center")};
+    const bar = StatusBar.init().withCenter(&center);
+    bar.render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 1 });
 
-    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
-    bar.render(&buf, area);
-
-    // Center should be at (30 - 6) / 2 = 12
-    try std.testing.expectEqual('C', buf.get(12, 0).char);
-    try std.testing.expectEqual('e', buf.get(13, 0).char);
-    try std.testing.expectEqual('n', buf.get(14, 0).char);
-    try std.testing.expectEqual('t', buf.get(15, 0).char);
-    try std.testing.expectEqual('e', buf.get(16, 0).char);
-    try std.testing.expectEqual('r', buf.get(17, 0).char);
+    // (30 - 6) / 2 = 12 blanks on each side.
+    try expectRow(buf, 0, " " ** 12 ++ "Center" ++ " " ** 12);
 }
 
-test "StatusBar.render all three sections" {
+test "statusbar: all three sections land at left, middle of the gap, and right" {
     const allocator = std.testing.allocator;
     var buf = try Buffer.init(allocator, 50, 1);
     defer buf.deinit();
 
-    const left_spans = [_]Span{Span{ .content = "L", .style = .{} }};
-    const center_spans = [_]Span{Span{ .content = "C", .style = .{} }};
-    const right_spans = [_]Span{Span{ .content = "R", .style = .{} }};
+    const l = [_]Span{Span.raw("L")};
+    const c = [_]Span{Span.raw("C")};
+    const r = [_]Span{Span.raw("R")};
+    const bar = StatusBar.init().withLeft(&l).withCenter(&c).withRight(&r);
+    bar.render(&buf, .{ .x = 0, .y = 0, .width = 50, .height = 1 });
 
-    const bar = StatusBar.init()
-        .withLeft(&left_spans)
-        .withCenter(&center_spans)
-        .withRight(&right_spans);
-
-    const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 1 };
-    bar.render(&buf, area);
-
-    // Left at 0
-    try std.testing.expectEqual('L', buf.get(0, 0).char);
-
-    // Center should be roughly in middle
-    // Available = 50 - (1 + 1) = 48, padding = (48 - 1) / 2 = 23, center_x = 1 + 23 = 24
-    try std.testing.expectEqual('C', buf.get(24, 0).char);
-
-    // Right at 49
-    try std.testing.expectEqual('R', buf.get(49, 0).char);
+    // Gap between L and R is columns 1..48 (48 cells); C has (48 - 1) / 2 = 23 blanks before it.
+    try expectRow(buf, 0, "L" ++ " " ** 23 ++ "C" ++ " " ** 24 ++ "R");
 }
 
-test "StatusBar.render with styled spans" {
+test "statusbar: center is centered within the gap of unequal left and right" {
     const allocator = std.testing.allocator;
     var buf = try Buffer.init(allocator, 20, 1);
     defer buf.deinit();
 
-    const red_style = Style{ .fg = .{ .basic = .red } };
-    const left_spans = [_]Span{Span{ .content = "Error", .style = red_style }};
-    const bar = StatusBar.init().withLeft(&left_spans);
+    const l = [_]Span{Span.raw("AB")};
+    const c = [_]Span{Span.raw("XY")};
+    const r = [_]Span{Span.raw("123456")};
+    const bar = StatusBar.init().withLeft(&l).withCenter(&c).withRight(&r);
+    bar.render(&buf, .{ .x = 0, .y = 0, .width = 20, .height = 1 });
 
-    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 1 };
-    bar.render(&buf, area);
-
-    // Check style is applied
-    try std.testing.expectEqual('E', buf.get(0, 0).char);
-    try std.testing.expectEqual(Color{ .basic = .red }, buf.get(0, 0).style.fg);
-    try std.testing.expectEqual(Color{ .basic = .bright_black }, buf.get(0, 0).style.bg);
+    // Gap is columns 2..13 (12 cells); XY starts 5 cells into it.
+    try expectRow(buf, 0, "AB" ++ " " ** 5 ++ "XY" ++ " " ** 5 ++ "123456");
 }
 
-test "StatusBar.render zero width" {
+test "statusbar: span fg is kept and the bar bg fills in" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 20, 1);
+    defer buf.deinit();
+
+    const red: Style = .{ .fg = .red, .bold = true };
+    const left = [_]Span{Span.styled("Error", red)};
+    StatusBar.init().withLeft(&left).render(&buf, .{ .x = 0, .y = 0, .width = 20, .height = 1 });
+
+    const want: Style = .{ .fg = .red, .bg = .bright_black, .bold = true };
+    try expectRow(buf, 0, "Error" ++ " " ** 15);
+    try expectRowStyle(buf, 0, 0, 5, want);
+    try expectRowStyle(buf, 0, 5, 20, bar_bg);
+}
+
+test "statusbar: a span with its own bg overrides the bar bg" {
     const allocator = std.testing.allocator;
     var buf = try Buffer.init(allocator, 10, 1);
     defer buf.deinit();
 
-    const left_spans = [_]Span{Span{ .content = "Left", .style = .{} }};
-    const bar = StatusBar.init().withLeft(&left_spans);
+    const mode: Style = .{ .fg = .black, .bg = .green };
+    const left = [_]Span{Span.styled("NORM", mode)};
+    StatusBar.init().withLeft(&left).render(&buf, .{ .x = 0, .y = 0, .width = 10, .height = 1 });
 
-    const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 1 };
-    bar.render(&buf, area);
-
-    // Should not crash
+    try expectRowStyle(buf, 0, 0, 4, mode);
+    try expectRowStyle(buf, 0, 4, 10, bar_bg);
 }
 
-test "StatusBar.render truncates when too narrow" {
+test "statusbar: bar style with no bg leaves span bg unset" {
     const allocator = std.testing.allocator;
-    var buf = try Buffer.init(allocator, 5, 1);
+    var buf = try Buffer.init(allocator, 8, 1);
     defer buf.deinit();
 
-    const left_spans = [_]Span{Span{ .content = "VeryLongText", .style = .{} }};
-    const bar = StatusBar.init().withLeft(&left_spans);
+    const left = [_]Span{Span.styled("ab", .{ .fg = .cyan })};
+    const bar = StatusBar.init().withLeft(&left).withStyle(.{});
+    bar.render(&buf, .{ .x = 0, .y = 0, .width = 8, .height = 1 });
 
-    const area = Rect{ .x = 0, .y = 0, .width = 5, .height = 1 };
-    bar.render(&buf, area);
-
-    // Should render truncated
-    try std.testing.expectEqual('V', buf.get(0, 0).char);
-    try std.testing.expectEqual('e', buf.get(1, 0).char);
-    try std.testing.expectEqual('r', buf.get(2, 0).char);
-    try std.testing.expectEqual('y', buf.get(3, 0).char);
-    try std.testing.expectEqual('L', buf.get(4, 0).char);
+    try expectRowStyle(buf, 0, 0, 2, .{ .fg = .cyan });
+    try expectRowStyle(buf, 0, 2, 8, .{});
 }
 
-test "StatusBar.render multiple spans in section" {
+test "statusbar: multiple spans in one section are laid out back to back with own styles" {
     const allocator = std.testing.allocator;
     var buf = try Buffer.init(allocator, 30, 1);
     defer buf.deinit();
 
-    const left_spans = [_]Span{
-        Span{ .content = "Part1", .style = .{} },
-        Span{ .content = " ", .style = .{} },
-        Span{ .content = "Part2", .style = .{} },
+    const left = [_]Span{
+        Span.styled("Part1", .{ .fg = .red }),
+        Span.raw(" "),
+        Span.styled("Part2", .{ .fg = .green }),
     };
-    const bar = StatusBar.init().withLeft(&left_spans);
+    StatusBar.init().withLeft(&left).render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 1 });
 
-    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 1 };
-    bar.render(&buf, area);
+    try expectRow(buf, 0, "Part1 Part2" ++ " " ** 19);
+    try expectRowStyle(buf, 0, 0, 5, .{ .fg = .red, .bg = .bright_black });
+    try expectRowStyle(buf, 0, 5, 6, bar_bg);
+    try expectRowStyle(buf, 0, 6, 11, .{ .fg = .green, .bg = .bright_black });
+}
 
-    // Check all parts rendered
-    try std.testing.expectEqual('P', buf.get(0, 0).char);
-    try std.testing.expectEqual('a', buf.get(1, 0).char);
-    try std.testing.expectEqual('r', buf.get(2, 0).char);
-    try std.testing.expectEqual('t', buf.get(3, 0).char);
-    try std.testing.expectEqual('1', buf.get(4, 0).char);
-    try std.testing.expectEqual(' ', buf.get(5, 0).char);
-    try std.testing.expectEqual('P', buf.get(6, 0).char);
-    try std.testing.expectEqual('a', buf.get(7, 0).char);
-    try std.testing.expectEqual('r', buf.get(8, 0).char);
-    try std.testing.expectEqual('t', buf.get(9, 0).char);
-    try std.testing.expectEqual('2', buf.get(10, 0).char);
+test "statusbar: overlong left text is truncated at the area edge" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 8, 1);
+    defer buf.deinit();
+
+    const left = [_]Span{Span.raw("VeryLongText")};
+    StatusBar.init().withLeft(&left).render(&buf, .{ .x = 0, .y = 0, .width = 5, .height = 1 });
+
+    try expectRow(buf, 0, "VeryL");
+    // Cells beyond the area are untouched.
+    for (5..8) |x| {
+        try std.testing.expect(buf.getConst(@intCast(x), 0).?.eql(Cell{}));
+    }
+}
+
+test "statusbar: spans after the truncation point are not drawn" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 6, 1);
+    defer buf.deinit();
+
+    const left = [_]Span{ Span.raw("abcd"), Span.raw("efgh"), Span.raw("ZZZ") };
+    StatusBar.init().withLeft(&left).render(&buf, .{ .x = 0, .y = 0, .width = 6, .height = 1 });
+
+    try expectRow(buf, 0, "abcdef");
+}
+
+test "statusbar: right text wins the overlap when left is too long" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 10, 1);
+    defer buf.deinit();
+
+    const left = [_]Span{Span.raw("VeryLongLeft")};
+    const right = [_]Span{Span.raw("Right")};
+    const bar = StatusBar.init().withLeft(&left).withRight(&right);
+    bar.render(&buf, .{ .x = 0, .y = 0, .width = 10, .height = 1 });
+
+    try expectRow(buf, 0, "VeryLRight");
+}
+
+test "statusbar: center that does not fit in the gap is dropped" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 10, 1);
+    defer buf.deinit();
+
+    const left = [_]Span{Span.raw("1234")};
+    const center = [_]Span{Span.raw("MIDDLE")};
+    const right = [_]Span{Span.raw("5678")};
+    const bar = StatusBar.init().withLeft(&left).withCenter(&center).withRight(&right);
+    bar.render(&buf, .{ .x = 0, .y = 0, .width = 10, .height = 1 });
+
+    // Gap is 2 cells; MIDDLE needs 6.
+    try expectRow(buf, 0, "1234  5678");
+}
+
+test "statusbar: render honors the area offset and only touches the first row" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 20, 3);
+    defer buf.deinit();
+
+    const left = [_]Span{Span.raw("hi")};
+    const right = [_]Span{Span.raw("yo")};
+    const bar = StatusBar.init().withLeft(&left).withRight(&right);
+    bar.render(&buf, .{ .x = 3, .y = 1, .width = 10, .height = 2 });
+
+    // Columns 3..12 of row 1 carry the bar; "yo" is flush with column 12.
+    try expectRow(buf, 1, "   hi      yo");
+    try expectRowStyle(buf, 1, 3, 13, bar_bg);
+    try std.testing.expect(buf.getConst(2, 1).?.eql(Cell{}));
+    try std.testing.expect(buf.getConst(13, 1).?.eql(Cell{}));
+    // Rows 0 and 2, including the bar's second declared row, are untouched.
+    for (0..20) |x| {
+        try std.testing.expect(buf.getConst(@intCast(x), 0).?.eql(Cell{}));
+        try std.testing.expect(buf.getConst(@intCast(x), 2).?.eql(Cell{}));
+    }
+}
+
+test "statusbar: zero width or zero height renders nothing" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 10, 1);
+    defer buf.deinit();
+
+    const left = [_]Span{Span.raw("Left")};
+    const bar = StatusBar.init().withLeft(&left);
+    bar.render(&buf, .{ .x = 0, .y = 0, .width = 0, .height = 1 });
+    bar.render(&buf, .{ .x = 0, .y = 0, .width = 10, .height = 0 });
+
+    for (buf.cells) |cell| try std.testing.expect(cell.eql(Cell{}));
+}
+
+test "statusbar: area wider than the buffer clips without writing out of bounds" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 4, 1);
+    defer buf.deinit();
+
+    const left = [_]Span{Span.raw("ab")};
+    const right = [_]Span{Span.raw("yz")};
+    const bar = StatusBar.init().withLeft(&left).withRight(&right);
+    bar.render(&buf, .{ .x = 0, .y = 0, .width = 10, .height = 1 });
+
+    buf.check_invariants();
+    // The right span sits at columns 8..9, outside the 4-wide buffer, so only the left shows.
+    try expectRow(buf, 0, "ab  ");
+}
+
+test "statusbar: area below the buffer renders nothing" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 6, 2);
+    defer buf.deinit();
+
+    const left = [_]Span{Span.raw("gone")};
+    StatusBar.init().withLeft(&left).render(&buf, .{ .x = 0, .y = 5, .width = 6, .height = 1 });
+
+    for (buf.cells) |cell| try std.testing.expect(cell.eql(Cell{}));
 }

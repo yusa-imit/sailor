@@ -128,11 +128,11 @@ test "Tabs render multiple tabs with divider" {
     try testing.expectEqual(@as(u21, '│'), buf.get(5, 0).?.char);
     try testing.expectEqual(@as(u21, ' '), buf.get(6, 0).?.char);
 
-    // Check second tab (at position 9: "Home"=4 + divider_bytes=5 = 9)
-    try testing.expectEqual(@as(u21, 'E'), buf.get(9, 0).?.char);
-    try testing.expectEqual(@as(u21, 'd'), buf.get(10, 0).?.char);
-    try testing.expectEqual(@as(u21, 'i'), buf.get(11, 0).?.char);
-    try testing.expectEqual(@as(u21, 't'), buf.get(12, 0).?.char);
+    // Check second tab (at position 7: "Home"=4 + divider width=3 cells = 7)
+    try testing.expectEqual(@as(u21, 'E'), buf.get(7, 0).?.char);
+    try testing.expectEqual(@as(u21, 'd'), buf.get(8, 0).?.char);
+    try testing.expectEqual(@as(u21, 'i'), buf.get(9, 0).?.char);
+    try testing.expectEqual(@as(u21, 't'), buf.get(10, 0).?.char);
 }
 
 test "Tabs render with custom divider" {
@@ -287,8 +287,8 @@ test "Tabs render single character tabs" {
     tabs.render(&buf, area);
 
     try testing.expectEqual(@as(u21, 'A'), buf.get(0, 0).?.char);
-    // Divider is " │ " (5 bytes, advances x by 5): "A" (1) + divider (5) = 6
-    try testing.expectEqual(@as(u21, 'B'), buf.get(6, 0).?.char);
+    // Divider is " │ " (3 cells): "A" (1) + divider (3) = 4
+    try testing.expectEqual(@as(u21, 'B'), buf.get(4, 0).?.char);
 }
 
 test "Tabs render only renders first line" {
@@ -337,14 +337,14 @@ test "Tabs render all tabs fit in area" {
     const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 1 };
     tabs.render(&buf, area);
 
-    // All tabs should fit: divider is 5 bytes (advances x by 5)
+    // All tabs should fit: the divider is 3 cells wide
     try testing.expectEqual(@as(u21, 'H'), buf.get(0, 0).?.char); // Home at 0
-    // Settings after divider: "Home" (4) + divider (5) = 9
-    try testing.expectEqual(@as(u21, 'S'), buf.get(9, 0).?.char);
-    // About (selected) after another divider: 9 + "Settings" (8) + divider (5) = 22
-    try testing.expectEqual(@as(u21, 'A'), buf.get(22, 0).?.char);
-    // Help after another divider: 22 + "About" (5) + divider (5) = 32
-    try testing.expectEqual(@as(u21, 'H'), buf.get(32, 0).?.char);
+    // Settings after divider: "Home" (4) + divider (3) = 7
+    try testing.expectEqual(@as(u21, 'S'), buf.get(7, 0).?.char);
+    // About (selected) after another divider: 7 + "Settings" (8) + divider (3) = 18
+    try testing.expectEqual(@as(u21, 'A'), buf.get(18, 0).?.char);
+    // Help after another divider: 18 + "About" (5) + divider (3) = 26
+    try testing.expectEqual(@as(u21, 'H'), buf.get(26, 0).?.char);
 }
 
 test "Tabs render divider not rendered after last tab" {
@@ -359,9 +359,9 @@ test "Tabs render divider not rendered after last tab" {
     tabs.render(&buf, area);
 
     // Last tab should not have divider after it
-    // divider " │ " is 5 bytes; renderer advances x by byte count (not cell count)
-    // "A"(1) + divider(5) = 6, "B"(1) + divider(5) = 12, "C" at 12
-    try testing.expectEqual(@as(u21, 'C'), buf.get(12, 0).?.char);
+    // divider " │ " is 3 cells; the renderer advances x by display width
+    // "A"(1) + divider(3) = 4, "B"(1) + divider(3) = 8, "C" at 8
+    try testing.expectEqual(@as(u21, 'C'), buf.get(8, 0).?.char);
 }
 
 test "Tabs render with selected tab at different positions" {
@@ -380,8 +380,8 @@ test "Tabs render with selected tab at different positions" {
     tabs.render(&buf, area);
 
     // Last tab ("C") should have selected style
-    // A(0) + divider(5) → B(6) + divider(5) → C(12)
-    try testing.expect(buf.get(12, 0).?.style.bold);
+    // A(0) + divider(3) → B(4) + divider(3) → C(8)
+    try testing.expect(buf.get(8, 0).?.style.bold);
 }
 
 test "Tabs render empty tab title edge case" {

@@ -1431,4 +1431,10 @@ test {
     _ = @import("widgets/command_bar.zig");
     _ = @import("widgets/color_picker.zig");
     _ = @import("widgets/breadcrumb.zig");
+    _ = @import("widgets/statusbar.zig");
+    _ = @import("widgets/popup.zig");
+    _ = @import("widgets/scrollview.zig");
+    _ = @import("widgets/tabs.zig");
+    _ = @import("widgets/canvas.zig");
+    _ = @import("widgets/sparkline.zig");
 }
