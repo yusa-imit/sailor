@@ -15,6 +15,15 @@ consumer has to change code. History before v3.0.0 is summarised in
 - `BulletChart` with `show_values` drew no value text (the text column started past the right
   edge); it now reserves the right-hand cells for `VALUE/TARGET` and shortens the bar. When the
   area is too narrow to keep a bar cell, the text is dropped.
+- `Tabs.render` advanced by UTF-8 byte length instead of display width, so every tab after the
+  first sat two columns too far right with the default divider and multi-byte titles were cut
+  mid-code-point.
+- `ScrollView` drew its scrollbar outside the area (or over the block border), underflowed when
+  the content was shorter than the viewport, and could overflow `u16` on scroll.
+- `Sparkline` showed the wrong bar for the maximum value (`▇` instead of `█`) and a corrupt byte
+  when the maximum was 0.
+- `Canvas.render` and `Popup.render` called `Buffer` methods that no longer exist, so they did
+  not compile when used.
 
 ### Changed
 
