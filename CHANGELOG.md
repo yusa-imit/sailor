@@ -8,6 +8,13 @@ consumer has to change code. History before v3.0.0 is summarised in
 
 ### Fixed
 
+- Checkbox, radio, histogram, piechart, heatmap and input widget tests now compile and run
+  (#75). Fixes found on the way: `CheckboxGroup`/`RadioGroup` drew labels per byte and could
+  overflow the area clear; `RadioGroup` default focus style used a nonexistent field;
+  `Histogram` overflowed on counts near `u64` max and lost the value of the longest horizontal
+  bar; `PieChart` drew outside its area, clipped legends by bytes and overflowed on huge totals;
+  `Heatmap` mis-ranged all-negative data, read past short rows and divided by zero on an empty
+  first row; `Input` could panic on a far-out cursor or truncated UTF-8.
 - `MultiCursorEditor.deleteCharAll` moves each cursor left by the deletions at or before it on
   its line, not by a flat 1.
 - `Sunburst.withFocused(n)` for `n >= 1` styled nothing; it now selects the matching top-level

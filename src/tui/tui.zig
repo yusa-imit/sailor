@@ -1437,4 +1437,10 @@ test {
     _ = @import("widgets/tabs.zig");
     _ = @import("widgets/canvas.zig");
     _ = @import("widgets/sparkline.zig");
+    _ = @import("widgets/checkbox.zig");
+    _ = @import("widgets/radio.zig");
+    _ = @import("widgets/histogram.zig");
+    _ = @import("widgets/piechart.zig");
+    _ = @import("widgets/heatmap.zig");
+    _ = @import("widgets/input.zig");
 }
