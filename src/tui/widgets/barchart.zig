@@ -10,7 +10,7 @@
 //! };
 //!
 //! const chart = BarChart.init(&bars)
-//!     .withBlock((Block{}).withBorders(.all).withTitle("Sales"))
+//!     .withBlock((Block{}).withBorders(.all).withTitle("Sales", .top_left))
 //!     .withBarStyle(.{ .fg = .{ .indexed = 2 } })
 //!     .withBarWidth(5)
 //!     .withBarGap(2);
@@ -19,8 +19,11 @@
 //! ```
 
 const std = @import("std");
+const assert = std.debug.assert;
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;
+const Cell = buffer_mod.Cell;
+const UnicodeWidth = @import("../../unicode.zig").UnicodeWidth;
 const layout_mod = @import("../layout.zig");
 const Rect = layout_mod.Rect;
 const style_mod = @import("../style.zig");
@@ -110,90 +113,78 @@ pub const BarChart = struct {
         return max;
     }
 
-    /// Render the bar chart
+    /// Render the bar chart. Layout inside the (block-reduced) area: row 0 shows each bar's value,
+    /// the middle rows hold the bars growing upward, the last row shows the labels. Areas shorter
+    /// than 3 rows draw nothing but the block. A value that does not fit inside the area is hidden;
+    /// bars and labels are clipped at the right edge.
     pub fn render(self: BarChart, buf: *Buffer, area: Rect) void {
-        // Render block border first
         var inner = area;
         if (self.block) |blk| {
             blk.render(buf, area);
             inner = blk.inner(area);
         }
 
-        if (inner.width == 0 or inner.height == 0 or self.bars.len == 0) return;
+        if (inner.width == 0 or inner.height < 3 or self.bars.len == 0) return;
 
         const max = self.max_value orelse calcMaxValue(self.bars);
         if (max == 0) return;
+        assert(inner.height >= 3);
 
-        // Reserve 1 line for values above bars, 1 line for labels below
-        // Actual bar height is inner.height - 2
-        if (inner.height < 3) return; // Need at least 3 rows (value, bar, label)
+        // Sizes are usize and the sums saturate: huge bar counts or widths cannot wrap a u16.
+        const unit: usize = self.bar_width +| self.bar_gap;
+        const total_width_needed = self.bars.len *| unit;
+        const x_offset: usize = if (total_width_needed < inner.width)
+            (inner.width - total_width_needed) / 2
+        else
+            0;
+        const right: usize = @as(usize, inner.x) + inner.width;
 
-        const bar_height = inner.height - 2;
-
-        // Calculate total width needed
-        const bar_unit_width = self.bar_width + self.bar_gap;
-        const total_width_needed = self.bars.len * bar_unit_width;
-
-        // Calculate starting x position (centered)
-        var x_offset: u16 = 0;
-        if (total_width_needed < inner.width) {
-            x_offset = @intCast((inner.width - total_width_needed) / 2);
-        }
-
-        // Render each bar
         for (self.bars, 0..) |bar, i| {
-            const bar_x = inner.x + x_offset + @as(u16, @intCast(i * bar_unit_width));
+            const bar_x_wide = @as(usize, inner.x) + x_offset + i *| unit;
+            if (bar_x_wide >= right) break; // This and every later bar is out of bounds.
+            const bar_x = std.math.cast(u16, bar_x_wide) orelse break;
+            self.renderBar(buf, inner, bar, bar_x, max);
+        }
+    }
 
-            // Skip if bar goes beyond bounds
-            if (bar_x >= inner.x + inner.width) break;
+    fn renderBar(self: BarChart, buf: *Buffer, inner: Rect, bar: Bar, bar_x: u16, max: u64) void {
+        assert(inner.height >= 3);
+        assert(max > 0);
+        const bar_height: u16 = inner.height - 2;
+        const right: u16 = inner.x +| inner.width;
+        const bar_w: u16 = std.math.lossyCast(u16, self.bar_width);
+        assert(bar_x < right);
 
-            // Calculate bar height (scaled)
-            const scaled_height = if (max > 0)
-                @min((bar.value * bar_height) / max, bar_height)
-            else
-                0;
+        // u128 holds value * bar_height for any u64 value, so the product cannot overflow.
+        const scaled: u16 = @intCast(@min(@as(u128, bar.value) * bar_height / max, bar_height));
+        const bar_s = if (bar.style.fg != null or bar.style.bg != null)
+            bar.style
+        else
+            self.bar_style;
 
-            // Determine bar style (use bar-specific style if set, else default)
-            const bar_s = if (bar.style.fg != null or bar.style.bg != null)
-                bar.style
-            else
-                self.bar_style;
-
-            // Render bar (from bottom up)
-            const bar_start_y = inner.y + bar_height - @as(u16, @intCast(scaled_height));
-            var y = bar_start_y;
-            while (y < inner.y + bar_height) : (y += 1) {
-                var dx: u16 = 0;
-                while (dx < self.bar_width and bar_x + dx < inner.x + inner.width) : (dx += 1) {
-                    buf.setCell(bar_x + dx, y + 1, '█', bar_s); // +1 to skip value line
-                }
-            }
-
-            // Render value above bar
-            const value_str = std.fmt.allocPrint(
-                buf.allocator,
-                "{d}",
-                .{bar.value},
-            ) catch return;
-            defer buf.allocator.free(value_str);
-
-            const value_x = bar_x + (self.bar_width / 2);
-            if (value_x < inner.x + inner.width and value_str.len > 0) {
-                buf.setString(value_x, inner.y, value_str, self.value_style);
-            }
-
-            // Render label below bar
-            const label_y = inner.y + inner.height - 1;
-            const label_x = bar_x;
-
-            // Truncate label to fit bar width
-            const label_len = @min(bar.label.len, self.bar_width);
-            const label_slice = bar.label[0..label_len];
-
-            if (label_x + label_len <= inner.x + inner.width) {
-                buf.setString(label_x, label_y, label_slice, self.label_style);
+        // Bar cells fill rows (inner.y + 1 + bar_height - scaled) .. (inner.y + bar_height].
+        var y: u16 = inner.y +| 1 +| (bar_height - scaled);
+        const y_end: u16 = inner.y +| 1 +| bar_height;
+        while (y < y_end) : (y += 1) {
+            var dx: u16 = 0;
+            while (dx < bar_w and bar_x +| dx < right) : (dx += 1) {
+                buf.set(bar_x + dx, y, .{ .char = '█', .style = bar_s });
             }
         }
+
+        // u64 has at most 20 decimal digits, so the format below cannot run out of space.
+        var digits: [20]u8 = undefined;
+        const value_str = std.fmt.bufPrint(&digits, "{d}", .{bar.value}) catch return;
+        const value_x: u16 = bar_x +| (bar_w / 2);
+        if (@as(usize, value_x) + value_str.len <= right) {
+            buf.setString(value_x, inner.y, value_str, self.value_style);
+        }
+
+        // Truncate the label by terminal cells to the bar width and the room left on the right.
+        const label_cells: usize = @min(bar_w, right - bar_x);
+        const label_len = UnicodeWidth.truncate(bar.label, label_cells);
+        const label_y = inner.y +| (inner.height - 1);
+        buf.setString(bar_x, label_y, bar.label[0..label_len], self.label_style);
     }
 };
 
@@ -203,472 +194,493 @@ pub const BarChart = struct {
 
 const testing = std.testing;
 
-test "BarChart.init creates empty chart" {
-    const bars: []const BarChart.Bar = &.{};
-    const chart = BarChart.init(bars);
-    try testing.expectEqual(0, chart.bars.len);
+/// Assert every buffer row equals the expected text, one codepoint per cell.
+fn expectRows(buf: Buffer, rows: []const []const u8) !void {
+    try testing.expectEqual(@as(usize, buf.height), rows.len);
+    for (rows, 0..) |row, y| {
+        var view = try std.unicode.Utf8View.init(row);
+        var it = view.iterator();
+        var x: u16 = 0;
+        while (it.nextCodepoint()) |cp| : (x += 1) {
+            try testing.expectEqual(cp, buf.getChar(x, @intCast(y)));
+        }
+        try testing.expectEqual(buf.width, x);
+    }
 }
 
-test "BarChart.init with bars" {
+/// Count '█' cells in column x.
+fn countBarsInColumn(buf: Buffer, x: u16) usize {
+    var n: usize = 0;
+    for (0..buf.height) |y| {
+        if (buf.getChar(x, @intCast(y)) == '█') n += 1;
+    }
+    return n;
+}
+
+fn fullArea(buf: Buffer) Rect {
+    return .{ .x = 0, .y = 0, .width = buf.width, .height = buf.height };
+}
+
+test "barchart: init keeps the bars and defaults" {
     const bars = [_]BarChart.Bar{
         .{ .label = "A", .value = 10 },
         .{ .label = "B", .value = 20 },
-        .{ .label = "C", .value = 15 },
     };
     const chart = BarChart.init(&bars);
-    try testing.expectEqual(3, chart.bars.len);
+    try testing.expectEqual(@as(usize, 2), chart.bars.len);
     try testing.expectEqualStrings("A", chart.bars[0].label);
-    try testing.expectEqual(10, chart.bars[0].value);
+    try testing.expectEqual(@as(u64, 20), chart.bars[1].value);
+    try testing.expectEqual(@as(?u64, null), chart.max_value);
+    try testing.expectEqual(@as(usize, 3), chart.bar_width);
+    try testing.expectEqual(@as(usize, 1), chart.bar_gap);
+    try testing.expect(chart.block == null);
 }
 
-test "BarChart.withMaxValue sets max value" {
-    const bars = [_]BarChart.Bar{
-        .{ .label = "A", .value = 10 },
-    };
-    const chart = BarChart.init(&bars).withMaxValue(100);
-    try testing.expectEqual(100, chart.max_value.?);
+test "barchart: builders set exactly their own field" {
+    const bars = [_]BarChart.Bar{.{ .label = "A", .value = 10 }};
+    const bold_blue = Style{ .fg = Color.blue, .bold = true };
+    const chart = BarChart.init(&bars)
+        .withMaxValue(100)
+        .withBarWidth(5)
+        .withBarGap(2)
+        .withBarStyle(bold_blue)
+        .withValueStyle(.{ .fg = Color.green })
+        .withLabelStyle(.{ .fg = Color.yellow })
+        .withBlock((Block{}).withTitle("Chart", .top_left));
+    try testing.expectEqual(@as(?u64, 100), chart.max_value);
+    try testing.expectEqual(@as(usize, 5), chart.bar_width);
+    try testing.expectEqual(@as(usize, 2), chart.bar_gap);
+    try testing.expectEqual(bold_blue, chart.bar_style);
+    try testing.expectEqual(Style{ .fg = Color.green }, chart.value_style);
+    try testing.expectEqual(Style{ .fg = Color.yellow }, chart.label_style);
+    try testing.expectEqualStrings("Chart", chart.block.?.title.?);
+    // The source chart is a value: builders do not mutate it.
+    try testing.expectEqual(@as(?u64, null), BarChart.init(&bars).max_value);
 }
 
-test "BarChart.withBlock sets block" {
-    const bars = [_]BarChart.Bar{
-        .{ .label = "A", .value = 10 },
-    };
-    const blk = (Block{}).withTitle("Chart");
-    const chart = BarChart.init(&bars).withBlock(blk);
-    try testing.expect(chart.block != null);
-}
-
-test "BarChart.withBarWidth sets bar width" {
-    const bars = [_]BarChart.Bar{
-        .{ .label = "A", .value = 10 },
-    };
-    const chart = BarChart.init(&bars).withBarWidth(5);
-    try testing.expectEqual(5, chart.bar_width);
-}
-
-test "BarChart.withBarGap sets bar gap" {
-    const bars = [_]BarChart.Bar{
-        .{ .label = "A", .value = 10 },
-    };
-    const chart = BarChart.init(&bars).withBarGap(2);
-    try testing.expectEqual(2, chart.bar_gap);
-}
-
-test "BarChart.withBarStyle sets bar style" {
-    const bars = [_]BarChart.Bar{
-        .{ .label = "A", .value = 10 },
-    };
-    const style = Style{ .fg = Color.blue, .bold = true };
-    const chart = BarChart.init(&bars).withBarStyle(style);
-    try testing.expect(chart.bar_style.fg != null);
-    try testing.expect(chart.bar_style.bold);
-}
-
-test "BarChart.withValueStyle sets value style" {
-    const bars = [_]BarChart.Bar{
-        .{ .label = "A", .value = 10 },
-    };
-    const style = Style{ .fg = Color.green };
-    const chart = BarChart.init(&bars).withValueStyle(style);
-    try testing.expect(chart.value_style.fg != null);
-}
-
-test "BarChart.withLabelStyle sets label style" {
-    const bars = [_]BarChart.Bar{
-        .{ .label = "A", .value = 10 },
-    };
-    const style = Style{ .fg = Color.yellow };
-    const chart = BarChart.init(&bars).withLabelStyle(style);
-    try testing.expect(chart.label_style.fg != null);
-}
-
-test "BarChart.calcMaxValue returns 0 for empty bars" {
-    const bars: []const BarChart.Bar = &.{};
-    try testing.expectEqual(0, BarChart.calcMaxValue(bars));
-}
-
-test "BarChart.calcMaxValue returns max value" {
+test "barchart: calcMaxValue is 0 for no bars and the maximum otherwise" {
+    const none: []const BarChart.Bar = &.{};
+    try testing.expectEqual(@as(u64, 0), BarChart.calcMaxValue(none));
     const bars = [_]BarChart.Bar{
         .{ .label = "A", .value = 10 },
         .{ .label = "B", .value = 25 },
         .{ .label = "C", .value = 15 },
     };
-    try testing.expectEqual(25, BarChart.calcMaxValue(&bars));
+    try testing.expectEqual(@as(u64, 25), BarChart.calcMaxValue(&bars));
 }
 
-test "BarChart.render renders empty chart" {
-    const allocator = testing.allocator;
-    var buf = try Buffer.init(allocator, 10, 10);
+test "barchart: empty chart leaves the buffer blank" {
+    var buf = try Buffer.init(testing.allocator, 10, 3);
     defer buf.deinit();
-
-    const bars: []const BarChart.Bar = &.{};
-    const chart = BarChart.init(bars);
-    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
-
-    chart.render(&buf, area);
-    // Empty chart leaves buffer unchanged (all spaces)
-    for (0..10) |y| {
-        for (0..10) |x| {
-            try testing.expectEqual(@as(u21, ' '), buf.getConst(@intCast(x), @intCast(y)).?.char);
-        }
-    }
+    const none: []const BarChart.Bar = &.{};
+    BarChart.init(none).render(&buf, fullArea(buf));
+    try expectRows(buf, &.{ "          ", "          ", "          " });
 }
 
-test "BarChart.render renders single bar" {
-    const allocator = testing.allocator;
-    var buf = try Buffer.init(allocator, 10, 10);
+test "barchart: empty chart still draws its block" {
+    var buf = try Buffer.init(testing.allocator, 6, 3);
     defer buf.deinit();
+    const none: []const BarChart.Bar = &.{};
+    BarChart.init(none).withBlock(Block{}).render(&buf, fullArea(buf));
+    try expectRows(buf, &.{ "┌────┐", "│    │", "└────┘" });
+}
 
+test "barchart: single full bar is centered with value above and label below" {
+    var buf = try Buffer.init(testing.allocator, 10, 10);
+    defer buf.deinit();
+    const bars = [_]BarChart.Bar{.{ .label = "A", .value = 50 }};
+    BarChart.init(&bars).render(&buf, fullArea(buf));
+    try expectRows(buf, &.{
+        "    50    ",
+        "   ███    ",
+        "   ███    ",
+        "   ███    ",
+        "   ███    ",
+        "   ███    ",
+        "   ███    ",
+        "   ███    ",
+        "   ███    ",
+        "   A      ",
+    });
+}
+
+test "barchart: three bars scale to the maximum with floored heights" {
+    var buf = try Buffer.init(testing.allocator, 20, 10);
+    defer buf.deinit();
     const bars = [_]BarChart.Bar{
-        .{ .label = "A", .value = 50 },
+        .{ .label = "A", .value = 30 }, // 30 * 8 / 50 = 4
+        .{ .label = "B", .value = 50 }, // 8
+        .{ .label = "C", .value = 20 }, // 20 * 8 / 50 = 3
     };
-    const chart = BarChart.init(&bars);
-    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
-
-    chart.render(&buf, area);
-
-    // Check that bar character is present (█)
-    var found_bar = false;
-    for (0..10) |y| {
-        for (0..10) |x| {
-            const cell = buf.get(@intCast(x), @intCast(y));
-            if (cell.char == '█') {
-                found_bar = true;
-                break;
-            }
-        }
-    }
-    try testing.expect(found_bar);
+    BarChart.init(&bars).render(&buf, fullArea(buf));
+    try expectRows(buf, &.{
+        "     30  50  20     ",
+        "        ███         ",
+        "        ███         ",
+        "        ███         ",
+        "        ███         ",
+        "    ███ ███         ",
+        "    ███ ███ ███     ",
+        "    ███ ███ ███     ",
+        "    ███ ███ ███     ",
+        "    A   B   C       ",
+    });
 }
 
-test "BarChart.render renders multiple bars" {
-    const allocator = testing.allocator;
-    var buf = try Buffer.init(allocator, 20, 10);
+test "barchart: block border shrinks the drawing area" {
+    var buf = try Buffer.init(testing.allocator, 15, 10);
     defer buf.deinit();
-
-    const bars = [_]BarChart.Bar{
-        .{ .label = "A", .value = 30 },
-        .{ .label = "B", .value = 50 },
-        .{ .label = "C", .value = 20 },
-    };
-    const chart = BarChart.init(&bars);
-    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-
-    chart.render(&buf, area);
-
-    // Check that multiple bar characters are present
-    var bar_count: usize = 0;
-    for (0..10) |y| {
-        for (0..20) |x| {
-            const cell = buf.get(@intCast(x), @intCast(y));
-            if (cell.char == '█') {
-                bar_count += 1;
-            }
-        }
-    }
-    try testing.expect(bar_count > 0);
+    const bars = [_]BarChart.Bar{.{ .label = "A", .value = 50 }};
+    BarChart.init(&bars).withBlock(Block{}).render(&buf, fullArea(buf));
+    try expectRows(buf, &.{
+        "┌─────────────┐",
+        "│     50      │",
+        "│    ███      │",
+        "│    ███      │",
+        "│    ███      │",
+        "│    ███      │",
+        "│    ███      │",
+        "│    ███      │",
+        "│    A        │",
+        "└─────────────┘",
+    });
 }
 
-test "BarChart.render with block border" {
-    const allocator = testing.allocator;
-    var buf = try Buffer.init(allocator, 15, 10);
+test "barchart: custom bar width widens the bar and recenters value and label" {
+    var buf = try Buffer.init(testing.allocator, 20, 10);
     defer buf.deinit();
-
-    const bars = [_]BarChart.Bar{
-        .{ .label = "A", .value = 50 },
-    };
-    const blk = (Block{}).withBorders(.all);
-    const chart = BarChart.init(&bars).withBlock(blk);
-    const area = Rect{ .x = 0, .y = 0, .width = 15, .height = 10 };
-
-    chart.render(&buf, area);
-
-    // Check for border characters
-    const top_left = buf.get(0, 0);
-    try testing.expect(top_left.char == '┌');
+    const bars = [_]BarChart.Bar{.{ .label = "ABCDEFG", .value = 50 }};
+    BarChart.init(&bars).withBarWidth(5).render(&buf, fullArea(buf));
+    try expectRows(buf, &.{
+        "         50         ",
+        "       █████        ",
+        "       █████        ",
+        "       █████        ",
+        "       █████        ",
+        "       █████        ",
+        "       █████        ",
+        "       █████        ",
+        "       █████        ",
+        "       ABCDE        ",
+    });
 }
 
-test "BarChart.render with custom bar width" {
-    const allocator = testing.allocator;
-    var buf = try Buffer.init(allocator, 20, 10);
+test "barchart: bar gap separates two bars into two column groups" {
+    var buf = try Buffer.init(testing.allocator, 30, 4);
     defer buf.deinit();
-
-    const bars = [_]BarChart.Bar{
-        .{ .label = "A", .value = 50 },
-    };
-    const chart = BarChart.init(&bars).withBarWidth(5);
-    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-
-    chart.render(&buf, area);
-
-    // Count bar width
-    var width_count: usize = 0;
-    const mid_y = 5; // middle row
-    for (0..20) |x| {
-        const cell = buf.get(@intCast(x), mid_y);
-        if (cell.char == '█') {
-            width_count += 1;
-        }
-    }
-    // Should have at most 5 consecutive bar chars
-    try testing.expect(width_count <= 5);
-}
-
-test "BarChart.render with custom bar style" {
-    const allocator = testing.allocator;
-    var buf = try Buffer.init(allocator, 10, 10);
-    defer buf.deinit();
-
-    const bars = [_]BarChart.Bar{
-        .{ .label = "A", .value = 50 },
-    };
-    const style = Style{ .fg = Color.blue, .bold = true };
-    const chart = BarChart.init(&bars).withBarStyle(style);
-    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
-
-    chart.render(&buf, area);
-
-    // Find a bar cell and check style
-    var found_styled_bar = false;
-    for (0..10) |y| {
-        for (0..10) |x| {
-            const cell = buf.get(@intCast(x), @intCast(y));
-            if (cell.char == '█') {
-                if (cell.style.bold) {
-                    found_styled_bar = true;
-                    break;
-                }
-            }
-        }
-    }
-    try testing.expect(found_styled_bar);
-}
-
-test "BarChart.render with zero area" {
-    const allocator = testing.allocator;
-    var buf = try Buffer.init(allocator, 10, 10);
-    defer buf.deinit();
-
-    const bars = [_]BarChart.Bar{
-        .{ .label = "A", .value = 50 },
-    };
-    const chart = BarChart.init(&bars);
-    const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
-
-    chart.render(&buf, area);
-    // Zero-area render must not write to any cells in the 10x10 buffer
-    for (0..10) |y| {
-        for (0..10) |x| {
-            try testing.expectEqual(@as(u21, ' '), buf.getConst(@intCast(x), @intCast(y)).?.char);
-        }
-    }
-}
-
-test "BarChart.render with max value" {
-    const allocator = testing.allocator;
-    var buf = try Buffer.init(allocator, 10, 10);
-    defer buf.deinit();
-
-    const bars = [_]BarChart.Bar{
-        .{ .label = "A", .value = 50 },
-    };
-    const chart = BarChart.init(&bars).withMaxValue(100);
-    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
-
-    chart.render(&buf, area);
-
-    // Bar should be scaled to 100, so half height
-    var bar_count: usize = 0;
-    for (0..10) |y| {
-        for (0..10) |x| {
-            const cell = buf.get(@intCast(x), @intCast(y));
-            if (cell.char == '█') {
-                bar_count += 1;
-            }
-        }
-    }
-    try testing.expect(bar_count > 0);
-}
-
-test "BarChart.render with per-bar style" {
-    const allocator = testing.allocator;
-    var buf = try Buffer.init(allocator, 20, 10);
-    defer buf.deinit();
-
-    const bars = [_]BarChart.Bar{
-        .{ .label = "A", .value = 30, .style = .{ .fg = Color.red } },
-        .{ .label = "B", .value = 50, .style = .{ .fg = Color.green } },
-    };
-    const chart = BarChart.init(&bars);
-    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-
-    chart.render(&buf, area);
-
-    // Should render without crash (per-bar styles override default)
-}
-
-test "BarChart.render with labels" {
-    const allocator = testing.allocator;
-    var buf = try Buffer.init(allocator, 20, 10);
-    defer buf.deinit();
-
-    const bars = [_]BarChart.Bar{
-        .{ .label = "Jan", .value = 30 },
-        .{ .label = "Feb", .value = 50 },
-    };
-    const chart = BarChart.init(&bars);
-    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-
-    chart.render(&buf, area);
-
-    // Check that label characters are present
-    var found_label = false;
-    const label_y = 9; // bottom row
-    for (0..20) |x| {
-        const cell = buf.get(@intCast(x), label_y);
-        if (cell.char == 'J' or cell.char == 'F') {
-            found_label = true;
-            break;
-        }
-    }
-    try testing.expect(found_label);
-}
-
-test "BarChart.render with values" {
-    const allocator = testing.allocator;
-    var buf = try Buffer.init(allocator, 20, 10);
-    defer buf.deinit();
-
-    const bars = [_]BarChart.Bar{
-        .{ .label = "A", .value = 42 },
-    };
-    const chart = BarChart.init(&bars);
-    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-
-    chart.render(&buf, area);
-
-    // Check that value characters are present (should show "42" at top)
-    var found_digit = false;
-    const value_y = 0; // top row
-    for (0..20) |x| {
-        const cell = buf.get(@intCast(x), value_y);
-        if (cell.char == '4' or cell.char == '2') {
-            found_digit = true;
-            break;
-        }
-    }
-    try testing.expect(found_digit);
-}
-
-test "BarChart.render with bar gap" {
-    const allocator = testing.allocator;
-    var buf = try Buffer.init(allocator, 30, 10);
-    defer buf.deinit();
-
     const bars = [_]BarChart.Bar{
         .{ .label = "A", .value = 50 },
         .{ .label = "B", .value = 50 },
     };
-    const chart = BarChart.init(&bars).withBarGap(3);
-    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 10 };
-
-    chart.render(&buf, area);
-
-    // With gap=3 and bar_width=3 (default), bar_unit_width=6
-    // Two bars starting centered: both should have '█' but with empty columns between them
-    var bar_cols = [_]bool{false} ** 30;
-    for (0..10) |y| {
-        for (0..30) |x| {
-            if (buf.getConst(@intCast(x), @intCast(y)).?.char == '█') {
-                bar_cols[x] = true;
-            }
-        }
-    }
-    // Count distinct bar column groups (gap must produce non-bar columns between bars)
-    var groups: usize = 0;
-    var in_group = false;
-    for (bar_cols[0..]) |has_bar| {
-        if (has_bar and !in_group) {
-            groups += 1;
-            in_group = true;
-        } else if (!has_bar) {
-            in_group = false;
-        }
-    }
-    try testing.expectEqual(@as(usize, 2), groups);
+    // unit = 3 + 3 = 6, total = 12, offset = 9: bars at x = 9..11 and 15..17.
+    BarChart.init(&bars).withBarGap(3).render(&buf, fullArea(buf));
+    try expectRows(buf, &.{
+        "          50    50            ",
+        "         ███   ███            ",
+        "         ███   ███            ",
+        "         A     B              ",
+    });
 }
 
-test "BarChart.render truncates long labels" {
-    const allocator = testing.allocator;
-    var buf = try Buffer.init(allocator, 20, 10);
+test "barchart: styles reach bar, value and label cells and nothing else" {
+    var buf = try Buffer.init(testing.allocator, 10, 4);
     defer buf.deinit();
+    const bars = [_]BarChart.Bar{.{ .label = "A", .value = 7 }};
+    const bar_s = Style{ .fg = Color.blue, .bold = true };
+    const val_s = Style{ .fg = Color.green };
+    const lab_s = Style{ .fg = Color.yellow };
+    BarChart.init(&bars).withBarStyle(bar_s).withValueStyle(val_s).withLabelStyle(lab_s)
+        .render(&buf, fullArea(buf));
+    // Bar at x = 3..5 rows 1..2, value "7" at (4, 0), label "A" at (3, 3).
+    try testing.expectEqual(val_s, buf.getStyle(4, 0));
+    try testing.expectEqual(@as(u21, '7'), buf.getChar(4, 0));
+    for (3..6) |x| {
+        try testing.expectEqual(bar_s, buf.getStyle(@intCast(x), 1));
+        try testing.expectEqual(bar_s, buf.getStyle(@intCast(x), 2));
+    }
+    try testing.expectEqual(lab_s, buf.getStyle(3, 3));
+    try testing.expectEqual(Style{}, buf.getStyle(0, 1));
+    try testing.expectEqual(Style{}, buf.getStyle(6, 2));
+    try testing.expectEqual(Style{}, buf.getStyle(5, 3));
+}
 
+test "barchart: per-bar style overrides the chart bar style, unstyled bars inherit it" {
+    var buf = try Buffer.init(testing.allocator, 20, 3);
+    defer buf.deinit();
     const bars = [_]BarChart.Bar{
-        .{ .label = "VeryLongLabel", .value = 50 },
+        .{ .label = "A", .value = 10, .style = .{ .fg = Color.red } },
+        .{ .label = "B", .value = 10, .style = .{ .bg = Color.green } },
+        .{ .label = "C", .value = 10 },
     };
-    const chart = BarChart.init(&bars).withBarWidth(3);
-    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-
-    chart.render(&buf, area);
-
-    // Label should be truncated to bar width (3 chars)
-    const label_y = 9;
-    var label_len: usize = 0;
-    for (0..20) |x| {
-        const cell = buf.get(@intCast(x), label_y);
-        if (cell.char != ' ') {
-            label_len += 1;
-        }
-    }
-    // Should have at most 3 chars for label (truncated)
-    try testing.expect(label_len <= 3);
+    const base = Style{ .fg = Color.blue };
+    BarChart.init(&bars).withBarStyle(base).render(&buf, fullArea(buf));
+    // unit = 4, total = 12, offset = 4: bars start at x = 4, 8, 12 on the single bar row.
+    try testing.expectEqual(Style{ .fg = Color.red }, buf.getStyle(4, 1));
+    try testing.expectEqual(Style{ .fg = Color.red }, buf.getStyle(6, 1));
+    try testing.expectEqual(Style{ .bg = Color.green }, buf.getStyle(8, 1));
+    try testing.expectEqual(base, buf.getStyle(12, 1));
+    try testing.expectEqual(@as(u21, '█'), buf.getChar(12, 1));
 }
 
-test "BarChart.render with insufficient height" {
-    const allocator = testing.allocator;
-    var buf = try Buffer.init(allocator, 10, 2);
+test "barchart: explicit max value scales bars and clamps larger values" {
+    var buf = try Buffer.init(testing.allocator, 20, 10);
     defer buf.deinit();
-
     const bars = [_]BarChart.Bar{
-        .{ .label = "A", .value = 50 },
+        .{ .label = "A", .value = 50 }, // 50 * 8 / 100 = 4
+        .{ .label = "B", .value = 500 }, // clamped to the full 8
     };
-    const chart = BarChart.init(&bars);
-    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 2 };
-
-    chart.render(&buf, area);
-    // height=2 < 3 minimum: nothing should be rendered (all cells remain spaces)
-    for (0..2) |y| {
-        for (0..10) |x| {
-            try testing.expectEqual(@as(u21, ' '), buf.getConst(@intCast(x), @intCast(y)).?.char);
-        }
-    }
+    BarChart.init(&bars).withMaxValue(100).render(&buf, fullArea(buf));
+    // unit 4, total 8, offset 6: bars at x = 6 and 10.
+    try testing.expectEqual(@as(usize, 4), countBarsInColumn(buf, 6));
+    try testing.expectEqual(@as(usize, 8), countBarsInColumn(buf, 10));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(6, 4));
+    try testing.expectEqual(@as(u21, '█'), buf.getChar(6, 5));
+    try testing.expectEqual(@as(u21, '█'), buf.getChar(6, 8));
+    try testing.expectEqual(@as(u21, 'A'), buf.getChar(6, 9)); // label row holds no bar
 }
 
-test "BarChart.render bar height proportional to value" {
-    const allocator = testing.allocator;
-    var buf = try Buffer.init(allocator, 20, 12);
+test "barchart: bar heights are proportional to values" {
+    var buf = try Buffer.init(testing.allocator, 20, 12);
     defer buf.deinit();
-
-    // Two bars: value=100 (full) and value=50 (half)
     const bars = [_]BarChart.Bar{
         .{ .label = "A", .value = 100 },
         .{ .label = "B", .value = 50 },
     };
-    const chart = BarChart.init(&bars);
-    const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 12 };
-    chart.render(&buf, area);
+    BarChart.init(&bars).render(&buf, fullArea(buf));
+    // unit = 4, total = 8, offset = 6: bars at x = 6 and 10; bar_height = 10.
+    try testing.expectEqual(@as(usize, 10), countBarsInColumn(buf, 6));
+    try testing.expectEqual(@as(usize, 5), countBarsInColumn(buf, 10));
+}
 
-    // Count '█' cells in each bar column (columns 3 and 6 based on centering for bar_width=3, bar_gap=1)
-    // bar_unit_width = 4, total = 8, center_offset = (20 - 8)/2 = 6
-    // bar A at x=6..8, bar B at x=10..12
-    var count_a: usize = 0;
-    var count_b: usize = 0;
-    for (0..12) |y| {
-        if (buf.getConst(6, @intCast(y)).?.char == '█') count_a += 1;
-        if (buf.getConst(10, @intCast(y)).?.char == '█') count_b += 1;
+test "barchart: zero value bar draws no cells but keeps value and label" {
+    var buf = try Buffer.init(testing.allocator, 20, 4);
+    defer buf.deinit();
+    const bars = [_]BarChart.Bar{
+        .{ .label = "Z", .value = 0 },
+        .{ .label = "Y", .value = 9 },
+    };
+    BarChart.init(&bars).render(&buf, fullArea(buf));
+    try expectRows(buf, &.{
+        "       0   9        ",
+        "          ███       ",
+        "          ███       ",
+        "      Z   Y         ",
+    });
+}
+
+test "barchart: bar_width zero draws no bar cells" {
+    var buf = try Buffer.init(testing.allocator, 10, 4);
+    defer buf.deinit();
+    const bars = [_]BarChart.Bar{.{ .label = "A", .value = 50 }};
+    BarChart.init(&bars).withBarWidth(0).render(&buf, fullArea(buf));
+    try expectRows(buf, &.{ "    50    ", "          ", "          ", "          " });
+}
+
+test "barchart: all-zero maximum draws nothing" {
+    var buf = try Buffer.init(testing.allocator, 10, 4);
+    defer buf.deinit();
+    const bars = [_]BarChart.Bar{.{ .label = "A", .value = 0 }};
+    BarChart.init(&bars).render(&buf, fullArea(buf));
+    try expectRows(buf, &.{ "          ", "          ", "          ", "          " });
+}
+
+test "barchart: zero-sized areas write nothing" {
+    var buf = try Buffer.init(testing.allocator, 10, 10);
+    defer buf.deinit();
+    const bars = [_]BarChart.Bar{.{ .label = "A", .value = 50 }};
+    const chart = BarChart.init(&bars);
+    chart.render(&buf, .{ .x = 0, .y = 0, .width = 0, .height = 0 });
+    chart.render(&buf, .{ .x = 0, .y = 0, .width = 10, .height = 0 });
+    chart.render(&buf, .{ .x = 0, .y = 0, .width = 0, .height = 10 });
+    for (buf.cells) |cell| try testing.expect(cell.eql(Cell{}));
+}
+
+test "barchart: height below 3 draws nothing and height 3 is the minimum" {
+    var small = try Buffer.init(testing.allocator, 10, 2);
+    defer small.deinit();
+    const bars = [_]BarChart.Bar{.{ .label = "A", .value = 50 }};
+    const chart = BarChart.init(&bars);
+    chart.render(&small, fullArea(small));
+    try expectRows(small, &.{ "          ", "          " });
+
+    var min = try Buffer.init(testing.allocator, 10, 3);
+    defer min.deinit();
+    chart.render(&min, fullArea(min));
+    try expectRows(min, &.{ "    50    ", "   ███    ", "   A      " });
+}
+
+test "barchart: block that leaves under 3 inner rows draws only the border" {
+    var buf = try Buffer.init(testing.allocator, 6, 4);
+    defer buf.deinit();
+    const bars = [_]BarChart.Bar{.{ .label = "A", .value = 50 }};
+    BarChart.init(&bars).withBlock(Block{}).render(&buf, fullArea(buf));
+    try expectRows(buf, &.{
+        "┌────┐",
+        "│    │",
+        "│    │",
+        "└────┘",
+    });
+}
+
+test "barchart: long label is cut to the bar width" {
+    var buf = try Buffer.init(testing.allocator, 20, 3);
+    defer buf.deinit();
+    const bars = [_]BarChart.Bar{.{ .label = "VeryLongLabel", .value = 50 }};
+    BarChart.init(&bars).render(&buf, fullArea(buf));
+    try expectRows(buf, &.{
+        "         50         ",
+        "        ███         ",
+        "        Ver         ",
+    });
+}
+
+test "barchart: multibyte label is cut by cells, not bytes" {
+    var buf = try Buffer.init(testing.allocator, 20, 3);
+    defer buf.deinit();
+    // Each 'é' is two bytes; a byte cut at 3 would keep only one of them.
+    const bars = [_]BarChart.Bar{.{ .label = "éééé", .value = 50 }};
+    BarChart.init(&bars).render(&buf, fullArea(buf));
+    try expectRows(buf, &.{
+        "         50         ",
+        "        ███         ",
+        "        ééé         ",
+    });
+}
+
+test "barchart: wide label never splits a double-width character" {
+    var buf = try Buffer.init(testing.allocator, 20, 3);
+    defer buf.deinit();
+    const bars = [_]BarChart.Bar{.{ .label = "日本語", .value = 50 }};
+    BarChart.init(&bars).render(&buf, fullArea(buf));
+    // Width 3 fits one 2-cell character; the third cell stays blank.
+    try expectRows(buf, &.{
+        "         50         ",
+        "        ███         ",
+        "        日           ",
+    });
+}
+
+test "barchart: bar cut by the right edge is clipped, its label clipped, its value hidden" {
+    var buf = try Buffer.init(testing.allocator, 6, 5);
+    defer buf.deinit();
+    const bars = [_]BarChart.Bar{
+        .{ .label = "AAA", .value = 10 },
+        .{ .label = "BBB", .value = 10 },
+    };
+    // total 8 > width 6, so no centering: bar A at x = 0..2, bar B at x = 4..5 (clipped).
+    BarChart.init(&bars).render(&buf, fullArea(buf));
+    try expectRows(buf, &.{
+        " 10   ",
+        "███ ██",
+        "███ ██",
+        "███ ██",
+        "AAA BB",
+    });
+}
+
+test "barchart: bars starting beyond the area are skipped" {
+    var buf = try Buffer.init(testing.allocator, 8, 4);
+    defer buf.deinit();
+    const bars = [_]BarChart.Bar{
+        .{ .label = "A", .value = 5 },
+        .{ .label = "B", .value = 5 },
+        .{ .label = "C", .value = 5 },
+    };
+    // unit 4: bars at x = 0, 4 and 8; the third starts at the right edge and is dropped.
+    BarChart.init(&bars).render(&buf, fullArea(buf));
+    try expectRows(buf, &.{
+        " 5   5  ",
+        "███ ███ ",
+        "███ ███ ",
+        "A   B   ",
+    });
+}
+
+test "barchart: area offset in a larger buffer keeps drawing inside the area" {
+    var buf = try Buffer.init(testing.allocator, 14, 7);
+    defer buf.deinit();
+    const bars = [_]BarChart.Bar{.{ .label = "A", .value = 50 }};
+    // Area x=2..11, y=1..5 (height 5): offset = (10 - 4) / 2 = 3, so the bar starts at x = 5.
+    BarChart.init(&bars).render(&buf, .{ .x = 2, .y = 1, .width = 10, .height = 5 });
+    try expectRows(buf, &.{
+        "              ",
+        "      50      ",
+        "     ███      ",
+        "     ███      ",
+        "     ███      ",
+        "     A        ",
+        "              ",
+    });
+}
+
+test "barchart: u64 values near the maximum do not overflow the scaling" {
+    var buf = try Buffer.init(testing.allocator, 80, 10);
+    defer buf.deinit();
+    const big = std.math.maxInt(u64);
+    const bars = [_]BarChart.Bar{
+        .{ .label = "A", .value = big },
+        .{ .label = "B", .value = big / 2 },
+    };
+    // Gap 30 keeps the 20-digit value of A clear of B's value: bars at x = 7 and 40.
+    BarChart.init(&bars).withBarGap(30).render(&buf, fullArea(buf));
+    try testing.expectEqual(@as(usize, 8), countBarsInColumn(buf, 7));
+    try testing.expectEqual(@as(usize, 3), countBarsInColumn(buf, 40));
+    var view = try std.unicode.Utf8View.init("18446744073709551615");
+    var it = view.iterator();
+    var x: u16 = 8;
+    while (it.nextCodepoint()) |cp| : (x += 1) {
+        try testing.expectEqual(cp, buf.getChar(x, 0));
     }
-    // Bar A (value=100) must be taller than bar B (value=50)
-    try testing.expect(count_a > count_b);
-    // Bar A should be exactly twice bar B's height
-    try testing.expectEqual(count_a, count_b * 2);
+}
+
+test "barchart: bar count beyond u16 positions does not wrap or panic" {
+    const count = 16500;
+    const bars = try testing.allocator.alloc(BarChart.Bar, count);
+    defer testing.allocator.free(bars);
+    @memset(bars, .{ .label = "x", .value = 1 });
+
+    var buf = try Buffer.init(testing.allocator, 10, 3);
+    defer buf.deinit();
+    // The area is the widest possible; bar 16384 would sit at x = 65536.
+    BarChart.init(bars).render(&buf, .{ .x = 0, .y = 0, .width = 65535, .height = 3 });
+    try expectRows(buf, &.{ " 1   1   1", "███ ███ ██", "x   x   x " });
+}
+
+test "barchart: area whose extent exceeds u16 is clipped to the buffer" {
+    var buf = try Buffer.init(testing.allocator, 10, 3);
+    defer buf.deinit();
+    const bars = [_]BarChart.Bar{.{ .label = "A", .value = 50 }};
+    // x + width = 65600 does not fit in u16; the bar lies far outside the 10-wide buffer.
+    BarChart.init(&bars).render(&buf, .{ .x = 65500, .y = 0, .width = 100, .height = 3 });
+    try expectRows(buf, &.{ "          ", "          ", "          " });
+}
+
+test "barchart: rendered bar height matches floor(value * rows / max) over random charts" {
+    var prng = std.Random.DefaultPrng.init(0xBA2C_4A27);
+    const rng = prng.random();
+    const alloc = testing.allocator;
+    for (0..200) |_| {
+        const height: u16 = rng.intRangeAtMost(u16, 3, 14);
+        const n = rng.intRangeAtMost(usize, 1, 5);
+        var bars: [5]BarChart.Bar = undefined;
+        var max: u64 = 0;
+        for (bars[0..n]) |*bar| {
+            bar.* = .{ .label = "L", .value = rng.intRangeAtMost(u64, 0, 1000) };
+            max = @max(max, bar.value);
+        }
+        if (max == 0) continue;
+
+        var buf = try Buffer.init(alloc, 40, height);
+        defer buf.deinit();
+        BarChart.init(bars[0..n]).render(&buf, fullArea(buf));
+
+        const rows: u64 = height - 2;
+        const offset: u16 = @intCast((40 - n * 4) / 2);
+        for (bars[0..n], 0..) |bar, i| {
+            const h: u64 = countBarsInColumn(buf, offset + @as(u16, @intCast(i)) * 4);
+            // h is floor(value * rows / max) iff h * max <= value * rows < (h + 1) * max.
+            try testing.expect(h * max <= bar.value * rows);
+            try testing.expect(bar.value * rows < (h + 1) * max);
+        }
+    }
 }

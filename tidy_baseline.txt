@@ -166,8 +166,6 @@ src/tui/widgets/colorswatch.zig|function_length|render|124
 src/tui/widgets/command_bar.zig|line_length|-|4
 src/tui/widgets/completion_popup.zig|function_length|render|74
 src/tui/widgets/completion_popup.zig|line_length|-|3
-src/tui/widgets/configeditor.zig|function_length|render|92
-src/tui/widgets/configeditor.zig|line_length|-|4
 src/tui/widgets/context_menu.zig|function_length|render|144
 src/tui/widgets/context_menu.zig|line_length|-|9
 src/tui/widgets/countdown_timer.zig|line_length|-|3

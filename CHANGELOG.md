@@ -8,6 +8,15 @@ consumer has to change code. History before v3.0.0 is summarised in
 
 ### Fixed
 
+- Autocomplete, barchart, completion popup, config editor, context menu and editable table
+  widget tests now compile and run (#75). Fixes found on the way: `ContextMenu.moveUp/moveDown`
+  never terminated when nothing was selectable and the cursor was out of range; submenu arrow
+  overwrote the last label cell; `BarChart` called a nonexistent `Buffer.setCell` and
+  overflowed `u64`/`u16` on large values or many bars; `Autocomplete` dropped doc text after a
+  newline, ranked `"xe"` above `"e"` for input `e` and dropped candidates over ~110 bytes;
+  `CompletionPopup` panicked on huge items; `ConfigEditor` mis-advanced by bytes, rendered
+  nothing past 256 nodes and split UTF-8 in `deleteChar`; `EditableTable` overwrote the block
+  border and edited when not in edit mode.
 - Checkbox, radio, histogram, piechart, heatmap and input widget tests now compile and run
   (#75). Fixes found on the way: `CheckboxGroup`/`RadioGroup` drew labels per byte and could
   overflow the area clear; `RadioGroup` default focus style used a nonexistent field;

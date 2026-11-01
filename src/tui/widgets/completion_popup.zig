@@ -1,12 +1,13 @@
 //! Completion popup widget: a filtered, keyboard-navigable suggestion list anchored to an input.
 const std = @import("std");
-const tui = @import("../tui.zig");
 const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;
 const Style = @import("../style.zig").Style;
 const Color = @import("../style.zig").Color;
 const Block = @import("block.zig").Block;
 const BoxSet = @import("../symbols.zig").BoxSet;
+const UnicodeWidth = @import("../../unicode.zig").UnicodeWidth;
+const assert = std.debug.assert;
 
 /// Completion item
 pub const CompletionItem = struct {
@@ -90,26 +91,30 @@ pub const CompletionPopup = struct {
         }
     }
 
-    /// Calculate required width for popup
+    /// Calculate required width for popup, in terminal cells (text, description, padding).
     pub fn calcWidth(self: *const CompletionPopup) u16 {
         var max_width: usize = 0;
 
         for (self.items) |item| {
-            var width = item.text.len;
+            var width = UnicodeWidth.stringWidth(item.text);
             if (self.show_descriptions and item.description != null) {
-                width += 3 + item.description.?.len; // " - description"
+                width += 3 + UnicodeWidth.stringWidth(item.description.?); // " - description"
             }
             if (width > max_width) max_width = width;
         }
 
-        // Add padding and borders
-        return @min(@as(u16, @intCast(max_width + 4)), 80);
+        // Add padding and borders; clamp before narrowing so huge items cannot overflow u16.
+        const padded = @min(max_width +| 4, max_popup_width);
+        assert(padded <= max_popup_width);
+        return @intCast(padded);
     }
 
     /// Calculate required height for popup
     pub fn calcHeight(self: *const CompletionPopup) u16 {
         const visible = @min(self.items.len, self.max_visible);
-        return @intCast(visible + 2); // +2 for borders
+        const padded = @min(visible +| 2, std.math.maxInt(u16)); // +2 for borders
+        assert(padded >= 2);
+        return @intCast(padded);
     }
 
     /// Render the popup at cursor position
@@ -133,7 +138,7 @@ pub const CompletionPopup = struct {
             .title = "Completions",
             .borders = .all,
             .border_set = BoxSet.single,
-            .style = .{ .fg = .{ .basic = .cyan } },
+            .border_style = .{ .fg = .cyan },
         };
         block.render(buf, area);
         const inner = block.inner(area);
@@ -144,50 +149,68 @@ pub const CompletionPopup = struct {
 
         for (self.items[self.scroll_offset..visible_end], self.scroll_offset..) |item, i| {
             if (y_offset >= inner.y + inner.height) break;
-
-            const is_selected = i == self.selected_index;
-            const style: Style = if (is_selected)
-                .{ .fg = .{ .basic = .black }, .bg = .{ .basic = .white }, .bold = true }
-            else
-                .{ .fg = .{ .basic = .white } };
-
-            // Selection indicator
-            const indicator = if (is_selected) "▶ " else "  ";
-            buf.setString(inner.x, y_offset, indicator, style);
-
-            // Item text
-            var x_pos = inner.x + 2;
-            const max_text_width = inner.width -| 2;
-            const text_len = @min(item.text.len, max_text_width);
-            buf.setString(x_pos, y_offset, item.text[0..text_len], style);
-            x_pos += @intCast(text_len);
-
-            // Description (if enabled and present)
-            if (self.show_descriptions and item.description != null) {
-                const remaining_width = inner.x + inner.width - x_pos;
-                if (remaining_width > 3) {
-                    buf.setString(x_pos, y_offset, " - ", .{ .fg = .{ .basic = .yellow } });
-                    x_pos += 3;
-
-                    const desc_width = @min(item.description.?.len, inner.x + inner.width - x_pos);
-                    if (desc_width > 0) {
-                        buf.setString(x_pos, y_offset, item.description.?[0..desc_width], .{ .fg = .{ .basic = .yellow } });
-                    }
-                }
-            }
-
+            self.renderRow(buf, inner, y_offset, item, i == self.selected_index);
             y_offset += 1;
         }
 
         // Scroll indicators
+        if (inner.height == 0 or inner.width == 0) return;
+        const cyan: Style = .{ .fg = .cyan };
         if (self.scroll_offset > 0) {
-            buf.setString(inner.x + inner.width - 1, inner.y, "↑", .{ .fg = .{ .basic = .cyan } });
+            buf.setString(inner.x + inner.width - 1, inner.y, "↑", cyan);
         }
         if (visible_end < self.items.len) {
-            buf.setString(inner.x + inner.width - 1, inner.y + inner.height - 1, "↓", .{ .fg = .{ .basic = .cyan } });
+            buf.setString(inner.x + inner.width - 1, inner.y + inner.height - 1, "↓", cyan);
+        }
+    }
+
+    /// Draw one item row: indicator, text, optional description, clipped to `inner` by cells.
+    fn renderRow(
+        self: *const CompletionPopup,
+        buf: *Buffer,
+        inner: Rect,
+        row_y: u16,
+        item: CompletionItem,
+        is_selected: bool,
+    ) void {
+        const style: Style = if (is_selected)
+            .{ .fg = .black, .bg = .white, .bold = true }
+        else
+            .{ .fg = .white };
+
+        // Selection indicator (2 cells wide: glyph plus space)
+        buf.setString(inner.x, row_y, if (is_selected) "▶ " else "  ", style);
+
+        // Item text, truncated on a character boundary to the remaining cells
+        const row_end = inner.x + inner.width;
+        var x_pos = inner.x + 2;
+        const max_text_width = inner.width -| 2;
+        x_pos += drawClipped(buf, x_pos, row_y, item.text, max_text_width, style);
+
+        // Description (if enabled and present)
+        const desc = item.description orelse return;
+        if (!self.show_descriptions) return;
+        const yellow: Style = .{ .fg = .yellow };
+        if (row_end - x_pos > 3) {
+            buf.setString(x_pos, row_y, " - ", yellow);
+            x_pos += 3;
+            _ = drawClipped(buf, x_pos, row_y, desc, row_end - x_pos, yellow);
         }
     }
 };
+
+const max_popup_width: usize = 80;
+
+/// Draw `text` at (x, y) clipped to `max_cells` terminal cells without splitting a UTF-8
+/// character. Returns the number of cells the clipped text occupies.
+fn drawClipped(buf: *Buffer, x: u16, y: u16, text: []const u8, max_cells: u16, style: Style) u16 {
+    const end = UnicodeWidth.truncate(text, max_cells);
+    assert(end <= text.len);
+    buf.setString(x, y, text[0..end], style);
+    const used = UnicodeWidth.stringWidth(text[0..end]);
+    assert(used <= max_cells);
+    return @intCast(used);
+}
 
 // ============================================================================
 // Tests
@@ -393,109 +416,324 @@ test "CompletionPopup: scrolling with selectPrev" {
     // Should scroll to show last 3 items
     try testing.expectEqual(@as(usize, 3), popup.scroll_offset);
 
-    popup.selectPrev(); // Select 4, scroll_offset = 3
+    popup.selectPrev(); // Select index 4, scroll_offset = 3
     try testing.expectEqual(@as(usize, 3), popup.scroll_offset);
 
-    popup.selectPrev(); // Select 3, scroll_offset = 2 (scroll up)
+    popup.selectPrev(); // Select index 3: still the first row of the window, no scroll
+    try testing.expectEqual(@as(usize, 3), popup.scroll_offset);
+
+    popup.selectPrev(); // Select index 2: above the window, scroll up
     try testing.expectEqual(@as(usize, 2), popup.scroll_offset);
+    try testing.expectEqual(@as(usize, 2), popup.selected_index);
 }
 
-test "CompletionPopup: render basic" {
-    const allocator = testing.allocator;
-    const items = [_]CompletionItem{
-        .{ .text = "foo" },
-        .{ .text = "bar" },
-    };
+/// Assert the narrow (1-cell) glyphs of `expected` occupy consecutive cells starting at (x, y).
+fn expectRow(buf: *const Buffer, x: u16, y: u16, expected: []const u8) !void {
+    var it = (try std.unicode.Utf8View.init(expected)).iterator();
+    var col = x;
+    while (it.nextCodepoint()) |cp| : (col += 1) {
+        try testing.expectEqual(cp, buf.getChar(col, y));
+    }
+}
 
+test "CompletionPopup: render draws border, selected row and plain row at exact cells" {
+    const items = [_]CompletionItem{ .{ .text = "foo" }, .{ .text = "bar" } };
     const popup = CompletionPopup.init(&items);
-
-    var buf = try Buffer.init(allocator, 80, 24);
-    defer buf.deinit(allocator);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
 
     popup.render(&buf, 10, 5);
 
-    // Verify border exists
-    const top_left = buf.get(10, 6); // y=5 + position.y=1
-    try testing.expectEqual(@as(u21, '┌'), top_left.char);
+    // Area is x=10, y=6 (cursor_y + position.y), width 3+4=7, height 2+2=4.
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(10, 6));
+    try testing.expectEqual(@as(u21, '┐'), buf.getChar(16, 6));
+    try testing.expectEqual(@as(u21, '└'), buf.getChar(10, 9));
+    try testing.expectEqual(@as(u21, '┘'), buf.getChar(16, 9));
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(10, 7));
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(16, 8));
+    try expectRow(&buf, 11, 7, "▶ foo");
+    try expectRow(&buf, 11, 8, "  bar");
+    try testing.expect(buf.getStyle(13, 7).bold);
+    try testing.expect(!buf.getStyle(13, 8).bold);
+    try testing.expectEqual(Color.white, buf.getStyle(13, 7).bg.?);
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(9, 7)); // nothing outside the popup
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(17, 7));
 }
 
-test "CompletionPopup: render with descriptions" {
-    const allocator = testing.allocator;
+test "CompletionPopup: render shows description after separator in yellow" {
     const items = [_]CompletionItem{
         .{ .text = "foo", .description = "Foo func" },
         .{ .text = "bar", .description = "Bar func" },
     };
-
-    var popup = CompletionPopup.init(&items);
-    popup.show_descriptions = true;
-
-    var buf = try Buffer.init(allocator, 80, 24);
-    defer buf.deinit(allocator);
+    const popup = CompletionPopup.init(&items);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
 
     popup.render(&buf, 10, 5);
 
-    // Verify selection indicator
-    const indicator_cell = buf.get(11, 7); // Inside border, first item
-    try testing.expectEqual(@as(u21, '▶'), indicator_cell.char);
+    // Width = 3 + 3 + 8 + 4 = 18, so inner spans x=11..26 and the right border is x=27.
+    try expectRow(&buf, 11, 7, "▶ foo - Foo func");
+    try expectRow(&buf, 11, 8, "  bar - Bar func");
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(27, 7));
+    try testing.expectEqual(Color.yellow, buf.getStyle(19, 7).fg.?);
+    try testing.expectEqual(Color.yellow, buf.getStyle(16, 7).fg.?);
 }
 
-test "CompletionPopup: render empty" {
-    const allocator = testing.allocator;
+test "CompletionPopup: show_descriptions false hides descriptions and narrows popup" {
+    const items = [_]CompletionItem{.{ .text = "foo", .description = "Foo func" }};
+    var popup = CompletionPopup.init(&items);
+    popup.show_descriptions = false;
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
+
+    popup.render(&buf, 0, 0);
+
+    // Width 7: x=0..6, inner x=1..5, right border at x=6.
+    try expectRow(&buf, 1, 2, "▶ foo");
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(6, 2));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(7, 2));
+}
+
+test "CompletionPopup: render empty item list leaves the buffer untouched" {
     const items = [_]CompletionItem{};
     const popup = CompletionPopup.init(&items);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
 
-    var buf = try Buffer.init(allocator, 80, 24);
-    defer buf.deinit(allocator);
-
-    // Should not crash
     popup.render(&buf, 10, 5);
+
+    for (buf.cells) |cell| try testing.expect(cell.eql(.{}));
 }
 
-test "CompletionPopup: render near screen edge" {
-    const allocator = testing.allocator;
-    const items = [_]CompletionItem{
-        .{ .text = "foo" },
-        .{ .text = "bar" },
-    };
-
+test "CompletionPopup: render near right edge shifts the popup left to fit" {
+    const items = [_]CompletionItem{ .{ .text = "foo" }, .{ .text = "bar" } };
     const popup = CompletionPopup.init(&items);
+    var buf = try Buffer.init(testing.allocator, 40, 10);
+    defer buf.deinit();
 
-    var buf = try Buffer.init(allocator, 40, 10);
-    defer buf.deinit(allocator);
-
-    // Render near right edge - should adjust position
     popup.render(&buf, 38, 1);
 
-    // Render near bottom edge - should adjust position
-    popup.render(&buf, 5, 9);
+    // x_max = 40 - 7 = 33, so the popup occupies x=33..39, y=2..5.
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(33, 2));
+    try testing.expectEqual(@as(u21, '┐'), buf.getChar(39, 2));
+    try testing.expectEqual(@as(u21, '└'), buf.getChar(33, 5));
+    try testing.expectEqual(@as(u21, '┘'), buf.getChar(39, 5));
+    try expectRow(&buf, 34, 3, "▶ foo");
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(32, 3));
 }
 
-test "CompletionPopup: scroll indicators" {
-    const allocator = testing.allocator;
-    const items = [_]CompletionItem{
-        .{ .text = "1" },
-        .{ .text = "2" },
-        .{ .text = "3" },
-        .{ .text = "4" },
-        .{ .text = "5" },
-    };
+test "CompletionPopup: render near bottom edge shifts the popup up to fit" {
+    const items = [_]CompletionItem{ .{ .text = "foo" }, .{ .text = "bar" } };
+    const popup = CompletionPopup.init(&items);
+    var buf = try Buffer.init(testing.allocator, 40, 10);
+    defer buf.deinit();
 
+    popup.render(&buf, 5, 9);
+
+    // y_max = 10 - 4 = 6, so the popup occupies y=6..9, x=5..11.
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(5, 6));
+    try testing.expectEqual(@as(u21, '┘'), buf.getChar(11, 9));
+    try expectRow(&buf, 6, 7, "▶ foo");
+    try expectRow(&buf, 6, 8, "  bar");
+}
+
+test "CompletionPopup: popup larger than the buffer is clipped at the origin" {
+    const items = [_]CompletionItem{ .{ .text = "foo" }, .{ .text = "bar" } };
+    const popup = CompletionPopup.init(&items);
+    var buf = try Buffer.init(testing.allocator, 3, 3);
+    defer buf.deinit();
+
+    popup.render(&buf, 2, 2);
+
+    // Negative room clamps x and y to 0; only the top-left 3x3 of the popup is visible.
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(0, 0));
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(0, 1));
+    try testing.expectEqual(@as(u21, '▶'), buf.getChar(1, 1));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(2, 1));
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(0, 2));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(1, 2));
+}
+
+test "CompletionPopup: scroll down indicator replaces last visible cell, no up indicator" {
+    const items = [_]CompletionItem{
+        .{ .text = "1" }, .{ .text = "2" }, .{ .text = "3" }, .{ .text = "4" }, .{ .text = "5" },
+    };
     var popup = CompletionPopup.init(&items);
     popup.max_visible = 3;
-    popup.setSelected(2); // Middle selection triggers scroll
-
-    var buf = try Buffer.init(allocator, 80, 24);
-    defer buf.deinit(allocator);
+    popup.setSelected(2); // still inside the first window
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
 
     popup.render(&buf, 10, 5);
 
-    // Should show scroll down indicator when there are more items below
-    const width = popup.calcWidth();
-    const height = popup.calcHeight();
+    // Area x=10, y=6, width 5, height 5; inner x=11..13, y=7..9.
+    try testing.expectEqual(@as(u21, '↓'), buf.getChar(13, 9));
+    try testing.expectEqual(Color.cyan, buf.getStyle(13, 9).fg.?);
+    try testing.expectEqual(@as(u21, '1'), buf.getChar(13, 7)); // no up indicator
+    try testing.expectEqual(@as(u21, '▶'), buf.getChar(11, 9)); // row 3 is selected
+}
 
-    // Check if scroll down indicator exists (at bottom-right of inner area)
-    const scroll_x = 10 + width - 2; // -2 for border
-    const scroll_y = 6 + height - 2; // y=6 (popup y), -2 for border
-    const scroll_cell = buf.get(scroll_x, scroll_y);
-    try testing.expectEqual(@as(u21, '↓'), scroll_cell.char);
+test "CompletionPopup: scroll up indicator when window is scrolled to the end" {
+    const items = [_]CompletionItem{
+        .{ .text = "1" }, .{ .text = "2" }, .{ .text = "3" }, .{ .text = "4" }, .{ .text = "5" },
+    };
+    var popup = CompletionPopup.init(&items);
+    popup.max_visible = 3;
+    popup.setSelected(4);
+    try testing.expectEqual(@as(usize, 2), popup.scroll_offset);
+    var buf = try Buffer.init(testing.allocator, 80, 24);
+    defer buf.deinit();
+
+    popup.render(&buf, 10, 5);
+
+    try testing.expectEqual(@as(u21, '↑'), buf.getChar(13, 7));
+    try testing.expectEqual(@as(u21, '5'), buf.getChar(13, 9)); // last item, no down indicator
+    try expectRow(&buf, 11, 9, "▶ 5");
+    try expectRow(&buf, 11, 8, "  4");
+}
+
+test "CompletionPopup: multibyte text advances by cells so the description stays aligned" {
+    const items = [_]CompletionItem{.{ .text = "日本", .description = "x" }};
+    const popup = CompletionPopup.init(&items);
+    var buf = try Buffer.init(testing.allocator, 40, 10);
+    defer buf.deinit();
+
+    popup.render(&buf, 10, 0);
+
+    // Text is 4 cells (6 bytes): width = 4 + 3 + 1 + 4 = 12, area x=10..21, inner x=11..20.
+    try testing.expectEqual(@as(u21, '日'), buf.getChar(13, 2));
+    try testing.expectEqual(@as(u21, '本'), buf.getChar(15, 2));
+    try expectRow(&buf, 17, 2, " - x");
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(21, 2));
+}
+
+test "CompletionPopup: calcWidth counts cells, not bytes, for multibyte text" {
+    const items = [_]CompletionItem{ .{ .text = "é" }, .{ .text = "日本" } };
+    var popup = CompletionPopup.init(&items);
+    popup.show_descriptions = false;
+
+    try testing.expectEqual(@as(u16, 8), popup.calcWidth()); // 4 cells + 4 padding
+}
+
+test "CompletionPopup: calcWidth saturates at 80 for oversized items instead of overflowing" {
+    const huge = try testing.allocator.alloc(u8, 70_000);
+    defer testing.allocator.free(huge);
+    @memset(huge, 'a');
+    const items = [_]CompletionItem{.{ .text = huge }};
+    const popup = CompletionPopup.init(&items);
+
+    try testing.expectEqual(@as(u16, 80), popup.calcWidth());
+}
+
+test "CompletionPopup: calcHeight saturates at u16 max for more items than fit" {
+    const items = try testing.allocator.alloc(CompletionItem, 70_000);
+    defer testing.allocator.free(items);
+    @memset(items, .{ .text = "x" });
+    var popup = CompletionPopup.init(items);
+    popup.max_visible = 70_000;
+
+    try testing.expectEqual(@as(u16, std.math.maxInt(u16)), popup.calcHeight());
+}
+
+test "CompletionPopup: over-long text is truncated inside the right border" {
+    const long = "a" ** 100;
+    const items = [_]CompletionItem{.{ .text = long }};
+    const popup = CompletionPopup.init(&items);
+    var buf = try Buffer.init(testing.allocator, 100, 10);
+    defer buf.deinit();
+
+    popup.render(&buf, 0, 0);
+
+    // Width 80: x=0..79, inner x=1..78, text cells x=3..78, right border at x=79.
+    try testing.expectEqual(@as(u21, 'a'), buf.getChar(78, 2));
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(79, 2));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(80, 2));
+}
+
+test "CompletionPopup: wide text is cut on a character boundary at the cell limit" {
+    const long = "a" ** 74 ++ "日日日"; // 80 cells; text room is 76 cells at width 80
+    const items = [_]CompletionItem{.{ .text = long }};
+    const popup = CompletionPopup.init(&items);
+    var buf = try Buffer.init(testing.allocator, 100, 10);
+    defer buf.deinit();
+
+    popup.render(&buf, 0, 0);
+
+    // Room is 76 cells: 74 'a' + one wide char (2 cells) fills it; the next wide char is cut.
+    try testing.expectEqual(@as(u21, '日'), buf.getChar(77, 2));
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(79, 2));
+}
+
+test "CompletionPopup: max_visible zero draws only the border and no stray indicator" {
+    const items = [_]CompletionItem{.{ .text = "foo" }};
+    var popup = CompletionPopup.init(&items);
+    popup.max_visible = 0;
+    var buf = try Buffer.init(testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    popup.render(&buf, 0, 0);
+
+    // Height 2: top border y=1, bottom border y=2, no inner rows.
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(0, 1));
+    try testing.expectEqual(@as(u21, '└'), buf.getChar(0, 2));
+    try testing.expectEqual(@as(u21, '─'), buf.getChar(3, 2));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(1, 3));
+}
+
+test "CompletionPopup: getSelected is null when selected_index is out of range" {
+    const items = [_]CompletionItem{.{ .text = "foo" }};
+    var popup = CompletionPopup.init(&items);
+    popup.selected_index = 5;
+
+    try testing.expect(popup.getSelected() == null);
+}
+
+test "CompletionPopup: navigation on an empty list is a no-op" {
+    const items = [_]CompletionItem{};
+    var popup = CompletionPopup.init(&items);
+
+    popup.selectNext();
+    popup.selectPrev();
+    popup.setSelected(0);
+
+    try testing.expectEqual(@as(usize, 0), popup.selected_index);
+    try testing.expectEqual(@as(usize, 0), popup.scroll_offset);
+}
+
+fn checkInvariants(popup: *const CompletionPopup) !void {
+    try testing.expect(popup.selected_index < popup.items.len);
+    try testing.expect(popup.selected_index >= popup.scroll_offset);
+    try testing.expect(popup.selected_index < popup.scroll_offset + popup.max_visible);
+}
+
+test "CompletionPopup: seeded navigation matches a modular-index reference model" {
+    const items = [_]CompletionItem{
+        .{ .text = "0" }, .{ .text = "1" }, .{ .text = "2" }, .{ .text = "3" },
+        .{ .text = "4" }, .{ .text = "5" }, .{ .text = "6" }, .{ .text = "7" },
+    };
+    var prng = std.Random.DefaultPrng.init(0x5eed_c0de);
+    const random = prng.random();
+    var popup = CompletionPopup.init(&items);
+    popup.max_visible = 3;
+    var model: usize = 0;
+
+    for (0..500) |_| {
+        switch (random.uintLessThan(u8, 3)) {
+            0 => {
+                popup.selectNext();
+                model = (model + 1) % items.len;
+            },
+            1 => {
+                popup.selectPrev();
+                model = (model + items.len - 1) % items.len;
+            },
+            else => {
+                const target = random.uintLessThan(usize, items.len + 3);
+                popup.setSelected(target);
+                if (target < items.len) model = target;
+            },
+        }
+        try testing.expectEqual(model, popup.selected_index);
+        try checkInvariants(&popup);
+    }
 }

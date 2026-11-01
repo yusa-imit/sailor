@@ -1443,4 +1443,10 @@ test {
     _ = @import("widgets/piechart.zig");
     _ = @import("widgets/heatmap.zig");
     _ = @import("widgets/input.zig");
+    _ = @import("widgets/autocomplete.zig");
+    _ = @import("widgets/barchart.zig");
+    _ = @import("widgets/completion_popup.zig");
+    _ = @import("widgets/configeditor.zig");
+    _ = @import("widgets/context_menu.zig");
+    _ = @import("widgets/editable_table.zig");
 }
