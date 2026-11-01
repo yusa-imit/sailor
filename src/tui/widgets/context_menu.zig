@@ -12,6 +12,8 @@ const style_mod = @import("../style.zig");
 const Style = style_mod.Style;
 const symbols_mod = @import("../symbols.zig");
 const BoxSet = symbols_mod.BoxSet;
+const UnicodeWidth = @import("../../unicode.zig").UnicodeWidth;
+const assert = std.debug.assert;
 
 /// Block widget import for optional border
 const Block = @import("block.zig").Block;
@@ -113,13 +115,14 @@ pub const ContextMenu = struct {
         return result;
     }
 
-    /// Move cursor down, skipping separators and wrapping around
+    /// Move cursor down, skipping separators and wrapping around. Visits each item at most
+    /// once, so a menu with nothing selectable (or an out-of-range cursor) terminates.
     pub fn moveDown(self: ContextMenu) ContextMenu {
         var result = self;
         if (self.items.len == 0) return result;
 
-        var next_cursor = (self.cursor + 1) % self.items.len;
-        while (next_cursor != self.cursor) : (next_cursor = (next_cursor + 1) % self.items.len) {
+        for (1..self.items.len + 1) |step| {
+            const next_cursor = (self.cursor % self.items.len + step) % self.items.len;
             if (self.isSelectableAt(next_cursor)) {
                 result.cursor = next_cursor;
                 return result;
@@ -128,13 +131,14 @@ pub const ContextMenu = struct {
         return result;
     }
 
-    /// Move cursor up, skipping separators and wrapping around
+    /// Move cursor up, skipping separators and wrapping around. Bounded like `moveDown`.
     pub fn moveUp(self: ContextMenu) ContextMenu {
         var result = self;
         if (self.items.len == 0) return result;
 
-        var next_cursor = if (self.cursor == 0) self.items.len - 1 else self.cursor - 1;
-        while (next_cursor != self.cursor) : (next_cursor = if (next_cursor == 0) self.items.len - 1 else next_cursor - 1) {
+        for (1..self.items.len + 1) |step| {
+            const next_cursor = (self.cursor % self.items.len + self.items.len - step) %
+                self.items.len;
             if (self.isSelectableAt(next_cursor)) {
                 result.cursor = next_cursor;
                 return result;
@@ -182,36 +186,26 @@ pub const ContextMenu = struct {
 
     /// Get the preferred area to render the menu, auto-positioning within bounds
     pub fn fittingArea(self: ContextMenu, screen: Rect) Rect {
-        // Calculate preferred width
+        // Calculate preferred width in cells; saturating so huge labels cannot overflow u16.
         var preferred_width: u16 = 10; // minimum width
 
         for (self.items) |item| {
-            switch (item) {
-                .action => |action| {
-                    var item_width = @as(u16, @intCast(action.label.len)) + 4; // label + padding
+            const item_width: u16 = switch (item) {
+                .action => |action| blk: {
+                    var w = cellsU16(action.label) +| 4; // label + padding
                     if (action.shortcut) |shortcut| {
-                        item_width += @as(u16, @intCast(shortcut.len)) + 1; // shortcut + separator
+                        w +|= cellsU16(shortcut) +| 1; // shortcut + separator
                     }
-                    if (item_width > preferred_width) {
-                        preferred_width = item_width;
-                    }
+                    break :blk w;
                 },
-                .submenu => |submenu| {
-                    const item_width = @as(u16, @intCast(submenu.label.len)) + 3; // label + " >" + padding
-                    if (item_width > preferred_width) {
-                        preferred_width = item_width;
-                    }
-                },
-                .separator => {
-                    // Separators don't affect width
-                },
-            }
+                .submenu => |submenu| cellsU16(submenu.label) +| 4, // label + padding + ">"
+                .separator => 0, // Separators don't affect width
+            };
+            preferred_width = @max(preferred_width, item_width);
         }
 
         // Cap width at screen width
-        if (preferred_width > screen.width) {
-            preferred_width = screen.width;
-        }
+        preferred_width = @min(preferred_width, screen.width);
 
         // Calculate preferred height (items + 2 for borders, minimum 3)
         var preferred_height = @as(u16, @intCast(@min(self.items.len + 2, 255)));
@@ -233,10 +227,12 @@ pub const ContextMenu = struct {
 
         // Clamp to screen bounds
         if (area.x +| area.width > screen.x +| screen.width) {
-            area.x = @as(u16, @intCast(@max(0, @as(i32, screen.x) + @as(i32, screen.width) - @as(i32, area.width))));
+            const right: i32 = @as(i32, screen.x) + @as(i32, screen.width);
+            area.x = @intCast(@max(0, right - @as(i32, area.width)));
         }
         if (area.y +| area.height > screen.y +| screen.height) {
-            area.y = @as(u16, @intCast(@max(0, @as(i32, screen.y) + @as(i32, screen.height) - @as(i32, area.height))));
+            const bottom: i32 = @as(i32, screen.y) + @as(i32, screen.height);
+            area.y = @intCast(@max(0, bottom - @as(i32, area.height)));
         }
 
         return area;
@@ -247,147 +243,96 @@ pub const ContextMenu = struct {
         // Early return if area is too small
         if (area.height == 0 or area.width == 0) return;
 
-        // Draw optional border block
+        // Draw optional border block; content lives inside it (empty if the area is too small)
+        var content_area = area;
         if (self.block) |block| {
             block.render(buf, area);
-        }
-
-        // Calculate content area (inside borders if block exists)
-        var content_area = area;
-        if (self.block != null) {
-            // If block exists, content is inside the borders
-            if (content_area.height > 2) content_area.height -= 2;
-            if (content_area.width > 2) content_area.width -= 2;
-            content_area.x +|= 1;
-            content_area.y +|= 1;
+            content_area = block.inner(area);
         }
 
         // Render each item
-        var row: u16 = 0;
-        for (self.items, 0..) |item, idx| {
-            if (row >= content_area.height) break;
-
-            const item_y = content_area.y +| row;
+        const visible = @min(self.items.len, content_area.height);
+        for (self.items[0..visible], 0..) |item, idx| {
+            const item_y = content_area.y +| @as(u16, @intCast(idx));
             const is_current = (self.cursor == idx);
-
             switch (item) {
                 .separator => {
-                    // Draw separator line
                     const sep_char: u21 = if (content_area.width > 5) '─' else '-';
-                    for (0..content_area.width) |col| {
-                        buf.set(@intCast(content_area.x +| col), item_y, .{
-                            .char = sep_char,
-                            .style = self.item_style,
-                        });
-                    }
+                    const row = Rect{
+                        .x = content_area.x,
+                        .y = item_y,
+                        .width = content_area.width,
+                        .height = 1,
+                    };
+                    buf.fill(row, sep_char, self.item_style);
                 },
                 .action => |action| {
-                    // Determine style
-                    const item_style = if (is_current)
-                        self.selected_style
-                    else if (!action.enabled)
-                        self.disabled_style
-                    else
-                        self.item_style;
-
-                    // Draw label with proper UTF-8 handling
-                    var x: u16 = 1; // 1-char left padding
-                    var label_idx: usize = 0;
-                    while (label_idx < action.label.len and x < content_area.width) {
-                        const byte = action.label[label_idx];
-                        const char_len = std.unicode.utf8ByteSequenceLength(byte) catch 1;
-
-                        if (label_idx + char_len > action.label.len) break;
-
-                        const codepoint = if (char_len == 1)
-                            @as(u21, byte)
-                        else
-                            std.unicode.utf8Decode(action.label[label_idx .. label_idx + char_len]) catch @as(u21, byte);
-
-                        buf.set(@intCast(content_area.x +| x), item_y, .{
-                            .char = codepoint,
-                            .style = item_style,
-                        });
-                        label_idx += char_len;
-                        x += 1;
-                    }
-
-                    // Draw shortcut if present, right-aligned
-                    if (action.shortcut) |shortcut| {
-                        if (content_area.width > 5 and shortcut.len + 1 < content_area.width) {
-                            // shortcut.len + 1 < content_area.width (checked above) guarantees
-                            // shortcut.len < content_area.width <= 65535, so it fits in u16.
-                            // Compute the start column with saturating u16 arithmetic instead of
-                            // casting content_area.width to i16, which panics for width > 32767.
-                            const shortcut_len_u16: u16 = @intCast(shortcut.len);
-                            if (content_area.width > shortcut_len_u16 + 1) {
-                                var sx: u16 = content_area.width -| shortcut_len_u16 -| 1;
-                                var shortcut_idx: usize = 0;
-                                while (shortcut_idx < shortcut.len and sx < content_area.width) {
-                                    const byte = shortcut[shortcut_idx];
-                                    const char_len = std.unicode.utf8ByteSequenceLength(byte) catch 1;
-
-                                    if (shortcut_idx + char_len > shortcut.len) break;
-
-                                    const codepoint = if (char_len == 1)
-                                        @as(u21, byte)
-                                    else
-                                        std.unicode.utf8Decode(shortcut[shortcut_idx .. shortcut_idx + char_len]) catch @as(u21, byte);
-
-                                    buf.set(@intCast(content_area.x +| sx), item_y, .{
-                                        .char = codepoint,
-                                        .style = self.shortcut_style,
-                                    });
-                                    shortcut_idx += char_len;
-                                    sx += 1;
-                                }
-                            }
-                        }
-                    }
+                    self.renderAction(buf, content_area, item_y, action, is_current);
                 },
                 .submenu => |submenu| {
-                    // Determine style
-                    const item_style = if (is_current)
-                        self.selected_style
-                    else
-                        self.item_style;
-
-                    // Draw label with proper UTF-8 handling
-                    var x: u16 = 1; // 1-char left padding
-                    var label_idx: usize = 0;
-                    while (label_idx < submenu.label.len and x < content_area.width) {
-                        const byte = submenu.label[label_idx];
-                        const char_len = std.unicode.utf8ByteSequenceLength(byte) catch 1;
-
-                        if (label_idx + char_len > submenu.label.len) break;
-
-                        const codepoint = if (char_len == 1)
-                            @as(u21, byte)
-                        else
-                            std.unicode.utf8Decode(submenu.label[label_idx .. label_idx + char_len]) catch @as(u21, byte);
-
-                        buf.set(@intCast(content_area.x +| x), item_y, .{
-                            .char = codepoint,
-                            .style = item_style,
-                        });
-                        label_idx += char_len;
-                        x += 1;
-                    }
-
-                    // Draw submenu indicator (">") at right edge if space
-                    if (content_area.width > 2) {
-                        buf.set(@intCast(content_area.x +| content_area.width -| 1), item_y, .{
-                            .char = '>',
-                            .style = item_style,
-                        });
+                    const item_style = if (is_current) self.selected_style else self.item_style;
+                    const has_arrow = content_area.width > 2;
+                    // Label starts after 1 cell of padding; leave the last cell for ">".
+                    const room = content_area.width -| (if (has_arrow) @as(u16, 2) else 1);
+                    const label_x = content_area.x +| 1;
+                    _ = drawClipped(buf, label_x, item_y, submenu.label, room, item_style);
+                    if (has_arrow) {
+                        const arrow_x = content_area.x +| content_area.width -| 1;
+                        buf.set(arrow_x, item_y, .{ .char = '>', .style = item_style });
                     }
                 },
             }
-
-            row += 1;
         }
     }
+
+    fn renderAction(
+        self: ContextMenu,
+        buf: *Buffer,
+        content: Rect,
+        item_y: u16,
+        action: Action,
+        is_current: bool,
+    ) void {
+        const item_style = if (is_current)
+            self.selected_style
+        else if (!action.enabled)
+            self.disabled_style
+        else
+            self.item_style;
+
+        // Label after 1 cell of left padding
+        const label_x = content.x +| 1;
+        const room = content.width -| 1;
+        const label_cells = drawClipped(buf, label_x, item_y, action.label, room, item_style);
+
+        // Shortcut right-aligned with 1 cell of right padding, only if it clears the label
+        const shortcut = action.shortcut orelse return;
+        if (content.width <= 5) return;
+        const sc_cells: u16 = cellsU16(shortcut);
+        if (@as(u32, sc_cells) + 1 >= content.width) return;
+        const sx: u16 = content.width - sc_cells - 1;
+        assert(sx < content.width);
+        if (sx <= 1 +| label_cells) return; // would touch or overwrite the label
+        const sc_x = content.x +| sx;
+        _ = drawClipped(buf, sc_x, item_y, shortcut, content.width - sx, self.shortcut_style);
+    }
 };
+
+/// Display width of `text` in terminal cells, saturated to u16.
+fn cellsU16(text: []const u8) u16 {
+    return @intCast(@min(UnicodeWidth.stringWidth(text), std.math.maxInt(u16)));
+}
+
+/// Draw `text` at (x, y) clipped to `max_cells` cells without splitting a UTF-8 character.
+/// Returns the number of cells occupied.
+fn drawClipped(buf: *Buffer, x: u16, y: u16, text: []const u8, max_cells: u16, style: Style) u16 {
+    const end = UnicodeWidth.truncate(text, max_cells);
+    assert(end <= text.len);
+    buf.setString(x, y, text[0..end], style);
+    const used = UnicodeWidth.stringWidth(text[0..end]);
+    assert(used <= max_cells);
+    return @intCast(used);
+}
 
 // ============================================================================
 // TESTS
@@ -665,9 +610,11 @@ test "ContextMenu currentItem returns action item" {
         .{ .action = .{ .label = "Second", .enabled = true } },
     };
     const menu = ContextMenu.init(&items);
-    const item = menu.currentItem();
-    try testing.expect(item != null);
-    try testing.expectEqual(ContextMenu.Item.action, @as(@TypeOf(item.?), @enumFromInt(@intFromEnum(item.?))));
+    const item = menu.currentItem().?;
+    try testing.expect(item == .action);
+    try testing.expectEqualStrings("First", item.action.label);
+    const second = menu.withCursor(1).currentItem().?;
+    try testing.expectEqualStrings("Second", second.action.label);
 }
 
 test "ContextMenu currentItem returns separator" {
@@ -675,8 +622,7 @@ test "ContextMenu currentItem returns separator" {
         .{ .separator = {} },
     };
     const menu = ContextMenu.init(&items);
-    const item = menu.currentItem();
-    try testing.expect(item != null);
+    try testing.expect(menu.currentItem().? == .separator);
 }
 
 test "ContextMenu currentItem returns submenu" {
@@ -684,8 +630,9 @@ test "ContextMenu currentItem returns submenu" {
         .{ .submenu = .{ .label = "Sub", .items = &.{} } },
     };
     const menu = ContextMenu.init(&items);
-    const item = menu.currentItem();
-    try testing.expect(item != null);
+    const item = menu.currentItem().?;
+    try testing.expect(item == .submenu);
+    try testing.expectEqualStrings("Sub", item.submenu.label);
 }
 
 test "ContextMenu currentItem returns null when out of bounds" {
@@ -739,16 +686,17 @@ test "ContextMenu isCurrentSelectable false when cursor out of bounds" {
     try testing.expect(!menu.isCurrentSelectable());
 }
 
+const big_screen = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
+
 test "ContextMenu fittingArea at origin within screen" {
     const items = [_]ContextMenu.Item{
         .{ .action = .{ .label = "A", .enabled = true } },
         .{ .action = .{ .label = "B", .enabled = true } },
     };
     const menu = ContextMenu.init(&items).withOrigin(5, 5);
-    const screen = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
-    const area = menu.fittingArea(screen);
-    try testing.expectEqual(@as(u16, 5), area.x);
-    try testing.expectEqual(@as(u16, 5), area.y);
+    const area = menu.fittingArea(big_screen);
+    // Minimum width 10; height = 2 items + 2 borders.
+    try testing.expectEqual(Rect{ .x = 5, .y = 5, .width = 10, .height = 4 }, area);
 }
 
 test "ContextMenu fittingArea height includes items and border" {
@@ -757,107 +705,407 @@ test "ContextMenu fittingArea height includes items and border" {
         .{ .action = .{ .label = "B", .enabled = true } },
         .{ .action = .{ .label = "C", .enabled = true } },
     };
-    const menu = ContextMenu.init(&items);
-    const screen = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
-    const area = menu.fittingArea(screen);
+    const area = ContextMenu.init(&items).fittingArea(big_screen);
     try testing.expectEqual(@as(u16, 5), area.height); // 3 items + 2 for borders
 }
 
-test "ContextMenu fittingArea clamps to screen width" {
-    const items = [_]ContextMenu.Item{
-        .{ .action = .{ .label = "A", .enabled = true } },
-    };
-    var menu = ContextMenu.init(&items);
-    menu = menu.withOrigin(80, 10);
-    const screen = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
-    const area = menu.fittingArea(screen);
-    // Should clamp x so x + width <= screen.width
-    try testing.expect(area.x + area.width <= screen.x + screen.width);
+test "ContextMenu fittingArea shifts left so the menu ends at the screen edge" {
+    const items = [_]ContextMenu.Item{.{ .action = .{ .label = "A", .enabled = true } }};
+    const menu = ContextMenu.init(&items).withOrigin(95, 10);
+    const area = menu.fittingArea(big_screen);
+    try testing.expectEqual(Rect{ .x = 90, .y = 10, .width = 10, .height = 3 }, area);
 }
 
-test "ContextMenu fittingArea clamps to screen height" {
+test "ContextMenu fittingArea shifts up so the menu ends at the screen edge" {
     const items = [_]ContextMenu.Item{
         .{ .action = .{ .label = "A", .enabled = true } },
         .{ .action = .{ .label = "B", .enabled = true } },
         .{ .action = .{ .label = "C", .enabled = true } },
     };
-    var menu = ContextMenu.init(&items);
-    menu = menu.withOrigin(10, 90);
-    const screen = Rect{ .x = 0, .y = 0, .width = 100, .height = 100 };
-    const area = menu.fittingArea(screen);
-    // Should clamp y so y + height <= screen.height
-    try testing.expect(area.y + area.height <= screen.y + screen.height);
+    const menu = ContextMenu.init(&items).withOrigin(10, 98);
+    const area = menu.fittingArea(big_screen);
+    try testing.expectEqual(Rect{ .x = 10, .y = 95, .width = 10, .height = 5 }, area);
 }
 
-test "ContextMenu fittingArea with zero area size" {
-    const items = [_]ContextMenu.Item{
-        .{ .action = .{ .label = "A", .enabled = true } },
-    };
-    var menu = ContextMenu.init(&items);
-    menu = menu.withOrigin(0, 0);
+test "ContextMenu fittingArea honours a screen that does not start at the origin" {
+    const items = [_]ContextMenu.Item{.{ .action = .{ .label = "A", .enabled = true } }};
+    const menu = ContextMenu.init(&items).withOrigin(25, 25);
+    const screen = Rect{ .x = 10, .y = 10, .width = 20, .height = 20 };
+    const area = menu.fittingArea(screen);
+    // Right edge 35 > 30 so x moves to 30 - 10 = 20; bottom edge 28 fits so y stays.
+    try testing.expectEqual(Rect{ .x = 20, .y = 25, .width = 10, .height = 3 }, area);
+}
+
+test "ContextMenu fittingArea with zero-size screen collapses to an empty rect" {
+    const items = [_]ContextMenu.Item{.{ .action = .{ .label = "A", .enabled = true } }};
+    const menu = ContextMenu.init(&items).withOrigin(0, 0);
     const screen = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
-    const area = menu.fittingArea(screen);
-    // Should handle gracefully without crashing
-    try testing.expectEqual(@as(u16, 0), area.x);
+    const expected = Rect{ .x = 0, .y = 0, .width = 0, .height = 0 };
+    try testing.expectEqual(expected, menu.fittingArea(screen));
 }
 
-test "ContextMenu render does not crash with empty buffer" {
+test "ContextMenu fittingArea width covers label, shortcut and padding" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "Save", .shortcut = "Ctrl+S", .enabled = true } },
+    };
+    const area = ContextMenu.init(&items).fittingArea(big_screen);
+    try testing.expectEqual(@as(u16, 15), area.width); // 4 + 4 + 6 + 1
+}
+
+test "ContextMenu fittingArea submenu width leaves room for label and arrow" {
+    const items = [_]ContextMenu.Item{.{ .submenu = .{ .label = "Submenu", .items = &.{} } }};
+    const area = ContextMenu.init(&items).fittingArea(big_screen);
+    try testing.expectEqual(@as(u16, 11), area.width); // 7 + 4
+}
+
+test "ContextMenu fittingArea measures multibyte labels in cells, not bytes" {
+    const label = "日本語日本語";
+    const items = [_]ContextMenu.Item{.{ .action = .{ .label = label, .enabled = true } }};
+    const area = ContextMenu.init(&items).fittingArea(big_screen);
+    try testing.expectEqual(@as(u16, 16), area.width); // 12 cells + 4
+}
+
+test "ContextMenu fittingArea caps width and height at the screen size" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "a very long label indeed, longer than the screen" } },
+        .{ .action = .{ .label = "B" } },
+        .{ .action = .{ .label = "C" } },
+    };
+    const screen = Rect{ .x = 0, .y = 0, .width = 20, .height = 4 };
+    const area = ContextMenu.init(&items).fittingArea(screen);
+    try testing.expectEqual(Rect{ .x = 0, .y = 0, .width = 20, .height = 4 }, area);
+}
+
+test "ContextMenu fittingArea survives a label wider than u16" {
+    const huge = try testing.allocator.alloc(u8, 70_000);
+    defer testing.allocator.free(huge);
+    @memset(huge, 'x');
+    const items = [_]ContextMenu.Item{.{ .action = .{ .label = huge, .shortcut = huge } }};
+    const area = ContextMenu.init(&items).fittingArea(big_screen);
+    try testing.expectEqual(@as(u16, 100), area.width);
+}
+
+test "ContextMenu fittingArea height saturates for very long menus" {
+    const items = try testing.allocator.alloc(ContextMenu.Item, 400);
+    defer testing.allocator.free(items);
+    @memset(items, .{ .separator = {} });
+    const tall = Rect{ .x = 0, .y = 0, .width = 100, .height = 1000 };
+    const area = ContextMenu.init(items).fittingArea(tall);
+    try testing.expectEqual(@as(u16, 255), area.height);
+}
+
+/// Assert the narrow glyphs of `expected` occupy consecutive cells starting at (x, y).
+fn expectRow(buf: *const Buffer, x: u16, y: u16, expected: []const u8) !void {
+    var it = (try std.unicode.Utf8View.init(expected)).iterator();
+    var col = x;
+    while (it.nextCodepoint()) |cp| : (col += 1) {
+        try testing.expectEqual(cp, buf.getChar(col, y));
+    }
+}
+
+test "ContextMenu render with empty items leaves the buffer untouched" {
     const items: [0]ContextMenu.Item = .{};
     const menu = ContextMenu.init(&items);
     var buf = try Buffer.init(testing.allocator, 10, 10);
-    defer buf.deinit(testing.allocator);
-    const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 10 };
-    menu.render(&buf, area);
+    defer buf.deinit();
+
+    menu.render(&buf, .{ .x = 0, .y = 0, .width = 10, .height = 10 });
+
+    for (buf.cells) |cell| try testing.expect(cell.eql(.{}));
 }
 
-test "ContextMenu render does not crash with narrow area" {
-    const items = [_]ContextMenu.Item{
-        .{ .action = .{ .label = "A", .enabled = true } },
-    };
-    const menu = ContextMenu.init(&items);
-    var buf = try Buffer.init(testing.allocator, 3, 10);
-    defer buf.deinit(testing.allocator);
-    const area = Rect{ .x = 0, .y = 0, .width = 3, .height = 5 };
-    menu.render(&buf, area);
+test "ContextMenu render with a zero-size area draws nothing" {
+    const items = [_]ContextMenu.Item{.{ .action = .{ .label = "A" } }};
+    const menu = ContextMenu.init(&items).withBlock(.{});
+    var buf = try Buffer.init(testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    menu.render(&buf, .{ .x = 2, .y = 2, .width = 0, .height = 5 });
+    menu.render(&buf, .{ .x = 2, .y = 2, .width = 5, .height = 0 });
+
+    for (buf.cells) |cell| try testing.expect(cell.eql(.{}));
 }
 
-test "ContextMenu render does not crash with single action" {
-    const items = [_]ContextMenu.Item{
-        .{ .action = .{ .label = "Single Action", .shortcut = "Ctrl+S", .enabled = true } },
-    };
-    const menu = ContextMenu.init(&items);
-    var buf = try Buffer.init(testing.allocator, 50, 10);
-    defer buf.deinit(testing.allocator);
-    const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 10 };
-    menu.render(&buf, area);
+test "ContextMenu render narrow area clips label to the content width" {
+    const items = [_]ContextMenu.Item{.{ .action = .{ .label = "ABC" } }};
+    var buf = try Buffer.init(testing.allocator, 10, 3);
+    defer buf.deinit();
+
+    ContextMenu.init(&items).render(&buf, .{ .x = 0, .y = 0, .width = 3, .height = 2 });
+
+    // Content is 3 cells: 1 padding then 2 label cells; nothing leaks into x=3.
+    try expectRow(&buf, 0, 0, " AB");
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(3, 0));
 }
 
-test "ContextMenu render does not crash with multiple items and separators" {
+test "ContextMenu render places label, right-aligned shortcut and styles per state" {
     const items = [_]ContextMenu.Item{
-        .{ .action = .{ .label = "Cut", .shortcut = "Ctrl+X", .enabled = true } },
-        .{ .action = .{ .label = "Copy", .shortcut = "Ctrl+C", .enabled = true } },
+        .{ .action = .{ .label = "Cut", .shortcut = "Ctrl+X" } },
+        .{ .action = .{ .label = "Copy", .shortcut = "Ctrl+C" } },
         .{ .separator = {} },
         .{ .action = .{ .label = "Paste", .shortcut = "Ctrl+V", .enabled = false } },
     };
-    const menu = ContextMenu.init(&items);
-    var buf = try Buffer.init(testing.allocator, 80, 20);
-    defer buf.deinit(testing.allocator);
-    const area = Rect{ .x = 0, .y = 0, .width = 80, .height = 20 };
-    menu.render(&buf, area);
+    const menu = ContextMenu.init(&items).withShortcutStyle(.{ .italic = true });
+    var buf = try Buffer.init(testing.allocator, 30, 10);
+    defer buf.deinit();
+
+    menu.render(&buf, .{ .x = 0, .y = 0, .width = 20, .height = 5 });
+
+    // Content width 20: label from col 1, shortcut starts at 20 - 6 - 1 = 13.
+    try expectRow(&buf, 0, 0, " Cut");
+    try expectRow(&buf, 13, 0, "Ctrl+X");
+    try expectRow(&buf, 0, 1, " Copy");
+    try expectRow(&buf, 13, 1, "Ctrl+C");
+    try expectRow(&buf, 0, 3, " Paste");
+    try expectRow(&buf, 13, 3, "Ctrl+V");
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(19, 0));
+    for (0..20) |col| try testing.expectEqual(@as(u21, '─'), buf.getChar(@intCast(col), 2));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(20, 2));
+    // Row 4 has no item.
+    try expectRow(&buf, 0, 4, "                    ");
+    // Styles: cursor row selected, other enabled row plain, disabled dim, shortcut italic.
+    try testing.expect(buf.getStyle(1, 0).bold and buf.getStyle(1, 0).reverse);
+    try testing.expect(!buf.getStyle(1, 1).bold and !buf.getStyle(1, 1).dim);
+    try testing.expect(buf.getStyle(1, 3).dim);
+    try testing.expect(buf.getStyle(13, 0).italic and !buf.getStyle(13, 0).bold);
+    try testing.expect(buf.getStyle(13, 3).italic);
 }
 
-test "ContextMenu render with submenu" {
-    const sub_items = [_]ContextMenu.Item{
-        .{ .action = .{ .label = "Sub1", .enabled = true } },
-    };
+test "ContextMenu render inside a block uses the border and offsets content by one" {
     const items = [_]ContextMenu.Item{
-        .{ .submenu = .{ .label = "Submenu", .items = &sub_items } },
+        .{ .action = .{ .label = "Cut", .shortcut = "Ctrl+X" } },
+        .{ .separator = {} },
+        .{ .action = .{ .label = "Paste", .shortcut = "Ctrl+V" } },
+    };
+    const menu = ContextMenu.init(&items).withBlock(.{}).withOrigin(2, 1);
+    const area = menu.fittingArea(big_screen);
+    try testing.expectEqual(Rect{ .x = 2, .y = 1, .width = 16, .height = 5 }, area);
+    var buf = try Buffer.init(testing.allocator, 30, 10);
+    defer buf.deinit();
+
+    menu.render(&buf, area);
+
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(2, 1));
+    try testing.expectEqual(@as(u21, '┐'), buf.getChar(17, 1));
+    try testing.expectEqual(@as(u21, '└'), buf.getChar(2, 5));
+    try testing.expectEqual(@as(u21, '┘'), buf.getChar(17, 5));
+    // Content x=3..16 (14 cells), y=2..4. Shortcut column = 14 - 6 - 1 = 7.
+    try expectRow(&buf, 3, 2, " Cut");
+    try expectRow(&buf, 10, 2, "Ctrl+X");
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(2, 2));
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(17, 2));
+    for (3..17) |col| try testing.expectEqual(@as(u21, '─'), buf.getChar(@intCast(col), 3));
+    try expectRow(&buf, 3, 4, " Paste");
+    try expectRow(&buf, 10, 4, "Ctrl+V");
+}
+
+test "ContextMenu render submenu draws label then arrow in the last content cell" {
+    const sub_items = [_]ContextMenu.Item{.{ .action = .{ .label = "Sub1" } }};
+    const items = [_]ContextMenu.Item{.{ .submenu = .{ .label = "Submenu", .items = &sub_items } }};
+    const menu = ContextMenu.init(&items).withBlock(.{});
+    const area = menu.fittingArea(big_screen);
+    var buf = try Buffer.init(testing.allocator, 30, 10);
+    defer buf.deinit();
+
+    menu.render(&buf, area);
+
+    // Area width 11: border x=0 and x=10, content x=1..9, label from x=2, arrow at x=9.
+    try expectRow(&buf, 2, 1, "Submenu>");
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(10, 1));
+    try testing.expect(buf.getStyle(9, 1).bold and buf.getStyle(9, 1).reverse);
+}
+
+test "ContextMenu render submenu label is clipped so the arrow stays visible" {
+    const items = [_]ContextMenu.Item{.{ .submenu = .{ .label = "Submenu", .items = &.{} } }};
+    var buf = try Buffer.init(testing.allocator, 10, 2);
+    defer buf.deinit();
+
+    ContextMenu.init(&items).render(&buf, .{ .x = 0, .y = 0, .width = 6, .height = 1 });
+
+    try expectRow(&buf, 0, 0, " Subm>");
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(6, 0));
+}
+
+test "ContextMenu render wide-character labels advance two cells per glyph" {
+    const items = [_]ContextMenu.Item{.{ .action = .{ .label = "日本語" } }};
+    var buf = try Buffer.init(testing.allocator, 12, 1);
+    defer buf.deinit();
+
+    ContextMenu.init(&items).render(&buf, .{ .x = 0, .y = 0, .width = 5, .height = 1 });
+
+    // Room is 4 cells after the padding: two wide glyphs fit, the third is cut whole.
+    try testing.expectEqual(@as(u21, '日'), buf.getChar(1, 0));
+    try testing.expectEqual(@as(u21, '本'), buf.getChar(3, 0));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(5, 0));
+}
+
+test "ContextMenu render drops a shortcut that would overwrite the label" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "Long label here", .shortcut = "Ctrl+Shift+X" } },
+    };
+    var buf = try Buffer.init(testing.allocator, 30, 1);
+    defer buf.deinit();
+
+    ContextMenu.init(&items).render(&buf, .{ .x = 0, .y = 0, .width = 20, .height = 1 });
+
+    try expectRow(&buf, 0, 0, " Long label here");
+    try expectRow(&buf, 16, 0, "    ");
+}
+
+test "ContextMenu render block too short for content keeps the bottom border intact" {
+    const items = [_]ContextMenu.Item{ .{ .action = .{ .label = "A" } }, .{ .separator = {} } };
+    var buf = try Buffer.init(testing.allocator, 12, 6);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 8, .height = 2 };
+    ContextMenu.init(&items).withBlock(.{}).render(&buf, area);
+
+    try testing.expectEqual(@as(u21, '└'), buf.getChar(0, 1));
+    try testing.expectEqual(@as(u21, '─'), buf.getChar(3, 1));
+    try testing.expectEqual(@as(u21, '┘'), buf.getChar(7, 1));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(1, 2)); // nothing below the area
+}
+
+test "ContextMenu render stops at the area height" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "A" } },
+        .{ .action = .{ .label = "B" } },
+        .{ .action = .{ .label = "C" } },
+    };
+    var buf = try Buffer.init(testing.allocator, 8, 4);
+    defer buf.deinit();
+
+    ContextMenu.init(&items).render(&buf, .{ .x = 0, .y = 0, .width = 8, .height = 2 });
+
+    try expectRow(&buf, 0, 0, " A");
+    try expectRow(&buf, 0, 1, " B");
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(1, 2));
+}
+
+test "ContextMenu render clips at the buffer edge without writing elsewhere" {
+    const items = [_]ContextMenu.Item{.{ .action = .{ .label = "Hello" } }};
+    var buf = try Buffer.init(testing.allocator, 5, 2);
+    defer buf.deinit();
+
+    ContextMenu.init(&items).render(&buf, .{ .x = 3, .y = 0, .width = 20, .height = 5 });
+
+    try testing.expectEqual(@as(u21, 'H'), buf.getChar(4, 0));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(3, 0));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(0, 1));
+}
+
+test "ContextMenu render near the u16 limit does not overflow" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "A", .shortcut = "S" } },
+        .{ .separator = {} },
+    };
+    var buf = try Buffer.init(testing.allocator, 4, 4);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 65530, .y = 65530, .width = 65535, .height = 65535 };
+    ContextMenu.init(&items).withBlock(.{}).render(&buf, area);
+
+    for (buf.cells) |cell| try testing.expect(cell.eql(.{}));
+}
+
+test "ContextMenu moveDown with out-of-range cursor and nothing selectable terminates" {
+    const items = [_]ContextMenu.Item{
+        .{ .separator = {} },
+        .{ .action = .{ .label = "off", .enabled = false } },
+    };
+    const menu = ContextMenu.init(&items).withCursor(10);
+
+    try testing.expectEqual(@as(usize, 10), menu.moveDown().cursor);
+    try testing.expectEqual(@as(usize, 10), menu.moveUp().cursor);
+}
+
+test "ContextMenu move with only disabled items stays put" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "a", .enabled = false } },
+        .{ .action = .{ .label = "b", .enabled = false } },
+    };
+    const menu = ContextMenu.init(&items).withCursor(1);
+
+    try testing.expectEqual(@as(usize, 1), menu.moveDown().cursor);
+    try testing.expectEqual(@as(usize, 1), menu.moveUp().cursor);
+}
+
+test "ContextMenu move from out-of-range cursor lands on a selectable in-range item" {
+    const items = [_]ContextMenu.Item{
+        .{ .separator = {} },
+        .{ .action = .{ .label = "A" } },
+        .{ .separator = {} },
+    };
+    const menu = ContextMenu.init(&items).withCursor(10);
+
+    try testing.expectEqual(@as(usize, 1), menu.moveDown().cursor);
+    try testing.expectEqual(@as(usize, 1), menu.moveUp().cursor);
+}
+
+test "ContextMenu move reaches submenus" {
+    const items = [_]ContextMenu.Item{
+        .{ .action = .{ .label = "A" } },
+        .{ .separator = {} },
+        .{ .submenu = .{ .label = "S", .items = &.{} } },
     };
     const menu = ContextMenu.init(&items);
-    var buf = try Buffer.init(testing.allocator, 50, 10);
-    defer buf.deinit(testing.allocator);
-    const area = Rect{ .x = 0, .y = 0, .width = 50, .height = 10 };
-    menu.render(&buf, area);
+
+    try testing.expectEqual(@as(usize, 2), menu.moveDown().cursor);
+    try testing.expectEqual(@as(usize, 2), menu.moveUp().cursor);
+}
+
+/// Reference model: index of the next selectable item strictly after (down) or before (up)
+/// `cursor`, wrapping; `cursor` itself if no other item is selectable.
+fn modelMove(items: []const ContextMenu.Item, cursor: usize, down: bool) usize {
+    var selectable: [32]usize = undefined;
+    var n: usize = 0;
+    for (items, 0..) |item, i| {
+        const ok = switch (item) {
+            .action => |a| a.enabled,
+            .submenu => true,
+            .separator => false,
+        };
+        if (ok) {
+            selectable[n] = i;
+            n += 1;
+        }
+    }
+    if (n == 0) return cursor;
+    if (down) {
+        for (selectable[0..n]) |i| if (i > cursor) return i;
+        return selectable[0];
+    }
+    var k = n;
+    while (k > 0) {
+        k -= 1;
+        if (selectable[k] < cursor) return selectable[k];
+    }
+    return selectable[n - 1];
+}
+
+test "ContextMenu seeded random menus move like the sorted-index reference model" {
+    var prng = std.Random.DefaultPrng.init(0xc0ffee);
+    const random = prng.random();
+    var storage: [12]ContextMenu.Item = undefined;
+
+    for (0..200) |_| {
+        const len = random.intRangeAtMost(usize, 1, storage.len);
+        for (storage[0..len]) |*item| {
+            item.* = switch (random.uintLessThan(u8, 4)) {
+                0 => .{ .separator = {} },
+                1 => .{ .action = .{ .label = "off", .enabled = false } },
+                2 => .{ .submenu = .{ .label = "sub", .items = &.{} } },
+                else => .{ .action = .{ .label = "on" } },
+            };
+        }
+        var menu = ContextMenu.init(storage[0..len]).withCursor(random.uintLessThan(usize, len));
+        for (0..20) |_| {
+            const down = random.boolean();
+            const expected = modelMove(menu.items, menu.cursor, down);
+            menu = if (down) menu.moveDown() else menu.moveUp();
+            try testing.expectEqual(expected, menu.cursor);
+        }
+    }
 }
 
 test "ContextMenu builder pattern fluent chaining" {
