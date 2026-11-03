@@ -1449,4 +1449,8 @@ test {
     _ = @import("widgets/configeditor.zig");
     _ = @import("widgets/context_menu.zig");
     _ = @import("widgets/editable_table.zig");
+    _ = @import("widgets/select.zig");
+    _ = @import("widgets/tree.zig");
+    _ = @import("widgets/scatterplot.zig");
+    _ = @import("widgets/timeseries.zig");
 }

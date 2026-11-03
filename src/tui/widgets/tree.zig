@@ -6,6 +6,7 @@ const layout_mod = @import("../layout.zig");
 const Rect = layout_mod.Rect;
 const style_mod = @import("../style.zig");
 const Style = style_mod.Style;
+const UnicodeWidth = @import("../../unicode.zig").UnicodeWidth;
 const block_mod = @import("block.zig");
 const Block = block_mod.Block;
 
@@ -120,22 +121,8 @@ pub const Tree = struct {
         return result;
     }
 
-    /// Count total visible nodes (respecting expanded state)
-    fn countVisibleNodes(nodes: []const TreeNode) usize {
-        var count: usize = 0;
-        for (nodes) |node| {
-            count += 1;
-            if (!node.isLeaf() and node.expanded) {
-                count += countVisibleNodes(node.children);
-            }
-        }
-        return count;
-    }
-
-    /// Get the total number of visible nodes
-    pub fn visibleCount(self: Tree) usize {
-        return countVisibleNodes(self.nodes);
-    }
+    /// Deepest nesting level walked; nodes below it are treated as not expanded.
+    const depth_max: usize = 64;
 
     /// Flatten tree into visible nodes with depth
     const FlatNode = struct {
@@ -143,18 +130,22 @@ pub const Tree = struct {
         depth: u16,
     };
 
+    const nodes_max: usize = 256;
+
     const FlatList = struct {
-        buffer: [256]FlatNode,
+        buffer: [nodes_max]FlatNode,
         len: usize,
 
         fn init() FlatList {
             return .{ .buffer = undefined, .len = 0 };
         }
 
-        fn append(self: *FlatList, item: FlatNode) !void {
-            if (self.len >= 256) return error.TooManyNodes;
+        /// Appends while there is room; returns false when full.
+        fn append(self: *FlatList, item: FlatNode) bool {
+            if (self.len >= nodes_max) return false;
             self.buffer[self.len] = item;
             self.len += 1;
+            return true;
         }
 
         fn slice(self: *const FlatList) []const FlatNode {
@@ -162,17 +153,52 @@ pub const Tree = struct {
         }
     };
 
-    fn flattenNodesStack(nodes: []const TreeNode, depth: u16, out: *FlatList) !void {
-        for (nodes) |*node| {
-            try out.append(.{ .node = node, .depth = depth });
-            if (!node.isLeaf() and node.expanded) {
-                try flattenNodesStack(node.children, depth + 1, out);
+    /// Pre-order walk of the visible nodes with an explicit bounded stack (no recursion).
+    /// Returns the number of visible nodes; copies the first `nodes_max` into `out` if given.
+    fn walkVisible(nodes: []const TreeNode, out: ?*FlatList) usize {
+        const Frame = struct { nodes: []const TreeNode, next: usize };
+        var stack: [depth_max]Frame = undefined;
+        var sp: usize = 1;
+        stack[0] = .{ .nodes = nodes, .next = 0 };
+        var count: usize = 0;
+        while (sp > 0) {
+            const frame = &stack[sp - 1];
+            if (frame.next >= frame.nodes.len) {
+                sp -= 1;
+                continue;
+            }
+            const node = &frame.nodes[frame.next];
+            frame.next += 1;
+            count += 1;
+            if (out) |list| _ = list.append(.{ .node = node, .depth = @intCast(sp - 1) });
+            if (!node.isLeaf() and node.expanded and sp < depth_max) {
+                stack[sp] = .{ .nodes = node.children, .next = 0 };
+                sp += 1;
             }
         }
+        std.debug.assert(sp == 0);
+        std.debug.assert(out == null or out.?.len <= count);
+        return count;
+    }
+
+    /// Get the total number of visible nodes
+    pub fn visibleCount(self: Tree) usize {
+        return walkVisible(self.nodes, null);
+    }
+
+    /// Draws `text` at (x, y), clipped to the cells left of `x_end`; returns the next column.
+    fn putText(buf: *Buffer, x: u16, y: u16, x_end: u16, text: []const u8, style: Style) u16 {
+        const limit: usize = x_end -| x;
+        const len = UnicodeWidth.truncate(text, limit);
+        const width = UnicodeWidth.stringWidth(text[0..len]);
+        std.debug.assert(width <= limit);
+        std.debug.assert(len <= text.len);
+        buf.setString(x, y, text[0..len], style);
+        return x +| @as(u16, @intCast(width));
     }
 
     /// Render the tree widget
-    /// Note: Uses a fixed-size buffer to avoid allocations. Maximum 256 visible nodes supported.
+    /// Note: Uses a fixed-size buffer to avoid allocations. At most 256 visible nodes are shown.
     pub fn render(self: Tree, buf: *Buffer, area: Rect) void {
         if (area.width == 0 or area.height == 0) return;
 
@@ -187,7 +213,7 @@ pub const Tree = struct {
 
         // Flatten visible nodes using stack-allocated buffer
         var flat_list = FlatList.init();
-        flattenNodesStack(self.nodes, 0, &flat_list) catch return;
+        _ = walkVisible(self.nodes, &flat_list);
 
         const flat_nodes = flat_list.slice();
         if (flat_nodes.len == 0) return;
@@ -216,26 +242,29 @@ pub const Tree = struct {
         }
 
         // Render visible nodes
+        const x_end = inner_area.x +| inner_area.width;
         var y = inner_area.y;
         for (flat_nodes[start..end], start..) |flat, i| {
-            if (y >= inner_area.y + inner_area.height) break;
+            if (y >= inner_area.y +| inner_area.height) break;
 
             const is_selected = if (self.selected) |sel| sel == i else false;
             const style = if (is_selected) self.selected_style else self.node_style;
 
             var x = inner_area.x;
 
-            // Render highlight symbol if selected
-            if (is_selected and self.highlight_symbol.len > 0) {
-                buf.setString(x, y, self.highlight_symbol, style);
-                x += @intCast(self.highlight_symbol.len);
-            } else if (self.highlight_symbol.len > 0) {
-                x += @intCast(self.highlight_symbol.len);
+            // Highlight symbol column is reserved on every row; drawn only when selected
+            const hl_width: u16 = @intCast(@min(
+                UnicodeWidth.stringWidth(self.highlight_symbol),
+                std.math.maxInt(u16),
+            ));
+            if (is_selected) {
+                x = putText(buf, x, y, x_end, self.highlight_symbol, style);
+            } else {
+                x +|= hl_width;
             }
 
             // Render indentation
-            const indent_width = flat.depth * self.indent;
-            x += indent_width;
+            x +|= flat.depth *| self.indent;
 
             // Render expand/collapse symbol
             const node_symbol = if (flat.node.isLeaf())
@@ -245,20 +274,14 @@ pub const Tree = struct {
             else
                 self.collapsed_symbol;
 
-            if (node_symbol.len > 0 and x + node_symbol.len <= inner_area.x + inner_area.width) {
-                buf.setString(x, y, node_symbol, style);
-                x += @intCast(node_symbol.len);
+            if (UnicodeWidth.stringWidth(node_symbol) <= x_end -| x) {
+                x = putText(buf, x, y, x_end, node_symbol, style);
             }
 
             // Render label
-            if (x < inner_area.x + inner_area.width) {
-                const available_width = inner_area.x + inner_area.width - x;
-                const label = flat.node.label;
-                const display_len = @min(label.len, available_width);
-                buf.setString(x, y, label[0..display_len], style);
-            }
+            _ = putText(buf, x, y, x_end, flat.node.label, style);
 
-            y += 1;
+            y +|= 1;
         }
     }
 };
@@ -389,14 +412,28 @@ test "Tree: with indent" {
     try std.testing.expectEqual(@as(u16, 4), tree.indent);
 }
 
-test "Tree: render empty tree" {
+fn expectRow(buf: Buffer, y: u16, expected: []const u8) !void {
+    var x: u16 = 0;
+    var it = (try std.unicode.Utf8View.init(expected)).iterator();
+    while (it.nextCodepoint()) |cp| : (x += 1) {
+        try std.testing.expectEqual(cp, buf.getChar(x, y));
+    }
+}
+
+fn fillHash(buf: *Buffer) void {
+    buf.fill(Rect{ .x = 0, .y = 0, .width = buf.width, .height = buf.height }, '#', .{});
+}
+
+test "Tree: render empty tree leaves buffer untouched" {
     var buf = try Buffer.init(std.testing.allocator, 10, 5);
     defer buf.deinit();
+    fillHash(&buf);
 
     const tree = Tree.init(&.{});
-    tree.render(&buf, Rect.init(0, 0, 10, 5));
+    tree.render(&buf, Rect{ .x = 0, .y = 0, .width = 10, .height = 5 });
 
-    // Should not crash, just render nothing
+    try expectRow(buf, 0, "##########");
+    try expectRow(buf, 4, "##########");
 }
 
 test "Tree: render single leaf" {
@@ -405,11 +442,12 @@ test "Tree: render single leaf" {
 
     const nodes = [_]TreeNode{TreeNode.leaf("File.txt")};
     const tree = Tree.init(&nodes);
-    tree.render(&buf, Rect.init(0, 0, 20, 3));
+    tree.render(&buf, Rect{ .x = 0, .y = 0, .width = 20, .height = 3 });
 
-    // Check that the leaf symbol and label are rendered
-    const cell = buf.get(0, 0);
-    try std.testing.expect(cell.char != ' '); // Should have content
+    // highlight column (2) + leaf symbol (2) + label
+    try expectRow(buf, 0, "    File.txt");
+    try std.testing.expectEqual(@as(u21, ' '), buf.getChar(12, 0));
+    try std.testing.expectEqual(@as(u21, ' '), buf.getChar(0, 1));
 }
 
 test "Tree: render with selection" {
@@ -424,11 +462,10 @@ test "Tree: render with selection" {
         .withSelected(1)
         .withHighlightSymbol("> ");
 
-    tree.render(&buf, Rect.init(0, 0, 20, 5));
+    tree.render(&buf, Rect{ .x = 0, .y = 0, .width = 20, .height = 5 });
 
-    // Selected item should be at line 1
-    const cell = buf.get(0, 1);
-    try std.testing.expectEqual(@as(u21, '>'), cell.char);
+    try expectRow(buf, 0, "    File 1");
+    try expectRow(buf, 1, ">   File 2");
 }
 
 test "Tree: render nested tree" {
@@ -445,9 +482,13 @@ test "Tree: render nested tree" {
     };
 
     const tree = Tree.init(&nodes).withIndent(2);
-    tree.render(&buf, Rect.init(0, 0, 30, 10));
+    tree.render(&buf, Rect{ .x = 0, .y = 0, .width = 30, .height = 10 });
 
-    // Should render parent and children with indentation
+    try expectRow(buf, 0, "  ▼ Parent");
+    try expectRow(buf, 1, "      Child 1");
+    try expectRow(buf, 2, "      Child 2");
+    try expectRow(buf, 3, "    Sibling");
+    try std.testing.expectEqual(@as(u21, ' '), buf.getChar(0, 4));
 }
 
 test "Tree: render with block" {
@@ -458,9 +499,13 @@ test "Tree: render with block" {
     const blk = (Block{});
     const tree = Tree.init(&nodes).withBlock(blk);
 
-    tree.render(&buf, Rect.init(0, 0, 20, 5));
+    tree.render(&buf, Rect{ .x = 0, .y = 0, .width = 20, .height = 5 });
 
-    // Should render both block borders and content
+    try std.testing.expectEqual(@as(u21, '┌'), buf.getChar(0, 0));
+    try std.testing.expectEqual(@as(u21, '┘'), buf.getChar(19, 4));
+    try std.testing.expectEqual(@as(u21, 'F'), buf.getChar(5, 1));
+    try std.testing.expectEqual(@as(u21, 'e'), buf.getChar(8, 1));
+    try std.testing.expectEqual(@as(u21, '│'), buf.getChar(0, 1));
 }
 
 test "Tree: render collapsed branch" {
@@ -475,10 +520,11 @@ test "Tree: render collapsed branch" {
 
     const nodes = [_]TreeNode{parent};
     const tree = Tree.init(&nodes);
-    tree.render(&buf, Rect.init(0, 0, 30, 5));
+    tree.render(&buf, Rect{ .x = 0, .y = 0, .width = 30, .height = 5 });
 
-    // Children should not be visible
     try std.testing.expectEqual(@as(usize, 1), tree.visibleCount());
+    try expectRow(buf, 0, "  ▶ Parent");
+    try std.testing.expectEqual(@as(u21, ' '), buf.getChar(6, 1));
 }
 
 test "Tree: render with offset" {
@@ -493,21 +539,109 @@ test "Tree: render with offset" {
     };
 
     const tree = Tree.init(&nodes).withOffset(2);
-    tree.render(&buf, Rect.init(0, 0, 20, 3));
+    tree.render(&buf, Rect{ .x = 0, .y = 0, .width = 20, .height = 3 });
 
-    // Should skip first 2 items
+    try expectRow(buf, 0, "    Item 2");
+    try expectRow(buf, 1, "    Item 3");
+    try std.testing.expectEqual(@as(u21, ' '), buf.getChar(4, 2));
 }
 
-test "Tree: render zero size area" {
+test "Tree: render zero size area leaves buffer untouched" {
     var buf = try Buffer.init(std.testing.allocator, 10, 5);
     defer buf.deinit();
+    fillHash(&buf);
 
     const nodes = [_]TreeNode{TreeNode.leaf("File")};
     const tree = Tree.init(&nodes);
 
-    // Should not crash
-    tree.render(&buf, Rect.init(0, 0, 0, 5));
-    tree.render(&buf, Rect.init(0, 0, 10, 0));
+    tree.render(&buf, Rect{ .x = 0, .y = 0, .width = 0, .height = 5 });
+    tree.render(&buf, Rect{ .x = 0, .y = 0, .width = 10, .height = 0 });
+
+    for (0..5) |row| try expectRow(buf, @intCast(row), "##########");
+}
+
+test "Tree: label wider than area is clipped by cells (regression: byte-wise)" {
+    var buf = try Buffer.init(std.testing.allocator, 12, 1);
+    defer buf.deinit();
+    fillHash(&buf);
+
+    const nodes = [_]TreeNode{TreeNode.leaf("你好世界")};
+    const tree = Tree.init(&nodes);
+    // Area width 9: 4 cells of prefix leave 5 cells -> two wide chars, never a split one.
+    tree.render(&buf, Rect{ .x = 0, .y = 0, .width = 9, .height = 1 });
+
+    try std.testing.expectEqual(@as(u21, '你'), buf.getChar(4, 0));
+    try std.testing.expectEqual(@as(u21, '好'), buf.getChar(6, 0));
+    try std.testing.expectEqual(@as(u21, '#'), buf.getChar(8, 0));
+    try std.testing.expectEqual(@as(u21, '#'), buf.getChar(9, 0));
+}
+
+test "Tree: label clipped at area edge does not spill (regression)" {
+    var buf = try Buffer.init(std.testing.allocator, 12, 1);
+    defer buf.deinit();
+    fillHash(&buf);
+
+    const nodes = [_]TreeNode{TreeNode.leaf("abcdefgh")};
+    Tree.init(&nodes).render(&buf, Rect{ .x = 0, .y = 0, .width = 7, .height = 1 });
+
+    try expectRow(buf, 0, "##  abc#####");
+}
+
+test "Tree: huge indent and depth saturate (regression: u16 overflow panic)" {
+    var buf = try Buffer.init(std.testing.allocator, 12, 3);
+    defer buf.deinit();
+    fillHash(&buf);
+
+    const l2 = [_]TreeNode{TreeNode.leaf("c")};
+    const l1 = [_]TreeNode{TreeNode.branch("b", &l2)};
+    const nodes = [_]TreeNode{TreeNode.branch("a", &l1)};
+    const tree = Tree.init(&nodes).withIndent(std.math.maxInt(u16));
+    tree.render(&buf, Rect{ .x = 0, .y = 0, .width = 12, .height = 3 });
+
+    try expectRow(buf, 0, "##▼ a#######");
+    try expectRow(buf, 1, "############");
+    try expectRow(buf, 2, "############");
+}
+
+test "Tree: area at u16 max does not overflow (regression)" {
+    var buf = try Buffer.init(std.testing.allocator, 6, 3);
+    defer buf.deinit();
+    fillHash(&buf);
+
+    const nodes = [_]TreeNode{ TreeNode.leaf("a"), TreeNode.leaf("b") };
+    const max = std.math.maxInt(u16);
+    Tree.init(&nodes).render(&buf, Rect{ .x = max - 2, .y = max - 1, .width = 2, .height = 1 });
+
+    try expectRow(buf, 0, "######");
+    try expectRow(buf, 2, "######");
+}
+
+test "Tree: selection scrolls window to keep selected row visible" {
+    var buf = try Buffer.init(std.testing.allocator, 12, 2);
+    defer buf.deinit();
+
+    const nodes = [_]TreeNode{
+        TreeNode.leaf("n0"), TreeNode.leaf("n1"), TreeNode.leaf("n2"), TreeNode.leaf("n3"),
+    };
+    const tree = Tree.init(&nodes).withSelected(2);
+    tree.render(&buf, Rect{ .x = 0, .y = 0, .width = 12, .height = 2 });
+
+    try expectRow(buf, 0, "    n1");
+    try expectRow(buf, 1, ">   n2");
+}
+
+test "Tree: over 256 visible nodes renders first 256 (regression: rendered nothing)" {
+    var items: [300]TreeNode = undefined;
+    for (&items) |*node| node.* = TreeNode.leaf("Item");
+    var buf = try Buffer.init(std.testing.allocator, 12, 2);
+    defer buf.deinit();
+
+    const tree = Tree.init(&items);
+    tree.render(&buf, Rect{ .x = 0, .y = 0, .width = 12, .height = 2 });
+
+    try std.testing.expectEqual(@as(usize, 300), tree.visibleCount());
+    try expectRow(buf, 0, "    Item");
+    try expectRow(buf, 1, "    Item");
 }
 
 test "Tree: deep nesting" {
@@ -554,10 +688,11 @@ test "Tree: render does not leak memory" {
 
     // Render multiple times - should not leak
     for (0..100) |_| {
-        tree.render(&buf, Rect.init(0, 0, 30, 10));
+        tree.render(&buf, Rect{ .x = 0, .y = 0, .width = 30, .height = 10 });
     }
 
-    // If this test passes without leaking, the render function is memory-safe
+    try expectRow(buf, 0, "  ▼ Parent");
+    try expectRow(buf, 4, "    Sibling");
 }
 
 test "Tree: render with large tree does not leak" {
@@ -584,12 +719,15 @@ test "Tree: render with large tree does not leak" {
 
     // Render multiple times
     for (0..50) |_| {
-        tree.render(&buf, Rect.init(0, 0, 40, 20));
+        tree.render(&buf, Rect{ .x = 0, .y = 0, .width = 40, .height = 20 });
     }
+    try expectRow(buf, 0, "  ▼ L1-1");
+    try expectRow(buf, 1, "    ▼ L2-1");
+    try expectRow(buf, 2, "        L3-1");
+    try expectRow(buf, 3, "        L3-2");
 }
 
-test "Tree: render handles more than 256 nodes gracefully" {
-    // Create a very deep tree that exceeds 256 nodes
+test "Tree: render wide branch fills the area" {
     var nodes_l0: [100]TreeNode = undefined;
     for (&nodes_l0) |*node| {
         node.* = TreeNode.leaf("Item");
@@ -604,6 +742,9 @@ test "Tree: render handles more than 256 nodes gracefully" {
 
     const tree = Tree.init(&root);
 
-    // Should not crash or leak when exceeding 256 node limit
-    tree.render(&buf, Rect.init(0, 0, 30, 10));
+    tree.render(&buf, Rect{ .x = 0, .y = 0, .width = 30, .height = 10 });
+    try expectRow(buf, 0, "  ▼ Root");
+    try expectRow(buf, 1, "      Item");
+    try expectRow(buf, 9, "      Item");
+    try std.testing.expectEqual(@as(usize, 101), tree.visibleCount());
 }

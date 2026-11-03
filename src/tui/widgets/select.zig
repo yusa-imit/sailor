@@ -5,7 +5,8 @@ const Rect = @import("../layout.zig").Rect;
 const Style = @import("../style.zig").Style;
 const Color = @import("../style.zig").Color;
 const Block = @import("block.zig").Block;
-const symbols = @import("../symbols.zig");
+const UnicodeWidth = @import("../../unicode.zig").UnicodeWidth;
+const assert = std.debug.assert;
 
 /// Select/Dropdown widget for single or multi-select
 pub const Select = struct {
@@ -161,19 +162,23 @@ pub const Select = struct {
         }
     }
 
+    /// Draws `text` at (x, y) clipped to the cells left of `x_end`; returns the next free column.
+    /// Cell-wise: wide characters take two cells and are never split at the clip edge.
+    fn putText(buf: *Buffer, x: u16, y: u16, x_end: u16, text: []const u8, style: Style) u16 {
+        const limit: usize = x_end -| x;
+        const len = UnicodeWidth.truncate(text, limit);
+        assert(len <= text.len);
+        assert(UnicodeWidth.stringWidth(text[0..len]) <= limit);
+        buf.setString(x, y, text[0..len], style);
+        return x +| @as(u16, @intCast(@min(UnicodeWidth.stringWidth(text[0..len]), limit)));
+    }
+
     /// Renders the select widget to the given buffer within the specified area.
-    /// Displays items with selection indicators (checkboxes for multi-select, radio buttons for single-select).
-    /// Supports scrolling when items exceed max visible count. Highlighted item is visually distinct.
+    /// Items show an indicator: checkbox (multi-select) or radio button (single-select).
+    /// Scrolls when items exceed max visible count. The highlighted item is visually distinct.
     pub fn render(self: Select, buf: *Buffer, area: Rect) void {
-        // Clear area
-        for (0..area.height) |y| {
-            for (0..area.width) |x| {
-                buf.set(@intCast(area.x + x), @intCast(area.y + y), .{
-                    .char = ' ',
-                    .style = self.style,
-                });
-            }
-        }
+        assert(self.selected.len == self.items.len);
+        buf.fill(area, ' ', self.style);
 
         var render_area = area;
 
@@ -182,13 +187,12 @@ pub const Select = struct {
             block.render(buf, area);
             render_area = block.inner(area);
         }
+        if (render_area.width == 0 or render_area.height == 0) return;
 
         // Reserve space for help text
         const help_height: u16 = if (self.show_help) 1 else 0;
-        const items_height = if (render_area.height > help_height)
-            render_area.height - help_height
-        else
-            0;
+        const items_height = render_area.height -| help_height;
+        const x_end = render_area.x +| render_area.width;
 
         // Calculate visible range
         const max_visible = if (self.max_visible) |max|
@@ -196,15 +200,15 @@ pub const Select = struct {
         else
             items_height;
 
-        const visible_start = self.scroll_offset;
-        const visible_end = @min(visible_start + max_visible, self.items.len);
+        const visible_start = @min(self.scroll_offset, self.items.len);
+        const visible_end = @min(visible_start +| max_visible, self.items.len);
+        assert(visible_start <= visible_end);
 
         // Render items
         var y: u16 = 0;
         for (visible_start..visible_end) |i| {
             if (y >= items_height) break;
 
-            const item = self.items[i];
             const is_current = (i == self.current);
             const is_selected = self.selected[i];
 
@@ -216,124 +220,41 @@ pub const Select = struct {
             else
                 self.style;
 
-            const item_y = render_area.y + y;
+            const item_y = render_area.y +| y;
+            const indicator: []const u8 = if (self.multi)
+                (if (is_selected) "[✓] " else "[ ] ")
+            else if (is_selected)
+                "● "
+            else
+                "○ ";
 
-            // Render selection indicator
-            var x: u16 = 0;
-            if (self.multi) {
-                const indicator: u21 = if (is_selected) '✓' else ' ';
-                buf.set(render_area.x, item_y, .{
-                    .char = '[',
-                    .style = item_style,
-                });
-                buf.set(render_area.x + 1, item_y, .{
-                    .char = indicator,
-                    .style = item_style,
-                });
-                buf.set(render_area.x + 2, item_y, .{
-                    .char = ']',
-                    .style = item_style,
-                });
-                buf.set(render_area.x + 3, item_y, .{
-                    .char = ' ',
-                    .style = item_style,
-                });
-                x = 4;
-            } else if (is_selected) {
-                buf.set(render_area.x, item_y, .{
-                    .char = symbols.radio.selected,
-                    .style = item_style,
-                });
-                buf.set(render_area.x + 1, item_y, .{
-                    .char = ' ',
-                    .style = item_style,
-                });
-                x = 2;
-            } else {
-                buf.set(render_area.x, item_y, .{
-                    .char = symbols.radio.unselected,
-                    .style = item_style,
-                });
-                buf.set(render_area.x + 1, item_y, .{
-                    .char = ' ',
-                    .style = item_style,
-                });
-                x = 2;
-            }
-
-            // Render item text
-            var item_idx: usize = 0;
-            while (item_idx < item.len and x < render_area.width) {
-                const byte = item[item_idx];
-                const char_len = std.unicode.utf8ByteSequenceLength(byte) catch 1;
-
-                if (item_idx + char_len > item.len) break;
-
-                const codepoint = if (char_len == 1)
-                    @as(u21, byte)
-                else
-                    std.unicode.utf8Decode(item[item_idx .. item_idx + char_len]) catch @as(u21, byte);
-
-                buf.set(@intCast(render_area.x + x), item_y, .{
-                    .char = codepoint,
-                    .style = item_style,
-                });
-                item_idx += char_len;
-                x += 1;
-            }
+            const text_x = putText(buf, render_area.x, item_y, x_end, indicator, item_style);
+            _ = putText(buf, text_x, item_y, x_end, self.items[i], item_style);
 
             y += 1;
         }
 
         // Render scroll indicators
         if (self.max_visible != null and items_height > 0) {
+            const arrow_x = x_end - 1;
             if (visible_start > 0) {
-                // Up arrow
-                const arrow_y = render_area.y;
-                buf.set(@intCast(render_area.x + render_area.width - 1), arrow_y, .{
-                    .char = '↑',
-                    .style = self.style,
-                });
+                buf.set(arrow_x, render_area.y, .{ .char = '↑', .style = self.style });
             }
             if (visible_end < self.items.len) {
-                // Down arrow
-                const arrow_y = render_area.y + items_height - 1;
-                buf.set(@intCast(render_area.x + render_area.width - 1), arrow_y, .{
-                    .char = '↓',
-                    .style = self.style,
-                });
+                const arrow_y = render_area.y +| (items_height - 1);
+                buf.set(arrow_x, arrow_y, .{ .char = '↓', .style = self.style });
             }
         }
 
         // Render help text
-        if (self.show_help and render_area.height > 0) {
-            const help_y = render_area.y + render_area.height - 1;
+        if (self.show_help) {
+            const help_y = render_area.y +| (render_area.height - 1);
             const help_text = if (self.multi)
                 "↑/↓: Navigate | Space: Toggle | Enter: Confirm"
             else
                 "↑/↓: Navigate | Enter: Select";
             const help_style = Style{ .fg = .bright_black };
-
-            var x: u16 = 0;
-            var i: usize = 0;
-            while (i < help_text.len and x < render_area.width) {
-                const byte = help_text[i];
-                const char_len = std.unicode.utf8ByteSequenceLength(byte) catch 1;
-
-                if (i + char_len > help_text.len) break;
-
-                const codepoint = if (char_len == 1)
-                    @as(u21, byte)
-                else
-                    std.unicode.utf8Decode(help_text[i .. i + char_len]) catch @as(u21, byte);
-
-                buf.set(@intCast(render_area.x + x), help_y, .{
-                    .char = codepoint,
-                    .style = help_style,
-                });
-                i += char_len;
-                x += 1;
-            }
+            _ = putText(buf, render_area.x, help_y, x_end, help_text, help_style);
         }
     }
 };
@@ -487,16 +408,44 @@ test "Select: render basic" {
     const items = [_][]const u8{ "Option A", "Option B" };
     var select = try Select.init(std.testing.allocator, &items, false);
     defer select.deinit(std.testing.allocator);
+    select.selectCurrent();
 
     var buf = try Buffer.init(std.testing.allocator, 30, 5);
-    defer buf.deinit(std.testing.allocator);
+    defer buf.deinit();
 
-    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 5 };
-    select.render(&buf, area);
+    select.render(&buf, Rect{ .x = 0, .y = 0, .width = 30, .height = 5 });
 
-    // Check first item is rendered
-    const first_char = buf.get(2, 0); // After radio button
-    try std.testing.expectEqual('O', first_char.char);
+    try std.testing.expectEqual(@as(u21, '●'), buf.getChar(0, 0));
+    try std.testing.expectEqual(@as(u21, ' '), buf.getChar(1, 0));
+    try std.testing.expectEqual(@as(u21, 'O'), buf.getChar(2, 0));
+    try std.testing.expectEqual(@as(u21, 'A'), buf.getChar(9, 0));
+    try std.testing.expectEqual(@as(u21, ' '), buf.getChar(10, 0));
+    try std.testing.expectEqual(@as(u21, '○'), buf.getChar(0, 1));
+    try std.testing.expectEqual(@as(u21, 'B'), buf.getChar(9, 1));
+    try std.testing.expectEqual(@as(u21, '↑'), buf.getChar(0, 4));
+    try std.testing.expectEqual(@as(u21, 'E'), buf.getChar(16, 4));
+    try std.testing.expectEqual(@as(u21, ' '), buf.getChar(0, 2));
+}
+
+test "Select: render multi shows checkbox cells" {
+    const items = [_][]const u8{ "ab", "cd" };
+    var select = try Select.init(std.testing.allocator, &items, true);
+    defer select.deinit(std.testing.allocator);
+    select.toggleCurrent();
+
+    var buf = try Buffer.init(std.testing.allocator, 12, 3);
+    defer buf.deinit();
+
+    select.withHelp(false).render(&buf, Rect{ .x = 0, .y = 0, .width = 12, .height = 3 });
+
+    try std.testing.expectEqual(@as(u21, '['), buf.getChar(0, 0));
+    try std.testing.expectEqual(@as(u21, '✓'), buf.getChar(1, 0));
+    try std.testing.expectEqual(@as(u21, ']'), buf.getChar(2, 0));
+    try std.testing.expectEqual(@as(u21, 'a'), buf.getChar(4, 0));
+    try std.testing.expectEqual(@as(u21, 'b'), buf.getChar(5, 0));
+    try std.testing.expectEqual(@as(u21, ' '), buf.getChar(1, 1));
+    try std.testing.expectEqual(@as(u21, 'c'), buf.getChar(4, 1));
+    try std.testing.expectEqual(@as(u21, ' '), buf.getChar(0, 2));
 }
 
 test "Select: render with block" {
@@ -504,18 +453,131 @@ test "Select: render with block" {
     var select = try Select.init(std.testing.allocator, &items, false);
     defer select.deinit(std.testing.allocator);
 
-    const block = (Block{}).withTitle("Choose");
+    const block = (Block{}).withTitle("Choose", .top_left);
     select = select.withBlock(block);
 
     var buf = try Buffer.init(std.testing.allocator, 25, 5);
-    defer buf.deinit(std.testing.allocator);
+    defer buf.deinit();
 
-    const area = Rect{ .x = 0, .y = 0, .width = 25, .height = 5 };
-    select.render(&buf, area);
+    select.render(&buf, Rect{ .x = 0, .y = 0, .width = 25, .height = 5 });
 
-    // Check block border
-    const top_left = buf.get(0, 0);
-    try std.testing.expectEqual(symbols.border.plain.top_left, top_left.char);
+    try std.testing.expectEqual(@as(u21, '┌'), buf.getChar(0, 0));
+    try std.testing.expectEqual(@as(u21, '┐'), buf.getChar(24, 0));
+    try std.testing.expectEqual(@as(u21, '○'), buf.getChar(1, 1));
+    try std.testing.expectEqual(@as(u21, 'I'), buf.getChar(3, 1));
+    try std.testing.expectEqual(@as(u21, '└'), buf.getChar(0, 4));
+}
+
+test "Select: render clips to narrow area (regression: wrote past area)" {
+    const items = [_][]const u8{"abcdef"};
+    var select = try Select.init(std.testing.allocator, &items, true);
+    defer select.deinit(std.testing.allocator);
+
+    var buf = try Buffer.init(std.testing.allocator, 10, 2);
+    defer buf.deinit();
+    buf.fill(Rect{ .x = 0, .y = 0, .width = 10, .height = 2 }, '#', .{});
+
+    select.withHelp(false).render(&buf, Rect{ .x = 0, .y = 0, .width = 3, .height = 2 });
+
+    try std.testing.expectEqual(@as(u21, '['), buf.getChar(0, 0));
+    try std.testing.expectEqual(@as(u21, ' '), buf.getChar(1, 0));
+    try std.testing.expectEqual(@as(u21, ']'), buf.getChar(2, 0));
+    try std.testing.expectEqual(@as(u21, '#'), buf.getChar(3, 0));
+    try std.testing.expectEqual(@as(u21, '#'), buf.getChar(4, 0));
+    try std.testing.expectEqual(@as(u21, '#'), buf.getChar(3, 1));
+}
+
+test "Select: render draws wide characters by cell (regression: byte-wise)" {
+    const items = [_][]const u8{"你好x"};
+    var select = try Select.init(std.testing.allocator, &items, false);
+    defer select.deinit(std.testing.allocator);
+
+    var buf = try Buffer.init(std.testing.allocator, 12, 1);
+    defer buf.deinit();
+
+    select.withHelp(false).render(&buf, Rect{ .x = 0, .y = 0, .width = 12, .height = 1 });
+    try std.testing.expectEqual(@as(u21, '你'), buf.getChar(2, 0));
+    try std.testing.expectEqual(@as(u21, '好'), buf.getChar(4, 0));
+    try std.testing.expectEqual(@as(u21, 'x'), buf.getChar(6, 0));
+
+    // Width 5: text gets 3 cells; the second wide char must not be cut in half.
+    buf.fill(Rect{ .x = 0, .y = 0, .width = 12, .height = 1 }, '#', .{});
+    select.withHelp(false).render(&buf, Rect{ .x = 0, .y = 0, .width = 5, .height = 1 });
+    try std.testing.expectEqual(@as(u21, '你'), buf.getChar(2, 0));
+    try std.testing.expectEqual(@as(u21, ' '), buf.getChar(4, 0));
+    try std.testing.expectEqual(@as(u21, '#'), buf.getChar(5, 0));
+}
+
+test "Select: scroll_offset past end renders nothing (regression: range panic)" {
+    const items = [_][]const u8{ "a", "b" };
+    var select = try Select.init(std.testing.allocator, &items, false);
+    defer select.deinit(std.testing.allocator);
+    select.scroll_offset = std.math.maxInt(usize);
+
+    var buf = try Buffer.init(std.testing.allocator, 8, 3);
+    defer buf.deinit();
+
+    select.withHelp(false).render(&buf, Rect{ .x = 0, .y = 0, .width = 8, .height = 3 });
+
+    for (0..3) |row| {
+        for (0..8) |col| {
+            try std.testing.expectEqual(@as(u21, ' '), buf.getChar(@intCast(col), @intCast(row)));
+        }
+    }
+}
+
+test "Select: zero width area with height does not touch buffer (regression: underflow)" {
+    const items = [_][]const u8{ "a", "b", "c" };
+    var select = try Select.init(std.testing.allocator, &items, false);
+    defer select.deinit(std.testing.allocator);
+    select = select.withMaxVisible(2);
+    select.scroll_offset = 1;
+
+    var buf = try Buffer.init(std.testing.allocator, 6, 3);
+    defer buf.deinit();
+    buf.fill(Rect{ .x = 0, .y = 0, .width = 6, .height = 3 }, '#', .{});
+
+    select.render(&buf, Rect{ .x = 2, .y = 0, .width = 0, .height = 3 });
+
+    for (0..3) |row| {
+        for (0..6) |col| {
+            try std.testing.expectEqual(@as(u21, '#'), buf.getChar(@intCast(col), @intCast(row)));
+        }
+    }
+}
+
+test "Select: render near u16 max does not overflow (regression)" {
+    const items = [_][]const u8{"abc"};
+    var select = try Select.init(std.testing.allocator, &items, true);
+    defer select.deinit(std.testing.allocator);
+
+    var buf = try Buffer.init(std.testing.allocator, 4, 2);
+    defer buf.deinit();
+    buf.fill(Rect{ .x = 0, .y = 0, .width = 4, .height = 2 }, '#', .{});
+
+    const max = std.math.maxInt(u16);
+    select.render(&buf, Rect{ .x = max - 1, .y = max - 1, .width = 100, .height = 100 });
+
+    try std.testing.expectEqual(@as(u21, '#'), buf.getChar(0, 0));
+    try std.testing.expectEqual(@as(u21, '#'), buf.getChar(3, 1));
+}
+
+test "Select: scroll indicators sit in the last column" {
+    const items = [_][]const u8{ "1", "2", "3", "4", "5" };
+    var select = try Select.init(std.testing.allocator, &items, false);
+    defer select.deinit(std.testing.allocator);
+    select = select.withMaxVisible(2).withHelp(false);
+    select.scroll_offset = 1;
+
+    var buf = try Buffer.init(std.testing.allocator, 6, 2);
+    defer buf.deinit();
+
+    select.render(&buf, Rect{ .x = 0, .y = 0, .width = 6, .height = 2 });
+
+    try std.testing.expectEqual(@as(u21, '↑'), buf.getChar(5, 0));
+    try std.testing.expectEqual(@as(u21, '↓'), buf.getChar(5, 1));
+    try std.testing.expectEqual(@as(u21, '2'), buf.getChar(2, 0));
+    try std.testing.expectEqual(@as(u21, '3'), buf.getChar(2, 1));
 }
 
 test "Select: withStyle builder" {
@@ -523,12 +585,12 @@ test "Select: withStyle builder" {
     var select1 = try Select.init(std.testing.allocator, &items, false);
     defer select1.deinit(std.testing.allocator);
 
-    const custom_style = Style{ .fg = Color.rgb(128, 128, 128), .dim = true };
+    const custom_style = Style{ .fg = Color.fromRgb(128, 128, 128), .dim = true };
     const select2 = select1.withStyle(custom_style);
 
     try std.testing.expect(select2.style.fg != null);
     if (select2.style.fg) |fg| {
-        try std.testing.expectEqual(Color.rgb(128, 128, 128), fg);
+        try std.testing.expectEqual(Color.fromRgb(128, 128, 128), fg);
     }
     try std.testing.expect(select2.style.dim);
 }
@@ -538,12 +600,12 @@ test "Select: withHighlightStyle builder" {
     var select1 = try Select.init(std.testing.allocator, &items, false);
     defer select1.deinit(std.testing.allocator);
 
-    const highlight_style = Style{ .fg = Color.cyan, .bold = true };
+    const highlight_style = Style{ .fg = .cyan, .bold = true };
     const select2 = select1.withHighlightStyle(highlight_style);
 
     try std.testing.expect(select2.highlight_style.fg != null);
     if (select2.highlight_style.fg) |fg| {
-        try std.testing.expectEqual(Color.cyan, fg);
+        try std.testing.expectEqual(@as(Color, .cyan), fg);
     }
     try std.testing.expect(select2.highlight_style.bold);
 }
@@ -553,12 +615,12 @@ test "Select: withSelectedStyle builder" {
     var select1 = try Select.init(std.testing.allocator, &items, false);
     defer select1.deinit(std.testing.allocator);
 
-    const selected_style = Style{ .fg = Color.green, .italic = true };
+    const selected_style = Style{ .fg = .green, .italic = true };
     const select2 = select1.withSelectedStyle(selected_style);
 
     try std.testing.expect(select2.selected_style.fg != null);
     if (select2.selected_style.fg) |fg| {
-        try std.testing.expectEqual(Color.green, fg);
+        try std.testing.expectEqual(@as(Color, .green), fg);
     }
     try std.testing.expect(select2.selected_style.italic);
 }
@@ -568,13 +630,13 @@ test "Select: withMaxVisible builder" {
     var select1 = try Select.init(std.testing.allocator, &items, false);
     defer select1.deinit(std.testing.allocator);
 
-    try std.testing.expectEqual(@as(usize, 10), select1.max_visible);
+    try std.testing.expectEqual(@as(?usize, null), select1.max_visible);
 
     const select2 = select1.withMaxVisible(5);
-    try std.testing.expectEqual(@as(usize, 5), select2.max_visible);
+    try std.testing.expectEqual(@as(?usize, 5), select2.max_visible);
 
     const select3 = select2.withMaxVisible(3);
-    try std.testing.expectEqual(@as(usize, 3), select3.max_visible);
+    try std.testing.expectEqual(@as(?usize, 3), select3.max_visible);
 }
 
 test "Select: withHelp builder" {

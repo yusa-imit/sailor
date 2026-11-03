@@ -19,6 +19,7 @@
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;
+const Cell = buffer_mod.Cell;
 const layout_mod = @import("../layout.zig");
 const Rect = layout_mod.Rect;
 const style_mod = @import("../style.zig");
@@ -137,6 +138,7 @@ pub const TimeSeriesChart = struct {
         var max_val: f64 = -std.math.floatMax(f64);
 
         for (values) |val| {
+            if (!std.math.isFinite(val)) continue;
             if (val < min_val) min_val = val;
             if (val > max_val) max_val = val;
         }
@@ -147,7 +149,9 @@ pub const TimeSeriesChart = struct {
 
     /// Format a Unix timestamp according to the time format
     fn formatTimestamp(timestamp: i64, format: TimeFormat, buf: []u8) ![]const u8 {
-        const secs: u64 = @intCast(@max(0, timestamp));
+        // Clamp to 9999-12-31 23:59:59 so the calendar math cannot overflow its u16 year.
+        const calendar_secs_max: i64 = 253402300799;
+        const secs: u64 = @intCast(std.math.clamp(timestamp, 0, calendar_secs_max));
         const epoch_seconds = std.time.epoch.EpochSeconds{ .secs = secs };
         const day_seconds = epoch_seconds.getDaySeconds();
         const epoch_day = epoch_seconds.getEpochDay();
@@ -178,6 +182,38 @@ pub const TimeSeriesChart = struct {
         };
     }
 
+    /// Draw the X axis line below `plot_area` and its start, mid and end time labels.
+    fn drawXAxis(self: TimeSeriesChart, buf: *Buffer, plot_area: Rect) void {
+        // Draw X-axis
+        const x_axis_y = plot_area.y + plot_area.height;
+        var x: u16 = plot_area.x;
+        while (x < plot_area.x + plot_area.width) : (x += 1) {
+            buf.set(x, x_axis_y, .{ .char = '─', .style = self.axis_style });
+        }
+
+        // X-axis time labels (start, mid, end)
+        var time_buf: [32]u8 = undefined;
+
+        // Start time
+        const start_time = formatTimestamp(self.timestamps[0], self.time_format, &time_buf) catch "---";
+        buf.setString(plot_area.x, x_axis_y + 1, start_time, self.axis_style);
+
+        // Mid time
+        if (self.timestamps.len > 1) {
+            const mid_idx = self.timestamps.len / 2;
+            const mid_time = formatTimestamp(self.timestamps[mid_idx], self.time_format, &time_buf) catch "---";
+            const mid_time_x = plot_area.x + plot_area.width / 2;
+            if (mid_time_x + mid_time.len <= plot_area.x + plot_area.width) {
+                buf.setString(mid_time_x, x_axis_y + 1, mid_time, self.axis_style);
+            }
+        }
+
+        // End time
+        const end_time = formatTimestamp(self.timestamps[self.timestamps.len - 1], self.time_format, &time_buf) catch "---";
+        const end_x_pos = labelStartX(plot_area.x, plot_area.width, end_time.len, 0);
+        buf.setString(end_x_pos, x_axis_y + 1, end_time, self.axis_style);
+    }
+
     /// Render the time series chart
     pub fn render(self: TimeSeriesChart, buf: *Buffer, area: Rect) void {
         var render_area = area;
@@ -188,6 +224,8 @@ pub const TimeSeriesChart = struct {
             render_area = block.inner(area);
         }
 
+        // Clip to the buffer so coordinate arithmetic below cannot overflow u16.
+        render_area = render_area.intersection(Rect.fromSize(buf.width, buf.height)) orelse return;
         if (render_area.width == 0 or render_area.height == 0) return;
         if (self.timestamps.len == 0 or self.values.len == 0) return;
 
@@ -244,34 +282,7 @@ pub const TimeSeriesChart = struct {
             buf.setString(render_area.x, label_y, self.y_axis_label, self.axis_style);
         }
 
-        // Draw X-axis
-        const x_axis_y = plot_area.y + plot_area.height;
-        var x: u16 = plot_area.x;
-        while (x < plot_area.x + plot_area.width) : (x += 1) {
-            buf.set(x, x_axis_y, .{ .char = '─', .style = self.axis_style });
-        }
-
-        // X-axis time labels (start, mid, end)
-        var time_buf: [32]u8 = undefined;
-
-        // Start time
-        const start_time = formatTimestamp(self.timestamps[0], self.time_format, &time_buf) catch "---";
-        buf.setString(plot_area.x, x_axis_y + 1, start_time, self.axis_style);
-
-        // Mid time
-        if (self.timestamps.len > 1) {
-            const mid_idx = self.timestamps.len / 2;
-            const mid_time = formatTimestamp(self.timestamps[mid_idx], self.time_format, &time_buf) catch "---";
-            const mid_time_x = plot_area.x + plot_area.width / 2;
-            if (mid_time_x + mid_time.len <= plot_area.x + plot_area.width) {
-                buf.setString(mid_time_x, x_axis_y + 1, mid_time, self.axis_style);
-            }
-        }
-
-        // End time
-        const end_time = formatTimestamp(self.timestamps[self.timestamps.len - 1], self.time_format, &time_buf) catch "---";
-        const end_x_pos = labelStartX(plot_area.x, plot_area.width, end_time.len, 0);
-        buf.setString(end_x_pos, x_axis_y + 1, end_time, self.axis_style);
+        self.drawXAxis(buf, plot_area);
 
         // Plot data points and lines
         if (self.timestamps.len == 0) return;
@@ -280,15 +291,18 @@ pub const TimeSeriesChart = struct {
         const max_time = self.timestamps[self.timestamps.len - 1];
         if (max_time <= min_time) return;
 
-        const time_range = @as(f64, @floatFromInt(max_time - min_time));
+        // Widen before subtracting: timestamps spanning the i64 range overflow otherwise.
+        const time_range = @as(f64, @floatFromInt(@as(i128, max_time) - @as(i128, min_time)));
         const y_range = max_y - min_y;
 
         var prev_screen_x: ?u16 = null;
         var prev_screen_y: ?u16 = null;
 
         for (self.timestamps, self.values) |timestamp, value| {
+            if (!std.math.isFinite(value)) continue;
             // Map to screen coordinates with bounds clamping
-            const x_norm = @as(f64, @floatFromInt(timestamp - min_time)) / time_range;
+            const time_offset = @as(i128, timestamp) - @as(i128, min_time);
+            const x_norm = @as(f64, @floatFromInt(time_offset)) / time_range;
             const y_norm = (value - min_y) / y_range;
 
             // Clamp to valid u16 range before casting
@@ -348,6 +362,11 @@ pub const TimeSeriesChart = struct {
 
                 // Draw point marker
                 if (self.show_points) {
+                    // The line segment above overwrote the previous marker; restore it.
+                    if (prev_screen_x != null and prev_screen_y != null) {
+                        const prev_cell = Cell{ .char = self.point_char, .style = self.line_style };
+                        buf.set(prev_screen_x.?, prev_screen_y.?, prev_cell);
+                    }
                     buf.set(screen_x, screen_y, .{ .char = self.point_char, .style = self.line_style });
                 }
 
@@ -463,6 +482,47 @@ test "TimeSeriesChart.formatTimestamp hour_minute" {
     try std.testing.expectEqualStrings("22:13", result);
 }
 
+test "TimeSeriesChart.formatTimestamp other formats" {
+    var buf: [32]u8 = undefined;
+    const unix = try TimeSeriesChart.formatTimestamp(1700000000, .unix, &buf);
+    try std.testing.expectEqualStrings("1700000000", unix);
+    const date_time = try TimeSeriesChart.formatTimestamp(1700000000, .date_time, &buf);
+    try std.testing.expectEqualStrings("11/14 22:13", date_time);
+    const iso = try TimeSeriesChart.formatTimestamp(1700000000, .iso8601, &buf);
+    try std.testing.expectEqualStrings("2023-11-14 22:13:20", iso);
+    // Negative timestamps clamp to the epoch for calendar formats.
+    const negative = try TimeSeriesChart.formatTimestamp(-5, .hour_minute, &buf);
+    try std.testing.expectEqualStrings("00:00", negative);
+    // Timestamps past year 9999 clamp instead of overflowing the calendar math.
+    const huge = try TimeSeriesChart.formatTimestamp(std.math.maxInt(i64), .iso8601, &buf);
+    try std.testing.expectEqualStrings("9999-12-31 23:59:59", huge);
+    const huge_unix = try TimeSeriesChart.formatTimestamp(std.math.maxInt(i64), .unix, &buf);
+    try std.testing.expectEqualStrings("9223372036854775807", huge_unix);
+}
+
+/// Assert that the cells of row `y` starting at `x` hold exactly the codepoints of `text`.
+fn expectRow(buf: Buffer, x: u16, y: u16, text: []const u8) !void {
+    var iter = std.unicode.Utf8View.initUnchecked(text).iterator();
+    var i: u16 = 0;
+    while (iter.nextCodepoint()) |cp| : (i += 1) {
+        try std.testing.expectEqual(cp, buf.getChar(x + i, y));
+    }
+}
+
+/// Assert that every cell of the buffer is the default blank cell.
+fn expectBlank(buf: Buffer) !void {
+    for (buf.cells) |cell| try std.testing.expect(cell.eql(.{}));
+}
+
+/// Count the cells of the buffer that hold `char`.
+fn countChar(buf: Buffer, char: u21) usize {
+    var count: usize = 0;
+    for (buf.cells) |cell| {
+        if (cell.char == char) count += 1;
+    }
+    return count;
+}
+
 test "TimeSeriesChart.render empty" {
     const timestamps = [_]i64{};
     const values = [_]f64{};
@@ -473,7 +533,7 @@ test "TimeSeriesChart.render empty" {
     defer buffer.deinit();
 
     chart.render(&buffer, Rect{ .x = 0, .y = 0, .width = 30, .height = 15 });
-    // Should not crash
+    try expectBlank(buffer);
 }
 
 test "TimeSeriesChart.render with data" {
@@ -487,37 +547,46 @@ test "TimeSeriesChart.render with data" {
 
     chart.render(&buffer, Rect{ .x = 0, .y = 0, .width = 50, .height = 20 });
 
-    // Verify Y-axis was drawn
-    var found_y_axis = false;
-    for (0..buffer.height) |y| {
-        for (0..buffer.width) |x| {
-            const cell = buffer.get(@intCast(x), @intCast(y));
-            if (cell.char == '│') {
-                found_y_axis = true;
-                break;
-            }
-        }
-        if (found_y_axis) break;
-    }
-    try std.testing.expect(found_y_axis);
+    // Plot area is x 8..49, y 0..17.
+    try std.testing.expectEqual(@as(u21, '●'), buffer.getChar(8, 17));
+    try std.testing.expectEqual(@as(u21, '●'), buffer.getChar(28, 0));
+    try std.testing.expectEqual(@as(u21, '●'), buffer.getChar(49, 9));
+    try std.testing.expectEqual(@as(usize, 3), countChar(buffer, '●'));
+    // Diagonal segment from (8,17) to (28,0): halfway is (18,8).
+    try std.testing.expectEqual(@as(u21, '─'), buffer.getChar(18, 8));
+    // Y axis, X axis and labels.
+    try std.testing.expectEqual(@as(u21, '│'), buffer.getChar(7, 0));
+    try std.testing.expectEqual(@as(u21, '│'), buffer.getChar(7, 17));
+    try std.testing.expectEqual(@as(u21, ' '), buffer.getChar(7, 18));
+    try std.testing.expectEqual(@as(u21, '─'), buffer.getChar(8, 18));
+    try std.testing.expectEqual(@as(u21, '─'), buffer.getChar(49, 18));
+    try expectRow(buffer, 3, 0, "15.2");
+    try expectRow(buffer, 3, 17, "10.5");
+    try expectRow(buffer, 8, 19, "22:13");
+    try expectRow(buffer, 29, 19, "23:13");
+    try expectRow(buffer, 45, 19, "00:13");
 }
 
 test "TimeSeriesChart.render with block" {
-    const timestamps = [_]i64{1700000000};
-    const values = [_]f64{10.0};
+    const timestamps = [_]i64{ 1700000000, 1700000010 };
+    const values = [_]f64{ 0.0, 10.0 };
     var chart = try TimeSeriesChart.init(std.testing.allocator, &timestamps, &values);
     defer chart.deinit();
 
-    const with_block = chart.withBlock((Block{}).withBorders(.all).withTitle("TimeSeries"));
+    const block = (Block{}).withBorders(.all).withTitle("TimeSeries", .top_left);
+    const with_block = chart.withBlock(block);
 
     var buffer = try Buffer.init(std.testing.allocator, 40, 20);
     defer buffer.deinit();
 
     with_block.render(&buffer, Rect{ .x = 0, .y = 0, .width = 40, .height = 20 });
 
-    // Check for title
-    const title_cell = buffer.get(1, 0);
-    try std.testing.expectEqual('T', title_cell.char);
+    try expectRow(buffer, 2, 0, "TimeSeries");
+    // Inner area is 1,1 38x18: plot area x 9..38, y 1..16.
+    try std.testing.expectEqual(@as(u21, '●'), buffer.getChar(9, 16));
+    try std.testing.expectEqual(@as(u21, '●'), buffer.getChar(38, 1));
+    try std.testing.expectEqual(@as(usize, 2), countChar(buffer, '●'));
+    try expectRow(buffer, 9, 18, "22:13");
 }
 
 test "TimeSeriesChart.render zero-size area" {
@@ -530,5 +599,74 @@ test "TimeSeriesChart.render zero-size area" {
     defer buffer.deinit();
 
     chart.render(&buffer, Rect{ .x = 0, .y = 0, .width = 0, .height = 0 });
-    // Should not crash
+    try expectBlank(buffer);
+}
+
+test "TimeSeriesChart.render keeps every point marker on a horizontal line" {
+    const timestamps = [_]i64{ 0, 10, 20 };
+    const values = [_]f64{ 5, 5, 5 };
+    var chart = try TimeSeriesChart.init(std.testing.allocator, &timestamps, &values);
+    defer chart.deinit();
+    const fixed = chart.withMinY(0).withMaxY(10);
+
+    var buffer = try Buffer.init(std.testing.allocator, 20, 6);
+    defer buffer.deinit();
+
+    fixed.render(&buffer, Rect{ .x = 0, .y = 0, .width = 20, .height = 6 });
+
+    // Plot area is x 8..19, y 0..3; the series sits on row 2.
+    try std.testing.expectEqual(@as(u21, '●'), buffer.getChar(8, 2));
+    try std.testing.expectEqual(@as(u21, '●'), buffer.getChar(13, 2));
+    try std.testing.expectEqual(@as(u21, '●'), buffer.getChar(19, 2));
+    try expectRow(buffer, 9, 2, "────");
+    try expectRow(buffer, 14, 2, "─────");
+    try std.testing.expectEqual(@as(usize, 3), countChar(buffer, '●'));
+}
+
+test "TimeSeriesChart.render handles timestamps spanning the whole i64 range" {
+    const timestamps = [_]i64{ std.math.minInt(i64), 0, std.math.maxInt(i64) };
+    const values = [_]f64{ 0, 5, 10 };
+    var chart = try TimeSeriesChart.init(std.testing.allocator, &timestamps, &values);
+    defer chart.deinit();
+    const unix = chart.withTimeFormat(.unix);
+
+    var buffer = try Buffer.init(std.testing.allocator, 20, 6);
+    defer buffer.deinit();
+
+    unix.render(&buffer, Rect{ .x = 0, .y = 0, .width = 20, .height = 6 });
+
+    try std.testing.expectEqual(@as(u21, '●'), buffer.getChar(8, 3));
+    try std.testing.expectEqual(@as(u21, '●'), buffer.getChar(13, 2));
+    try std.testing.expectEqual(@as(u21, '●'), buffer.getChar(19, 0));
+    try std.testing.expectEqual(@as(usize, 3), countChar(buffer, '●'));
+}
+
+test "TimeSeriesChart.render skips non-finite values" {
+    const timestamps = [_]i64{ 0, 10, 20 };
+    const values = [_]f64{ 0, std.math.nan(f64), 10 };
+    var chart = try TimeSeriesChart.init(std.testing.allocator, &timestamps, &values);
+    defer chart.deinit();
+
+    var buffer = try Buffer.init(std.testing.allocator, 20, 6);
+    defer buffer.deinit();
+
+    chart.render(&buffer, Rect{ .x = 0, .y = 0, .width = 20, .height = 6 });
+
+    try std.testing.expectEqual(@as(u21, '●'), buffer.getChar(8, 3));
+    try std.testing.expectEqual(@as(u21, '●'), buffer.getChar(19, 0));
+    try std.testing.expectEqual(@as(usize, 2), countChar(buffer, '●'));
+    try expectRow(buffer, 3, 0, "10.0");
+}
+
+test "TimeSeriesChart.render ignores an area outside the buffer without overflow" {
+    const timestamps = [_]i64{ 0, 10 };
+    const values = [_]f64{ 0, 10 };
+    var chart = try TimeSeriesChart.init(std.testing.allocator, &timestamps, &values);
+    defer chart.deinit();
+
+    var buffer = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buffer.deinit();
+
+    chart.render(&buffer, Rect{ .x = 65530, .y = 65530, .width = 100, .height = 100 });
+    try expectBlank(buffer);
 }
