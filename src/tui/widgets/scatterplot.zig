@@ -146,7 +146,9 @@ pub const ScatterPlot = struct {
     }
 
     /// Calculate min and max values across all series
-    fn calcRange(series: []const Series) struct { min_x: f64, max_x: f64, min_y: f64, max_y: f64 } {
+    const Range = struct { min_x: f64, max_x: f64, min_y: f64, max_y: f64 };
+
+    fn calcRange(series: []const Series) Range {
         if (series.len == 0) return .{ .min_x = 0, .max_x = 0, .min_y = 0, .max_y = 0 };
 
         var min_x_val: f64 = std.math.floatMax(f64);
@@ -156,6 +158,7 @@ pub const ScatterPlot = struct {
 
         for (series) |s| {
             for (s.points) |point| {
+                if (!std.math.isFinite(point.x) or !std.math.isFinite(point.y)) continue;
                 if (point.x < min_x_val) min_x_val = point.x;
                 if (point.x > max_x_val) max_x_val = point.x;
                 if (point.y < min_y_val) min_y_val = point.y;
@@ -169,6 +172,41 @@ pub const ScatterPlot = struct {
         return .{ .min_x = min_x_val, .max_x = max_x_val, .min_y = min_y_val, .max_y = max_y_val };
     }
 
+    /// Plot every finite point of every series inside `plot_area`, scaled to `range`.
+    fn plotPoints(self: ScatterPlot, buf: *Buffer, plot_area: Rect, range: Range) void {
+        const min_x = range.min_x;
+        const max_x = range.max_x;
+        const min_y = range.min_y;
+        const max_y = range.max_y;
+        for (self.series) |s| {
+            for (s.points) |point| {
+                if (!std.math.isFinite(point.x) or !std.math.isFinite(point.y)) continue;
+                // Map point to screen coordinates with bounds clamping
+                const x_range = max_x - min_x;
+                const y_range = max_y - min_y;
+
+                const x_norm = (point.x - min_x) / x_range;
+                const y_norm = (point.y - min_y) / y_range;
+
+                // Clamp to valid u16 range before casting
+                const x_offset_f = @min(@max(x_norm * @as(f64, @floatFromInt(plot_area.width - 1)), 0), @as(f64, @floatFromInt(plot_area.width - 1)));
+                const y_offset_f = @min(@max(y_norm * @as(f64, @floatFromInt(plot_area.height - 1)), 0), @as(f64, @floatFromInt(plot_area.height - 1)));
+
+                const screen_x = plot_area.x + @as(u16, @intFromFloat(x_offset_f));
+                const screen_y = plot_area.y + plot_area.height - 1 - @as(u16, @intFromFloat(y_offset_f));
+
+                // Draw marker
+                if (screen_x >= plot_area.x and screen_x < plot_area.x + plot_area.width and
+                    screen_y >= plot_area.y and screen_y < plot_area.y + plot_area.height)
+                {
+                    // Use first character of marker
+                    const marker_char = markerChar(s.marker);
+                    buf.set(screen_x, screen_y, .{ .char = marker_char, .style = s.style });
+                }
+            }
+        }
+    }
+
     /// Render the scatter plot
     pub fn render(self: ScatterPlot, buf: *Buffer, area: Rect) void {
         var render_area = area;
@@ -179,6 +217,8 @@ pub const ScatterPlot = struct {
             render_area = block.inner(area);
         }
 
+        // Clip to the buffer so coordinate arithmetic below cannot overflow u16.
+        render_area = render_area.intersection(Rect.fromSize(buf.width, buf.height)) orelse return;
         if (render_area.width == 0 or render_area.height == 0) return;
         if (self.series.len == 0) return;
 
@@ -281,33 +321,8 @@ pub const ScatterPlot = struct {
             }
         }
 
-        // Plot points
-        for (self.series) |s| {
-            for (s.points) |point| {
-                // Map point to screen coordinates with bounds clamping
-                const x_range = max_x - min_x;
-                const y_range = max_y - min_y;
-
-                const x_norm = (point.x - min_x) / x_range;
-                const y_norm = (point.y - min_y) / y_range;
-
-                // Clamp to valid u16 range before casting
-                const x_offset_f = @min(@max(x_norm * @as(f64, @floatFromInt(plot_area.width - 1)), 0), @as(f64, @floatFromInt(plot_area.width - 1)));
-                const y_offset_f = @min(@max(y_norm * @as(f64, @floatFromInt(plot_area.height - 1)), 0), @as(f64, @floatFromInt(plot_area.height - 1)));
-
-                const screen_x = plot_area.x + @as(u16, @intFromFloat(x_offset_f));
-                const screen_y = plot_area.y + plot_area.height - 1 - @as(u16, @intFromFloat(y_offset_f));
-
-                // Draw marker
-                if (screen_x >= plot_area.x and screen_x < plot_area.x + plot_area.width and
-                    screen_y >= plot_area.y and screen_y < plot_area.y + plot_area.height)
-                {
-                    // Use first character of marker
-                    const marker_char = markerChar(s.marker);
-                    buf.set(screen_x, screen_y, .{ .char = marker_char, .style = s.style });
-                }
-            }
-        }
+        const range = Range{ .min_x = min_x, .max_x = max_x, .min_y = min_y, .max_y = max_y };
+        self.plotPoints(buf, plot_area, range);
 
         // Draw legend
         if (self.show_legend and self.series.len > 0) {
@@ -348,7 +363,14 @@ fn labelStartX(base_x: u16, width: u16, label_len: usize, gap_cols: u16) u16 {
 
 /// First code point of a marker string, or '•' if it is empty or not valid UTF-8.
 fn markerChar(marker: []const u8) u21 {
-    const marker_char = if (marker.len > 0) std.unicode.utf8Decode(marker) catch '•' else '•';
+    const first_len: usize = if (marker.len > 0)
+        std.unicode.utf8ByteSequenceLength(marker[0]) catch 1
+    else
+        0;
+    const marker_char = if (first_len > 0 and first_len <= marker.len)
+        std.unicode.utf8Decode(marker[0..first_len]) catch '•'
+    else
+        '•';
     assert(marker_char <= 0x10FFFF);
     assert(marker.len > 0 or marker_char == '•');
     return marker_char;
@@ -459,6 +481,29 @@ test "ScatterPlot.calcRange multiple series" {
     try std.testing.expectEqual(10, range.max_y);
 }
 
+/// Assert that the cells of row `y` starting at `x` hold exactly the codepoints of `text`.
+fn expectRow(buf: Buffer, x: u16, y: u16, text: []const u8) !void {
+    var iter = std.unicode.Utf8View.initUnchecked(text).iterator();
+    var i: u16 = 0;
+    while (iter.nextCodepoint()) |cp| : (i += 1) {
+        try std.testing.expectEqual(cp, buf.getChar(x + i, y));
+    }
+}
+
+/// Assert that every cell of the buffer is the default blank cell.
+fn expectBlank(buf: Buffer) !void {
+    for (buf.cells) |cell| try std.testing.expect(cell.eql(.{}));
+}
+
+/// Count the cells of the buffer that hold `char`.
+fn countChar(buf: Buffer, char: u21) usize {
+    var count: usize = 0;
+    for (buf.cells) |cell| {
+        if (cell.char == char) count += 1;
+    }
+    return count;
+}
+
 test "ScatterPlot.render empty" {
     const series = [_]ScatterPlot.Series{};
     const plot = ScatterPlot.init(&series);
@@ -467,7 +512,7 @@ test "ScatterPlot.render empty" {
     defer buf.deinit();
 
     plot.render(&buf, Rect{ .x = 0, .y = 0, .width = 20, .height = 10 });
-    // Should not crash with empty series
+    try expectBlank(buf);
 }
 
 test "ScatterPlot.render with data" {
@@ -489,19 +534,28 @@ test "ScatterPlot.render with data" {
 
     plot.render(&buf, Rect{ .x = 0, .y = 0, .width = 30, .height = 15 });
 
-    // Verify some markers were plotted (check for '•' in buffer)
-    var found = false;
-    for (0..buf.height) |y| {
-        for (0..buf.width) |x| {
-            const cell = buf.get(@intCast(x), @intCast(y));
-            if (cell.char == '•') {
-                found = true;
-                break;
-            }
-        }
-        if (found) break;
-    }
-    try std.testing.expect(found);
+    // Plot area is x 8..29, y 0..11; markers at the mapped cells and nowhere else.
+    try std.testing.expectEqual(@as(u21, '•'), buf.getChar(8, 11));
+    try std.testing.expectEqual(@as(u21, '•'), buf.getChar(18, 0));
+    try std.testing.expectEqual(@as(u21, '•'), buf.getChar(29, 6));
+    try std.testing.expectEqual(@as(?style_mod.Color, .{ .indexed = 2 }), buf.getStyle(8, 11).fg);
+    try std.testing.expectEqual(@as(usize, 4), countChar(buf, '•')); // 3 points + legend
+    // Y axis line and labels.
+    try std.testing.expectEqual(@as(u21, '│'), buf.getChar(7, 0));
+    try std.testing.expectEqual(@as(u21, '│'), buf.getChar(7, 11));
+    try std.testing.expectEqual(@as(u21, ' '), buf.getChar(7, 12));
+    try expectRow(buf, 4, 0, "4.0");
+    try expectRow(buf, 4, 6, "3.0");
+    try expectRow(buf, 4, 11, "2.0");
+    // X axis line and labels.
+    try std.testing.expectEqual(@as(u21, '─'), buf.getChar(8, 12));
+    try std.testing.expectEqual(@as(u21, '─'), buf.getChar(29, 12));
+    try expectRow(buf, 8, 13, "1.0");
+    try expectRow(buf, 19, 13, "2.0");
+    try expectRow(buf, 27, 13, "3.0");
+    // Legend on the last row.
+    try std.testing.expectEqual(@as(u21, '•'), buf.getChar(0, 14));
+    try expectRow(buf, 2, 14, "Group A");
 }
 
 test "ScatterPlot.render with block" {
@@ -509,21 +563,26 @@ test "ScatterPlot.render with block" {
         .{
             .name = "Test",
             .points = &[_]ScatterPlot.Point{
-                .{ .x = 1, .y = 1 },
+                .{ .x = 0, .y = 0 },
+                .{ .x = 10, .y = 10 },
             },
         },
     };
     const plot = ScatterPlot.init(&series)
-        .withBlock((Block{}).withBorders(.all).withTitle("Scatter"));
+        .withBlock((Block{}).withBorders(.all).withTitle("Scatter", .top_left));
 
     var buf = try Buffer.init(std.testing.allocator, 30, 15);
     defer buf.deinit();
 
     plot.render(&buf, Rect{ .x = 0, .y = 0, .width = 30, .height = 15 });
 
-    // Check for title
-    const title_cell = buf.get(1, 0);
-    try std.testing.expectEqual('S', title_cell.char);
+    try expectRow(buf, 2, 0, "Scatter");
+    // Inner area is 1,1 28x13: plot area x 9..28, y 1..10, legend on row 13.
+    try std.testing.expectEqual(@as(u21, '•'), buf.getChar(9, 10));
+    try std.testing.expectEqual(@as(u21, '•'), buf.getChar(28, 1));
+    try std.testing.expectEqual(@as(u21, '•'), buf.getChar(1, 13));
+    try expectRow(buf, 3, 13, "Test");
+    try std.testing.expectEqual(@as(usize, 3), countChar(buf, '•'));
 }
 
 test "ScatterPlot.render zero-size area" {
@@ -536,7 +595,7 @@ test "ScatterPlot.render zero-size area" {
     defer buf.deinit();
 
     plot.render(&buf, Rect{ .x = 0, .y = 0, .width = 0, .height = 0 });
-    // Should not crash
+    try expectBlank(buf);
 }
 
 test "ScatterPlot.render with axes disabled" {
@@ -545,6 +604,7 @@ test "ScatterPlot.render with axes disabled" {
             .name = "NoAxes",
             .points = &[_]ScatterPlot.Point{
                 .{ .x = 1, .y = 2 },
+                .{ .x = 3, .y = 4 },
             },
         },
     };
@@ -555,12 +615,95 @@ test "ScatterPlot.render with axes disabled" {
 
     plot.render(&buf, Rect{ .x = 0, .y = 0, .width = 20, .height = 10 });
 
-    // Verify no axis characters ('│', '─')
-    for (0..buf.height) |y| {
-        for (0..buf.width) |x| {
-            const cell = buf.get(@intCast(x), @intCast(y));
-            try std.testing.expect(cell.char != '│');
-            try std.testing.expect(cell.char != '─');
-        }
-    }
+    // Plot area is the full width and 9 rows; the legend takes the last row.
+    try std.testing.expectEqual(@as(u21, '•'), buf.getChar(0, 8));
+    try std.testing.expectEqual(@as(u21, '•'), buf.getChar(19, 0));
+    try std.testing.expectEqual(@as(usize, 3), countChar(buf, '•'));
+    try std.testing.expectEqual(@as(usize, 0), countChar(buf, '│'));
+    try std.testing.expectEqual(@as(usize, 0), countChar(buf, '─'));
+    try expectRow(buf, 2, 9, "NoAxes");
+}
+
+test "ScatterPlot.render uses the first code point of a multi-character marker" {
+    const series = [_]ScatterPlot.Series{
+        .{
+            .name = "M",
+            .points = &[_]ScatterPlot.Point{ .{ .x = 0, .y = 0 }, .{ .x = 1, .y = 1 } },
+            .marker = "x●",
+        },
+    };
+    const plot = ScatterPlot.init(&series).withShowAxes(false);
+
+    var buf = try Buffer.init(std.testing.allocator, 10, 5);
+    defer buf.deinit();
+
+    plot.render(&buf, Rect{ .x = 0, .y = 0, .width = 10, .height = 5 });
+
+    try std.testing.expectEqual(@as(u21, 'x'), buf.getChar(0, 3));
+    try std.testing.expectEqual(@as(u21, 'x'), buf.getChar(9, 0));
+    try std.testing.expectEqual(@as(u21, 'x'), buf.getChar(0, 4)); // legend marker
+    try std.testing.expectEqual(@as(usize, 3), countChar(buf, 'x'));
+    try std.testing.expectEqual(@as(usize, 0), countChar(buf, '•'));
+}
+
+test "ScatterPlot.render falls back to the default marker for empty or truncated markers" {
+    const points = [_]ScatterPlot.Point{ .{ .x = 0, .y = 0 }, .{ .x = 1, .y = 1 } };
+    const series = [_]ScatterPlot.Series{
+        .{ .name = "E", .points = &points, .marker = "" },
+        .{ .name = "T", .points = &points, .marker = "\xE2\x97" }, // '●' cut short
+    };
+    const plot = ScatterPlot.init(&series).withShowAxes(false).withShowLegend(false);
+
+    var buf = try Buffer.init(std.testing.allocator, 10, 5);
+    defer buf.deinit();
+
+    plot.render(&buf, Rect{ .x = 0, .y = 0, .width = 10, .height = 5 });
+
+    try std.testing.expectEqual(@as(u21, '•'), buf.getChar(0, 4));
+    try std.testing.expectEqual(@as(u21, '•'), buf.getChar(9, 0));
+    try std.testing.expectEqual(@as(usize, 2), countChar(buf, '•'));
+}
+
+test "ScatterPlot.render ignores an area outside the buffer without overflow" {
+    const series = [_]ScatterPlot.Series{
+        .{
+            .name = "Far",
+            .points = &[_]ScatterPlot.Point{ .{ .x = 0, .y = 0 }, .{ .x = 1, .y = 1 } },
+        },
+    };
+    const plot = ScatterPlot.init(&series);
+
+    var buf = try Buffer.init(std.testing.allocator, 10, 10);
+    defer buf.deinit();
+
+    plot.render(&buf, Rect{ .x = 65530, .y = 65530, .width = 100, .height = 100 });
+    try expectBlank(buf);
+    plot.render(&buf, Rect{ .x = 0, .y = 0, .width = 65535, .height = 65535 });
+    try std.testing.expectEqual(@as(u21, '│'), buf.getChar(7, 0));
+}
+
+test "ScatterPlot.render skips non-finite points" {
+    const nan = std.math.nan(f64);
+    const inf = std.math.inf(f64);
+    const series = [_]ScatterPlot.Series{
+        .{
+            .name = "N",
+            .points = &[_]ScatterPlot.Point{
+                .{ .x = 0, .y = 0 },
+                .{ .x = nan, .y = 1 },
+                .{ .x = 1, .y = inf },
+                .{ .x = 10, .y = 10 },
+            },
+        },
+    };
+    const plot = ScatterPlot.init(&series).withShowAxes(false).withShowLegend(false);
+
+    var buf = try Buffer.init(std.testing.allocator, 11, 5);
+    defer buf.deinit();
+
+    plot.render(&buf, Rect{ .x = 0, .y = 0, .width = 11, .height = 5 });
+
+    try std.testing.expectEqual(@as(u21, '•'), buf.getChar(0, 4));
+    try std.testing.expectEqual(@as(u21, '•'), buf.getChar(10, 0));
+    try std.testing.expectEqual(@as(usize, 2), countChar(buf, '•'));
 }
