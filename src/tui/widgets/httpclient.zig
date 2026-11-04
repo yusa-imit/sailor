@@ -7,6 +7,7 @@ const Style = @import("../style.zig").Style;
 const Color = @import("../style.zig").Color;
 const Block = @import("block.zig").Block;
 const Gauge = @import("gauge.zig").Gauge;
+const UnicodeWidth = @import("../../unicode.zig").UnicodeWidth;
 
 /// HTTP request state
 pub const RequestState = enum {
@@ -83,7 +84,9 @@ pub const HttpClient = struct {
 
         // Calculate speed (bytes per second)
         if (elapsed_ms > 0) {
-            self.progress.speed_bps = (bytes_downloaded * 1000) / elapsed_ms;
+            const scaled = @as(u128, bytes_downloaded) * 1000;
+            const speed = @divFloor(scaled, elapsed_ms);
+            self.progress.speed_bps = @intCast(@min(speed, std.math.maxInt(u64)));
         }
     }
 
@@ -102,165 +105,174 @@ pub const HttpClient = struct {
         self.error_msg = error_msg;
     }
 
-    /// Render the widget
+    /// Render the widget. Content is clipped to `area` (and to the buffer).
     pub fn render(self: HttpClient, buf: *Buffer, area: Rect) void {
-        var render_area = area;
-
-        // Render block border if present
+        var inner = area;
         if (self.block) |block| {
             block.render(buf, area);
-            render_area = block.inner(area);
+            inner = block.inner(area);
         }
+        if (inner.width < 3 or inner.height < 1) return;
 
-        if (render_area.width < 3 or render_area.height < 1) return;
+        var row: u16 = 0;
+        self.renderUrl(buf, inner, &row);
+        self.renderState(buf, inner, &row);
+        const active = self.state == .receiving or self.state == .completed;
+        if (active) self.renderProgress(buf, inner, &row);
+        if (active and self.show_details) self.renderStats(buf, inner, &row);
+        if (self.state == .failed) self.renderError(buf, inner, &row);
+        if (self.state == .completed) self.renderPreview(buf, inner, &row);
+    }
 
-        var y: u16 = render_area.y;
+    fn renderUrl(self: HttpClient, buf: *Buffer, inner: Rect, row: *u16) void {
+        std.debug.assert(row.* < inner.height);
+        std.debug.assert(inner.width >= 3);
+        const label = "URL: ";
+        const y = inner.y +| row.*;
+        buf.setString(inner.x, y, label, .{});
+        const label_width: u16 = label.len;
+        const x = inner.x +| label_width;
+        buf.setString(x, y, fitPrefix(self.url, inner.width -| label_width), .{});
+        row.* += 1;
+    }
 
-        // Line 1: URL
-        if (y < render_area.y + render_area.height) {
-            const url_label = "URL: ";
-            buf.setString(render_area.x, y, url_label, .{});
-            const url_x = render_area.x + @as(u16, @intCast(url_label.len));
-            const url_width = render_area.width -| @as(u16, @intCast(url_label.len));
-            if (url_width > 0) {
-                const url_display = if (self.url.len > url_width)
-                    self.url[0..url_width]
-                else
-                    self.url;
-                buf.setString(url_x, y, url_display, .{});
-            }
-            y += 1;
-        }
+    fn renderState(self: HttpClient, buf: *Buffer, inner: Rect, row: *u16) void {
+        std.debug.assert(row.* >= 1);
+        std.debug.assert(inner.width >= 3);
+        if (row.* >= inner.height) return;
+        const state_str = switch (self.state) {
+            .idle => "State: Idle",
+            .connecting => "State: Connecting...",
+            .sending => "State: Sending request...",
+            .receiving => "State: Receiving data...",
+            .completed => "State: Completed ✓",
+            .failed => "State: Failed ✗",
+        };
+        const state_color: Color = switch (self.state) {
+            .completed => .green,
+            .failed => .red,
+            else => .yellow,
+        };
+        const text = fitPrefix(state_str, inner.width);
+        buf.setString(inner.x, inner.y +| row.*, text, .{ .fg = state_color });
+        row.* += 1;
+    }
 
-        // Line 2: State
-        if (y < render_area.y + render_area.height) {
-            const state_str = switch (self.state) {
-                .idle => "State: Idle",
-                .connecting => "State: Connecting...",
-                .sending => "State: Sending request...",
-                .receiving => "State: Receiving data...",
-                .completed => "State: Completed ✓",
-                .failed => "State: Failed ✗",
-            };
-            const state_color = switch (self.state) {
-                .completed => Color{ .green = {} },
-                .failed => Color{ .red = {} },
-                else => Color{ .yellow = {} },
-            };
-            buf.setString(render_area.x, y, state_str, Style.init().fg(state_color));
-            y += 1;
-        }
+    fn renderProgress(self: HttpClient, buf: *Buffer, inner: Rect, row: *u16) void {
+        std.debug.assert(row.* >= 2);
+        std.debug.assert(inner.width >= 3);
+        if (row.* >= inner.height) return;
+        defer row.* += 1;
 
-        // Line 3+: Progress bar (if receiving or completed)
-        if ((self.state == .receiving or self.state == .completed) and y < render_area.y + render_area.height) {
-            const progress_area = Rect{
-                .x = render_area.x,
-                .y = y,
-                .width = render_area.width,
-                .height = 1,
-            };
+        // Gauge does not clip its extent to the buffer, so hand it only visible columns.
+        const visible = @min(inner.width, buf.width -| inner.x);
+        if (visible == 0) return;
+        const bar = Rect{ .x = inner.x, .y = inner.y +| row.*, .width = visible, .height = 1 };
+        const done = self.percentDone();
+        var label_buf: [8]u8 = undefined;
+        const label = std.fmt.bufPrint(&label_buf, "{d}%", .{done}) catch unreachable; // <= 4 bytes
+        const gauge = (Gauge{}).withPercent(done).withLabel(label);
+        gauge.render(buf, bar);
+    }
 
-            const percent: u8 = if (self.progress.total_bytes) |total|
-                if (total > 0)
-                    @intCast(@min(100, (self.progress.bytes_downloaded * 100) / total))
-                else
-                    0
-            else
-                0; // Unknown total
+    /// Whole-number completion percentage; 0 when the total is unknown or zero.
+    fn percentDone(self: HttpClient) u8 {
+        const total = self.progress.total_bytes orelse return 0;
+        if (total == 0) return 0;
+        const done: u128 = self.progress.bytes_downloaded;
+        const scaled = @divFloor(done * 100, total);
+        return @intCast(@min(scaled, 100));
+    }
 
-            var gauge = Gauge.init(percent);
-            const label_buf = std.fmt.allocPrint(
-                std.heap.page_allocator,
-                "{d}%",
-                .{percent},
-            ) catch "?";
-            defer std.heap.page_allocator.free(label_buf);
-            gauge.setLabel(label_buf);
-            gauge.render(buf, progress_area);
-            y += 1;
-        }
+    fn renderStats(self: HttpClient, buf: *Buffer, inner: Rect, row: *u16) void {
+        std.debug.assert(row.* >= 3);
+        std.debug.assert(inner.width >= 3);
+        if (row.* >= inner.height) return;
+        var done_buf: [byte_str_max]u8 = undefined;
+        var total_buf: [byte_str_max]u8 = undefined;
+        var speed_buf: [byte_str_max]u8 = undefined;
+        const done_str = formatBytes(&done_buf, self.progress.bytes_downloaded);
+        const total_str = if (self.progress.total_bytes) |total|
+            formatBytes(&total_buf, total)
+        else
+            "unknown";
+        const speed_str = formatBytes(&speed_buf, self.progress.speed_bps);
+        var line_buf: [3 * byte_str_max + 32]u8 = undefined;
+        const line = std.fmt.bufPrint(
+            &line_buf,
+            "Downloaded: {s} / {s} ({s}/s)",
+            .{ done_str, total_str, speed_str },
+        ) catch unreachable; // line_buf fits three byte strings plus fixed text
+        buf.setString(inner.x, inner.y +| row.*, fitPrefix(line, inner.width), .{});
+        row.* += 1;
+    }
 
-        // Line 4: Download stats (if show_details)
-        if (self.show_details and (self.state == .receiving or self.state == .completed) and y < render_area.y + render_area.height) {
-            const bytes_str = formatBytes(std.heap.page_allocator, self.progress.bytes_downloaded) catch "? B";
-            defer std.heap.page_allocator.free(bytes_str);
+    fn renderError(self: HttpClient, buf: *Buffer, inner: Rect, row: *u16) void {
+        std.debug.assert(row.* >= 2);
+        std.debug.assert(inner.width >= 3);
+        const message = self.error_msg orelse return;
+        if (row.* >= inner.height) return;
+        const label = "Error: ";
+        const y = inner.y +| row.*;
+        buf.setString(inner.x, y, fitPrefix(label, inner.width), .{ .fg = .red });
+        const label_width: u16 = label.len;
+        const x = inner.x +| label_width;
+        buf.setString(x, y, fitPrefix(message, inner.width -| label_width), .{});
+        row.* += 1;
+    }
 
-            const total_str = if (self.progress.total_bytes) |total|
-                formatBytes(std.heap.page_allocator, total) catch "? B"
-            else
-                "unknown";
-            defer if (self.progress.total_bytes != null) std.heap.page_allocator.free(total_str);
+    fn renderPreview(self: HttpClient, buf: *Buffer, inner: Rect, row: *u16) void {
+        std.debug.assert(row.* >= 2);
+        std.debug.assert(inner.width >= 3);
+        const preview = self.response_preview orelse return;
+        if (row.* >= inner.height) return;
+        buf.setString(inner.x, inner.y +| row.*, "Response:", .{});
+        row.* += 1;
 
-            const speed_str = formatBytes(std.heap.page_allocator, self.progress.speed_bps) catch "? B";
-            defer std.heap.page_allocator.free(speed_str);
-
-            const stats_buf = std.fmt.allocPrint(
-                std.heap.page_allocator,
-                "Downloaded: {s} / {s} ({s}/s)",
-                .{ bytes_str, total_str, speed_str },
-            ) catch "Stats unavailable";
-            defer std.heap.page_allocator.free(stats_buf);
-
-            buf.setString(render_area.x, y, stats_buf, .{});
-            y += 1;
-        }
-
-        // Line 5: Error message (if failed)
-        if (self.state == .failed and self.error_msg != null and y < render_area.y + render_area.height) {
-            const error_label = "Error: ";
-            buf.setString(render_area.x, y, error_label, Style.init().fg(.{ .red = {} }));
-            const error_x = render_area.x + @as(u16, @intCast(error_label.len));
-            const error_width = render_area.width -| @as(u16, @intCast(error_label.len));
-            if (error_width > 0 and self.error_msg != null) {
-                const error_display = if (self.error_msg.?.len > error_width)
-                    self.error_msg.?[0..error_width]
-                else
-                    self.error_msg.?;
-                buf.setString(error_x, y, error_display, .{});
-            }
-            y += 1;
-        }
-
-        // Line 6+: Response preview (if completed)
-        if (self.state == .completed and self.response_preview != null and y < render_area.y + render_area.height) {
-            if (y < render_area.y + render_area.height) {
-                buf.setString(render_area.x, y, "Response:", .{});
-                y += 1;
-            }
-
-            if (y < render_area.y + render_area.height and self.response_preview != null) {
-                const preview = self.response_preview.?;
-                const max_lines = render_area.height -| (y -| render_area.y);
-                var lines: u16 = 0;
-                var i: usize = 0;
-                while (i < preview.len and lines < max_lines) {
-                    const line_end = std.mem.findScalarPos(u8, preview, i, '\n') orelse preview.len;
-                    const line = preview[i..line_end];
-                    const display_len = @min(line.len, render_area.width);
-                    buf.setString(render_area.x, y + lines, line[0..display_len], .{});
-                    lines += 1;
-                    i = if (line_end < preview.len) line_end + 1 else preview.len;
-                }
-            }
+        var rest = preview;
+        while (rest.len > 0 and row.* < inner.height) {
+            const line_end = std.mem.findScalar(u8, rest, '\n') orelse rest.len;
+            buf.setString(inner.x, inner.y +| row.*, fitPrefix(rest[0..line_end], inner.width), .{});
+            row.* += 1;
+            rest = rest[@min(line_end + 1, rest.len)..];
         }
     }
 
-    /// Format bytes as human-readable string
-    /// Caller owns the returned memory and must free it
-    fn formatBytes(allocator: Allocator, bytes: u64) ![]const u8 {
-        const kb: u64 = 1024;
-        const mb: u64 = kb * 1024;
-        const gb: u64 = mb * 1024;
-
-        if (bytes >= gb) {
-            return std.fmt.allocPrint(allocator, "{d:.2} GB", .{@as(f64, @floatFromInt(bytes)) / @as(f64, @floatFromInt(gb))});
-        } else if (bytes >= mb) {
-            return std.fmt.allocPrint(allocator, "{d:.2} MB", .{@as(f64, @floatFromInt(bytes)) / @as(f64, @floatFromInt(mb))});
-        } else if (bytes >= kb) {
-            return std.fmt.allocPrint(allocator, "{d:.2} KB", .{@as(f64, @floatFromInt(bytes)) / @as(f64, @floatFromInt(kb))});
-        } else {
-            return std.fmt.allocPrint(allocator, "{d} B", .{bytes});
+    /// Longest prefix of `text` (cut on a codepoint boundary) fitting in `width_max` cells.
+    fn fitPrefix(text: []const u8, width_max: u16) []const u8 {
+        std.debug.assert(text.len <= std.math.maxInt(u32));
+        std.debug.assert(width_max <= std.math.maxInt(u16));
+        var cells: u32 = 0;
+        var i: usize = 0;
+        while (i < text.len) {
+            const len = std.unicode.utf8ByteSequenceLength(text[i]) catch 1;
+            if (i + len > text.len) break;
+            const cp = std.unicode.utf8Decode(text[i .. i + len]) catch @as(u21, text[i]);
+            const w = UnicodeWidth.charWidth(cp);
+            if (cells + w > width_max) break;
+            cells += w;
+            i += len;
         }
+        return text[0..i];
+    }
+
+    /// Longest `formatBytes` output, e.g. "17179869184.00 GB" is 17 bytes.
+    const byte_str_max = 24;
+
+    /// Format bytes as a human-readable string into `out` (>= `byte_str_max` bytes).
+    fn formatBytes(out: []u8, bytes: u64) []const u8 {
+        std.debug.assert(out.len >= byte_str_max);
+        const units = [_]struct { size: u64, name: []const u8 }{
+            .{ .size = 1 << 30, .name = "GB" },
+            .{ .size = 1 << 20, .name = "MB" },
+            .{ .size = 1 << 10, .name = "KB" },
+        };
+        for (units) |unit| {
+            if (bytes < unit.size) continue;
+            const value = @as(f64, @floatFromInt(bytes)) / @as(f64, @floatFromInt(unit.size));
+            return std.fmt.bufPrint(out, "{d:.2} {s}", .{ value, unit.name }) catch unreachable; // <= 24 bytes
+        }
+        return std.fmt.bufPrint(out, "{d} B", .{bytes}) catch unreachable; // u64 fits in 24 bytes
     }
 };
 
@@ -313,72 +325,219 @@ test "HttpClient - progress calculation" {
     try std.testing.expectEqual(@as(u64, 2560), client.progress.speed_bps);
 }
 
+fn expectRow(buf: Buffer, y: u16, expected: []const u8) !void {
+    const line = buf.getLine(y, 0, buf.width);
+    defer buf.allocator.free(line);
+
+    try std.testing.expectEqualStrings(expected, std.mem.trimEnd(u8, line, " "));
+}
+
 test "HttpClient - render idle state" {
-    const allocator = std.testing.allocator;
-    var buffer = try Buffer.init(allocator, 40, 10);
+    var buffer = try Buffer.init(std.testing.allocator, 40, 10);
     defer buffer.deinit();
 
-    var client = HttpClient.init("https://example.com");
-    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
-    client.render(&buffer, area);
+    const client = HttpClient.init("https://example.com");
+    client.render(&buffer, .{ .x = 0, .y = 0, .width = 40, .height = 10 });
 
-    // Check that URL is rendered
-    const line0 = buffer.getLine(0);
-    try std.testing.expect(std.mem.find(u8, line0, "URL:") != null);
-    try std.testing.expect(std.mem.find(u8, line0, "example.com") != null);
-
-    // Check that state is rendered
-    const line1 = buffer.getLine(1);
-    try std.testing.expect(std.mem.find(u8, line1, "Idle") != null);
+    try expectRow(buffer, 0, "URL: https://example.com");
+    try expectRow(buffer, 1, "State: Idle");
+    try expectRow(buffer, 2, "");
+    try std.testing.expectEqual(@as(?Color, .yellow), buffer.getStyle(0, 1).fg);
+    try std.testing.expectEqual(@as(?Color, null), buffer.getStyle(0, 0).fg);
 }
 
 test "HttpClient - render receiving state" {
-    const allocator = std.testing.allocator;
-    var buffer = try Buffer.init(allocator, 40, 10);
+    var buffer = try Buffer.init(std.testing.allocator, 40, 10);
     defer buffer.deinit();
 
     var client = HttpClient.init("https://example.com");
     client.updateProgress(1024, 2048, 1000);
+    client.render(&buffer, .{ .x = 0, .y = 0, .width = 40, .height = 10 });
 
-    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
-    client.render(&buffer, area);
-
-    // Check state line
-    const line1 = buffer.getLine(1);
-    try std.testing.expect(std.mem.find(u8, line1, "Receiving") != null);
+    try expectRow(buffer, 1, "State: Receiving data...");
+    // 50% of 40 cells filled, label centred over the bar.
+    try std.testing.expectEqual(@as(u21, '█'), buffer.getChar(0, 2));
+    try std.testing.expectEqual(@as(u21, '█'), buffer.getChar(17, 2));
+    try std.testing.expectEqual(@as(u21, '5'), buffer.getChar(18, 2));
+    try std.testing.expectEqual(@as(u21, '0'), buffer.getChar(19, 2));
+    try std.testing.expectEqual(@as(u21, '%'), buffer.getChar(20, 2));
+    try std.testing.expectEqual(@as(u21, ' '), buffer.getChar(21, 2));
+    try std.testing.expectEqual(@as(u21, ' '), buffer.getChar(39, 2));
+    try expectRow(buffer, 3, "Downloaded: 1.00 KB / 2.00 KB (1.00 KB/s");
 }
 
 test "HttpClient - render completed state" {
-    const allocator = std.testing.allocator;
-    var buffer = try Buffer.init(allocator, 40, 10);
+    var buffer = try Buffer.init(std.testing.allocator, 40, 10);
     defer buffer.deinit();
 
     var client = HttpClient.init("https://example.com");
     client.updateProgress(2048, 2048, 2000);
-    client.complete("Response data here");
+    client.complete("Response data here\nsecond line");
+    client.render(&buffer, .{ .x = 0, .y = 0, .width = 40, .height = 10 });
 
-    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
-    client.render(&buffer, area);
-
-    // Check completed state
-    const line1 = buffer.getLine(1);
-    try std.testing.expect(std.mem.find(u8, line1, "Completed") != null);
+    try expectRow(buffer, 1, "State: Completed ✓");
+    try std.testing.expectEqual(@as(?Color, .green), buffer.getStyle(0, 1).fg);
+    try std.testing.expectEqual(@as(u21, '█'), buffer.getChar(39, 2));
+    try expectRow(buffer, 4, "Response:");
+    try expectRow(buffer, 5, "Response data here");
+    try expectRow(buffer, 6, "second line");
+    try expectRow(buffer, 7, "");
 }
 
 test "HttpClient - render failed state" {
-    const allocator = std.testing.allocator;
-    var buffer = try Buffer.init(allocator, 40, 10);
+    var buffer = try Buffer.init(std.testing.allocator, 40, 10);
     defer buffer.deinit();
 
     var client = HttpClient.init("https://example.com");
     client.fail("Connection timeout");
+    client.render(&buffer, .{ .x = 0, .y = 0, .width = 40, .height = 10 });
 
-    const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
-    client.render(&buffer, area);
+    try expectRow(buffer, 1, "State: Failed ✗");
+    try std.testing.expectEqual(@as(?Color, .red), buffer.getStyle(0, 1).fg);
+    try expectRow(buffer, 2, "Error: Connection timeout");
+    try std.testing.expectEqual(@as(?Color, .red), buffer.getStyle(0, 2).fg);
+    try std.testing.expectEqual(@as(?Color, null), buffer.getStyle(7, 2).fg);
+}
 
-    // Check failed state
-    const line1 = buffer.getLine(1);
-    try std.testing.expect(std.mem.find(u8, line1, "Failed") != null);
+test "HttpClient - render with block insets content" {
+    var buffer = try Buffer.init(std.testing.allocator, 30, 6);
+    defer buffer.deinit();
+
+    var client = HttpClient.init("a.io");
+    client.setBlock(Block{});
+    client.render(&buffer, .{ .x = 0, .y = 0, .width = 30, .height = 6 });
+
+    try std.testing.expectEqual(@as(u21, '┌'), buffer.getChar(0, 0));
+    try expectRow(buffer, 1, "│URL: a.io" ++ " " ** 19 ++ "│");
+    try expectRow(buffer, 2, "│State: Idle" ++ " " ** 17 ++ "│");
+}
+
+test "HttpClient - render clips to a narrow area, not the buffer" {
+    var buffer = try Buffer.init(std.testing.allocator, 40, 4);
+    defer buffer.deinit();
+
+    const client = HttpClient.init("https://example.com");
+    client.render(&buffer, .{ .x = 2, .y = 1, .width = 12, .height = 2 });
+
+    try expectRow(buffer, 0, "");
+    try expectRow(buffer, 1, "  URL: https:/");
+    try expectRow(buffer, 2, "  State: Idle");
+    try std.testing.expectEqual(@as(u21, ' '), buffer.getChar(14, 1));
+}
+
+test "HttpClient - render multibyte url is clipped by cells" {
+    var buffer = try Buffer.init(std.testing.allocator, 20, 2);
+    defer buffer.deinit();
+
+    // Four 2-byte narrow codepoints, then two 3-byte wide codepoints (2 cells each).
+    const client = HttpClient.init("éééé漢字");
+    client.render(&buffer, .{ .x = 0, .y = 0, .width = 11, .height = 2 });
+    // 6 cells for the url: four narrow + one wide; the second wide would need 8.
+    try expectRow(buffer, 0, "URL: éééé漢");
+
+    buffer.clear();
+    client.render(&buffer, .{ .x = 0, .y = 0, .width = 10, .height = 2 });
+    // 5 cells: the wide codepoint no longer fits and is dropped whole, never split.
+    try expectRow(buffer, 0, "URL: éééé");
+}
+
+test "HttpClient - render tiny and degenerate areas draw nothing" {
+    var buffer = try Buffer.init(std.testing.allocator, 10, 3);
+    defer buffer.deinit();
+
+    var client = HttpClient.init("x");
+    client.updateProgress(1, 2, 1);
+    client.render(&buffer, .{ .x = 0, .y = 0, .width = 2, .height = 3 });
+    client.render(&buffer, .{ .x = 0, .y = 0, .width = 10, .height = 0 });
+    client.render(&buffer, .{ .x = 20, .y = 20, .width = 10, .height = 3 });
+
+    for (0..3) |y| try expectRow(buffer, @intCast(y), "");
+}
+
+test "HttpClient - render at the u16 edge does not overflow" {
+    var buffer = try Buffer.init(std.testing.allocator, 8, 4);
+    defer buffer.deinit();
+
+    var client = HttpClient.init("https://example.com");
+    client.updateProgress(5, 10, 1);
+    client.complete("a\nb\nc");
+    const edge: u16 = std.math.maxInt(u16);
+    client.render(&buffer, .{ .x = edge - 4, .y = edge - 4, .width = edge, .height = edge });
+    client.render(&buffer, .{ .x = 0, .y = 0, .width = edge, .height = edge });
+
+    try expectRow(buffer, 0, "URL: htt");
+}
+
+test "HttpClient - render height limits rows" {
+    var buffer = try Buffer.init(std.testing.allocator, 30, 8);
+    defer buffer.deinit();
+
+    var client = HttpClient.init("u");
+    client.updateProgress(1, 2, 1);
+    client.complete("one\ntwo\nthree\nfour");
+    client.render(&buffer, .{ .x = 0, .y = 0, .width = 30, .height = 6 });
+
+    try expectRow(buffer, 4, "Response:");
+    try expectRow(buffer, 5, "one");
+    try expectRow(buffer, 6, "");
+}
+
+test "HttpClient - unknown total renders 0 percent and 'unknown'" {
+    var buffer = try Buffer.init(std.testing.allocator, 50, 5);
+    defer buffer.deinit();
+
+    var client = HttpClient.init("u");
+    client.updateProgress(1024, null, 1000);
+    client.render(&buffer, .{ .x = 0, .y = 0, .width = 50, .height = 5 });
+
+    try std.testing.expectEqual(@as(u21, ' '), buffer.getChar(0, 2));
+    try std.testing.expectEqual(@as(u21, '0'), buffer.getChar(24, 2));
+    try expectRow(buffer, 3, "Downloaded: 1.00 KB / unknown (1.00 KB/s)");
+}
+
+test "HttpClient - show_details false hides stats" {
+    var buffer = try Buffer.init(std.testing.allocator, 50, 5);
+    defer buffer.deinit();
+
+    var client = HttpClient.init("u");
+    client.show_details = false;
+    client.updateProgress(1024, 2048, 1000);
+    client.render(&buffer, .{ .x = 0, .y = 0, .width = 50, .height = 5 });
+
+    try expectRow(buffer, 3, "");
+}
+
+test "HttpClient - percent saturates and survives u64 extremes" {
+    var client = HttpClient.init("u");
+    const big = std.math.maxInt(u64);
+
+    client.updateProgress(big, big, 1);
+    try std.testing.expectEqual(@as(u8, 100), client.percentDone());
+    try std.testing.expectEqual(@as(u64, big), client.progress.speed_bps);
+    client.updateProgress(2048, 1024, 1);
+    try std.testing.expectEqual(@as(u8, 100), client.percentDone());
+    client.updateProgress(5, 0, 1);
+    try std.testing.expectEqual(@as(u8, 0), client.percentDone());
+    client.updateProgress(1, 3, 1);
+    try std.testing.expectEqual(@as(u8, 33), client.percentDone());
+}
+
+test "HttpClient - control bytes in preview never reach cells" {
+    var buffer = try Buffer.init(std.testing.allocator, 20, 6);
+    defer buffer.deinit();
+
+    var client = HttpClient.init("u");
+    client.updateProgress(1, 1, 1);
+    client.complete("a\x1b[31mb\xff\xc3");
+    client.render(&buffer, .{ .x = 0, .y = 0, .width = 20, .height = 6 });
+
+    var x: u16 = 0;
+    while (x < 20) : (x += 1) {
+        const ch = buffer.getChar(x, 5);
+        try std.testing.expect(ch >= 0x20 and ch != 0x7f);
+    }
+    try std.testing.expectEqual(@as(u21, 'a'), buffer.getChar(0, 5));
+    try std.testing.expectEqual(@as(u21, '['), buffer.getChar(1, 5));
 }
 
 test "HttpClient - setBlock" {
@@ -420,16 +579,15 @@ test "HttpClient - speed calculation zero elapsed" {
 }
 
 test "HttpClient - formatBytes" {
-    // Note: formatBytes uses static buffer, so these must be tested sequentially
-    const bytes_str = HttpClient.formatBytes(512);
-    try std.testing.expect(std.mem.find(u8, bytes_str, "B") != null);
+    var out: [HttpClient.byte_str_max]u8 = undefined;
 
-    const kb_str = HttpClient.formatBytes(1536); // 1.5 KB
-    try std.testing.expect(std.mem.find(u8, kb_str, "KB") != null);
-
-    const mb_str = HttpClient.formatBytes(2 * 1024 * 1024); // 2 MB
-    try std.testing.expect(std.mem.find(u8, mb_str, "MB") != null);
-
-    const gb_str = HttpClient.formatBytes(3 * 1024 * 1024 * 1024); // 3 GB
-    try std.testing.expect(std.mem.find(u8, gb_str, "GB") != null);
+    try std.testing.expectEqualStrings("0 B", HttpClient.formatBytes(&out, 0));
+    try std.testing.expectEqualStrings("512 B", HttpClient.formatBytes(&out, 512));
+    try std.testing.expectEqualStrings("1023 B", HttpClient.formatBytes(&out, 1023));
+    try std.testing.expectEqualStrings("1.00 KB", HttpClient.formatBytes(&out, 1024));
+    try std.testing.expectEqualStrings("1.50 KB", HttpClient.formatBytes(&out, 1536));
+    try std.testing.expectEqualStrings("2.00 MB", HttpClient.formatBytes(&out, 2 << 20));
+    try std.testing.expectEqualStrings("3.00 GB", HttpClient.formatBytes(&out, 3 << 30));
+    const max = HttpClient.formatBytes(&out, std.math.maxInt(u64));
+    try std.testing.expectEqualStrings("17179869184.00 GB", max);
 }

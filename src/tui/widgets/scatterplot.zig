@@ -362,7 +362,7 @@ fn labelStartX(base_x: u16, width: u16, label_len: usize, gap_cols: u16) u16 {
 }
 
 /// First code point of a marker string, or '•' if it is empty or not valid UTF-8.
-fn markerChar(marker: []const u8) u21 {
+pub fn markerChar(marker: []const u8) u21 {
     const first_len: usize = if (marker.len > 0)
         std.unicode.utf8ByteSequenceLength(marker[0]) catch 1
     else
