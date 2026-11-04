@@ -786,7 +786,7 @@ test "Markdown render empty area does nothing" {
     var buf = try Buffer.init(allocator, 40, 10);
     defer buf.deinit();
 
-    try md.render(&buf, Rect{ .x = 0, .y = 0, .width = 0, .height = 0 });
+    md.render(&buf, Rect{ .x = 0, .y = 0, .width = 0, .height = 0 });
     // Should not crash
 }
 
@@ -801,7 +801,7 @@ test "Markdown render basic heading" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
-    try md.render(&buf, area);
+    md.render(&buf, area);
 
     // Should render heading text
     var found_h = false;
@@ -827,7 +827,7 @@ test "Markdown render bold text has style" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
-    try md.render(&buf, area);
+    md.render(&buf, area);
 
     // Find bold character and check style
     for (0..40) |x| {
@@ -852,7 +852,7 @@ test "Markdown render italic text has style" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
-    try md.render(&buf, area);
+    md.render(&buf, area);
 
     // Find italic character and check style
     for (0..40) |x| {
@@ -877,7 +877,7 @@ test "Markdown render code block with distinct style" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
-    try md.render(&buf, area);
+    md.render(&buf, area);
 
     // Code blocks should be rendered
     var found_code = false;
@@ -906,7 +906,7 @@ test "Markdown render list items with bullets" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
-    try md.render(&buf, area);
+    md.render(&buf, area);
 
     // Should render bullet or dash
     var found_bullet = false;
@@ -934,7 +934,7 @@ test "Markdown render with scrolling shows offset content" {
     md.scrollDown(2);
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 3 };
-    try md.render(&buf, area);
+    md.render(&buf, area);
 
     // Should show lines starting from offset 2
     // Line 2 should be visible at y=0
@@ -964,7 +964,7 @@ test "Markdown render with block draws border" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
-    try md.render(&buf, area);
+    md.render(&buf, area);
 
     // Should have border at edges
     try testing.expect(buf.get(0, 0) != null);
@@ -981,7 +981,7 @@ test "Markdown render clips at area boundaries" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 10, .height = 5 };
-    try md.render(&buf, area);
+    md.render(&buf, area);
 
     // Content beyond x=10 should not be rendered
     // This is implicit - just check no crash
@@ -998,7 +998,7 @@ test "Markdown render with offset area" {
     defer buf.deinit();
 
     const area = Rect{ .x = 5, .y = 3, .width = 30, .height = 10 };
-    try md.render(&buf, area);
+    md.render(&buf, area);
 
     // Should render at offset (5, 3)
     var found_at_offset = false;
@@ -1024,7 +1024,7 @@ test "Markdown render heading with distinct style" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
-    try md.render(&buf, area);
+    md.render(&buf, area);
 
     // Headings should have bold or distinct styling
     var h1_found = false;
@@ -1051,7 +1051,7 @@ test "Markdown render link shows text not URL" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
-    try md.render(&buf, area);
+    md.render(&buf, area);
 
     // Should show "Click", not "https://example.com"
     var found_click = false;
@@ -1077,7 +1077,7 @@ test "Markdown render multiple lines" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
-    try md.render(&buf, area);
+    md.render(&buf, area);
 
     // Should render across multiple y coordinates
     var line1_found = false;
@@ -1114,7 +1114,7 @@ test "Markdown line wraps at width boundary" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-    try md.render(&buf, area);
+    md.render(&buf, area);
 
     // Should render across multiple lines - check buffer has content on multiple rows
     var has_content_y0 = false;
@@ -1140,7 +1140,7 @@ test "Markdown no wrap truncates lines" {
     defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 10 };
-    try md.render(&buf, area);
+    md.render(&buf, area);
 
     // Line count should reflect actual content lines, not wrapped lines
     try testing.expect(md.lineCount() > 0);

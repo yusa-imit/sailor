@@ -1453,4 +1453,8 @@ test {
     _ = @import("widgets/tree.zig");
     _ = @import("widgets/scatterplot.zig");
     _ = @import("widgets/timeseries.zig");
+    _ = @import("widgets/linechart.zig");
+    _ = @import("widgets/markdown.zig");
+    _ = @import("widgets/httpclient.zig");
+    _ = @import("widgets/menu.zig");
 }

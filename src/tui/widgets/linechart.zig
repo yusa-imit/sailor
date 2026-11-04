@@ -4,8 +4,8 @@
 //!
 //! ```zig
 //! const series = [_]LineChart.Series{
-//!     .{ .name = "CPU", .data = &[_]f64{ 10, 20, 15, 30, 25 }, .style = .{ .fg = .{ .indexed = 2 } } },
-//!     .{ .name = "Memory", .data = &[_]f64{ 5, 15, 10, 25, 20 }, .style = .{ .fg = .{ .indexed = 4 } } },
+//!     .{ .name = "CPU", .data = &[_]f64{ 10, 20, 15, 30, 25 } },
+//!     .{ .name = "Memory", .data = &[_]f64{ 5, 15, 10, 25, 20 } },
 //! };
 //!
 //! const chart = LineChart.init(&series)
@@ -27,6 +27,9 @@ const Color = style_mod.Color;
 const block_mod = @import("block.zig");
 const line_iter_mod = @import("../line_iter.zig");
 const Block = block_mod.Block;
+const Cell = buffer_mod.Cell;
+const markerChar = @import("scatterplot.zig").markerChar;
+const assert = std.debug.assert;
 
 /// LineChart widget - line chart with axes and multiple series
 pub const LineChart = struct {
@@ -124,15 +127,16 @@ pub const LineChart = struct {
         return result;
     }
 
-    /// Calculate min and max Y values across all series
-    fn calcYRange(series: []const Series) struct { min: f64, max: f64 } {
-        if (series.len == 0) return .{ .min = 0, .max = 0 };
+    const Range = struct { min: f64, max: f64 };
 
+    /// Calculate min and max Y values across all series, ignoring NaN and infinite samples.
+    fn calcYRange(series: []const Series) Range {
         var min_val: f64 = std.math.floatMax(f64);
         var max_val: f64 = -std.math.floatMax(f64);
 
         for (series) |s| {
             for (s.data) |val| {
+                if (!std.math.isFinite(val)) continue;
                 if (val < min_val) min_val = val;
                 if (val > max_val) max_val = val;
             }
@@ -151,10 +155,10 @@ pub const LineChart = struct {
         return max_len;
     }
 
-    /// Scale Y value to pixel row
+    /// Scale Y value to pixel row. Non-finite values map to the middle row.
     fn scaleY(value: f64, min: f64, max: f64, height: usize) usize {
         if (height == 0) return 0;
-        if (max == min or std.math.isNan(value)) return height / 2;
+        if (max == min or !std.math.isFinite(value)) return height / 2;
         const range = max - min;
         const normalized = (value - min) / range;
         const scaled = normalized * @as(f64, @floatFromInt(height - 1));
@@ -165,143 +169,208 @@ pub const LineChart = struct {
         return height - 1 - @min(row, height - 1);
     }
 
-    /// Render Y-axis with labels
+    /// Column of sample `index` out of `count` samples spread over `width` columns; the first
+    /// sample sits on column 0 and the last on column `width - 1`.
+    fn scaleX(index: usize, count: usize, width: usize) usize {
+        assert(width > 0);
+        assert(index < count);
+        if (count == 1) return @divFloor(width, 2);
+        const column = @divFloor(index * (width - 1), count - 1);
+        assert(column < width);
+        return column;
+    }
+
+    /// Render Y-axis with labels; `area` is exactly `y_axis_width` columns wide.
     fn renderYAxis(self: LineChart, buf: *Buffer, area: Rect, min: f64, max: f64) void {
-        if (area.width < 6 or area.height < 3) return;
+        assert(area.width == y_axis_width);
+        assert(std.math.isFinite(min));
+        assert(std.math.isFinite(max));
+        if (area.height < 3) return;
 
-        const y_label_width: u16 = 5; // Space for value labels like "99.9"
-
-        // Draw Y-axis line
-        for (0..area.height) |dy| {
-            buf.setCell(area.x + y_label_width, area.y + @as(u16, @intCast(dy)), '│', self.axis_style);
+        const axis_cell = Cell.init('│', self.axis_style);
+        var dy: u16 = 0;
+        while (dy < area.height) : (dy += 1) {
+            buf.set(area.x + y_label_width, area.y + dy, axis_cell);
         }
 
-        // Draw Y-axis labels (top, middle, bottom)
+        // Value labels: top (max), middle, bottom (min).
         var label_buf: [16]u8 = undefined;
-
-        // Top label (max)
-        const top_label = std.fmt.bufPrint(&label_buf, "{d:5.1}", .{max}) catch "  max";
-        buf.setString(area.x, area.y, top_label, self.axis_style);
-
-        // Middle label
-        if (area.height > 4) {
-            const mid = (max + min) / 2;
-            const mid_label = std.fmt.bufPrint(&label_buf, "{d:5.1}", .{mid}) catch "  mid";
-            buf.setString(area.x, area.y + area.height / 2, mid_label, self.axis_style);
+        const mid_dy: u16 = area.height / 2;
+        const has_mid = area.height > 4;
+        buf.setString(area.x, area.y, axisLabel(&label_buf, max), self.axis_style);
+        if (has_mid) {
+            const mid = min / 2 + max / 2;
+            buf.setString(area.x, area.y + mid_dy, axisLabel(&label_buf, mid), self.axis_style);
         }
+        const bottom = axisLabel(&label_buf, min);
+        buf.setString(area.x, area.y + area.height - 1, bottom, self.axis_style);
 
-        // Bottom label (min)
-        const bottom_label = std.fmt.bufPrint(&label_buf, "{d:5.1}", .{min}) catch "  min";
-        buf.setString(area.x, area.y + area.height - 1, bottom_label, self.axis_style);
+        // Vertical title in column 0, skipping rows that hold a value label.
+        self.renderYTitle(buf, area, if (has_mid) mid_dy else null);
+    }
 
-        // Draw Y-axis label vertically if provided
-        if (self.y_axis_label.len > 0 and area.height > self.y_axis_label.len) {
-            const start_y = area.y + (area.height - @as(u16, @intCast(self.y_axis_label.len))) / 2;
-            for (self.y_axis_label, 0..) |c, i| {
-                buf.setCell(area.x, start_y + @as(u16, @intCast(i)), c, self.axis_style);
-            }
+    /// Draw `y_axis_label` top to bottom in column `area.x`, centered, one code point per row.
+    fn renderYTitle(self: LineChart, buf: *Buffer, area: Rect, mid_row: ?u16) void {
+        assert(area.height >= 3);
+        const rows_count: usize = area.height;
+        if (self.y_axis_label.len == 0) return;
+        const view = std.unicode.Utf8View.init(self.y_axis_label) catch return;
+        const count = std.unicode.utf8CountCodepoints(self.y_axis_label) catch return;
+        if (count >= rows_count) return;
+        var row: usize = @divFloor(rows_count - count, 2);
+        var it = view.iterator();
+        while (it.nextCodepoint()) |cp| : (row += 1) {
+            assert(row < rows_count);
+            const is_mid = if (mid_row) |mid| row == mid else false;
+            if (row == 0 or row == rows_count - 1 or is_mid) continue;
+            const y = area.y + @as(u16, @intCast(row));
+            buf.set(area.x, y, Cell.init(cp, self.axis_style));
         }
+    }
+
+    /// Format an axis value into at most `y_label_width` right-aligned cells; "#####" if it
+    /// cannot fit.
+    fn axisLabel(out: *[16]u8, value: f64) []const u8 {
+        assert(std.math.isFinite(value));
+        assert(out.len >= y_label_width);
+        const overflow = "#####";
+        const text = std.fmt.bufPrint(out, "{d:5.1}", .{value}) catch return overflow;
+        if (text.len <= y_label_width) return text;
+        const whole = std.fmt.bufPrint(out, "{d:5.0}", .{value}) catch return overflow;
+        if (whole.len <= y_label_width) return whole;
+        return overflow;
     }
 
     /// Render X-axis with labels
     fn renderXAxis(self: LineChart, buf: *Buffer, area: Rect, data_len: usize) void {
-        if (area.width < 2 or area.height < 1) return;
+        assert(area.height == x_axis_height);
+        assert(area.width > 0);
 
-        // Draw X-axis line
-        for (0..area.width) |dx| {
-            buf.setCell(area.x + @as(u16, @intCast(dx)), area.y, '─', self.axis_style);
+        const axis_cell = Cell.init('─', self.axis_style);
+        var dx: u16 = 0;
+        while (dx < area.width) : (dx += 1) {
+            buf.set(area.x + dx, area.y, axis_cell);
         }
 
-        // Draw X-axis labels
-        if (self.x_labels.len > 0 and data_len > 0) {
-            const label_count = @min(self.x_labels.len, data_len);
-            for (0..label_count) |i| {
-                const x_pos = (i * area.width) / @max(data_len - 1, 1);
-                if (x_pos < area.width) {
-                    const label = self.x_labels[i];
-                    const label_x = area.x + @as(u16, @intCast(x_pos));
-                    if (label_x + @as(u16, @intCast(label.len)) <= area.x + area.width) {
-                        buf.setString(label_x, area.y + 1, label, self.axis_style);
-                    }
-                }
-            }
+        // Sample labels, shifted left when they would overrun the right edge.
+        const label_count = @min(self.x_labels.len, data_len);
+        for (self.x_labels[0..label_count], 0..) |label, i| {
+            const cells = cellCount(label);
+            if (cells > area.width) continue;
+            const x_pos = scaleX(i, data_len, area.width);
+            const label_x = area.x + @as(u16, @intCast(@min(x_pos, area.width - cells)));
+            buf.setString(label_x, area.y + 1, label, self.axis_style);
         }
 
-        // Draw X-axis label centered below
-        if (self.x_axis_label.len > 0 and area.width > self.x_axis_label.len and area.height > 2) {
-            const label_x = area.x + (area.width - @as(u16, @intCast(self.x_axis_label.len))) / 2;
-            buf.setString(label_x, area.y + area.height - 1, self.x_axis_label, self.axis_style);
-        }
+        // Axis title centered on the last row.
+        const title_cells = cellCount(self.x_axis_label);
+        if (title_cells == 0 or title_cells >= area.width) return;
+        const title_x = area.x + @divFloor(area.width - title_cells, 2);
+        buf.setString(title_x, area.y + 2, self.x_axis_label, self.axis_style);
     }
 
-    /// Render legend
+    /// Render legend: for each series its marker, then its name, clipped to `area`.
     fn renderLegend(self: LineChart, buf: *Buffer, area: Rect) void {
-        if (area.height < 1 or area.width < 2) return;
+        assert(area.height == 1);
+        assert(area.width > 0);
 
-        var x_offset: u16 = area.x;
+        var x: u32 = area.x;
+        const x_end: u32 = @as(u32, area.x) + area.width;
         for (self.series) |s| {
-            if (x_offset >= area.x + area.width) break;
+            if (x >= x_end) break;
+            buf.set(@intCast(x), area.y, Cell.init(markerChar(s.marker), s.style));
+            x += 1;
+            if (x >= x_end) break;
 
-            // Render marker
-            const marker_cp = std.unicode.utf8Decode(s.marker) catch ' ';
-            buf.setCell(x_offset, area.y, marker_cp, s.style);
-            x_offset += 1;
-
-            // Render name
-            if (x_offset < area.x + area.width) {
-                buf.setString(x_offset, area.y, s.name, self.legend_style);
-                x_offset += @intCast(s.name.len + 2); // Add spacing
-            }
+            const room: usize = x_end - x;
+            const name = truncateCells(s.name, room);
+            buf.setString(@intCast(x), area.y, name, self.legend_style);
+            x += @as(u32, @intCast(cellCount(name))) + legend_gap;
         }
     }
 
-    /// Render a single data series as a line
-    fn renderSeries(_: LineChart, buf: *Buffer, area: Rect, series: Series, min: f64, max: f64) void {
-        if (series.data.len == 0 or area.width == 0 or area.height == 0) return;
+    /// Render a single data series: line segments first, then markers on top of them.
+    fn renderSeries(buf: *Buffer, area: Rect, series: Series, min: f64, max: f64) void {
+        assert(area.width > 0);
+        assert(area.height > 0);
+        if (series.data.len == 0) return;
 
-        const data_len = series.data.len;
-        const width = area.width;
-        const height = area.height;
+        const count = series.data.len;
+        const width: usize = area.width;
+        const height: usize = area.height;
+        var i: usize = 1;
+        while (i < count) : (i += 1) {
+            const x0: i32 = @intCast(scaleX(i - 1, count, width));
+            const y0: i32 = @intCast(scaleY(series.data[i - 1], min, max, height));
+            const x1: i32 = @intCast(scaleX(i, count, width));
+            const y1: i32 = @intCast(scaleY(series.data[i], min, max, height));
+            drawLine(buf, area, .{ x0, y0 }, .{ x1, y1 }, series.style);
+        }
 
-        // Plot points and connect with lines
-        for (0..data_len) |i| {
-            const value = series.data[i];
-            const x_pos = if (data_len > 1) (i * width) / (data_len - 1) else width / 2;
-            const y_pos = scaleY(value, min, max, height);
-
-            if (x_pos < width and y_pos < height) {
-                const px = area.x + @as(u16, @intCast(x_pos));
-                const py = area.y + @as(u16, @intCast(y_pos));
-
-                // Draw marker at data point
-                const marker_cp = std.unicode.utf8Decode(series.marker) catch '•';
-                buf.setCell(px, py, marker_cp, series.style);
-
-                // Connect to previous point with line
-                if (i > 0) {
-                    const prev_x = if (data_len > 1) ((i - 1) * width) / (data_len - 1) else width / 2;
-                    const prev_y = scaleY(series.data[i - 1], min, max, height);
-
-                    drawLine(buf, area.x, area.y, @intCast(prev_x), @intCast(prev_y), @intCast(x_pos), @intCast(y_pos), series.style);
-                }
-            }
+        const marker = Cell.init(markerChar(series.marker), series.style);
+        for (series.data, 0..) |value, index| {
+            const px: u16 = @intCast(scaleX(index, count, width));
+            const py: u16 = @intCast(scaleY(value, min, max, height));
+            buf.set(area.x + px, area.y + py, marker);
         }
     }
 
-    /// Draw a line between two points using Bresenham's algorithm
-    fn drawLine(buf: *Buffer, area_x: u16, area_y: u16, x0: usize, y0: usize, x1: usize, y1: usize, line_style: Style) void {
-        var line = line_iter_mod.LineIter.init(
-            @intCast(x0),
-            @intCast(y0),
-            @intCast(x1),
-            @intCast(y1),
-        );
+    /// Draw a line between two plot-relative points using Bresenham's algorithm.
+    fn drawLine(buf: *Buffer, area: Rect, from: [2]i32, to: [2]i32, line_style: Style) void {
+        assert(from[0] >= 0);
+        assert(from[1] >= 0);
+        assert(to[0] < area.width);
+        assert(to[1] < area.height);
+        var line = line_iter_mod.LineIter.init(from[0], from[1], to[0], to[1]);
+        const cell = Cell.init('·', line_style);
         while (line.next()) |point| {
-            if (point.x >= 0 and point.y >= 0) {
-                const px = area_x + @as(u16, @intCast(point.x));
-                const py = area_y + @as(u16, @intCast(point.y));
-                buf.setCell(px, py, '·', line_style);
-            }
+            assert(point.x >= 0);
+            assert(point.y >= 0);
+            const px: u16 = @intCast(point.x);
+            const py: u16 = @intCast(point.y);
+            buf.set(area.x + px, area.y + py, cell);
+        }
+    }
+
+    /// Y range honoring finite `min_y`/`max_y` overrides; non-finite overrides are ignored.
+    fn resolveRange(self: LineChart) Range {
+        const auto = calcYRange(self.series);
+        const min = if (self.min_y) |v| (if (std.math.isFinite(v)) v else auto.min) else auto.min;
+        const max = if (self.max_y) |v| (if (std.math.isFinite(v)) v else auto.max) else auto.max;
+        return .{ .min = min, .max = max };
+    }
+
+    /// Render axes and series into `chart_area` (below the legend).
+    fn renderChart(self: LineChart, buf: *Buffer, chart_area: Rect) void {
+        assert(chart_area.height >= 3);
+        assert(chart_area.width >= 10);
+        const range = self.resolveRange();
+
+        var plot_area = chart_area;
+        if (self.show_axes) {
+            renderYAxis(self, buf, .{
+                .x = chart_area.x,
+                .y = chart_area.y,
+                .width = y_axis_width,
+                .height = chart_area.height -| x_axis_height,
+            }, range.min, range.max);
+            plot_area.x += y_axis_width;
+            plot_area.width -= y_axis_width;
+        }
+
+        if (self.show_axes and plot_area.height > x_axis_height) {
+            renderXAxis(self, buf, .{
+                .x = plot_area.x,
+                .y = plot_area.y + plot_area.height - x_axis_height,
+                .width = plot_area.width,
+                .height = x_axis_height,
+            }, maxDataLen(self.series));
+            plot_area.height -= x_axis_height;
+        }
+
+        if (plot_area.width == 0 or plot_area.height == 0) return;
+        for (self.series) |series| {
+            renderSeries(buf, plot_area, series, range.min, range.max);
         }
     }
 
@@ -309,13 +378,14 @@ pub const LineChart = struct {
     pub fn render(self: LineChart, buf: *Buffer, area: Rect) void {
         if (area.width == 0 or area.height == 0 or self.series.len == 0) return;
 
-        // Render block if present
         var inner_area = area;
         if (self.block) |blk| {
             blk.render(buf, area);
             inner_area = blk.inner(area);
         }
 
+        // Clip to the buffer so coordinate arithmetic below cannot overflow u16.
+        inner_area = inner_area.intersection(Rect.fromSize(buf.width, buf.height)) orelse return;
         if (inner_area.width == 0 or inner_area.height == 0) return;
 
         // Reserve space for legend at top
@@ -328,51 +398,37 @@ pub const LineChart = struct {
                 .height = 1,
             });
             chart_area.y += 1;
-            chart_area.height -|= 1;
+            chart_area.height -= 1;
         }
 
         if (chart_area.height < 3 or chart_area.width < 10) return;
-
-        // Calculate Y range
-        const y_range = calcYRange(self.series);
-        const min_y = if (self.min_y) |v| (if (std.math.isNan(v)) y_range.min else v) else y_range.min;
-        const max_y = if (self.max_y) |v| (if (std.math.isNan(v)) y_range.max else v) else y_range.max;
-
-        // Reserve space for Y-axis
-        var plot_area = chart_area;
-        if (self.show_axes) {
-            const y_axis_width: u16 = 6; // 5 for labels + 1 for axis line
-            renderYAxis(self, buf, .{
-                .x = chart_area.x,
-                .y = chart_area.y,
-                .width = y_axis_width,
-                .height = chart_area.height -| 3, // Reserve 3 rows for X-axis
-            }, min_y, max_y);
-            plot_area.x += y_axis_width;
-            plot_area.width -|= y_axis_width;
-        }
-
-        // Reserve space for X-axis at bottom
-        if (self.show_axes and plot_area.height > 3) {
-            const x_axis_height: u16 = 3; // axis line + labels + x-axis label
-            renderXAxis(self, buf, .{
-                .x = plot_area.x,
-                .y = plot_area.y + plot_area.height - x_axis_height,
-                .width = plot_area.width,
-                .height = x_axis_height,
-            }, maxDataLen(self.series));
-            plot_area.height -|= x_axis_height;
-        }
-
-        if (plot_area.width == 0 or plot_area.height == 0) return;
-
-        // Render each series
-        for (self.series) |series| {
-            renderSeries(self, buf, plot_area, series, min_y, max_y);
-        }
+        self.renderChart(buf, chart_area);
     }
 };
 
+const y_label_width: u16 = 5; // value labels like " 99.9"
+const y_axis_width: u16 = y_label_width + 1; // labels plus the axis line
+const x_axis_height: u16 = 3; // axis line, tick labels, axis title
+const legend_gap: u32 = 2; // blank cells between legend entries
+
+/// Number of code points in `text` (its length in bytes if it is not valid UTF-8).
+fn cellCount(text: []const u8) u16 {
+    const count = std.unicode.utf8CountCodepoints(text) catch text.len;
+    return @intCast(@min(count, std.math.maxInt(u16)));
+}
+
+/// Longest prefix of `text` holding at most `cells_max` code points, cut on a boundary.
+fn truncateCells(text: []const u8, cells_max: usize) []const u8 {
+    assert(cells_max <= std.math.maxInt(u32));
+    var end: usize = 0;
+    var cells: usize = 0;
+    while (end < text.len and cells < cells_max) : (cells += 1) {
+        const step = std.unicode.utf8ByteSequenceLength(text[end]) catch 1;
+        end = @min(end + step, text.len);
+    }
+    assert(end <= text.len);
+    return text[0..end];
+}
 // Tests
 const testing = std.testing;
 
@@ -390,7 +446,7 @@ test "LineChart.withBlock" {
     const series = [_]LineChart.Series{
         .{ .name = "Test", .data = &[_]f64{1.0} },
     };
-    const block = (Block{}).withTitle("Chart");
+    const block = (Block{}).withTitle("Chart", .top_left);
     const chart = LineChart.init(&series).withBlock(block);
     try testing.expect(chart.block != null);
 }
@@ -543,184 +599,315 @@ test "LineChart.scaleY same min and max" {
     const height: usize = 10;
     try testing.expectEqual(5, LineChart.scaleY(42.0, 42.0, 42.0, height));
 }
+test "LineChart.calcYRange ignores NaN and infinite samples" {
+    const data = [_]f64{ std.math.nan(f64), 4.0, std.math.inf(f64), -std.math.inf(f64), 8.0 };
+    const series = [_]LineChart.Series{.{ .name = "N", .data = &data }};
+    const range = LineChart.calcYRange(&series);
+    try testing.expectEqual(4.0, range.min);
+    try testing.expectEqual(8.0, range.max);
 
-test "LineChart.render empty area" {
+    const only_bad = [_]f64{std.math.nan(f64)};
+    const bad_series = [_]LineChart.Series{.{ .name = "N", .data = &only_bad }};
+    try testing.expectEqual(0.0, LineChart.calcYRange(&bad_series).max);
+}
+
+test "LineChart.scaleX puts first sample on column 0 and last on the last column" {
+    try testing.expectEqual(0, LineChart.scaleX(0, 5, 24));
+    try testing.expectEqual(23, LineChart.scaleX(4, 5, 24));
+    try testing.expectEqual(11, LineChart.scaleX(2, 5, 24));
+    try testing.expectEqual(7, LineChart.scaleX(0, 1, 14));
+    try testing.expectEqual(0, LineChart.scaleX(1, 2, 1));
+}
+
+/// Assert that the cells of row `y` starting at `x` hold exactly the codepoints of `text`.
+fn expectRow(buf: Buffer, x: u16, y: u16, text: []const u8) !void {
+    var iter = std.unicode.Utf8View.initUnchecked(text).iterator();
+    var i: u16 = 0;
+    while (iter.nextCodepoint()) |cp| : (i += 1) {
+        try testing.expectEqual(cp, buf.getChar(x + i, y));
+    }
+}
+
+/// Assert that every cell of the buffer is the default blank cell.
+fn expectBlank(buf: Buffer) !void {
+    for (buf.cells) |cell| try testing.expect(cell.eql(.{}));
+}
+
+/// Count the cells of the buffer that hold `char`.
+fn countChar(buf: Buffer, char: u21) usize {
+    var count: usize = 0;
+    for (buf.cells) |cell| {
+        if (cell.char == char) count += 1;
+    }
+    return count;
+}
+
+test "LineChart.render empty area and empty series draw nothing" {
     var buf = try Buffer.init(testing.allocator, 10, 10);
-    defer buf.deinit(testing.allocator);
+    defer buf.deinit();
 
     const data = [_]f64{1.0};
+    const series = [_]LineChart.Series{.{ .name = "Test", .data = &data }};
+    LineChart.init(&series).render(&buf, .{ .x = 0, .y = 0, .width = 0, .height = 0 });
+    try expectBlank(buf);
+
+    const none = [_]LineChart.Series{};
+    LineChart.init(&none).render(&buf, .{ .x = 0, .y = 0, .width = 10, .height = 10 });
+    try expectBlank(buf);
+}
+
+test "LineChart.render lays out legend, axes, labels and series cells" {
+    var buf = try Buffer.init(testing.allocator, 30, 10);
+    defer buf.deinit();
+
+    const data = [_]f64{ 0.0, 10.0 };
     const series = [_]LineChart.Series{
-        .{ .name = "Test", .data = &data },
+        .{ .name = "S", .data = &data, .style = .{ .fg = .{ .indexed = 2 } } },
     };
-    const chart = LineChart.init(&series);
+    const labels = [_][]const u8{ "a", "b" };
+    const chart = LineChart.init(&series)
+        .withMinY(0.0).withMaxY(10.0).withXLabels(&labels)
+        .withYAxisLabel("Val").withXAxisLabel("Time");
+    chart.render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 10 });
 
-    chart.render(&buf, .{ .x = 0, .y = 0, .width = 0, .height = 0 });
-    // Should not crash
+    // Legend on row 0: marker, then name.
+    try expectRow(buf, 0, 0, "•S");
+    try testing.expectEqual(@as(?Color, .{ .indexed = 2 }), buf.getStyle(0, 0).fg);
+    // Y axis: line in column 5 rows 1..6, value labels, title skipping label rows.
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(5, 1));
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(5, 6));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(5, 7));
+    try expectRow(buf, 0, 1, " 10.0");
+    try expectRow(buf, 0, 4, "  5.0");
+    try expectRow(buf, 0, 6, "  0.0");
+    try testing.expectEqual(@as(u21, 'V'), buf.getChar(0, 2));
+    try testing.expectEqual(@as(u21, 'a'), buf.getChar(0, 3));
+    // 'l' would land on the middle value label's row, so it is skipped.
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(0, 5));
+    try testing.expectEqual(@as(usize, 0), countChar(buf, 'l'));
+    // X axis: line on row 7 from column 6, labels on row 8, title on row 9.
+    try testing.expectEqual(@as(u21, '─'), buf.getChar(6, 7));
+    try testing.expectEqual(@as(u21, '─'), buf.getChar(29, 7));
+    try testing.expectEqual(@as(u21, 'a'), buf.getChar(6, 8));
+    try testing.expectEqual(@as(u21, 'b'), buf.getChar(29, 8));
+    try expectRow(buf, 16, 9, "Time");
+    // Series: markers on both end points (the right-most column is drawn) and 22 line cells.
+    try testing.expectEqual(@as(u21, '•'), buf.getChar(6, 6));
+    try testing.expectEqual(@as(u21, '•'), buf.getChar(29, 1));
+    try testing.expectEqual(@as(?Color, .{ .indexed = 2 }), buf.getStyle(29, 1).fg);
+    try testing.expectEqual(@as(usize, 22), countChar(buf, '·'));
+    try testing.expectEqual(@as(usize, 3), countChar(buf, '•')); // legend + 2 markers
 }
 
-test "LineChart.render empty series" {
-    var buf = try Buffer.init(testing.allocator, 10, 10);
-    defer buf.deinit(testing.allocator);
-
-    const series = [_]LineChart.Series{};
-    const chart = LineChart.init(&series);
-
-    chart.render(&buf, .{ .x = 0, .y = 0, .width = 10, .height = 10 });
-    // Should not crash
-}
-
-test "LineChart.render single point" {
+test "LineChart.render keeps markers visible on top of connecting lines" {
     var buf = try Buffer.init(testing.allocator, 20, 10);
-    defer buf.deinit(testing.allocator);
+    defer buf.deinit();
+
+    const data = [_]f64{ 0.0, 5.0, 10.0 };
+    const series = [_]LineChart.Series{.{ .name = "M", .data = &data, .marker = "o" }};
+    const chart = LineChart.init(&series).withShowLegend(false).withShowAxes(false);
+    chart.render(&buf, .{ .x = 0, .y = 0, .width = 20, .height = 10 });
+
+    // Plot is the whole 20x10 area: samples at columns 0, 9, 19.
+    try testing.expectEqual(@as(u21, 'o'), buf.getChar(0, 9));
+    try testing.expectEqual(@as(u21, 'o'), buf.getChar(9, 5));
+    try testing.expectEqual(@as(u21, 'o'), buf.getChar(19, 0));
+    try testing.expectEqual(@as(usize, 3), countChar(buf, 'o'));
+    try testing.expect(countChar(buf, '·') >= 17);
+}
+
+test "LineChart.render single point sits mid-plot" {
+    var buf = try Buffer.init(testing.allocator, 20, 10);
+    defer buf.deinit();
 
     const data = [_]f64{50.0};
-    const series = [_]LineChart.Series{
-        .{ .name = "Test", .data = &data },
-    };
-    const chart = LineChart.init(&series);
+    const series = [_]LineChart.Series{.{ .name = "Test", .data = &data }};
+    LineChart.init(&series).render(&buf, .{ .x = 0, .y = 0, .width = 20, .height = 10 });
 
-    chart.render(&buf, .{ .x = 0, .y = 0, .width = 20, .height = 10 });
-    // Should render without crashing
+    // Plot area x 6..19, y 1..6; the lone sample has no range so it lands mid-plot.
+    try testing.expectEqual(@as(u21, '•'), buf.getChar(13, 4));
+    try testing.expectEqual(@as(usize, 2), countChar(buf, '•')); // legend + sample
+    try testing.expectEqual(@as(usize, 0), countChar(buf, '·'));
+    try expectRow(buf, 0, 1, " 50.0");
 }
 
-test "LineChart.render multiple points" {
+test "LineChart.render draws inside a block" {
+    var buf = try Buffer.init(testing.allocator, 30, 12);
+    defer buf.deinit();
+
+    const data = [_]f64{ 0.0, 10.0 };
+    const series = [_]LineChart.Series{.{ .name = "B", .data = &data }};
+    const block = (Block{}).withBorders(.all).withTitle("Chart", .top_left);
+    const chart = LineChart.init(&series).withBlock(block).withShowAxes(false);
+    chart.render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 12 });
+
+    try expectRow(buf, 2, 0, "Chart");
+    try expectRow(buf, 1, 1, "•B"); // legend inside the border
+    // Plot is the inner 28x9 area at (1, 2): first sample bottom-left, last top-right.
+    try testing.expectEqual(@as(u21, '•'), buf.getChar(1, 10));
+    try testing.expectEqual(@as(u21, '•'), buf.getChar(28, 2));
+    try testing.expectEqual(@as(usize, 3), countChar(buf, '•'));
+}
+
+test "LineChart.render without legend or axes uses the whole area" {
     var buf = try Buffer.init(testing.allocator, 30, 15);
-    defer buf.deinit(testing.allocator);
-
-    const data = [_]f64{ 10.0, 20.0, 15.0, 30.0, 25.0 };
-    const series = [_]LineChart.Series{
-        .{ .name = "Test", .data = &data, .style = .{ .fg = .{ .indexed = 2 } } },
-    };
-    const chart = LineChart.init(&series);
-
-    chart.render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 15 });
-    // Should render line connecting points
-}
-
-test "LineChart.render multiple series" {
-    var buf = try Buffer.init(testing.allocator, 30, 15);
-    defer buf.deinit(testing.allocator);
-
-    const data1 = [_]f64{ 10.0, 20.0, 15.0 };
-    const data2 = [_]f64{ 5.0, 25.0, 10.0 };
-    const series = [_]LineChart.Series{
-        .{ .name = "A", .data = &data1, .style = .{ .fg = .{ .indexed = 2 } } },
-        .{ .name = "B", .data = &data2, .style = .{ .fg = .{ .indexed = 4 } } },
-    };
-    const chart = LineChart.init(&series);
-
-    chart.render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 15 });
-    // Should render both series
-}
-
-test "LineChart.render with block" {
-    var buf = try Buffer.init(testing.allocator, 30, 15);
-    defer buf.deinit(testing.allocator);
-
-    const data = [_]f64{ 10.0, 20.0, 15.0 };
-    const series = [_]LineChart.Series{
-        .{ .name = "Test", .data = &data },
-    };
-    const block = (Block{}).withBorders(.all).withTitle("Chart");
-    const chart = LineChart.init(&series).withBlock(block);
-
-    chart.render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 15 });
-    // Should render chart inside block
-}
-
-test "LineChart.render with x labels" {
-    var buf = try Buffer.init(testing.allocator, 30, 15);
-    defer buf.deinit(testing.allocator);
-
-    const data = [_]f64{ 10.0, 20.0, 15.0 };
-    const labels = [_][]const u8{ "A", "B", "C" };
-    const series = [_]LineChart.Series{
-        .{ .name = "Test", .data = &data },
-    };
-    const chart = LineChart.init(&series).withXLabels(&labels);
-
-    chart.render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 15 });
-    // Should render with X-axis labels
-}
-
-test "LineChart.render with axis labels" {
-    var buf = try Buffer.init(testing.allocator, 30, 15);
-    defer buf.deinit(testing.allocator);
-
-    const data = [_]f64{ 10.0, 20.0, 15.0 };
-    const series = [_]LineChart.Series{
-        .{ .name = "Test", .data = &data },
-    };
-    const chart = LineChart.init(&series)
-        .withYAxisLabel("Val")
-        .withXAxisLabel("Time");
-
-    chart.render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 15 });
-    // Should render with axis labels
-}
-
-test "LineChart.render without legend" {
-    var buf = try Buffer.init(testing.allocator, 30, 15);
-    defer buf.deinit(testing.allocator);
-
-    const data = [_]f64{ 10.0, 20.0, 15.0 };
-    const series = [_]LineChart.Series{
-        .{ .name = "Test", .data = &data },
-    };
-    const chart = LineChart.init(&series).withShowLegend(false);
-
-    chart.render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 15 });
-    // Should render without legend
-}
-
-test "LineChart.render without axes" {
-    var buf = try Buffer.init(testing.allocator, 30, 15);
-    defer buf.deinit(testing.allocator);
-
-    const data = [_]f64{ 10.0, 20.0, 15.0 };
-    const series = [_]LineChart.Series{
-        .{ .name = "Test", .data = &data },
-    };
-    const chart = LineChart.init(&series).withShowAxes(false);
-
-    chart.render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 15 });
-    // Should render without axes
-}
-
-test "LineChart.render with custom min/max" {
-    var buf = try Buffer.init(testing.allocator, 30, 15);
-    defer buf.deinit(testing.allocator);
-
-    const data = [_]f64{ 10.0, 20.0, 15.0 };
-    const series = [_]LineChart.Series{
-        .{ .name = "Test", .data = &data },
-    };
-    const chart = LineChart.init(&series).withMinY(0.0).withMaxY(50.0);
-
-    chart.render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 15 });
-    // Should scale with custom range
-}
-
-test "LineChart.render small area" {
-    var buf = try Buffer.init(testing.allocator, 5, 3);
-    defer buf.deinit(testing.allocator);
+    defer buf.deinit();
 
     const data = [_]f64{ 10.0, 20.0 };
+    const series = [_]LineChart.Series{.{ .name = "Test", .data = &data }};
+    const chart = LineChart.init(&series).withShowLegend(false).withShowAxes(false);
+    chart.render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 15 });
+
+    try testing.expectEqual(@as(u21, '•'), buf.getChar(0, 14));
+    try testing.expectEqual(@as(u21, '•'), buf.getChar(29, 0));
+    try testing.expectEqual(@as(usize, 0), countChar(buf, '│'));
+    try testing.expectEqual(@as(usize, 0), countChar(buf, '─'));
+    try testing.expectEqual(@as(usize, 2), countChar(buf, '•'));
+}
+
+test "LineChart.render with custom min/max scales against the override" {
+    var buf = try Buffer.init(testing.allocator, 20, 10);
+    defer buf.deinit();
+
+    const data = [_]f64{ 10.0, 10.0 };
+    const series = [_]LineChart.Series{.{ .name = "T", .data = &data }};
+    const chart = LineChart.init(&series).withShowLegend(false).withShowAxes(false)
+        .withMinY(0.0).withMaxY(90.0);
+    chart.render(&buf, .{ .x = 0, .y = 0, .width = 20, .height = 10 });
+
+    // 10 of 0..90 over 10 rows is row index 1 from the bottom: y = 9 - 1 = 8.
+    try testing.expectEqual(@as(u21, '•'), buf.getChar(0, 8));
+    try testing.expectEqual(@as(u21, '•'), buf.getChar(19, 8));
+    try testing.expectEqual(@as(usize, 18), countChar(buf, '·'));
+}
+
+test "LineChart.render small area only draws the legend" {
+    var buf = try Buffer.init(testing.allocator, 5, 3);
+    defer buf.deinit();
+
+    const data = [_]f64{ 10.0, 20.0 };
+    const series = [_]LineChart.Series{.{ .name = "Test", .data = &data }};
+    LineChart.init(&series).render(&buf, .{ .x = 0, .y = 0, .width = 5, .height = 3 });
+
+    try expectRow(buf, 0, 0, "•Test");
+    try testing.expectEqual(@as(usize, 1), countChar(buf, '•'));
+    try testing.expectEqual(@as(usize, 0), countChar(buf, '·'));
+}
+
+test "LineChart.render clips the legend to the area" {
+    var buf = try Buffer.init(testing.allocator, 30, 4);
+    defer buf.deinit();
+
+    const data = [_]f64{ 1.0, 2.0 };
     const series = [_]LineChart.Series{
-        .{ .name = "Test", .data = &data },
+        .{ .name = "LongSeriesName", .data = &data, .marker = "◆x" },
+        .{ .name = "Second", .data = &data },
     };
+    LineChart.init(&series).render(&buf, .{ .x = 0, .y = 0, .width = 8, .height = 2 });
+
+    // Marker uses the first code point only; the name is cut at the area's right edge.
+    try expectRow(buf, 0, 0, "◆LongSer");
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(8, 0));
+    try testing.expectEqual(@as(usize, 1), countChar(buf, 'S')); // "Second" is not drawn
+    try testing.expectEqual(@as(usize, 0), countChar(buf, 'x'));
+}
+
+test "LineChart.render fits oversized value labels without eating the axis line" {
+    var buf = try Buffer.init(testing.allocator, 30, 10);
+    defer buf.deinit();
+
+    const data = [_]f64{ 0.0, 12345.6 };
+    const series = [_]LineChart.Series{.{ .name = "Big", .data = &data }};
+    LineChart.init(&series).render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 10 });
+
+    try expectRow(buf, 0, 1, "12346");
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(5, 1));
+    try expectRow(buf, 0, 4, " 6173");
+    try expectRow(buf, 0, 6, "  0.0");
+
+    const huge = [_]f64{ 0.0, 123456789.0 };
+    const huge_series = [_]LineChart.Series{.{ .name = "Big", .data = &huge }};
+    buf.clear();
+    LineChart.init(&huge_series).render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 10 });
+    try expectRow(buf, 0, 1, "#####");
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(5, 1));
+}
+
+test "LineChart.render ignores an area outside the buffer without overflow" {
+    var buf = try Buffer.init(testing.allocator, 12, 10);
+    defer buf.deinit();
+
+    const data = [_]f64{ 1.0, 2.0 };
+    const series = [_]LineChart.Series{.{ .name = "Far", .data = &data }};
     const chart = LineChart.init(&series);
 
-    chart.render(&buf, .{ .x = 0, .y = 0, .width = 5, .height = 3 });
-    // Should handle gracefully
+    chart.render(&buf, .{ .x = 65530, .y = 65530, .width = 100, .height = 100 });
+    try expectBlank(buf);
+    chart.render(&buf, .{ .x = 0, .y = 0, .width = 65535, .height = 65535 });
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(5, 1));
+    try expectRow(buf, 0, 0, "•Far");
+}
+
+test "LineChart.render survives labels and names longer than u16" {
+    var buf = try Buffer.init(testing.allocator, 30, 10);
+    defer buf.deinit();
+
+    const long = [_]u8{'x'} ** 70000;
+    const data = [_]f64{ 1.0, 2.0 };
+    const series = [_]LineChart.Series{.{ .name = &long, .data = &data }};
+    const labels = [_][]const u8{ &long, "ok" };
+    const chart = LineChart.init(&series).withXLabels(&labels)
+        .withXAxisLabel(&long).withYAxisLabel(&long);
+    chart.render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 10 });
+
+    try expectRow(buf, 0, 0, "•xxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+    try testing.expectEqual(@as(u21, '│'), buf.getChar(5, 3));
+    try testing.expectEqual(@as(u21, '─'), buf.getChar(6, 7));
+    try testing.expectEqual(@as(u21, 'o'), buf.getChar(28, 8)); // second label, shifted to fit
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(6, 8)); // first label too wide: dropped
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(6, 9));
+}
+
+test "LineChart.render treats infinite samples like NaN and keeps the range finite" {
+    const inf = std.math.inf(f64);
+    var buf_inf = try Buffer.init(testing.allocator, 30, 12);
+    defer buf_inf.deinit();
+    var buf_mid = try Buffer.init(testing.allocator, 30, 12);
+    defer buf_mid.deinit();
+
+    const data_inf = [_]f64{ 0.0, inf, 10.0 };
+    const data_mid = [_]f64{ 0.0, 5.0, 10.0 };
+    const series_inf = [_]LineChart.Series{.{ .name = "I", .data = &data_inf }};
+    const series_mid = [_]LineChart.Series{.{ .name = "I", .data = &data_mid }};
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 12 };
+    LineChart.init(&series_inf).render(&buf_inf, area);
+    LineChart.init(&series_mid).render(&buf_mid, area);
+
+    try expectRow(buf_inf, 0, 1, " 10.0");
+    try testing.expectEqualSlices(buffer_mod.Cell, buf_mid.cells, buf_inf.cells);
+}
+
+test "LineChart.render ignores non-finite min_y/max_y overrides" {
+    var buf_bad = try Buffer.init(testing.allocator, 30, 12);
+    defer buf_bad.deinit();
+    var buf_auto = try Buffer.init(testing.allocator, 30, 12);
+    defer buf_auto.deinit();
+
+    const data = [_]f64{ 10.0, 20.0 };
+    const series = [_]LineChart.Series{.{ .name = "I", .data = &data }};
+    const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 12 };
+    const bad = LineChart.init(&series).withMinY(-std.math.inf(f64)).withMaxY(std.math.inf(f64));
+    bad.render(&buf_bad, area);
+    LineChart.init(&series).render(&buf_auto, area);
+
+    try testing.expectEqualSlices(buffer_mod.Cell, buf_auto.cells, buf_bad.cells);
 }
 
 test "LineChart.render with NaN data point falls back to safe value" {
-    const allocator = testing.allocator;
 
     // Render with NaN in data
-    var buf_nan = try Buffer.init(allocator, 50, 20);
-    defer buf_nan.deinit(allocator);
+    var buf_nan = try Buffer.init(testing.allocator, 50, 20);
+    defer buf_nan.deinit();
 
     const data_nan = [_]f64{ 10.0, std.math.nan(f64), 20.0 };
     const series_nan = [_]LineChart.Series{
@@ -730,9 +917,9 @@ test "LineChart.render with NaN data point falls back to safe value" {
     chart_nan.render(&buf_nan, .{ .x = 0, .y = 0, .width = 50, .height = 20 });
 
     // Render with midpoint fallback (which is what NaN should become)
-    // When scaleY(NaN, ..., height) returns height/2, it matches data value 15.0 (midpoint of 10-20 range)
-    var buf_mid = try Buffer.init(allocator, 50, 20);
-    defer buf_mid.deinit(allocator);
+    // scaleY(NaN, ..., height) returns height/2, which matches the data value 15.0.
+    var buf_mid = try Buffer.init(testing.allocator, 50, 20);
+    defer buf_mid.deinit();
 
     const data_mid = [_]f64{ 10.0, 15.0, 20.0 };
     const series_mid = [_]LineChart.Series{
@@ -741,17 +928,16 @@ test "LineChart.render with NaN data point falls back to safe value" {
     const chart_mid = LineChart.init(&series_mid);
     chart_mid.render(&buf_mid, .{ .x = 0, .y = 0, .width = 50, .height = 20 });
 
-    // After fix, NaN data point should render identically to the midpoint value (height/2 fallback).
+    // The NaN data point must render identically to the midpoint value.
     // Assert that the entire buffer renders identically.
     try testing.expectEqualSlices(buffer_mod.Cell, buf_nan.cells, buf_mid.cells);
 }
 
 test "LineChart.render with NaN min_y uses calculated value" {
-    const allocator = testing.allocator;
 
     // Render with NaN min_y (should fall back to calculated min)
-    var buf_nan_min = try Buffer.init(allocator, 50, 20);
-    defer buf_nan_min.deinit(allocator);
+    var buf_nan_min = try Buffer.init(testing.allocator, 50, 20);
+    defer buf_nan_min.deinit();
 
     const data = [_]f64{ 10.0, 20.0, 15.0 };
     const series = [_]LineChart.Series{
@@ -761,8 +947,8 @@ test "LineChart.render with NaN min_y uses calculated value" {
     chart_nan_min.render(&buf_nan_min, .{ .x = 0, .y = 0, .width = 50, .height = 20 });
 
     // Render without override (uses calculated range)
-    var buf_normal = try Buffer.init(allocator, 50, 20);
-    defer buf_normal.deinit(allocator);
+    var buf_normal = try Buffer.init(testing.allocator, 50, 20);
+    defer buf_normal.deinit();
     const chart_normal = LineChart.init(&series);
     chart_normal.render(&buf_normal, .{ .x = 0, .y = 0, .width = 50, .height = 20 });
 
@@ -772,11 +958,10 @@ test "LineChart.render with NaN min_y uses calculated value" {
 }
 
 test "LineChart.render with NaN max_y uses calculated value" {
-    const allocator = testing.allocator;
 
     // Render with NaN max_y (should fall back to calculated max)
-    var buf_nan_max = try Buffer.init(allocator, 50, 20);
-    defer buf_nan_max.deinit(allocator);
+    var buf_nan_max = try Buffer.init(testing.allocator, 50, 20);
+    defer buf_nan_max.deinit();
 
     const data = [_]f64{ 10.0, 20.0, 15.0 };
     const series = [_]LineChart.Series{
@@ -786,8 +971,8 @@ test "LineChart.render with NaN max_y uses calculated value" {
     chart_nan_max.render(&buf_nan_max, .{ .x = 0, .y = 0, .width = 50, .height = 20 });
 
     // Render without override (uses calculated range)
-    var buf_normal = try Buffer.init(allocator, 50, 20);
-    defer buf_normal.deinit(allocator);
+    var buf_normal = try Buffer.init(testing.allocator, 50, 20);
+    defer buf_normal.deinit();
     const chart_normal = LineChart.init(&series);
     chart_normal.render(&buf_normal, .{ .x = 0, .y = 0, .width = 50, .height = 20 });
 
