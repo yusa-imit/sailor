@@ -1,5 +1,6 @@
 //! Profiler widget: displays frame timing statistics (frame/render/event time).
 const std = @import("std");
+const assert = std.debug.assert;
 const tui = @import("../tui.zig");
 const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;
@@ -42,6 +43,9 @@ pub const ProfilerMode = enum {
     hot_paths, // Hot path performance table
     all, // Combined view
 };
+
+/// Upper bound for a scaled millisecond value; well inside `u64` range.
+const scaled_ms_max: f64 = 1e19;
 
 /// Performance profiler widget
 pub const PerformanceProfiler = struct {
@@ -153,9 +157,14 @@ pub const PerformanceProfiler = struct {
         return max;
     }
 
-    /// Render the profiler
-    pub fn render(self: *const PerformanceProfiler, buf: *Buffer, area: Rect) !void {
-        if (area.width == 0 or area.height == 0) return;
+    /// Render the profiler. The area is clamped so that `x + width` and `y + height` fit in
+    /// `u16`; cells outside the buffer are clipped by the buffer itself.
+    pub fn render(self: *const PerformanceProfiler, buf: *Buffer, area_raw: Rect) !void {
+        if (area_raw.width == 0 or area_raw.height == 0) return;
+
+        const area = fitArea(area_raw);
+        assert(area.width <= area_raw.width);
+        assert(area.height <= area_raw.height);
 
         switch (self.mode) {
             .frame_times => try self.renderFrameTimes(buf, area),
@@ -168,8 +177,18 @@ pub const PerformanceProfiler = struct {
                 const h3 = area.height - h1 - h2;
 
                 const top = Rect{ .x = area.x, .y = area.y, .width = area.width, .height = h1 };
-                const middle = Rect{ .x = area.x, .y = area.y + h1, .width = area.width, .height = h2 };
-                const bottom = Rect{ .x = area.x, .y = area.y + h1 + h2, .width = area.width, .height = h3 };
+                const middle = Rect{
+                    .x = area.x,
+                    .y = area.y + h1,
+                    .width = area.width,
+                    .height = h2,
+                };
+                const bottom = Rect{
+                    .x = area.x,
+                    .y = area.y + h1 + h2,
+                    .width = area.width,
+                    .height = h3,
+                };
 
                 try self.renderFrameTimes(buf, top);
                 try self.renderMemory(buf, middle);
@@ -178,10 +197,30 @@ pub const PerformanceProfiler = struct {
         }
     }
 
+    /// Shrink `area` so that `x + width` and `y + height` never exceed `maxInt(u16)`.
+    fn fitArea(area: Rect) Rect {
+        const limit: u16 = std.math.maxInt(u16);
+        var fitted = area;
+        fitted.width = @min(area.width, limit - area.x);
+        fitted.height = @min(area.height, limit - area.y);
+        assert(@as(u32, fitted.x) + fitted.width <= limit);
+        assert(@as(u32, fitted.y) + fitted.height <= limit);
+        return fitted;
+    }
+
+    /// Convert a millisecond duration to hundredths of a millisecond, clamped to a safe
+    /// `u64` range (NaN and negatives become 0, huge values saturate).
+    fn scaledMs(ms: f64) u64 {
+        const scaled = ms * 100.0;
+        const clamped = @max(0.0, @min(scaled, scaled_ms_max));
+        assert(clamped >= 0.0);
+        assert(clamped <= scaled_ms_max);
+        return @intFromFloat(clamped);
+    }
+
     fn renderFrameTimes(self: *const PerformanceProfiler, buf: *Buffer, area: Rect) !void {
         if (area.width == 0 or area.height == 0) return;
 
-        // Draw border
         const block = Block{
             .title = "Frame Performance",
             .borders = .all,
@@ -195,15 +234,12 @@ pub const PerformanceProfiler = struct {
         // Stats line
         var stats_buf: [256]u8 = undefined;
         const avg_fps = self.getAverageFPS();
-        const min_ms = self.getMinFrameTime();
-        const max_ms = self.getMaxFrameTime();
-        const target_ms = 1000.0 / self.target_fps;
-
-        const stats = std.fmt.bufPrint(&stats_buf, "FPS: {d:.1} (target: {d:.0})  Min: {d:.2}ms  Max: {d:.2}ms  Samples: {}", .{
+        const fmt = "FPS: {d:.1} (target: {d:.0})  Min: {d:.2}ms  Max: {d:.2}ms  Samples: {}";
+        const stats = std.fmt.bufPrint(&stats_buf, fmt, .{
             avg_fps,
             self.target_fps,
-            min_ms,
-            max_ms,
+            self.getMinFrameTime(),
+            self.getMaxFrameTime(),
             self.frame_history.items.len,
         }) catch "";
 
@@ -216,49 +252,47 @@ pub const PerformanceProfiler = struct {
 
         buf.setString(inner.x, inner.y, stats, stats_style);
 
-        // Sparkline chart
         if (self.show_sparkline and inner.height > 2 and self.frame_history.items.len > 0) {
-            // Convert frame times to u64 array for sparkline
-            var frame_times = try self.allocator.alloc(u64, self.frame_history.items.len);
-            defer self.allocator.free(frame_times);
-
-            for (self.frame_history.items, 0..) |frame, i| {
-                // Clamp value to safe u64 range to prevent panic on @intFromFloat
-                // Use [0, 1e19] to stay well within u64 range
-                const scaled = frame.frame_time_ms * 100.0;
-                const clamped_value = @max(0.0, @min(scaled, 1e19));
-                frame_times[i] = @intFromFloat(clamped_value); // Scale for precision
-            }
-
-            // Clamp target_ms * 2.0 * 100.0 to safe u64 range before cast
-            const scaled_max = target_ms * 2.0 * 100.0;
-            const clamped_max = @max(0.0, @min(scaled_max, 1e19));
-            const sparkline = Sparkline{
-                .data = frame_times,
-                .max_value = @intFromFloat(clamped_max), // 2x target as max
-            };
-
-            const chart_area = Rect{
-                .x = inner.x,
-                .y = inner.y + 2,
-                .width = inner.width,
-                .height = inner.height -| 2,
-            };
-
-            sparkline.render(buf, chart_area);
-
-            // Target line indicator
-            const target_y = inner.y + 1;
-            var target_buf: [64]u8 = undefined;
-            const target_str = std.fmt.bufPrint(&target_buf, "Target: {d:.2}ms", .{target_ms}) catch "";
-            buf.setString(inner.x, target_y, target_str, .{ .fg = .cyan });
+            try self.renderSparkline(buf, inner);
         }
+    }
+
+    /// Draw the target label (row 1) and the frame-time sparkline (rows 2..) in `inner`.
+    fn renderSparkline(self: *const PerformanceProfiler, buf: *Buffer, inner: Rect) !void {
+        assert(inner.height > 2);
+        assert(self.frame_history.items.len > 0);
+
+        const frame_times = try self.allocator.alloc(u64, self.frame_history.items.len);
+        defer self.allocator.free(frame_times);
+
+        for (self.frame_history.items, 0..) |frame, i| {
+            frame_times[i] = scaledMs(frame.frame_time_ms); // Scale for precision
+        }
+
+        const target_ms = 1000.0 / self.target_fps;
+        const sparkline = Sparkline{
+            .data = frame_times,
+            .max_value = scaledMs(target_ms * 2.0), // 2x target as max
+        };
+
+        const chart_area = Rect{
+            .x = inner.x,
+            .y = inner.y + 2,
+            .width = inner.width,
+            .height = inner.height - 2,
+        };
+        sparkline.render(buf, chart_area);
+
+        // Target line indicator
+        var target_buf: [64]u8 = undefined;
+        const target_fmt = "Target: {d:.2}ms";
+        const target_str = std.fmt.bufPrint(&target_buf, target_fmt, .{target_ms}) catch "";
+        buf.setString(inner.x, inner.y + 1, target_str, .{ .fg = .cyan });
     }
 
     fn renderMemory(self: *const PerformanceProfiler, buf: *Buffer, area: Rect) !void {
         if (area.width == 0 or area.height == 0) return;
 
-        // Draw border
         const block = Block{
             .title = "Memory Usage",
             .borders = .all,
@@ -267,64 +301,44 @@ pub const PerformanceProfiler = struct {
         block.render(buf, area);
         const inner = block.inner(area);
 
-        var y = inner.y;
-        const max_y = inner.y + inner.height;
-
-        // Current usage
-        if (y < max_y) {
-            var buf1: [128]u8 = undefined;
-            const line1 = std.fmt.bufPrint(&buf1, "Current: {}", .{self.alloc_stats.current_usage}) catch "";
-            buf.setString(inner.x, y, line1, .{ .fg = .white, .bold = true });
-            y += 1;
+        const stats = self.alloc_stats;
+        const leaked = stats.alloc_count -| stats.free_count;
+        var line_buf: [128]u8 = undefined;
+        const row_count: u16 = 6;
+        var row: u16 = 0;
+        while (row < row_count and row < inner.height) : (row += 1) {
+            const y = inner.y + row;
+            const style: Style = switch (row) {
+                0 => .{ .fg = .white, .bold = true },
+                1 => .{ .fg = .yellow },
+                2, 3 => .{ .fg = .cyan },
+                4 => .{ .fg = .green },
+                else => .{ .fg = .red, .bold = true },
+            };
+            const line = switch (row) {
+                0 => std.fmt.bufPrint(&line_buf, "Current: {}", .{stats.current_usage}),
+                1 => std.fmt.bufPrint(&line_buf, "Peak:    {}", .{stats.peak_usage}),
+                2 => std.fmt.bufPrint(&line_buf, "Total Allocated: {}", .{stats.total_allocated}),
+                3 => std.fmt.bufPrint(&line_buf, "Total Freed:     {}", .{stats.total_freed}),
+                4 => std.fmt.bufPrint(&line_buf, "Allocations: {}  Frees: {}", .{
+                    stats.alloc_count,
+                    stats.free_count,
+                }),
+                // Memory leak indicator
+                else => if (leaked > 0) std.fmt.bufPrint(
+                    &line_buf,
+                    "⚠ Potential Leaks: {} allocations not freed",
+                    .{leaked},
+                ) else line_buf[0..0],
+            } catch "";
+            buf.setString(inner.x, y, line, style);
         }
-
-        // Peak usage
-        if (y < max_y) {
-            var buf2: [128]u8 = undefined;
-            const line2 = std.fmt.bufPrint(&buf2, "Peak:    {}", .{self.alloc_stats.peak_usage}) catch "";
-            buf.setString(inner.x, y, line2, .{ .fg = .yellow });
-            y += 1;
-        }
-
-        // Total allocated
-        if (y < max_y) {
-            var buf3: [128]u8 = undefined;
-            const line3 = std.fmt.bufPrint(&buf3, "Total Allocated: {}", .{self.alloc_stats.total_allocated}) catch "";
-            buf.setString(inner.x, y, line3, .{ .fg = .cyan });
-            y += 1;
-        }
-
-        // Total freed
-        if (y < max_y) {
-            var buf4: [128]u8 = undefined;
-            const line4 = std.fmt.bufPrint(&buf4, "Total Freed:     {}", .{self.alloc_stats.total_freed}) catch "";
-            buf.setString(inner.x, y, line4, .{ .fg = .cyan });
-            y += 1;
-        }
-
-        // Allocation count
-        if (y < max_y) {
-            var buf5: [128]u8 = undefined;
-            const line5 = std.fmt.bufPrint(&buf5, "Allocations: {}  Frees: {}", .{ self.alloc_stats.alloc_count, self.alloc_stats.free_count }) catch "";
-            buf.setString(inner.x, y, line5, .{ .fg = .green });
-            y += 1;
-        }
-
-        // Memory leak indicator
-        if (y < max_y) {
-            const leaked = self.alloc_stats.alloc_count -| self.alloc_stats.free_count;
-            if (leaked > 0) {
-                var buf6: [128]u8 = undefined;
-                const line6 = std.fmt.bufPrint(&buf6, "⚠ Potential Leaks: {} allocations not freed", .{leaked}) catch "";
-                buf.setString(inner.x, y, line6, .{ .fg = .red, .bold = true });
-            }
-        }
+        assert(row <= row_count);
     }
 
     fn renderHotPaths(self: *const PerformanceProfiler, buf: *Buffer, area: Rect) !void {
         if (area.width == 0 or area.height == 0) return;
 
-        // Draw border
         const block = Block{
             .title = "Hot Paths",
             .borders = .all,
@@ -362,7 +376,8 @@ pub const PerformanceProfiler = struct {
             const name_max = @min(path.name.len, 24);
             const name = path.name[0..name_max];
 
-            const line = std.fmt.bufPrint(&line_buf, "{s: <24}  {: >8}  {: >12.2}  {: >10.3}", .{
+            const line_fmt = "{s: <24}  {: >8}  {: >12.2}  {: >10.3}";
+            const line = std.fmt.bufPrint(&line_buf, line_fmt, .{
                 name,
                 path.call_count,
                 path.total_time_ms,
@@ -609,15 +624,15 @@ test "PerformanceProfiler: render frame_times mode" {
 
     profiler.setMode(.frame_times);
     var buf = try Buffer.init(allocator, 80, 24);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     try profiler.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });
 
     // Verify border
-    try testing.expectEqual(@as(u21, '┌'), buf.get(0, 0).char);
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(0, 0));
 
     // Verify title
-    const title = buf.getString(1, 0, 17);
+    const title = buf.getLine(0, 2, 19);
     defer allocator.free(title);
     try testing.expectEqualStrings("Frame Performance", title);
 }
@@ -639,15 +654,15 @@ test "PerformanceProfiler: render memory mode" {
     profiler.setMode(.memory);
 
     var buf = try Buffer.init(allocator, 80, 24);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     try profiler.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });
 
     // Verify border
-    try testing.expectEqual(@as(u21, '┌'), buf.get(0, 0).char);
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(0, 0));
 
     // Verify title
-    const title = buf.getString(1, 0, 12);
+    const title = buf.getLine(0, 2, 14);
     defer allocator.free(title);
     try testing.expectEqualStrings("Memory Usage", title);
 }
@@ -676,15 +691,15 @@ test "PerformanceProfiler: render hot_paths mode" {
     profiler.setMode(.hot_paths);
 
     var buf = try Buffer.init(allocator, 80, 24);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     try profiler.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });
 
     // Verify border
-    try testing.expectEqual(@as(u21, '┌'), buf.get(0, 0).char);
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(0, 0));
 
     // Verify title
-    const title = buf.getString(1, 0, 9);
+    const title = buf.getLine(0, 2, 11);
     defer allocator.free(title);
     try testing.expectEqualStrings("Hot Paths", title);
 }
@@ -697,17 +712,17 @@ test "PerformanceProfiler: render all mode" {
     profiler.setMode(.all);
 
     var buf = try Buffer.init(allocator, 80, 24);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     try profiler.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });
 
     // All three sections should render (verify borders at different y positions)
     // Top section (frame times)
-    try testing.expectEqual(@as(u21, '┌'), buf.get(0, 0).char);
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(0, 0));
 
     // Middle section (memory) - starts at height/3
     const mid_y = 24 / 3;
-    try testing.expectEqual(@as(u21, '┌'), buf.get(0, mid_y).char);
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(0, mid_y));
 }
 
 test "PerformanceProfiler: zero-size area" {
@@ -716,7 +731,7 @@ test "PerformanceProfiler: zero-size area" {
     defer profiler.deinit();
 
     var buf = try Buffer.init(allocator, 80, 24);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     // Should not crash
     try profiler.render(&buf, .{ .x = 0, .y = 0, .width = 0, .height = 0 });
@@ -730,7 +745,7 @@ test "PerformanceProfiler: empty data renders gracefully" {
     defer profiler.deinit();
 
     var buf = try Buffer.init(allocator, 80, 24);
-    defer buf.deinit(allocator);
+    defer buf.deinit();
 
     // All modes should render without data
     profiler.setMode(.frame_times);
@@ -743,4 +758,79 @@ test "PerformanceProfiler: empty data renders gracefully" {
     buf.clear();
     profiler.setMode(.hot_paths);
     try profiler.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });
+}
+
+test "PerformanceProfiler: far oversized area does not overflow u16" {
+    const allocator = testing.allocator;
+    var profiler = PerformanceProfiler.init(allocator);
+    defer profiler.deinit();
+
+    try profiler.recordFrame(.{
+        .frame_time_ms = 16.0,
+        .render_time_ms = 10.0,
+        .event_time_ms = 1.0,
+        .timestamp = 0,
+    });
+    try profiler.recordHotPath(.{
+        .name = "far",
+        .call_count = 1,
+        .total_time_ms = 1.0,
+        .avg_time_ms = 1.0,
+    });
+
+    var buf = try Buffer.init(allocator, 20, 10);
+    defer buf.deinit();
+
+    const modes = [_]ProfilerMode{ .frame_times, .memory, .hot_paths, .all };
+    for (modes) |mode| {
+        profiler.setMode(mode);
+        try profiler.render(&buf, .{ .x = 65530, .y = 65530, .width = 65535, .height = 65535 });
+        try profiler.render(&buf, .{ .x = 0, .y = 65530, .width = 20, .height = 65535 });
+        try profiler.render(&buf, .{ .x = 65535, .y = 65535, .width = 1, .height = 1 });
+    }
+    // Nothing visible was drawn: every cell is still blank.
+    var y: u16 = 0;
+    while (y < buf.height) : (y += 1) {
+        var x: u16 = 0;
+        while (x < buf.width) : (x += 1) {
+            try testing.expectEqual(@as(u21, ' '), buf.getChar(x, y));
+        }
+    }
+}
+
+test "PerformanceProfiler: non-finite timings and zero target fps render" {
+    const allocator = testing.allocator;
+    var profiler = PerformanceProfiler.init(allocator);
+    defer profiler.deinit();
+
+    const nan = std.math.nan(f64);
+    const inf = std.math.inf(f64);
+    try profiler.recordFrame(.{
+        .frame_time_ms = nan,
+        .render_time_ms = 0,
+        .event_time_ms = 0,
+        .timestamp = 0,
+    });
+    try profiler.recordFrame(.{
+        .frame_time_ms = inf,
+        .render_time_ms = 0,
+        .event_time_ms = 0,
+        .timestamp = 0,
+    });
+    try profiler.recordFrame(.{
+        .frame_time_ms = -5.0,
+        .render_time_ms = 0,
+        .event_time_ms = 0,
+        .timestamp = 0,
+    });
+    profiler.target_fps = 0.0;
+    profiler.setMode(.frame_times);
+
+    var buf = try Buffer.init(allocator, 80, 24);
+    defer buf.deinit();
+
+    try profiler.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });
+    profiler.target_fps = nan;
+    try profiler.render(&buf, .{ .x = 0, .y = 0, .width = 80, .height = 24 });
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(0, 0));
 }

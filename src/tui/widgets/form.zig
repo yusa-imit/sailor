@@ -9,6 +9,8 @@ const Line = @import("../style.zig").Line;
 const Block = @import("block.zig").Block;
 const Input = @import("input.zig").Input;
 const symbols = @import("../symbols.zig");
+const assert = std.debug.assert;
+const UnicodeWidth = @import("../../unicode.zig").UnicodeWidth;
 const validators = @import("../validators.zig");
 
 /// Re-export validator types for convenience
@@ -190,93 +192,87 @@ pub const Form = struct {
         return all_valid;
     }
 
-    /// Insert character at cursor position in focused field
+    /// Insert a byte at the cursor position in the focused field. A cursor past the end of the
+    /// value is clamped to the end first.
     pub fn insertChar(self: *Form, allocator: std.mem.Allocator, ch: u8) !void {
-        if (self.focusedField()) |field| {
-            // Check max length
-            if (field.max_length) |max| {
-                if (field.value.len >= max) return;
-            }
+        const field = self.focusedField() orelse return;
+        field.cursor = @min(field.cursor, field.value.len);
+        assert(field.cursor <= field.value.len);
 
-            // Create new value with inserted character
-            var new_value = try allocator.alloc(u8, field.value.len + 1);
-            if (field.cursor > 0) {
-                @memcpy(new_value[0..field.cursor], field.value[0..field.cursor]);
-            }
-            new_value[field.cursor] = ch;
-            if (field.cursor < field.value.len) {
-                @memcpy(new_value[field.cursor + 1 ..], field.value[field.cursor..]);
-            }
-
-            // Free old value if it was allocated
-            if (field.value_allocator) |old_allocator| {
-                old_allocator.free(field.value);
-            }
-
-            field.value = new_value;
-            field.value_allocator = allocator;
-            field.cursor += 1;
+        if (field.max_length) |max| {
+            if (field.value.len >= max) return;
         }
+
+        const cursor = field.cursor;
+        const old_len = field.value.len;
+        const new_value = try allocator.alloc(u8, old_len + 1);
+        @memcpy(new_value[0..cursor], field.value[0..cursor]);
+        new_value[cursor] = ch;
+        @memcpy(new_value[cursor + 1 ..], field.value[cursor..]);
+
+        // Free old value if it was allocated
+        if (field.value_allocator) |old_allocator| {
+            old_allocator.free(field.value);
+        }
+
+        field.value = new_value;
+        field.value_allocator = allocator;
+        field.cursor = cursor + 1;
+        assert(field.value.len == old_len + 1);
+        assert(field.cursor <= field.value.len);
     }
 
-    /// Delete character before cursor in focused field
+    /// Delete the character before the cursor in the focused field. A multibyte UTF-8
+    /// sequence is removed whole. A cursor past the end of the value is clamped first.
     pub fn deleteChar(self: *Form, allocator: std.mem.Allocator) !void {
-        if (self.focusedField()) |field| {
-            if (field.cursor == 0 or field.value.len == 0) return;
+        const field = self.focusedField() orelse return;
+        field.cursor = @min(field.cursor, field.value.len);
+        assert(field.cursor <= field.value.len);
+        if (field.cursor == 0) return;
 
-            // Create new value with deleted character
-            var new_value = try allocator.alloc(u8, field.value.len - 1);
-            if (field.cursor > 1) {
-                @memcpy(new_value[0 .. field.cursor - 1], field.value[0 .. field.cursor - 1]);
-            }
-            if (field.cursor < field.value.len) {
-                @memcpy(new_value[field.cursor - 1 ..], field.value[field.cursor..]);
-            }
+        const end = field.cursor;
+        const start = prevBoundary(field.value, end);
+        assert(start < end);
+        const old_len = field.value.len;
+        const new_value = try allocator.alloc(u8, old_len - (end - start));
+        @memcpy(new_value[0..start], field.value[0..start]);
+        @memcpy(new_value[start..], field.value[end..]);
 
-            // Free old value if it was allocated
-            if (field.value_allocator) |old_allocator| {
-                old_allocator.free(field.value);
-            }
-
-            field.value = new_value;
-            field.value_allocator = allocator;
-            field.cursor -= 1;
+        // Free old value if it was allocated
+        if (field.value_allocator) |old_allocator| {
+            old_allocator.free(field.value);
         }
+
+        field.value = new_value;
+        field.value_allocator = allocator;
+        field.cursor = start;
+        assert(field.value.len < old_len);
+        assert(field.cursor <= field.value.len);
     }
 
-    /// Move cursor left in focused field
+    /// Move cursor left by one character in focused field
     pub fn cursorLeft(self: *Form) void {
-        if (self.focusedField()) |field| {
-            if (field.cursor > 0) {
-                field.cursor -= 1;
-            }
-        }
+        const field = self.focusedField() orelse return;
+        field.cursor = @min(field.cursor, field.value.len);
+        if (field.cursor == 0) return;
+        field.cursor = prevBoundary(field.value, field.cursor);
+        assert(field.cursor < field.value.len);
     }
 
-    /// Move cursor right in focused field
+    /// Move cursor right by one character in focused field
     pub fn cursorRight(self: *Form) void {
-        if (self.focusedField()) |field| {
-            if (field.cursor < field.value.len) {
-                field.cursor += 1;
-            }
-        }
+        const field = self.focusedField() orelse return;
+        field.cursor = @min(field.cursor, field.value.len);
+        if (field.cursor == field.value.len) return;
+        field.cursor = nextBoundary(field.value, field.cursor);
+        assert(field.cursor <= field.value.len);
     }
 
     /// Renders the form to the buffer in the given area.
     pub fn render(self: Form, buf: *Buffer, area: Rect) void {
-        // Clear area with style
-        for (0..area.height) |y| {
-            for (0..area.width) |x| {
-                buf.set(@intCast(area.x + x), @intCast(area.y + y), .{
-                    .char = ' ',
-                    .style = self.style,
-                });
-            }
-        }
+        buf.fill(area, ' ', self.style);
 
         var render_area = area;
-
-        // Render block if present
         if (self.block) |block| {
             block.render(buf, area);
             render_area = block.inner(area);
@@ -284,101 +280,174 @@ pub const Form = struct {
 
         // Reserve space for help text at bottom
         const help_height: u16 = if (self.show_help) 1 else 0;
-        const fields_height = if (render_area.height > help_height)
-            render_area.height - help_height
-        else
-            0;
+        const fields_height: u32 = render_area.height -| help_height;
+        assert(fields_height <= render_area.height);
+        assert(help_height <= 1);
 
-        // Render fields
-        var y: u16 = 0;
+        var row: u32 = 0;
         for (self.fields, 0..) |field, i| {
-            if (y >= fields_height) break;
-
+            if (row >= fields_height) break;
             const is_focused = (i == self.focused_field);
-            const field_style = if (is_focused) self.focused_style else self.style;
+            row += self.renderField(buf, render_area, row, fields_height, field, is_focused);
+        }
 
-            // Render label
-            const label_x = render_area.x;
-            const label_y = render_area.y + y;
-            for (field.label, 0..) |ch, x| {
-                if (x >= self.label_width) break;
-                buf.set(@intCast(label_x + x), label_y, .{
-                    .char = @intCast(ch),
-                    .style = field_style,
-                });
-            }
+        if (self.show_help) renderHelp(buf, render_area);
+    }
 
-            // Render separator
-            if (self.label_width < render_area.width) {
-                buf.set(@intCast(label_x + self.label_width), label_y, .{
-                    .char = ':',
-                    .style = field_style,
-                });
-            }
+    /// Renders one field at `row` inside `area`. Returns the number of rows consumed (1, or 2
+    /// when a validation error line follows).
+    fn renderField(
+        self: Form,
+        buf: *Buffer,
+        area: Rect,
+        row: u32,
+        fields_height: u32,
+        field: Field,
+        is_focused: bool,
+    ) u32 {
+        assert(row < fields_height);
+        assert(fields_height <= area.height);
+        const field_style = if (is_focused) self.focused_style else self.style;
+        const y: u32 = @as(u32, area.y) + row;
+        const width: u32 = area.width;
+        const label_w: u32 = @intCast(@min(self.label_width, std.math.maxInt(u16)));
+        const value_x: u32 = @as(u32, area.x) + label_w + 2;
+        const value_w: u32 = width -| (label_w + 2);
 
-            // Render value
-            const value_x = label_x + self.label_width + 2;
-            if (value_x < label_x + render_area.width) {
-                const value_width = render_area.width -| (self.label_width + 2);
+        _ = putText(buf, area.x, y, field.label, @min(label_w, width), field_style, false);
+        if (label_w < width) setCell(buf, @as(u32, area.x) + label_w, y, ':', field_style);
 
-                for (field.value, 0..) |ch, x| {
-                    if (x >= value_width) break;
-                    const display_char = if (field.is_password) '*' else ch;
-                    buf.set(@intCast(value_x + x), label_y, .{
-                        .char = @intCast(display_char),
-                        .style = field_style,
-                    });
-                }
-
-                // Render cursor if focused
-                if (is_focused and field.cursor <= value_width) {
-                    const cursor_char = if (field.cursor < field.value.len)
-                        if (field.is_password) '*' else @as(u21, @intCast(field.value[field.cursor]))
-                    else
-                        ' ';
-                    var cursor_style = field_style;
-                    cursor_style.reverse = true;
-                    buf.set(@intCast(value_x + field.cursor), label_y, .{
-                        .char = cursor_char,
-                        .style = cursor_style,
-                    });
-                }
-            }
-
-            y += 1;
-
-            // Render validation error if present
-            if (field.validation_error) |err| {
-                if (y < fields_height) {
-                    const err_x = value_x;
-                    const err_y = render_area.y + y;
-                    for (err, 0..) |ch, x| {
-                        if (x >= render_area.width -| (self.label_width + 2)) break;
-                        buf.set(@intCast(err_x + x), err_y, .{
-                            .char = @intCast(ch),
-                            .style = self.error_style,
-                        });
-                    }
-                    y += 1;
-                }
+        _ = putText(buf, value_x, y, field.value, value_w, field_style, field.is_password);
+        if (is_focused) {
+            const at = cursorCell(field.value, field.cursor, field.is_password);
+            if (at.col < value_w) {
+                var cursor_style = field_style;
+                cursor_style.reverse = true;
+                setCell(buf, value_x + at.col, y, at.ch, cursor_style);
             }
         }
 
-        // Render help text
-        if (self.show_help and render_area.height > 0) {
-            const help_y = render_area.y + render_area.height - 1;
-            const help_text = "Tab: Next | Shift+Tab: Prev | Enter: Submit | Esc: Cancel";
-            const help_style = Style{ .fg = .bright_black };
-            for (help_text, 0..) |ch, x| {
-                if (x >= render_area.width) break;
-                buf.set(@intCast(render_area.x + x), help_y, .{
-                    .char = @intCast(ch),
-                    .style = help_style,
-                });
-            }
-        }
+        const err = field.validation_error orelse return 1;
+        if (row + 1 >= fields_height) return 1;
+        _ = putText(buf, value_x, y + 1, err, value_w, self.error_style, false);
+        return 2;
     }
 };
+
+const help_text = "Tab: Next | Shift+Tab: Prev | Enter: Submit | Esc: Cancel";
+
+/// Renders the help line on the last row of `area`.
+fn renderHelp(buf: *Buffer, area: Rect) void {
+    if (area.height == 0) return;
+    const help_y: u32 = @as(u32, area.y) + area.height - 1;
+    assert(help_y >= area.y);
+    assert(help_text.len > 0);
+    _ = putText(buf, area.x, help_y, help_text, area.width, .{ .fg = .bright_black }, false);
+}
+
+/// One decoded character: code point and its encoded byte length.
+const Decoded = struct { cp: u21, len: usize };
+
+/// Decodes the character at `text[i]`. Invalid or truncated sequences decode as one byte.
+fn decodeAt(text: []const u8, i: usize) Decoded {
+    assert(i < text.len);
+    const byte = text[i];
+    const seq_len: usize = std.unicode.utf8ByteSequenceLength(byte) catch return .{
+        .cp = byte,
+        .len = 1,
+    };
+    if (i + seq_len > text.len) return .{ .cp = byte, .len = 1 };
+    const cp = std.unicode.utf8Decode(text[i .. i + seq_len]) catch return .{
+        .cp = byte,
+        .len = 1,
+    };
+    assert(seq_len >= 1);
+    return .{ .cp = cp, .len = seq_len };
+}
+
+/// Display width in cells; masked (password) characters are always one cell.
+fn cellWidth(cp: u21, masked: bool) u32 {
+    if (masked) return 1;
+    return UnicodeWidth.charWidth(cp);
+}
+
+/// Writes one cell, ignoring coordinates outside the u16 grid.
+fn setCell(buf: *Buffer, x: u32, y: u32, cp: u21, style: Style) void {
+    if (x > std.math.maxInt(u16) or y > std.math.maxInt(u16)) return;
+    buf.set(@intCast(x), @intCast(y), .{ .char = cp, .style = style });
+}
+
+/// Writes `text` starting at (`x`, `y`), clipped to `max_cells` cells. Wide characters that do
+/// not fit are dropped. Returns the number of cells used.
+fn putText(
+    buf: *Buffer,
+    x: u32,
+    y: u32,
+    text: []const u8,
+    max_cells: u32,
+    style: Style,
+    masked: bool,
+) u32 {
+    var col: u32 = 0;
+    var i: usize = 0;
+    // Bounded by text.len: every iteration advances `i` by at least one byte.
+    while (i < text.len and col < max_cells) {
+        const d = decodeAt(text, i);
+        i += d.len;
+        const w = cellWidth(d.cp, masked);
+        if (w == 0) continue;
+        if (col + w > max_cells) break;
+        setCell(buf, x + col, y, if (masked) '*' else d.cp, style);
+        col += w;
+    }
+    assert(col <= max_cells);
+    assert(i <= text.len);
+    return col;
+}
+
+/// Cell column and glyph under a byte-offset cursor.
+const CursorCell = struct { col: u32, ch: u21 };
+
+/// Locates the cell for byte offset `cursor` in `value`; at or past the end it is a blank.
+fn cursorCell(value: []const u8, cursor: usize, masked: bool) CursorCell {
+    var col: u32 = 0;
+    var i: usize = 0;
+    while (i < value.len) {
+        const d = decodeAt(value, i);
+        const w = cellWidth(d.cp, masked);
+        if (cursor < i + d.len and w > 0) {
+            return .{ .col = col, .ch = if (masked) '*' else d.cp };
+        }
+        col +|= w;
+        i += d.len;
+    }
+    assert(i == value.len);
+    return .{ .col = col, .ch = ' ' };
+}
+
+/// Start of the character that ends at byte offset `end` (`0 < end <= value.len`).
+fn prevBoundary(value: []const u8, end: usize) usize {
+    assert(end > 0);
+    assert(end <= value.len);
+    var start = end - 1;
+    var steps: u8 = 0;
+    const steps_max = 3;
+    while (start > 0 and steps < steps_max and (value[start] & 0xC0) == 0x80) {
+        start -= 1;
+        steps += 1;
+    }
+    const seq_len = std.unicode.utf8ByteSequenceLength(value[start]) catch return end - 1;
+    if (start + seq_len != end) return end - 1;
+    return start;
+}
+
+/// End of the character that starts at byte offset `start` (`start < value.len`).
+fn nextBoundary(value: []const u8, start: usize) usize {
+    assert(start < value.len);
+    const d = decodeAt(value, start);
+    assert(d.len >= 1);
+    return start + d.len;
+}
 
 // Tests
 
@@ -467,16 +536,16 @@ test "Form: render basic" {
     const form = Form.init(&fields);
 
     var buf = try Buffer.init(std.testing.allocator, 40, 10);
-    defer buf.deinit(std.testing.allocator);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 10 };
     form.render(&buf, area);
 
     // Check that labels are rendered
-    const name_cell = buf.get(0, 0);
+    const name_cell = buf.getConst(0, 0).?;
     try std.testing.expectEqual('N', name_cell.char);
 
-    const email_cell = buf.get(0, 1);
+    const email_cell = buf.getConst(0, 1).?;
     try std.testing.expectEqual('E', email_cell.char);
 }
 
@@ -485,18 +554,18 @@ test "Form: render with block" {
         Field.init("Username"),
     };
 
-    const block = (Block{}).withTitle("Login");
+    const block = (Block{}).withTitle("Login", .top_left);
     const form = Form.init(&fields).withBlock(block);
 
     var buf = try Buffer.init(std.testing.allocator, 30, 5);
-    defer buf.deinit(std.testing.allocator);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 30, .height = 5 };
     form.render(&buf, area);
 
     // Check block border
-    const top_left = buf.get(0, 0);
-    try std.testing.expectEqual(symbols.border.plain.top_left, top_left.char);
+    const top_left = buf.getConst(0, 0).?;
+    try std.testing.expectEqual(@as(u21, '┌'), top_left.char);
 }
 
 test "Field: withValidator" {
@@ -579,6 +648,8 @@ test "Form: focusPrev on single field stays at index 0" {
 test "Form: insertChar at start of value" {
     var fields = [_]Field{Field.init("Name")};
     var form = Form.init(&fields);
+    defer form.deinit();
+
     fields[0].value = "ohn";
     fields[0].cursor = 0;
 
@@ -590,6 +661,8 @@ test "Form: insertChar at start of value" {
 test "Form: insertChar at end of value" {
     var fields = [_]Field{Field.init("Name")};
     var form = Form.init(&fields);
+    defer form.deinit();
+
     fields[0].value = "Joh";
     fields[0].cursor = 3;
 
@@ -601,6 +674,8 @@ test "Form: insertChar at end of value" {
 test "Form: insertChar in middle of value" {
     var fields = [_]Field{Field.init("Name")};
     var form = Form.init(&fields);
+    defer form.deinit();
+
     fields[0].value = "Jon";
     fields[0].cursor = 2;
 
@@ -654,6 +729,8 @@ test "Form: deleteChar at start does nothing" {
 test "Form: deleteChar at end" {
     var fields = [_]Field{Field.init("Name")};
     var form = Form.init(&fields);
+    defer form.deinit();
+
     fields[0].value = "John";
     fields[0].cursor = 4;
 
@@ -749,7 +826,7 @@ test "Form: render with zero-width area" {
     const form = Form.init(&fields);
 
     var buf = try Buffer.init(std.testing.allocator, 10, 10);
-    defer buf.deinit(std.testing.allocator);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 0, .height = 10 };
     form.render(&buf, area);
@@ -761,7 +838,7 @@ test "Form: render with zero-height area" {
     const form = Form.init(&fields);
 
     var buf = try Buffer.init(std.testing.allocator, 40, 10);
-    defer buf.deinit(std.testing.allocator);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 0 };
     form.render(&buf, area);
@@ -773,18 +850,18 @@ test "Form: render with label longer than label_width" {
     const form = Form.init(&fields).withLabelWidth(5);
 
     var buf = try Buffer.init(std.testing.allocator, 40, 5);
-    defer buf.deinit(std.testing.allocator);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 5 };
     form.render(&buf, area);
 
     // Only first 5 characters should be visible
-    try std.testing.expectEqual('V', buf.get(0, 0).char);
-    try std.testing.expectEqual('e', buf.get(1, 0).char);
-    try std.testing.expectEqual('r', buf.get(2, 0).char);
-    try std.testing.expectEqual('y', buf.get(3, 0).char);
-    try std.testing.expectEqual(' ', buf.get(4, 0).char);
-    try std.testing.expectEqual(':', buf.get(5, 0).char);
+    try std.testing.expectEqual('V', buf.getConst(0, 0).?.char);
+    try std.testing.expectEqual('e', buf.getConst(1, 0).?.char);
+    try std.testing.expectEqual('r', buf.getConst(2, 0).?.char);
+    try std.testing.expectEqual('y', buf.getConst(3, 0).?.char);
+    try std.testing.expectEqual(' ', buf.getConst(4, 0).?.char);
+    try std.testing.expectEqual(':', buf.getConst(5, 0).?.char);
 }
 
 test "Form: render with value longer than available width" {
@@ -793,7 +870,7 @@ test "Form: render with value longer than available width" {
     const form = Form.init(&fields).withLabelWidth(5);
 
     var buf = try Buffer.init(std.testing.allocator, 20, 5);
-    defer buf.deinit(std.testing.allocator);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
     form.render(&buf, area);
@@ -803,7 +880,7 @@ test "Form: render with value longer than available width" {
     const visible_width = 20 - 7;
 
     for (0..visible_width) |i| {
-        const cell = buf.get(@intCast(value_start_x + i), 0);
+        const cell = buf.getConst(@intCast(value_start_x + i), 0).?;
         try std.testing.expect(cell.char != 0);
     }
 }
@@ -816,7 +893,7 @@ test "Form: render with error message longer than available width" {
     _ = form.validate(); // Generate error
 
     var buf = try Buffer.init(std.testing.allocator, 20, 5);
-    defer buf.deinit(std.testing.allocator);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 20, .height = 5 };
     form.render(&buf, area);
@@ -831,7 +908,7 @@ test "Form: render password field with masked characters" {
     const form = Form.init(&fields).withLabelWidth(10);
 
     var buf = try Buffer.init(std.testing.allocator, 40, 5);
-    defer buf.deinit(std.testing.allocator);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 5 };
     form.render(&buf, area);
@@ -839,7 +916,7 @@ test "Form: render password field with masked characters" {
     // All password characters should be masked as '*'
     const value_start_x = 12; // label_width + 2
     for (0..9) |i| {
-        const cell = buf.get(@intCast(value_start_x + i), 0);
+        const cell = buf.getConst(@intCast(value_start_x + i), 0).?;
         try std.testing.expectEqual('*', cell.char);
     }
 }
@@ -851,14 +928,14 @@ test "Form: render password field with cursor shows masked character" {
     var form = Form.init(&fields).withLabelWidth(5);
 
     var buf = try Buffer.init(std.testing.allocator, 40, 5);
-    defer buf.deinit(std.testing.allocator);
+    defer buf.deinit();
 
     const area = Rect{ .x = 0, .y = 0, .width = 40, .height = 5 };
     form.render(&buf, area);
 
     // Cursor position should show '*' not actual character
     const cursor_x = 7 + 3; // label_width + 2 + cursor
-    const cursor_cell = buf.get(@intCast(cursor_x), 0);
+    const cursor_cell = buf.getConst(@intCast(cursor_x), 0).?;
     try std.testing.expectEqual('*', cursor_cell.char);
     try std.testing.expect(cursor_cell.style.reverse);
 }
@@ -982,4 +1059,155 @@ test "Field: deinit on static value does nothing" {
 
     // Should not crash
     field.deinit();
+}
+
+// Regression tests (#75)
+
+test "Form: render multibyte label and value advance by cells" {
+    var fields = [_]Field{Field.init("日本")};
+    fields[0].value = "é世x";
+    fields[0].cursor = 0;
+    const form = Form.init(&fields).withLabelWidth(6).withHelp(false);
+
+    var buf = try Buffer.init(std.testing.allocator, 30, 3);
+    defer buf.deinit();
+
+    form.render(&buf, .{ .x = 0, .y = 0, .width = 30, .height = 3 });
+    try std.testing.expectEqual(@as(u21, '日'), buf.getConst(0, 0).?.char);
+    try std.testing.expectEqual(@as(u21, '本'), buf.getConst(2, 0).?.char);
+    try std.testing.expectEqual(@as(u21, ':'), buf.getConst(6, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'é'), buf.getConst(8, 0).?.char);
+    try std.testing.expectEqual(@as(u21, '世'), buf.getConst(9, 0).?.char);
+    try std.testing.expectEqual(@as(u21, 'x'), buf.getConst(11, 0).?.char);
+}
+
+test "Form: password mask is one star per character not per byte" {
+    var fields = [_]Field{Field.init("P").withPassword()};
+    fields[0].value = "世é";
+    fields[0].cursor = 5;
+    const form = Form.init(&fields).withLabelWidth(2).withHelp(false);
+
+    var buf = try Buffer.init(std.testing.allocator, 20, 2);
+    defer buf.deinit();
+
+    form.render(&buf, .{ .x = 0, .y = 0, .width = 20, .height = 2 });
+    try std.testing.expectEqual(@as(u21, '*'), buf.getConst(4, 0).?.char);
+    try std.testing.expectEqual(@as(u21, '*'), buf.getConst(5, 0).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.getConst(6, 0).?.char);
+    try std.testing.expect(buf.getConst(6, 0).?.style.reverse);
+}
+
+test "Form: cursor on multibyte value lands on its cell column" {
+    var fields = [_]Field{Field.init("N")};
+    fields[0].value = "世界";
+    fields[0].cursor = 3;
+    const form = Form.init(&fields).withLabelWidth(1).withHelp(false);
+
+    var buf = try Buffer.init(std.testing.allocator, 20, 2);
+    defer buf.deinit();
+
+    form.render(&buf, .{ .x = 0, .y = 0, .width = 20, .height = 2 });
+    try std.testing.expectEqual(@as(u21, '界'), buf.getConst(5, 0).?.char);
+    try std.testing.expect(buf.getConst(5, 0).?.style.reverse);
+    try std.testing.expect(!buf.getConst(3, 0).?.style.reverse);
+}
+
+test "Form: cursor beyond value width stays inside the value column" {
+    var fields = [_]Field{Field.init("N")};
+    fields[0].value = "abcdefghij";
+    fields[0].cursor = 10;
+    const form = Form.init(&fields).withLabelWidth(1).withHelp(false);
+
+    var buf = try Buffer.init(std.testing.allocator, 20, 2);
+    defer buf.deinit();
+
+    // Area is 8 wide: value column is x = 3..7; the cursor cell would be x = 13.
+    form.render(&buf, .{ .x = 0, .y = 0, .width = 8, .height = 2 });
+    try std.testing.expectEqual(@as(u21, ' '), buf.getConst(13, 0).?.char);
+    try std.testing.expect(!buf.getConst(13, 0).?.style.reverse);
+    try std.testing.expectEqual(@as(u21, 'e'), buf.getConst(7, 0).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.getConst(8, 0).?.char);
+}
+
+test "Form: render with far-away and oversized area does not overflow" {
+    var fields = [_]Field{Field.init("Name").withValidator(validators.notEmpty)};
+    var form = Form.init(&fields).withLabelWidth(std.math.maxInt(usize));
+    _ = form.validate();
+
+    var buf = try Buffer.init(std.testing.allocator, 10, 4);
+    defer buf.deinit();
+
+    const max = std.math.maxInt(u16);
+    form.render(&buf, .{ .x = max - 3, .y = max - 3, .width = max, .height = max });
+    form.render(&buf, .{ .x = 0, .y = 0, .width = max, .height = max });
+    try std.testing.expectEqual(@as(u21, 'N'), buf.getConst(0, 0).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.getConst(9, 0).?.char);
+}
+
+test "Form: insertChar and deleteChar clamp a cursor past the end" {
+    var fields = [_]Field{Field.init("Name")};
+    var form = Form.init(&fields);
+    defer form.deinit();
+
+    fields[0].value = "ab";
+    fields[0].cursor = 99;
+    try form.insertChar(std.testing.allocator, 'c');
+    try std.testing.expectEqualStrings("abc", fields[0].value);
+    try std.testing.expectEqual(3, fields[0].cursor);
+
+    fields[0].cursor = 99;
+    try form.deleteChar(std.testing.allocator);
+    try std.testing.expectEqualStrings("ab", fields[0].value);
+    try std.testing.expectEqual(2, fields[0].cursor);
+}
+
+test "Form: deleteChar removes a whole multibyte character" {
+    var fields = [_]Field{Field.init("Name")};
+    var form = Form.init(&fields);
+    defer form.deinit();
+
+    fields[0].value = "a世é";
+    fields[0].cursor = 6;
+    try form.deleteChar(std.testing.allocator);
+    try std.testing.expectEqualStrings("a世", fields[0].value);
+    try std.testing.expectEqual(4, fields[0].cursor);
+
+    try form.deleteChar(std.testing.allocator);
+    try std.testing.expectEqualStrings("a", fields[0].value);
+    try std.testing.expectEqual(1, fields[0].cursor);
+}
+
+test "Form: cursorLeft and cursorRight step whole characters" {
+    var fields = [_]Field{Field.init("Name")};
+    var form = Form.init(&fields);
+    fields[0].value = "a世b";
+    fields[0].cursor = 0;
+
+    form.cursorRight();
+    try std.testing.expectEqual(1, fields[0].cursor);
+    form.cursorRight();
+    try std.testing.expectEqual(4, fields[0].cursor);
+    form.cursorRight();
+    form.cursorRight();
+    try std.testing.expectEqual(5, fields[0].cursor);
+    form.cursorLeft();
+    form.cursorLeft();
+    try std.testing.expectEqual(1, fields[0].cursor);
+    form.cursorLeft();
+    form.cursorLeft();
+    try std.testing.expectEqual(0, fields[0].cursor);
+}
+
+test "Form: error line is clipped to the value column" {
+    var fields = [_]Field{Field.init("E")};
+    fields[0].validation_error = "bad-value-too-long";
+    const form = Form.init(&fields).withLabelWidth(1).withHelp(false);
+
+    var buf = try Buffer.init(std.testing.allocator, 12, 3);
+    defer buf.deinit();
+
+    form.render(&buf, .{ .x = 0, .y = 0, .width = 8, .height = 3 });
+    try std.testing.expectEqual(@as(u21, 'b'), buf.getConst(3, 1).?.char);
+    try std.testing.expectEqual(@as(u21, 'v'), buf.getConst(7, 1).?.char);
+    try std.testing.expectEqual(@as(u21, ' '), buf.getConst(8, 1).?.char);
 }
