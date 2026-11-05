@@ -1457,4 +1457,8 @@ test {
     _ = @import("widgets/markdown.zig");
     _ = @import("widgets/httpclient.zig");
     _ = @import("widgets/menu.zig");
+    _ = @import("widgets/form.zig");
+    _ = @import("widgets/metrics_dashboard.zig");
+    _ = @import("widgets/profiler.zig");
+    _ = @import("widgets/record_editor.zig");
 }
