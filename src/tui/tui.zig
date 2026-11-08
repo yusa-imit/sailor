@@ -1461,4 +1461,6 @@ test {
     _ = @import("widgets/metrics_dashboard.zig");
     _ = @import("widgets/profiler.zig");
     _ = @import("widgets/record_editor.zig");
+    _ = @import("widgets/taskrunner.zig");
+    _ = @import("widgets/terminal.zig");
 }
