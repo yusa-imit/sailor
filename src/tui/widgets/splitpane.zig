@@ -34,6 +34,7 @@
 const std = @import("std");
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;
+const assert = std.debug.assert;
 const layout_mod = @import("../layout.zig");
 const Rect = layout_mod.Rect;
 const Direction = layout_mod.Direction;
@@ -167,77 +168,107 @@ pub const SplitPane = struct {
         const divider_size: u16 = if (self.show_divider) 1 else 0;
         const usable_space = if (available > divider_size) available - divider_size else 0;
 
-        // Calculate raw first pane size from ratio
-        const split_ratio = if (std.math.isNan(self.split_ratio)) 0.0 else std.math.clamp(self.split_ratio, 0.0, 1.0);
-        var first_size: u16 = @intFromFloat(@as(f64, @floatFromInt(usable_space)) * split_ratio);
+        const sizes = self.constrainSizes(usable_space);
+        const first_size = sizes[0];
+        const second_size = sizes[1];
+        assert(@as(u32, first_size) + second_size <= usable_space);
+        assert(usable_space <= available);
+
+        // Build rectangles; offsets saturate so far-away areas cannot overflow u16.
+        const second_offset = first_size + divider_size; // <= available, cannot overflow
+        return switch (self.direction) {
+            .horizontal => [2]Rect{
+                Rect{ .x = area.x, .y = area.y, .width = first_size, .height = area.height },
+                Rect{
+                    .x = area.x +| second_offset,
+                    .y = area.y,
+                    .width = second_size,
+                    .height = area.height,
+                },
+            },
+            .vertical => [2]Rect{
+                Rect{ .x = area.x, .y = area.y, .width = area.width, .height = first_size },
+                Rect{
+                    .x = area.x,
+                    .y = area.y +| second_offset,
+                    .width = area.width,
+                    .height = second_size,
+                },
+            },
+        };
+    }
+
+    /// Split `usable_space` cells into `{ first, second }` sizes honouring the min/max
+    /// constraints. When both minimums cannot be met, the first pane's minimum wins and the
+    /// second pane receives the remainder (below its own minimum).
+    fn constrainSizes(self: SplitPane, usable_space: u16) [2]u16 {
+        const ratio = if (std.math.isNan(self.split_ratio))
+            0.0
+        else
+            std.math.clamp(self.split_ratio, 0.0, 1.0);
+        var first_size: u16 = @intFromFloat(@as(f64, @floatFromInt(usable_space)) * ratio);
 
         // Apply constraints to first pane
         first_size = @max(first_size, self.min_first_size);
         first_size = @min(first_size, self.max_first_size);
         first_size = @min(first_size, usable_space); // Can't exceed total
 
-        // Calculate second pane size
-        var second_size: u16 = if (usable_space > first_size) usable_space - first_size else 0;
+        var second_size: u16 = usable_space - first_size;
 
-        // Apply constraints to second pane (may need to adjust first pane)
+        // Second pane below its minimum: shrink the first pane, but never below its minimum.
         if (second_size < self.min_second_size) {
-            // Need to shrink first pane to meet second pane minimum
             const needed = self.min_second_size - second_size;
-            if (first_size >= needed) {
-                first_size -= needed;
-                second_size = self.min_second_size;
-            } else {
-                // Can't satisfy minimum — give what we can
-                second_size = usable_space - first_size;
-            }
+            const shrinkable = first_size -| self.min_first_size;
+            const shrink = @min(needed, shrinkable);
+            first_size -= shrink;
+            second_size += shrink;
         }
+        // Second pane above its maximum: grow the first pane.
         if (second_size > self.max_second_size) {
-            // Need to grow first pane (second exceeded max)
             const excess = second_size - self.max_second_size;
-            first_size = @min(first_size + excess, usable_space);
+            first_size = @min(first_size +| excess, usable_space);
             second_size = self.max_second_size;
         }
-
-        // Build rectangles
-        return switch (self.direction) {
-            .horizontal => [2]Rect{
-                Rect{ .x = area.x, .y = area.y, .width = first_size, .height = area.height },
-                Rect{ .x = area.x + first_size + divider_size, .y = area.y, .width = second_size, .height = area.height },
-            },
-            .vertical => [2]Rect{
-                Rect{ .x = area.x, .y = area.y, .width = area.width, .height = first_size },
-                Rect{ .x = area.x, .y = area.y + first_size + divider_size, .width = area.width, .height = second_size },
-            },
-        };
+        assert(@as(u32, first_size) + second_size <= usable_space);
+        assert(second_size <= self.max_second_size);
+        return .{ first_size, second_size };
     }
 
-    /// Render the split pane (just the divider if enabled)
+    /// Render the split pane (just the divider if enabled). The divider is clipped to
+    /// both `area` and the buffer.
     pub fn render(self: SplitPane, buf: *Buffer, area: Rect) void {
         if (!self.show_divider) return;
         if (area.width == 0 or area.height == 0) return;
 
         const panes = self.calculatePanes(area);
         const first_pane = panes[0];
+        const cell = buffer_mod.Cell{ .char = self.divider_char, .style = self.divider_style };
+        const area_right: u32 = @as(u32, area.x) + area.width;
+        const area_bottom: u32 = @as(u32, area.y) + area.height;
 
         switch (self.direction) {
             .horizontal => {
                 // Divider is vertical line between panes
-                const divider_x = first_pane.x + first_pane.width;
-                if (divider_x >= area.x + area.width) return; // No room
+                const divider_x: u32 = @as(u32, first_pane.x) + first_pane.width;
+                if (divider_x >= area_right) return; // No room
+                if (divider_x >= buf.width) return; // Beyond the buffer
 
+                const y_end: u16 = @intCast(@min(area_bottom, buf.height));
                 var y = area.y;
-                while (y < area.y + area.height) : (y += 1) {
-                    buf.set(divider_x, y, .{ .char = self.divider_char, .style = self.divider_style });
+                while (y < y_end) : (y += 1) {
+                    buf.set(@intCast(divider_x), y, cell);
                 }
             },
             .vertical => {
                 // Divider is horizontal line between panes
-                const divider_y = first_pane.y + first_pane.height;
-                if (divider_y >= area.y + area.height) return; // No room
+                const divider_y: u32 = @as(u32, first_pane.y) + first_pane.height;
+                if (divider_y >= area_bottom) return; // No room
+                if (divider_y >= buf.height) return; // Beyond the buffer
 
+                const x_end: u16 = @intCast(@min(area_right, buf.width));
                 var x = area.x;
-                while (x < area.x + area.width) : (x += 1) {
-                    buf.set(x, divider_y, .{ .char = self.divider_char, .style = self.divider_style });
+                while (x < x_end) : (x += 1) {
+                    buf.set(x, @intCast(divider_y), cell);
                 }
             },
         }
@@ -249,15 +280,15 @@ pub const SplitPane = struct {
     pub fn isOnDivider(self: SplitPane, area: Rect, x: u16, y: u16) bool {
         if (!self.show_divider) return false;
         if (area.width == 0 or area.height == 0) return false;
-        if (x < area.x or x >= area.x + area.width) return false;
-        if (y < area.y or y >= area.y + area.height) return false;
+        if (x < area.x or @as(u32, x) >= @as(u32, area.x) + area.width) return false;
+        if (y < area.y or @as(u32, y) >= @as(u32, area.y) + area.height) return false;
 
         const panes = self.calculatePanes(area);
         const first_pane = panes[0];
 
         return switch (self.direction) {
-            .horizontal => x == first_pane.x + first_pane.width,
-            .vertical => y == first_pane.y + first_pane.height,
+            .horizontal => @as(u32, x) == @as(u32, first_pane.x) + first_pane.width,
+            .vertical => @as(u32, y) == @as(u32, first_pane.y) + first_pane.height,
         };
     }
 
@@ -925,4 +956,53 @@ test "SplitPane.resizeAt preserves all other fields" {
     try std.testing.expectEqual(@as(u16, 30), resized.max_second_size);
     try std.testing.expectEqual('─', resized.divider_char);
     try std.testing.expectEqual(true, resized.show_divider);
+}
+
+test "SplitPane.calculatePanes far area saturates offsets instead of overflowing" {
+    const split = SplitPane.init();
+    const area = Rect{ .x = 65500, .y = 65500, .width = 100, .height = 100 };
+
+    const horizontal = split.calculatePanes(area);
+    try std.testing.expectEqual(@as(u16, 49), horizontal[0].width);
+    try std.testing.expectEqual(@as(u16, 65535), horizontal[1].x);
+    try std.testing.expectEqual(@as(u16, 50), horizontal[1].width);
+
+    const vertical = split.withDirection(.vertical).calculatePanes(area);
+    try std.testing.expectEqual(@as(u16, 49), vertical[0].height);
+    try std.testing.expectEqual(@as(u16, 65535), vertical[1].y);
+    try std.testing.expectEqual(@as(u16, 50), vertical[1].height);
+}
+
+test "SplitPane.render and isOnDivider survive extents past maxInt(u16)" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 10, 3);
+    defer buf.deinit();
+    const split = SplitPane.init();
+    const far = Rect{ .x = 65500, .y = 65500, .width = 100, .height = 100 };
+
+    split.render(&buf, far);
+    for (buf.cells) |cell| try std.testing.expectEqual(@as(u21, ' '), cell.char);
+
+    const full = Rect{ .x = 0, .y = 0, .width = 65535, .height = 65535 };
+    try std.testing.expect(split.isOnDivider(full, 32767, 100));
+    try std.testing.expect(!split.isOnDivider(full, 32766, 100));
+    try std.testing.expect(!split.isOnDivider(far, 65535, 65535));
+}
+
+test "SplitPane.render clips the divider to the buffer" {
+    const allocator = std.testing.allocator;
+    var buf = try Buffer.init(allocator, 20, 3);
+    defer buf.deinit();
+    const split = SplitPane.init(); // 11 wide: usable 10, first pane 5, divider at x = 5
+    const area = Rect{ .x = 0, .y = 0, .width = 11, .height = 100 };
+
+    split.render(&buf, area);
+
+    for (0..3) |row| {
+        for (0..20) |col| {
+            const expected: u21 = if (col == 5) '│' else ' ';
+            const cell = buf.getConst(@intCast(col), @intCast(row)).?;
+            try std.testing.expectEqual(expected, cell.char);
+        }
+    }
 }
