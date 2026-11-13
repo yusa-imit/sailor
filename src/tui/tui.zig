@@ -1463,4 +1463,5 @@ test {
     _ = @import("widgets/record_editor.zig");
     _ = @import("widgets/taskrunner.zig");
     _ = @import("widgets/terminal.zig");
+    _ = @import("widgets/textarea.zig");
 }

@@ -287,8 +287,6 @@ src/tui/widgets/sunburst_chart.zig|line_length|-|4
 src/tui/widgets/table.zig|line_length|-|5
 src/tui/widgets/taskrunner.zig|function_length|render|124
 src/tui/widgets/terminal.zig|line_length|-|1
-src/tui/widgets/textarea.zig|function_length|render|124
-src/tui/widgets/textarea.zig|line_length|-|5
 src/tui/widgets/theme_editor.zig|line_length|-|6
 src/tui/widgets/timeline.zig|line_length|-|1
 src/tui/widgets/timeseries.zig|function_length|render|177
