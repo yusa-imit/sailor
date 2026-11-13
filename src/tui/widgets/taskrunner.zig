@@ -1,6 +1,9 @@
 //! TaskRunner widget: displays async task status and progress.
 const std = @import("std");
+const assert = std.debug.assert;
+const maybe = @import("../../stdx.zig").maybe;
 const Allocator = std.mem.Allocator;
+const UnicodeWidth = @import("../../unicode.zig").UnicodeWidth;
 const Rect = @import("../layout.zig").Rect;
 const Buffer = @import("../buffer.zig").Buffer;
 const Style = @import("../style.zig").Style;
@@ -70,7 +73,7 @@ pub const TaskInfo = struct {
 /// Background task runner widget for parallel operation visualization
 pub const TaskRunner = struct {
     /// List of tasks to display
-    tasks: std.ArrayListUnmanaged(TaskInfo),
+    tasks: std.ArrayList(TaskInfo),
     /// Block widget for border and title
     block: ?Block,
     /// Display format
@@ -93,13 +96,13 @@ pub const TaskRunner = struct {
     /// Create a new task runner widget
     pub fn init(allocator: Allocator) !TaskRunner {
         return .{
-            .tasks = try std.ArrayListUnmanaged(TaskInfo).initCapacity(allocator, 8),
+            .tasks = try std.ArrayList(TaskInfo).initCapacity(allocator, 8),
             .block = null,
             .format = .normal,
             .symbols = StatusSymbols.default(),
             .show_progress_bars = true,
             .selected = null,
-            .selected_style = Style.init().setBold(true),
+            .selected_style = Style{ .bold = true },
             .pending_color = .yellow,
             .running_color = .blue,
             .completed_color = .green,
@@ -163,7 +166,7 @@ pub const TaskRunner = struct {
         }
     }
 
-    /// Remove completed/cancelled/failed tasks
+    /// Remove completed/cancelled/failed tasks. The selection is moved back into range.
     pub fn clearFinishedTasks(self: *TaskRunner) void {
         var i: usize = 0;
         while (i < self.tasks.items.len) {
@@ -174,6 +177,15 @@ pub const TaskRunner = struct {
                 i += 1;
             }
         }
+        if (self.selected) |index| {
+            if (self.tasks.items.len == 0) {
+                self.selected = null;
+            } else if (index >= self.tasks.items.len) {
+                self.selected = self.tasks.items.len - 1;
+            }
+        }
+        if (self.selected) |index| assert(index < self.tasks.items.len);
+        if (self.tasks.items.len == 0) assert(self.selected == null);
     }
 
     /// Select next task
@@ -225,7 +237,7 @@ pub const TaskRunner = struct {
     }
 
     /// Format elapsed time
-    fn formatElapsed(elapsed_ms: u64, buf: []u8) ![]const u8 {
+    fn formatElapsed(elapsed_ms: u64, buf: []u8) error{NoSpaceLeft}![]const u8 {
         const seconds = elapsed_ms / 1000;
         if (seconds < 60) {
             return std.fmt.bufPrint(buf, "{d}s", .{seconds});
@@ -240,7 +252,144 @@ pub const TaskRunner = struct {
         }
     }
 
-    /// Render the widget
+    /// Draw `text` on row `y` from column `x_start`, one cell per character (wide characters
+    /// take two, zero-width ones none), never at or past column `x_end`. Returns the column
+    /// after the last drawn character. Preconditions: `x_start <= x_end` and `x_end` is within
+    /// the buffer width.
+    fn drawText(
+        buf: *Buffer,
+        x_start: u32,
+        x_end: u32,
+        y: u16,
+        text: []const u8,
+        style: Style,
+    ) u32 {
+        assert(x_start <= x_end);
+        assert(x_end <= buf.width);
+
+        var x = x_start;
+        var i: usize = 0;
+        while (i < text.len and x < x_end) {
+            const char_len = std.unicode.utf8ByteSequenceLength(text[i]) catch 1;
+            if (i + char_len > text.len) break;
+            const codepoint = if (char_len == 1)
+                @as(u21, text[i])
+            else
+                std.unicode.utf8Decode(text[i .. i + char_len]) catch @as(u21, text[i]);
+            i += char_len;
+
+            const char_width = UnicodeWidth.charWidth(codepoint);
+            if (char_width == 0) continue;
+            if (x + char_width > x_end) break;
+            buf.set(@intCast(x), y, .{ .char = codepoint, .style = style });
+            x += char_width;
+        }
+        assert(x >= x_start);
+        assert(x <= x_end);
+        return x;
+    }
+
+    /// Draw the status line of one task on row `y` inside `clip`.
+    fn renderTaskLine(
+        self: TaskRunner,
+        buf: *Buffer,
+        clip: Rect,
+        y: u16,
+        task: TaskInfo,
+        is_selected: bool,
+        current_time_ms: u64,
+    ) void {
+        const x_end: u32 = @as(u32, clip.x) + clip.width;
+        const base_style = if (is_selected) self.selected_style else Style{};
+        var state_style = base_style;
+        state_style.fg = self.getStateColor(task.state);
+
+        var x = drawText(buf, clip.x, x_end, y, self.getStateSymbol(task.state), state_style);
+        x = drawText(buf, x, x_end, y, " ", base_style);
+        x = drawText(buf, x, x_end, y, task.name, base_style);
+        if (self.format == .compact) return;
+
+        if (task.progress) |progress| {
+            var progress_buf: [16]u8 = undefined;
+            const text = std.fmt.bufPrint(
+                &progress_buf,
+                " ({d}%)",
+                .{@min(progress, progress_percent_max)},
+            ) catch |err| switch (err) {
+                error.NoSpaceLeft => "",
+            };
+            x = drawText(buf, x, x_end, y, text, base_style);
+        }
+        if (self.format == .detailed) {
+            var elapsed_buf: [64]u8 = undefined;
+            const elapsed_ms = current_time_ms -| task.start_time_ms;
+            const text = formatElapsed(elapsed_ms, &elapsed_buf) catch |err| switch (err) {
+                error.NoSpaceLeft => "",
+            };
+            x = drawText(buf, x, x_end, y, " ", base_style);
+            x = drawText(buf, x, x_end, y, text, base_style);
+        }
+        assert(x <= x_end);
+    }
+
+    /// Draw the "  Error: message" line of a failed task on row `y` inside `clip`.
+    fn renderErrorLine(buf: *Buffer, clip: Rect, y: u16, message: []const u8) void {
+        const x_end: u32 = @as(u32, clip.x) + clip.width;
+        assert(y >= clip.y);
+        assert(y - clip.y < clip.height);
+
+        const error_style = Style{ .fg = .red };
+        const x = drawText(buf, clip.x, x_end, y, "  Error: ", error_style);
+        _ = drawText(buf, x, x_end, y, message, error_style);
+    }
+
+    /// Draw one task (status line, progress bar, error line) starting at row `y`.
+    /// Returns the next free row, which may lie at or past the end of `clip`.
+    fn renderTask(
+        self: TaskRunner,
+        buf: *Buffer,
+        clip: Rect,
+        y_start: u32,
+        task: TaskInfo,
+        is_selected: bool,
+        current_time_ms: u64,
+    ) u32 {
+        const y_end: u32 = @as(u32, clip.y) + clip.height;
+        assert(y_start < y_end);
+        assert(y_end <= buf.height);
+
+        var y = y_start;
+        self.renderTaskLine(buf, clip, @intCast(y), task, is_selected, current_time_ms);
+        y += 1;
+
+        if (self.show_progress_bars and task.state == .running and y < y_end) {
+            if (task.progress) |progress| {
+                const bar_x: u32 = @as(u32, clip.x) + progress_bar_indent;
+                const x_end: u32 = @as(u32, clip.x) + clip.width;
+                if (bar_x < x_end) {
+                    const gauge = (Gauge{}).withPercent(progress);
+                    gauge.render(buf, .{
+                        .x = @intCast(bar_x),
+                        .y = @intCast(y),
+                        .width = @intCast(@min(x_end - bar_x, progress_bar_width_max)),
+                        .height = 1,
+                    });
+                }
+                y += 1;
+            }
+        }
+
+        if (task.state == .failed and y < y_end) {
+            if (task.error_msg) |message| {
+                renderErrorLine(buf, clip, @intCast(y), message);
+                y += 1;
+            }
+        }
+        assert(y > y_start);
+        return y;
+    }
+
+    /// Render the widget. The area is clipped to the buffer; cells outside it are never touched.
     pub fn render(self: TaskRunner, buf: *Buffer, area: Rect, current_time_ms: u64) void {
         var render_area = area;
 
@@ -250,122 +399,31 @@ pub const TaskRunner = struct {
             render_area = block.inner(area);
         }
 
-        if (render_area.height == 0 or render_area.width == 0) return;
+        const buffer_area = Rect{ .x = 0, .y = 0, .width = buf.width, .height = buf.height };
+        maybe(render_area.width == 0 or render_area.height == 0);
+        const clip = render_area.intersection(buffer_area) orelse return;
+        if (clip.width == 0 or clip.height == 0) return;
 
-        var y = render_area.y;
-        const max_y = render_area.y + render_area.height;
-
+        const y_end: u32 = @as(u32, clip.y) + clip.height;
+        assert(y_end <= buf.height);
+        var y: u32 = clip.y;
         for (self.tasks.items, 0..) |task, idx| {
-            if (y >= max_y) break;
-
+            if (y >= y_end) break;
             const is_selected = if (self.selected) |sel| sel == idx else false;
-            const base_style = if (is_selected) self.selected_style else Style.init();
-            const color = self.getStateColor(task.state);
-            const symbol = self.getStateSymbol(task.state);
-            const state_style = base_style.setFg(color);
-
-            var line_buf: [256]u8 = undefined;
-            var line_pos: usize = 0;
-
-            // Symbol
-            for (symbol) |c| {
-                if (line_pos >= line_buf.len) break;
-                line_buf[line_pos] = c;
-                line_pos += 1;
-            }
-            if (line_pos < line_buf.len) {
-                line_buf[line_pos] = ' ';
-                line_pos += 1;
-            }
-
-            // Task name
-            for (task.name) |c| {
-                if (line_pos >= line_buf.len) break;
-                line_buf[line_pos] = c;
-                line_pos += 1;
-            }
-
-            // Add state info based on format
-            if (self.format != .compact) {
-                // Add progress percentage
-                if (task.progress) |prog| {
-                    const progress_str = std.fmt.bufPrint(
-                        line_buf[line_pos..],
-                        " ({d}%)",
-                        .{prog},
-                    ) catch "";
-                    line_pos += progress_str.len;
-                }
-
-                // Add elapsed time in detailed mode
-                if (self.format == .detailed) {
-                    const elapsed = current_time_ms -| task.start_time_ms;
-                    const time_str = formatElapsed(elapsed, line_buf[line_pos..]) catch "";
-                    if (time_str.len > 0) {
-                        if (line_pos < line_buf.len - 1) {
-                            line_buf[line_pos] = ' ';
-                            line_pos += 1;
-                        }
-                        for (time_str) |c| {
-                            if (line_pos >= line_buf.len) break;
-                            line_buf[line_pos] = c;
-                            line_pos += 1;
-                        }
-                    }
-                }
-            }
-
-            // Render task line
-            const line = line_buf[0..line_pos];
-            for (line, 0..) |c, x| {
-                if (x >= render_area.width) break;
-                const style = if (x < symbol.len) state_style else base_style;
-                buf.setCell(render_area.x + @as(u16, @intCast(x)), y, c, style);
-            }
-
-            y += 1;
-            if (y >= max_y) break;
-
-            // Show progress bar for running tasks
-            if (self.show_progress_bars and task.state == .running and task.progress != null) {
-                if (y >= max_y) break;
-
-                const gauge = Gauge.init(task.progress.? * 10); // 0-100 to 0-1000
-                gauge.render(buf, .{
-                    .x = render_area.x + 2,
-                    .y = y,
-                    .width = @min(render_area.width -| 2, 40),
-                    .height = 1,
-                });
-
-                y += 1;
-            }
-
-            // Show error message for failed tasks
-            if (task.state == .failed and task.error_msg != null) {
-                if (y >= max_y) break;
-
-                const error_style = Style.init().setFg(.red);
-                const prefix = "  Error: ";
-                for (prefix, 0..) |c, x| {
-                    if (x >= render_area.width) break;
-                    buf.setCell(render_area.x + @as(u16, @intCast(x)), y, c, error_style);
-                }
-
-                if (prefix.len < render_area.width) {
-                    const msg = task.error_msg.?;
-                    for (msg, 0..) |c, x| {
-                        const cell_x = prefix.len + x;
-                        if (cell_x >= render_area.width) break;
-                        buf.setCell(render_area.x + @as(u16, @intCast(cell_x)), y, c, error_style);
-                    }
-                }
-
-                y += 1;
-            }
+            y = self.renderTask(buf, clip, y, task, is_selected, current_time_ms);
         }
+        assert(y >= clip.y);
     }
 };
+
+/// Largest progress percentage that is displayed; larger values are clamped.
+const progress_percent_max: u8 = 100;
+
+/// Columns the progress bar is indented below its task line.
+const progress_bar_indent: u32 = 2;
+
+/// Widest progress bar, in columns.
+const progress_bar_width_max: u32 = 40;
 
 // ============================================================================
 // Tests
@@ -380,10 +438,11 @@ test "TaskRunner init and deinit" {
 }
 
 test "TaskRunner add task" {
+    var flag = false;
     var runner = try TaskRunner.init(std.testing.allocator);
     defer runner.deinit(std.testing.allocator);
 
-    const handle = TaskHandle{ .id = 1, .cancelled = undefined };
+    const handle = TaskHandle{ .id = 1, .cancelled = &flag };
     try runner.addTask(std.testing.allocator, handle, "Test Task", 1000);
 
     try std.testing.expectEqual(@as(usize, 1), runner.tasks.items.len);
@@ -392,10 +451,11 @@ test "TaskRunner add task" {
 }
 
 test "TaskRunner update task state" {
+    var flag = false;
     var runner = try TaskRunner.init(std.testing.allocator);
     defer runner.deinit(std.testing.allocator);
 
-    const handle = TaskHandle{ .id = 1, .cancelled = undefined };
+    const handle = TaskHandle{ .id = 1, .cancelled = &flag };
     try runner.addTask(std.testing.allocator, handle, "Test Task", 1000);
 
     runner.updateTask(1, .running, 50);
@@ -405,10 +465,11 @@ test "TaskRunner update task state" {
 }
 
 test "TaskRunner fail task" {
+    var flag = false;
     var runner = try TaskRunner.init(std.testing.allocator);
     defer runner.deinit(std.testing.allocator);
 
-    const handle = TaskHandle{ .id = 1, .cancelled = undefined };
+    const handle = TaskHandle{ .id = 1, .cancelled = &flag };
     try runner.addTask(std.testing.allocator, handle, "Test Task", 1000);
 
     runner.failTask(1, "Connection timeout");
@@ -418,12 +479,13 @@ test "TaskRunner fail task" {
 }
 
 test "TaskRunner clear finished tasks" {
+    var flag = false;
     var runner = try TaskRunner.init(std.testing.allocator);
     defer runner.deinit(std.testing.allocator);
 
-    const h1 = TaskHandle{ .id = 1, .cancelled = undefined };
-    const h2 = TaskHandle{ .id = 2, .cancelled = undefined };
-    const h3 = TaskHandle{ .id = 3, .cancelled = undefined };
+    const h1 = TaskHandle{ .id = 1, .cancelled = &flag };
+    const h2 = TaskHandle{ .id = 2, .cancelled = &flag };
+    const h3 = TaskHandle{ .id = 3, .cancelled = &flag };
 
     try runner.addTask(std.testing.allocator, h1, "Task 1", 1000);
     try runner.addTask(std.testing.allocator, h2, "Task 2", 2000);
@@ -441,12 +503,13 @@ test "TaskRunner clear finished tasks" {
 }
 
 test "TaskRunner selection navigation" {
+    var flag = false;
     var runner = try TaskRunner.init(std.testing.allocator);
     defer runner.deinit(std.testing.allocator);
 
-    const h1 = TaskHandle{ .id = 1, .cancelled = undefined };
-    const h2 = TaskHandle{ .id = 2, .cancelled = undefined };
-    const h3 = TaskHandle{ .id = 3, .cancelled = undefined };
+    const h1 = TaskHandle{ .id = 1, .cancelled = &flag };
+    const h2 = TaskHandle{ .id = 2, .cancelled = &flag };
+    const h3 = TaskHandle{ .id = 3, .cancelled = &flag };
 
     try runner.addTask(std.testing.allocator, h1, "Task 1", 1000);
     try runner.addTask(std.testing.allocator, h2, "Task 2", 2000);
@@ -522,13 +585,14 @@ test "TaskRunner format elapsed time" {
 }
 
 test "TaskRunner render compact format" {
+    var flag = false;
     var runner = try TaskRunner.init(std.testing.allocator);
     defer runner.deinit(std.testing.allocator);
 
     runner.format = .compact;
     runner.show_progress_bars = false;
 
-    const h1 = TaskHandle{ .id = 1, .cancelled = undefined };
+    const h1 = TaskHandle{ .id = 1, .cancelled = &flag };
     try runner.addTask(std.testing.allocator, h1, "Download file", 1000);
     runner.updateTask(1, .running, 50);
 
@@ -539,18 +603,19 @@ test "TaskRunner render compact format" {
     runner.render(&buffer, area, 2000);
 
     // First cell should contain the running symbol
-    const cell = buffer.getCell(0, 0);
+    const cell = buffer.getConst(0, 0).?;
     try std.testing.expect(cell.char != ' ');
 }
 
 test "TaskRunner render normal format" {
+    var flag = false;
     var runner = try TaskRunner.init(std.testing.allocator);
     defer runner.deinit(std.testing.allocator);
 
     runner.format = .normal;
     runner.show_progress_bars = true;
 
-    const h1 = TaskHandle{ .id = 1, .cancelled = undefined };
+    const h1 = TaskHandle{ .id = 1, .cancelled = &flag };
     try runner.addTask(std.testing.allocator, h1, "Process data", 1000);
     runner.updateTask(1, .running, 75);
 
@@ -561,17 +626,18 @@ test "TaskRunner render normal format" {
     runner.render(&buffer, area, 3000);
 
     // Check that something was rendered (non-empty cells)
-    const cell = buffer.getCell(0, 0);
+    const cell = buffer.getConst(0, 0).?;
     try std.testing.expect(cell.char != ' ');
 }
 
 test "TaskRunner render detailed format" {
+    var flag = false;
     var runner = try TaskRunner.init(std.testing.allocator);
     defer runner.deinit(std.testing.allocator);
 
     runner.format = .detailed;
 
-    const h1 = TaskHandle{ .id = 1, .cancelled = undefined };
+    const h1 = TaskHandle{ .id = 1, .cancelled = &flag };
     try runner.addTask(std.testing.allocator, h1, "Compile project", 1000);
     runner.updateTask(1, .running, 50);
 
@@ -582,20 +648,21 @@ test "TaskRunner render detailed format" {
     runner.render(&buffer, area, 5000);
 
     // Check rendering occurred
-    const cell = buffer.getCell(0, 0);
+    const cell = buffer.getConst(0, 0).?;
     try std.testing.expect(cell.char != ' ');
 }
 
 test "TaskRunner render with block border" {
+    var flag = false;
     var runner = try TaskRunner.init(std.testing.allocator);
     defer runner.deinit(std.testing.allocator);
 
     var block = (Block{});
-    block.setBorder(true);
-    block.setTitle("Background Tasks");
+    block.borders = .all;
+    block.title = "Background Tasks";
     runner.setBlock(block);
 
-    const h1 = TaskHandle{ .id = 1, .cancelled = undefined };
+    const h1 = TaskHandle{ .id = 1, .cancelled = &flag };
     try runner.addTask(std.testing.allocator, h1, "Task 1", 1000);
 
     var buffer = try Buffer.init(std.testing.allocator, 40, 10);
@@ -605,15 +672,16 @@ test "TaskRunner render with block border" {
     runner.render(&buffer, area, 2000);
 
     // Check that border was rendered (corners should be box-drawing chars)
-    const top_left = buffer.getCell(0, 0);
+    const top_left = buffer.getConst(0, 0).?;
     try std.testing.expect(top_left.char != ' ');
 }
 
 test "TaskRunner render failed task with error" {
+    var flag = false;
     var runner = try TaskRunner.init(std.testing.allocator);
     defer runner.deinit(std.testing.allocator);
 
-    const h1 = TaskHandle{ .id = 1, .cancelled = undefined };
+    const h1 = TaskHandle{ .id = 1, .cancelled = &flag };
     try runner.addTask(std.testing.allocator, h1, "Failed operation", 1000);
     runner.failTask(1, "Network error");
 
@@ -624,16 +692,17 @@ test "TaskRunner render failed task with error" {
     runner.render(&buffer, area, 2000);
 
     // Check that error message line was rendered
-    const cell = buffer.getCell(0, 0);
+    const cell = buffer.getConst(0, 0).?;
     try std.testing.expect(cell.char != ' ');
 }
 
 test "TaskRunner render with selection highlight" {
+    var flag = false;
     var runner = try TaskRunner.init(std.testing.allocator);
     defer runner.deinit(std.testing.allocator);
 
-    const h1 = TaskHandle{ .id = 1, .cancelled = undefined };
-    const h2 = TaskHandle{ .id = 2, .cancelled = undefined };
+    const h1 = TaskHandle{ .id = 1, .cancelled = &flag };
+    const h2 = TaskHandle{ .id = 2, .cancelled = &flag };
 
     try runner.addTask(std.testing.allocator, h1, "Task 1", 1000);
     try runner.addTask(std.testing.allocator, h2, "Task 2", 2000);
@@ -647,7 +716,7 @@ test "TaskRunner render with selection highlight" {
     runner.render(&buffer, area, 3000);
 
     // Check that first task is rendered with bold style
-    const cell = buffer.getCell(0, 0);
+    const cell = buffer.getConst(0, 0).?;
     try std.testing.expect(cell.style.bold);
 }
 
@@ -666,10 +735,11 @@ test "TaskRunner render empty task list" {
 }
 
 test "TaskRunner render zero-size area" {
+    var flag = false;
     var runner = try TaskRunner.init(std.testing.allocator);
     defer runner.deinit(std.testing.allocator);
 
-    const h1 = TaskHandle{ .id = 1, .cancelled = undefined };
+    const h1 = TaskHandle{ .id = 1, .cancelled = &flag };
     try runner.addTask(std.testing.allocator, h1, "Task", 1000);
 
     var buffer = try Buffer.init(std.testing.allocator, 40, 10);
@@ -680,4 +750,219 @@ test "TaskRunner render zero-size area" {
 
     // Should not crash with zero-size area
     try std.testing.expectEqual(@as(usize, 1), runner.tasks.items.len);
+}
+
+// ============================================================================
+// Regression tests (bug #75 batch 7)
+// ============================================================================
+
+fn expectRow(buffer: Buffer, y: u16, x_start: u16, expected: []const u8) !void {
+    for (expected, 0..) |char, offset| {
+        const x = x_start + @as(u16, @intCast(offset));
+        try std.testing.expectEqual(@as(u21, char), buffer.getChar(x, y));
+    }
+}
+
+test "TaskRunner render draws multibyte symbol as one cell" {
+    var flag = false;
+    var runner = try TaskRunner.init(std.testing.allocator);
+    defer runner.deinit(std.testing.allocator);
+
+    try runner.addTask(std.testing.allocator, .{ .id = 1, .cancelled = &flag }, "Job", 0);
+    runner.updateTask(1, .running, null);
+    var buffer = try Buffer.init(std.testing.allocator, 20, 3);
+    defer buffer.deinit();
+
+    runner.render(&buffer, .{ .x = 0, .y = 0, .width = 20, .height = 3 }, 0);
+
+    try std.testing.expectEqual(@as(u21, '▶'), buffer.getChar(0, 0));
+    try std.testing.expectEqual(@as(u21, ' '), buffer.getChar(1, 0));
+    try std.testing.expectEqual(Color.blue, buffer.getStyle(0, 0).fg.?);
+    try expectRow(buffer, 0, 2, "Job");
+    try std.testing.expectEqual(@as(?Color, null), buffer.getStyle(2, 0).fg);
+}
+
+test "TaskRunner render ascii symbols with progress and elapsed time" {
+    var flag = false;
+    var runner = try TaskRunner.init(std.testing.allocator);
+    defer runner.deinit(std.testing.allocator);
+    runner.symbols = StatusSymbols.ascii();
+    runner.format = .detailed;
+    runner.show_progress_bars = false;
+
+    try runner.addTask(std.testing.allocator, .{ .id = 1, .cancelled = &flag }, "Task", 1000);
+    runner.updateTask(1, .running, 50);
+    var buffer = try Buffer.init(std.testing.allocator, 30, 2);
+    defer buffer.deinit();
+
+    runner.render(&buffer, .{ .x = 0, .y = 0, .width = 30, .height = 2 }, 5000);
+
+    try expectRow(buffer, 0, 0, "> Task (50%) 4s");
+    try std.testing.expectEqual(@as(u21, ' '), buffer.getChar(15, 0));
+}
+
+test "TaskRunner render clamps progress above one hundred" {
+    var flag = false;
+    var runner = try TaskRunner.init(std.testing.allocator);
+    defer runner.deinit(std.testing.allocator);
+    runner.symbols = StatusSymbols.ascii();
+
+    try runner.addTask(std.testing.allocator, .{ .id = 1, .cancelled = &flag }, "Task", 0);
+    runner.updateTask(1, .running, 250);
+    var buffer = try Buffer.init(std.testing.allocator, 30, 3);
+    defer buffer.deinit();
+
+    runner.render(&buffer, .{ .x = 0, .y = 0, .width = 30, .height = 3 }, 0);
+
+    try expectRow(buffer, 0, 0, "> Task (100%)");
+    // The gauge is drawn two columns in and is full at one hundred percent.
+    try std.testing.expectEqual(@as(u21, '█'), buffer.getChar(2, 1));
+    try std.testing.expectEqual(@as(u21, '█'), buffer.getChar(29, 1));
+}
+
+test "TaskRunner render failed task shows error line in red" {
+    var flag = false;
+    var runner = try TaskRunner.init(std.testing.allocator);
+    defer runner.deinit(std.testing.allocator);
+    runner.symbols = StatusSymbols.ascii();
+
+    try runner.addTask(std.testing.allocator, .{ .id = 1, .cancelled = &flag }, "Op", 0);
+    runner.failTask(1, "Boom");
+    var buffer = try Buffer.init(std.testing.allocator, 30, 3);
+    defer buffer.deinit();
+
+    runner.render(&buffer, .{ .x = 0, .y = 0, .width = 30, .height = 3 }, 0);
+
+    try expectRow(buffer, 0, 0, "ERR Op");
+    try expectRow(buffer, 1, 0, "  Error: Boom");
+    try std.testing.expectEqual(Color.red, buffer.getStyle(9, 1).fg.?);
+}
+
+test "TaskRunner render keeps long names and clips to the area" {
+    var flag = false;
+    var runner = try TaskRunner.init(std.testing.allocator);
+    defer runner.deinit(std.testing.allocator);
+    runner.symbols = StatusSymbols.ascii();
+    runner.format = .compact;
+    const name = "a" ** 290;
+
+    try runner.addTask(std.testing.allocator, .{ .id = 1, .cancelled = &flag }, name, 0);
+    runner.updateTask(1, .running, null);
+    var buffer = try Buffer.init(std.testing.allocator, 300, 1);
+    defer buffer.deinit();
+    runner.render(&buffer, .{ .x = 0, .y = 0, .width = 300, .height = 1 }, 0);
+
+    try std.testing.expectEqual(@as(u21, 'a'), buffer.getChar(291, 0));
+    try std.testing.expectEqual(@as(u21, ' '), buffer.getChar(292, 0));
+
+    var narrow = try Buffer.init(std.testing.allocator, 10, 1);
+    defer narrow.deinit();
+    runner.render(&narrow, .{ .x = 0, .y = 0, .width = 4, .height = 1 }, 0);
+    try expectRow(narrow, 0, 0, "> aa");
+    try std.testing.expectEqual(@as(u21, ' '), narrow.getChar(4, 0));
+}
+
+test "TaskRunner render stops at the last row of the area" {
+    var flag = false;
+    var runner = try TaskRunner.init(std.testing.allocator);
+    defer runner.deinit(std.testing.allocator);
+    runner.symbols = StatusSymbols.ascii();
+
+    try runner.addTask(std.testing.allocator, .{ .id = 1, .cancelled = &flag }, "One", 0);
+    try runner.addTask(std.testing.allocator, .{ .id = 2, .cancelled = &flag }, "Two", 0);
+    runner.updateTask(1, .running, 40);
+    var buffer = try Buffer.init(std.testing.allocator, 20, 4);
+    defer buffer.deinit();
+
+    runner.render(&buffer, .{ .x = 0, .y = 0, .width = 20, .height = 1 }, 0);
+
+    try expectRow(buffer, 0, 0, "> One (40%)");
+    try std.testing.expectEqual(@as(u21, ' '), buffer.getChar(2, 1));
+    try std.testing.expectEqual(@as(u21, ' '), buffer.getChar(0, 1));
+}
+
+test "TaskRunner render inside block leaves the border intact" {
+    var flag = false;
+    var runner = try TaskRunner.init(std.testing.allocator);
+    defer runner.deinit(std.testing.allocator);
+    runner.symbols = StatusSymbols.ascii();
+    runner.format = .compact;
+    runner.setBlock(Block{});
+
+    try runner.addTask(std.testing.allocator, .{ .id = 1, .cancelled = &flag }, "LongTaskName", 0);
+    try runner.addTask(std.testing.allocator, .{ .id = 2, .cancelled = &flag }, "Two", 0);
+    var buffer = try Buffer.init(std.testing.allocator, 8, 3);
+    defer buffer.deinit();
+
+    runner.render(&buffer, .{ .x = 0, .y = 0, .width = 8, .height = 3 }, 0);
+
+    try std.testing.expectEqual(@as(u21, '┌'), buffer.getChar(0, 0));
+    try std.testing.expectEqual(@as(u21, '│'), buffer.getChar(0, 1));
+    try std.testing.expectEqual(@as(u21, '│'), buffer.getChar(7, 1));
+    try std.testing.expectEqual(@as(u21, '└'), buffer.getChar(0, 2));
+    try expectRow(buffer, 1, 1, "... Lo");
+}
+
+test "TaskRunner render far or oversized area does not overflow" {
+    var flag = false;
+    var runner = try TaskRunner.init(std.testing.allocator);
+    defer runner.deinit(std.testing.allocator);
+    runner.symbols = StatusSymbols.ascii();
+
+    try runner.addTask(std.testing.allocator, .{ .id = 1, .cancelled = &flag }, "Task", 0);
+    runner.updateTask(1, .running, 10);
+    try runner.addTask(std.testing.allocator, .{ .id = 2, .cancelled = &flag }, "Bad", 0);
+    runner.failTask(2, "Err");
+    var buffer = try Buffer.init(std.testing.allocator, 20, 6);
+    defer buffer.deinit();
+
+    runner.render(&buffer, .{ .x = 65530, .y = 65530, .width = 100, .height = 100 }, 0);
+    runner.render(&buffer, .{ .x = 3, .y = 65534, .width = 65535, .height = 65535 }, 0);
+    runner.render(&buffer, .{ .x = 65534, .y = 0, .width = 65535, .height = 65535 }, 0);
+    try std.testing.expectEqual(@as(u21, ' '), buffer.getChar(0, 0));
+    try std.testing.expectEqual(@as(u21, ' '), buffer.getChar(5, 3));
+
+    runner.render(&buffer, .{ .x = 2, .y = 1, .width = 65535, .height = 65535 }, 0);
+    try expectRow(buffer, 1, 2, "> Task (10%)");
+    try expectRow(buffer, 4, 4, "Error: Err");
+}
+
+test "TaskRunner clear finished tasks keeps selection in range" {
+    var flag = false;
+    var runner = try TaskRunner.init(std.testing.allocator);
+    defer runner.deinit(std.testing.allocator);
+
+    try runner.addTask(std.testing.allocator, .{ .id = 1, .cancelled = &flag }, "A", 0);
+    try runner.addTask(std.testing.allocator, .{ .id = 2, .cancelled = &flag }, "B", 0);
+    try runner.addTask(std.testing.allocator, .{ .id = 3, .cancelled = &flag }, "C", 0);
+    runner.selected = 2;
+    runner.updateTask(2, .completed, null);
+    runner.updateTask(3, .completed, null);
+
+    runner.clearFinishedTasks();
+    try std.testing.expectEqual(@as(usize, 1), runner.tasks.items.len);
+    try std.testing.expectEqual(@as(?usize, 0), runner.selected);
+
+    runner.updateTask(1, .cancelled, null);
+    runner.clearFinishedTasks();
+    try std.testing.expectEqual(@as(usize, 0), runner.tasks.items.len);
+    try std.testing.expectEqual(@as(?usize, null), runner.selected);
+}
+
+test "TaskRunner render does not highlight unselected rows" {
+    var flag = false;
+    var runner = try TaskRunner.init(std.testing.allocator);
+    defer runner.deinit(std.testing.allocator);
+
+    try runner.addTask(std.testing.allocator, .{ .id = 1, .cancelled = &flag }, "A", 0);
+    try runner.addTask(std.testing.allocator, .{ .id = 2, .cancelled = &flag }, "B", 0);
+    runner.selectNext();
+    runner.selectNext();
+    var buffer = try Buffer.init(std.testing.allocator, 20, 3);
+    defer buffer.deinit();
+
+    runner.render(&buffer, .{ .x = 0, .y = 0, .width = 20, .height = 3 }, 0);
+
+    try std.testing.expect(!buffer.getStyle(0, 0).bold);
+    try std.testing.expect(buffer.getStyle(0, 1).bold);
 }

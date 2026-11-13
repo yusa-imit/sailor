@@ -1,11 +1,13 @@
 //! Terminal widget for embedding shell sessions with scrollback and ANSI support.
 const std = @import("std");
 const assert = std.debug.assert;
+const maybe = @import("../../stdx.zig").maybe;
 const Buffer = @import("../buffer.zig").Buffer;
 const Rect = @import("../layout.zig").Rect;
 const Style = @import("../style.zig").Style;
 const Color = @import("../style.zig").Color;
 const Block = @import("block.zig").Block;
+const Borders = @import("block.zig").Borders;
 const UnicodeWidth = @import("../../unicode.zig").UnicodeWidth;
 
 /// Terminal widget for embedding shell sessions with scrollback and ANSI support
@@ -147,35 +149,38 @@ pub const TerminalWidget = struct {
 
     /// Scroll up by n lines
     pub fn scrollUp(self: *TerminalWidget, n: usize) void {
-        const max_offset = if (self.lines.items.len > self.height)
-            self.lines.items.len - self.height
-        else
-            0;
-        self.scroll_offset = @min(self.scroll_offset + n, max_offset);
+        const max_offset = self.lines.items.len -| self.height;
+        self.scroll_offset = @min(self.scroll_offset +| n, max_offset);
+        assert(self.scroll_offset <= max_offset);
+        maybe(self.scroll_offset == 0);
     }
 
     /// Scroll down by n lines
     pub fn scrollDown(self: *TerminalWidget, n: usize) void {
-        self.scroll_offset = if (self.scroll_offset > n)
-            self.scroll_offset - n
-        else
-            0;
+        const before = self.scroll_offset;
+        self.scroll_offset -|= n;
+        assert(self.scroll_offset <= before);
+        maybe(self.scroll_offset == 0);
     }
 
-    /// Get visible lines based on scroll offset
+    /// Get visible lines based on scroll offset. An offset past the scrollback (possible
+    /// after lines were trimmed) shows nothing rather than underflowing.
     pub fn visibleLines(self: TerminalWidget) []const []const u8 {
-        const start = if (self.scroll_offset < self.lines.items.len)
-            self.lines.items.len - self.scroll_offset - @min(self.height, self.lines.items.len)
-        else
-            0;
-
-        const end = if (self.scroll_offset == 0)
-            self.lines.items.len
-        else
-            self.lines.items.len - self.scroll_offset;
-
-        if (start >= end) return &.{};
+        const end = self.lines.items.len -| self.scroll_offset;
+        const start = end -| self.height;
+        assert(start <= end);
+        assert(end <= self.lines.items.len);
         return self.lines.items[start..end];
+    }
+
+    /// The block drawn around the output: the configured block, with `title` filling in a
+    /// missing block title. A title alone gives a default bordered block.
+    fn effectiveBlock(self: TerminalWidget) ?Block {
+        const title = self.title orelse return self.block;
+        var result = self.block orelse Block{};
+        if (result.title == null) result.title = title;
+        assert(result.title != null);
+        return result;
     }
 
     /// Draw one scrollback line, interpreting ANSI escape sequences.
@@ -233,34 +238,30 @@ pub const TerminalWidget = struct {
         }
     }
 
-    /// Render terminal to buffer
+    /// Render terminal to buffer. The text area is clipped to the buffer; every row of it is
+    /// cleared first, so a short line never leaves stale cells behind.
     pub fn render(self: TerminalWidget, buf: *Buffer, area: Rect) void {
         if (area.width == 0 or area.height == 0) return;
 
         var inner_area = area;
-        if (self.block) |blk| {
+        if (self.effectiveBlock()) |blk| {
             blk.render(buf, area);
             inner_area = blk.inner(area);
         }
 
-        if (inner_area.width == 0 or inner_area.height == 0) return;
+        const buffer_area = Rect{ .x = 0, .y = 0, .width = buf.width, .height = buf.height };
+        maybe(inner_area.width == 0 or inner_area.height == 0);
+        const clip = inner_area.intersection(buffer_area) orelse return;
+        if (clip.width == 0 or clip.height == 0) return;
+        assert(@as(u32, clip.x) + clip.width <= buf.width);
+        assert(@as(u32, clip.y) + clip.height <= buf.height);
 
-        // Get visible lines
         const visible = self.visibleLines();
-
-        // Render visible lines
-        for (visible, 0..) |line, idx| {
-            if (idx >= inner_area.height) break;
-            const y = inner_area.y + @as(u16, @intCast(idx));
-            self.renderLine(buf, inner_area, y, line);
-        }
-
-        // Fill remaining rows with spaces
-        if (visible.len < inner_area.height) {
-            for (visible.len..inner_area.height) |idx| {
-                const y = inner_area.y + @as(u16, @intCast(idx));
-                buf.fill(Rect{ .x = inner_area.x, .y = y, .width = inner_area.width, .height = 1 }, ' ', self.text_style);
-            }
+        for (0..clip.height) |row| {
+            const y: u16 = clip.y + @as(u16, @intCast(row));
+            const row_area = Rect{ .x = clip.x, .y = y, .width = clip.width, .height = 1 };
+            buf.fill(row_area, ' ', self.text_style);
+            if (row < visible.len) self.renderLine(buf, clip, y, visible[row]);
         }
     }
 };
@@ -521,10 +522,10 @@ test "Terminal widget withBlock" {
     var term = try TerminalWidget.init(testing.allocator);
     defer term.deinit();
 
-    const block = Block.init().withTitle("Custom Block");
+    const block = (Block{}).withTitle("Custom Block", .top_left);
     const term_with_block = term.withBlock(block);
 
-    try testing.expectEqualStrings("Custom Block", term_with_block.block.title);
+    try testing.expectEqualStrings("Custom Block", term_with_block.block.?.title.?);
 }
 
 test "Terminal widget withTitle" {
@@ -532,7 +533,7 @@ test "Terminal widget withTitle" {
     defer term.deinit();
 
     const term_titled = term.withTitle("My Terminal");
-    try testing.expectEqualStrings("My Terminal", term_titled.block.title);
+    try testing.expectEqualStrings("My Terminal", term_titled.title.?);
 }
 
 test "Terminal widget clear" {
@@ -563,12 +564,13 @@ test "Terminal widget scrollDown" {
     }
 
     // Scroll up first
+    // The offset is clamped to lines - height = 5.
     term.scrollUp(8);
-    try testing.expectEqual(@as(usize, 8), term.scroll_offset);
+    try testing.expectEqual(@as(usize, 5), term.scroll_offset);
 
     // Scroll down by 3
     term.scrollDown(3);
-    try testing.expectEqual(@as(usize, 5), term.scroll_offset);
+    try testing.expectEqual(@as(usize, 2), term.scroll_offset);
 
     // Scroll down beyond bottom (should clamp to 0)
     term.scrollDown(10);
@@ -640,4 +642,177 @@ test "AnsiParseState reset" {
     try testing.expectEqual(@as(u16, 0), state.cursor_y);
     try testing.expectEqual(@as(?Color, null), state.foreground);
     try testing.expectEqual(@as(?Color, null), state.background);
+}
+
+// Regression tests (bug #75 batch 7)
+
+fn addNumberedLines(term: *TerminalWidget, count: usize) !void {
+    for (0..count) |index| {
+        var line_buf: [32]u8 = undefined;
+        const line = try std.fmt.bufPrint(&line_buf, "Line {d}", .{index});
+        try term.addLine(line);
+    }
+}
+
+test "Terminal widget scrollback keeps the newest lines" {
+    var term = try TerminalWidget.init(testing.allocator);
+    defer term.deinit();
+    term = term.withMaxLines(3);
+
+    try addNumberedLines(&term, 10);
+
+    try testing.expectEqual(@as(usize, 3), term.lineCount());
+    try testing.expectEqualStrings("Line 7", term.lines.items[0]);
+    try testing.expectEqualStrings("Line 9", term.lines.items[2]);
+}
+
+test "Terminal widget scrollUp saturates on huge counts" {
+    var term = try TerminalWidget.init(testing.allocator);
+    defer term.deinit();
+    term = term.withSize(80, 3);
+    try addNumberedLines(&term, 10);
+
+    term.scrollUp(5);
+    term.scrollUp(std.math.maxInt(usize));
+
+    try testing.expectEqual(@as(usize, 7), term.scroll_offset);
+    term.scrollDown(std.math.maxInt(usize));
+    try testing.expectEqual(@as(usize, 0), term.scroll_offset);
+}
+
+test "Terminal widget visibleLines survives an offset beyond the scrollback" {
+    var term = try TerminalWidget.init(testing.allocator);
+    defer term.deinit();
+    term = term.withSize(80, 3);
+    try addNumberedLines(&term, 5);
+
+    term.scroll_offset = 4;
+    const near = term.visibleLines();
+    try testing.expectEqual(@as(usize, 1), near.len);
+    try testing.expectEqualStrings("Line 0", near[0]);
+
+    term.scroll_offset = 100;
+    try testing.expectEqual(@as(usize, 0), term.visibleLines().len);
+}
+
+test "Terminal widget visibleLines with fewer lines than rows" {
+    var term = try TerminalWidget.init(testing.allocator);
+    defer term.deinit();
+    term = term.withSize(80, 10);
+    try addNumberedLines(&term, 2);
+
+    const visible = term.visibleLines();
+    try testing.expectEqual(@as(usize, 2), visible.len);
+    try testing.expectEqualStrings("Line 0", visible[0]);
+    term.scroll_offset = 1;
+    try testing.expectEqual(@as(usize, 1), term.visibleLines().len);
+}
+
+test "Terminal widget render clears stale cells and draws text" {
+    var term = try TerminalWidget.init(testing.allocator);
+    defer term.deinit();
+    try term.addLine("ab");
+
+    var buf = try Buffer.init(testing.allocator, 10, 3);
+    defer buf.deinit();
+    buf.fill(.{ .x = 0, .y = 0, .width = 10, .height = 3 }, 'x', .{});
+
+    term.render(&buf, .{ .x = 0, .y = 0, .width = 10, .height = 3 });
+
+    try testing.expectEqual(@as(u21, 'a'), buf.getChar(0, 0));
+    try testing.expectEqual(@as(u21, 'b'), buf.getChar(1, 0));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(2, 0));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(9, 0));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(0, 2));
+}
+
+test "Terminal widget render never splits a wide character at the right edge" {
+    var term = try TerminalWidget.init(testing.allocator);
+    defer term.deinit();
+    try term.addLine("ab\u{4F60}");
+
+    var buf = try Buffer.init(testing.allocator, 6, 1);
+    defer buf.deinit();
+    buf.fill(.{ .x = 0, .y = 0, .width = 6, .height = 1 }, 'x', .{});
+
+    term.render(&buf, .{ .x = 0, .y = 0, .width = 3, .height = 1 });
+
+    try testing.expectEqual(@as(u21, 'b'), buf.getChar(1, 0));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(2, 0));
+    try testing.expectEqual(@as(u21, 'x'), buf.getChar(3, 0));
+}
+
+test "Terminal widget render far or oversized area does not overflow" {
+    var term = try TerminalWidget.init(testing.allocator);
+    defer term.deinit();
+    term = term.withBlock(Block{});
+    try addNumberedLines(&term, 4);
+
+    var buf = try Buffer.init(testing.allocator, 12, 6);
+    defer buf.deinit();
+    buf.fill(.{ .x = 0, .y = 0, .width = 12, .height = 6 }, 'x', .{});
+
+    term.render(&buf, .{ .x = 65530, .y = 65530, .width = 100, .height = 100 });
+    term.render(&buf, .{ .x = 3, .y = 65534, .width = 65535, .height = 65535 });
+    term.render(&buf, .{ .x = 65534, .y = 0, .width = 65535, .height = 65535 });
+    try testing.expectEqual(@as(u21, 'x'), buf.getChar(0, 0));
+    try testing.expectEqual(@as(u21, 'x'), buf.getChar(5, 3));
+
+    term = term.withBlock(Block{ .borders = Borders.none });
+    term.render(&buf, .{ .x = 2, .y = 1, .width = 65535, .height = 65535 });
+    try testing.expectEqual(@as(u21, 'L'), buf.getChar(2, 1));
+    try testing.expectEqual(@as(u21, '0'), buf.getChar(7, 1));
+    try testing.expectEqual(@as(u21, ' '), buf.getChar(8, 1));
+    try testing.expectEqual(@as(u21, 'x'), buf.getChar(1, 1));
+}
+
+test "Terminal widget render applies ANSI colors per character" {
+    var term = try TerminalWidget.init(testing.allocator);
+    defer term.deinit();
+    try term.addLine("\x1b[31mR\x1b[0mN");
+
+    var buf = try Buffer.init(testing.allocator, 4, 1);
+    defer buf.deinit();
+    term.render(&buf, .{ .x = 0, .y = 0, .width = 4, .height = 1 });
+
+    try testing.expectEqual(@as(u21, 'R'), buf.getChar(0, 0));
+    try testing.expectEqual(Color.red, buf.getStyle(0, 0).fg.?);
+    try testing.expectEqual(@as(u21, 'N'), buf.getChar(1, 0));
+    try testing.expectEqual(@as(?Color, null), buf.getStyle(1, 0).fg);
+}
+
+test "Terminal widget withTitle draws the title in the border" {
+    var term = try TerminalWidget.init(testing.allocator);
+    defer term.deinit();
+    term = term.withTitle("Term");
+
+    var buf = try Buffer.init(testing.allocator, 12, 4);
+    defer buf.deinit();
+    term.render(&buf, .{ .x = 0, .y = 0, .width = 12, .height = 4 });
+
+    try testing.expectEqual(@as(u21, '┌'), buf.getChar(0, 0));
+    var found = false;
+    for (0..12) |x| {
+        if (buf.getChar(@intCast(x), 0) == 'T') found = true;
+    }
+    try testing.expect(found);
+}
+
+test "Terminal widget withTitle keeps an explicit block" {
+    var term = try TerminalWidget.init(testing.allocator);
+    defer term.deinit();
+    term = term.withBlock(Block{ .borders = Borders.horizontal }).withTitle("Term");
+
+    var buf = try Buffer.init(testing.allocator, 12, 3);
+    defer buf.deinit();
+    try term.addLine("hello");
+    term.render(&buf, .{ .x = 0, .y = 0, .width = 12, .height = 3 });
+
+    // No left or right border: the text starts in column 0 of the middle row.
+    try testing.expectEqual(@as(u21, 'h'), buf.getChar(0, 1));
+    var found = false;
+    for (0..12) |x| {
+        if (buf.getChar(@intCast(x), 0) == 'T') found = true;
+    }
+    try testing.expect(found);
 }
