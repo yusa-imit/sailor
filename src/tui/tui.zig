@@ -1464,4 +1464,6 @@ test {
     _ = @import("widgets/taskrunner.zig");
     _ = @import("widgets/terminal.zig");
     _ = @import("widgets/textarea.zig");
+    _ = @import("widgets/splitpane.zig");
+    _ = @import("widgets/chunkedbuffer.zig");
 }
