@@ -10,7 +10,7 @@ pub const Violation = struct {
     file: []const u8,
     check: []const u8, // e.g. "line_length", "function_length", "missing_header",
     // "catch_unreachable", "panic", "debug_print", "time_usage", "crypto_random",
-    // "usize_in_wire_format", "unbounded_while"
+    // "usize_in_wire_format", "unbounded_while", "dark_widget_tests"
     name: []const u8, // function name for function_length; "-" for file-level checks
     actual: u32,
     baseline: u32,
@@ -239,6 +239,38 @@ pub fn countAssertionFreeTests(text: []const u8) u32 {
     }
     assert(violations <= tests_seen);
     return violations;
+}
+
+/// True if `text` declares at least one `test` block at the start of a line.
+pub fn hasTestBlock(text: []const u8) bool {
+    var line_start: usize = 0;
+    while (line_start < text.len) {
+        const end = lineEnd(text, line_start);
+        const line = std.mem.trimEnd(u8, text[line_start..end], " \t\r");
+        const is_decl = std.mem.startsWith(u8, line, "test ");
+        if (is_decl and std.mem.endsWith(u8, line, "{")) return true;
+        line_start = end + 1;
+    }
+    return false;
+}
+
+/// True if `root_text` contains `@import("widgets/<basename>")`. A widget whose tests no test
+/// root imports compiles none of them (bug #73, #75), so `tui.zig` must name every such file.
+pub fn importsWidget(root_text: []const u8, basename: []const u8) bool {
+    assert(basename.len > 0);
+    assert(std.mem.endsWith(u8, basename, ".zig"));
+    var search_start: usize = 0;
+    const needle = "@import(\"widgets/";
+    var iterations: u32 = 0;
+    while (std.mem.indexOfPos(u8, root_text, search_start, needle)) |pos| {
+        assert(iterations < 1_000_000);
+        iterations += 1;
+        const name_start = pos + needle.len;
+        const close = std.mem.indexOfPos(u8, root_text, name_start, "\"") orelse return false;
+        if (std.mem.eql(u8, root_text[name_start..close], basename)) return true;
+        search_start = close;
+    }
+    return false;
 }
 
 /// Counts struct-field declarations of the exact form `usize` type (patterns like
@@ -856,4 +888,19 @@ test "ratchet contract: actual over baseline is flagged as grown, actual under i
     try testing.expect(grown_actual > baseline);
     // ...but one that shrank below its recorded baseline must not be.
     try testing.expect(!(shrunk_actual > baseline));
+}
+
+test "hasTestBlock: detects a test declaration and ignores prose" {
+    try testing.expect(hasTestBlock("const a = 1;\ntest \"x\" {\n}\n"));
+    try testing.expect(!hasTestBlock("// test \"x\" {\nconst a = 1;\n"));
+    try testing.expect(!hasTestBlock(""));
+}
+
+test "importsWidget: exact basename match only" {
+    const root = "    _ = @import(\"widgets/block.zig\");\n    _ = @import(\"widgets/tabs.zig\");\n";
+    try testing.expect(importsWidget(root, "block.zig"));
+    try testing.expect(importsWidget(root, "tabs.zig"));
+    try testing.expect(!importsWidget(root, "lock.zig"));
+    try testing.expect(!importsWidget(root, "block.zig.zig"));
+    try testing.expect(!importsWidget("", "block.zig"));
 }
