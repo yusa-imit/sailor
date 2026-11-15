@@ -1,5 +1,7 @@
 //! ChunkedBuffer widget: renders large text via lazily fetched, callback-loaded line chunks.
 const std = @import("std");
+const assert = std.debug.assert;
+const UnicodeWidth = @import("../../unicode.zig").UnicodeWidth;
 const buffer_mod = @import("../buffer.zig");
 const Buffer = buffer_mod.Buffer;
 const layout_mod = @import("../layout.zig");
@@ -161,7 +163,7 @@ pub const ChunkedBuffer = struct {
         }
         truncated = display_text[0..end_byte];
 
-        buf.setString(area.x, area.y + y, truncated, self.text_style);
+        buf.setString(area.x, area.y +| y, truncated, self.text_style);
     }
 
     /// Render a single line with wrapping
@@ -194,8 +196,15 @@ pub const ChunkedBuffer = struct {
                 width_used += cp_width;
             }
 
+            if (chunk_end == byte_offset) {
+                // The next character is wider than the viewport: skip it rather than
+                // burning a row on an empty chunk.
+                const skip_len = std.unicode.utf8ByteSequenceLength(line_text[byte_offset]) catch 1;
+                byte_offset = @min(byte_offset + skip_len, line_text.len);
+                continue;
+            }
             const chunk = line_text[byte_offset..chunk_end];
-            buf.setString(area.x, area.y + y, chunk, self.text_style);
+            buf.setString(area.x, area.y +| y, chunk, self.text_style);
 
             byte_offset = chunk_end;
             y += 1;
@@ -204,21 +213,16 @@ pub const ChunkedBuffer = struct {
         return y;
     }
 
-    /// Calculate display width of a character
+    /// Calculate display width of a character, using the same table as `Buffer.setString`
+    /// so that truncation and wrapping agree with where cells are actually drawn.
     fn charWidth(cp_bytes: []const u8) usize {
         if (cp_bytes.len == 0) return 0;
         if (cp_bytes.len == 1) return 1; // ASCII
 
         const cp = std.unicode.utf8Decode(cp_bytes) catch return 1;
-
-        // Wide characters (CJK, emoji) take 2 cells
-        // This is a simplified check - real impl should use unicode width tables
-        if (cp >= 0x1F300 and cp <= 0x1F9FF) return 2; // Emoji
-        if (cp >= 0x4E00 and cp <= 0x9FFF) return 2; // CJK Unified Ideographs
-        if (cp >= 0x3000 and cp <= 0x303F) return 2; // CJK Symbols
-        if (cp >= 0xFF00 and cp <= 0xFFEF) return 2; // Fullwidth forms
-
-        return 1;
+        const width = UnicodeWidth.charWidth(cp);
+        assert(width <= 2);
+        return width;
     }
 };
 
@@ -841,8 +845,9 @@ test "ChunkedBuffer handles mixed ASCII and wide characters" {
 
     const line0 = buf.getLine(0, 0, 20);
     defer allocator.free(line0);
-    try testing.expect(std.mem.find(u8, line0, "Hello") != null);
-    try testing.expect(std.mem.find(u8, line0, "世界") != null);
+    // A wide character occupies its own cell plus one blank continuation cell, so
+    // `getLine` (one codepoint per cell) reads "世 界 " rather than "世界".
+    try testing.expectEqualStrings("Hello世 界 Test😀      ", line0);
 }
 
 // 7. Block Integration
@@ -871,4 +876,48 @@ test "ChunkedBuffer with block reduces inner area correctly" {
     // With borders, inner area is reduced by 2 in each dimension
     // Height: 10 - 2 = 8, so should render 8 lines
     try testing.expectEqual(@as(usize, 8), call_count);
+}
+
+test "ChunkedBuffer wrap skips a character wider than the viewport" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 1, 3);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 1, .height = 3 };
+    const cb = ChunkedBuffer.init(1).withWrap(true);
+
+    const Ctx = struct {
+        fn callback(line_index: usize, writer: anytype) !void {
+            _ = line_index;
+            try writer.writeAll("a世b");
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    try testing.expectEqual(@as(u21, 'a'), buf.getConst(0, 0).?.char);
+    try testing.expectEqual(@as(u21, 'b'), buf.getConst(0, 1).?.char);
+    try testing.expectEqual(@as(u21, ' '), buf.getConst(0, 2).?.char);
+}
+
+test "ChunkedBuffer truncation uses the same widths as Buffer.setString" {
+    const allocator = testing.allocator;
+    var buf = try Buffer.init(allocator, 6, 1);
+    defer buf.deinit();
+
+    const area = Rect{ .x = 0, .y = 0, .width = 6, .height = 1 };
+    const cb = ChunkedBuffer.init(1);
+
+    const Ctx = struct {
+        fn callback(line_index: usize, writer: anytype) !void {
+            _ = line_index;
+            try writer.writeAll("한국어abc"); // Hangul syllables are 2 cells wide
+        }
+    };
+
+    try cb.render(&buf, area, Ctx.callback, allocator);
+
+    const line0 = buf.getLine(0, 0, 6);
+    defer allocator.free(line0);
+    try testing.expectEqualStrings("한 국 어 ", line0);
 }
