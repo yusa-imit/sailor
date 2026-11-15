@@ -176,6 +176,25 @@ fn appendTestCounts(
     return files_seen;
 }
 
+/// Flags a `src/tui/widgets/<name>.zig` that declares tests but is not imported by `tui.zig`:
+/// such tests never compile (bugs #73 and #75). The baseline holds no entry, so any hit fails.
+fn appendDarkWidgetCount(
+    arena: std.mem.Allocator,
+    io: std.Io,
+    counts: *std.ArrayList(Count),
+    rel_path: []const u8,
+    widgets_root_text: []const u8,
+) !void {
+    const prefix = "src/tui/widgets/";
+    if (!std.mem.startsWith(u8, rel_path, prefix)) return;
+    const basename = rel_path[prefix.len..];
+    if (std.mem.indexOfScalar(u8, basename, '/') != null) return;
+    const text = try std.Io.Dir.cwd().readFileAlloc(io, rel_path, arena, .limited(file_bytes_max));
+    if (!tidy.hasTestBlock(text)) return;
+    const dark: u32 = if (tidy.importsWidget(widgets_root_text, basename)) 0 else 1;
+    try appendCount(arena, counts, rel_path, "dark_widget_tests", "-", dark);
+}
+
 /// Walks `src_dir` recursively for `.zig` files, plus the single `build_zig_path` file, and
 /// `tests_dir` for assertion-free tests, and returns every non-zero (file, check, name) count.
 fn collectCounts(
@@ -188,6 +207,14 @@ fn collectCounts(
     assert(src_dir.len > 0);
     assert(build_zig_path.len > 0);
     var counts: std.ArrayList(Count) = .empty;
+
+    const widgets_root_path = try joinRelPath(arena, src_dir, "tui/tui.zig");
+    const widgets_root_text = try std.Io.Dir.cwd().readFileAlloc(
+        io,
+        widgets_root_path,
+        arena,
+        .limited(file_bytes_max),
+    );
 
     var dir = try std.Io.Dir.cwd().openDir(io, src_dir, .{ .iterate = true });
     defer dir.close(io);
@@ -203,6 +230,7 @@ fn collectCounts(
         if (!std.mem.endsWith(u8, entry.basename, ".zig")) continue;
         const rel_path = try joinRelPath(arena, src_dir, entry.path);
         try appendFileCounts(arena, io, &counts, rel_path, false);
+        try appendDarkWidgetCount(arena, io, &counts, rel_path, widgets_root_text);
     }
 
     try appendFileCounts(arena, io, &counts, build_zig_path, true);
